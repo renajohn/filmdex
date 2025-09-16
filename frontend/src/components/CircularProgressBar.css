@@ -1,0 +1,47 @@
+/* Circular Progress Bar Styles */
+.circular-progress {
+  position: relative;
+  display: inline-block;
+}
+
+.circular-progress-svg {
+  transform: rotate(-90deg);
+}
+
+.circular-progress-bg {
+  fill: none;
+  stroke: #444;
+}
+
+.circular-progress-fill {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.5s ease-in-out;
+}
+
+.circular-progress-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
+}
+
+/* Size variations */
+.circular-progress.small .circular-progress-content {
+  font-size: 0.7rem;
+}
+
+.circular-progress.medium .circular-progress-content {
+  font-size: 0.8rem;
+}
+
+.circular-progress.large .circular-progress-content {
+  font-size: 1rem;
+}

@@ -1,0 +1,127 @@
+openapi: 3.0.0
+info:
+  title: Movie Collection API
+  version: 1.0.0
+paths:
+  /api/import/csv:
+    post:
+      summary: Upload a CSV file for import
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: 
+                  type: string
+                  format: binary
+      responses:
+        '202':
+          description: Accepted for processing.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  importId: 
+                    type: string
+                    format: uuid
+  /api/import/{id}:
+    get:
+      summary: Get the status of an import
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  unmatchedMovies:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        title:
+                          type: string
+                        originalTitle:
+                          type: string
+                        suggestions:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/Movie'
+        '404':
+          description: Import not found.
+  /api/import/resolve:
+    post:
+      summary: Resolve an unmatched movie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                importId:
+                  type: string
+                  format: uuid
+                unmatchedMovieTitle:
+                  type: string
+                resolvedMovie:
+                  $ref: '#/components/schemas/Movie'
+      responses:
+        '200':
+          description: OK
+
+components:
+  schemas:
+    Movie:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        year:
+          type: integer
+        director:
+          type: string
+        genre:
+          type: string
+        rating:
+          type: number
+        poster_url:
+          type: string
+        original_title:
+          type: string
+        original_language:
+          type: string
+        rotten_tomatoes_link:
+          type: string
+        imdb_link:
+          type: string
+        tmdb_link:
+          type: string
+        tmdb_rating:
+          type: number
+        price:
+          type: number
+        runtime:
+          type: integer
+        comments:
+          type: string
+        never_seen:
+          type: boolean

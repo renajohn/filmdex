@@ -1,0 +1,96 @@
+openapi: 3.0.0
+info:
+  title: Pokedex API
+  version: 1.0.0
+paths:
+  /movies/{id}/details:
+    get:
+      summary: Get movie details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: A movie with details from TMDB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MovieDetails'
+components:
+  schemas:
+    MovieDetails:
+      type: object
+      properties:
+        title:
+          type: string
+        plot:
+          type: string
+        genre:
+          type: string
+        imdb_rating:
+          type: number
+        rotten_tomatoes_rating:
+          type: number
+        year:
+          type: integer
+        format:
+          type: string
+        date_of_acquisition:
+          type: string
+        poster_path:
+          type: string
+        adult:
+          type: boolean
+        overview:
+          type: string
+        release_date:
+          type: string
+        genres:
+          type: array
+          items:
+            type: object
+        id:
+          type: integer
+        original_title:
+          type: string
+        original_language:
+          type: string
+        backdrop_path:
+          type: string
+        popularity:
+          type: number
+        vote_count:
+          type: integer
+        video:
+          type: boolean
+        vote_average:
+          type: number
+        credits:
+          type: object
+          properties:
+            cast:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  profile_path:
+                    type: string
+        videos:
+          type: object
+          properties:
+            results:
+              type: array
+              items:
+                type: object
+                properties:
+                  key:
+                    type: string
+                  site:
+                    type: string
+                  type:
+                    type: string

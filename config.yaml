@@ -1,0 +1,17 @@
+ingress: true
+ingress_port: 3001
+panel_icon: "mdi:movie-open"
+panel_title: "Movie Collection"
+
+options:
+  log_level: "info"
+  omdb_api_key: ""
+  tmdb_api_key: ""
+  max_upload_mb: 20
+  base_url: "http://localhost:3001"
+schema:
+  log_level: list(info|warn|error)
+  omdb_api_key: password?
+  tmdb_api_key: password?
+  max_upload_mb: int
+  base_url: str

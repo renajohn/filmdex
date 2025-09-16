@@ -1,0 +1,60 @@
+openapi: 3.0.0
+info:
+  title: Movie Collection API
+  version: 1.0.0
+paths:
+  /movies:
+    get:
+      summary: Get all movies
+      responses:
+        '200':
+          description: A list of movies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Movie'
+  /import:
+    post:
+      summary: Import movies from a Google Sheet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                googleSheetUrl:
+                  type: string
+      responses:
+        '200':
+          description: Movies imported successfully
+components:
+  schemas:
+    Movie:
+      type: object
+      properties:
+        title:
+          type: string
+        genre:
+          type: string
+        director:
+          type: string
+        cast:
+          type: array
+          items:
+            type: string
+        year:
+          type: integer
+        format:
+          type: string
+        imdb_rating:
+          type: number
+        rotten_tomato_rating:
+          type: integer
+        plot:
+          type: string
+        acquired_date:
+          type: string
+          format: date

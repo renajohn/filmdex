@@ -1,0 +1,109 @@
+.cog-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.cog-button {
+  background: #2a2a2a;
+  border: 2px solid #444;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  padding: 12px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+}
+
+.cog-button:hover {
+  background: #333;
+  border-color: #007bff;
+  transform: rotate(90deg);
+}
+
+.cog-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.cog-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  min-width: 200px;
+  z-index: 1000;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.cog-menu-item {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 12px 16px;
+  text-align: left;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.cog-menu-item:hover {
+  background: #2a2a2a;
+}
+
+.cog-menu-item:focus {
+  outline: none;
+  background: #2a2a2a;
+}
+
+.menu-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+/* Animation for dropdown */
+.cog-dropdown-menu {
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .cog-dropdown-menu {
+    right: -50px;
+    min-width: 180px;
+  }
+  
+  .cog-menu-item {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+  
+  .menu-icon {
+    font-size: 14px;
+    width: 18px;
+  }
+}

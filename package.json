@@ -1,0 +1,27 @@
+{
+    "name": "FilmDex",
+    "version": "0.0.1",
+    "description": "Interactive index for physical movies (DVD, Blu-ray, 4K UHD) with a sleek digital library that catalogs and enriches your personal collection.",
+    "main": "index.js",
+    "author": "Renault John Lecoultre",
+    "license": "MIT",
+    "scripts": {
+        "build": "node build.js",
+        "build:dev": "node build.js dev",
+        "build:prod": "node build.js prod",
+        "start": "cd dist && ./start.sh",
+        "dev": "concurrently --kill-others-on-fail \"npm run dev:backend\" \"npm run dev:frontend\"",
+        "dev:frontend": "cd frontend && BROWSER=none npm start",
+        "dev:backend": "nodemon --watch backend/src --watch backend/index.js --watch data --watch deployment.dev.json --delay 2 --exec \"node dev-backend.js\"",
+        "test:local": "npm run build:dev && npm start",
+        "test:prod": "npm run build:prod && npm start",
+        "docker:build": "DOCKER_BUILD=1 cd dist && docker build -t filmdex:latest .",
+        "docker:run": "cd dist && docker run -p 3001:3001 -v $(pwd)/../data:/data $(if [ -f ../.env ]; then echo '--env-file ../.env'; fi) $(if [ ! -z \"$TMDB_API_KEY\" ]; then echo '-e TMDB_API_KEY=\"$TMDB_API_KEY\"'; fi) $(if [ ! -z \"$OMDB_API_KEY\" ]; then echo '-e OMDB_API_KEY=\"$OMDB_API_KEY\"'; fi) filmdex:latest",
+        "clean": "rm -rf dist",
+        "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2",
+        "nodemon": "^3.0.2"
+    }
+}

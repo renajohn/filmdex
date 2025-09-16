@@ -1,0 +1,94 @@
+openapi: 3.0.0
+info:
+  title: Pokedex API
+  version: 1.0.0
+paths:
+  /api/movies/search:
+    get:
+      summary: Search for movies on TMDB
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of movies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Movie'
+  /api/movies:
+    post:
+      summary: Add a new movie to the collection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Movie'
+      responses:
+        '201':
+          description: Movie created
+components:
+  schemas:
+    Movie:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        original_title:
+          type: string
+        original_language:
+          type: string
+        year:
+          type: number
+        release_date:
+          type: string
+          format: date
+        director:
+          type: string
+        genre:
+          type: string
+        cast:
+          type: array
+          items:
+            type: string
+        format:
+          type: string
+        imdb_rating:
+          type: number
+        rotten_tomato_rating:
+          type: integer
+        rotten_tomatoes_link:
+          type: string
+        imdb_link:
+          type: string
+        tmdb_link:
+          type: string
+        tmdb_rating:
+          type: number
+        price:
+          type: number
+        runtime:
+          type: integer
+        plot:
+          type: string
+        comments:
+          type: string
+        never_seen:
+          type: boolean
+        acquired_date:
+          type: string
+          format: date
+        overview:
+          type: string
+        poster_path:
+          type: string
+        spreadsheet_fields:
+          type: object

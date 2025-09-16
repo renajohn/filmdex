@@ -1,0 +1,6 @@
+{
+    "data_path": "/data",
+    "platform": "docker",
+    "port": 3001,
+    "deployment": "prod"
+}

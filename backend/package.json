@@ -1,0 +1,25 @@
+{
+  "dependencies": {
+    "axios": "^1.12.0",
+    "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "multer": "^2.0.2",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.1.4"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js --deployment=../deployment.dev.json",
+    "prod": "node index.js --deployment=../deployment.prod.json",
+    "test": "jest --setupFilesAfterEnv=./tests/setup.js"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFilesAfterEnv": ["./tests/setup.js"]
+  }
+}

@@ -1,0 +1,5 @@
+{
+    "data_path": "../data",
+    "platform": "localhost",
+    "deployment": "dev"
+}
