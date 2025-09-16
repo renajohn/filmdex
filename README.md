@@ -28,7 +28,7 @@ A modern web application for managing and searching your physical movie collecti
 1. **Clone the repository:**
    ```bash
    git clone <repository-url>
-   cd pokedex
+   cd filmdex
    ```
 
 2. **Install all dependencies:**
