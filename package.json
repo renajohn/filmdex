@@ -15,7 +15,11 @@
         "dev:backend": "nodemon --watch backend/src --watch backend/index.js --watch data --watch deployment.dev.json --delay 2 --exec \"node dev-backend.js\"",
         "test:local": "npm run build:dev && npm start",
         "test:prod": "npm run build:prod && npm start",
-        "docker:build": "DOCKER_BUILD=1 cd dist && docker build -t filmdex:latest .",
+        "version": "node scripts/get-version.js",
+        "release": "node scripts/create-release.js",
+        "docker:build": "DOCKER_BUILD=1 cd dist && docker buildx build --platform linux/amd64,linux/arm64 -t filmdex:latest --load .",
+        "docker:build:ghcr": "DOCKER_BUILD=1 cd dist && docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/renajohn/filmdex:latest -t ghcr.io/renajohn/filmdex:$(npm run version --silent) --push .",
+        "docker:publish": "npm run docker:build:ghcr",
         "docker:run": "cd dist && docker run -p 3001:3001 -v $(pwd)/../data:/data $(if [ -f ../.env ]; then echo '--env-file ../.env'; fi) $(if [ ! -z \"$TMDB_API_KEY\" ]; then echo '-e TMDB_API_KEY=\"$TMDB_API_KEY\"'; fi) $(if [ ! -z \"$OMDB_API_KEY\" ]; then echo '-e OMDB_API_KEY=\"$OMDB_API_KEY\"'; fi) filmdex:latest",
         "clean": "rm -rf dist",
         "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install"
