@@ -624,8 +624,7 @@ const ImportService = {
           console.log(`Processing actor ${i}: ${actor.name} (ID: ${actor.id}, profile: ${actor.profile_path})`);
           const localProfilePath = await imageService.downloadProfile(
             actor.profile_path, 
-            tmdbId, 
-            actor.id !== undefined ? actor.id : `actor_${i}` // Use order index as fallback if actor.id is undefined (but not if it's 0)
+            tmdbId
           );
           
           castMembers.push({
