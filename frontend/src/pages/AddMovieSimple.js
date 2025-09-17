@@ -15,7 +15,7 @@ const AddMovieSimple = () => {
   const [formData, setFormData] = useState({
     title: '',
     year: '',
-    format: 'Blu-ray 4k',
+    format: 'Blu-ray 4K',
     price: '',
     acquired_date: new Date().toISOString().split('T')[0],
     comments: '',
@@ -140,7 +140,7 @@ const AddMovieSimple = () => {
                 setFormData({
                   title: '',
                   year: '',
-                  format: 'Blu-ray 4k',
+                  format: 'Blu-ray 4K',
                   price: '',
                   acquired_date: new Date().toISOString().split('T')[0],
                   comments: '',

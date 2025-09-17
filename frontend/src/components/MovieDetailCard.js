@@ -153,6 +153,31 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
     return Math.min(Math.max((parseFloat(rating) / maxRating) * 100, 0), 100);
   };
 
+  const getRatingColor = (rating, maxRating = 10) => {
+    if (!rating || rating === '-') return '#3a3a3a';
+    
+    const percentage = (parseFloat(rating) / maxRating) * 100;
+    
+    // Red to green continuum based on score
+    if (percentage >= 80) {
+      return '#22c55e'; // Excellent - bright green
+    } else if (percentage >= 70) {
+      return '#4ade80'; // Very good - medium green
+    } else if (percentage >= 60) {
+      return '#6ee7b7'; // Good - light green
+    } else if (percentage >= 50) {
+      return '#86efac'; // Fair - pale green
+    } else if (percentage >= 40) {
+      return '#a7f3d0'; // Below average - very pale green
+    } else if (percentage >= 30) {
+      return '#fbbf24'; // Poor - amber
+    } else if (percentage >= 20) {
+      return '#f59e0b'; // Very poor - orange
+    } else {
+      return '#ef4444'; // Terrible - red
+    }
+  };
+
 
   const getPosterUrl = (posterPath) => {
     if (!posterPath) return null;
@@ -281,7 +306,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                     >
                       <CircularProgressBar 
                         percentage={getRatingPercentage(tmdb_rating, 10)} 
-                        color="#01b4e4"
+                        color={getRatingColor(tmdb_rating, 10)}
                         size="large"
                         className="tmdb-progress"
                       >
@@ -300,7 +325,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                     >
                       <CircularProgressBar 
                         percentage={getRatingPercentage(imdb_rating, 10)} 
-                        color="#f5c518"
+                        color={getRatingColor(imdb_rating, 10)}
                         size="large"
                         className="imdb-progress"
                       >
@@ -319,7 +344,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                     >
                       <CircularProgressBar 
                         percentage={getRatingPercentage(rotten_tomatoes_rating, 100)} 
-                        color="#fa320a"
+                        color={getRatingColor(rotten_tomatoes_rating, 100)}
                         size="large"
                         className="rt-progress"
                       >

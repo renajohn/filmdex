@@ -10,13 +10,15 @@
 
 .circular-progress-bg {
   fill: none;
-  stroke: #444;
+  stroke: #3a3a3a;
+  stroke-width: 2;
 }
 
 .circular-progress-fill {
   fill: none;
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.5s ease-in-out;
+  stroke-width: 2;
+  transition: stroke-dashoffset 0.8s ease-in-out;
 }
 
 .circular-progress-content {
@@ -28,8 +30,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  color: white;
+  font-weight: 600;
+  color: #f8f9fa;
   line-height: 1;
 }
 

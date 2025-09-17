@@ -218,6 +218,59 @@ const MovieSearch = forwardRef(({ refreshTrigger }, ref) => {
     return Math.min(Math.max((parseFloat(rating) / maxRating) * 100, 0), 100);
   };
 
+  const getRatingColor = (rating, maxRating = 10) => {
+    if (!rating || rating === 'N/A') return '#3a3a3a';
+    
+    const percentage = (parseFloat(rating) / maxRating) * 100;
+    
+    // Red to green continuum based on score
+    if (percentage >= 80) {
+      return '#22c55e'; // Excellent - bright green
+    } else if (percentage >= 70) {
+      return '#4ade80'; // Very good - medium green
+    } else if (percentage >= 60) {
+      return '#6ee7b7'; // Good - light green
+    } else if (percentage >= 50) {
+      return '#86efac'; // Fair - pale green
+    } else if (percentage >= 40) {
+      return '#a7f3d0'; // Below average - very pale green
+    } else if (percentage >= 30) {
+      return '#fbbf24'; // Poor - amber
+    } else if (percentage >= 20) {
+      return '#f59e0b'; // Very poor - orange
+    } else {
+      return '#ef4444'; // Terrible - red
+    }
+  };
+
+  const getCombinedScore = (movie) => {
+    const ratings = [];
+    
+    // Add TMDB rating (weighted 40%)
+    if (movie.tmdb_rating && movie.tmdb_rating !== 'N/A') {
+      ratings.push({ score: parseFloat(movie.tmdb_rating), weight: 0.4, max: 10 });
+    }
+    
+    // Add IMDB rating (weighted 35%)
+    if (movie.imdb_rating && movie.imdb_rating !== 'N/A') {
+      ratings.push({ score: parseFloat(movie.imdb_rating), weight: 0.35, max: 10 });
+    }
+    
+    // Add Rotten Tomatoes rating (weighted 25%, convert to 10-point scale)
+    if (movie.rotten_tomato_rating && movie.rotten_tomato_rating !== 'N/A') {
+      const rtScore = parseFloat(movie.rotten_tomato_rating) / 10; // Convert % to 10-point scale
+      ratings.push({ score: rtScore, weight: 0.25, max: 10 });
+    }
+    
+    if (ratings.length === 0) return null;
+    
+    // Calculate weighted average
+    const totalWeight = ratings.reduce((sum, rating) => sum + rating.weight, 0);
+    const weightedSum = ratings.reduce((sum, rating) => sum + (rating.score * rating.weight), 0);
+    
+    return weightedSum / totalWeight;
+  };
+
   const formatRating = (rating) => {
     return rating ? rating.toString() : '-';
   };
@@ -304,39 +357,58 @@ const MovieSearch = forwardRef(({ refreshTrigger }, ref) => {
                 </div>
                 
                 <div className="movie-info-compact">
-                  <div className="movie-title-compact">
+                  <div className="movie-header-compact">
                     <h4 title={movie.title}>{movie.title}</h4>
-                    {(movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year) && 
-                      <span className="movie-year">({movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year})</span>
-                    }
-                    {movie.format && <span className="format-badge">{movie.format}</span>}
+                    <div className="movie-meta">
+                      {(movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year) && 
+                        <span className="movie-year">({movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year})</span>
+                      }
+                      {movie.format && <span className="format-badge">{movie.format}</span>}
+                    </div>
                   </div>
                   
-                  
-                  <div className="movie-ratings-compact">
-                    {movie.imdb_rating && (
-                      <div className="rating-item-compact" title={`IMDB Rating: ${movie.imdb_rating}/10`}>
-                        <CircularProgressBar 
-                          percentage={getRatingPercentage(movie.imdb_rating, 10)} 
-                          color="#f5c518"
-                          size="small"
-                          className="imdb-progress"
-                        />
-                        <span className="rating-text">{formatRating(movie.imdb_rating)}</span>
-                      </div>
-                    )}
+                  <div className="movie-content-compact">
+                    <div className="movie-details-left">
+                      {movie.director && (
+                        <div className="detail-row">
+                          <span className="detail-label">Directed by</span>
+                          <span className="detail-value">{movie.director}</span>
+                        </div>
+                      )}
+                      
+                      {movie.genres && movie.genres.length > 0 && (
+                        <div className="detail-row">
+                          <span className="detail-label">Genres</span>
+                          <span className="detail-value">{movie.genres.join(', ')}</span>
+                        </div>
+                      )}
+                    </div>
                     
-                    {movie.rotten_tomato_rating && (
-                      <div className="rating-item-compact" title={`Rotten Tomatoes: ${movie.rotten_tomato_rating}%`}>
-                        <CircularProgressBar 
-                          percentage={getRatingPercentage(movie.rotten_tomato_rating, 100)} 
-                          color="#fa320a"
-                          size="small"
-                          className="rt-progress"
-                        />
-                        <span className="rating-text">{formatPercentage(movie.rotten_tomato_rating)}</span>
-                      </div>
-                    )}
+                    <div className="movie-details-center">
+                      {movie.runtime && (
+                        <div className="detail-row">
+                          <span className="detail-label">Runtime</span>
+                          <span className="detail-value">{movie.runtime}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="movie-details-right">
+                      {(() => {
+                        const combinedScore = getCombinedScore(movie);
+                        if (combinedScore) {
+                          return (
+                            <div className="detail-row">
+                              <span className="detail-label">Score</span>
+                              <span className="detail-value score-value" style={{ color: getRatingColor(combinedScore, 10) }}>
+                                {combinedScore.toFixed(1)}/10
+                              </span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
                   </div>
                 </div>
               </div>

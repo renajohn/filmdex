@@ -1,6 +1,6 @@
 .import-page {
   min-height: 100vh;
-  background-color: #f8f9fa;
+  background: transparent;
   padding: 20px 0;
 }
 
@@ -16,7 +16,7 @@
 }
 
 .import-header h1 {
-  color: #333;
+  color: #f8f9fa;
   margin-bottom: 30px;
   font-size: 2.5rem;
 }
@@ -51,8 +51,8 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: #e9ecef;
-  color: #6c757d;
+  background-color: #3a3a3a;
+  color: #b8c5d1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -62,27 +62,27 @@
 }
 
 .step.active .step-number {
-  background-color: #007bff;
-  color: white;
+  background: linear-gradient(135deg, #a8d8ea, #7bc4d4);
+  color: #1a1a1a;
 }
 
 .step.completed .step-number {
-  background-color: #28a745;
-  color: white;
+  background: linear-gradient(135deg, #a8e6cf, #7dd3b0);
+  color: #1a1a1a;
 }
 
 .step-label {
   font-size: 14px;
-  color: #6c757d;
+  color: #b8c5d1;
   font-weight: 500;
 }
 
 .step.active .step-label {
-  color: #007bff;
+  color: #a8d8ea;
 }
 
 .step.completed .step-label {
-  color: #28a745;
+  color: #a8e6cf;
 }
 
 .step:not(:last-child)::after {
@@ -92,12 +92,12 @@
   left: 50%;
   width: 100%;
   height: 2px;
-  background-color: #e9ecef;
+  background-color: #3a3a3a;
   z-index: -1;
 }
 
 .step.completed:not(:last-child)::after {
-  background-color: #28a745;
+  background: linear-gradient(135deg, #a8e6cf, #7dd3b0);
 }
 
 .error-message {
@@ -105,11 +105,11 @@
 }
 
 .error-content {
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
+  background: linear-gradient(135deg, #ffb3ba, #ff9aa2);
+  border: 1px solid #ff9aa2;
+  color: #1a1a1a;
   padding: 15px 20px;
-  border-radius: 6px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -127,7 +127,7 @@
   background: none;
   border: none;
   font-size: 20px;
-  color: #721c24;
+  color: #1a1a1a;
   cursor: pointer;
   padding: 0;
   width: 24px;
@@ -138,15 +138,16 @@
 }
 
 .error-close:hover {
-  background-color: rgba(114, 28, 36, 0.1);
+  background-color: rgba(26, 26, 26, 0.1);
   border-radius: 50%;
 }
 
 .import-content {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  background: linear-gradient(135deg, #2d2d2d 0%, #3a3a3a 100%);
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.3);
   overflow: hidden;
+  border: 1px solid #3a3a3a;
 }
 
 .processing-step {
@@ -162,8 +163,8 @@
 .spinner {
   width: 50px;
   height: 50px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #007bff;
+  border: 4px solid #3a3a3a;
+  border-top: 4px solid #a8d8ea;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 30px;
@@ -175,13 +176,13 @@
 }
 
 .processing-content h3 {
-  color: #333;
+  color: #f8f9fa;
   margin-bottom: 15px;
   font-size: 24px;
 }
 
 .processing-content p {
-  color: #666;
+  color: #b8c5d1;
   line-height: 1.5;
   margin-bottom: 10px;
 }
@@ -202,30 +203,33 @@
 }
 
 .complete-content h3 {
-  color: #28a745;
+  color: #a8e6cf;
   margin-bottom: 15px;
   font-size: 28px;
 }
 
 .complete-content p {
-  color: #666;
+  color: #b8c5d1;
   line-height: 1.5;
   margin-bottom: 30px;
 }
 
 .start-over-button {
-  background-color: #007bff;
-  color: white;
+  background: linear-gradient(135deg, #a8d8ea, #7bc4d4);
+  color: #1a1a1a;
   border: none;
   padding: 12px 30px;
   font-size: 16px;
-  border-radius: 6px;
+  font-weight: 600;
+  border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
 }
 
 .start-over-button:hover {
-  background-color: #0056b3;
+  background: linear-gradient(135deg, #7bc4d4, #5ab3d1);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
 }
 
 @media (max-width: 768px) {

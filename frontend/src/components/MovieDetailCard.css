@@ -15,16 +15,17 @@
 }
 
 .movie-detail-card {
-  background: #1a1a1a;
-  border-radius: 8px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(135deg, #2d2d2d 0%, #3a3a3a 100%);
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
   max-width: 1000px;
   width: 100%;
   max-height: 95vh;
   overflow-y: auto;
   position: relative;
   animation: slideIn 0.3s ease-out;
-  color: white;
+  color: #f8f9fa;
+  border: 1px solid #3a3a3a;
 }
 
 @keyframes slideIn {
@@ -42,8 +43,8 @@
   position: absolute;
   top: 15px;
   right: 15px;
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
+  background: rgba(26, 26, 26, 0.7);
+  color: #f8f9fa;
   border: none;
   border-radius: 50%;
   width: 40px;
@@ -54,11 +55,12 @@
   align-items: center;
   justify-content: center;
   z-index: 10;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
 }
 
 .movie-detail-close:hover {
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(26, 26, 26, 0.9);
+  transform: scale(1.1);
 }
 
 .movie-detail-content {
@@ -156,7 +158,7 @@
   font-size: 2rem;
   font-weight: 700;
   margin: 0;
-  color: white;
+  color: #f8f9fa;
   line-height: 1.1;
 }
 
@@ -165,15 +167,15 @@
   gap: 20px;
   flex-wrap: wrap;
   font-size: 0.9rem;
-  color: #ccc;
+  color: #b8c5d1;
 }
 
 .fact-item {
-  color: #ccc;
+  color: #b8c5d1;
 }
 
 .fact-item.director {
-  color: #ccc;
+  color: #b8c5d1;
   font-style: italic;
 }
 
@@ -191,14 +193,14 @@
 }
 
 .action-btn {
-  background: #36454f;
-  color: white;
+  background: linear-gradient(135deg, #3a3a3a, #2d2d2d);
+  color: #f8f9fa;
   border: none;
   padding: 8px 16px;
-  border-radius: 4px;
+  border-radius: 8px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
   font-size: 0.9rem;
   display: inline-flex;
   align-items: center;
@@ -206,12 +208,16 @@
 }
 
 .action-btn.play-trailer {
-  background: #36454f;
+  background: linear-gradient(135deg, #4a5568, #2d3748);
+  color: #e2e8f0;
+  border: 1px solid #4a5568;
 }
 
 .action-btn.play-trailer:hover {
-  background: #2c3e50;
+  background: linear-gradient(135deg, #2d3748, #1a202c);
+  border-color: #718096;
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 
@@ -240,20 +246,22 @@
 }
 
 .rating-link:hover {
-  transform: scale(1.05);
+  transform: scale(1.02);
 }
 
 .rating-score {
-  font-weight: 700;
-  font-size: 1rem;
-  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #f8f9fa;
   line-height: 1;
 }
 
 .rating-label {
-  font-size: 0.9rem;
-  color: #ccc;
-  font-weight: 600;
+  font-size: 0.8rem;
+  color: #b8c5d1;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .movie-detail-overview {
@@ -263,13 +271,13 @@
 .movie-detail-overview h3 {
   font-size: 1.3rem;
   margin: 0 0 10px 0;
-  color: white;
+  color: #f8f9fa;
   font-weight: 600;
 }
 
 .movie-detail-overview p {
   line-height: 1.6;
-  color: #ccc;
+  color: #b8c5d1;
   margin: 0;
   font-size: 1.1rem;
 }
@@ -298,7 +306,7 @@
 .movie-detail-cast h3 {
   font-size: 1.3rem;
   margin: 0 0 15px 0;
-  color: white;
+  color: #f8f9fa;
   font-weight: 600;
 }
 
@@ -327,12 +335,12 @@
 .cast-placeholder {
   width: 100%;
   height: 180px;
-  background: #333;
-  border-radius: 6px;
+  background: #3a3a3a;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #999;
+  color: #b8c5d1;
   font-size: 0.8rem;
   text-align: center;
   margin-bottom: 8px;
@@ -346,14 +354,14 @@
 
 .cast-name {
   font-size: 1rem;
-  color: white;
+  color: #f8f9fa;
   font-weight: 600;
   line-height: 1.2;
 }
 
 .cast-character {
   font-size: 0.9rem;
-  color: #999;
+  color: #b8c5d1;
   line-height: 1.2;
 }
 
@@ -363,7 +371,7 @@
 .sidebar-section {
   margin-bottom: 20px;
   padding-bottom: 15px;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid #3a3a3a;
 }
 
 .sidebar-section:last-child {
@@ -373,12 +381,12 @@
 .sidebar-section h4 {
   font-size: 1.1rem;
   margin: 0 0 10px 0;
-  color: white;
+  color: #f8f9fa;
   font-weight: 600;
 }
 
 .sidebar-section p {
-  color: #ccc;
+  color: #b8c5d1;
   margin: 0 0 8px 0;
   line-height: 1.4;
   font-size: 0.95rem;
@@ -401,12 +409,12 @@
 }
 
 .fact-label {
-  color: #ccc;
+  color: #b8c5d1;
   font-weight: 500;
 }
 
 .fact-value {
-  color: white;
+  color: #f8f9fa;
   font-weight: 600;
 }
 
@@ -573,39 +581,49 @@
 }
 
 .action-btn.play-trailer {
-  background: #01b4e4;
-  color: white;
+  background: linear-gradient(135deg, #4a5568, #2d3748);
+  color: #e2e8f0;
+  border: 1px solid #4a5568;
 }
 
 .action-btn.play-trailer:hover:not(:disabled) {
-  background: #0099c7;
+  background: linear-gradient(135deg, #2d3748, #1a202c);
+  border-color: #718096;
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .action-btn.play-trailer:disabled {
-  background: #666;
+  background: #3a3a3a;
+  color: #b8c5d1;
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 .action-btn.edit-movie {
-  background: #f5c518;
-  color: #000;
+  background: linear-gradient(135deg, #744210, #553c09);
+  color: #fef3c7;
+  border: 1px solid #744210;
 }
 
 .action-btn.edit-movie:hover {
-  background: #e6b400;
+  background: linear-gradient(135deg, #553c09, #3d2a06);
+  border-color: #92400e;
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .action-btn.delete-movie {
-  background: #fa320a;
-  color: white;
+  background: linear-gradient(135deg, #7c2d12, #5c1d09);
+  color: #fed7d7;
+  border: 1px solid #7c2d12;
 }
 
 .action-btn.delete-movie:hover {
-  background: #e02d09;
+  background: linear-gradient(135deg, #5c1d09, #3d1306);
+  border-color: #9a3412;
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 /* Delete Confirmation Modal */
@@ -624,19 +642,20 @@
 }
 
 .delete-confirm-modal {
-  background: #1a1a1a;
-  border-radius: 8px;
+  background: linear-gradient(135deg, #2d2d2d 0%, #3a3a3a 100%);
+  border-radius: 16px;
   padding: 30px;
   max-width: 400px;
   width: 100%;
   text-align: center;
-  color: white;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  color: #f8f9fa;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+  border: 1px solid #3a3a3a;
 }
 
 .delete-confirm-modal h3 {
   margin: 0 0 15px 0;
-  color: #fa320a;
+  color: #ff9aa2;
   font-size: 24px;
 }
 
@@ -646,7 +665,7 @@
 }
 
 .delete-warning {
-  color: #ff6b6b;
+  color: #ff9aa2;
   font-weight: 600;
 }
 
@@ -660,30 +679,34 @@
 .cancel-btn, .delete-btn {
   padding: 12px 24px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   min-width: 100px;
 }
 
 .cancel-btn {
-  background: #666;
-  color: white;
+  background: linear-gradient(135deg, #b8c5d1, #9bb0c1);
+  color: #1a1a1a;
 }
 
 .cancel-btn:hover:not(:disabled) {
-  background: #777;
+  background: linear-gradient(135deg, #9bb0c1, #7a9bb0);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
 }
 
 .delete-btn {
-  background: #fa320a;
-  color: white;
+  background: linear-gradient(135deg, #ffb3ba, #ff9aa2);
+  color: #1a1a1a;
 }
 
 .delete-btn:hover:not(:disabled) {
-  background: #e02d09;
+  background: linear-gradient(135deg, #ff9aa2, #ff7a85);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
 }
 
 .cancel-btn:disabled, .delete-btn:disabled {
@@ -692,11 +715,11 @@
 }
 
 .comments-text {
-  color: #ccc;
+  color: #b8c5d1;
   line-height: 1.5;
   font-style: italic;
-  background: #2a2a2a;
+  background: #1a1a1a;
   padding: 12px;
-  border-radius: 6px;
-  border-left: 3px solid #007bff;
+  border-radius: 8px;
+  border-left: 3px solid #a8d8ea;
 }

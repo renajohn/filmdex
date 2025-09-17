@@ -33,7 +33,6 @@ function AppContent() {
         <div className="App-header-content">
           <div className="App-title">
             <h1>FilmDex</h1>
-            <p>Interactive index for physical movies and TV shows</p>
           </div>
           <div className="App-toolbar">
             <CogDropdown 

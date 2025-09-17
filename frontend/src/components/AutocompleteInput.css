@@ -7,23 +7,23 @@
 .autocomplete-input {
   width: 100%;
   padding: 12px 16px;
-  border: 2px solid #444;
-  border-radius: 8px;
+  border: 2px solid #3a3a3a;
+  border-radius: 12px;
   font-size: 14px;
-  background: #2a2a2a;
-  color: #fff;
+  background: #1a1a1a;
+  color: #f8f9fa;
   transition: all 0.3s ease;
   outline: none;
 }
 
 .autocomplete-input:focus {
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-  background: #333;
+  border-color: #a8d8ea;
+  box-shadow: 0 0 0 4px rgba(168, 216, 234, 0.2);
+  background: #2d2d2d;
 }
 
 .autocomplete-input::placeholder {
-  color: #888;
+  color: #b8c5d1;
 }
 
 .autocomplete-loading {
@@ -37,8 +37,8 @@
 .loading-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid #444;
-  border-top: 2px solid #007bff;
+  border: 2px solid #3a3a3a;
+  border-top: 2px solid #a8d8ea;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -53,22 +53,23 @@
   top: 100%;
   left: 0;
   right: 0;
-  background: #1a1a1a;
-  border: 2px solid #444;
+  background: #2d2d2d;
+  border: 2px solid #3a3a3a;
   border-top: none;
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 12px 12px;
   max-height: 200px;
   overflow-y: auto;
   z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
 }
 
 .autocomplete-suggestion {
   padding: 12px 16px;
-  color: #fff;
+  color: #f8f9fa;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid #3a3a3a;
 }
 
 .autocomplete-suggestion:last-child {
@@ -77,11 +78,11 @@
 
 .autocomplete-suggestion:hover,
 .autocomplete-suggestion.highlighted {
-  background: #333;
+  background: #3a3a3a;
 }
 
 .autocomplete-suggestion:active {
-  background: #444;
+  background: #1a1a1a;
 }
 
 /* Scrollbar styling for suggestions */
@@ -90,14 +91,14 @@
 }
 
 .autocomplete-suggestions::-webkit-scrollbar-track {
-  background: #2a2a2a;
+  background: #1a1a1a;
 }
 
 .autocomplete-suggestions::-webkit-scrollbar-thumb {
-  background: #555;
+  background: #3a3a3a;
   border-radius: 3px;
 }
 
 .autocomplete-suggestions::-webkit-scrollbar-thumb:hover {
-  background: #666;
+  background: #a8d8ea;
 }
