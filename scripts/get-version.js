@@ -3,6 +3,16 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 
+function sanitizeForHomeAssistant(version) {
+  // Home Assistant only allows: a-z, 0-9, dots, hyphens, underscores, braces
+  // Convert to lowercase and replace invalid characters
+  return version
+    .toLowerCase()
+    .replace(/[^a-z0-9.\-_]/g, '-')  // Replace invalid chars with hyphens
+    .replace(/-+/g, '-')              // Replace multiple hyphens with single
+    .replace(/^-|-$/g, '');           // Remove leading/trailing hyphens
+}
+
 function getVersion() {
   try {
     // Check if we're in a git repository
@@ -54,21 +64,25 @@ function getVersion() {
     // Parse version from tag (remove 'v' prefix)
     const baseVersion = latestTag.replace(/^v/, '');
     
+    let version;
     if (commitCount === '0' && latestTag !== 'v0.0.0') {
       // We're exactly on a tag
-      return baseVersion;
+      version = baseVersion;
     } else if (branch === 'main' || branch === 'master') {
       // On main branch with commits since last tag - create pre-release
-      return `${baseVersion}-${commitCount}.${commitHash}`;
+      version = `${baseVersion}-${commitCount}-${commitHash}`;
     } else {
       // On feature branch - include branch name
       const cleanBranch = branch.replace(/[^a-zA-Z0-9]/g, '-');
-      return `${baseVersion}-${cleanBranch}.${commitCount}.${commitHash}`;
+      version = `${baseVersion}-${cleanBranch}-${commitCount}-${commitHash}`;
     }
+    
+    // Sanitize for Home Assistant compatibility
+    return sanitizeForHomeAssistant(version);
   } catch (error) {
     // Fallback to package.json version if git is not available
     const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-    return packageJson.version;
+    return sanitizeForHomeAssistant(packageJson.version);
   }
 }
 

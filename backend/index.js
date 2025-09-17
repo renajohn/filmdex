@@ -110,9 +110,7 @@ app.get('/api/import/:id/suggestions', importController.getMovieSuggestions);
 // Configuration endpoint for frontend
 app.get('/api/config', (req, res) => {
   try {
-    const dataConfig = configManager.getDataConfig();
     res.json({
-      base_url: dataConfig.base_url || `http://localhost:${PORT}`,
       version: process.env.npm_package_version || '0.0.1'
     });
   } catch (error) {

@@ -42,7 +42,6 @@ PORT=3001
   "omdb_api_key": "your_omdb_key_here",
   "log_level": "info",
   "max_upload_mb": 20,
-  "base_url": "http://localhost:3001"
 }
 ```
 

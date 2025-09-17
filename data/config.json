@@ -2,6 +2,5 @@
     "log_level": "info",
     "omdb_api_key": "",
     "tmdb_api_key": "",
-    "max_upload_mb": 20,
-    "base_url": "http://localhost:3001"
+    "max_upload_mb": 20
 }

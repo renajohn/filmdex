@@ -24,18 +24,7 @@ class ApiService {
   }
 
   async loadConfig() {
-    try {
-      // Try to load config from the backend
-      const response = await fetch('/api/config');
-      if (response.ok) {
-        const config = await response.json();
-        return config.base_url + '/api';
-      }
-    } catch (error) {
-      console.warn('Failed to load config from backend, using fallback');
-    }
-
-    // Fallback to relative path
+    // Always use relative paths - no need for base_url configuration
     return '/api';
   }
 

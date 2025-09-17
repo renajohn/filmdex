@@ -164,7 +164,6 @@ GET /api/config
 **Response:**
 ```json
 {
-  "base_url": "http://localhost:3001",
   "version": "0.0.1",
   "has_tmdb_key": true,
   "has_omdb_key": true
@@ -336,8 +335,7 @@ IMAGES_PATH=./data/images
   "tmdb_api_key": "your_tmdb_key",
   "omdb_api_key": "your_omdb_key",
   "log_level": "info",
-  "max_upload_mb": 20,
-  "base_url": "http://localhost:3001"
+  "max_upload_mb": 20
 }
 ```
 
