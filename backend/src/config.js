@@ -46,24 +46,24 @@ class ConfigManager {
     }
   }
 
-  // Load data configuration from data_path
+  // Load data options from data_path
   loadDataConfig() {
     try {
       if (!this.dataPath) {
         throw new Error('Data path not set. Load deployment config first.');
       }
 
-      const configPath = path.join(this.dataPath, 'config.json');
+      const optionsPath = path.join(this.dataPath, 'options.json');
       
-      if (!fs.existsSync(configPath)) {
-        throw new Error(`Data config file not found: ${configPath}`);
+      if (!fs.existsSync(optionsPath)) {
+        throw new Error(`Data options file not found: ${optionsPath}`);
       }
 
-      const configData = fs.readFileSync(configPath, 'utf8');
-      this.dataConfig = JSON.parse(configData);
+      const optionsData = fs.readFileSync(optionsPath, 'utf8');
+      this.dataConfig = JSON.parse(optionsData);
       
-      console.log(`Loaded data config from: ${configPath}`);
-      console.log(`Config loaded:`, {
+      console.log(`Loaded data options from: ${optionsPath}`);
+      console.log(`Options loaded:`, {
         logLevel: this.dataConfig.log_level,
         hasOmdbKey: !!this.dataConfig.omdb_api_key,
         hasTmdbKey: !!this.dataConfig.tmdb_api_key,
@@ -72,7 +72,7 @@ class ConfigManager {
       
       return this.dataConfig;
     } catch (error) {
-      console.error('Failed to load data config:', error.message);
+      console.error('Failed to load data options:', error.message);
       throw error;
     }
   }
@@ -85,10 +85,10 @@ class ConfigManager {
     return this.deploymentConfig;
   }
 
-  // Get data configuration
+  // Get data options
   getDataConfig() {
     if (!this.dataConfig) {
-      throw new Error('Data config not loaded');
+      throw new Error('Data options not loaded');
     }
     return this.dataConfig;
   }
@@ -112,7 +112,7 @@ class ConfigManager {
   }
 
   // Get API keys
-  // Environment variables take precedence over config.json values
+  // Environment variables take precedence over options.json values
   getApiKeys() {
     const dataConfig = this.getDataConfig();
     return {

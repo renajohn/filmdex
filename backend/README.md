@@ -329,7 +329,7 @@ IMAGES_PATH=./data/images
 
 ### Configuration Files
 
-#### data/config.json
+#### data/options.json
 ```json
 {
   "tmdb_api_key": "your_tmdb_key",
@@ -365,7 +365,7 @@ IMAGES_PATH=./data/images
 
 2. **Configure API keys:**
    ```bash
-   # Edit data/config.json
+   # Edit data/options.json
    {
      "tmdb_api_key": "your_key_here",
      "omdb_api_key": "your_key_here"

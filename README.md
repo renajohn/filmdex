@@ -38,7 +38,7 @@ A modern web application for managing and searching your physical movie collecti
 
 3. **Configure API keys (optional):**
    ```bash
-   # Edit data/config.json
+   # Edit data/options.json
    {
      "tmdb_api_key": "your_tmdb_key_here",
      "omdb_api_key": "your_omdb_key_here",
@@ -132,7 +132,7 @@ The import system will automatically map columns and suggest matches for unmatch
 │   │   └── App.js         # Main app component
 │   └── public/            # Static assets
 ├── data/                   # Data directory (mounted as volume)
-│   ├── config.json        # Runtime configuration
+│   ├── options.json        # Runtime configuration
 │   ├── db.sqlite          # SQLite database
 │   └── images/            # Movie images
 ├── dist/                   # Build output (git ignored)
@@ -170,7 +170,7 @@ The application uses a hierarchical configuration system:
    - Platform type (localhost/docker)
    - Deployment target
 
-2. **Data Config** (`data/config.json`):
+2. **Data Options** (`data/options.json`):
    - API keys (TMDB, OMDB)
    - Log level
    - Max upload size

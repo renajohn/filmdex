@@ -35,7 +35,7 @@ PORT=3001
 
 ### 🔧 **Configuration Files**
 
-#### Data Configuration (`data/config.json`)
+#### Data Options (`data/options.json`)
 ```json
 {
   "tmdb_api_key": "your_tmdb_key_here",
@@ -112,7 +112,7 @@ project/
 ├── .env                    # ❌ Excluded from Docker
 ├── backend/.env           # ❌ Excluded from Docker
 ├── data/                  # ✅ Mounted as volume
-│   ├── config.json        # ✅ Runtime configuration
+│   ├── options.json        # ✅ Runtime configuration
 │   ├── db.sqlite          # ✅ Persistent data
 │   └── images/            # ✅ Movie images
 ├── dist/                  # ✅ Docker build context
