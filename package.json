@@ -1,7 +1,7 @@
 {
     "name": "FilmDex",
     "version": "0.0.1",
-    "description": "Interactive index for physical movies (DVD, Blu-ray, 4K UHD) with a sleek digital library that catalogs and enriches your personal collection.",
+    "description": "Interactive index for physical movies (DVD, Blu-ray, 4K UHD).",
     "main": "index.js",
     "author": "Renault John Lecoultre",
     "license": "MIT",
