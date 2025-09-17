@@ -10,6 +10,7 @@ const MovieCrew = require('../models/movieCrew');
 const tmdbService = require('./tmdbService');
 const omdbService = require('./omdbService');
 const imageService = require('./imageService');
+const logger = require('../logger');
 
 const ImportService = {
   // Get maximum file size from configuration
@@ -87,18 +88,18 @@ const ImportService = {
       }
 
       // Process movies in batches for better performance
-      const BATCH_SIZE = 1; // Process 5 movies at a time
+      const BATCH_SIZE = 10; // Process 5 movies at a time
       const totalMovies = csvData.length;
       let processedCount = 0;
       
-      console.log(`Starting batch processing of ${totalMovies} movies in batches of ${BATCH_SIZE}`);
+      logger.debug(`Starting batch processing of ${totalMovies} movies in batches of ${BATCH_SIZE}`);
       
       for (let i = 0; i < csvData.length; i += BATCH_SIZE) {
         const batch = csvData.slice(i, i + BATCH_SIZE);
         const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
         const totalBatches = Math.ceil(csvData.length / BATCH_SIZE);
         
-        console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} movies)`);
+        logger.debug(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} movies)`);
         
         // Process batch in parallel
         const batchPromises = batch.map(async (csvMovie) => {
@@ -113,9 +114,9 @@ const ImportService = {
             });
 
             // Process the mapped movie
-            console.log(`Processing movie: "${mappedMovie.title || mappedMovie.original_title}"`);
+            logger.debug(`Processing movie: "${mappedMovie.title || mappedMovie.original_title}"`);
             const processedMovie = await ImportService.processMovie(mappedMovie, importId);
-            console.log(`Processed movie result:`, processedMovie ? 'SUCCESS' : 'NULL');
+            logger.debug(`Processed movie result:`, processedMovie ? 'SUCCESS' : 'NULL');
             
             if (!processedMovie) {
               // Movie couldn't be processed, add to unmatched
@@ -127,9 +128,9 @@ const ImportService = {
                 error_message: null
               };
               try {
-                console.log('Creating unmatched movie:', unmatchedMovie.title);
+                logger.debug('Creating unmatched movie:', unmatchedMovie.title);
                 await UnmatchedMovie.create(unmatchedMovie);
-                console.log('Successfully created unmatched movie:', unmatchedMovie.title);
+                logger.debug('Successfully created unmatched movie:', unmatchedMovie.title);
               } catch (error) {
                 console.error('Failed to create unmatched movie:', error);
               }
@@ -150,9 +151,9 @@ const ImportService = {
               error_message: error.message
             };
             try {
-              console.log('Creating unmatched movie (error case):', unmatchedMovie.title);
+              logger.debug('Creating unmatched movie (error case):', unmatchedMovie.title);
               await UnmatchedMovie.create(unmatchedMovie);
-              console.log('Successfully created unmatched movie (error case):', unmatchedMovie.title);
+              logger.debug('Successfully created unmatched movie (error case):', unmatchedMovie.title);
             } catch (createError) {
               console.error('Failed to create unmatched movie (error case):', createError);
             }
@@ -176,7 +177,7 @@ const ImportService = {
         });
         
         processedCount += batch.length;
-        console.log(`Batch ${batchNumber} completed. Progress: ${processedCount}/${totalMovies} movies processed`);
+        logger.debug(`Batch ${batchNumber} completed. Progress: ${processedCount}/${totalMovies} movies processed`);
         
         // Update import progress
         await MovieImport.updateProgress(importId, processedCount, totalMovies);
@@ -227,12 +228,12 @@ const ImportService = {
       // Check if movie already exists by title (case-insensitive)
       const existingMovieByTitle = await Movie.findByTitle(title);
       if (existingMovieByTitle) {
-        console.log(`Movie with title "${title}" already exists, skipping`);
+        logger.debug(`Movie with title "${title}" already exists, skipping`);
         return existingMovieByTitle;
       }
       
       if (tmdbResults.length === 0) {
-        console.log(`No TMDB results for "${searchTitle}"`);
+        logger.debug(`No TMDB results for "${searchTitle}"`);
         return null;
       }
 
@@ -243,7 +244,7 @@ const ImportService = {
         // Remove all TMDB results with no ratings (vote_average is null or 0)
         const filteredTmdbResults = tmdbResults.filter(m => m.vote_average && m.vote_average > 0);
         if (filteredTmdbResults.length === 0) {
-          console.log(`All TMDB results for "${searchTitle}" have no ratings, skipping`);
+          logger.debug(`All TMDB results for "${searchTitle}" have no ratings, skipping`);
           return null;
         }
         // Use filtered results for further processing
@@ -253,11 +254,11 @@ const ImportService = {
             m => searchTitle && searchTitle.trim().toLowerCase() === m.title.trim().toLowerCase()
           );
           if (exactMatches.length === 1) {
-            console.log(`Found single exact TMDB title match for "${searchTitle}":`, exactMatches[0].title);
+            logger.debug(`Found single exact TMDB title match for "${searchTitle}":`, exactMatches[0].title);
             tmdbMovie = exactMatches[0];
           } else  {
             // Still conflicting, return null to mark as unmatched
-            console.log(`Multiple TMDB results for "${searchTitle}" (${filteredTmdbResults.length} results), marking as conflicting`);
+            logger.debug(`Multiple TMDB results for "${searchTitle}" (${filteredTmdbResults.length} results), marking as conflicting`);
             return null; // This will make it an unmatched movie that needs resolution
           }
         } else {
@@ -268,7 +269,7 @@ const ImportService = {
       // Check if movie already exists by TMDB ID
       const existingMovieByTmdbId = await Movie.findByTmdbId(tmdbMovie.id);
       if (existingMovieByTmdbId) {
-        console.log(`Movie with TMDB ID ${tmdbMovie.id} already exists, skipping`);
+        logger.debug(`Movie with TMDB ID ${tmdbMovie.id} already exists, skipping`);
         return existingMovieByTmdbId;
       }
       
@@ -278,7 +279,7 @@ const ImportService = {
         : await tmdbService.getMovieDetails(tmdbMovie.id);
       
       if (!tmdbDetails) {
-        console.log(`No TMDB details for "${searchTitle}"`);
+        logger.debug(`No TMDB details for "${searchTitle}"`);
         return null;
       }
 
@@ -287,7 +288,7 @@ const ImportService = {
       let omdbData = null;
       try {
         omdbData = await omdbService.searchMovie(tmdbDetails.title, tmdbDetails.release_date ? new Date(tmdbDetails.release_date).getFullYear() : null);
-        console.log(`OMDB data for "${tmdbDetails.title}":`, {
+        logger.debug(`OMDB data for "${tmdbDetails.title}":`, {
           imdbID: omdbData?.imdbID,
           imdbRating: omdbData?.imdbRating,
           rottenTomatoRating: omdbData?.rottenTomatoRating
@@ -308,7 +309,7 @@ const ImportService = {
 
       // Build movie data
       const parsedPrice = csvMovie.price ? parseFloat(csvMovie.price.replace(/[^\d.-]/g, '')) || null : null;
-      console.log(`Processing price for "${title}":`, csvMovie.price, 'cleaned:', csvMovie.price?.replace(/[^\d.-]/g, ''), 'parsed:', parsedPrice);
+      logger.debug(`Processing price for "${title}":`, csvMovie.price, 'cleaned:', csvMovie.price?.replace(/[^\d.-]/g, ''), 'parsed:', parsedPrice);
       const movieData = {
         title: title, // Use user-provided title
         original_title: tmdbDetails.original_title,
@@ -347,13 +348,13 @@ const ImportService = {
       };
 
       // Create movie in database
-      console.log(`Creating movie with IDs:`, {
+      logger.debug(`Creating movie with IDs:`, {
         tmdb_id: movieData.tmdb_id,
         imdb_id: movieData.imdb_id,
         title: movieData.title
       });
       const createdMovie = await Movie.create(movieData);
-      console.log(`Successfully created movie: "${createdMovie.title}"`);
+      logger.debug(`Successfully created movie: "${createdMovie.title}"`);
 
       // Process cast and crew
       await ImportService.processCastAndCrew(createdMovie.id, tmdbDetails.credits, tmdbDetails.id);
@@ -416,7 +417,7 @@ const ImportService = {
       // Get the original CSV data from the unmatched movie
       const originalCsvData = unmatchedMovie.csvData;
       
-      console.log('Resolving movie with data:', {
+      logger.debug('Resolving movie with data:', {
         unmatchedMovieTitle,
         resolvedMovieId: resolvedMovie.id,
         resolvedMovieTitle: resolvedMovie.title,
@@ -444,8 +445,8 @@ const ImportService = {
       const posterPath = await imageService.downloadPoster(tmdbDetails.poster_path, tmdbDetails.id);
       const backdropPath = await imageService.downloadBackdrop(tmdbDetails.backdrop_path, tmdbDetails.id);
       
-      console.log(`Poster path:`, posterPath);
-      console.log(`Backdrop path:`, backdropPath);
+      logger.debug(`Poster path:`, posterPath);
+      logger.debug(`Backdrop path:`, backdropPath);
 
       // Extract trailer information
       const trailer = tmdbDetails.videos?.results?.find(video => 
@@ -491,13 +492,13 @@ const ImportService = {
         media_type: resolvedMovie.media_type || 'movie'
       };
 
-      console.log(`Storing poster_path in DB (resolve): ${posterPath}`);
-      console.log(`Storing backdrop_path in DB (resolve): ${backdropPath}`);
+      logger.debug(`Storing poster_path in DB (resolve): ${posterPath}`);
+      logger.debug(`Storing backdrop_path in DB (resolve): ${backdropPath}`);
 
       // Check if movie already exists by TMDB ID or IMDB ID
       const existingMovieByTmdbId = await Movie.findByTmdbId(movieData.tmdb_id);
       if (existingMovieByTmdbId) {
-        console.log(`Movie with TMDB ID ${movieData.tmdb_id} already exists, skipping resolution`);
+        logger.debug(`Movie with TMDB ID ${movieData.tmdb_id} already exists, skipping resolution`);
         // Delete the unmatched movie from the database
         await UnmatchedMovie.deleteById(unmatchedMovie.id);
         
@@ -513,7 +514,7 @@ const ImportService = {
             importSession.auto_resolved_movies || 0, 
             newManualResolved
           );
-          console.log(`Updated statistics: processed=${newProcessed}, manual_resolved=${newManualResolved}`);
+          logger.debug(`Updated statistics: processed=${newProcessed}, manual_resolved=${newManualResolved}`);
         }
         
         return existingMovieByTmdbId;
@@ -522,7 +523,7 @@ const ImportService = {
       // Check if movie already exists by title (case-insensitive)
       const existingMovieByTitle = await Movie.findByTitle(movieData.title);
       if (existingMovieByTitle) {
-        console.log(`Movie with title "${movieData.title}" already exists, skipping resolution`);
+        logger.debug(`Movie with title "${movieData.title}" already exists, skipping resolution`);
         // Delete the unmatched movie from the database
         await UnmatchedMovie.deleteById(unmatchedMovie.id);
         
@@ -538,7 +539,7 @@ const ImportService = {
             importSession.auto_resolved_movies || 0, 
             newManualResolved
           );
-          console.log(`Updated statistics: processed=${newProcessed}, manual_resolved=${newManualResolved}`);
+          logger.debug(`Updated statistics: processed=${newProcessed}, manual_resolved=${newManualResolved}`);
         }
         
         return existingMovieByTitle;
@@ -548,7 +549,7 @@ const ImportService = {
       if (movieData.imdb_id) {
         const existingMovieByImdbId = await Movie.findByImdbId(movieData.imdb_id);
         if (existingMovieByImdbId) {
-          console.log(`Movie with IMDB ID ${movieData.imdb_id} already exists, skipping resolution`);
+          logger.debug(`Movie with IMDB ID ${movieData.imdb_id} already exists, skipping resolution`);
           // Delete the unmatched movie from the database
           await UnmatchedMovie.deleteById(unmatchedMovie.id);
           
@@ -564,7 +565,7 @@ const ImportService = {
               importSession.auto_resolved_movies || 0, 
               newManualResolved
             );
-            console.log(`Updated statistics: processed=${newProcessed}, manual_resolved=${newManualResolved}`);
+            logger.debug(`Updated statistics: processed=${newProcessed}, manual_resolved=${newManualResolved}`);
           }
           
           return existingMovieByImdbId;
@@ -573,7 +574,7 @@ const ImportService = {
 
       // Create movie in database
       const createdMovie = await Movie.create(movieData);
-      console.log(`Successfully created resolved movie: "${createdMovie.title}"`);
+      logger.debug(`Successfully created resolved movie: "${createdMovie.title}"`);
 
       // Process cast and crew
       await ImportService.processCastAndCrew(createdMovie.id, tmdbDetails.credits, tmdbDetails.id);
@@ -593,7 +594,7 @@ const ImportService = {
           importSession.auto_resolved_movies || 0, 
           newManualResolved
         );
-        console.log(`Updated statistics: processed=${newProcessed}, manual_resolved=${newManualResolved}`);
+        logger.debug(`Updated statistics: processed=${newProcessed}, manual_resolved=${newManualResolved}`);
       }
       
       // Check if there are any remaining unmatched movies
@@ -621,7 +622,7 @@ const ImportService = {
         const castMembers = [];
         for (let i = 0; i < Math.min(credits.cast.length, 10); i++) {
           const actor = credits.cast[i];
-          console.log(`Processing actor ${i}: ${actor.name} (ID: ${actor.id}, profile: ${actor.profile_path})`);
+          logger.debug(`Processing actor ${i}: ${actor.name} (ID: ${actor.id}, profile: ${actor.profile_path})`);
           const localProfilePath = await imageService.downloadProfile(
             actor.profile_path, 
             tmdbId
@@ -640,7 +641,7 @@ const ImportService = {
         
         if (castMembers.length > 0) {
           await MovieCast.createMultiple(castMembers);
-          console.log(`Created ${castMembers.length} cast members for movie ${movieId}`);
+          logger.debug(`Created ${castMembers.length} cast members for movie ${movieId}`);
         }
       }
 
@@ -665,7 +666,7 @@ const ImportService = {
           }];
           
           await MovieCrew.createMultiple(crewMembers);
-          console.log(`Created director for movie ${movieId}: ${director.name}`);
+          logger.debug(`Created director for movie ${movieId}: ${director.name}`);
         }
       }
     } catch (error) {

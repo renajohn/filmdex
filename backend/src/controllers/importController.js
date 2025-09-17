@@ -4,6 +4,7 @@ const ImportService = require('../services/importService');
 const MovieImport = require('../models/movieImport');
 const tmdbService = require('../services/tmdbService');
 const UnmatchedMovie = require('../models/unmatchedMovie');
+const logger = require('../logger');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -70,7 +71,7 @@ const importController = {
       // Process CSV file with column mapping asynchronously
       ImportService.processCsvFileWithMapping(filePath, importSession.id, columnMapping)
         .then(result => {
-          console.log(`Import ${importSession.id} completed:`, result);
+          logger.debug(`Import ${importSession.id} completed:`, result);
         })
         .catch(error => {
           console.error(`Import ${importSession.id} failed:`, error);
@@ -193,7 +194,7 @@ const importController = {
           importSession.auto_resolved_movies || 0, 
           importSession.manual_resolved_movies || 0
         );
-        console.log(`Updated statistics after ignoring: processed=${newProcessed}`);
+        logger.debug(`Updated statistics after ignoring: processed=${newProcessed}`);
       }
 
       res.json({ success: true, message: 'Movie ignored successfully' });

@@ -6,6 +6,7 @@ const omdbService = require('./omdbService');
 const posterService = require('./posterService');
 const tmdbService = require('./tmdbService');
 const { getDatabase } = require('../database');
+const logger = require('../logger');
 
 
 
@@ -130,7 +131,7 @@ const movieService = {
     try {
       // If ratings are missing, try to fetch them
       if (!movieData.imdb_rating || !movieData.rotten_tomato_rating) {
-        console.log('Fetching ratings for:', movieData.title);
+        logger.debug('Fetching ratings for:', movieData.title);
         const year = movieData.release_date ? new Date(movieData.release_date).getFullYear() : null;
         const ratings = await omdbService.getMovieRatings(movieData.title, year);
         
@@ -343,7 +344,7 @@ const movieService = {
       // If title is being updated, fetch fresh ratings from OMDB
       if (movieData.title && movieData.title !== existingMovie.title) {
         try {
-          console.log(`Title changed from "${existingMovie.title}" to "${movieData.title}", fetching fresh ratings...`);
+          logger.debug(`Title changed from "${existingMovie.title}" to "${movieData.title}", fetching fresh ratings...`);
           const year = existingMovie.release_date ? new Date(existingMovie.release_date).getFullYear() : null;
           const ratings = await omdbService.getMovieRatings(movieData.title, year);
           
@@ -355,7 +356,7 @@ const movieService = {
             movieData.rotten_tomato_rating = parseInt(ratings.rottenTomatoRating);
           }
           
-          console.log(`Fetched ratings for "${movieData.title}": IMDB=${ratings.imdbRating}, RT=${ratings.rottenTomatoRating}`);
+          logger.debug(`Fetched ratings for "${movieData.title}": IMDB=${ratings.imdbRating}, RT=${ratings.rottenTomatoRating}`);
         } catch (error) {
           console.warn(`Failed to fetch ratings for updated title "${movieData.title}":`, error.message);
         }

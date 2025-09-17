@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const configManager = require('../config');
+const logger = require('../logger');
 
 const ImageService = {
   BASE_URL: 'https://image.tmdb.org/t/p',
@@ -46,9 +47,9 @@ const ImageService = {
       
       return new Promise((resolve, reject) => {
         writer.on('finish', () => {
-          console.log(`Downloaded ${type} image: ${filename}`);
+          logger.debug(`Downloaded ${type} image: ${filename}`);
           const localPath = `/images/${type}/${filename}`;
-          console.log(`Returning local path: ${localPath}`);
+          logger.debug(`Returning local path: ${localPath}`);
           resolve(localPath);
         });
         writer.on('error', (error) => {
@@ -75,7 +76,7 @@ const ImageService = {
     // Use the TMDB profile path directly as filename (remove leading slash)
     // This is simpler and ensures uniqueness since TMDB paths are already unique
     const filename = profilePath.startsWith('/') ? profilePath.substring(1) : profilePath;
-    console.log(`Downloading profile: ${profilePath} -> ${filename}`);
+    logger.debug(`Downloading profile: ${profilePath} -> ${filename}`);
     return await ImageService.downloadImage(profilePath, 'profiles', tmdbId, filename);
   },
 
@@ -103,7 +104,7 @@ const ImageService = {
           
           if (!usedImagePaths.includes(relativePath)) {
             fs.unlinkSync(filePath);
-            console.log(`Deleted unused image: ${file}`);
+            logger.debug(`Deleted unused image: ${file}`);
           }
         }
       }
