@@ -53,7 +53,7 @@ const ImportPage = () => {
   const pollImportStatus = async (id) => {
     const pollInterval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/import/${id}`);
+        const response = await apiService.makeRequest(`/import/${id}`);
         if (response.ok) {
           const status = await response.json();
           
@@ -104,7 +104,7 @@ const ImportPage = () => {
     // Get final import stats
     if (importId) {
       try {
-        const response = await fetch(`/api/import/${importId}`);
+        const response = await apiService.makeRequest(`/import/${importId}`);
         if (response.ok) {
           const status = await response.json();
           setImportStats({

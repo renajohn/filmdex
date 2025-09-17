@@ -4,9 +4,22 @@ class ApiService {
     this.configPromise = null;
   }
 
-  // Utility method to get base URL for image URLs - use relative paths
+  // Utility method to get base URL for image URLs
   getImageBaseUrl() {
-    return ''; // Use relative paths
+    // Detect if we're running in Home Assistant ingress mode
+    const pathname = window.location.pathname;
+    
+    if (pathname.includes('/api/hassio_ingress/')) {
+      // Extract the ingress path from the current URL
+      const match = pathname.match(/\/api\/hassio_ingress\/[^/]+/);
+      if (match) {
+        const ingressPath = match[0];
+        return ingressPath; // Return ingress path for images
+      }
+    }
+    
+    // Default to empty string for normal mode (relative paths)
+    return '';
   }
 
   async getBaseUrl() {

@@ -147,9 +147,10 @@ const AddMovie = () => {
 
   const getPosterUrl = (posterPath) => {
     if (!posterPath) return null;
-    // If it's already a local path, return as is
+    // If it's already a local path, return as is with ingress support
     if (posterPath.startsWith('/images/')) {
-      return posterPath; // Use relative path
+      const baseUrl = apiService.getImageBaseUrl();
+      return `${baseUrl}${posterPath}`; // Use dynamic base URL for ingress
     }
     // Fallback to TMDB URL for backward compatibility
     return `https://image.tmdb.org/t/p/w200${posterPath}`;

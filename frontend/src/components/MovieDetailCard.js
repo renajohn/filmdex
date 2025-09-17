@@ -156,9 +156,10 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
 
   const getPosterUrl = (posterPath) => {
     if (!posterPath) return null;
-    // If it's already a local path, return as is
+    // If it's already a local path, return as is with ingress support
     if (posterPath.startsWith('/images/')) {
-      return posterPath; // Use relative path
+      const baseUrl = apiService.getImageBaseUrl();
+      return `${baseUrl}${posterPath}`; // Use dynamic base URL for ingress
     }
    
     // If it's already a full URL, return as is
@@ -167,16 +168,22 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
 
   const getBackdropUrl = (backdropPath) => {
     if (!backdropPath) return null;
-    // If it's already a local path, return as is
-    return backdropPath; // Use relative path
-
+    // If it's already a local path, return as is with ingress support
+    if (backdropPath.startsWith('/images/')) {
+      const baseUrl = apiService.getImageBaseUrl();
+      return `${baseUrl}${backdropPath}`; // Use dynamic base URL for ingress
+    }
+    return backdropPath; // Use relative path for other cases
   };
 
   const getProfileUrl = (profilePath) => {
     if (!profilePath) return null;
-    // If it's already a local path, return as is
-    return profilePath; // Use relative path
-   
+    // If it's already a local path, return as is with ingress support
+    if (profilePath.startsWith('/images/')) {
+      const baseUrl = apiService.getImageBaseUrl();
+      return `${baseUrl}${profilePath}`; // Use dynamic base URL for ingress
+    }
+    return profilePath; // Use relative path for other cases
   };
 
   const getTrailerUrl = (trailerKey, trailerSite) => {

@@ -111,7 +111,7 @@ const UnmatchedMovies = ({ importId, onImportComplete, setCurrentStep }) => {
       // Poll for completion
       const pollForCompletion = async () => {
         try {
-          const response = await fetch(`/api/import/${importId}`);
+          const response = await apiService.makeRequest(`/import/${importId}`);
           if (response.ok) {
             const status = await response.json();
             if (status.status === 'COMPLETED') {
