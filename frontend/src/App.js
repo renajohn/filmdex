@@ -79,8 +79,8 @@ function App() {
       }
     }
     
-    // Default to /app for normal mode
-    return '/app';
+    // Default to / for normal mode (simplified)
+    return '/';
   };
 
   const basename = getBasename();

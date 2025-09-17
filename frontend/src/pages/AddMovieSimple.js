@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../services/api';
 import './AddMovieSimple.css';
@@ -21,6 +21,8 @@ const AddMovieSimple = () => {
     comments: '',
     never_seen: false
   });
+
+  const searchInputRef = useRef(null);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -111,9 +113,6 @@ const AddMovieSimple = () => {
       const result = await apiService.addMovie(movieData);
       
       setSuccess(true);
-      setTimeout(() => {
-        navigate('/');
-      }, 2000);
       
     } catch (err) {
       setError('Failed to add movie: ' + err.message);
@@ -148,6 +147,12 @@ const AddMovieSimple = () => {
                   never_seen: false
                 });
                 setError('');
+                // Focus the search input after state updates
+                setTimeout(() => {
+                  if (searchInputRef.current) {
+                    searchInputRef.current.focus();
+                  }
+                }, 100);
               }}
             >
               Add Another Movie
@@ -194,6 +199,7 @@ const AddMovieSimple = () => {
             
             <div className="search-input-container">
               <input
+                ref={searchInputRef}
                 type="text"
                 placeholder="Search for a movie..."
                 value={formData.title}

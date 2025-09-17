@@ -249,6 +249,10 @@
   border: 1px solid #f5c6cb;
 }
 
+.success-actions .btn {
+  margin: 20px;
+}
+
 .success-message {
   position: fixed;
   top: 50%;

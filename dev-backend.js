@@ -3,6 +3,9 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
+// Load environment variables from .env file
+require('dotenv').config();
+
 console.log('🔄 Starting backend development mode...');
 
 function startBackend() {
@@ -10,7 +13,8 @@ function startBackend() {
   
   const buildProcess = spawn('npm', ['run', 'build:dev'], {
     stdio: 'inherit',
-    shell: true
+    shell: true,
+    env: { ...process.env }
   });
 
   buildProcess.on('close', (code) => {
@@ -20,7 +24,8 @@ function startBackend() {
       const startProcess = spawn('npm', ['start'], {
         stdio: 'inherit',
         shell: true,
-        cwd: process.cwd()
+        cwd: process.cwd(),
+        env: { ...process.env }
       });
 
       startProcess.on('close', (code) => {

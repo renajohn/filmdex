@@ -233,24 +233,20 @@ if (frontendPath) {
       res.send(htmlContent);
     });
   } else {
-    // Normal mode: serve frontend at /app path
-    logger.info('Running in normal mode - serving frontend at /app path');
+    // Normal mode: serve frontend at root path (simplified)
+    logger.info('Running in normal mode - serving frontend at root path');
     
     // Serve static files from frontend build (CSS, JS, images, etc.)
-    app.use('/app/static', express.static(path.join(frontendPath, 'static')));
-    app.use('/app', express.static(frontendPath, { index: false }));
+    app.use('/static', express.static(path.join(frontendPath, 'static')));
+    app.use('/', express.static(frontendPath, { index: false }));
     
-    // Handle all /app routes for SPA routing
-    app.get('/app', (req, res) => {
+    // Handle root route
+    app.get('/', (req, res) => {
       res.sendFile(path.join(frontendPath, 'index.html'));
     });
     
-    app.get('/app/', (req, res) => {
-      res.sendFile(path.join(frontendPath, 'index.html'));
-    });
-    
-    // Handle all other /app routes for React Router (catch-all)
-    app.use('/app', (req, res) => {
+    // Handle all other routes for React Router (catch-all)
+    app.use('/', (req, res) => {
       res.sendFile(path.join(frontendPath, 'index.html'));
     });
   }
@@ -260,10 +256,7 @@ app.get('/.well-known/appspecific/com.chrome.devtools.json', (req, res) => {
   res.status(404).json({ message: 'Not found' });
 });
 
-// Redirect root to /app/
-app.get('/', (req, res) => {
-  res.redirect('/app/');
-});
+// Root route is now handled by frontend serving above
 } else {
   logger.warn('Frontend build not found, serving placeholder');
   app.get('/', (req, res) => {

@@ -44,12 +44,12 @@ class BuildSystem {
   buildFrontend() {
     console.log('🎨 Building frontend...');
     
-    // Build frontend for normal mode (/app)
+    // Build frontend for normal mode (root path)
     const envNormal = {
       ...process.env,
       NODE_ENV: this.deploymentTarget === 'prod' ? 'production' : 'development',
       GENERATE_SOURCEMAP: this.deploymentTarget === 'dev' ? 'true' : 'false',
-      PUBLIC_URL: '/app'
+      PUBLIC_URL: '/'
     };
 
     execSync('npm run build', {

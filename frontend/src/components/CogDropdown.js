@@ -78,13 +78,13 @@ const CogDropdown = ({
             <span className="menu-icon">➕</span>
             Add Movie
           </button>
-          <button 
+          {/* <button 
             className="cog-menu-item"
             onClick={() => handleMenuClick(onExportCSV)}
           >
             <span className="menu-icon">📊</span>
             Export CSV
-          </button>
+          </button> */}
         </div>
       )}
     </div>
