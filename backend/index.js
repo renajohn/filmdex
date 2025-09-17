@@ -132,17 +132,36 @@ const isIngressMode = process.env.INGRESS_PORT || process.env.HASSIO_TOKEN;
 
 // Serve frontend from /app/ path (or root for ingress)
 // Check for frontend in both development and production locations
-const frontendPaths = [
-  path.join(__dirname, '../frontend/build'), // Development
-  path.join(__dirname, '../frontend'), // Production (from dist)
-  path.join(process.cwd(), 'frontend') // Fallback
-];
-
 let frontendPath = null;
-for (const testPath of frontendPaths) {
-  if (fs.existsSync(testPath)) {
-    frontendPath = testPath;
-    break;
+
+if (isIngressMode) {
+  // Ingress mode: use frontend-ingress build
+  const ingressPaths = [
+    path.join(__dirname, '../frontend-ingress'), // Production ingress build
+    path.join(__dirname, '../frontend/build'), // Development fallback
+    path.join(__dirname, '../frontend'), // Production fallback
+    path.join(process.cwd(), 'frontend-ingress') // Alternative location
+  ];
+  
+  for (const testPath of ingressPaths) {
+    if (fs.existsSync(testPath)) {
+      frontendPath = testPath;
+      break;
+    }
+  }
+} else {
+  // Normal mode: use regular frontend build
+  const normalPaths = [
+    path.join(__dirname, '../frontend'), // Production (from dist)
+    path.join(__dirname, '../frontend/build'), // Development
+    path.join(process.cwd(), 'frontend') // Fallback
+  ];
+  
+  for (const testPath of normalPaths) {
+    if (fs.existsSync(testPath)) {
+      frontendPath = testPath;
+      break;
+    }
   }
 }
 
