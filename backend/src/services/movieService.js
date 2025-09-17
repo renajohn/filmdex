@@ -341,40 +341,13 @@ const movieService = {
         return null; // Movie not found
       }
 
-      // If title is being updated, fetch fresh ratings from OMDB
-      if (movieData.original_title && movieData.original_title !== existingMovie.original_title) {
-        try {
-          logger.debug(`Title changed from "${existingMovie.original_title}" to "${movieData.original_title}", fetching fresh ratings...`);
-          const year = existingMovie.release_date ? new Date(existingMovie.release_date).getFullYear() : null;
-          const ratings = await omdbService.getMovieRatings(movieData.original_title, year);
-          
-          // Only update ratings if we found new ones, otherwise preserve existing ratings
-          if (ratings.imdbRating) {
-            movieData.imdb_rating = ratings.imdbRating;
-            logger.debug(`Updated IMDB rating: ${ratings.imdbRating}`);
-          } else if (existingMovie.imdb_rating) {
-            movieData.imdb_rating = existingMovie.imdb_rating;
-            logger.debug(`Preserved existing IMDB rating: ${existingMovie.imdb_rating}`);
-          }
-          
-          if (ratings.rottenTomatoRating) {
-            movieData.rotten_tomato_rating = parseInt(ratings.rottenTomatoRating);
-            logger.debug(`Updated Rotten Tomatoes rating: ${ratings.rottenTomatoRating}`);
-          } else if (existingMovie.rotten_tomato_rating) {
-            movieData.rotten_tomato_rating = existingMovie.rotten_tomato_rating;
-            logger.debug(`Preserved existing Rotten Tomatoes rating: ${existingMovie.rotten_tomato_rating}`);
-          }
-          
-          logger.debug(`Final ratings for "${movieData.title}": IMDB=${movieData.imdb_rating}, RT=${movieData.rotten_tomato_rating}`);
-        } catch (error) {
-          console.warn(`Failed to fetch ratings for updated title "${movieData.title}":`, error.message);
-          // Preserve existing ratings if fetch fails
-          if (existingMovie.imdb_rating && !movieData.imdb_rating) {
-            movieData.imdb_rating = existingMovie.imdb_rating;
-          }
-          if (existingMovie.rotten_tomato_rating && !movieData.rotten_tomato_rating) {
-            movieData.rotten_tomato_rating = existingMovie.rotten_tomato_rating;
-          }
+      // Ensure all fields from existingMovie are present in movieData if missing
+      for (const key in existingMovie) {
+        if (
+          Object.prototype.hasOwnProperty.call(existingMovie, key) &&
+          (movieData[key] === undefined || movieData[key] === null)
+        ) {
+          movieData[key] = existingMovie[key];
         }
       }
 

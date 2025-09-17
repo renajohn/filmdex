@@ -480,7 +480,7 @@ const movieController = {
       // Create movie data with all enriched information
       const movieData = {
         // User-editable fields
-        title: tmdbMovie.title,
+        title: title || tmdbMovie.title, // Use the custom title from the form
         format: format || 'Blu-ray',
         price: price ? parseFloat(price) : null,
         acquired_date: acquired_date || new Date().toISOString().split('T')[0],
