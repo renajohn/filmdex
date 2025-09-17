@@ -24,7 +24,19 @@ class ApiService {
   }
 
   async loadConfig() {
-    // Always use relative paths - no need for base_url configuration
+    // Detect if we're running in Home Assistant ingress mode
+    const pathname = window.location.pathname;
+    
+    if (pathname.includes('/api/hassio_ingress/')) {
+      // Extract the ingress path from the current URL
+      const match = pathname.match(/\/api\/hassio_ingress\/[^/]+/);
+      if (match) {
+        const ingressPath = match[0];
+        return `${ingressPath}/api`;
+      }
+    }
+    
+    // Default to /api for normal mode
     return '/api';
   }
 
