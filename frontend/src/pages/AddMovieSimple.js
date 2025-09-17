@@ -65,7 +65,8 @@ const AddMovieSimple = () => {
     setSelectedMovie(movie);
     setFormData(prev => ({
       ...prev,
-      title: movie.title,
+      // Only set title if it's empty, otherwise preserve user's custom title
+      title: prev.title || movie.title,
       year: movie.release_date ? new Date(movie.release_date).getFullYear().toString() : ''
     }));
     setSearchResults([]);

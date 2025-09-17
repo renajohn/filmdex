@@ -342,23 +342,39 @@ const movieService = {
       }
 
       // If title is being updated, fetch fresh ratings from OMDB
-      if (movieData.title && movieData.title !== existingMovie.title) {
+      if (movieData.original_title && movieData.original_title !== existingMovie.original_title) {
         try {
-          logger.debug(`Title changed from "${existingMovie.title}" to "${movieData.title}", fetching fresh ratings...`);
+          logger.debug(`Title changed from "${existingMovie.original_title}" to "${movieData.original_title}", fetching fresh ratings...`);
           const year = existingMovie.release_date ? new Date(existingMovie.release_date).getFullYear() : null;
-          const ratings = await omdbService.getMovieRatings(movieData.title, year);
+          const ratings = await omdbService.getMovieRatings(movieData.original_title, year);
           
-          // Add the fetched ratings to the movie data
+          // Only update ratings if we found new ones, otherwise preserve existing ratings
           if (ratings.imdbRating) {
             movieData.imdb_rating = ratings.imdbRating;
-          }
-          if (ratings.rottenTomatoRating) {
-            movieData.rotten_tomato_rating = parseInt(ratings.rottenTomatoRating);
+            logger.debug(`Updated IMDB rating: ${ratings.imdbRating}`);
+          } else if (existingMovie.imdb_rating) {
+            movieData.imdb_rating = existingMovie.imdb_rating;
+            logger.debug(`Preserved existing IMDB rating: ${existingMovie.imdb_rating}`);
           }
           
-          logger.debug(`Fetched ratings for "${movieData.title}": IMDB=${ratings.imdbRating}, RT=${ratings.rottenTomatoRating}`);
+          if (ratings.rottenTomatoRating) {
+            movieData.rotten_tomato_rating = parseInt(ratings.rottenTomatoRating);
+            logger.debug(`Updated Rotten Tomatoes rating: ${ratings.rottenTomatoRating}`);
+          } else if (existingMovie.rotten_tomato_rating) {
+            movieData.rotten_tomato_rating = existingMovie.rotten_tomato_rating;
+            logger.debug(`Preserved existing Rotten Tomatoes rating: ${existingMovie.rotten_tomato_rating}`);
+          }
+          
+          logger.debug(`Final ratings for "${movieData.title}": IMDB=${movieData.imdb_rating}, RT=${movieData.rotten_tomato_rating}`);
         } catch (error) {
           console.warn(`Failed to fetch ratings for updated title "${movieData.title}":`, error.message);
+          // Preserve existing ratings if fetch fails
+          if (existingMovie.imdb_rating && !movieData.imdb_rating) {
+            movieData.imdb_rating = existingMovie.imdb_rating;
+          }
+          if (existingMovie.rotten_tomato_rating && !movieData.rotten_tomato_rating) {
+            movieData.rotten_tomato_rating = existingMovie.rotten_tomato_rating;
+          }
         }
       }
 
