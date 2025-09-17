@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import MovieImport from '../components/MovieImport';
 import UnmatchedMovies from '../components/UnmatchedMovies';
 import ColumnMappingModal from '../components/ColumnMappingModal';
@@ -6,6 +7,7 @@ import apiService from '../services/api';
 import './ImportPage.css';
 
 const ImportPage = () => {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState('upload'); // 'upload', 'mapping', 'processing', 'resolve', 'complete'
   const [importId, setImportId] = useState(null);
   const [error, setError] = useState(null);
@@ -212,7 +214,7 @@ const ImportPage = () => {
               
               <div className="complete-actions">
                 <button 
-                  onClick={() => window.location.href = '/'} 
+                  onClick={() => navigate('/')} 
                   className="btn btn-primary"
                 >
                   View Collection

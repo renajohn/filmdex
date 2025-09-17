@@ -2,7 +2,6 @@ const configManager = require('./config');
 
 class Logger {
   constructor() {
-    this.logLevel = this.getLogLevel();
     this.levels = {
       error: 0,
       warn: 1,
@@ -13,14 +12,17 @@ class Logger {
 
   getLogLevel() {
     try {
-      return configManager.getLogLevel();
+      const level = configManager.getLogLevel();
+      // Ensure lowercase for consistency with levels object
+      return level ? level.toLowerCase() : 'info';
     } catch (error) {
       return 'info';
     }
   }
 
   shouldLog(level) {
-    return this.levels[level] <= this.levels[this.logLevel];
+    const currentLogLevel = this.getLogLevel();
+    return this.levels[level] <= this.levels[currentLogLevel];
   }
 
   formatMessage(level, message, ...args) {

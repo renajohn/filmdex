@@ -202,7 +202,7 @@ if (frontendPath) {
     // Handle root route
     app.get('/', (req, res) => {
       // Debug: Log ingress headers
-      logger.info('Request headers:', {
+      logger.debug('Request headers:', {
         'x-ingress-path': req.headers['x-ingress-path'],
         'x-forwarded-for': req.headers['x-forwarded-for'],
         'x-forwarded-proto': req.headers['x-forwarded-proto'],
