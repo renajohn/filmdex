@@ -127,7 +127,10 @@ app.get('/health', (req, res) => {
 // Static file serving for images (must be after specific routes)
 app.use('/images', express.static(configManager.getImagesPath()));
 
-// Serve frontend from /app/ path
+// Check if running in Home Assistant ingress mode
+const isIngressMode = process.env.INGRESS_PORT || process.env.HASSIO_TOKEN;
+
+// Serve frontend from /app/ path (or root for ingress)
 // Check for frontend in both development and production locations
 const frontendPaths = [
   path.join(__dirname, '../frontend/build'), // Development
@@ -145,24 +148,47 @@ for (const testPath of frontendPaths) {
 
 if (frontendPath) {
   logger.info(`Serving frontend from: ${frontendPath}`);
+  logger.info(`Ingress mode: ${isIngressMode ? 'enabled' : 'disabled'}`);
   
-  // Serve static files from frontend build (CSS, JS, images, etc.)
-  app.use('/app/static', express.static(path.join(frontendPath, 'static')));
-  app.use('/app', express.static(frontendPath, { index: false }));
-  
-  // Handle all /app routes for SPA routing
-  app.get('/app', (req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
-  });
-  
-  app.get('/app/', (req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
-  });
-  
-  // Handle all other /app routes for React Router (catch-all)
-  app.use('/app', (req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
-  });
+  if (isIngressMode) {
+    // Ingress mode: serve frontend at root path
+    logger.info('Running in Home Assistant ingress mode - serving frontend at root path');
+    
+    // Serve static files from frontend build (CSS, JS, images, etc.)
+    app.use('/static', express.static(path.join(frontendPath, 'static')));
+    app.use('/', express.static(frontendPath, { index: false }));
+    
+    // Handle root route
+    app.get('/', (req, res) => {
+      res.sendFile(path.join(frontendPath, 'index.html'));
+    });
+    
+    // Handle all other routes for React Router (catch-all)
+    app.use('/', (req, res) => {
+      res.sendFile(path.join(frontendPath, 'index.html'));
+    });
+  } else {
+    // Normal mode: serve frontend at /app path
+    logger.info('Running in normal mode - serving frontend at /app path');
+    
+    // Serve static files from frontend build (CSS, JS, images, etc.)
+    app.use('/app/static', express.static(path.join(frontendPath, 'static')));
+    app.use('/app', express.static(frontendPath, { index: false }));
+    
+    // Handle all /app routes for SPA routing
+    app.get('/app', (req, res) => {
+      res.sendFile(path.join(frontendPath, 'index.html'));
+    });
+    
+    app.get('/app/', (req, res) => {
+      res.sendFile(path.join(frontendPath, 'index.html'));
+    });
+    
+    // Handle all other /app routes for React Router (catch-all)
+    app.use('/app', (req, res) => {
+      res.sendFile(path.join(frontendPath, 'index.html'));
+    });
+  }
   
 // Handle Chrome DevTools request to silence warning
 app.get('/.well-known/appspecific/com.chrome.devtools.json', (req, res) => {
