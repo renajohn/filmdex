@@ -170,21 +170,67 @@ if (frontendPath) {
   logger.info(`Ingress mode: ${isIngressMode ? 'enabled' : 'disabled'}`);
   
   if (isIngressMode) {
-    // Ingress mode: serve frontend at root path
+    // Ingress mode: serve frontend at root path with dynamic path rewriting
     logger.info('Running in Home Assistant ingress mode - serving frontend at root path');
     
     // Serve static files from frontend build (CSS, JS, images, etc.)
+    // Note: In ingress mode, static files are served by Home Assistant's ingress proxy
+    // We still need to serve them locally for development/testing
     app.use('/static', express.static(path.join(frontendPath, 'static')));
     app.use('/', express.static(frontendPath, { index: false }));
     
+    // Function to rewrite HTML content for ingress paths
+    const rewriteHtmlForIngress = (htmlContent, req) => {
+      // Check for X-Ingress-Path header from Home Assistant
+      const ingressPath = req.headers['x-ingress-path'];
+      
+      if (ingressPath) {
+        logger.info(`Detected ingress path: ${ingressPath}`);
+        
+        // Rewrite static asset paths to include ingress path
+        return htmlContent
+          .replace(/href="\/static\//g, `href="${ingressPath}/static/`)
+          .replace(/src="\/static\//g, `src="${ingressPath}/static/`)
+          .replace(/href="\/favicon/g, `href="${ingressPath}/favicon`)
+          .replace(/href="\/logo/g, `href="${ingressPath}/logo`)
+          .replace(/href="\/manifest/g, `href="${ingressPath}/manifest`);
+      }
+      
+      return htmlContent;
+    };
+    
     // Handle root route
     app.get('/', (req, res) => {
-      res.sendFile(path.join(frontendPath, 'index.html'));
+      // Debug: Log ingress headers
+      logger.info('Request headers:', {
+        'x-ingress-path': req.headers['x-ingress-path'],
+        'x-forwarded-for': req.headers['x-forwarded-for'],
+        'x-forwarded-proto': req.headers['x-forwarded-proto'],
+        'x-forwarded-host': req.headers['x-forwarded-host'],
+        'host': req.headers['host'],
+        'referer': req.headers['referer']
+      });
+      
+      const htmlPath = path.join(frontendPath, 'index.html');
+      let htmlContent = fs.readFileSync(htmlPath, 'utf8');
+      
+      // Rewrite HTML for ingress if needed
+      htmlContent = rewriteHtmlForIngress(htmlContent, req);
+      
+      res.setHeader('Content-Type', 'text/html');
+      res.send(htmlContent);
     });
     
     // Handle all other routes for React Router (catch-all)
     app.use('/', (req, res) => {
-      res.sendFile(path.join(frontendPath, 'index.html'));
+      const htmlPath = path.join(frontendPath, 'index.html');
+      let htmlContent = fs.readFileSync(htmlPath, 'utf8');
+      
+      // Rewrite HTML for ingress if needed
+      htmlContent = rewriteHtmlForIngress(htmlContent, req);
+      
+      res.setHeader('Content-Type', 'text/html');
+      res.send(htmlContent);
     });
   } else {
     // Normal mode: serve frontend at /app path
