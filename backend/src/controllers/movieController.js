@@ -6,6 +6,7 @@ const imageService = require('../services/imageService');
 const Movie = require('../models/movie');
 const MovieCast = require('../models/movieCast');
 const MovieCrew = require('../models/movieCrew');
+const logger = require('../logger');
 
 const movieController = {
   getAllMovies: async (req, res) => {
@@ -418,21 +419,31 @@ const movieController = {
   // New simplified add movie endpoint
   addMovie: async (req, res) => {
     try {
-      const { title, year, format, price, acquired_date, comments, never_seen } = req.body;
+      const { title, year, format, price, acquired_date, comments, never_seen, tmdb_id, tmdb_data } = req.body;
       
       if (!title) {
         return res.status(400).json({ error: 'Title is required' });
       }
 
-      // Search TMDB for movies and TV shows
-      const tmdbResults = await tmdbService.searchAll(title, year);
+      let tmdbMovie;
       
-      if (!tmdbResults || tmdbResults.length === 0) {
-        return res.status(404).json({ error: 'No movies or TV shows found in TMDB' });
-      }
+      // If tmdb_id and tmdb_data are provided, use the pre-selected movie
+      if (tmdb_id && tmdb_data) {
+        logger.debug('Using pre-selected movie:', tmdb_data.title, 'ID:', tmdb_id);
+        tmdbMovie = tmdb_data;
+      } else {
+        // Fallback: Search TMDB for movies and TV shows
+        logger.debug('Searching TMDB for:', title, year);
+        const tmdbResults = await tmdbService.searchAll(title, year);
+        
+        if (!tmdbResults || tmdbResults.length === 0) {
+          return res.status(404).json({ error: 'No movies or TV shows found in TMDB' });
+        }
 
-      // Use the first result (most relevant)
-      const tmdbMovie = tmdbResults[0];
+        // Use the first result (most relevant)
+        tmdbMovie = tmdbResults[0];
+        logger.debug('Selected first result:', tmdbMovie.title, 'ID:', tmdbMovie.id);
+      }
       
       // Get detailed TMDB data based on media type
       const tmdbDetails = tmdbMovie.media_type === 'tv' 

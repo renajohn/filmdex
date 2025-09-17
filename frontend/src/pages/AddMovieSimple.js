@@ -100,9 +100,13 @@ const AddMovieSimple = () => {
         price: formData.price ? parseFloat(formData.price) : null,
         acquired_date: formData.acquired_date,
         comments: formData.comments,
-        never_seen: formData.never_seen
+        never_seen: formData.never_seen,
+        // Add the selected movie data so backend knows which TMDB movie to use
+        tmdb_id: selectedMovie?.id,
+        tmdb_data: selectedMovie
       };
 
+      console.log('Sending movie data:', movieData);
       const result = await apiService.addMovie(movieData);
       
       setSuccess(true);

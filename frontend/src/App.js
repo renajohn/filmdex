@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import MovieSearch from './components/MovieSearch';
-import AddMovie from './pages/AddMovie';
 import AddMovieSimple from './pages/AddMovieSimple';
 import ImportPage from './pages/ImportPage';
 import CogDropdown from './components/CogDropdown';
@@ -57,7 +56,6 @@ function AppContent() {
               />
             } 
           />
-          <Route path="/add-movie" element={<AddMovie />} />
           <Route path="/add-movie-simple" element={<AddMovieSimple />} />
           <Route path="/import" element={<ImportPage />} />
         </Routes>
