@@ -214,11 +214,6 @@ COPY . .
 # Create data directory
 RUN mkdir -p /data
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S filmdex && adduser -S filmdex -u 1001
-RUN chown -R filmdex:filmdex /app
-USER filmdex
-
 # Expose port
 EXPOSE 3001
 
