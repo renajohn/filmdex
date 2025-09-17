@@ -87,7 +87,7 @@ const ImportService = {
       }
 
       // Process movies in batches for better performance
-      const BATCH_SIZE = 10; // Process 5 movies at a time
+      const BATCH_SIZE = 1; // Process 5 movies at a time
       const totalMovies = csvData.length;
       let processedCount = 0;
       
@@ -621,10 +621,11 @@ const ImportService = {
         const castMembers = [];
         for (let i = 0; i < Math.min(credits.cast.length, 10); i++) {
           const actor = credits.cast[i];
+          console.log(`Processing actor ${i}: ${actor.name} (ID: ${actor.id}, profile: ${actor.profile_path})`);
           const localProfilePath = await imageService.downloadProfile(
             actor.profile_path, 
             tmdbId, 
-            actor.id || i // Use order index as fallback if actor.id is undefined
+            actor.id !== undefined ? actor.id : `actor_${i}` // Use order index as fallback if actor.id is undefined (but not if it's 0)
           );
           
           castMembers.push({

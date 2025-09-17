@@ -73,8 +73,11 @@ const ImageService = {
   downloadProfile: async (profilePath, tmdbId, castId) => {
     if (!profilePath) return null;
     // Use a fallback if castId is undefined, and add order index to make filenames unique
-    const safeCastId = castId || 'unknown';
+    // Include tmdbId in filename to prevent collisions between different movies
+    // Handle case where castId is 0 (which is falsy but valid)
+    const safeCastId = castId !== undefined ? castId : 'unknown';
     const filename = `${tmdbId}_cast_${safeCastId}.jpg`;
+    console.log(`Downloading profile: ${profilePath} -> ${filename} (castId: ${castId})`);
     return await ImageService.downloadImage(profilePath, 'profiles', tmdbId, filename);
   },
 
