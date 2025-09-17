@@ -312,7 +312,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
 
                   <div className="rating-item rt-rating">
                     <a 
-                      href={rotten_tomatoes_link || `https://www.rottentomatoes.com/m/${title?.toLowerCase().replace(/[^a-z0-9]/g, '_')}`} 
+                      href={rotten_tomatoes_link || `https://www.rottentomatoes.com/m/${original_title?.toLowerCase().replace(/[^a-z0-9]/g, '_')}`} 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="rating-link"

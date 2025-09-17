@@ -267,6 +267,19 @@ const AddMovieSimple = () => {
               <div className="form-section">
                 <h3>Your Collection Details</h3>
                 
+                <div className="form-group">
+                  <label htmlFor="title">Title</label>
+                  <input
+                    type="text"
+                    id="title"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleInputChange}
+                    placeholder="Movie title"
+                    required
+                  />
+                </div>
+                
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor="format">Format</label>
