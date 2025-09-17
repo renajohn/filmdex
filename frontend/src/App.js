@@ -68,8 +68,27 @@ function AppContent() {
 }
 
 function App() {
+  // Dynamically determine the basename based on the current URL
+  const getBasename = () => {
+    const pathname = window.location.pathname;
+    
+    // Check if we're running in Home Assistant ingress mode
+    if (pathname.includes('/api/hassio_ingress/')) {
+      // Extract the ingress path from the current URL
+      const match = pathname.match(/\/api\/hassio_ingress\/[^/]+/);
+      if (match) {
+        return match[0];
+      }
+    }
+    
+    // Default to /app for normal mode
+    return '/app';
+  };
+
+  const basename = getBasename();
+  
   return (
-    <Router basename="/app">
+    <Router basename={basename}>
       <AppContent />
     </Router>
   );
