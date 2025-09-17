@@ -15,7 +15,7 @@ const AddMovieSimple = () => {
   const [formData, setFormData] = useState({
     title: '',
     year: '',
-    format: 'Blu-ray',
+    format: 'Blu-ray 4k',
     price: '',
     acquired_date: new Date().toISOString().split('T')[0],
     comments: '',
@@ -65,8 +65,8 @@ const AddMovieSimple = () => {
     setSelectedMovie(movie);
     setFormData(prev => ({
       ...prev,
-      // Only set title if it's empty, otherwise preserve user's custom title
-      title: prev.title || movie.title,
+      // Always use the selected movie's title when a movie is selected
+      title: movie.title,
       year: movie.release_date ? new Date(movie.release_date).getFullYear().toString() : ''
     }));
     setSearchResults([]);
@@ -132,7 +132,33 @@ const AddMovieSimple = () => {
         <div className="success-message">
           <h2>✅ Movie Added Successfully!</h2>
           <p>Your movie has been added to your collection with all the details from TMDB.</p>
-          <p>Redirecting to your collection...</p>
+          <div className="success-actions">
+            <button 
+              className="btn btn-primary"
+              onClick={() => {
+                setSuccess(false);
+                setSelectedMovie(null);
+                setFormData({
+                  title: '',
+                  year: '',
+                  format: 'Blu-ray 4k',
+                  price: '',
+                  acquired_date: new Date().toISOString().split('T')[0],
+                  comments: '',
+                  never_seen: false
+                });
+                setError('');
+              }}
+            >
+              Add Another Movie
+            </button>
+            <button 
+              className="btn btn-secondary"
+              onClick={() => navigate('/')}
+            >
+              View Collection
+            </button>
+          </div>
         </div>
       </div>
     );

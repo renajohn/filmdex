@@ -143,11 +143,11 @@ const Movie = {
       let sql = 'SELECT * FROM movies WHERE 1=1';
       const params = [];
 
-      // Full-text search on title and director
+      // Full-text search on title, director, and comments
       if (criteria.searchText) {
-        sql += ' AND (title LIKE ? OR director LIKE ?)';
+        sql += ' AND (title LIKE ? OR original_title LIKE ? OR director LIKE ? OR comments LIKE ?)';
         const searchTerm = `%${criteria.searchText}%`;
-        params.push(searchTerm, searchTerm);
+        params.push(searchTerm, searchTerm, searchTerm, searchTerm);
       }
 
       if (criteria.format) {
