@@ -441,9 +441,9 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       case 'titleReverse':
         return sorted.sort((a, b) => b.title.localeCompare(a.title));
       case 'lastAddedFirst':
-        return sorted.sort((a, b) => new Date(b.acquisition_date || b.created_at || b.updated_at) - new Date(a.acquisition_date || a.created_at || a.updated_at));
+        return sorted.sort((a, b) => new Date(b.acquired_date || b.created_at || b.updated_at) - new Date(a.acquired_date || a.created_at || a.updated_at));
       case 'lastAddedLast':
-        return sorted.sort((a, b) => new Date(a.acquisition_date || a.created_at || a.updated_at) - new Date(b.acquisition_date || b.created_at || b.updated_at));
+        return sorted.sort((a, b) => new Date(a.acquired_date || a.created_at || a.updated_at) - new Date(b.acquired_date || b.created_at || b.updated_at));
       case 'rating':
         return sorted.sort((a, b) => {
           const ratingA = getCombinedScore(a) || 0;
