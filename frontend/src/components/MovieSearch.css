@@ -948,6 +948,17 @@
   }
 }
 
+/* iPhone specific styles */
+@media (max-width: 480px) {
+  .filter-pills {
+    display: none !important; /* Ensure filter pills are hidden on iPhone */
+  }
+  
+  .movies-results-header {
+    margin-bottom: 8px;
+  }
+}
+
 /* Modal Styles */
 .modal-overlay {
   position: fixed;
