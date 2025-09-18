@@ -8,6 +8,9 @@ import './MovieSearch.css';
 
 const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLoading }, ref) => {
   const [movies, setMovies] = useState([]);
+  const [allMovies, setAllMovies] = useState([]); // Store all movies from backend
+  const [filteredMovies, setFilteredMovies] = useState([]); // Store filtered movies
+  const [activeFilters, setActiveFilters] = useState([]); // Store active filter pills
   const [error, setError] = useState(null);
   const [message, setMessage] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -71,6 +74,8 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       setLoading(true);
       setError(null);
       const data = await apiService.getAllMovies();
+      setAllMovies(data);
+      setFilteredMovies(data);
       setMovies(data);
     } catch (err) {
       setError(err.message);
@@ -91,7 +96,10 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       } else {
         data = await apiService.getAllMovies();
       }
+      setAllMovies(data);
+      setFilteredMovies(data);
       setMovies(data);
+      setActiveFilters([]); // Reset filters when search changes
     } catch (err) {
       setError(err.message);
     } finally {
@@ -272,6 +280,86 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     }
   };
 
+  // Filter functions
+  const getFilterCounts = () => {
+    const counts = {
+      all: allMovies.length,
+      movies: allMovies.filter(movie => movie.media_type === 'movie' || !movie.media_type).length,
+      tvShows: allMovies.filter(movie => movie.media_type === 'tv').length,
+      comments: allMovies.filter(movie => movie.comments && movie.comments.trim()).length,
+      formats: {}
+    };
+
+    // Count formats
+    allMovies.forEach(movie => {
+      if (movie.format) {
+        counts.formats[movie.format] = (counts.formats[movie.format] || 0) + 1;
+      }
+    });
+
+    return counts;
+  };
+
+  const applyFilters = (filters) => {
+    if (filters.length === 0) {
+      setFilteredMovies(allMovies);
+      setMovies(allMovies);
+      return;
+    }
+
+    const filtered = allMovies.filter(movie => {
+      return filters.some(filter => {
+        switch (filter.type) {
+          case 'movies':
+            return movie.media_type === 'movie' || !movie.media_type;
+          case 'tvShows':
+            return movie.media_type === 'tv';
+          case 'comments':
+            return movie.comments && movie.comments.trim();
+          case 'format':
+            return movie.format === filter.value;
+          default:
+            return false;
+        }
+      });
+    });
+
+    setFilteredMovies(filtered);
+    setMovies(filtered);
+  };
+
+  const handleFilterClick = (filterType, filterValue = null) => {
+    if (filterType === 'all') {
+      setActiveFilters([]);
+      setFilteredMovies(allMovies);
+      setMovies(allMovies);
+      return;
+    }
+
+    const newFilter = { type: filterType, value: filterValue };
+    const filterKey = filterValue ? `${filterType}-${filterValue}` : filterType;
+    
+    setActiveFilters(prev => {
+      const isActive = prev.some(f => 
+        f.type === filterType && (filterValue ? f.value === filterValue : true)
+      );
+      
+      if (isActive) {
+        // Remove filter
+        const newFilters = prev.filter(f => 
+          !(f.type === filterType && (filterValue ? f.value === filterValue : true))
+        );
+        applyFilters(newFilters);
+        return newFilters;
+      } else {
+        // Add filter
+        const newFilters = [...prev, newFilter];
+        applyFilters(newFilters);
+        return newFilters;
+      }
+    });
+  };
+
   return (
     <div className="movie-search">
 
@@ -280,7 +368,59 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       {loadingDetails && <div className="loading-details">Loading movie details...</div>}
 
       <div className="movies-results">
-        <h3>Results ({movies ? movies.length : 0} movies)</h3>
+        <div className="filter-pills">
+          {(() => {
+            const counts = getFilterCounts();
+            const isAllActive = activeFilters.length === 0;
+            
+            return (
+              <>
+                <button
+                  className={`filter-pill ${isAllActive ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
+                  onClick={() => handleFilterClick('all')}
+                >
+                  All ({counts.all})
+                </button>
+                {counts.movies > 0 && (
+                  <button
+                    className={`filter-pill ${activeFilters.some(f => f.type === 'movies') ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
+                    onClick={() => handleFilterClick('movies')}
+                  >
+                    Movies ({counts.movies})
+                  </button>
+                )}
+                {counts.tvShows > 0 && (
+                  <button
+                    className={`filter-pill ${activeFilters.some(f => f.type === 'tvShows') ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
+                    onClick={() => handleFilterClick('tvShows')}
+                  >
+                    TV Shows ({counts.tvShows})
+                  </button>
+                )}
+                {counts.comments > 0 && (
+                  <button
+                    className={`filter-pill ${activeFilters.some(f => f.type === 'comments') ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
+                    onClick={() => handleFilterClick('comments')}
+                  >
+                    Comments ({counts.comments})
+                  </button>
+                )}
+                {Object.entries(counts.formats)
+                  .filter(([format, count]) => count > 0)
+                  .map(([format, count]) => (
+                    <button
+                      key={format}
+                      className={`filter-pill ${activeFilters.some(f => f.type === 'format' && f.value === format) ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
+                      onClick={() => handleFilterClick('format', format)}
+                    >
+                      {format} ({count})
+                    </button>
+                  ))}
+              </>
+            );
+          })()}
+        </div>
+        
         {loading ? (
           <div className="loading">Loading movies...</div>
         ) : (

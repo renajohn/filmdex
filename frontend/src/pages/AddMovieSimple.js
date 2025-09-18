@@ -171,22 +171,12 @@ const AddMovieSimple = () => {
 
   return (
     <div className="add-movie-simple">
-      <div className="add-movie-header">
-        <h1>Add New Movie</h1>
-        <button 
-          className="cancel-btn"
-          onClick={handleCancel}
-          disabled={loading}
-        >
-          Cancel
-        </button>
-      </div>
 
       <div className="add-movie-content">
         <div className="info-box">
           <h3>How it works:</h3>
           <ol>
-            <li>Search for the movie in TMDB to see details and preview</li>
+            <li>Search for the movie / TV show in TMDB to see details and preview</li>
             <li>Select the correct movie from the search results</li>
             <li>Fill in your collection details (format, price, etc.)</li>
             <li>Click "Add Movie" - we'll automatically fetch all the details from TMDB</li>

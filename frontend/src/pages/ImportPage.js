@@ -236,7 +236,6 @@ const ImportPage = () => {
     <div className="import-page">
       <div className="import-container">
         <div className="import-header">
-          <h1>Import Movies</h1>
           <div className="step-indicator">
             <div className={`step ${currentStep === 'upload' ? 'active' : ''} ${['upload', 'mapping', 'processing', 'complete'].indexOf(currentStep) > 0 ? 'completed' : ''}`}>
               <span className="step-number">1</span>

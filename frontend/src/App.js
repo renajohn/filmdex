@@ -19,6 +19,20 @@ function AppContent() {
 
   // Check if we're on the thumbnail view (root path)
   const isThumbnailView = location.pathname === '/';
+  
+  // Get the page title based on current route
+  const getPageTitle = () => {
+    switch (location.pathname) {
+      case '/':
+        return 'FilmDex';
+      case '/import':
+        return 'FilmDex - CSV Import';
+      case '/add-movie-simple':
+        return 'FilmDex - Add Movie';
+      default:
+        return 'FilmDex';
+    }
+  };
 
 
   const handleSearchChange = (e) => {
@@ -53,7 +67,7 @@ function AppContent() {
       <header className="App-header">
         <div className={`App-header-content ${!isThumbnailView ? 'no-search' : ''}`}>
           <div className="App-title" onClick={handleFilmDexClick}>
-            <h1>FilmDex</h1>
+            <h1>{getPageTitle()}</h1>
           </div>
           {isThumbnailView && (
             <div className="App-search">
