@@ -6,6 +6,7 @@ import ImportPage from './pages/ImportPage';
 import CogDropdown from './components/CogDropdown';
 import apiService from './services/api';
 import { BsSearch, BsX } from 'react-icons/bs';
+import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
 function AppContent() {

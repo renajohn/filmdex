@@ -1,4 +1,5 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
+import { Dropdown } from 'react-bootstrap';
 import apiService from '../services/api';
 import MovieForm from './MovieForm';
 import MovieThumbnail from './MovieThumbnail';
@@ -23,7 +24,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const [filteredMovies, setFilteredMovies] = useState([]); // Store filtered movies
   const [activeFilters, setActiveFilters] = useState([]); // Store active filter pills
   const [sortBy, setSortBy] = useState('title'); // Current sort option
-  const [showSortDropdown, setShowSortDropdown] = useState(false); // Sort dropdown visibility
   const [sortLoading, setSortLoading] = useState(false); // Sort loading state
   const [filterLoading, setFilterLoading] = useState(false); // Filter loading state
   const [showMoreDropdown, setShowMoreDropdown] = useState(false); // More dropdown visibility
@@ -95,8 +95,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           setShowAddForm(false);
         } else if (selectedMovieDetails) {
           setSelectedMovieDetails(null);
-        } else if (showSortDropdown) {
-          setShowSortDropdown(false);
         }
       }
     };
@@ -106,23 +104,8 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showExportModal, editingMovie, showAddForm, selectedMovieDetails, showSortDropdown]);
+  }, [showExportModal, editingMovie, showAddForm, selectedMovieDetails]);
 
-  // Handle click outside to close sort dropdown
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showSortDropdown && !event.target.closest('.sort-dropdown-container')) {
-        setShowSortDropdown(false);
-      }
-    };
-
-    if (showSortDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }
-  }, [showSortDropdown]);
 
 
   const loadAllMovies = async () => {
@@ -465,6 +448,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     setShowMoreDropdown(false);
   };
 
+
   // Check if a filter is active
   const isFilterActive = (filterType, filterValue = null) => {
     return activeFilters.some(f => 
@@ -513,7 +497,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
   const handleSortChange = async (sortOption) => {
     setSortBy(sortOption);
-    setShowSortDropdown(false);
     setSortLoading(true);
     
     // Add a small delay to show loading state for better UX
@@ -631,10 +614,10 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           </div>
           
           {/* Sort Dropdown - Outside filter pills */}
-          <div className="sort-dropdown-container">
-            <button
-              className={`filter-pill sort-dropdown-button ${showSortDropdown ? 'active' : ''} ${loading || sortLoading ? 'filter-pill-loading' : ''}`}
-              onClick={() => setShowSortDropdown(!showSortDropdown)}
+          <Dropdown className="sort-dropdown-container">
+            <Dropdown.Toggle 
+              as="button"
+              className={`filter-pill sort-dropdown-button ${loading || sortLoading ? 'filter-pill-loading' : ''}`}
               disabled={sortLoading}
             >
               {sortLoading ? (
@@ -646,25 +629,23 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                 <>
                   <BsSortDown className="sort-icon" />
                   Sort: {sortOptions.find(opt => opt.value === sortBy)?.label}
-                  <BsChevronDown className="sort-arrow" />
+                  
                 </>
               )}
-            </button>
+            </Dropdown.Toggle>
             
-            {showSortDropdown && (
-              <div className="sort-dropdown-menu">
-                {sortOptions.map(option => (
-                  <button
-                    key={option.value}
-                    className={`sort-dropdown-item ${sortBy === option.value ? 'active' : ''}`}
-                    onClick={() => handleSortChange(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+            <Dropdown.Menu className="sort-dropdown-menu">
+              {sortOptions.map(option => (
+                <Dropdown.Item
+                  key={option.value}
+                  className={`sort-dropdown-item ${sortBy === option.value ? 'active' : ''}`}
+                  onClick={() => handleSortChange(option.value)}
+                >
+                  {option.label}
+                </Dropdown.Item>
+              ))}
+            </Dropdown.Menu>
+          </Dropdown>
         </div>
         
         {loading ? (

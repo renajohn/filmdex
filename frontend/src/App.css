@@ -115,6 +115,11 @@
   outline: none;
 }
 
+/* Ensure all dropdowns appear above content */
+.dropdown-menu {
+  z-index: 9999 !important;
+}
+
 .App-search .search-input-large:focus {
   border-color: #007bff;
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
