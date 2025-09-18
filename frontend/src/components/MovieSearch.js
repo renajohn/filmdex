@@ -6,15 +6,8 @@ import MovieDetailCard from './MovieDetailCard';
 import CircularProgressBar from './CircularProgressBar';
 import './MovieSearch.css';
 
-const MovieSearch = forwardRef(({ refreshTrigger }, ref) => {
+const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLoading }, ref) => {
   const [movies, setMovies] = useState([]);
-  const [searchCriteria, setSearchCriteria] = useState({
-    searchText: '',
-    format: ''
-  });
-  
-  const [formats, setFormats] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -31,7 +24,6 @@ const MovieSearch = forwardRef(({ refreshTrigger }, ref) => {
   }));
 
   useEffect(() => {
-    loadFormats();
     loadAllMovies();
   }, []);
 
@@ -73,14 +65,6 @@ const MovieSearch = forwardRef(({ refreshTrigger }, ref) => {
     };
   }, [showExportModal, editingMovie, showAddForm, selectedMovieDetails]);
 
-  const loadFormats = async () => {
-    try {
-      const formats = await apiService.getFormats();
-      setFormats(formats);
-    } catch (err) {
-      console.error('Failed to load formats:', err);
-    }
-  };
 
   const loadAllMovies = async () => {
     try {
@@ -100,15 +84,13 @@ const MovieSearch = forwardRef(({ refreshTrigger }, ref) => {
       setLoading(true);
       setError(null);
       
-      // Filter out empty criteria
-      const filteredCriteria = Object.keys(criteria).reduce((acc, key) => {
-        if (criteria[key]) {
-          acc[key] = criteria[key];
-        }
-        return acc;
-      }, {});
-
-      const data = await apiService.searchMovies(filteredCriteria);
+      // If no search text, load all movies, otherwise search
+      let data;
+      if (criteria.searchText && criteria.searchText.trim()) {
+        data = await apiService.searchMovies({ searchText: criteria.searchText });
+      } else {
+        data = await apiService.getAllMovies();
+      }
       setMovies(data);
     } catch (err) {
       setError(err.message);
@@ -192,13 +174,6 @@ const MovieSearch = forwardRef(({ refreshTrigger }, ref) => {
   };
 
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setSearchCriteria(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
 
   const handleMovieClick = async (movieId) => {
     try {
@@ -299,39 +274,6 @@ const MovieSearch = forwardRef(({ refreshTrigger }, ref) => {
 
   return (
     <div className="movie-search">
-      <div className="search-simple">
-          <div className="search-field-large">
-            <div className="search-input-container">
-              <input
-                type="text"
-                name="searchText"
-                value={searchCriteria.searchText}
-                onChange={(e) => {
-                  setSearchCriteria(prev => ({ ...prev, searchText: e.target.value }));
-                }}
-                placeholder="Search by movie title or director..."
-                className="search-input-large"
-              />
-              {loading && <div className="search-loading-indicator">⟳</div>}
-            </div>
-          </div>
-          
-          <div className="search-field-format">
-            <select
-              name="format"
-              value={searchCriteria.format}
-              onChange={handleInputChange}
-              className="format-select"
-            >
-              <option value="">All formats</option>
-              {formats.map((format, index) => (
-                <option key={index} value={format}>
-                  {format}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
 
       {error && <div className="error-message">{error}</div>}
       {message && <div className="success-message">{message}</div>}

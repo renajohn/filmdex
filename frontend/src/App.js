@@ -1,16 +1,37 @@
-import React, { useState, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import MovieSearch from './components/MovieSearch';
 import AddMovieSimple from './pages/AddMovieSimple';
 import ImportPage from './pages/ImportPage';
 import CogDropdown from './components/CogDropdown';
+import apiService from './services/api';
 import './App.css';
 
 function AppContent() {
   const [refreshTrigger] = useState(0);
   const movieSearchRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchCriteria, setSearchCriteria] = useState({
+    searchText: ''
+  });
+  const [loading, setLoading] = useState(false);
 
+  // Check if we're on the thumbnail view (root path)
+  const isThumbnailView = location.pathname === '/';
+
+
+  const handleSearchChange = (e) => {
+    const { name, value } = e.target;
+    setSearchCriteria(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleFilmDexClick = () => {
+    navigate('/');
+  };
 
   const handleImportMovies = () => {
     navigate('/import');
@@ -30,10 +51,25 @@ function AppContent() {
   return (
     <div className="App">
       <header className="App-header">
-        <div className="App-header-content">
-          <div className="App-title">
+        <div className={`App-header-content ${!isThumbnailView ? 'no-search' : ''}`}>
+          <div className="App-title" onClick={handleFilmDexClick}>
             <h1>FilmDex</h1>
           </div>
+          {isThumbnailView && (
+            <div className="App-search">
+              <div className="search-input-container">
+                <input
+                  type="text"
+                  name="searchText"
+                  value={searchCriteria.searchText}
+                  onChange={handleSearchChange}
+                  placeholder="Search by movie title or director..."
+                  className="search-input-large"
+                />
+                {loading && <div className="search-loading-indicator">⟳</div>}
+              </div>
+            </div>
+          )}
           <div className="App-toolbar">
             <CogDropdown 
               onImportMovies={handleImportMovies}
@@ -52,6 +88,9 @@ function AppContent() {
               <MovieSearch 
                 ref={movieSearchRef}
                 refreshTrigger={refreshTrigger}
+                searchCriteria={searchCriteria}
+                loading={loading}
+                setLoading={setLoading}
               />
             } 
           />
