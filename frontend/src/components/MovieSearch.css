@@ -316,6 +316,11 @@
   border-right-color: #747474;
   border-right-width: 1px;
   border-right-style: solid;
+  gap: 4px;
+}
+
+.filter-icon {
+  font-size: 12px;
 }
 
 /* First button - rounded left corners */
@@ -452,8 +457,12 @@
   border-right: none !important;
 }
 
+.sort-icon {
+  font-size: 12px;
+}
+
 .sort-arrow {
-  font-size: 8px;
+  font-size: 10px;
   transition: transform 0.2s ease;
 }
 

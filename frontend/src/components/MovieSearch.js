@@ -4,6 +4,17 @@ import MovieForm from './MovieForm';
 import MovieThumbnail from './MovieThumbnail';
 import MovieDetailCard from './MovieDetailCard';
 import CircularProgressBar from './CircularProgressBar';
+import { 
+  BsFilter, 
+  BsSortDown, 
+  BsChevronDown, 
+  BsX, 
+  BsCheck, 
+  BsFilm, 
+  BsTv, 
+  BsChatText,
+  BsThreeDots
+} from 'react-icons/bs';
 import './MovieSearch.css';
 
 const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLoading }, ref) => {
@@ -538,6 +549,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                     onClick={() => handleFilterClick('all')}
                     disabled={filterLoading}
                   >
+                    <BsFilter className="filter-icon" />
                     All ({counts.all})
                   </button>
                   
@@ -547,6 +559,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                       onClick={() => handleFilterClick('movies')}
                       disabled={filterLoading}
                     >
+                      <BsFilm className="filter-icon" />
                       Movies ({counts.movies})
                     </button>
                   )}
@@ -557,6 +570,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                       onClick={() => handleFilterClick('tvShows')}
                       disabled={filterLoading}
                     >
+                      <BsTv className="filter-icon" />
                       TV Shows ({counts.tvShows})
                     </button>
                   )}
@@ -567,6 +581,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                       onClick={() => handleFilterClick('comments')}
                       disabled={filterLoading}
                     >
+                      <BsChatText className="filter-icon" />
                       Comments ({counts.comments})
                     </button>
                   )}
@@ -579,7 +594,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                         onClick={handleMoreToggle}
                         disabled={filterLoading}
                       >
-                        More...
+                        <BsThreeDots className="filter-icon" />
                       </button>
                       
                       {showMoreDropdown && (
@@ -594,7 +609,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                                   className={`more-dropdown-item ${isActive ? 'active' : ''}`}
                                   onClick={() => handleMorePillClick('format', format)}
                                 >
-                                  {isActive && <span className="checkmark">✓</span>}
+                                  {isActive && <BsCheck className="checkmark" />}
                                   {format} ({count})
                                 </button>
                               );
@@ -629,8 +644,9 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                 </>
               ) : (
                 <>
+                  <BsSortDown className="sort-icon" />
                   Sort: {sortOptions.find(opt => opt.value === sortBy)?.label}
-                  <span className="sort-arrow">▼</span>
+                  <BsChevronDown className="sort-arrow" />
                 </>
               )}
             </button>

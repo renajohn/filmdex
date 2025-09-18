@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import CircularProgressBar from './CircularProgressBar';
 import apiService from '../services/api';
+import { BsX, BsPlay, BsPencil, BsTrash, BsCheck, BsX as BsXIcon } from 'react-icons/bs';
 import './MovieDetailCard.css';
 
 const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
@@ -244,7 +245,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
       <div className="movie-detail-overlay" onClick={onClose}>
         <div className="movie-detail-card" onClick={(e) => e.stopPropagation()}>
           <button className="movie-detail-close" onClick={onClose}>
-            ×
+            <BsX />
           </button>
           
           <div className="movie-detail-content">
@@ -369,11 +370,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                         className="action-btn play-trailer"
                         onClick={() => setShowTrailer(true)}
                       >
-                        ▶ Play Trailer
+                        <BsPlay className="action-icon" />
+                        Play Trailer
                       </button>
                     ) : (
                       <button className="action-btn play-trailer" disabled>
-                        ▶ No Trailer Available
+                        <BsPlay className="action-icon" />
+                        No Trailer Available
                       </button>
                     )}
                     
@@ -382,7 +385,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                         className="action-btn edit-movie"
                         onClick={() => onEdit(movieDetails)}
                       >
-                        ✏️ Edit Movie
+                        <BsPencil className="action-icon" />
+                        Edit Movie
                       </button>
                     )}
                     
@@ -391,7 +395,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                         className="action-btn delete-movie"
                         onClick={() => setShowDeleteConfirm(true)}
                       >
-                        🗑️ Delete Movie
+                        <BsTrash className="action-icon" />
+                        Delete Movie
                       </button>
                     )}
                   </div>
@@ -490,7 +495,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
         <div className="trailer-modal-overlay" onClick={() => setShowTrailer(false)}>
           <div className="trailer-modal" onClick={(e) => e.stopPropagation()}>
             <button className="trailer-modal-close" onClick={() => setShowTrailer(false)}>
-              ×
+              <BsX />
             </button>
             <div className="trailer-video-container">
               <iframe
@@ -519,6 +524,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={deleting}
               >
+                <BsXIcon className="action-icon" />
                 Cancel
               </button>
               <button 
@@ -526,6 +532,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                 onClick={handleDelete}
                 disabled={deleting}
               >
+                <BsTrash className="action-icon" />
                 {deleting ? 'Deleting...' : 'Delete Movie'}
               </button>
             </div>

@@ -58,6 +58,10 @@
   transition: all 0.3s ease;
 }
 
+.movie-detail-close svg {
+  font-size: 18px;
+}
+
 .movie-detail-close:hover {
   background: rgba(26, 26, 26, 0.9);
   transform: scale(1.1);
@@ -190,6 +194,11 @@
   display: flex;
   gap: 10px;
   align-items: center;
+}
+
+.action-icon {
+  font-size: 14px;
+  margin-right: 6px;
 }
 
 .action-btn {
@@ -526,6 +535,10 @@
   align-items: center;
   justify-content: center;
   transition: background-color 0.2s;
+}
+
+.trailer-modal-close svg {
+  font-size: 18px;
 }
 
 .trailer-modal-close:hover {

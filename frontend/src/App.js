@@ -5,6 +5,7 @@ import AddMovieSimple from './pages/AddMovieSimple';
 import ImportPage from './pages/ImportPage';
 import CogDropdown from './components/CogDropdown';
 import apiService from './services/api';
+import { BsSearch, BsX } from 'react-icons/bs';
 import './App.css';
 
 function AppContent() {
@@ -72,6 +73,7 @@ function AppContent() {
           {isThumbnailView && (
             <div className="App-search">
               <div className="search-input-container">
+                <BsSearch className="search-icon" />
                 <input
                   type="text"
                   name="searchText"
@@ -80,6 +82,15 @@ function AppContent() {
                   placeholder="Search by movie title, director..."
                   className="search-input-large"
                 />
+                {searchCriteria.searchText && (
+                  <button 
+                    className="search-clear-button"
+                    onClick={() => setSearchCriteria({ searchText: '' })}
+                    type="button"
+                  >
+                    <BsX />
+                  </button>
+                )}
               </div>
             </div>
           )}
