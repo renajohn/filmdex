@@ -291,10 +291,10 @@
 .filter-pills {
   display: flex;
   flex-wrap: wrap;
-  margin-bottom: 16px;
   padding: 0;
   align-items: center;
   height: 24px;
+  margin-bottom: 0px;
 }
 
 .filter-pill {
@@ -743,6 +743,11 @@
 }
 
 @media (max-width: 768px) {
+
+  .sort-dropdown-button .filter-pills {
+    border-radius: 6px !important;
+  }
+
   .search-form {
     padding: 20px;
     margin-bottom: 20px;
@@ -814,9 +819,7 @@
   }
   
   .filter-pills {
-    gap: 3px;
-    margin-bottom: 12px;
-    min-height: 24px;
+    margin-bottom: 0px;
   }
   
   .filter-pill {
@@ -824,8 +827,6 @@
     font-size: 10px;
     border-radius: 0;
     height: 20px;
-    min-height: 20px;
-    max-height: 20px;
   }
 
   /* First button - rounded left corners (mobile) */
