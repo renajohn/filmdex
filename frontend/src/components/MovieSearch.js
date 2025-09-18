@@ -11,6 +11,9 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const [allMovies, setAllMovies] = useState([]); // Store all movies from backend
   const [filteredMovies, setFilteredMovies] = useState([]); // Store filtered movies
   const [activeFilters, setActiveFilters] = useState([]); // Store active filter pills
+  const [sortBy, setSortBy] = useState('title'); // Current sort option
+  const [showSortDropdown, setShowSortDropdown] = useState(false); // Sort dropdown visibility
+  const [sortLoading, setSortLoading] = useState(false); // Sort loading state
   const [error, setError] = useState(null);
   const [message, setMessage] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -57,6 +60,8 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           setShowAddForm(false);
         } else if (selectedMovieDetails) {
           setSelectedMovieDetails(null);
+        } else if (showSortDropdown) {
+          setShowSortDropdown(false);
         }
       }
     };
@@ -66,7 +71,23 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showExportModal, editingMovie, showAddForm, selectedMovieDetails]);
+  }, [showExportModal, editingMovie, showAddForm, selectedMovieDetails, showSortDropdown]);
+
+  // Handle click outside to close sort dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showSortDropdown && !event.target.closest('.sort-dropdown-container')) {
+        setShowSortDropdown(false);
+      }
+    };
+
+    if (showSortDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showSortDropdown]);
 
 
   const loadAllMovies = async () => {
@@ -76,7 +97,9 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       const data = await apiService.getAllMovies();
       setAllMovies(data);
       setFilteredMovies(data);
-      setMovies(data);
+      // Apply current sort to all movies
+      const sorted = sortMovies(data, sortBy);
+      setMovies(sorted);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -98,7 +121,9 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       }
       setAllMovies(data);
       setFilteredMovies(data);
-      setMovies(data);
+      // Apply current sort to search results
+      const sorted = sortMovies(data, sortBy);
+      setMovies(sorted);
       setActiveFilters([]); // Reset filters when search changes
     } catch (err) {
       setError(err.message);
@@ -331,38 +356,38 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   };
 
   const applyFilters = (filters) => {
+    let filtered;
     if (filters.length === 0) {
-      setFilteredMovies(allMovies);
-      setMovies(allMovies);
-      return;
+      filtered = allMovies;
+    } else {
+      filtered = allMovies.filter(movie => {
+        return filters.some(filter => {
+          switch (filter.type) {
+            case 'movies':
+              return movie.media_type === 'movie' || !movie.media_type;
+            case 'tvShows':
+              return movie.media_type === 'tv';
+            case 'comments':
+              return movie.comments && movie.comments.trim();
+            case 'format':
+              return movie.format === filter.value;
+            default:
+              return false;
+          }
+        });
+      });
     }
 
-    const filtered = allMovies.filter(movie => {
-      return filters.some(filter => {
-        switch (filter.type) {
-          case 'movies':
-            return movie.media_type === 'movie' || !movie.media_type;
-          case 'tvShows':
-            return movie.media_type === 'tv';
-          case 'comments':
-            return movie.comments && movie.comments.trim();
-          case 'format':
-            return movie.format === filter.value;
-          default:
-            return false;
-        }
-      });
-    });
-
     setFilteredMovies(filtered);
-    setMovies(filtered);
+    // Apply current sort to filtered movies
+    const sorted = sortMovies(filtered, sortBy);
+    setMovies(sorted);
   };
 
   const handleFilterClick = (filterType, filterValue = null) => {
     if (filterType === 'all') {
       setActiveFilters([]);
-      setFilteredMovies(allMovies);
-      setMovies(allMovies);
+      applyFilters([]);
       return;
     }
 
@@ -390,6 +415,59 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     });
   };
 
+  // Sort functions
+  const sortOptions = [
+    { value: 'title', label: 'Title' },
+    { value: 'titleReverse', label: 'Title - reverse' },
+    { value: 'lastAddedFirst', label: 'Last acquired first' },
+    { value: 'lastAddedLast', label: 'Last acquired last' },
+    { value: 'rating', label: 'Highest rating first' },
+    { value: 'ratingLowest', label: 'Lowest rating first' }
+  ];
+
+  const sortMovies = (moviesToSort, sortOption) => {
+    const sorted = [...moviesToSort];
+    
+    switch (sortOption) {
+      case 'title':
+        return sorted.sort((a, b) => a.title.localeCompare(b.title));
+      case 'titleReverse':
+        return sorted.sort((a, b) => b.title.localeCompare(a.title));
+      case 'lastAddedFirst':
+        return sorted.sort((a, b) => new Date(b.acquisition_date || b.created_at || b.updated_at) - new Date(a.acquisition_date || a.created_at || a.updated_at));
+      case 'lastAddedLast':
+        return sorted.sort((a, b) => new Date(a.acquisition_date || a.created_at || a.updated_at) - new Date(b.acquisition_date || b.created_at || b.updated_at));
+      case 'rating':
+        return sorted.sort((a, b) => {
+          const ratingA = getCombinedScore(a) || 0;
+          const ratingB = getCombinedScore(b) || 0;
+          return ratingB - ratingA; // Higher ratings first
+        });
+      case 'ratingLowest':
+        return sorted.sort((a, b) => {
+          const ratingA = getCombinedScore(a) || 0;
+          const ratingB = getCombinedScore(b) || 0;
+          return ratingA - ratingB; // Lower ratings first
+        });
+      default:
+        return sorted;
+    }
+  };
+
+  const handleSortChange = async (sortOption) => {
+    setSortBy(sortOption);
+    setShowSortDropdown(false);
+    setSortLoading(true);
+    
+    // Add a small delay to show loading state for better UX
+    await new Promise(resolve => setTimeout(resolve, 150));
+    
+    // Apply sorting to current filtered movies
+    const sorted = sortMovies(filteredMovies, sortOption);
+    setMovies(sorted);
+    setSortLoading(false);
+  };
+
   return (
     <div className="movie-search">
 
@@ -398,63 +476,100 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       {loadingDetails && <div className="loading-details">Loading movie details...</div>}
 
       <div className="movies-results">
-        <div className="filter-pills">
-          {(() => {
-            const counts = getFilterCounts();
-            const isAllActive = activeFilters.length === 0;
-            
-            return (
-              <>
-                <button
-                  className={`filter-pill ${isAllActive ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
-                  onClick={() => handleFilterClick('all')}
-                >
-                  All ({counts.all})
-                </button>
-                {counts.movies > 0 && (
+        <div className="movies-results-header">
+          <div className="filter-pills">
+            {(() => {
+              const counts = getFilterCounts();
+              const isAllActive = activeFilters.length === 0;
+              
+              return (
+                <>
                   <button
-                    className={`filter-pill ${activeFilters.some(f => f.type === 'movies') ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
-                    onClick={() => handleFilterClick('movies')}
+                    className={`filter-pill ${isAllActive ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
+                    onClick={() => handleFilterClick('all')}
                   >
-                    Movies ({counts.movies})
+                    All ({counts.all})
                   </button>
-                )}
-                {counts.tvShows > 0 && (
-                  <button
-                    className={`filter-pill ${activeFilters.some(f => f.type === 'tvShows') ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
-                    onClick={() => handleFilterClick('tvShows')}
-                  >
-                    TV Shows ({counts.tvShows})
-                  </button>
-                )}
-                {counts.comments > 0 && (
-                  <button
-                    className={`filter-pill ${activeFilters.some(f => f.type === 'comments') ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
-                    onClick={() => handleFilterClick('comments')}
-                  >
-                    Comments ({counts.comments})
-                  </button>
-                )}
-                {Object.entries(counts.formats)
-                  .filter(([format, count]) => count > 0)
-                  .map(([format, count]) => (
+                  {counts.movies > 0 && (
                     <button
-                      key={format}
-                      className={`filter-pill ${activeFilters.some(f => f.type === 'format' && f.value === format) ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
-                      onClick={() => handleFilterClick('format', format)}
+                      className={`filter-pill ${activeFilters.some(f => f.type === 'movies') ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
+                      onClick={() => handleFilterClick('movies')}
                     >
-                      {format} ({count})
+                      Movies ({counts.movies})
                     </button>
-                  ))}
-              </>
-            );
-          })()}
+                  )}
+                  {counts.tvShows > 0 && (
+                    <button
+                      className={`filter-pill ${activeFilters.some(f => f.type === 'tvShows') ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
+                      onClick={() => handleFilterClick('tvShows')}
+                    >
+                      TV Shows ({counts.tvShows})
+                    </button>
+                  )}
+                  {counts.comments > 0 && (
+                    <button
+                      className={`filter-pill ${activeFilters.some(f => f.type === 'comments') ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
+                      onClick={() => handleFilterClick('comments')}
+                    >
+                      Comments ({counts.comments})
+                    </button>
+                  )}
+                  {Object.entries(counts.formats)
+                    .filter(([format, count]) => count > 0)
+                    .map(([format, count]) => (
+                      <button
+                        key={format}
+                        className={`filter-pill ${activeFilters.some(f => f.type === 'format' && f.value === format) ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
+                        onClick={() => handleFilterClick('format', format)}
+                      >
+                        {format} ({count})
+                      </button>
+                    ))}
+                </>
+              );
+            })()}
+          </div>
+          
+          {/* Sort Dropdown - Outside filter pills */}
+          <div className="sort-dropdown-container">
+            <button
+              className={`filter-pill sort-dropdown-button ${showSortDropdown ? 'active' : ''} ${loading || sortLoading ? 'filter-pill-loading' : ''}`}
+              onClick={() => setShowSortDropdown(!showSortDropdown)}
+              disabled={sortLoading}
+            >
+              {sortLoading ? (
+                <>
+                  <span className="sort-loading-spinner"></span>
+                  Sorting...
+                </>
+              ) : (
+                <>
+                  Sort: {sortOptions.find(opt => opt.value === sortBy)?.label}
+                  <span className="sort-arrow">▼</span>
+                </>
+              )}
+            </button>
+            
+            {showSortDropdown && (
+              <div className="sort-dropdown-menu">
+                {sortOptions.map(option => (
+                  <button
+                    key={option.value}
+                    className={`sort-dropdown-item ${sortBy === option.value ? 'active' : ''}`}
+                    onClick={() => handleSortChange(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         
         {loading ? (
           <div className="loading">Loading movies...</div>
         ) : (
-          <div className="movies-grid">
+          <div className={`movies-grid ${sortLoading ? 'sort-loading' : ''}`}>
             {movies && movies.map((movie) => (
               <div key={movie.id} className="movie-card-compact" onClick={() => handleMovieClick(movie.id)}>
                 <div className="movie-poster-compact">

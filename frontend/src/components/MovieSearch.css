@@ -276,6 +276,18 @@
   align-items: center;
 }
 
+.movies-results {
+  display: flex;
+  flex-direction: column;
+}
+
+.movies-results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
 .filter-pills {
   display: flex;
   flex-wrap: wrap;
@@ -322,6 +334,106 @@
 /* Single button - all corners rounded */
 .filter-pill:only-child {
   border-radius: 6px;
+}
+
+/* Sort Dropdown Styles */
+.sort-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.sort-dropdown-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border-right: none !important;
+}
+
+.sort-arrow {
+  font-size: 8px;
+  transition: transform 0.2s ease;
+}
+
+.sort-dropdown-button.active .sort-arrow {
+  transform: rotate(180deg);
+}
+
+.sort-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: #2d2d2d;
+  border: 1px solid #555;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  min-width: 160px;
+  margin-top: 4px;
+}
+
+.sort-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: #d2d2d2;
+  text-align: left;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  border-radius: 0;
+}
+
+.sort-dropdown-item:hover {
+  background: #404040;
+  color: #fff;
+}
+
+.sort-dropdown-item.active {
+  background: #4975a5;
+  color: #fff;
+}
+
+.sort-dropdown-item:first-child {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.sort-dropdown-item:last-child {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+.sort-dropdown-item:only-child {
+  border-radius: 6px;
+}
+
+/* Sort Loading Spinner */
+.sort-loading-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #d2d2d2;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 0.8s linear infinite;
+  margin-right: 6px;
+}
+
+.sort-dropdown-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Movies Grid Sort Loading */
+.movies-grid.sort-loading {
+  opacity: 0.6;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
 }
 
 .filter-pill-loading {
