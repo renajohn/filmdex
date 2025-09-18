@@ -14,6 +14,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const [sortBy, setSortBy] = useState('title'); // Current sort option
   const [showSortDropdown, setShowSortDropdown] = useState(false); // Sort dropdown visibility
   const [sortLoading, setSortLoading] = useState(false); // Sort loading state
+  const [filterLoading, setFilterLoading] = useState(false); // Filter loading state
   const [error, setError] = useState(null);
   const [message, setMessage] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -355,7 +356,12 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     return counts;
   };
 
-  const applyFilters = (filters) => {
+  const applyFilters = async (filters) => {
+    setFilterLoading(true);
+    
+    // Add a small delay to show loading state for better UX
+    await new Promise(resolve => setTimeout(resolve, 150));
+    
     let filtered;
     if (filters.length === 0) {
       filtered = allMovies;
@@ -382,12 +388,13 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     // Apply current sort to filtered movies
     const sorted = sortMovies(filtered, sortBy);
     setMovies(sorted);
+    setFilterLoading(false);
   };
 
-  const handleFilterClick = (filterType, filterValue = null) => {
+  const handleFilterClick = async (filterType, filterValue = null) => {
     if (filterType === 'all') {
       setActiveFilters([]);
-      applyFilters([]);
+      await applyFilters([]);
       return;
     }
 
@@ -482,34 +489,66 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
               const counts = getFilterCounts();
               const isAllActive = activeFilters.length === 0;
               
+              // Build array of all visible pills to determine first/last
+              const visiblePills = [];
+              
+              // Add All pill
+              visiblePills.push({ type: 'all', key: 'all' });
+              
+              // Add Movies pill if visible
+              if (counts.movies > 0) {
+                visiblePills.push({ type: 'movies', key: 'movies' });
+              }
+              
+              // Add TV Shows pill if visible
+              if (counts.tvShows > 0) {
+                visiblePills.push({ type: 'tvShows', key: 'tvShows' });
+              }
+              
+              // Add Comments pill if visible
+              if (counts.comments > 0) {
+                visiblePills.push({ type: 'comments', key: 'comments' });
+              }
+              
+              // Add Format pills if visible
+              const formatPills = Object.entries(counts.formats)
+                .filter(([format, count]) => count > 0)
+                .map(([format, count]) => ({ type: 'format', key: format, value: format, count }));
+              
+              visiblePills.push(...formatPills);
+              
               return (
                 <>
                   <button
-                    className={`filter-pill ${isAllActive ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
+                    className={`filter-pill ${isAllActive ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} ${visiblePills.length === 1 ? 'only-child' : 'first-child'}`}
                     onClick={() => handleFilterClick('all')}
+                    disabled={filterLoading}
                   >
                     All ({counts.all})
                   </button>
                   {counts.movies > 0 && (
                     <button
-                      className={`filter-pill ${activeFilters.some(f => f.type === 'movies') ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
+                      className={`filter-pill ${activeFilters.some(f => f.type === 'movies') ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} ${visiblePills.findIndex(p => p.key === 'movies') === visiblePills.length - 1 ? 'last-child' : ''}`}
                       onClick={() => handleFilterClick('movies')}
+                      disabled={filterLoading}
                     >
                       Movies ({counts.movies})
                     </button>
                   )}
                   {counts.tvShows > 0 && (
                     <button
-                      className={`filter-pill ${activeFilters.some(f => f.type === 'tvShows') ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
+                      className={`filter-pill ${activeFilters.some(f => f.type === 'tvShows') ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} ${visiblePills.findIndex(p => p.key === 'tvShows') === visiblePills.length - 1 ? 'last-child' : ''}`}
                       onClick={() => handleFilterClick('tvShows')}
+                      disabled={filterLoading}
                     >
                       TV Shows ({counts.tvShows})
                     </button>
                   )}
                   {counts.comments > 0 && (
                     <button
-                      className={`filter-pill ${activeFilters.some(f => f.type === 'comments') ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
+                      className={`filter-pill ${activeFilters.some(f => f.type === 'comments') ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} ${visiblePills.findIndex(p => p.key === 'comments') === visiblePills.length - 1 ? 'last-child' : ''}`}
                       onClick={() => handleFilterClick('comments')}
+                      disabled={filterLoading}
                     >
                       Comments ({counts.comments})
                     </button>
@@ -519,12 +558,20 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                     .map(([format, count]) => (
                       <button
                         key={format}
-                        className={`filter-pill ${activeFilters.some(f => f.type === 'format' && f.value === format) ? 'active' : ''} ${loading ? 'filter-pill-loading' : ''}`}
+                        className={`filter-pill ${activeFilters.some(f => f.type === 'format' && f.value === format) ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} ${visiblePills.findIndex(p => p.key === format) === visiblePills.length - 1 ? 'last-child' : ''}`}
                         onClick={() => handleFilterClick('format', format)}
+                        disabled={filterLoading}
                       >
                         {format} ({count})
                       </button>
                     ))}
+                  
+                  {/* Filter Loading Spinner */}
+                  {filterLoading && (
+                    <div className="filter-loading-spinner-container">
+                      <span className="filter-loading-spinner"></span>
+                    </div>
+                  )}
                 </>
               );
             })()}
@@ -569,7 +616,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
         {loading ? (
           <div className="loading">Loading movies...</div>
         ) : (
-          <div className={`movies-grid ${sortLoading ? 'sort-loading' : ''}`}>
+          <div className={`movies-grid ${sortLoading || filterLoading ? 'sort-loading' : ''}`}>
             {movies && movies.map((movie) => (
               <div key={movie.id} className="movie-card-compact" onClick={() => handleMovieClick(movie.id)}>
                 <div className="movie-poster-compact">
