@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import './CogDropdown.css';
 
 const CogDropdown = ({ 
@@ -7,7 +8,9 @@ const CogDropdown = ({
   onExportCSV
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
   const dropdownRef = useRef(null);
+  const buttonRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -23,6 +26,13 @@ const CogDropdown = ({
   }, []);
 
   const handleToggle = () => {
+    if (!isOpen && buttonRef.current) {
+      const buttonRect = buttonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: buttonRect.bottom + window.scrollY + 8,
+        right: window.innerWidth - buttonRect.right - window.scrollX
+      });
+    }
     setIsOpen(!isOpen);
   };
 
@@ -34,6 +44,7 @@ const CogDropdown = ({
   return (
     <div className="cog-dropdown" ref={dropdownRef}>
       <button 
+        ref={buttonRef}
         className="cog-button" 
         onClick={handleToggle}
         aria-label="Menu"
@@ -62,14 +73,22 @@ const CogDropdown = ({
         </svg>
       </button>
       
-      {isOpen && (
-        <div className="cog-dropdown-menu">
+      {isOpen && createPortal(
+        <div 
+          className="cog-dropdown-menu"
+          style={{
+            position: 'fixed',
+            top: `${dropdownPosition.top}px`,
+            right: `${dropdownPosition.right}px`,
+            zIndex: 1001
+          }}
+        >
           <button 
             className="cog-menu-item"
             onClick={() => handleMenuClick(onImportMovies)}
           >
             <span className="menu-icon">📥</span>
-            Import Movies
+            CSV Import
           </button>
           <button 
             className="cog-menu-item"
@@ -85,7 +104,8 @@ const CogDropdown = ({
             <span className="menu-icon">📊</span>
             Export CSV
           </button> */}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

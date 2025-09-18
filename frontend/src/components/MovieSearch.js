@@ -146,6 +146,8 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     setShowAddForm(false);
     setEditingMovie(null);
     await loadAllMovies();
+    // Reapply current filters after loading new data
+    applyFilters(activeFilters);
     
     // Restore the details view with updated data if we were editing from details
     if (movieDetailsBeforeEdit) {
@@ -271,8 +273,36 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       await apiService.deleteMovie(movieId);
       // Close the detail view since the movie no longer exists
       setSelectedMovieDetails(null);
-      // Refresh the movie list
-      await loadAllMovies();
+      
+      // Update local state by removing the deleted movie
+      const updatedMovies = allMovies.filter(movie => movie.id !== movieId);
+      setAllMovies(updatedMovies);
+      
+      // Apply filters to the updated data
+      if (activeFilters.length === 0) {
+        setFilteredMovies(updatedMovies);
+        setMovies(updatedMovies);
+      } else {
+        const filtered = updatedMovies.filter(movie => {
+          return activeFilters.some(filter => {
+            switch (filter.type) {
+              case 'movies':
+                return movie.media_type === 'movie' || !movie.media_type;
+              case 'tvShows':
+                return movie.media_type === 'tv';
+              case 'comments':
+                return movie.comments && movie.comments.trim();
+              case 'format':
+                return movie.format === filter.value;
+              default:
+                return false;
+            }
+          });
+        });
+        setFilteredMovies(filtered);
+        setMovies(filtered);
+      }
+      
       setMessage('Movie deleted successfully');
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
