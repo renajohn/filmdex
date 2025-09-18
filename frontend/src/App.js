@@ -77,10 +77,9 @@ function AppContent() {
                   name="searchText"
                   value={searchCriteria.searchText}
                   onChange={handleSearchChange}
-                  placeholder="Search by movie title or director..."
+                  placeholder="Search by movie title, director..."
                   className="search-input-large"
                 />
-                {loading && <div className="search-loading-indicator">⟳</div>}
               </div>
             </div>
           )}

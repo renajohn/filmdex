@@ -14,16 +14,27 @@ const CogDropdown = ({
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
+      // Check if click is outside the button
+      if (buttonRef.current && !buttonRef.current.contains(event.target)) {
+        // Check if click is outside the dropdown menu (which is in a portal)
+        if (!event.target.closest('.cog-dropdown-menu')) {
+          setIsOpen(false);
+        }
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+    if (isOpen) {
+      // Use a small delay to prevent immediate closing when opening
+      const timeoutId = setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 100);
+      
+      return () => {
+        clearTimeout(timeoutId);
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isOpen]);
 
   const handleToggle = () => {
     if (!isOpen && buttonRef.current) {
@@ -38,7 +49,9 @@ const CogDropdown = ({
 
   const handleMenuClick = (action) => {
     setIsOpen(false);
-    action();
+    if (action && typeof action === 'function') {
+      action();
+    }
   };
 
   return (
