@@ -1,4 +1,4 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
 import apiService from '../services/api';
 import MovieForm from './MovieForm';
 import MovieThumbnail from './MovieThumbnail';
@@ -15,6 +15,8 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const [showSortDropdown, setShowSortDropdown] = useState(false); // Sort dropdown visibility
   const [sortLoading, setSortLoading] = useState(false); // Sort loading state
   const [filterLoading, setFilterLoading] = useState(false); // Filter loading state
+  const [showMoreDropdown, setShowMoreDropdown] = useState(false); // More dropdown visibility
+  const moreDropdownRef = useRef(null); // Ref for more dropdown
   const [error, setError] = useState(null);
   const [message, setMessage] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -33,6 +35,27 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   useEffect(() => {
     loadAllMovies();
   }, []);
+
+  // Handle click outside more dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (moreDropdownRef.current && !moreDropdownRef.current.contains(event.target)) {
+        setShowMoreDropdown(false);
+      }
+    };
+
+    if (showMoreDropdown) {
+      // Add a small delay to prevent immediate closing
+      const timeoutId = setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 100);
+      
+      return () => {
+        clearTimeout(timeoutId);
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showMoreDropdown]);
 
   useEffect(() => {
     if (refreshTrigger) {
@@ -422,6 +445,22 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     });
   };
 
+  const handleMoreToggle = () => {
+    setShowMoreDropdown(!showMoreDropdown);
+  };
+
+  const handleMorePillClick = (filterType, filterValue = null) => {
+    handleFilterClick(filterType, filterValue);
+    setShowMoreDropdown(false);
+  };
+
+  // Check if a filter is active
+  const isFilterActive = (filterType, filterValue = null) => {
+    return activeFilters.some(f => 
+      f.type === filterType && (filterValue ? f.value === filterValue : true)
+    );
+  };
+
   // Sort functions
   const sortOptions = [
     { value: 'title', label: 'Title' },
@@ -488,83 +527,82 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
             {(() => {
               const counts = getFilterCounts();
               const isAllActive = activeFilters.length === 0;
-              
-              // Build array of all visible pills to determine first/last
-              const visiblePills = [];
-              
-              // Add All pill
-              visiblePills.push({ type: 'all', key: 'all' });
-              
-              // Add Movies pill if visible
-              if (counts.movies > 0) {
-                visiblePills.push({ type: 'movies', key: 'movies' });
-              }
-              
-              // Add TV Shows pill if visible
-              if (counts.tvShows > 0) {
-                visiblePills.push({ type: 'tvShows', key: 'tvShows' });
-              }
-              
-              // Add Comments pill if visible
-              if (counts.comments > 0) {
-                visiblePills.push({ type: 'comments', key: 'comments' });
-              }
-              
-              // Add Format pills if visible
-              const formatPills = Object.entries(counts.formats)
-                .filter(([format, count]) => count > 0)
-                .map(([format, count]) => ({ type: 'format', key: format, value: format, count }));
-              
-              visiblePills.push(...formatPills);
+              const hasFormats = Object.keys(counts.formats).length > 0;
+              const hasActiveFormatFilters = activeFilters.some(f => f.type === 'format');
               
               return (
                 <>
+                  {/* Main Category Pills */}
                   <button
-                    className={`filter-pill ${isAllActive ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} ${visiblePills.length === 1 ? 'only-child' : 'first-child'}`}
+                    className={`filter-pill ${isAllActive ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} first-child`}
                     onClick={() => handleFilterClick('all')}
                     disabled={filterLoading}
                   >
                     All ({counts.all})
                   </button>
+                  
                   {counts.movies > 0 && (
                     <button
-                      className={`filter-pill ${activeFilters.some(f => f.type === 'movies') ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} ${visiblePills.findIndex(p => p.key === 'movies') === visiblePills.length - 1 ? 'last-child' : ''}`}
+                      className={`filter-pill ${activeFilters.some(f => f.type === 'movies') ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''}`}
                       onClick={() => handleFilterClick('movies')}
                       disabled={filterLoading}
                     >
                       Movies ({counts.movies})
                     </button>
                   )}
+                  
                   {counts.tvShows > 0 && (
                     <button
-                      className={`filter-pill ${activeFilters.some(f => f.type === 'tvShows') ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} ${visiblePills.findIndex(p => p.key === 'tvShows') === visiblePills.length - 1 ? 'last-child' : ''}`}
+                      className={`filter-pill ${activeFilters.some(f => f.type === 'tvShows') ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''}`}
                       onClick={() => handleFilterClick('tvShows')}
                       disabled={filterLoading}
                     >
                       TV Shows ({counts.tvShows})
                     </button>
                   )}
+                  
                   {counts.comments > 0 && (
                     <button
-                      className={`filter-pill ${activeFilters.some(f => f.type === 'comments') ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} ${visiblePills.findIndex(p => p.key === 'comments') === visiblePills.length - 1 ? 'last-child' : ''}`}
+                      className={`filter-pill ${activeFilters.some(f => f.type === 'comments') ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''}`}
                       onClick={() => handleFilterClick('comments')}
                       disabled={filterLoading}
                     >
                       Comments ({counts.comments})
                     </button>
                   )}
-                  {Object.entries(counts.formats)
-                    .filter(([format, count]) => count > 0)
-                    .map(([format, count]) => (
+                  
+                  {/* More Dropdown for Formats */}
+                  {hasFormats && (
+                    <div className="more-dropdown-container" ref={moreDropdownRef}>
                       <button
-                        key={format}
-                        className={`filter-pill ${activeFilters.some(f => f.type === 'format' && f.value === format) ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} ${visiblePills.findIndex(p => p.key === format) === visiblePills.length - 1 ? 'last-child' : ''}`}
-                        onClick={() => handleFilterClick('format', format)}
+                        className={`filter-pill more-pill ${hasActiveFormatFilters ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} last-child`}
+                        onClick={handleMoreToggle}
                         disabled={filterLoading}
                       >
-                        {format} ({count})
+                        More...
                       </button>
-                    ))}
+                      
+                      {showMoreDropdown && (
+                        <div className="more-dropdown-menu">
+                          {Object.entries(counts.formats)
+                            .filter(([format, count]) => count > 0)
+                            .map(([format, count]) => {
+                              const isActive = isFilterActive('format', format);
+                              return (
+                                <button
+                                  key={format}
+                                  className={`more-dropdown-item ${isActive ? 'active' : ''}`}
+                                  onClick={() => handleMorePillClick('format', format)}
+                                >
+                                  {isActive && <span className="checkmark">✓</span>}
+                                  {format} ({count})
+                                </button>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   
                   {/* Filter Loading Spinner */}
                   {filterLoading && (
