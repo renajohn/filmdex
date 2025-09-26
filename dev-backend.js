@@ -9,42 +9,22 @@ require('dotenv').config();
 console.log('🔄 Starting backend development mode...');
 
 function startBackend() {
-  console.log('📦 Building backend...');
+  console.log('🚀 Starting backend directly from source...');
   
-  const buildProcess = spawn('npm', ['run', 'build:dev'], {
+  const startProcess = spawn('npm', ['run', 'dev'], {
     stdio: 'inherit',
     shell: true,
+    cwd: path.join(__dirname, 'backend'),
     env: { ...process.env }
   });
 
-  buildProcess.on('close', (code) => {
-    if (code === 0) {
-      console.log('✅ Build completed, starting backend...');
-      
-      const startProcess = spawn('npm', ['start'], {
-        stdio: 'inherit',
-        shell: true,
-        cwd: process.cwd(),
-        env: { ...process.env }
-      });
-
-      startProcess.on('close', (code) => {
-        console.log(`🔄 Backend stopped with code ${code}, restarting...`);
-        setTimeout(startBackend, 1000);
-      });
-
-      startProcess.on('error', (err) => {
-        console.error('❌ Error starting backend:', err);
-        setTimeout(startBackend, 2000);
-      });
-    } else {
-      console.error('❌ Build failed, retrying...');
-      setTimeout(startBackend, 2000);
-    }
+  startProcess.on('close', (code) => {
+    console.log(`🔄 Backend stopped with code ${code}, restarting...`);
+    setTimeout(startBackend, 1000);
   });
 
-  buildProcess.on('error', (err) => {
-    console.error('❌ Error building:', err);
+  startProcess.on('error', (err) => {
+    console.error('❌ Error starting backend:', err);
     setTimeout(startBackend, 2000);
   });
 }
