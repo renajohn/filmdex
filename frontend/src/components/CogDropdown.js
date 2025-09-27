@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { BsGear, BsPlus, BsUpload, BsDownload } from 'react-icons/bs';
+import { BsGear, BsPlus, BsUpload, BsDownload, BsArrowClockwise } from 'react-icons/bs';
 import './CogDropdown.css';
 
 const CogDropdown = ({ 
   onImportMovies, 
   onAddMovie, 
-  onExportCSV
+  onExportCSV,
+  onBackfill
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
@@ -90,6 +91,15 @@ const CogDropdown = ({
             <BsPlus className="menu-icon" />
             Add Movie
           </button>
+          {onBackfill && (
+            <button 
+              className="cog-menu-item"
+              onClick={() => handleMenuClick(onBackfill)}
+            >
+              <BsArrowClockwise className="menu-icon" />
+              Backfill Ages
+            </button>
+          )}
           {/* <button 
             className="cog-menu-item"
             onClick={() => handleMenuClick(onExportCSV)}

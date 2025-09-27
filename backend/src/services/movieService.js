@@ -143,6 +143,25 @@ const movieService = {
         }
       }
 
+      // If recommended age is missing, try to fetch it
+      if (!movieData.recommended_age && (movieData.tmdb_id || movieData.imdb_id)) {
+        logger.debug('Fetching recommended age for:', movieData.title);
+        try {
+          const ageRecommendationService = require('./ageRecommendationService');
+          const recommendedAge = movieData.media_type === 'tv' 
+            ? await ageRecommendationService.getRecommendedAgeForTV(movieData.tmdb_id, movieData.imdb_id)
+            : await ageRecommendationService.getRecommendedAge(movieData.tmdb_id, movieData.imdb_id);
+          
+          if (recommendedAge !== null) {
+            movieData.recommended_age = recommendedAge;
+            movieData.age_processed = true;
+          }
+        } catch (ageError) {
+          logger.warn('Failed to fetch recommended age for:', movieData.title, ageError.message);
+          // Continue without age - it can be backfilled later
+        }
+      }
+
       return await Movie.create(movieData);
     } catch (error) {
       console.error('Error creating movie with ratings:', error.message);
@@ -268,6 +287,8 @@ const movieService = {
         budget: localMovie.budget || null,
         revenue: localMovie.revenue || null,
         status: localMovie.status || null,
+        recommended_age: localMovie.recommended_age || null,
+        age_processed: localMovie.age_processed || false,
       };
 
       return movieDetails;

@@ -1,0 +1,93 @@
+.age-display {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 20px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  text-align: center;
+  line-height: 1;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  opacity: 0.85;
+}
+
+.age-display:hover {
+  transform: scale(1.05);
+  opacity: 1;
+}
+
+/* Age group colors */
+.age-all {
+  background-color: #28a745;
+  border-color: #1e7e34;
+}
+
+.age-children {
+  background-color: #17a2b8;
+  border-color: #117a8b;
+}
+
+.age-kids {
+  background-color: #ffc107;
+  border-color: #d39e00;
+  color: #212529;
+}
+
+.age-teens {
+  background-color: #fd7e14;
+  border-color: #e55a00;
+}
+
+.age-adults {
+  background-color: #dc3545;
+  border-color: #bd2130;
+}
+
+.age-unknown {
+  background-color: #6c757d;
+  border-color: #545b62;
+}
+
+/* Size variants */
+.age-display.age-small {
+  min-width: 24px;
+  height: 16px;
+  padding: 1px 6px;
+  font-size: 10px;
+}
+
+.age-display.age-large {
+  min-width: 40px;
+  height: 24px;
+  padding: 3px 10px;
+  font-size: 14px;
+}
+
+/* Position variants */
+.age-display.age-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.age-display.age-corner {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 10;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .age-kids {
+    color: #000;
+  }
+}

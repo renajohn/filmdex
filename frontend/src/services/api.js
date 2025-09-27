@@ -329,6 +329,41 @@ class ApiService {
     
     return await response.json();
   }
+
+  // Backfill API methods
+  async getBackfillStatus() {
+    const response = await this.makeRequest('/backfill/status', {
+      method: 'GET',
+    });
+    
+    return await response.json();
+  }
+
+  async startBackfill(options = {}) {
+    const response = await this.makeRequest('/backfill/start', {
+      method: 'POST',
+      body: JSON.stringify(options),
+    });
+    
+    return await response.json();
+  }
+
+  async getBackfillProgress() {
+    const response = await this.makeRequest('/backfill/progress', {
+      method: 'GET',
+    });
+    
+    return await response.json();
+  }
+
+  async retryFailedMovies(movieIds) {
+    const response = await this.makeRequest('/backfill/retry', {
+      method: 'POST',
+      body: JSON.stringify({ movieIds }),
+    });
+    
+    return await response.json();
+  }
 }
 
 const apiService = new ApiService();

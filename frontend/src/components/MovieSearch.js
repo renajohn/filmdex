@@ -46,6 +46,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   useImperativeHandle(ref, () => ({
     handleAddMovieClick,
     handleExportCSVClick,
+    refreshMovies: loadAllMovies,
   }));
 
   useEffect(() => {
@@ -365,7 +366,8 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       movies: allMovies.filter(movie => movie.media_type === 'movie' || !movie.media_type).length,
       tvShows: allMovies.filter(movie => movie.media_type === 'tv').length,
       comments: allMovies.filter(movie => movie.comments && movie.comments.trim()).length,
-      formats: {}
+      formats: {},
+      ageGroups: {}
     };
 
     // Count formats
@@ -373,6 +375,24 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       if (movie.format) {
         counts.formats[movie.format] = (counts.formats[movie.format] || 0) + 1;
       }
+    });
+
+    // Count age groups
+    allMovies.forEach(movie => {
+      let ageGroup = 'Not Rated';
+      if (movie.recommended_age !== null && movie.recommended_age !== undefined) {
+        const age = movie.recommended_age;
+        if (age <= 3) {
+          ageGroup = 'All Ages (0-3)';
+        } else if (age < 10) {
+          ageGroup = 'Children (4-9)';
+        } else if (age <= 14) {
+          ageGroup = 'Pre-teens (10-14)';
+        } else {
+          ageGroup = 'Teens & Adults (15+)';
+        }
+      }
+      counts.ageGroups[ageGroup] = (counts.ageGroups[ageGroup] || 0) + 1;
     });
 
     return counts;
@@ -399,6 +419,21 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
               return movie.comments && movie.comments.trim();
             case 'format':
               return movie.format === filter.value;
+            case 'ageGroup':
+              let movieAgeGroup = 'Not Rated';
+              if (movie.recommended_age !== null && movie.recommended_age !== undefined) {
+                const age = movie.recommended_age;
+                if (age <= 3) {
+                  movieAgeGroup = 'All Ages (0-3)';
+                } else if (age < 10) {
+                  movieAgeGroup = 'Children (4-9)';
+                } else if (age <= 14) {
+                  movieAgeGroup = 'Pre-teens (10-14)';
+                } else {
+                  movieAgeGroup = 'Teens & Adults (15+)';
+                }
+              }
+              return movieAgeGroup === filter.value;
             default:
               return false;
           }
@@ -476,7 +511,9 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     { value: 'lastAddedFirst', label: 'Last acquired first' },
     { value: 'lastAddedLast', label: 'Last acquired last' },
     { value: 'rating', label: 'Highest rating first' },
-    { value: 'ratingLowest', label: 'Lowest rating first' }
+    { value: 'ratingLowest', label: 'Lowest rating first' },
+    { value: 'ageAsc', label: 'Age - youngest first' },
+    { value: 'ageDesc', label: 'Age - oldest first' }
   ];
 
   const groupOptions = [
@@ -484,7 +521,8 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     { value: 'director', label: 'Group by Director' },
     { value: 'genre', label: 'Group by Genre' },
     { value: 'format', label: 'Group by Format' },
-    { value: 'decade', label: 'Group by Decade' }
+    { value: 'decade', label: 'Group by Decade' },
+    { value: 'ageGroup', label: 'Group by Age Rating' }
   ];
 
   const sortMovies = (moviesToSort, sortOption) => {
@@ -510,6 +548,18 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           const ratingA = getCombinedScore(a) || 0;
           const ratingB = getCombinedScore(b) || 0;
           return ratingA - ratingB; // Lower ratings first
+        });
+      case 'ageAsc':
+        return sorted.sort((a, b) => {
+          const ageA = a.recommended_age ?? 999; // Treat null/undefined as highest (oldest)
+          const ageB = b.recommended_age ?? 999;
+          return ageA - ageB; // Youngest first
+        });
+      case 'ageDesc':
+        return sorted.sort((a, b) => {
+          const ageA = a.recommended_age ?? -1; // Treat null/undefined as lowest (youngest)
+          const ageB = b.recommended_age ?? -1;
+          return ageB - ageA; // Oldest first
         });
       default:
         return sorted;
@@ -562,6 +612,22 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
             groupKeys = [`${decade}s`];
           } else {
             groupKeys = ['Unknown Decade'];
+          }
+          break;
+        case 'ageGroup':
+          if (movie.recommended_age !== null && movie.recommended_age !== undefined) {
+            const age = movie.recommended_age;
+            if (age <= 3) {
+              groupKeys = ['All Ages (0-3)'];
+            } else if (age < 10) {
+              groupKeys = ['Children (4-9)'];
+            } else if (age <= 14) {
+              groupKeys = ['Pre-teens (10-14)'];
+            } else {
+              groupKeys = ['Teens & Adults (15+)'];
+            }
+          } else {
+            groupKeys = ['Not Rated'];
           }
           break;
         default:
@@ -648,7 +714,9 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
               const counts = getFilterCounts();
               const isAllActive = activeFilters.length === 0;
               const hasFormats = Object.keys(counts.formats).length > 0;
+              const hasAgeGroups = Object.keys(counts.ageGroups).length > 0;
               const hasActiveFormatFilters = activeFilters.some(f => f.type === 'format');
+              const hasActiveAgeGroupFilters = activeFilters.some(f => f.type === 'ageGroup');
               
               return (
                 <>
@@ -695,11 +763,11 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                     </button>
                   )}
                   
-                  {/* More Dropdown for Formats */}
-                  {hasFormats && (
+                  {/* More Dropdown for Formats and Age Groups */}
+                  {(hasFormats || hasAgeGroups) && (
                     <div className="more-dropdown-container" ref={moreDropdownRef}>
                       <button
-                        className={`filter-pill more-pill ${hasActiveFormatFilters ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} last-child`}
+                        className={`filter-pill more-pill ${(hasActiveFormatFilters || hasActiveAgeGroupFilters) ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} last-child`}
                         onClick={handleMoreToggle}
                         disabled={filterLoading}
                       >
@@ -708,21 +776,49 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                       
                       {showMoreDropdown && (
                         <div className="more-dropdown-menu">
-                          {Object.entries(counts.formats)
-                            .filter(([format, count]) => count > 0)
-                            .map(([format, count]) => {
-                              const isActive = isFilterActive('format', format);
-                              return (
-                                <button
-                                  key={format}
-                                  className={`more-dropdown-item ${isActive ? 'active' : ''}`}
-                                  onClick={() => handleMorePillClick('format', format)}
-                                >
-                                  {isActive && <BsCheck className="checkmark" />}
-                                  {format} ({count})
-                                </button>
-                              );
-                            })}
+                          {/* Age Group Filters */}
+                          {hasAgeGroups && (
+                            <>
+                              <div className="more-dropdown-section-title">Age Groups</div>
+                              {Object.entries(counts.ageGroups)
+                                .filter(([ageGroup, count]) => count > 0)
+                                .map(([ageGroup, count]) => {
+                                  const isActive = isFilterActive('ageGroup', ageGroup);
+                                  return (
+                                    <button
+                                      key={`age-${ageGroup}`}
+                                      className={`more-dropdown-item ${isActive ? 'active' : ''}`}
+                                      onClick={() => handleMorePillClick('ageGroup', ageGroup)}
+                                    >
+                                      {isActive && <BsCheck className="checkmark" />}
+                                      {ageGroup} ({count})
+                                    </button>
+                                  );
+                                })}
+                            </>
+                          )}
+                          
+                          {/* Format Filters */}
+                          {hasFormats && (
+                            <>
+                              {hasAgeGroups && <div className="more-dropdown-section-title">Formats</div>}
+                              {Object.entries(counts.formats)
+                                .filter(([format, count]) => count > 0)
+                                .map(([format, count]) => {
+                                  const isActive = isFilterActive('format', format);
+                                  return (
+                                    <button
+                                      key={format}
+                                      className={`more-dropdown-item ${isActive ? 'active' : ''}`}
+                                      onClick={() => handleMorePillClick('format', format)}
+                                    >
+                                      {isActive && <BsCheck className="checkmark" />}
+                                      {format} ({count})
+                                    </button>
+                                  );
+                                })}
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -837,6 +933,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                         className="movie-thumbnail-compact"
                         disableZoom={true}
                         posterPath={movie.poster_path}
+                        recommendedAge={movie.recommended_age}
                       />
                     </div>
                     
@@ -902,7 +999,28 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
               <div className={`movies-groups ${sortLoading || filterLoading || groupLoading ? 'sort-loading' : ''}`}>
                 {(() => {
                   const grouped = groupMovies(filteredMovies, groupBy);
-                  return Object.entries(grouped).map(([groupKey, groupMovies]) => {
+                  
+                  // Sort group keys logically for age groups
+                  const sortedGroupKeys = Object.keys(grouped).sort((a, b) => {
+                    if (groupBy === 'ageGroup') {
+                      // Custom sorting for age groups: logical order
+                      const ageGroupOrder = {
+                        'All Ages (0-3)': 1,
+                        'Children (4-9)': 2,
+                        'Pre-teens (10-14)': 3,
+                        'Teens & Adults (15+)': 4,
+                        'Not Rated': 5
+                      };
+                      
+                      const orderA = ageGroupOrder[a] || 999;
+                      const orderB = ageGroupOrder[b] || 999;
+                      return orderA - orderB;
+                    }
+                    return a.localeCompare(b);
+                  });
+                  
+                  return sortedGroupKeys.map((groupKey) => {
+                    const groupMovies = grouped[groupKey];
                     const isExpanded = expandedGroups.has(groupKey);
                     const sortedGroupMovies = sortMovies(groupMovies, sortBy);
                     
@@ -931,6 +1049,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                                     className="movie-thumbnail-compact"
                                     disableZoom={true}
                                     posterPath={movie.poster_path}
+                                    recommendedAge={movie.recommended_age}
                                   />
                                 </div>
                                 

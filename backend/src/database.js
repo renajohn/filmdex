@@ -55,6 +55,38 @@ const initDatabase = async () => {
             console.log('media_type column already exists or migration failed:', migrationError.message);
           }
           
+          // Add recommended_age column to existing movies table if it doesn't exist
+          try {
+            await new Promise((resolve, reject) => {
+              db.run("ALTER TABLE movies ADD COLUMN recommended_age INTEGER", (err) => {
+                if (err && !err.message.includes('duplicate column name')) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
+              });
+            });
+            console.log('Added recommended_age column to movies table.');
+          } catch (migrationError) {
+            console.log('recommended_age column already exists or migration failed:', migrationError.message);
+          }
+          
+          // Add age_processed column to existing movies table if it doesn't exist
+          try {
+            await new Promise((resolve, reject) => {
+              db.run("ALTER TABLE movies ADD COLUMN age_processed BOOLEAN DEFAULT 0", (err) => {
+                if (err && !err.message.includes('duplicate column name')) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
+              });
+            });
+            console.log('Added age_processed column to movies table.');
+          } catch (migrationError) {
+            console.log('age_processed column already exists or migration failed:', migrationError.message);
+          }
+          
           console.log('Database tables created successfully.');
         } catch (error) {
           console.error('Database creation error:', error);

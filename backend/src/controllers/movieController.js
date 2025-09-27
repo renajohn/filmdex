@@ -547,6 +547,28 @@ const movieController = {
         await Movie.updateFields(existingMovie.id, updateData);
         result = await Movie.findById(existingMovie.id);
       } else {
+        // Try to fetch recommended age before creating the movie
+        if (movieData.tmdb_id || movieData.imdb_id) {
+          try {
+            logger.debug('Fetching recommended age for:', movieData.title);
+            const ageRecommendationService = require('../services/ageRecommendationService');
+            const recommendedAge = movieData.media_type === 'tv' 
+              ? await ageRecommendationService.getRecommendedAgeForTV(movieData.tmdb_id, movieData.imdb_id)
+              : await ageRecommendationService.getRecommendedAge(movieData.tmdb_id, movieData.imdb_id);
+            
+            if (recommendedAge !== null) {
+              movieData.recommended_age = recommendedAge;
+              movieData.age_processed = true;
+              logger.debug(`Found recommended age for "${movieData.title}": ${recommendedAge}`);
+            } else {
+              logger.debug(`No recommended age found for "${movieData.title}"`);
+            }
+          } catch (ageError) {
+            logger.warn('Failed to fetch recommended age for:', movieData.title, ageError.message);
+            // Continue without age - it can be backfilled later
+          }
+        }
+
         // Create new movie in database
         const createdMovie = await Movie.create(movieData);
         

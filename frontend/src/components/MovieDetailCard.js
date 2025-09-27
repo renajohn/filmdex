@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import CircularProgressBar from './CircularProgressBar';
+import AgeDisplay from './AgeDisplay';
 import apiService from '../services/api';
 import { BsX, BsPlay, BsPencil, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsPencilSquare } from 'react-icons/bs';
 import './MovieDetailCard.css';
@@ -127,7 +128,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
     never_seen,
     trailer_key,
     trailer_site,
-    popularity
+    popularity,
+    recommended_age
   } = currentData;
 
   const formatRating = (rating) => {
@@ -443,6 +445,10 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                   -
                   <span className="fact-item">
                     {formatRuntime(runtime)}
+                  </span>
+                  -
+                  <span className="fact-item">
+                    <AgeDisplay age={recommended_age} />
                   </span>
                 </div>
 

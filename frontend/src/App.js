@@ -4,6 +4,7 @@ import MovieSearch from './components/MovieSearch';
 import AddMovieSimple from './pages/AddMovieSimple';
 import ImportPage from './pages/ImportPage';
 import CogDropdown from './components/CogDropdown';
+import BackfillModal from './components/BackfillModal';
 import apiService from './services/api';
 import { BsSearch, BsX } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -18,6 +19,8 @@ function AppContent() {
     searchText: ''
   });
   const [loading, setLoading] = useState(false);
+  const [showBackfillModal, setShowBackfillModal] = useState(false);
+  const [hasCheckedBackfill, setHasCheckedBackfill] = useState(false);
 
   // Check if we're on the thumbnail view (root path)
   const isThumbnailView = location.pathname === '/';
@@ -63,6 +66,41 @@ function AppContent() {
     }
   };
 
+  const handleBackfill = () => {
+    setShowBackfillModal(true);
+  };
+
+  const handleBackfillComplete = () => {
+    // Refresh the movie list if we're on the main page
+    // Add a small delay to ensure the modal closes first
+    setTimeout(() => {
+      if (movieSearchRef.current && movieSearchRef.current.refreshMovies) {
+        movieSearchRef.current.refreshMovies();
+      }
+    }, 100);
+  };
+
+  // Check for backfill on app startup
+  useEffect(() => {
+    const checkBackfillStatus = async () => {
+      if (hasCheckedBackfill) return;
+      
+      try {
+        const response = await apiService.getBackfillStatus();
+        if (response.success && response.data.moviesWithoutAge > 0) {
+          // Show backfill modal if there are movies without age
+          setShowBackfillModal(true);
+        }
+      } catch (error) {
+        console.error('Error checking backfill status:', error);
+      } finally {
+        setHasCheckedBackfill(true);
+      }
+    };
+
+    checkBackfillStatus();
+  }, [hasCheckedBackfill]);
+
 
   return (
     <div className="App">
@@ -100,6 +138,7 @@ function AppContent() {
               onImportMovies={handleImportMovies}
               onAddMovie={handleAddMovie}
               onExportCSV={handleExportCSV}
+              onBackfill={handleBackfill}
             />
           </div>
         </div>
@@ -124,6 +163,19 @@ function AppContent() {
         </Routes>
       </main>
 
+      <BackfillModal 
+        isOpen={showBackfillModal}
+        onClose={() => {
+          setShowBackfillModal(false);
+          // Refresh movies when modal closes (in case it was closed without completion)
+          setTimeout(() => {
+            if (movieSearchRef.current && movieSearchRef.current.refreshMovies) {
+              movieSearchRef.current.refreshMovies();
+            }
+          }, 100);
+        }}
+        onComplete={handleBackfillComplete}
+      />
     </div>
   );
 }
