@@ -10,7 +10,7 @@ jest.mock('./services/api', () => ({
       plot: 'A test movie plot',
       genre: 'Action',
       imdb_rating: 8.5,
-      rotten_tomatoes_rating: 85,
+      rotten_tomato_rating: 85,
       year: 2023,
       format: 'Blu-ray',
       acquired_date: '2023-01-01'

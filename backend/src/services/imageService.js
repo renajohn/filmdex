@@ -18,7 +18,7 @@ const ImageService = {
   
   init: async () => {
     // Create image directories if they don't exist
-    const dirs = ['posters', 'backdrops', 'profiles'];
+    const dirs = ['posters', 'backdrops', 'profiles', 'posters/custom'];
     for (const dir of dirs) {
       const dirPath = path.join(ImageService.getLocalImagesDir(), dir);
       if (!fs.existsSync(dirPath)) {

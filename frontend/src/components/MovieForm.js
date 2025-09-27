@@ -61,7 +61,7 @@ const MovieForm = ({ movie = null, prefilledData = null, onSave, onCancel }) => 
         release_date: dataToUse.release_date || '',
         format: dataToUse.format || '',
         imdb_rating: dataToUse.imdb_rating || '',
-        rotten_tomato_rating: dataToUse.rotten_tomatoes_rating || '',
+        rotten_tomato_rating: dataToUse.rotten_tomato_rating || '',
         rotten_tomatoes_link: dataToUse.rotten_tomatoes_link || constructRottenTomatoesLink(dataToUse.title, dataToUse.release_date),
         imdb_id: dataToUse.imdb_id || '',
         tmdb_id: dataToUse.tmdb_id || '',

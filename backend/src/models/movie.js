@@ -196,8 +196,56 @@ const Movie = {
       db.get(sql, [id], (err, row) => {
         if (err) {
           reject(err);
+        } else if (!row) {
+          resolve(null);
         } else {
-          resolve(row);
+          // Map the raw database row to the expected format
+          const movie = {
+            id: row.id,
+            title: row.title,
+            original_title: row.original_title,
+            original_language: row.original_language,
+            genre: row.genre,
+            director: row.director,
+            cast: Array.isArray(row.cast) ? row.cast : (row.cast ? JSON.parse(row.cast) : []),
+            release_date: row.release_date,
+            format: row.format,
+            imdb_rating: row.imdb_rating,
+            rotten_tomato_rating: row.rotten_tomato_rating,
+            rotten_tomatoes_link: row.rotten_tomatoes_link,
+            tmdb_rating: row.tmdb_rating,
+            tmdb_id: row.tmdb_id,
+            imdb_id: row.imdb_id,
+            price: row.price,
+            runtime: row.runtime,
+            plot: row.plot,
+            comments: row.comments,
+            never_seen: row.never_seen,
+            acquired_date: row.acquired_date,
+            import_id: row.import_id,
+            poster_path: row.poster_path,
+            backdrop_path: row.backdrop_path,
+            budget: row.budget,
+            revenue: row.revenue,
+            trailer_key: row.trailer_key,
+            trailer_site: row.trailer_site,
+            status: row.status,
+            popularity: row.popularity,
+            vote_count: row.vote_count,
+            adult: row.adult,
+            video: row.video,
+            media_type: row.media_type
+          };
+          
+          console.log('findById returning movie:', {
+            id: movie.id,
+            title: movie.title,
+            rotten_tomato_rating: movie.rotten_tomato_rating,
+            tmdb_rating: movie.tmdb_rating,
+            imdb_rating: movie.imdb_rating
+          });
+          
+          resolve(movie);
         }
       });
     });
@@ -413,6 +461,41 @@ const Movie = {
         reject(error);
       }
     });
+  },
+
+  // Validate and clean up image paths
+  validateImagePaths: (movie) => {
+    const fs = require('fs');
+    const path = require('path');
+    const configManager = require('../config');
+    
+    try {
+      const imagesPath = configManager.getImagesPath();
+      let cleanedMovie = { ...movie };
+      
+      // Check poster_path
+      if (movie.poster_path && movie.poster_path.startsWith('/images/')) {
+        const localPath = path.join(imagesPath, movie.poster_path.replace('/images/', ''));
+        if (!fs.existsSync(localPath)) {
+          console.log(`Poster image not found: ${movie.poster_path}, setting to null`);
+          cleanedMovie.poster_path = null;
+        }
+      }
+      
+      // Check backdrop_path
+      if (movie.backdrop_path && movie.backdrop_path.startsWith('/images/')) {
+        const localPath = path.join(imagesPath, movie.backdrop_path.replace('/images/', ''));
+        if (!fs.existsSync(localPath)) {
+          console.log(`Backdrop image not found: ${movie.backdrop_path}, setting to null`);
+          cleanedMovie.backdrop_path = null;
+        }
+      }
+      
+      return cleanedMovie;
+    } catch (error) {
+      console.error('Error validating image paths:', error);
+      return movie; // Return original if validation fails
+    }
   },
 
 };

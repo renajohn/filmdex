@@ -320,6 +320,15 @@ class ApiService {
     
     return await response.json();
   }
+
+  // Refresh movie ratings from external sources
+  async refreshMovieRatings(movieId) {
+    const response = await this.makeRequest(`/movies/${movieId}/refresh-ratings`, {
+      method: 'POST',
+    });
+    
+    return await response.json();
+  }
 }
 
 const apiService = new ApiService();

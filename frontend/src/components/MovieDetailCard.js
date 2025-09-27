@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import CircularProgressBar from './CircularProgressBar';
 import apiService from '../services/api';
-import { BsX, BsPlay, BsPencil, BsTrash, BsCheck, BsX as BsXIcon } from 'react-icons/bs';
+import { BsX, BsPlay, BsPencil, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsPencilSquare } from 'react-icons/bs';
 import './MovieDetailCard.css';
 
 const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
@@ -10,6 +10,23 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
   const [deleting, setDeleting] = useState(false);
   const [cast, setCast] = useState([]);
   const [crew, setCrew] = useState([]);
+  
+  // In-place editing state
+  const [editingField, setEditingField] = useState(null);
+  const [editValue, setEditValue] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [refreshingRatings, setRefreshingRatings] = useState(false);
+  const [localMovieData, setLocalMovieData] = useState(movieDetails);
+  
+  // Debug initial data (only once)
+  useEffect(() => {
+    console.log('Initial movie data loaded:', {
+      title: movieDetails.title,
+      rotten_tomato_rating: movieDetails.rotten_tomato_rating,
+      tmdb_rating: movieDetails.tmdb_rating,
+      imdb_rating: movieDetails.imdb_rating
+    });
+  }, [movieDetails.title]); // Only log when title changes
   
   // Handle ESC key press for main detail view
   useEffect(() => {
@@ -44,6 +61,11 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
     };
   }, [showTrailer]);
 
+  // Update local data when movieDetails prop changes
+  useEffect(() => {
+    setLocalMovieData(movieDetails);
+  }, [movieDetails]);
+
   // Load cast and crew data
   useEffect(() => {
     const loadCastAndCrew = async () => {
@@ -66,13 +88,16 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
   
   if (!movieDetails) return null;
 
+  // Use local data for display, fallback to original movieDetails
+  const currentData = localMovieData || movieDetails;
+  
   const {
     title,
     plot,
     genre,
     director,
     imdb_rating,
-    rotten_tomatoes_rating,
+    rotten_tomato_rating,
     rotten_tomatoes_link,
     year,
     release_date,
@@ -103,7 +128,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
     trailer_key,
     trailer_site,
     popularity
-  } = movieDetails;
+  } = currentData;
 
   const formatRating = (rating) => {
     return rating ? rating.toString() : '-';
@@ -225,6 +250,95 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
   const trailerUrl = getTrailerUrl(trailer_key, trailer_site);
   const trailerEmbedUrl = getTrailerEmbedUrl(trailer_key, trailer_site);
 
+  // In-place editing functions
+  const startEditing = (field, currentValue) => {
+    setEditingField(field);
+    // Special handling for acquired_date to ensure proper format
+    if (field === 'acquired_date' && currentValue) {
+      try {
+        const date = new Date(currentValue);
+        if (!isNaN(date.getTime())) {
+          setEditValue(date.toISOString().split('T')[0]);
+        } else {
+          setEditValue('');
+        }
+      } catch {
+        setEditValue('');
+      }
+    } else {
+      setEditValue(currentValue || '');
+    }
+  };
+
+  const cancelEditing = () => {
+    setEditingField(null);
+    setEditValue('');
+  };
+
+  const saveEdit = async () => {
+    if (!editingField) return;
+    
+    setSaving(true);
+    try {
+      const updateData = { [editingField]: editValue };
+      await apiService.updateMovie(id, updateData);
+      
+      // Update local data
+      setLocalMovieData(prev => ({
+        ...prev,
+        [editingField]: editValue
+      }));
+      
+      setEditingField(null);
+      setEditValue('');
+    } catch (error) {
+      console.error('Error updating movie:', error);
+      alert('Failed to update movie. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEditing();
+    }
+  };
+
+  const refreshRatings = async () => {
+    if (!id) return;
+    
+    setRefreshingRatings(true);
+    try {
+      // Call API to refresh ratings from external sources
+      const updatedMovie = await apiService.refreshMovieRatings(id);
+      
+      console.log('Updated movie data received:', updatedMovie);
+      console.log('Current RT rating before update:', localMovieData.rotten_tomato_rating);
+      console.log('New RT rating after update:', updatedMovie.rotten_tomato_rating);
+      
+      // Update local data with refreshed ratings
+      setLocalMovieData(prev => {
+        const newData = {
+          ...prev,
+          ...updatedMovie
+        };
+        console.log('Updated local data:', newData);
+        return newData;
+      });
+      
+    } catch (error) {
+      console.error('Error refreshing ratings:', error);
+      alert('Failed to refresh ratings. Please try again.');
+    } finally {
+      setRefreshingRatings(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!onDelete) return;
     
@@ -276,10 +390,46 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
               
               <div className="movie-detail-main-info">
                 <h1 className="movie-detail-title">
-                  {title}
-                  {(release_date ? new Date(release_date).getFullYear() : year) && 
-                    ` (${release_date ? new Date(release_date).getFullYear() : year})`
-                  }
+                  {editingField === 'title' ? (
+                    <div className="input-group">
+                      <input
+                        type="text"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        autoFocus
+                        className="form-control"
+                        style={{ fontSize: '2rem', fontWeight: '700', paddingRight: '60px' }}
+                      />
+                      <div className="input-group-append">
+                        <button 
+                          className="edit-action-btn" 
+                          onClick={saveEdit}
+                          disabled={saving}
+                          title="Sauver"
+                        >
+                          <BsCheck size={12} />
+                        </button>
+                        <button 
+                          className="edit-action-btn" 
+                          onClick={cancelEditing}
+                          title="Annuler"
+                        >
+                          <BsX size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <span 
+                      className="editable" 
+                      onClick={() => startEditing('title', title)}
+                    >
+                      {title}
+                      {(release_date ? new Date(release_date).getFullYear() : year) && 
+                        ` (${release_date ? new Date(release_date).getFullYear() : year})`
+                      }
+                    </span>
+                  )}
                 </h1>
                 {director && (
                     <span className="fact-item director">
@@ -298,6 +448,17 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
 
                 {/* Ratings Section */}
                 <div className="movie-detail-ratings-section">
+                  <div className="ratings-header">
+                    <h3>Ratings</h3>
+                    <button 
+                      className="btn btn-link"
+                      onClick={refreshRatings}
+                      disabled={refreshingRatings}
+                      title="Refresh ratings from external sources"
+                    >
+                      <BsArrowClockwise className={refreshingRatings ? 'spinning' : ''} />
+                    </button>
+                  </div>
                   <div className="rating-item tmdb-rating">
                     <a 
                       href={`${tmdb_link}`} 
@@ -344,12 +505,12 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                       className="rating-link"
                     >
                       <CircularProgressBar 
-                        percentage={getRatingPercentage(rotten_tomatoes_rating, 100)} 
-                        color={getRatingColor(rotten_tomatoes_rating, 100)}
+                        percentage={getRatingPercentage(rotten_tomato_rating, 100)} 
+                        color={getRatingColor(rotten_tomato_rating, 100)}
                         size="large"
                         className="rt-progress"
                       >
-                        <span className="rating-score">{formatPercentage(rotten_tomatoes_rating)}</span>
+                        <span className="rating-score">{formatPercentage(rotten_tomato_rating)}</span>
                       </CircularProgressBar>
                       <span className="rating-label">RT</span>
                     </a>
@@ -359,7 +520,44 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                 {/* Overview */}
                 <div className="movie-detail-overview">
                   <h3>Overview</h3>
-                  <p>{overview || plot || 'No overview available'}</p>
+                  {editingField === 'overview' ? (
+                    <div className="input-group">
+                      <textarea
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        autoFocus
+                        rows="4"
+                        className="form-control"
+                        placeholder="Enter movie overview..."
+                        style={{ paddingRight: '60px', resize: 'vertical' }}
+                      />
+                      <div className="input-group-append">
+                        <button 
+                          className="edit-action-btn" 
+                          onClick={saveEdit}
+                          disabled={saving}
+                          title="Sauver"
+                        >
+                          <BsCheck size={12} />
+                        </button>
+                        <button 
+                          className="edit-action-btn" 
+                          onClick={cancelEditing}
+                          title="Annuler"
+                        >
+                          <BsX size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p 
+                      className="editable" 
+                      onClick={() => startEditing('overview', overview || plot)}
+                    >
+                      {overview || plot || 'Click to add overview...'}
+                    </p>
+                  )}
                 </div>
 
                 {/* Action Buttons */}
@@ -377,16 +575,6 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                       <button className="action-btn play-trailer" disabled>
                         <BsPlay className="action-icon" />
                         No Trailer Available
-                      </button>
-                    )}
-                    
-                    {onEdit && (
-                      <button 
-                        className="action-btn edit-movie"
-                        onClick={() => onEdit(movieDetails)}
-                      >
-                        <BsPencil className="action-icon" />
-                        Edit Movie
                       </button>
                     )}
                     
@@ -463,26 +651,177 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                   <div className="collection-facts">
                     <div className="fact-row">
                       <span className="fact-label">Format:</span>
-                      <span className="fact-value">{format || '-'}</span>
+                      {editingField === 'format' ? (
+                        <div className="input-group">
+                          <select
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            autoFocus
+                            className="form-select"
+                            style={{ paddingRight: '60px' }}
+                          >
+                            <option value="">Select format</option>
+                            <option value="Blu-ray">Blu-ray</option>
+                            <option value="Blu-ray 4K">Blu-ray 4K</option>
+                            <option value="DVD">DVD</option>
+                            <option value="Digital">Digital</option>
+                          </select>
+                          <div className="input-group-append">
+                            <button 
+                              className="edit-action-btn" 
+                              onClick={saveEdit}
+                              disabled={saving}
+                              title="Sauver"
+                            >
+                              <BsCheck size={12} />
+                            </button>
+                            <button 
+                              className="edit-action-btn" 
+                              onClick={cancelEditing}
+                              title="Annuler"
+                            >
+                              <BsX size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <span 
+                          className="fact-value editable" 
+                          onClick={() => startEditing('format', format)}
+                        >
+                          {format || '-'}
+                        </span>
+                      )}
                     </div>
                     <div className="fact-row">
                       <span className="fact-label">Acquired:</span>
-                      <span className="fact-value">{formatDate(acquired_date)}</span>
+                      {editingField === 'acquired_date' ? (
+                          <div className="input-group">
+                            <input
+                              type="date"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onKeyDown={handleKeyDown}
+                              autoFocus
+                              className="form-control"
+                              style={{ paddingRight: '60px' }}
+                            />
+                            <div className="input-group-append">
+                              <button 
+                                className="edit-action-btn" 
+                                onClick={saveEdit}
+                                disabled={saving}
+                                title="Sauver"
+                              >
+                                <BsCheck size={12} />
+                              </button>
+                              <button 
+                                className="edit-action-btn" 
+                                onClick={cancelEditing}
+                                title="Annuler"
+                              >
+                                <BsX size={12} />
+                              </button>
+                            </div>
+                          </div>
+                      ) : (
+                        <span 
+                          className="fact-value editable" 
+                          onClick={() => startEditing('acquired_date', acquired_date)}
+                        >
+                          {formatDate(acquired_date)}
+                        </span>
+                      )}
                     </div>
                     <div className="fact-row">
                       <span className="fact-label">Price:</span>
-                      <span className="fact-value">{formatPrice(price)}</span>
+                      {editingField === 'price' ? (
+                        <div className="input-group">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            autoFocus
+                            placeholder="0.00"
+                            className="form-control"
+                            style={{ paddingRight: '60px' }}
+                          />
+                          <div className="input-group-append">
+                            <button 
+                              className="edit-action-btn" 
+                              onClick={saveEdit}
+                              disabled={saving}
+                              title="Sauver"
+                            >
+                              <BsCheck size={12} />
+                            </button>
+                            <button 
+                              className="edit-action-btn" 
+                              onClick={cancelEditing}
+                              title="Annuler"
+                            >
+                              <BsX size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <span 
+                          className="fact-value editable" 
+                          onClick={() => startEditing('price', price)}
+                        >
+                          {formatPrice(price)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 {/* Comments Section */}
-                {comments && (
-                  <div className="sidebar-section">
-                    <h4>Comments</h4>
-                    <p className="comments-text">{comments}</p>
-                  </div>
-                )}
+                <div className="sidebar-section">
+                  <h4>Comments</h4>
+                  {editingField === 'comments' ? (
+                      <div className="input-group">
+                        <textarea
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          autoFocus
+                          rows="3"
+                          placeholder="Add your comments..."
+                          className="form-control"
+                          style={{ paddingRight: '60px', resize: 'vertical' }}
+                        />
+                        <div className="input-group-append">
+                          <button 
+                            className="edit-action-btn" 
+                            onClick={saveEdit}
+                            disabled={saving}
+                            title="Sauver"
+                          >
+                            <BsCheck size={12} />
+                          </button>
+                          <button 
+                            className="edit-action-btn" 
+                            onClick={cancelEditing}
+                            title="Annuler"
+                          >
+                            <BsX size={12} />
+                          </button>
+                        </div>
+                      </div>
+                  ) : (
+                    <p 
+                      className="comments-text editable" 
+                      onClick={() => startEditing('comments', comments)}
+                    >
+                      {comments || 'Click to add comments...'}
+                    </p>
+                  )}
+                </div>
 
               </div>
             </div>

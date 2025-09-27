@@ -234,9 +234,9 @@ const movieService = {
         plot: localMovie.plot,
         genre: localMovie.genre,
         director: localMovie.director,
-        cast: localMovie.cast ? JSON.parse(localMovie.cast) : [],
+        cast: Array.isArray(localMovie.cast) ? localMovie.cast : (localMovie.cast ? JSON.parse(localMovie.cast) : []),
         imdb_rating: localMovie.imdb_rating,
-        rotten_tomatoes_rating: localMovie.rotten_tomato_rating,
+        rotten_tomato_rating: localMovie.rotten_tomato_rating,
         rotten_tomatoes_link: localMovie.rotten_tomatoes_link || null,
         imdb_link: (localMovie.imdb_id ? `https://www.imdb.com/title/${localMovie.imdb_id}` : null),
         tmdb_link: (localMovie.tmdb_id ? `https://www.themoviedb.org/${localMovie.media_type || 'movie'}/${localMovie.tmdb_id}` : null),
@@ -362,7 +362,7 @@ const movieService = {
       const updatedMovie = await Movie.findById(id);
       if (updatedMovie) {
         // Parse cast field from JSON string back to array
-        updatedMovie.cast = updatedMovie.cast ? JSON.parse(updatedMovie.cast) : [];
+        updatedMovie.cast = Array.isArray(updatedMovie.cast) ? updatedMovie.cast : (updatedMovie.cast ? JSON.parse(updatedMovie.cast) : []);
       }
       return updatedMovie;
     } catch (error) {
@@ -382,6 +382,112 @@ const movieService = {
         }
       });
     });
+  },
+
+  // Refresh movie ratings from external sources
+  refreshMovieRatings: async (movieId) => {
+    try {
+      // Get the current movie data
+      const movie = await Movie.findById(movieId);
+      if (!movie) {
+        throw new Error('Movie not found');
+      }
+
+      // If no TMDB ID, try to find it by searching
+      let tmdbData = null;
+      if (movie.tmdb_id) {
+        // Get fresh TMDB data
+        if (movie.media_type === 'tv') {
+          tmdbData = await tmdbService.getTVShowDetails(movie.tmdb_id);
+        } else {
+          tmdbData = await tmdbService.getMovieDetails(movie.tmdb_id);
+        }
+      } else {
+        // Search for TMDB data by title
+        const year = movie.release_date ? new Date(movie.release_date).getFullYear() : null;
+        tmdbData = await tmdbService.searchMovie(movie.title, year);
+      }
+
+      if (!tmdbData) {
+        throw new Error('Could not fetch TMDB data');
+      }
+
+      // Get OMDB ratings if we have IMDB ID
+      let imdbRating = null;
+      let rottenTomatoRating = null;
+      if (tmdbData.imdb_id) {
+        try {
+          console.log('Fetching OMDB data for IMDB ID:', tmdbData.imdb_id);
+          const omdbData = await omdbService.getMovieByImdbId(tmdbData.imdb_id);
+          console.log('OMDB data received:', {
+            imdbRating: omdbData?.imdbRating,
+            rottenTomatoRating: omdbData?.rottenTomatoRating
+          });
+          
+          imdbRating = omdbData?.imdbRating ? parseFloat(omdbData.imdbRating) : null;
+          rottenTomatoRating = omdbData?.rottenTomatoRating ? parseInt(omdbData.rottenTomatoRating) : null;
+          
+          console.log('Parsed ratings:', { imdbRating, rottenTomatoRating });
+        } catch (error) {
+          console.warn('Failed to fetch OMDB ratings:', error.message);
+        }
+      } else {
+        console.log('No IMDB ID available for OMDB lookup, trying title search');
+        // Try to get OMDB data by title as fallback
+        try {
+          const year = movie.release_date ? new Date(movie.release_date).getFullYear() : null;
+          console.log('Searching OMDB by title:', movie.title, 'year:', year);
+          const omdbData = await omdbService.searchMovie(movie.title, year);
+          console.log('OMDB data by title:', {
+            imdbRating: omdbData?.imdbRating,
+            rottenTomatoRating: omdbData?.rottenTomatoRating
+          });
+          
+          imdbRating = omdbData?.imdbRating ? parseFloat(omdbData.imdbRating) : null;
+          rottenTomatoRating = omdbData?.rottenTomatoRating ? parseInt(omdbData.rottenTomatoRating) : null;
+          
+          console.log('Parsed ratings from title search:', { imdbRating, rottenTomatoRating });
+        } catch (error) {
+          console.warn('Failed to fetch OMDB ratings by title:', error.message);
+        }
+      }
+
+      // Update only the ratings and related fields, preserve all other data
+      const updateData = {
+        tmdb_rating: tmdbData.vote_average || movie.tmdb_rating,
+        imdb_rating: imdbRating || movie.imdb_rating,
+        rotten_tomato_rating: rottenTomatoRating || movie.rotten_tomato_rating,
+        vote_count: tmdbData.vote_count || movie.vote_count,
+        popularity: tmdbData.popularity || movie.popularity,
+        // Update TMDB ID if we found it and didn't have it before
+        tmdb_id: movie.tmdb_id || tmdbData.id,
+        // Update IMDB ID if we found it and didn't have it before
+        imdb_id: movie.imdb_id || tmdbData.imdb_id
+      };
+
+      // Update in database - use updateFields to preserve existing data
+      console.log('Updating database with:', updateData);
+      const updateResult = await Movie.updateFields(movieId, updateData);
+      console.log('Database update result:', updateResult);
+
+      // Return updated movie data
+      const updatedMovie = await Movie.findById(movieId);
+      
+      console.log('Returning updated movie data:', {
+        id: updatedMovie.id,
+        tmdb_rating: updatedMovie.tmdb_rating,
+        imdb_rating: updatedMovie.imdb_rating,
+        rotten_tomato_rating: updatedMovie.rotten_tomato_rating,
+        vote_count: updatedMovie.vote_count,
+        popularity: updatedMovie.popularity
+      });
+      
+      return updatedMovie;
+
+    } catch (error) {
+      console.error('Error refreshing movie ratings:', error);
+      throw error;
+    }
   }
 };
 

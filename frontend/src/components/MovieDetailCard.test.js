@@ -9,7 +9,7 @@ describe('MovieDetailCard', () => {
     plot: 'A test movie plot',
     genre: 'Action',
     imdb_rating: 8.5,
-    rotten_tomatoes_rating: 85,
+    rotten_tomato_rating: 85,
     year: 2023,
     format: 'Blu-ray',
     date_of_acquisition: '2023-01-01',
@@ -64,7 +64,7 @@ describe('MovieDetailCard', () => {
       title: 'Incomplete Movie',
       plot: null,
       imdb_rating: null,
-      rotten_tomatoes_rating: null,
+      rotten_tomato_rating: null,
       credits: { cast: [] },
       videos: { results: [] }
     };

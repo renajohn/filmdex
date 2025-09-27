@@ -58,8 +58,15 @@ const MovieThumbnail = ({ imdbLink, title, year, className = '', disableZoom = f
   };
 
   const handleImageError = () => {
+    console.log('Image failed to load:', thumbnailUrl);
     setError('Failed to load image');
     setThumbnailUrl(null);
+    
+    // If it was a local image that failed, try to fetch from external source
+    if (posterSource === 'local' && imdbLink) {
+      console.log('Local image failed, trying external source...');
+      fetchThumbnail();
+    }
   };
 
   const handleImageLoad = () => {

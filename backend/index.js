@@ -84,6 +84,7 @@ app.post('/api/movies/add', movieController.addMovie);
 app.post('/api/movies/add-with-pipeline', movieController.addMovieWithPipeline);
 app.get('/api/tmdb/search', movieController.searchTMDB);
 app.put('/api/movies/:id', movieController.updateMovie);
+app.post('/api/movies/:id/refresh-ratings', movieController.refreshMovieRatings);
 app.delete('/api/movies/:id', movieController.deleteMovie);
 app.get('/api/movies/export/csv', movieController.exportCSV);
 app.get('/api/ratings', movieController.fetchRatings);
@@ -124,8 +125,21 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Static file serving for images (must be after specific routes)
-app.use('/images', express.static(configManager.getImagesPath()));
+// Static file serving for images with error handling
+app.use('/images', (req, res, next) => {
+  const filePath = path.join(configManager.getImagesPath(), req.path);
+  
+  // Check if file exists
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      // File doesn't exist, return 404 with proper headers
+      res.status(404).json({ error: 'Image not found' });
+    } else {
+      // File exists, serve it
+      express.static(configManager.getImagesPath())(req, res, next);
+    }
+  });
+});
 
 // Check if running in Home Assistant ingress mode
 const isIngressMode = process.env.INGRESS_PORT || process.env.HASSIO_TOKEN;

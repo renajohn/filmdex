@@ -12,11 +12,14 @@ const movieController = {
   getAllMovies: async (req, res) => {
     try {
       const movies = await movieService.getAllMovies();
-      // Parse cast field from JSON string back to array
-      const parsedMovies = movies.map(movie => ({
-        ...movie,
-        cast: movie.cast ? JSON.parse(movie.cast) : []
-      }));
+      // Parse cast field from JSON string back to array and validate image paths
+      const parsedMovies = movies.map(movie => {
+        const validatedMovie = Movie.validateImagePaths(movie);
+        return {
+          ...validatedMovie,
+          cast: Array.isArray(validatedMovie.cast) ? validatedMovie.cast : (validatedMovie.cast ? JSON.parse(validatedMovie.cast) : [])
+        };
+      });
       res.json(parsedMovies);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -27,11 +30,14 @@ const movieController = {
     try {
       const criteria = req.query;
       const movies = await movieService.searchMovies(criteria);
-      // Parse cast field from JSON string back to array
-      const parsedMovies = movies.map(movie => ({
-        ...movie,
-        cast: movie.cast ? JSON.parse(movie.cast) : []
-      }));
+      // Parse cast field from JSON string back to array and validate image paths
+      const parsedMovies = movies.map(movie => {
+        const validatedMovie = Movie.validateImagePaths(movie);
+        return {
+          ...validatedMovie,
+          cast: Array.isArray(validatedMovie.cast) ? validatedMovie.cast : (validatedMovie.cast ? JSON.parse(validatedMovie.cast) : [])
+        };
+      });
       res.json(parsedMovies);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -571,6 +577,31 @@ const movieController = {
       res.json(results);
     } catch (error) {
       console.error('Error searching TMDB:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Refresh movie ratings from external sources
+  refreshMovieRatings: async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      if (!id) {
+        return res.status(400).json({ error: 'Movie ID is required' });
+      }
+
+      // Get the current movie data
+      const movie = await movieService.getMovieById(id);
+      if (!movie) {
+        return res.status(404).json({ error: 'Movie not found' });
+      }
+
+      // Refresh ratings from external sources
+      const updatedMovie = await movieService.refreshMovieRatings(id);
+      
+      res.json(updatedMovie);
+    } catch (error) {
+      console.error('Error refreshing movie ratings:', error);
       res.status(500).json({ error: error.message });
     }
   }
