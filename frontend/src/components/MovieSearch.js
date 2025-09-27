@@ -483,7 +483,8 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     { value: 'none', label: 'No grouping' },
     { value: 'director', label: 'Group by Director' },
     { value: 'genre', label: 'Group by Genre' },
-    { value: 'format', label: 'Group by Format' }
+    { value: 'format', label: 'Group by Format' },
+    { value: 'decade', label: 'Group by Decade' }
   ];
 
   const sortMovies = (moviesToSort, sortOption) => {
@@ -553,6 +554,15 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           break;
         case 'format':
           groupKeys = [movie.format || 'Unknown Format'];
+          break;
+        case 'decade':
+          const year = movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year;
+          if (year && !isNaN(year)) {
+            const decade = Math.floor(year / 10) * 10;
+            groupKeys = [`${decade}s`];
+          } else {
+            groupKeys = ['Unknown Decade'];
+          }
           break;
         default:
           groupKeys = ['All Movies'];
