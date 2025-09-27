@@ -14,7 +14,8 @@ import {
   BsFilm, 
   BsTv, 
   BsChatText,
-  BsThreeDots
+  BsThreeDots,
+  BsGrid3X3Gap
 } from 'react-icons/bs';
 import './MovieSearch.css';
 
@@ -26,6 +27,10 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const [sortBy, setSortBy] = useState('title'); // Current sort option
   const [sortLoading, setSortLoading] = useState(false); // Sort loading state
   const [filterLoading, setFilterLoading] = useState(false); // Filter loading state
+  const [groupBy, setGroupBy] = useState('none'); // Current group option
+  const [groupLoading, setGroupLoading] = useState(false); // Group loading state
+  const [expandedGroups, setExpandedGroups] = useState(new Set()); // Track expanded groups
+  const [expandAllGroups, setExpandAllGroups] = useState(false); // Expand/collapse all state
   const [showMoreDropdown, setShowMoreDropdown] = useState(false); // More dropdown visibility
   const moreDropdownRef = useRef(null); // Ref for more dropdown
   const [error, setError] = useState(null);
@@ -402,9 +407,17 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     }
 
     setFilteredMovies(filtered);
-    // Apply current sort to filtered movies
-    const sorted = sortMovies(filtered, sortBy);
-    setMovies(sorted);
+    
+    // Apply current grouping and sorting to filtered movies
+    if (groupBy !== 'none') {
+      // When grouping is enabled, we don't set movies directly
+      // The grouped movies will be rendered in the JSX
+    } else {
+      // Apply current sort to filtered movies when not grouping
+      const sorted = sortMovies(filtered, sortBy);
+      setMovies(sorted);
+    }
+    
     setFilterLoading(false);
   };
 
@@ -466,6 +479,13 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     { value: 'ratingLowest', label: 'Lowest rating first' }
   ];
 
+  const groupOptions = [
+    { value: 'none', label: 'No grouping' },
+    { value: 'director', label: 'Group by Director' },
+    { value: 'genre', label: 'Group by Genre' },
+    { value: 'format', label: 'Group by Format' }
+  ];
+
   const sortMovies = (moviesToSort, sortOption) => {
     const sorted = [...moviesToSort];
     
@@ -506,6 +526,102 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     const sorted = sortMovies(filteredMovies, sortOption);
     setMovies(sorted);
     setSortLoading(false);
+  };
+
+  // Grouping functions
+  const groupMovies = (moviesToGroup, groupOption) => {
+    if (groupOption === 'none') {
+      return { 'All Movies': moviesToGroup };
+    }
+
+    const groups = {};
+    
+    moviesToGroup.forEach(movie => {
+      let groupKeys = [];
+      
+      switch (groupOption) {
+        case 'director':
+          groupKeys = [movie.director || 'Unknown Director'];
+          break;
+        case 'genre':
+          if (movie.genre) {
+            // Split comma-separated genres and trim whitespace
+            groupKeys = movie.genre.split(',').map(g => g.trim()).filter(g => g.length > 0);
+          } else {
+            groupKeys = ['Unknown Genre'];
+          }
+          break;
+        case 'format':
+          groupKeys = [movie.format || 'Unknown Format'];
+          break;
+        default:
+          groupKeys = ['All Movies'];
+      }
+      
+      // Add movie to each group it belongs to
+      groupKeys.forEach(groupKey => {
+        if (!groups[groupKey]) {
+          groups[groupKey] = [];
+        }
+        groups[groupKey].push(movie);
+      });
+    });
+
+    // Sort groups alphabetically by key
+    const sortedGroups = {};
+    Object.keys(groups).sort().forEach(key => {
+      sortedGroups[key] = groups[key];
+    });
+
+    return sortedGroups;
+  };
+
+  const handleGroupChange = async (groupOption) => {
+    setGroupBy(groupOption);
+    setGroupLoading(true);
+    
+    // Add a small delay to show loading state for better UX
+    await new Promise(resolve => setTimeout(resolve, 150));
+    
+    // Apply grouping to current filtered movies
+    const grouped = groupMovies(filteredMovies, groupOption);
+    
+    // If grouping is enabled, expand all groups initially
+    if (groupOption !== 'none') {
+      const allGroupKeys = Object.keys(grouped);
+      setExpandedGroups(new Set(allGroupKeys));
+      setExpandAllGroups(true);
+    } else {
+      setExpandedGroups(new Set());
+      setExpandAllGroups(false);
+    }
+    
+    setGroupLoading(false);
+  };
+
+  const toggleGroup = (groupKey) => {
+    const newExpandedGroups = new Set(expandedGroups);
+    if (newExpandedGroups.has(groupKey)) {
+      newExpandedGroups.delete(groupKey);
+    } else {
+      newExpandedGroups.add(groupKey);
+    }
+    setExpandedGroups(newExpandedGroups);
+  };
+
+  const toggleAllGroups = () => {
+    if (groupBy === 'none') return;
+    
+    const grouped = groupMovies(filteredMovies, groupBy);
+    const allGroupKeys = Object.keys(grouped);
+    
+    if (expandAllGroups) {
+      setExpandedGroups(new Set());
+      setExpandAllGroups(false);
+    } else {
+      setExpandedGroups(new Set(allGroupKeys));
+      setExpandAllGroups(true);
+    }
   };
 
   return (
@@ -613,116 +729,267 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
             })()}
           </div>
           
-          {/* Sort Dropdown - Outside filter pills */}
-          <Dropdown className="sort-dropdown-container">
-            <Dropdown.Toggle 
-              as="button"
-              className={`filter-pill sort-dropdown-button ${loading || sortLoading ? 'filter-pill-loading' : ''}`}
-              disabled={sortLoading}
-            >
-              {sortLoading ? (
-                <>
-                  <span className="sort-loading-spinner"></span>
-                  Sorting...
-                </>
-              ) : (
-                <>
-                  <BsSortDown className="sort-icon" />
-                  Sort: {sortOptions.find(opt => opt.value === sortBy)?.label}
-                  
-                </>
-              )}
-            </Dropdown.Toggle>
-            
-            <Dropdown.Menu className="sort-dropdown-menu">
-              {sortOptions.map(option => (
-                <Dropdown.Item
-                  key={option.value}
-                  className={`sort-dropdown-item ${sortBy === option.value ? 'active' : ''}`}
-                  onClick={() => handleSortChange(option.value)}
-                >
-                  {option.label}
-                </Dropdown.Item>
-              ))}
-            </Dropdown.Menu>
-          </Dropdown>
+          {/* Dropdowns Container - Grouped on the right */}
+          <div className="dropdowns-container">
+            {/* Sort Dropdown */}
+            <Dropdown className="sort-dropdown-container">
+              <Dropdown.Toggle 
+                as="button"
+                className={`filter-pill sort-dropdown-button ${loading || sortLoading ? 'filter-pill-loading' : ''}`}
+                disabled={sortLoading}
+              >
+                {sortLoading ? (
+                  <>
+                    <span className="sort-loading-spinner"></span>
+                    Sorting...
+                  </>
+                ) : (
+                  <>
+                    <BsSortDown className="sort-icon" />
+                    Sort: {sortOptions.find(opt => opt.value === sortBy)?.label}
+                    
+                  </>
+                )}
+              </Dropdown.Toggle>
+              
+              <Dropdown.Menu className="sort-dropdown-menu">
+                {sortOptions.map(option => (
+                  <Dropdown.Item
+                    key={option.value}
+                    className={`sort-dropdown-item ${sortBy === option.value ? 'active' : ''}`}
+                    onClick={() => handleSortChange(option.value)}
+                  >
+                    {option.label}
+                  </Dropdown.Item>
+                ))}
+              </Dropdown.Menu>
+            </Dropdown>
+
+            {/* Group Dropdown */}
+            <Dropdown className="group-dropdown-container">
+              <Dropdown.Toggle 
+                as="button"
+                className={`filter-pill group-dropdown-button ${loading || groupLoading ? 'filter-pill-loading' : ''}`}
+                disabled={groupLoading}
+              >
+                {groupLoading ? (
+                  <>
+                    <span className="group-loading-spinner"></span>
+                    Grouping...
+                  </>
+                ) : (
+                  <>
+                    <BsGrid3X3Gap className="group-icon" />
+                    {groupOptions.find(opt => opt.value === groupBy)?.label}
+                  </>
+                )}
+              </Dropdown.Toggle>
+              
+              <Dropdown.Menu className="group-dropdown-menu">
+                {groupOptions.map(option => (
+                  <Dropdown.Item
+                    key={option.value}
+                    className={`group-dropdown-item ${groupBy === option.value ? 'active' : ''}`}
+                    onClick={() => handleGroupChange(option.value)}
+                  >
+                    {option.label}
+                  </Dropdown.Item>
+                ))}
+              </Dropdown.Menu>
+            </Dropdown>
+
+            {/* Collapse All Button - Only show when grouping is enabled */}
+            {groupBy !== 'none' && (
+              <button 
+                className="collapse-all-btn"
+                onClick={toggleAllGroups}
+              >
+                {expandAllGroups ? 'Collapse All' : 'Expand All'}
+              </button>
+            )}
+          </div>
         </div>
         
         {loading ? (
           <div className="loading">Loading movies...</div>
         ) : (
-          <div className={`movies-grid ${sortLoading || filterLoading ? 'sort-loading' : ''}`}>
-            {movies && movies.map((movie) => (
-              <div key={movie.id} className="movie-card-compact" onClick={() => handleMovieClick(movie.id)}>
-                <div className="movie-poster-compact">
-                  <MovieThumbnail 
-                    imdbLink={movie.imdb_id ? `https://www.imdb.com/title/${movie.imdb_id}` : movie.imdb_link} 
-                    title={movie.title}
-                    year={movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year}
-                    className="movie-thumbnail-compact"
-                    disableZoom={true}
-                    posterPath={movie.poster_path}
-                  />
-                </div>
-                
-                <div className="movie-info-compact">
-                  <div className="movie-header-compact">
-                    <h4 title={movie.title}>{movie.title}</h4>
-                    <div className="movie-meta">
-                      {(movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year) && 
-                        <span className="movie-year">({movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year})</span>
-                      }
-                      {movie.format && <span className="format-badge">{movie.format}</span>}
+          <>
+            {/* Movies Grid - Grouped or Ungrouped */}
+            {groupBy === 'none' ? (
+              <div className={`movies-grid ${sortLoading || filterLoading ? 'sort-loading' : ''}`}>
+                {movies && movies.map((movie) => (
+                  <div key={movie.id} className="movie-card-compact" onClick={() => handleMovieClick(movie.id)}>
+                    <div className="movie-poster-compact">
+                      <MovieThumbnail 
+                        imdbLink={movie.imdb_id ? `https://www.imdb.com/title/${movie.imdb_id}` : movie.imdb_link} 
+                        title={movie.title}
+                        year={movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year}
+                        className="movie-thumbnail-compact"
+                        disableZoom={true}
+                        posterPath={movie.poster_path}
+                      />
                     </div>
-                  </div>
-                  
-                  <div className="movie-content-compact">
-                    <div className="movie-details-left">
-                      {movie.director && (
-                        <div className="detail-row">
-                          <span className="detail-label">Directed by</span>
-                          <span className="detail-value">{movie.director}</span>
+                    
+                    <div className="movie-info-compact">
+                      <div className="movie-header-compact">
+                        <h4 title={movie.title}>{movie.title}</h4>
+                        <div className="movie-meta">
+                          {(movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year) && 
+                            <span className="movie-year">({movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year})</span>
+                          }
+                          {movie.format && <span className="format-badge">{movie.format}</span>}
                         </div>
-                      )}
+                      </div>
                       
-                      {movie.genres && movie.genres.length > 0 && (
-                        <div className="detail-row">
-                          <span className="detail-label">Genres</span>
-                          <span className="detail-value">{movie.genres.join(', ')}</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="movie-details-center">
-                      {movie.runtime && (
-                        <div className="detail-row">
-                          <span className="detail-label">Runtime</span>
-                          <span className="detail-value">{movie.runtime}</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="movie-details-right">
-                      {(() => {
-                        const combinedScore = getCombinedScore(movie);
-                        if (combinedScore) {
-                          return (
+                      <div className="movie-content-compact">
+                        <div className="movie-details-left">
+                          {movie.director && (
                             <div className="detail-row">
-                              <span className="detail-label">Score</span>
-                              <span className="detail-value score-value" style={{ color: getRatingColor(combinedScore, 10) }}>
-                                {combinedScore.toFixed(1)}/10
-                              </span>
+                              <span className="detail-label">Directed by</span>
+                              <span className="detail-value">{movie.director}</span>
                             </div>
-                          );
-                        }
-                        return null;
-                      })()}
+                          )}
+                          
+                          {movie.genres && movie.genres.length > 0 && (
+                            <div className="detail-row">
+                              <span className="detail-label">Genres</span>
+                              <span className="detail-value">{movie.genres.join(', ')}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="movie-details-center">
+                          {movie.runtime && (
+                            <div className="detail-row">
+                              <span className="detail-label">Runtime</span>
+                              <span className="detail-value">{movie.runtime}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="movie-details-right">
+                          {(() => {
+                            const combinedScore = getCombinedScore(movie);
+                            if (combinedScore) {
+                              return (
+                                <div className="detail-row">
+                                  <span className="detail-label">Score</span>
+                                  <span className="detail-value score-value" style={{ color: getRatingColor(combinedScore, 10) }}>
+                                    {combinedScore.toFixed(1)}/10
+                                  </span>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className={`movies-groups ${sortLoading || filterLoading || groupLoading ? 'sort-loading' : ''}`}>
+                {(() => {
+                  const grouped = groupMovies(filteredMovies, groupBy);
+                  return Object.entries(grouped).map(([groupKey, groupMovies]) => {
+                    const isExpanded = expandedGroups.has(groupKey);
+                    const sortedGroupMovies = sortMovies(groupMovies, sortBy);
+                    
+                    return (
+                      <div key={groupKey} className="movie-group">
+                        <div 
+                          className="group-header"
+                          onClick={() => toggleGroup(groupKey)}
+                        >
+                          <div className="group-title">
+                            <BsChevronDown className={`group-chevron ${isExpanded ? 'expanded' : ''}`} />
+                            <span>{groupKey}</span>
+                            <span className="group-count">({groupMovies.length})</span>
+                          </div>
+                        </div>
+                        
+                        {isExpanded && (
+                          <div className="movies-grid">
+                            {sortedGroupMovies.map((movie) => (
+                              <div key={movie.id} className="movie-card-compact" onClick={() => handleMovieClick(movie.id)}>
+                                <div className="movie-poster-compact">
+                                  <MovieThumbnail 
+                                    imdbLink={movie.imdb_id ? `https://www.imdb.com/title/${movie.imdb_id}` : movie.imdb_link} 
+                                    title={movie.title}
+                                    year={movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year}
+                                    className="movie-thumbnail-compact"
+                                    disableZoom={true}
+                                    posterPath={movie.poster_path}
+                                  />
+                                </div>
+                                
+                                <div className="movie-info-compact">
+                                  <div className="movie-header-compact">
+                                    <h4 title={movie.title}>{movie.title}</h4>
+                                    <div className="movie-meta">
+                                      {(movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year) && 
+                                        <span className="movie-year">({movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year})</span>
+                                      }
+                                      {movie.format && <span className="format-badge">{movie.format}</span>}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="movie-content-compact">
+                                    <div className="movie-details-left">
+                                      {movie.director && (
+                                        <div className="detail-row">
+                                          <span className="detail-label">Directed by</span>
+                                          <span className="detail-value">{movie.director}</span>
+                                        </div>
+                                      )}
+                                      
+                                      {movie.genres && movie.genres.length > 0 && (
+                                        <div className="detail-row">
+                                          <span className="detail-label">Genres</span>
+                                          <span className="detail-value">{movie.genres.join(', ')}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="movie-details-center">
+                                      {movie.runtime && (
+                                        <div className="detail-row">
+                                          <span className="detail-label">Runtime</span>
+                                          <span className="detail-value">{movie.runtime}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="movie-details-right">
+                                      {(() => {
+                                        const combinedScore = getCombinedScore(movie);
+                                        if (combinedScore) {
+                                          return (
+                                            <div className="detail-row">
+                                              <span className="detail-label">Score</span>
+                                              <span className="detail-value score-value" style={{ color: getRatingColor(combinedScore, 10) }}>
+                                                {combinedScore.toFixed(1)}/10
+                                              </span>
+                                            </div>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            )}
+          </>
         )}
       </div>
 

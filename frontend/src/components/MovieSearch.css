@@ -288,6 +288,12 @@
   margin-bottom: 16px;
 }
 
+.dropdowns-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .filter-pills {
   display: flex;
   flex-wrap: wrap;
@@ -446,6 +452,203 @@
 .sort-dropdown-container {
   position: relative;
   display: inline-block;
+}
+
+/* Group Dropdown Styles */
+.group-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.group-dropdown-container .dropdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border-right: none !important;
+  background: #444;
+  border: 1px solid #666;
+  color: #d2d2d2;
+  font-size: 12px;
+  height: 24px;
+  min-width: 0;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.group-dropdown-container .dropdown-toggle:hover {
+  background: #555;
+  border-color: #777;
+  color: #f0f0f0;
+}
+
+.group-dropdown-container .dropdown-toggle:focus {
+  background: #555;
+  border-color: #777;
+  color: #f0f0f0;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.group-dropdown-container .dropdown-toggle.active {
+  background: #007bff;
+  border-color: #007bff;
+  color: white;
+}
+
+.group-icon {
+  font-size: 12px;
+}
+
+.group-dropdown-container .dropdown-menu {
+  background: #2d2d2d !important;
+  border: 1px solid #555 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  min-width: 160px !important;
+  padding: 0 !important;
+  margin-top: 4px !important;
+}
+
+.group-dropdown-container .dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px !important;
+  background: none !important;
+  border: none !important;
+  color: #d2d2d2 !important;
+  text-align: left;
+  cursor: pointer;
+  font-size: 11px !important;
+  font-weight: 600;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  border-radius: 0;
+}
+
+.group-dropdown-container .dropdown-item:hover {
+  background: #404040 !important;
+  color: #fff !important;
+}
+
+.group-dropdown-container .dropdown-item.active {
+  background: #4975a5 !important;
+  color: #fff !important;
+}
+
+.group-dropdown-container .dropdown-item:first-child {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.group-dropdown-container .dropdown-item:last-child {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+.group-dropdown-container .dropdown-item:only-child {
+  border-radius: 6px;
+}
+
+/* Group Loading Spinner */
+.group-loading-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #d2d2d2;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 0.8s linear infinite;
+  margin-right: 6px;
+}
+
+.group-dropdown-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Collapse All Button - Inline with dropdowns */
+.collapse-all-btn {
+  background: #444;
+  border: 1px solid #666;
+  color: #d2d2d2;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: 24px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+}
+
+.collapse-all-btn:hover {
+  background: #555;
+  border-color: #777;
+  color: #f0f0f0;
+}
+
+.collapse-all-btn:active {
+  background: #666;
+}
+
+/* Movies Groups */
+.movies-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.movie-group {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.group-header {
+  background: #2a2a2a;
+  border-bottom: 1px solid #333;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.group-header:hover {
+  background: #333;
+}
+
+.group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.group-chevron {
+  font-size: 12px;
+  transition: transform 0.2s ease;
+  color: #888;
+}
+
+.group-chevron.expanded {
+  transform: rotate(180deg);
+  color: #007bff;
+}
+
+.group-count {
+  color: #888;
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.movie-group .movies-grid {
+  padding: 16px;
+  background: #1a1a1a;
 }
 
 .sort-dropdown-container .dropdown-toggle {
