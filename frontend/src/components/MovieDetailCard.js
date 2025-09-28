@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import CircularProgressBar from './CircularProgressBar';
 import AgeDisplay from './AgeDisplay';
 import apiService from '../services/api';
+import { getLanguageName } from '../services/languageCountryUtils';
 import { BsX, BsPlay, BsPencil, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsPencilSquare } from 'react-icons/bs';
 import './MovieDetailCard.css';
 
@@ -642,7 +643,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                   <p>{original_title || title}</p>
                   
                   <h4>Original Language</h4>
-                  <p>{original_language || 'English'}</p>
+                  <p>{getLanguageName(original_language)}</p>
                   
                   <h4>Budget</h4>
                   <p>{formatCurrency(budget)}</p>
