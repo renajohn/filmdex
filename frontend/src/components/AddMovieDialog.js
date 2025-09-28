@@ -13,7 +13,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
   const [formData, setFormData] = useState({
     title: '',
     year: '',
-    format: 'Unspecified', // Always default to Unspecified
+    format: 'Blu-ray 4K',
     price: '',
     acquired_date: new Date().toISOString().split('T')[0],
     comments: ''
@@ -31,7 +31,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
       const newFormData = {
         title: '',
         year: '',
-        format: 'Unspecified', // Always default to Unspecified
+        format: 'Blu-ray 4K',
         price: '',
         acquired_date: new Date().toISOString().split('T')[0],
         comments: ''
@@ -383,8 +383,6 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                         <option value="Blu-ray">Blu-ray</option>
                         <option value="DVD">DVD</option>
                         <option value="Digital">Digital</option>
-                        <option value="Streaming">Streaming</option>
-                        <option value="Unspecified">Unspecified</option>
                       </select>
                     </div>
 
