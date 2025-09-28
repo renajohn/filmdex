@@ -11,7 +11,8 @@ const logger = require('../logger');
 const movieController = {
   getAllMovies: async (req, res) => {
     try {
-      const movies = await movieService.getAllMovies();
+      // Only return owned movies by default (for collection view)
+      const movies = await Movie.findByStatus('owned');
       // Parse cast field from JSON string back to array and validate image paths
       const parsedMovies = movies.map(movie => {
         const validatedMovie = Movie.validateImagePaths(movie);
@@ -404,7 +405,8 @@ const movieController = {
         adult: tmdbDetails.adult || false,
         video: tmdbDetails.video || false,
         media_type: tmdbMovie.media_type || 'movie',
-        import_id: 'manual-add'
+        import_id: 'manual-add',
+        title_status: req.body.title_status || 'owned'
       };
 
       // Create movie in database
@@ -520,7 +522,8 @@ const movieController = {
         adult: tmdbDetails.adult || false,
         video: tmdbDetails.video || false,
         media_type: tmdbMovie.media_type || 'movie',
-        import_id: 'manual-add'
+        import_id: 'manual-add',
+        title_status: req.body.title_status || 'owned'
       };
 
       // Check if movie already exists (by imdb_id or tmdb_id)
@@ -624,6 +627,52 @@ const movieController = {
       res.json(updatedMovie);
     } catch (error) {
       console.error('Error refreshing movie ratings:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Get movies by status (owned, wish, to_sell)
+  getMoviesByStatus: async (req, res) => {
+    try {
+      const { status } = req.params;
+      const movies = await Movie.findByStatus(status);
+      // Parse cast field from JSON string back to array and validate image paths
+      const parsedMovies = movies.map(movie => {
+        const validatedMovie = Movie.validateImagePaths(movie);
+        return {
+          ...validatedMovie,
+          cast: Array.isArray(validatedMovie.cast) ? validatedMovie.cast : (validatedMovie.cast ? JSON.parse(validatedMovie.cast) : [])
+        };
+      });
+      res.json(parsedMovies);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Update movie status
+  updateMovieStatus: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { title_status } = req.body;
+      
+      if (!title_status || !['owned', 'wish', 'to_sell'].includes(title_status)) {
+        return res.status(400).json({ error: 'Invalid status. Must be owned, wish, or to_sell' });
+      }
+
+      const result = await Movie.updateStatus(id, title_status);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Run migration to add title_status column
+  migrateTitleStatus: async (req, res) => {
+    try {
+      await Movie.addTitleStatusColumn();
+      res.json({ message: 'Migration completed successfully' });
+    } catch (error) {
       res.status(500).json({ error: error.message });
     }
   }

@@ -289,6 +289,7 @@ const movieService = {
         status: localMovie.status || null,
         recommended_age: localMovie.recommended_age || null,
         age_processed: localMovie.age_processed || false,
+        title_status: localMovie.title_status || 'owned',
       };
 
       return movieDetails;

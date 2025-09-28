@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import apiService from '../services/api';
 import './MovieImport.css';
 
 const MovieImport = ({ onFileUpload, onError }) => {

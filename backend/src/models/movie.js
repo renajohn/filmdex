@@ -41,7 +41,8 @@ const Movie = {
           video BOOLEAN,
           media_type TEXT DEFAULT 'movie',
           recommended_age INTEGER,
-          age_processed BOOLEAN DEFAULT 0
+          age_processed BOOLEAN DEFAULT 0,
+          title_status TEXT DEFAULT 'owned'
         )
       `;
       db.run(sql, (err) => {
@@ -62,22 +63,22 @@ const Movie = {
         imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
         price, runtime, plot, comments, never_seen, acquired_date, import_id,
         poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type = 'movie', recommended_age, age_processed = false
+        popularity, vote_count, adult, video, media_type = 'movie', recommended_age, age_processed = false, title_status = 'owned'
       } = movie;
       const sql = `
         INSERT INTO movies (title, original_title, original_language, genre, director, cast, release_date, format, 
                            imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
                            price, runtime, plot, comments, never_seen, acquired_date, import_id,
                            poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-                           popularity, vote_count, adult, video, media_type, recommended_age, age_processed)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                           popularity, vote_count, adult, video, media_type, recommended_age, age_processed, title_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       db.run(sql, [
         title, original_title, original_language, genre, director, JSON.stringify(cast), release_date, format,
         imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
         price, runtime, plot, comments, never_seen, acquired_date, import_id,
         poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type, recommended_age, age_processed
+        popularity, vote_count, adult, video, media_type, recommended_age, age_processed, title_status
       ], function(err) {
         if (err) {
           reject(err);
@@ -119,7 +120,8 @@ const Movie = {
             video,
             media_type,
             recommended_age,
-            age_processed
+            age_processed,
+            title_status
           };
           resolve(createdMovie);
         }
@@ -146,6 +148,10 @@ const Movie = {
       const db = getDatabase();
       let sql = 'SELECT * FROM movies WHERE 1=1';
       const params = [];
+
+      // Only return owned movies by default (for collection search)
+      sql += ' AND (title_status = ? OR title_status IS NULL)';
+      params.push('owned');
 
       // Full-text search on title, director, and comments
       if (criteria.searchText) {
@@ -240,7 +246,8 @@ const Movie = {
             video: row.video,
             media_type: row.media_type,
             recommended_age: row.recommended_age,
-            age_processed: row.age_processed
+            age_processed: row.age_processed,
+            title_status: row.title_status || 'owned'
           };
           
           console.log('findById returning movie:', {
@@ -295,7 +302,7 @@ const Movie = {
         imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
         price, runtime, plot, comments, never_seen, acquired_date, import_id,
         poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type = 'movie', recommended_age
+        popularity, vote_count, adult, video, media_type = 'movie', recommended_age, title_status
       } = movieData;
       
       const sql = `
@@ -305,7 +312,7 @@ const Movie = {
             rotten_tomatoes_link = ?, tmdb_rating = ?, tmdb_id = ?, imdb_id = ?, 
             price = ?, runtime = ?, plot = ?, comments = ?, never_seen = ?, acquired_date = ?, import_id = ?,
             poster_path = ?, backdrop_path = ?, budget = ?, revenue = ?, trailer_key = ?, trailer_site = ?,
-            status = ?, popularity = ?, vote_count = ?, adult = ?, video = ?, media_type = ?, recommended_age = ?
+            status = ?, popularity = ?, vote_count = ?, adult = ?, video = ?, media_type = ?, recommended_age = ?, title_status = ?
         WHERE id = ?
       `;
       
@@ -314,7 +321,7 @@ const Movie = {
         imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
         price, runtime, plot, comments, never_seen, acquired_date, import_id,
         poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type, recommended_age, id
+        popularity, vote_count, adult, video, media_type, recommended_age, title_status, id
       ], function(err) {
         if (err) {
           reject(err);
@@ -502,6 +509,73 @@ const Movie = {
       console.error('Error validating image paths:', error);
       return movie; // Return original if validation fails
     }
+  },
+
+  // Get movies by title_status
+  findByStatus: (status) => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const sql = 'SELECT * FROM movies WHERE title_status = ? ORDER BY title';
+      db.all(sql, [status], (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          const movies = rows.map(row => {
+            const movie = { ...row };
+            if (movie.cast) {
+              try {
+                movie.cast = JSON.parse(movie.cast);
+              } catch (e) {
+                movie.cast = [];
+              }
+            } else {
+              movie.cast = [];
+            }
+            return movie;
+          });
+          resolve(movies);
+        }
+      });
+    });
+  },
+
+  // Update title_status of a movie
+  updateStatus: (id, status) => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const sql = 'UPDATE movies SET title_status = ? WHERE id = ?';
+      db.run(sql, [status, id], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve({ id, title_status: status });
+        }
+      });
+    });
+  },
+
+  // Migration method to add title_status column to existing databases
+  addTitleStatusColumn: () => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const sql = `
+        ALTER TABLE movies ADD COLUMN title_status TEXT DEFAULT 'owned'
+      `;
+      db.run(sql, (err) => {
+        if (err) {
+          // Column might already exist, which is fine
+          if (err.message.includes('duplicate column name')) {
+            console.log('title_status column already exists');
+            resolve();
+          } else {
+            reject(err);
+          }
+        } else {
+          console.log('title_status column added successfully');
+          resolve();
+        }
+      });
+    });
   },
 
 };

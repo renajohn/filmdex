@@ -19,7 +19,7 @@ const UnmatchedMovies = ({ importId, onImportComplete, setCurrentStep }) => {
     if (importId) {
       checkImportStatus();
     }
-  }, [importId]);
+  }, [importId, checkImportStatus]);
 
   const checkImportStatus = async () => {
     try {
@@ -240,12 +240,6 @@ const UnmatchedMovies = ({ importId, onImportComplete, setCurrentStep }) => {
   };
 
 
-  const handleIgnoreAll = () => {
-    const allMovieTitles = unmatchedMovies.map(movie => movie.title);
-    setIgnoredMovies(prev => new Set([...prev, ...allMovieTitles]));
-    setSelectedSuggestions({});
-    onImportComplete();
-  };
 
   if (isLoading && unmatchedMovies.length === 0) {
     return (

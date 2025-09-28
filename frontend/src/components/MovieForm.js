@@ -85,7 +85,7 @@ const MovieForm = ({ movie = null, prefilledData = null, onSave, onCancel }) => 
       // Call the auto-fetch logic directly here to avoid dependency issues
       autoFetchData(dataToUse.title);
     }
-  }, [movie, prefilledData, hasAutoFetched]);
+  }, [movie, prefilledData, hasAutoFetched, autoFetchData]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -282,14 +282,6 @@ const MovieForm = ({ movie = null, prefilledData = null, onSave, onCancel }) => 
     }
   };
 
-  const handleAutoFetch = async () => {
-    if (!formData.title.trim()) {
-      setError('Please enter a movie title first');
-      return;
-    }
-
-    await autoFetchData(formData.title);
-  };
 
   return (
     <div className="movie-form">

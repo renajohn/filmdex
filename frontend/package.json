@@ -27,7 +27,11 @@
     "extends": [
       "react-app",
       "react-app/jest"
-    ]
+    ],
+    "globals": {
+      "$": "readonly",
+      "jQuery": "readonly"
+    }
   },
   "browserslist": {
     "production": [

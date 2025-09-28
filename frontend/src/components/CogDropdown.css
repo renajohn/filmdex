@@ -78,6 +78,12 @@
   text-align: center;
 }
 
+.cog-menu-separator {
+  height: 1px;
+  background: #333;
+  margin: 8px 0;
+}
+
 /* Animation for dropdown */
 .cog-dropdown-menu {
   animation: slideDown 0.2s ease-out;

@@ -1,15 +1,13 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from 'react';
 import { Dropdown } from 'react-bootstrap';
 import apiService from '../services/api';
 import MovieForm from './MovieForm';
 import MovieThumbnail from './MovieThumbnail';
 import MovieDetailCard from './MovieDetailCard';
-import CircularProgressBar from './CircularProgressBar';
 import { 
   BsFilter, 
   BsSortDown, 
   BsChevronDown, 
-  BsX, 
   BsCheck, 
   BsFilm, 
   BsTv, 
@@ -42,6 +40,117 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [movieDetailsBeforeEdit, setMovieDetailsBeforeEdit] = useState(null);
 
+  const getCombinedScore = (movie) => {
+    const ratings = [];
+    
+    // Add TMDB rating (weighted 40%)
+    if (movie.tmdb_rating && movie.tmdb_rating !== 'N/A') {
+      ratings.push({ score: parseFloat(movie.tmdb_rating), weight: 0.4, max: 10 });
+    }
+    
+    // Add IMDB rating (weighted 35%)
+    if (movie.imdb_rating && movie.imdb_rating !== 'N/A') {
+      ratings.push({ score: parseFloat(movie.imdb_rating), weight: 0.35, max: 10 });
+    }
+    
+    // Add Rotten Tomatoes rating (weighted 25%, convert to 10-point scale)
+    if (movie.rotten_tomato_rating && movie.rotten_tomato_rating !== 'N/A') {
+      const rtScore = parseFloat(movie.rotten_tomato_rating) / 10; // Convert % to 10-point scale
+      ratings.push({ score: rtScore, weight: 0.25, max: 10 });
+    }
+    
+    if (ratings.length === 0) return null;
+    
+    // Calculate weighted average
+    const totalWeight = ratings.reduce((sum, rating) => sum + rating.weight, 0);
+    const weightedSum = ratings.reduce((sum, rating) => sum + (rating.score * rating.weight), 0);
+    
+    return weightedSum / totalWeight;
+  };
+
+  const sortMovies = useCallback((moviesToSort, sortOption) => {
+    const sorted = [...moviesToSort];
+    
+    switch (sortOption) {
+      case 'title':
+        return sorted.sort((a, b) => a.title.localeCompare(b.title));
+      case 'titleReverse':
+        return sorted.sort((a, b) => b.title.localeCompare(a.title));
+      case 'lastAddedFirst':
+        return sorted.sort((a, b) => new Date(b.acquired_date || b.created_at || b.updated_at) - new Date(a.acquired_date || a.created_at || a.updated_at));
+      case 'lastAddedLast':
+        return sorted.sort((a, b) => new Date(a.acquired_date || a.created_at || a.updated_at) - new Date(b.acquired_date || b.created_at || b.updated_at));
+      case 'rating':
+        return sorted.sort((a, b) => {
+          const ratingA = getCombinedScore(a) || 0;
+          const ratingB = getCombinedScore(b) || 0;
+          return ratingB - ratingA; // Higher ratings first
+        });
+      case 'ratingLowest':
+        return sorted.sort((a, b) => {
+          const ratingA = getCombinedScore(a) || 0;
+          const ratingB = getCombinedScore(b) || 0;
+          return ratingA - ratingB; // Lower ratings first
+        });
+      case 'ageAsc':
+        return sorted.sort((a, b) => {
+          const ageA = a.recommended_age ?? 999; // Treat null/undefined as highest (oldest)
+          const ageB = b.recommended_age ?? 999;
+          return ageA - ageB; // Youngest first
+        });
+      case 'ageDesc':
+        return sorted.sort((a, b) => {
+          const ageA = a.recommended_age ?? -1; // Treat null/undefined as lowest (youngest)
+          const ageB = b.recommended_age ?? -1;
+          return ageB - ageA; // Oldest first
+        });
+      default:
+        return sorted;
+    }
+  }, []);
+
+  const loadAllMovies = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await apiService.getAllMovies();
+      setAllMovies(data);
+      setFilteredMovies(data);
+      // Apply current sort to all movies
+      const sorted = sortMovies(data, sortBy);
+      setMovies(sorted);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleSearch = useCallback(async (criteria) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // If no search text, load all movies, otherwise search
+      let data;
+      if (criteria.searchText && criteria.searchText.trim()) {
+        data = await apiService.searchMovies({ searchText: criteria.searchText });
+      } else {
+        data = await apiService.getAllMovies();
+      }
+      setAllMovies(data);
+      setFilteredMovies(data);
+      // Apply current sort to search results
+      const sorted = sortMovies(data, sortBy);
+      setMovies(sorted);
+      setActiveFilters([]); // Reset filters when search changes
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     handleAddMovieClick,
@@ -51,7 +160,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
   useEffect(() => {
     loadAllMovies();
-  }, []);
+  }, [loadAllMovies]);
 
   // Handle click outside more dropdown
   useEffect(() => {
@@ -78,7 +187,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     if (refreshTrigger) {
       loadAllMovies();
     }
-  }, [refreshTrigger]);
+  }, [refreshTrigger, loadAllMovies]);
 
   useEffect(() => {
     // Real-time search with debouncing
@@ -87,7 +196,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     }, 100);
 
     return () => clearTimeout(timeoutId);
-  }, [searchCriteria]);
+  }, [searchCriteria, handleSearch]);
 
   // Handle ESC key press for modals
   useEffect(() => {
@@ -111,50 +220,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [showExportModal, editingMovie, showAddForm, selectedMovieDetails]);
-
-
-
-  const loadAllMovies = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await apiService.getAllMovies();
-      setAllMovies(data);
-      setFilteredMovies(data);
-      // Apply current sort to all movies
-      const sorted = sortMovies(data, sortBy);
-      setMovies(sorted);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearch = async (criteria) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // If no search text, load all movies, otherwise search
-      let data;
-      if (criteria.searchText && criteria.searchText.trim()) {
-        data = await apiService.searchMovies({ searchText: criteria.searchText });
-      } else {
-        data = await apiService.getAllMovies();
-      }
-      setAllMovies(data);
-      setFilteredMovies(data);
-      // Apply current sort to search results
-      const sorted = sortMovies(data, sortBy);
-      setMovies(sorted);
-      setActiveFilters([]); // Reset filters when search changes
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
 
   const handleEditMovie = async (movie) => {
@@ -247,10 +312,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     }
   };
 
-  const getRatingPercentage = (rating, maxRating = 10) => {
-    if (!rating || rating === 'N/A') return 0;
-    return Math.min(Math.max((parseFloat(rating) / maxRating) * 100, 0), 100);
-  };
 
   const getRatingColor = (rating, maxRating = 10) => {
     if (!rating || rating === 'N/A') return '#3a3a3a';
@@ -277,41 +338,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     }
   };
 
-  const getCombinedScore = (movie) => {
-    const ratings = [];
-    
-    // Add TMDB rating (weighted 40%)
-    if (movie.tmdb_rating && movie.tmdb_rating !== 'N/A') {
-      ratings.push({ score: parseFloat(movie.tmdb_rating), weight: 0.4, max: 10 });
-    }
-    
-    // Add IMDB rating (weighted 35%)
-    if (movie.imdb_rating && movie.imdb_rating !== 'N/A') {
-      ratings.push({ score: parseFloat(movie.imdb_rating), weight: 0.35, max: 10 });
-    }
-    
-    // Add Rotten Tomatoes rating (weighted 25%, convert to 10-point scale)
-    if (movie.rotten_tomato_rating && movie.rotten_tomato_rating !== 'N/A') {
-      const rtScore = parseFloat(movie.rotten_tomato_rating) / 10; // Convert % to 10-point scale
-      ratings.push({ score: rtScore, weight: 0.25, max: 10 });
-    }
-    
-    if (ratings.length === 0) return null;
-    
-    // Calculate weighted average
-    const totalWeight = ratings.reduce((sum, rating) => sum + rating.weight, 0);
-    const weightedSum = ratings.reduce((sum, rating) => sum + (rating.score * rating.weight), 0);
-    
-    return weightedSum / totalWeight;
-  };
-
-  const formatRating = (rating) => {
-    return rating ? rating.toString() : '-';
-  };
-
-  const formatPercentage = (rating) => {
-    return rating ? `${rating}%` : '-';
-  };
 
   const handleCloseDetails = () => {
     setSelectedMovieDetails(null);
@@ -464,7 +490,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     }
 
     const newFilter = { type: filterType, value: filterValue };
-    const filterKey = filterValue ? `${filterType}-${filterValue}` : filterType;
     
     setActiveFilters(prev => {
       const isActive = prev.some(f => 
@@ -524,47 +549,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     { value: 'decade', label: 'Group by Decade' },
     { value: 'ageGroup', label: 'Group by Age Rating' }
   ];
-
-  const sortMovies = (moviesToSort, sortOption) => {
-    const sorted = [...moviesToSort];
-    
-    switch (sortOption) {
-      case 'title':
-        return sorted.sort((a, b) => a.title.localeCompare(b.title));
-      case 'titleReverse':
-        return sorted.sort((a, b) => b.title.localeCompare(a.title));
-      case 'lastAddedFirst':
-        return sorted.sort((a, b) => new Date(b.acquired_date || b.created_at || b.updated_at) - new Date(a.acquired_date || a.created_at || a.updated_at));
-      case 'lastAddedLast':
-        return sorted.sort((a, b) => new Date(a.acquired_date || a.created_at || a.updated_at) - new Date(b.acquired_date || b.created_at || b.updated_at));
-      case 'rating':
-        return sorted.sort((a, b) => {
-          const ratingA = getCombinedScore(a) || 0;
-          const ratingB = getCombinedScore(b) || 0;
-          return ratingB - ratingA; // Higher ratings first
-        });
-      case 'ratingLowest':
-        return sorted.sort((a, b) => {
-          const ratingA = getCombinedScore(a) || 0;
-          const ratingB = getCombinedScore(b) || 0;
-          return ratingA - ratingB; // Lower ratings first
-        });
-      case 'ageAsc':
-        return sorted.sort((a, b) => {
-          const ageA = a.recommended_age ?? 999; // Treat null/undefined as highest (oldest)
-          const ageB = b.recommended_age ?? 999;
-          return ageA - ageB; // Youngest first
-        });
-      case 'ageDesc':
-        return sorted.sort((a, b) => {
-          const ageA = a.recommended_age ?? -1; // Treat null/undefined as lowest (youngest)
-          const ageB = b.recommended_age ?? -1;
-          return ageB - ageA; // Oldest first
-        });
-      default:
-        return sorted;
-    }
-  };
 
   const handleSortChange = async (sortOption) => {
     setSortBy(sortOption);

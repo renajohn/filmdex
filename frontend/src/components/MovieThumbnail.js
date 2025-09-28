@@ -10,18 +10,7 @@ const MovieThumbnail = ({ imdbLink, title, year, className = '', disableZoom = f
   const [error, setError] = useState(null);
   const [posterSource, setPosterSource] = useState(null);
   const [showModal, setShowModal] = useState(false);
-
-  useEffect(() => {
-    if (posterPath) {
-      // Use local poster path if available
-      setThumbnailUrl(getPosterUrl(posterPath));
-      setPosterSource('local');
-      setLoading(false);
-    } else if (imdbLink) {
-      // Fallback to old method for backward compatibility
-      fetchThumbnail();
-    }
-  }, [imdbLink, title, year, posterPath]);
+  const [retryCount, setRetryCount] = useState(0);
 
   const getPosterUrl = (posterPath) => {
     if (!posterPath) return null;
@@ -43,20 +32,39 @@ const MovieThumbnail = ({ imdbLink, title, year, className = '', disableZoom = f
       setLoading(true);
       setError(null);
       
+      console.log(`Fetching thumbnail for: ${title} (${year}) - ${imdbLink}`);
       const result = await apiService.getMovieThumbnail(imdbLink, title, year);
       
       if (result.success) {
+        console.log(`Thumbnail loaded successfully for: ${title}`);
         setThumbnailUrl(result.thumbnailUrl);
         setPosterSource(result.source);
       } else {
+        console.log(`Thumbnail failed for: ${title} - ${result.error}`);
         setError(result.error || 'Failed to load thumbnail');
       }
     } catch (err) {
+      console.log(`Thumbnail error for: ${title} - ${err.message}`);
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Reset retry count when props change
+    setRetryCount(0);
+    
+    if (posterPath) {
+      // Use local poster path if available
+      setThumbnailUrl(getPosterUrl(posterPath));
+      setPosterSource('local');
+      setLoading(false);
+    } else if (imdbLink) {
+      // Fallback to old method for backward compatibility
+      fetchThumbnail();
+    }
+  }, [imdbLink, title, year, posterPath]);
 
   const handleImageError = () => {
     console.log('Image failed to load:', thumbnailUrl);
@@ -64,8 +72,10 @@ const MovieThumbnail = ({ imdbLink, title, year, className = '', disableZoom = f
     setThumbnailUrl(null);
     
     // If it was a local image that failed, try to fetch from external source
-    if (posterSource === 'local' && imdbLink) {
+    // But only retry once to prevent infinite loops
+    if (posterSource === 'local' && imdbLink && retryCount === 0) {
       console.log('Local image failed, trying external source...');
+      setRetryCount(1);
       fetchThumbnail();
     }
   };

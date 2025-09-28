@@ -3,7 +3,7 @@ import CircularProgressBar from './CircularProgressBar';
 import AgeDisplay from './AgeDisplay';
 import apiService from '../services/api';
 import { getLanguageName } from '../services/languageCountryUtils';
-import { BsX, BsPlay, BsPencil, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsPencilSquare } from 'react-icons/bs';
+import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise } from 'react-icons/bs';
 import './MovieDetailCard.css';
 
 const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
@@ -28,7 +28,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
       tmdb_rating: movieDetails.tmdb_rating,
       imdb_rating: movieDetails.imdb_rating
     });
-  }, [movieDetails.title]); // Only log when title changes
+  }, [movieDetails.title, movieDetails.rotten_tomato_rating, movieDetails.tmdb_rating, movieDetails.imdb_rating]); // Include all dependencies
   
   // Handle ESC key press for main detail view
   useEffect(() => {
@@ -96,7 +96,6 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
   const {
     title,
     plot,
-    genre,
     director,
     imdb_rating,
     rotten_tomato_rating,
@@ -107,30 +106,23 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
     acquired_date,
     poster_path,
     backdrop_path,
-    adult,
     overview,
     genres,
-    credits,
-    videos,
     runtime,
     budget,
     revenue,
-    status,
     original_title,
     original_language,
-    vote_average,
-    vote_count,
     imdb_link,
     tmdb_link,
     tmdb_rating,
     id,
     price,
     comments,
-    never_seen,
     trailer_key,
     trailer_site,
-    popularity,
-    recommended_age
+    recommended_age,
+    title_status
   } = currentData;
 
   const formatRating = (rating) => {
@@ -208,6 +200,17 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
   };
 
 
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'owned': return 'Owned';
+      case 'wish': return 'Wish List';
+      case 'to_sell': return 'To Sell';
+      default: return 'Unknown';
+    }
+  };
+
+
+
   const getPosterUrl = (posterPath) => {
     if (!posterPath) return null;
     // If it's already a local path, return as is with ingress support
@@ -250,7 +253,6 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
     return `https://www.youtube.com/embed/${trailerKey}`;
   };
 
-  const trailerUrl = getTrailerUrl(trailer_key, trailer_site);
   const trailerEmbedUrl = getTrailerEmbedUrl(trailer_key, trailer_site);
 
   // In-place editing functions
@@ -283,8 +285,16 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
     
     setSaving(true);
     try {
-      const updateData = { [editingField]: editValue };
-      await apiService.updateMovie(id, updateData);
+      let updateData;
+      
+      // Special handling for title_status
+      if (editingField === 'title_status') {
+        updateData = { title_status: editValue };
+        await apiService.updateMovieStatus(id, editValue);
+      } else {
+        updateData = { [editingField]: editValue };
+        await apiService.updateMovie(id, updateData);
+      }
       
       // Update local data
       setLocalMovieData(prev => ({
@@ -702,7 +712,52 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                       )}
                     </div>
                     <div className="fact-row">
-                      <span className="fact-label">Acquired:</span>
+                      <span className="fact-label">Status:</span>
+                      {editingField === 'title_status' ? (
+                        <div className="input-group">
+                          <select
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            autoFocus
+                            className="form-select"
+                            style={{ paddingRight: '60px' }}
+                          >
+                            <option value="owned">Owned</option>
+                            <option value="wish">Wish List</option>
+                            <option value="to_sell">To Sell</option>
+                          </select>
+                          <div className="input-group-append">
+                            <button 
+                              className="edit-action-btn" 
+                              onClick={saveEdit}
+                              disabled={saving}
+                              title="Save"
+                            >
+                              <BsCheck size={12} />
+                            </button>
+                            <button 
+                              className="edit-action-btn" 
+                              onClick={cancelEditing}
+                              title="Cancel"
+                            >
+                              <BsX size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <span 
+                          className="fact-value editable"
+                          onClick={() => startEditing('title_status', title_status || 'owned')}
+                        >
+                          {getStatusLabel(title_status || 'owned')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="fact-row">
+                      <span className="fact-label">
+                        {title_status === 'wish' ? 'Added to Wish List:' : 'Acquired:'}
+                      </span>
                       {editingField === 'acquired_date' ? (
                           <div className="input-group">
                             <input
@@ -741,49 +796,51 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                         </span>
                       )}
                     </div>
-                    <div className="fact-row">
-                      <span className="fact-label">Price:</span>
-                      {editingField === 'price' ? (
-                        <div className="input-group">
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            autoFocus
-                            placeholder="0.00"
-                            className="form-control"
-                            style={{ paddingRight: '60px' }}
-                          />
-                          <div className="input-group-append">
-                            <button 
-                              className="edit-action-btn" 
-                              onClick={saveEdit}
-                              disabled={saving}
-                              title="Sauver"
-                            >
-                              <BsCheck size={12} />
-                            </button>
-                            <button 
-                              className="edit-action-btn" 
-                              onClick={cancelEditing}
-                              title="Annuler"
-                            >
-                              <BsX size={12} />
-                            </button>
+                    {title_status === 'owned' && (
+                      <div className="fact-row">
+                        <span className="fact-label">Price:</span>
+                        {editingField === 'price' ? (
+                          <div className="input-group">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onKeyDown={handleKeyDown}
+                              autoFocus
+                              placeholder="0.00"
+                              className="form-control"
+                              style={{ paddingRight: '60px' }}
+                            />
+                            <div className="input-group-append">
+                              <button 
+                                className="edit-action-btn" 
+                                onClick={saveEdit}
+                                disabled={saving}
+                                title="Sauver"
+                              >
+                                <BsCheck size={12} />
+                              </button>
+                              <button 
+                                className="edit-action-btn" 
+                                onClick={cancelEditing}
+                                title="Annuler"
+                              >
+                                <BsX size={12} />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <span 
-                          className="fact-value editable" 
-                          onClick={() => startEditing('price', price)}
-                        >
-                          {formatPrice(price)}
-                        </span>
-                      )}
-                    </div>
+                        ) : (
+                          <span 
+                            className="fact-value editable" 
+                            onClick={() => startEditing('price', price)}
+                          >
+                            {formatPrice(price)}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 

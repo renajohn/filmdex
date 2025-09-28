@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { BsGear, BsPlus, BsUpload, BsDownload, BsArrowClockwise } from 'react-icons/bs';
+import { BsGear, BsPlus, BsUpload, BsCollection, BsHeart } from 'react-icons/bs';
 import './CogDropdown.css';
 
 const CogDropdown = ({ 
   onImportMovies, 
   onAddMovie, 
   onExportCSV,
-  onBackfill
+  onCollection,
+  onWishList
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
@@ -79,11 +80,21 @@ const CogDropdown = ({
         >
           <button 
             className="cog-menu-item"
-            onClick={() => handleMenuClick(onImportMovies)}
+            onClick={() => handleMenuClick(onCollection)}
           >
-            <BsUpload className="menu-icon" />
-            CSV Import
+            <BsCollection className="menu-icon" />
+            Collection
           </button>
+          {onWishList && (
+            <button 
+              className="cog-menu-item"
+              onClick={() => handleMenuClick(onWishList)}
+            >
+              <BsHeart className="menu-icon" />
+              Wish List
+            </button>
+          )}
+          <div className="cog-menu-separator"></div>
           <button 
             className="cog-menu-item"
             onClick={() => handleMenuClick(onAddMovie)}
@@ -91,15 +102,13 @@ const CogDropdown = ({
             <BsPlus className="menu-icon" />
             Add Movie
           </button>
-          {onBackfill && (
-            <button 
-              className="cog-menu-item"
-              onClick={() => handleMenuClick(onBackfill)}
-            >
-              <BsArrowClockwise className="menu-icon" />
-              Backfill Ages
-            </button>
-          )}
+          <button 
+            className="cog-menu-item"
+            onClick={() => handleMenuClick(onImportMovies)}
+          >
+            <BsUpload className="menu-icon" />
+            CSV Import
+          </button>
           {/* <button 
             className="cog-menu-item"
             onClick={() => handleMenuClick(onExportCSV)}

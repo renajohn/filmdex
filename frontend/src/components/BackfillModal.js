@@ -4,7 +4,7 @@ import { BsX, BsCheckCircle, BsExclamationTriangle, BsArrowClockwise } from 'rea
 import apiService from '../services/api';
 import './BackfillModal.css';
 
-const BackfillModal = ({ isOpen, onClose, onComplete }) => {
+const BackfillModal = ({ isOpen, onClose, onComplete, onIgnore }) => {
   const [currentStep, setCurrentStep] = useState('description'); // description, progress, result
   const [backfillStatus, setBackfillStatus] = useState(null);
   const [progress, setProgress] = useState({ processed: 0, total: 0, updated: 0, failed: 0 });
@@ -202,6 +202,19 @@ const BackfillModal = ({ isOpen, onClose, onComplete }) => {
         >
           Later
         </button>
+        {onIgnore && (
+          <button 
+            className="btn btn-outline-secondary" 
+            onClick={() => {
+              if (onIgnore) {
+                onIgnore();
+              }
+              handleClose();
+            }}
+          >
+            Ignore
+          </button>
+        )}
         {backfillStatus && backfillStatus.moviesWithoutAge === 0 ? (
           <button 
             className="btn btn-warning" 

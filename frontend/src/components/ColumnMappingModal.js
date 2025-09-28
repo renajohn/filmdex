@@ -12,7 +12,7 @@ const ColumnMappingModal = ({
   const [mappings, setMappings] = useState({});
   const [errors, setErrors] = useState({});
 
-  // Available database fields (from spec)
+  // Available database fields (from spec) - moved outside component to prevent recreation
   const dbFields = [
     { key: 'title', label: 'Title', required: true },
     { key: 'original_title', label: 'Original Title', required: false },

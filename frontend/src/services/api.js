@@ -364,6 +364,29 @@ class ApiService {
     
     return await response.json();
   }
+
+  // Wish list methods
+  async getMoviesByStatus(status) {
+    const response = await this.makeRequest(`/movies/status/${status}`);
+    return await response.json();
+  }
+
+  async updateMovieStatus(movieId, status) {
+    const response = await this.makeRequest(`/movies/${movieId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ title_status: status }),
+    });
+    
+    return await response.json();
+  }
+
+  async migrateTitleStatus() {
+    const response = await this.makeRequest('/migrate/title-status', {
+      method: 'POST',
+    });
+    
+    return await response.json();
+  }
 }
 
 const apiService = new ApiService();

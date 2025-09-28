@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import MovieSearch from './components/MovieSearch';
-import AddMovieSimple from './pages/AddMovieSimple';
+import AddMovieDialog from './components/AddMovieDialog';
 import ImportPage from './pages/ImportPage';
+import WishListPage from './pages/WishListPage';
 import CogDropdown from './components/CogDropdown';
 import BackfillModal from './components/BackfillModal';
 import apiService from './services/api';
@@ -13,6 +14,7 @@ import './App.css';
 function AppContent() {
   const [refreshTrigger] = useState(0);
   const movieSearchRef = useRef(null);
+  const wishListRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchCriteria, setSearchCriteria] = useState({
@@ -21,6 +23,11 @@ function AppContent() {
   const [loading, setLoading] = useState(false);
   const [showBackfillModal, setShowBackfillModal] = useState(false);
   const [hasCheckedBackfill, setHasCheckedBackfill] = useState(false);
+  const [showAddMovieDialog, setShowAddMovieDialog] = useState(false);
+  const [addMovieMode, setAddMovieMode] = useState('collection');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState('success');
+  const [showAlert, setShowAlert] = useState(false);
 
   // Check if we're on the thumbnail view (root path)
   const isThumbnailView = location.pathname === '/';
@@ -32,8 +39,8 @@ function AppContent() {
         return 'FilmDex';
       case '/import':
         return 'FilmDex - CSV Import';
-      case '/add-movie-simple':
-        return 'FilmDex - Add Movie';
+      case '/wishlist':
+        return 'FilmDex - Wish List';
       default:
         return 'FilmDex';
     }
@@ -57,7 +64,8 @@ function AppContent() {
   };
 
   const handleAddMovie = () => {
-    navigate('/add-movie-simple');
+    setAddMovieMode('collection');
+    setShowAddMovieDialog(true);
   };
 
   const handleExportCSV = () => {
@@ -66,8 +74,13 @@ function AppContent() {
     }
   };
 
-  const handleBackfill = () => {
-    setShowBackfillModal(true);
+
+  const handleCollection = () => {
+    navigate('/');
+  };
+
+  const handleWishList = () => {
+    navigate('/wishlist');
   };
 
   const handleBackfillComplete = () => {
@@ -80,10 +93,70 @@ function AppContent() {
     }, 100);
   };
 
+  const handleBackfillIgnore = () => {
+    // Store in localStorage that user has ignored the backfill
+    localStorage.setItem('filmdex_backfill_ignored', 'true');
+  };
+
+  const handleAddMovieDialogClose = () => {
+    setShowAddMovieDialog(false);
+  };
+
+  const handleWishListAddMovie = (mode) => {
+    setAddMovieMode(mode);
+    setShowAddMovieDialog(true);
+  };
+
+  const handleMovieMovedToCollection = () => {
+    // Refresh collection when a movie is moved from wish list to collection
+    if (movieSearchRef.current && movieSearchRef.current.refreshMovies) {
+      movieSearchRef.current.refreshMovies();
+    }
+  };
+
+  const handleAddMovieSuccess = () => {
+    // Refresh movies when a movie is successfully added
+    if (movieSearchRef.current && movieSearchRef.current.refreshMovies) {
+      movieSearchRef.current.refreshMovies();
+    }
+    // Also refresh wish list if we're on the wish list page
+    if (wishListRef.current && wishListRef.current.refreshMovies) {
+      wishListRef.current.refreshMovies();
+    }
+  };
+
+  const handleMovieAdded = (message, type) => {
+    setAlertMessage(message);
+    setAlertType(type);
+    setShowAlert(true);
+    
+    // Refresh the appropriate list based on current page
+    setTimeout(() => {
+      if (location.pathname === '/wishlist' && wishListRef.current && wishListRef.current.refreshMovies) {
+        wishListRef.current.refreshMovies();
+      } else if (movieSearchRef.current && movieSearchRef.current.refreshMovies) {
+        movieSearchRef.current.refreshMovies();
+      }
+    }, 100);
+    
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      setShowAlert(false);
+      setAlertMessage('');
+    }, 3000);
+  };
+
   // Check for backfill on app startup
   useEffect(() => {
     const checkBackfillStatus = async () => {
       if (hasCheckedBackfill) return;
+      
+      // Check if user has previously ignored the backfill
+      const hasIgnoredBackfill = localStorage.getItem('filmdex_backfill_ignored') === 'true';
+      if (hasIgnoredBackfill) {
+        setHasCheckedBackfill(true);
+        return;
+      }
       
       try {
         const response = await apiService.getBackfillStatus();
@@ -138,7 +211,8 @@ function AppContent() {
               onImportMovies={handleImportMovies}
               onAddMovie={handleAddMovie}
               onExportCSV={handleExportCSV}
-              onBackfill={handleBackfill}
+              onCollection={handleCollection}
+              onWishList={handleWishList}
             />
           </div>
         </div>
@@ -158,10 +232,31 @@ function AppContent() {
               />
             } 
           />
-          <Route path="/add-movie-simple" element={<AddMovieSimple />} />
           <Route path="/import" element={<ImportPage />} />
+          <Route path="/wishlist" element={<WishListPage ref={wishListRef} onAddMovie={handleWishListAddMovie} onMovieMovedToCollection={handleMovieMovedToCollection} />} />
         </Routes>
       </main>
+
+      {/* Main Screen Alert */}
+      {showAlert && alertMessage && (
+        <div className={`alert alert-${alertType} alert-dismissible fade show main-screen-alert`} role="alert">
+          {alertMessage}
+          <button 
+            type="button" 
+            className="btn-close" 
+            onClick={() => setShowAlert(false)}
+            aria-label="Close"
+          ></button>
+        </div>
+      )}
+
+      <AddMovieDialog 
+        isOpen={showAddMovieDialog}
+        onClose={handleAddMovieDialogClose}
+        initialMode={addMovieMode}
+        onSuccess={handleAddMovieSuccess}
+        onMovieAdded={handleMovieAdded}
+      />
 
       <BackfillModal 
         isOpen={showBackfillModal}
@@ -175,6 +270,7 @@ function AppContent() {
           }, 100);
         }}
         onComplete={handleBackfillComplete}
+        onIgnore={handleBackfillIgnore}
       />
     </div>
   );

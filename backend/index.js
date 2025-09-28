@@ -88,6 +88,11 @@ app.put('/api/movies/:id', movieController.updateMovie);
 app.post('/api/movies/:id/refresh-ratings', movieController.refreshMovieRatings);
 app.delete('/api/movies/:id', movieController.deleteMovie);
 app.get('/api/movies/export/csv', movieController.exportCSV);
+
+// Wish list routes
+app.get('/api/movies/status/:status', movieController.getMoviesByStatus);
+app.put('/api/movies/:id/status', movieController.updateMovieStatus);
+app.post('/api/migrate/title-status', movieController.migrateTitleStatus);
 app.get('/api/ratings', movieController.fetchRatings);
 app.get('/api/thumbnail', movieController.getMovieThumbnail);
 app.get('/api/backdrop/:tmdbId', movieController.getMovieBackdrop);
