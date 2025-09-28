@@ -87,6 +87,22 @@ const initDatabase = async () => {
             console.log('age_processed column already exists or migration failed:', migrationError.message);
           }
           
+          // Add title_status column to existing movies table if it doesn't exist
+          try {
+            await new Promise((resolve, reject) => {
+              db.run("ALTER TABLE movies ADD COLUMN title_status TEXT DEFAULT 'owned'", (err) => {
+                if (err && !err.message.includes('duplicate column name')) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
+              });
+            });
+            console.log('Added title_status column to movies table.');
+          } catch (migrationError) {
+            console.log('title_status column already exists or migration failed:', migrationError.message);
+          }
+          
           console.log('Database tables created successfully.');
         } catch (error) {
           console.error('Database creation error:', error);
