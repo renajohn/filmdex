@@ -76,6 +76,7 @@ app.get('/api/tmdb/tv/:id', movieController.getTVShowDetailsTMDB);
 app.get('/api/omdb/search', movieController.searchOMDB);
 app.get('/api/movies/autocomplete', movieController.getAutocompleteSuggestions);
 app.get('/api/movies/formats', movieController.getFormats);
+app.get('/api/movies/check-status', movieController.checkMovieStatus);
 app.get('/api/movies/:id', movieController.getMovieById);
 app.get('/api/movies/:id/details', movieController.getMovieDetails);
 app.get('/api/movies/:id/cast', movieController.getMovieCast);

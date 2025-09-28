@@ -380,6 +380,15 @@ class ApiService {
     return await response.json();
   }
 
+  async checkMovieStatus(tmdbId, title) {
+    const params = new URLSearchParams();
+    if (tmdbId) params.append('tmdb_id', tmdbId);
+    if (title) params.append('title', title);
+    
+    const response = await this.makeRequest(`/movies/check-status?${params}`);
+    return await response.json();
+  }
+
   async migrateTitleStatus() {
     const response = await this.makeRequest('/migrate/title-status', {
       method: 'POST',

@@ -267,10 +267,22 @@ label {
   border-bottom: 1px solid #333;
 }
 
+.wishlist-title-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .wishlist-header h1 {
   color: #fff;
   margin: 0;
   font-size: 2rem;
+}
+
+.wishlist-count {
+  color: #6c757d;
+  font-size: 1rem;
+  font-weight: 400;
 }
 
 .add-movie-btn {
@@ -432,6 +444,10 @@ label {
     flex-direction: column;
     gap: 15px;
     align-items: stretch;
+  }
+  
+  .wishlist-title-section {
+    justify-content: center;
   }
   
   .wishlist-header h1 {

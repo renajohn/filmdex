@@ -418,16 +418,20 @@ const Movie = {
 
   findByTmdbId: (tmdbId) => {
     return new Promise((resolve, reject) => {
-      const db = getDatabase();
-      const sql = 'SELECT * FROM movies WHERE tmdb_id = ?';
-      
-      db.get(sql, [tmdbId], (err, row) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(row);
-        }
-      });
+      try {
+        const db = getDatabase();
+        const sql = 'SELECT * FROM movies WHERE tmdb_id = ?';
+        
+        db.get(sql, [tmdbId], (err, row) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(row);
+          }
+        });
+      } catch (error) {
+        reject(error);
+      }
     });
   },
 

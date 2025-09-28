@@ -3,7 +3,7 @@ import CircularProgressBar from './CircularProgressBar';
 import AgeDisplay from './AgeDisplay';
 import apiService from '../services/api';
 import { getLanguageName } from '../services/languageCountryUtils';
-import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise } from 'react-icons/bs';
+import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsCopy } from 'react-icons/bs';
 import './MovieDetailCard.css';
 
 const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
@@ -19,6 +19,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
   const [saving, setSaving] = useState(false);
   const [refreshingRatings, setRefreshingRatings] = useState(false);
   const [localMovieData, setLocalMovieData] = useState(movieDetails);
+  const [showCopyIcon, setShowCopyIcon] = useState(false);
   
   // Debug initial data (only once)
   useEffect(() => {
@@ -352,6 +353,23 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
     }
   };
 
+  const copyTitleToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(title);
+      // Optional: Show a brief confirmation
+      console.log('Title copied to clipboard');
+    } catch (error) {
+      console.error('Failed to copy title:', error);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = title;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
+  };
+
   const handleDelete = async () => {
     if (!onDelete) return;
     
@@ -402,7 +420,11 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
               </div>
               
               <div className="movie-detail-main-info">
-                <h1 className="movie-detail-title">
+                <h1 
+                  className="movie-detail-title"
+                  onMouseEnter={() => setShowCopyIcon(true)}
+                  onMouseLeave={() => setShowCopyIcon(false)}
+                >
                   {editingField === 'title' ? (
                     <div className="input-group">
                       <input
@@ -433,15 +455,26 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
                       </div>
                     </div>
                   ) : (
-                    <span 
-                      className="editable" 
-                      onClick={() => startEditing('title', title)}
-                    >
-                      {title}
-                      {(release_date ? new Date(release_date).getFullYear() : year) && 
-                        ` (${release_date ? new Date(release_date).getFullYear() : year})`
-                      }
-                    </span>
+                    <div className="title-container">
+                      <span 
+                        className="editable" 
+                        onClick={() => startEditing('title', title)}
+                      >
+                        {title}
+                        {(release_date ? new Date(release_date).getFullYear() : year) && 
+                          ` (${release_date ? new Date(release_date).getFullYear() : year})`
+                        }
+                      </span>
+                      {showCopyIcon && (
+                        <button 
+                          className="copy-title-btn"
+                          onClick={copyTitleToClipboard}
+                          title="Copier le titre"
+                        >
+                          <BsCopy size={16} />
+                        </button>
+                      )}
+                    </div>
                   )}
                 </h1>
                 {director && (

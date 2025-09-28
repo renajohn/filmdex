@@ -201,7 +201,12 @@ const WishListPage = forwardRef(({ onAddMovie, onMovieMovedToCollection }, ref) 
   return (
     <div className="wishlist-page">
       <div className="wishlist-header">
-        <h1>My Wish List</h1>
+        <div className="wishlist-title-section">
+          <h1>My Wish List</h1>
+          {movies.length > 0 && (
+            <span className="wishlist-count">({movies.length} item{movies.length !== 1 ? 's' : ''})</span>
+          )}
+        </div>
         <button 
           className="add-movie-btn"
           onClick={handleAddMovie}

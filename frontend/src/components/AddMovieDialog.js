@@ -82,7 +82,29 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
       console.log('Searching for:', query);
       const results = await apiService.searchAllTMDB(query);
       console.log('Search results:', results);
-      setSearchResults(results);
+      
+      // Check status for each movie
+      const resultsWithStatus = await Promise.all(
+        results.map(async (movie) => {
+          try {
+            const statusCheck = await apiService.checkMovieStatus(movie.id, movie.title);
+            return {
+              ...movie,
+              existingStatus: statusCheck.exists ? statusCheck.status : null,
+              existingMovie: statusCheck.exists ? statusCheck.movie : null
+            };
+          } catch (err) {
+            console.error('Error checking status for movie:', movie.title, err);
+            return {
+              ...movie,
+              existingStatus: null,
+              existingMovie: null
+            };
+          }
+        })
+      );
+      
+      setSearchResults(resultsWithStatus);
     } catch (err) {
       console.error('Search error:', err);
       setSearchResults([]);
@@ -103,6 +125,16 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
   };
 
   const handleMovieSelect = (movie) => {
+    // Check if movie is already in wishlist and we're in wishlist mode
+    if (movie.existingStatus === 'wish' && mode === 'wishlist') {
+      return; // Don't allow selection
+    }
+    
+    // Check if movie is already in collection
+    if (movie.existingStatus === 'owned') {
+      return; // Don't allow selection
+    }
+    
     setSelectedMovie(movie);
     setFormData(prev => ({
       ...prev,
@@ -156,7 +188,10 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
       
       // Call onMovieAdded callback with success message
       if (onMovieAdded) {
-        onMovieAdded(`Movie added successfully to your ${mode === 'wishlist' ? 'wish list' : 'collection'}!`, 'success');
+        const successMessage = selectedMovie?.existingStatus === 'wish' && mode === 'collection'
+          ? `"${formData.title}" moved from your wishlist to your collection!`
+          : `Movie added successfully to your ${mode === 'wishlist' ? 'wish list' : 'collection'}!`;
+        onMovieAdded(successMessage, 'success');
       }
       
       // Call onSuccess callback if provided
@@ -196,7 +231,10 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
         <div className="loading-overlay">
           <div className="loading-spinner"></div>
           <div className="loading-message">
-            Adding "{formData.title}"...
+            {selectedMovie?.existingStatus === 'wish' && mode === 'collection' 
+              ? `Moving "${formData.title}" from your wishlist to your collection...`
+              : `Adding "${formData.title}" to your ${mode === 'wishlist' ? 'wishlist' : 'collection'}...`
+            }
           </div>
         </div>
       )}
@@ -249,38 +287,61 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                     
                     {searchResults.length > 0 && (
                       <div className="search-results">
-                        {searchResults.map((movie) => (
-                          <div
-                            key={movie.id}
-                            className="search-result-item"
-                            onClick={() => handleMovieSelect(movie)}
-                          >
-                            <div className="search-result-poster">
-                              {movie.poster_path ? (
-                                <img
-                                  src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`}
-                                  alt={movie.title}
-                                  onError={(e) => {
-                                    e.target.style.display = 'none';
-                                  }}
-                                />
-                              ) : (
-                                <div className="no-poster">No Image</div>
-                              )}
-                            </div>
-                            <div className="search-result-info">
-                              <div className="search-result-title">{movie.title}</div>
-                              <div className="search-result-year">
-                                {movie.release_date ? new Date(movie.release_date).getFullYear() : 'Unknown Year'}
-                              </div>
-                              {movie.overview && (
-                                <div className="search-result-overview">
-                                  {movie.overview.substring(0, 100)}...
+                        {searchResults
+                          .sort((a, b) => {
+                            // Sort movies already in collection to bottom
+                            if (a.existingStatus === 'owned' && b.existingStatus !== 'owned') return 1;
+                            if (b.existingStatus === 'owned' && a.existingStatus !== 'owned') return -1;
+                            return 0;
+                          })
+                          .map((movie) => {
+                            const isInCollection = movie.existingStatus === 'owned';
+                            const isInWishlist = movie.existingStatus === 'wish';
+                            const isDisabled = (isInWishlist && mode === 'wishlist') || isInCollection;
+                            
+                            return (
+                              <div
+                                key={movie.id}
+                                className={`search-result-item ${isInCollection ? 'in-collection' : ''} ${isDisabled ? 'disabled' : ''}`}
+                                onClick={() => !isDisabled && handleMovieSelect(movie)}
+                              >
+                                <div className="search-result-poster">
+                                  {movie.poster_path ? (
+                                    <img
+                                      src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`}
+                                      alt={movie.title}
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="no-poster">No Image</div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                                <div className="search-result-info">
+                                  <div className="search-result-title">{movie.title}</div>
+                                  <div className="search-result-year">
+                                    {movie.release_date ? new Date(movie.release_date).getFullYear() : 'Unknown Year'}
+                                  </div>
+                                  {movie.overview && (
+                                    <div className="search-result-overview">
+                                      {movie.overview.substring(0, 100)}...
+                                    </div>
+                                  )}
+                                  {isInCollection && (
+                                    <div className="movie-status-label collection-label">
+                                      Already in your collection
+                                    </div>
+                                  )}
+                                  {isInWishlist && (
+                                    <div className="movie-status-label wishlist-label">
+                                      In your wishlist
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
                       </div>
                     )}
                     
@@ -332,25 +393,37 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                       </div>
 
                       {/* Mode Toggle */}
-                      <div className="mode-toggle">
-                        <label className="mode-toggle-label">Add to:</label>
-                        <div className="btn-group" role="group" aria-label="Add to collection or wish list">
-                          <button
-                            type="button"
-                            className={`btn ${mode === 'collection' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                            onClick={() => setMode('collection')}
-                          >
-                            Collection
-                          </button>
-                          <button
-                            type="button"
-                            className={`btn ${mode === 'wishlist' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                            onClick={() => setMode('wishlist')}
-                          >
-                            Wish List
-                          </button>
+                      {!(selectedMovie?.existingStatus === 'wish' && mode === 'collection') && (
+                        <div className="mode-toggle">
+                          <label className="mode-toggle-label">Add to:</label>
+                          <div className="btn-group" role="group" aria-label="Add to collection or wish list">
+                            <button
+                              type="button"
+                              className={`btn ${mode === 'collection' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                              onClick={() => setMode('collection')}
+                            >
+                              Collection
+                            </button>
+                            <button
+                              type="button"
+                              className={`btn ${mode === 'wishlist' ? 'btn-primary' : 'btn-outline-secondary'} ${selectedMovie?.existingStatus === 'wish' ? 'disabled' : ''}`}
+                              onClick={() => selectedMovie?.existingStatus !== 'wish' && setMode('wishlist')}
+                              disabled={selectedMovie?.existingStatus === 'wish'}
+                              title={selectedMovie?.existingStatus === 'wish' ? 'This movie is already in your wishlist' : ''}
+                            >
+                              Wish List
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      )}
+                      
+                      {/* Move Message */}
+                      {selectedMovie?.existingStatus === 'wish' && mode === 'collection' && (
+                        <div className="move-message">
+                          <i className="fas fa-arrow-right"></i>
+                          This will move "{selectedMovie.title}" from your wishlist to your collection
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -443,7 +516,11 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                         className="btn btn-primary"
                         disabled={loading || !formData.title.trim()}
                       >
-                        {loading ? 'Adding...' : `Add to ${mode === 'wishlist' ? 'Wish List' : 'Collection'}`}
+                        {loading ? 'Adding...' : 
+                          selectedMovie?.existingStatus === 'wish' && mode === 'collection' 
+                            ? 'Move to Collection' 
+                            : `Add to ${mode === 'wishlist' ? 'Wish List' : 'Collection'}`
+                        }
                       </button>
                     </div>
                   </form>

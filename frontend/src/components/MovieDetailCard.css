@@ -836,20 +836,48 @@
 
 /* Bootstrap form controls in dark theme */
 .form-control, .form-select {
-  background-color: #2d2d2d;
-  border: 1px solid #4dabf7;
-  color: #f8f9fa;
+  background-color: #2d2d2d !important;
+  border: 1px solid #4dabf7 !important;
+  color: #f8f9fa !important;
 }
 
 .form-control:focus, .form-select:focus {
-  background-color: #2d2d2d;
-  border-color: #007bff;
-  color: #f8f9fa;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  background-color: #2d2d2d !important;
+  border-color: #007bff !important;
+  color: #f8f9fa !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
 }
 
 .form-control::placeholder {
-  color: #6c757d;
+  color: #6c757d !important;
+}
+
+/* Specific styles for inline editing inputs */
+.input-group input[type="text"],
+.input-group input[type="number"],
+.input-group input[type="date"],
+.input-group select,
+.input-group textarea {
+  background-color: #2d2d2d !important;
+  border: 1px solid #4dabf7 !important;
+  color: #f8f9fa !important;
+}
+
+.input-group input[type="text"]:focus,
+.input-group input[type="number"]:focus,
+.input-group input[type="date"]:focus,
+.input-group select:focus,
+.input-group textarea:focus {
+  background-color: #2d2d2d !important;
+  border-color: #007bff !important;
+  color: #f8f9fa !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+}
+
+.input-group input[type="text"]::placeholder,
+.input-group input[type="number"]::placeholder,
+.input-group textarea::placeholder {
+  color: #6c757d !important;
 }
 
 
@@ -908,6 +936,11 @@
   padding-right: 60px !important;
 }
 
+/* Limit width of title editing input to avoid overlapping with close button */
+.movie-detail-title .input-group {
+  max-width: calc(100% - 80px);
+}
+
 /* Special handling for textarea */
 .input-group textarea {
   padding-bottom: 30px !important;
@@ -923,4 +956,37 @@
   font-size: 12px;
   color: #888;
   font-style: italic;
+}
+
+/* Title container and copy button styles */
+.title-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.copy-title-btn {
+  background: none;
+  border: none;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+}
+
+.copy-title-btn:hover {
+  color: #007bff;
+  background-color: rgba(0, 123, 255, 0.1);
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.copy-title-btn:active {
+  transform: scale(0.95);
 }

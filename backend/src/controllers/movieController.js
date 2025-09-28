@@ -544,7 +544,8 @@ const movieController = {
           price: price ? parseFloat(price) : null,
           acquired_date: acquired_date || new Date().toISOString().split('T')[0],
           comments: comments || '',
-          never_seen: never_seen || false
+          never_seen: never_seen || false,
+          title_status: req.body.title_status || 'owned' // Update the status (wish -> owned)
         };
         
         await Movie.updateFields(existingMovie.id, updateData);
@@ -673,6 +674,60 @@ const movieController = {
       await Movie.addTitleStatusColumn();
       res.json({ message: 'Migration completed successfully' });
     } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Check if a movie exists and return its status
+  checkMovieStatus: async (req, res) => {
+    try {
+      const { tmdb_id, title } = req.query;
+      
+      if (!tmdb_id && !title) {
+        return res.status(400).json({ error: 'Either tmdb_id or title is required' });
+      }
+
+      let existingMovie = null;
+      
+      // First check by TMDB ID if provided
+      if (tmdb_id) {
+        try {
+          existingMovie = await Movie.findByTmdbId(tmdb_id);
+        } catch (dbError) {
+          logger.error('Database error in findByTmdbId:', dbError);
+          return res.status(500).json({ error: 'Database error: ' + dbError.message });
+        }
+      }
+      
+      // If not found by TMDB ID and title is provided, check by title
+      if (!existingMovie && title) {
+        try {
+          existingMovie = await Movie.findByTitle(title);
+        } catch (dbError) {
+          logger.error('Database error in findByTitle:', dbError);
+          return res.status(500).json({ error: 'Database error: ' + dbError.message });
+        }
+      }
+
+      if (existingMovie) {
+        res.json({
+          exists: true,
+          status: existingMovie.title_status || 'owned',
+          movie: {
+            id: existingMovie.id,
+            title: existingMovie.title,
+            title_status: existingMovie.title_status || 'owned'
+          }
+        });
+      } else {
+        res.json({
+          exists: false,
+          status: null,
+          movie: null
+        });
+      }
+    } catch (error) {
+      logger.error('Error checking movie status:', error);
       res.status(500).json({ error: error.message });
     }
   }
