@@ -435,6 +435,26 @@ const Movie = {
     });
   },
 
+  // Find all movies with the same TMDB ID (different editions)
+  findAllByTmdbId: (tmdbId) => {
+    return new Promise((resolve, reject) => {
+      try {
+        const db = getDatabase();
+        const sql = 'SELECT * FROM movies WHERE tmdb_id = ? ORDER BY title, format';
+        
+        db.all(sql, [tmdbId], (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows || []);
+          }
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
+  },
+
   findByImdbId: (imdbId) => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();

@@ -83,22 +83,24 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
       const results = await apiService.searchAllTMDB(query);
       console.log('Search results:', results);
       
-      // Check status for each movie
+      // Check editions for each movie
       const resultsWithStatus = await Promise.all(
         results.map(async (movie) => {
           try {
-            const statusCheck = await apiService.checkMovieStatus(movie.id, movie.title);
+            const editionsCheck = await apiService.checkMovieEditions(movie.id);
             return {
               ...movie,
-              existingStatus: statusCheck.exists ? statusCheck.status : null,
-              existingMovie: statusCheck.exists ? statusCheck.movie : null
+              existingEditions: editionsCheck.editions || [],
+              hasEditions: editionsCheck.exists,
+              editionsCount: editionsCheck.count || 0
             };
           } catch (err) {
-            console.error('Error checking status for movie:', movie.title, err);
+            console.error('Error checking editions for movie:', movie.title, err);
             return {
               ...movie,
-              existingStatus: null,
-              existingMovie: null
+              existingEditions: [],
+              hasEditions: false,
+              editionsCount: 0
             };
           }
         })
@@ -125,16 +127,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
   };
 
   const handleMovieSelect = (movie) => {
-    // Check if movie is already in wishlist and we're in wishlist mode
-    if (movie.existingStatus === 'wish' && mode === 'wishlist') {
-      return; // Don't allow selection
-    }
-    
-    // Check if movie is already in collection
-    if (movie.existingStatus === 'owned') {
-      return; // Don't allow selection
-    }
-    
+    // Allow selection - we'll show existing editions as info
     setSelectedMovie(movie);
     setFormData(prev => ({
       ...prev,
@@ -163,6 +156,27 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
       return;
     }
 
+    // Trim title before validation and submission
+    const trimmedTitle = formData.title.trim();
+    
+    // Client-side validation: Check if this exact edition already exists
+    if (selectedMovie && selectedMovie.existingEditions) {
+      const duplicate = selectedMovie.existingEditions.find(
+        edition => edition.title === trimmedTitle && edition.format === formData.format
+      );
+      
+      if (duplicate) {
+        const statusText = duplicate.title_status === 'wish' ? 'wishlist' : 'collection';
+        if (onMovieAdded) {
+          onMovieAdded(
+            `⚠️ This exact edition already exists in your ${statusText}. Please change the title or format to add a different edition.`,
+            'danger'
+          );
+        }
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -171,7 +185,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
       console.log('formData.format:', formData.format);
       
       const movieData = {
-        title: formData.title,
+        title: trimmedTitle,
         year: formData.year ? parseInt(formData.year) : null,
         format: formData.format,
         price: formData.price ? parseFloat(formData.price) : null,
@@ -203,10 +217,31 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
       handleClose();
       
     } catch (err) {
+      console.error('Error adding movie:', err);
+      
+      // Try to get more detailed error information
+      let errorMessage = 'Failed to add movie';
+      
+      // Check if it's a duplicate edition error (409 status)
+      if (err.status === 409 && err.code === 'DUPLICATE_EDITION') {
+        errorMessage = '⚠️ A movie with this title, format, and TMDB ID already exists in your collection. To add a different edition, please use a unique title (e.g., add "Director\'s Cut", "Extended Edition") or choose a different format.';
+      } else if (err.status === 409) {
+        // Other 409 conflicts
+        errorMessage = '⚠️ ' + (err.data?.error || err.message || 'This movie already exists');
+      } else if (err.data?.error) {
+        // Show specific error message from server
+        errorMessage = err.data.error;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       // Call onMovieAdded callback with error message
       if (onMovieAdded) {
-        onMovieAdded('Failed to add movie: ' + err.message, 'danger');
+        onMovieAdded(errorMessage, 'danger');
       }
+      
+      // Keep the dialog open so user can see the error and fix it
+      // Don't call handleClose()
     } finally {
       setLoading(false);
     }
@@ -287,23 +322,14 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                     
                     {searchResults.length > 0 && (
                       <div className="search-results">
-                        {searchResults
-                          .sort((a, b) => {
-                            // Sort movies already in collection to bottom
-                            if (a.existingStatus === 'owned' && b.existingStatus !== 'owned') return 1;
-                            if (b.existingStatus === 'owned' && a.existingStatus !== 'owned') return -1;
-                            return 0;
-                          })
-                          .map((movie) => {
-                            const isInCollection = movie.existingStatus === 'owned';
-                            const isInWishlist = movie.existingStatus === 'wish';
-                            const isDisabled = (isInWishlist && mode === 'wishlist') || isInCollection;
+                        {searchResults.map((movie) => {
+                            const hasEditions = movie.hasEditions && movie.existingEditions.length > 0;
                             
                             return (
                               <div
                                 key={movie.id}
-                                className={`search-result-item ${isInCollection ? 'in-collection' : ''} ${isDisabled ? 'disabled' : ''}`}
-                                onClick={() => !isDisabled && handleMovieSelect(movie)}
+                                className={`search-result-item ${hasEditions ? 'has-editions' : ''}`}
+                                onClick={() => handleMovieSelect(movie)}
                               >
                                 <div className="search-result-poster">
                                   {movie.poster_path ? (
@@ -328,14 +354,20 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                                       {movie.overview.substring(0, 100)}...
                                     </div>
                                   )}
-                                  {isInCollection && (
-                                    <div className="movie-status-label collection-label">
-                                      Already in your collection
-                                    </div>
-                                  )}
-                                  {isInWishlist && (
-                                    <div className="movie-status-label wishlist-label">
-                                      In your wishlist
+                                  {hasEditions && (
+                                    <div className="existing-editions-info">
+                                      <strong>Already in your library:</strong>
+                                      {movie.existingEditions.map((edition, idx) => (
+                                        <div key={idx} className="edition-tag">
+                                          <span className="edition-format">{edition.format || 'Unknown'}</span>
+                                          {edition.title !== movie.title && (
+                                            <span className="edition-variant"> ({edition.title})</span>
+                                          )}
+                                          <span className={`edition-status ${edition.title_status}`}>
+                                            {edition.title_status === 'wish' ? ' - Wishlist' : ' - Owned'}
+                                          </span>
+                                        </div>
+                                      ))}
                                     </div>
                                   )}
                                 </div>
@@ -392,54 +424,69 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                         </div>
                       </div>
 
+                      {/* Show existing editions warning */}
+                      {selectedMovie.hasEditions && selectedMovie.existingEditions.length > 0 && (
+                        <div className="existing-editions-notice">
+                          <strong>You already have this title:</strong>
+                          <ul className="editions-list">
+                            {selectedMovie.existingEditions.map((edition, idx) => {
+                              const isDuplicate = edition.title === formData.title.trim() && edition.format === formData.format;
+                              return (
+                                <li key={idx} className={isDuplicate ? 'duplicate' : ''}>
+                                  <div className="edition-info">
+                                    <strong>{edition.format || 'Unknown format'}</strong>
+                                    <span className="edition-title-variant"> - {edition.title}</span>
+                                  </div>
+                                  <span className={`badge ${edition.title_status === 'wish' ? 'badge-warning' : 'badge-success'}`}>
+                                    {edition.title_status === 'wish' ? 'Wishlist' : 'Collection'}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                          <p className="help-text"><em>You can add a different edition or format below.</em></p>
+                        </div>
+                      )}
+
                       {/* Mode Toggle */}
-                      {!(selectedMovie?.existingStatus === 'wish' && mode === 'collection') && (
-                        <div className="mode-toggle">
-                          <label className="mode-toggle-label">Add to:</label>
-                          <div className="btn-group" role="group" aria-label="Add to collection or wish list">
-                            <button
-                              type="button"
-                              className={`btn ${mode === 'collection' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                              onClick={() => setMode('collection')}
-                            >
-                              Collection
-                            </button>
-                            <button
-                              type="button"
-                              className={`btn ${mode === 'wishlist' ? 'btn-primary' : 'btn-outline-secondary'} ${selectedMovie?.existingStatus === 'wish' ? 'disabled' : ''}`}
-                              onClick={() => selectedMovie?.existingStatus !== 'wish' && setMode('wishlist')}
-                              disabled={selectedMovie?.existingStatus === 'wish'}
-                              title={selectedMovie?.existingStatus === 'wish' ? 'This movie is already in your wishlist' : ''}
-                            >
-                              Wish List
-                            </button>
-                          </div>
+                      <div className="mode-toggle">
+                        <label className="mode-toggle-label">Add to:</label>
+                        <div className="btn-group" role="group" aria-label="Add to collection or wish list">
+                          <button
+                            type="button"
+                            className={`btn ${mode === 'collection' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                            onClick={() => setMode('collection')}
+                          >
+                            Collection
+                          </button>
+                          <button
+                            type="button"
+                            className={`btn ${mode === 'wishlist' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                            onClick={() => setMode('wishlist')}
+                          >
+                            Wish List
+                          </button>
                         </div>
-                      )}
-                      
-                      {/* Move Message */}
-                      {selectedMovie?.existingStatus === 'wish' && mode === 'collection' && (
-                        <div className="move-message">
-                          <i className="fas fa-arrow-right"></i>
-                          This will move "{selectedMovie.title}" from your wishlist to your collection
-                        </div>
-                      )}
+                      </div>
                     </div>
                   )}
 
                   <form onSubmit={handleSubmit} className="add-movie-form">
                     <div className="form-group">
-                      <label htmlFor="title">Movie Title *</label>
+                      <label htmlFor="title">Edition Title *</label>
                       <input
                         type="text"
                         id="title"
                         name="title"
                         value={formData.title}
                         onChange={handleInputChange}
-                        placeholder="Movie title"
+                        placeholder="e.g., Amélie (Director's Cut)"
                         required
                         className="form-control"
                       />
+                      <small className="form-text text-muted">
+                        Customize the title to indicate the edition (e.g., "Director's Cut", "Extended Edition", "Anniversary Edition")
+                      </small>
                     </div>
 
                     <div className="form-group">

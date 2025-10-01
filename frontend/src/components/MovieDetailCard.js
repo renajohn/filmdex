@@ -6,7 +6,7 @@ import { getLanguageName } from '../services/languageCountryUtils';
 import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsCopy } from 'react-icons/bs';
 import './MovieDetailCard.css';
 
-const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
+const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert }) => {
   const [showTrailer, setShowTrailer] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -307,7 +307,28 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete }) => {
       setEditValue('');
     } catch (error) {
       console.error('Error updating movie:', error);
-      alert('Failed to update movie. Please try again.');
+      
+      // Check if it's a duplicate edition error (409 status)
+      if (error.status === 409 && error.code === 'DUPLICATE_EDITION') {
+        if (onShowAlert) {
+          onShowAlert('⚠️ A movie with this title, format, and TMDB ID already exists in your collection. To add a different edition, please use a unique title (e.g., add "Director\'s Cut", "Extended Edition") or choose a different format.', 'danger');
+        }
+      } else if (error.status === 409) {
+        // Other 409 conflicts
+        if (onShowAlert) {
+          onShowAlert('⚠️ ' + (error.data?.error || error.message || 'This movie already exists'), 'danger');
+        }
+      } else if (error.data?.error) {
+        // Show specific error message from server
+        if (onShowAlert) {
+          onShowAlert('Failed to update: ' + error.data.error, 'danger');
+        }
+      } else {
+        // Generic error
+        if (onShowAlert) {
+          onShowAlert('Failed to update movie: ' + error.message, 'danger');
+        }
+      }
     } finally {
       setSaving(false);
     }

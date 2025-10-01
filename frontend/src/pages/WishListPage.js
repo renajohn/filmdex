@@ -7,7 +7,7 @@ import MovieDetailCard from '../components/MovieDetailCard';
 import CircularProgressBar from '../components/CircularProgressBar';
 import './WishListPage.css';
 
-const WishListPage = forwardRef(({ onAddMovie, onMovieMovedToCollection }, ref) => {
+const WishListPage = forwardRef(({ onAddMovie, onMovieMovedToCollection, onShowAlert }, ref) => {
   const navigate = useNavigate();
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -355,6 +355,7 @@ const WishListPage = forwardRef(({ onAddMovie, onMovieMovedToCollection }, ref) 
           onClose={handleCloseDetails}
           onEdit={handleEditMovie}
           onDelete={handleDeleteMovieFromDetails}
+          onShowAlert={onShowAlert}
         />
       )}
 

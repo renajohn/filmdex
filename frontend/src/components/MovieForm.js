@@ -180,7 +180,18 @@ const MovieForm = ({ movie = null, prefilledData = null, onSave, onCancel }) => 
 
       onSave();
     } catch (err) {
-      setError('Failed to save movie: ' + err.message);
+      // Check if it's a duplicate edition error (409 status)
+      if (err.status === 409 && err.code === 'DUPLICATE_EDITION') {
+        setError('⚠️ A movie with this title, format, and TMDB ID already exists in your collection. Please use a different title (e.g., add "Director\'s Cut", "Extended Edition") or choose a different format to distinguish this edition.');
+      } else if (err.status === 409) {
+        // Other 409 conflicts
+        setError('⚠️ ' + (err.data?.error || err.message || 'This movie already exists'));
+      } else if (err.data?.error) {
+        // Show specific error message from server
+        setError('Failed to save: ' + err.data.error);
+      } else {
+        setError('Failed to save movie: ' + err.message);
+      }
     } finally {
       setLoading(false);
     }

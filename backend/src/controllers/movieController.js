@@ -125,6 +125,21 @@ const movieController = {
       
       res.json(result);
     } catch (error) {
+      // Check for unique constraint violation
+      if (error.message && error.message.includes('UNIQUE constraint failed')) {
+        // Extract which constraint failed
+        if (error.message.includes('idx_movie_edition_unique') || 
+            error.message.includes('movies.title') || 
+            error.message.includes('movies.tmdb_id') || 
+            error.message.includes('movies.format')) {
+          return res.status(409).json({ 
+            error: 'A movie with this title, TMDB ID, and format already exists in your collection. Please use a different title or format to distinguish this edition.',
+            code: 'DUPLICATE_EDITION'
+          });
+        }
+      }
+      
+      logger.error('Error updating movie:', error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -526,30 +541,34 @@ const movieController = {
         title_status: req.body.title_status || 'owned'
       };
 
-      // Check if movie already exists (by imdb_id or tmdb_id)
-      let existingMovie = null;
-      if (tmdbDetails.imdb_id) {
-        existingMovie = await Movie.findByImdbId(tmdbDetails.imdb_id);
-      }
-      if (!existingMovie && tmdbMovie.id) {
-        existingMovie = await Movie.findByTmdbId(tmdbMovie.id);
-      }
-
+      // Check if this EXACT edition already exists (title + tmdb_id + format)
+      // This supports multiple editions of the same movie
+      const existingEditions = await Movie.findAllByTmdbId(tmdbMovie.id);
+      const exactMatch = existingEditions.find(
+        ed => ed.title === title && ed.format === (format || 'Blu-ray 4K')
+      );
+      
       let result;
-      if (existingMovie) {
-        // Update existing movie with new collection data
+      if (exactMatch && exactMatch.title_status === 'wish' && req.body.title_status === 'owned') {
+        // Special case: Moving from wishlist to collection (same title + format)
+        logger.debug('Moving movie from wishlist to collection:', exactMatch.id);
         const updateData = {
-          title: tmdbMovie.title,
-          format: format || 'Blu-ray',
-          price: price ? parseFloat(price) : null,
+          price: price ? parseFloat(price) : exactMatch.price,
           acquired_date: acquired_date || new Date().toISOString().split('T')[0],
-          comments: comments || '',
-          never_seen: never_seen || false,
-          title_status: req.body.title_status || 'owned' // Update the status (wish -> owned)
+          comments: comments || exactMatch.comments,
+          never_seen: never_seen !== undefined ? never_seen : exactMatch.never_seen,
+          title_status: 'owned'
         };
         
-        await Movie.updateFields(existingMovie.id, updateData);
-        result = await Movie.findById(existingMovie.id);
+        await Movie.updateFields(exactMatch.id, updateData);
+        result = await Movie.findById(exactMatch.id);
+      } else if (exactMatch) {
+        // Exact edition already exists with same status - this will trigger the unique constraint
+        // Let it fall through to the create, which will throw the proper error
+        logger.debug('Exact edition already exists:', exactMatch.id);
+        const createdMovie = await Movie.create(movieData);
+        await importService.processCastAndCrew(createdMovie.id, tmdbDetails.credits, tmdbDetails.id);
+        result = createdMovie;
       } else {
         // Try to fetch recommended age before creating the movie
         if (movieData.tmdb_id || movieData.imdb_id) {
@@ -585,6 +604,20 @@ const movieController = {
       res.json(result);
     } catch (error) {
       console.error('Error adding movie:', error);
+      
+      // Check for unique constraint violation
+      if (error.message && error.message.includes('UNIQUE constraint failed')) {
+        if (error.message.includes('idx_movie_edition_unique') || 
+            error.message.includes('movies.title') || 
+            error.message.includes('movies.tmdb_id') || 
+            error.message.includes('movies.format')) {
+          return res.status(409).json({ 
+            error: 'A movie with this exact title and format already exists in your collection.',
+            code: 'DUPLICATE_EDITION'
+          });
+        }
+      }
+      
       res.status(500).json({ error: error.message });
     }
   },
@@ -728,6 +761,48 @@ const movieController = {
       }
     } catch (error) {
       logger.error('Error checking movie status:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Check all editions of a movie by TMDB ID
+  checkMovieEditions: async (req, res) => {
+    try {
+      const { tmdb_id } = req.query;
+      
+      if (!tmdb_id) {
+        return res.status(400).json({ error: 'tmdb_id is required' });
+      }
+
+      try {
+        const editions = await Movie.findAllByTmdbId(tmdb_id);
+        
+        if (editions && editions.length > 0) {
+          res.json({
+            exists: true,
+            count: editions.length,
+            editions: editions.map(ed => ({
+              id: ed.id,
+              title: ed.title,
+              format: ed.format,
+              title_status: ed.title_status || 'owned',
+              acquired_date: ed.acquired_date,
+              price: ed.price
+            }))
+          });
+        } else {
+          res.json({
+            exists: false,
+            count: 0,
+            editions: []
+          });
+        }
+      } catch (dbError) {
+        logger.error('Database error in findAllByTmdbId:', dbError);
+        return res.status(500).json({ error: 'Database error: ' + dbError.message });
+      }
+    } catch (error) {
+      logger.error('Error checking movie editions:', error);
       res.status(500).json({ error: error.message });
     }
   }

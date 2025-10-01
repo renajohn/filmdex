@@ -12,6 +12,7 @@ db.sqlite
 # Thumbnails
 ._*
 data/images/*
+data/*
 dist/
 data/config.json
 

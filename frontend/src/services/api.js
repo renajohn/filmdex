@@ -73,7 +73,12 @@ class ApiService {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      const error = new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      error.status = response.status;
+      error.code = errorData.code;
+      error.response = response;
+      error.data = errorData;
+      throw error;
     }
 
     return response;
@@ -207,6 +212,13 @@ class ApiService {
     }
     
     const response = await this.makeRequest(`/omdb/search?${params}`);
+    return await response.json();
+  }
+
+  // Check all editions of a movie by TMDB ID
+  async checkMovieEditions(tmdbId) {
+    const params = new URLSearchParams({ tmdb_id: tmdbId });
+    const response = await this.makeRequest(`/movies/check-editions?${params}`);
     return await response.json();
   }
 

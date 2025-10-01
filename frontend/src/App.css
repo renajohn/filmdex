@@ -1,4 +1,4 @@
-/* Main Screen Alert */
+/* Main Screen Alert - Dark Theme Compatible */
 .main-screen-alert {
   position: fixed;
   top: 20px;
@@ -6,7 +6,56 @@
   z-index: 1050;
   min-width: 300px;
   max-width: 500px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+
+/* Alert Success - Dark Theme */
+.alert-success {
+  background: linear-gradient(135deg, rgba(168, 230, 207, 0.95) 0%, rgba(125, 211, 176, 0.95) 100%) !important;
+  border: 1px solid rgba(125, 211, 176, 0.4) !important;
+  color: #1a1a1a !important;
+}
+
+/* Alert Danger - Dark Theme */
+.alert-danger {
+  background: linear-gradient(135deg, rgba(255, 179, 186, 0.95) 0%, rgba(255, 154, 162, 0.95) 100%) !important;
+  border: 1px solid rgba(255, 154, 162, 0.4) !important;
+  color: #1a1a1a !important;
+}
+
+/* Alert Info - Dark Theme */
+.alert-info {
+  background: linear-gradient(135deg, rgba(168, 216, 234, 0.95) 0%, rgba(123, 196, 212, 0.95) 100%) !important;
+  border: 1px solid rgba(123, 196, 212, 0.4) !important;
+  color: #1a1a1a !important;
+}
+
+/* Alert Warning - Dark Theme */
+.alert-warning {
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.95) 0%, rgba(255, 160, 0, 0.95) 100%) !important;
+  border: 1px solid rgba(255, 160, 0, 0.4) !important;
+  color: #1a1a1a !important;
+}
+
+.alert .btn-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  opacity: 0.7;
+  color: #1a1a1a;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.alert .btn-close:hover {
+  opacity: 1;
+}
+
+.alert .btn-close::before {
+  content: '×';
 }
 
 .App {

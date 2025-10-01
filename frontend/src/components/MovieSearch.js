@@ -17,7 +17,7 @@ import {
 } from 'react-icons/bs';
 import './MovieSearch.css';
 
-const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLoading }, ref) => {
+const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLoading, onShowAlert }, ref) => {
   const [movies, setMovies] = useState([]);
   const [allMovies, setAllMovies] = useState([]); // Store all movies from backend
   const [filteredMovies, setFilteredMovies] = useState([]); // Store filtered movies
@@ -1132,6 +1132,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           onClose={handleCloseDetails}
           onEdit={handleEditMovie}
           onDelete={handleDeleteMovie}
+          onShowAlert={onShowAlert}
         />
       )}
 

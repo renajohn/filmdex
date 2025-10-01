@@ -12,6 +12,130 @@ const getDbSource = () => {
 
 let db = null;
 
+/**
+ * Migration: Change unique constraints to support multiple editions
+ * This migration changes from unique (tmdb_id, imdb_id) to unique (title, tmdb_id, format)
+ */
+const runEditionsMigration = async (database) => {
+  return new Promise((resolve, reject) => {
+    console.log('\n--- Checking Multiple Editions Migration ---');
+    
+    // Check if migration is needed
+    database.all("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='movies'", (err, indexes) => {
+      if (err) {
+        console.error('Error checking indexes:', err.message);
+        reject(err);
+        return;
+      }
+      
+      // Check if new index already exists
+      const hasNewIndex = indexes.some(idx => idx.name === 'idx_movie_edition_unique');
+      if (hasNewIndex) {
+        console.log('✓ Multiple editions support already enabled');
+        resolve();
+        return;
+      }
+      
+      console.log('🔄 Migrating database to support multiple editions...');
+      
+      database.serialize(() => {
+        // Create new table with updated schema
+        database.run(`
+          CREATE TABLE IF NOT EXISTS movies_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            original_title TEXT,
+            original_language TEXT,
+            genre TEXT,
+            director TEXT,
+            cast TEXT,
+            release_date TEXT,
+            format TEXT,
+            imdb_rating REAL,
+            rotten_tomato_rating INTEGER,
+            rotten_tomatoes_link TEXT,
+            tmdb_rating REAL,
+            tmdb_id INTEGER,
+            imdb_id TEXT,
+            price REAL,
+            runtime INTEGER,
+            plot TEXT,
+            comments TEXT,
+            never_seen BOOLEAN,
+            acquired_date DATE,
+            import_id TEXT,
+            poster_path TEXT,
+            backdrop_path TEXT,
+            budget INTEGER,
+            revenue INTEGER,
+            trailer_key TEXT,
+            trailer_site TEXT,
+            status TEXT,
+            popularity REAL,
+            vote_count INTEGER,
+            adult BOOLEAN,
+            video BOOLEAN,
+            media_type TEXT DEFAULT 'movie',
+            recommended_age INTEGER,
+            age_processed BOOLEAN DEFAULT 0,
+            title_status TEXT DEFAULT 'owned'
+          )
+        `, (err) => {
+          if (err) {
+            console.error('Error creating new table:', err.message);
+            reject(err);
+            return;
+          }
+          
+          // Copy data from old table to new table
+          database.run(`INSERT INTO movies_new SELECT * FROM movies`, (err) => {
+            if (err) {
+              console.error('Error copying data:', err.message);
+              reject(err);
+              return;
+            }
+            
+            // Drop old table
+            database.run('DROP TABLE movies', (err) => {
+              if (err) {
+                console.error('Error dropping old table:', err.message);
+                reject(err);
+                return;
+              }
+              
+              // Rename new table
+              database.run('ALTER TABLE movies_new RENAME TO movies', (err) => {
+                if (err) {
+                  console.error('Error renaming table:', err.message);
+                  reject(err);
+                  return;
+                }
+                
+                // Create new composite unique index
+                database.run(`
+                  CREATE UNIQUE INDEX idx_movie_edition_unique 
+                  ON movies(title, tmdb_id, format)
+                `, (err) => {
+                  if (err) {
+                    console.error('Error creating unique index:', err.message);
+                    reject(err);
+                    return;
+                  }
+                  
+                  console.log('✓ Multiple editions migration completed successfully');
+                  console.log('  - New constraint: UNIQUE (title, tmdb_id, format)');
+                  console.log('  - You can now add multiple editions of the same movie!');
+                  resolve();
+                });
+              });
+            });
+          });
+        });
+      });
+    });
+  });
+};
+
 const initDatabase = async () => {
   return new Promise(async (resolve, reject) => {
     if (db) {
@@ -101,6 +225,13 @@ const initDatabase = async () => {
             console.log('Added title_status column to movies table.');
           } catch (migrationError) {
             console.log('title_status column already exists or migration failed:', migrationError.message);
+          }
+          
+          // Run migration to change unique constraints for multiple editions support
+          try {
+            await runEditionsMigration(db);
+          } catch (migrationError) {
+            console.log('Editions migration check:', migrationError.message);
           }
           
           console.log('Database tables created successfully.');

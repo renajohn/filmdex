@@ -139,11 +139,11 @@ function AppContent() {
       }
     }, 100);
     
-    // Auto-hide after 3 seconds
+    // Auto-hide after 6 seconds
     setTimeout(() => {
       setShowAlert(false);
       setAlertMessage('');
-    }, 3000);
+    }, 6000);
   };
 
   // Check for backfill on app startup
@@ -229,11 +229,12 @@ function AppContent() {
                 searchCriteria={searchCriteria}
                 loading={loading}
                 setLoading={setLoading}
+                onShowAlert={handleMovieAdded}
               />
             } 
           />
           <Route path="/import" element={<ImportPage />} />
-          <Route path="/wishlist" element={<WishListPage ref={wishListRef} onAddMovie={handleWishListAddMovie} onMovieMovedToCollection={handleMovieMovedToCollection} />} />
+          <Route path="/wishlist" element={<WishListPage ref={wishListRef} onAddMovie={handleWishListAddMovie} onMovieMovedToCollection={handleMovieMovedToCollection} onShowAlert={handleMovieAdded} />} />
         </Routes>
       </main>
 
