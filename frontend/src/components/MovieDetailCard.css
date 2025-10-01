@@ -639,6 +639,36 @@
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
+.action-btn.watch-next-btn {
+  background: linear-gradient(135deg, #3a3a3a, #2d2d2d);
+  color: #e2e8f0;
+  border: 1px solid #4a4a4a;
+}
+
+.action-btn.watch-next-btn:hover {
+  background: linear-gradient(135deg, #4a4a4a, #3a3a3a);
+  border-color: #5a5a5a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.action-btn.watch-next-btn.active {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(245, 158, 11, 0.35));
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.5);
+}
+
+.action-btn.watch-next-btn.active:hover {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.4), rgba(245, 158, 11, 0.45));
+  border-color: rgba(251, 191, 36, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(251, 191, 36, 0.3);
+}
+
+.action-btn.watch-next-btn .action-icon {
+  color: #fbbf24;
+}
+
 /* Delete Confirmation Modal */
 .delete-confirm-overlay {
   position: fixed;
@@ -960,10 +990,29 @@
 
 /* Title container and copy button styles */
 .title-container {
-  display: inline-flex;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  width: 100%;
+}
+
+.title-container > span {
+  flex: 1;
+}
+
+.watch-next-container {
+  display: flex;
   align-items: center;
   gap: 8px;
-  position: relative;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.watch-next-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .copy-title-btn {

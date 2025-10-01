@@ -408,6 +408,15 @@ class ApiService {
     
     return await response.json();
   }
+
+  // Watch Next methods
+  async toggleWatchNext(movieId) {
+    const response = await this.makeRequest(`/movies/${movieId}/watch-next`, {
+      method: 'PUT',
+    });
+    
+    return await response.json();
+  }
 }
 
 const apiService = new ApiService();

@@ -15,6 +15,7 @@ import {
   BsThreeDots,
   BsGrid3X3Gap
 } from 'react-icons/bs';
+// Note: We use popcorn emoji directly instead of an icon import
 import './MovieSearch.css';
 
 const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLoading, onShowAlert }, ref) => {
@@ -385,6 +386,46 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     }
   };
 
+  const handleWatchNextToggle = async (e, movie) => {
+    e.stopPropagation(); // Prevent opening movie details
+    
+    // Optimistic update - update UI immediately
+    const newWatchNextValue = !movie.watch_next;
+    
+    const updateMovieInLists = (moviesList) => {
+      return moviesList.map(m => 
+        m.id === movie.id ? { ...m, watch_next: newWatchNextValue } : m
+      );
+    };
+    
+    // Update all state lists immediately
+    setAllMovies(prev => updateMovieInLists(prev));
+    setFilteredMovies(prev => updateMovieInLists(prev));
+    setMovies(prev => updateMovieInLists(prev));
+    
+    // Then make the API call
+    try {
+      await apiService.toggleWatchNext(movie.id);
+    } catch (error) {
+      console.error('Error toggling watch next:', error);
+      
+      // Revert on error
+      setAllMovies(prev => updateMovieInLists(prev).map(m => 
+        m.id === movie.id ? { ...m, watch_next: !newWatchNextValue } : m
+      ));
+      setFilteredMovies(prev => updateMovieInLists(prev).map(m => 
+        m.id === movie.id ? { ...m, watch_next: !newWatchNextValue } : m
+      ));
+      setMovies(prev => updateMovieInLists(prev).map(m => 
+        m.id === movie.id ? { ...m, watch_next: !newWatchNextValue } : m
+      ));
+      
+      if (onShowAlert) {
+        onShowAlert('Failed to update Watch Next status', 'danger');
+      }
+    }
+  };
+
   // Filter functions
   const getFilterCounts = () => {
     const counts = {
@@ -392,6 +433,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       movies: allMovies.filter(movie => movie.media_type === 'movie' || !movie.media_type).length,
       tvShows: allMovies.filter(movie => movie.media_type === 'tv').length,
       comments: allMovies.filter(movie => movie.comments && movie.comments.trim()).length,
+      watchNext: allMovies.filter(movie => movie.watch_next).length,
       formats: {},
       ageGroups: {}
     };
@@ -443,6 +485,8 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
               return movie.media_type === 'tv';
             case 'comments':
               return movie.comments && movie.comments.trim();
+            case 'watchNext':
+              return movie.watch_next;
             case 'format':
               return movie.format === filter.value;
             case 'ageGroup':
@@ -714,6 +758,17 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                     All ({counts.all})
                   </button>
                   
+                  {counts.watchNext > 0 && (
+                    <button
+                      className={`filter-pill ${activeFilters.some(f => f.type === 'watchNext') ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''}`}
+                      onClick={() => handleFilterClick('watchNext')}
+                      disabled={filterLoading}
+                    >
+                      <span className="filter-icon">⭐</span>
+                      Watch Next ({counts.watchNext})
+                    </button>
+                  )}
+                  
                   {counts.movies > 0 && (
                     <button
                       className={`filter-pill ${activeFilters.some(f => f.type === 'movies') ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''}`}
@@ -919,6 +974,21 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                         posterPath={movie.poster_path}
                         recommendedAge={movie.recommended_age}
                       />
+                      <button 
+                        className={`watch-next-badge-toggle ${movie.watch_next ? 'active' : ''}`}
+                        onClick={(e) => handleWatchNextToggle(e, movie)}
+                        title={movie.watch_next ? "Remove from Watch Next" : "Add to Watch Next"}
+                        aria-label="Toggle Watch Next"
+                      >
+                        <svg 
+                          className="star-icon" 
+                          viewBox="0 0 24 24" 
+                          fill={movie.watch_next ? "currentColor" : "none"}
+                          stroke="currentColor"
+                        >
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                        </svg>
+                      </button>
                     </div>
                     
                     <div className="movie-info-compact">

@@ -95,6 +95,9 @@ app.get('/api/movies/export/csv', movieController.exportCSV);
 app.get('/api/movies/status/:status', movieController.getMoviesByStatus);
 app.put('/api/movies/:id/status', movieController.updateMovieStatus);
 app.post('/api/migrate/title-status', movieController.migrateTitleStatus);
+
+// Watch Next routes
+app.put('/api/movies/:id/watch-next', movieController.toggleWatchNext);
 app.get('/api/ratings', movieController.fetchRatings);
 app.get('/api/thumbnail', movieController.getMovieThumbnail);
 app.get('/api/backdrop/:tmdbId', movieController.getMovieBackdrop);

@@ -234,6 +234,22 @@ const initDatabase = async () => {
             console.log('Editions migration check:', migrationError.message);
           }
           
+          // Add watch_next column to existing movies table if it doesn't exist
+          try {
+            await new Promise((resolve, reject) => {
+              db.run("ALTER TABLE movies ADD COLUMN watch_next BOOLEAN DEFAULT 0", (err) => {
+                if (err && !err.message.includes('duplicate column name')) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
+              });
+            });
+            console.log('Added watch_next column to movies table.');
+          } catch (migrationError) {
+            console.log('watch_next column already exists or migration failed:', migrationError.message);
+          }
+          
           console.log('Database tables created successfully.');
         } catch (error) {
           console.error('Database creation error:', error);

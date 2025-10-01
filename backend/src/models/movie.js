@@ -42,7 +42,8 @@ const Movie = {
           media_type TEXT DEFAULT 'movie',
           recommended_age INTEGER,
           age_processed BOOLEAN DEFAULT 0,
-          title_status TEXT DEFAULT 'owned'
+          title_status TEXT DEFAULT 'owned',
+          watch_next BOOLEAN DEFAULT 0
         )
       `;
       db.run(sql, (err) => {
@@ -63,22 +64,22 @@ const Movie = {
         imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
         price, runtime, plot, comments, never_seen, acquired_date, import_id,
         poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type = 'movie', recommended_age, age_processed = false, title_status = 'owned'
+        popularity, vote_count, adult, video, media_type = 'movie', recommended_age, age_processed = false, title_status = 'owned', watch_next = false
       } = movie;
       const sql = `
         INSERT INTO movies (title, original_title, original_language, genre, director, cast, release_date, format, 
                            imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
                            price, runtime, plot, comments, never_seen, acquired_date, import_id,
                            poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-                           popularity, vote_count, adult, video, media_type, recommended_age, age_processed, title_status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                           popularity, vote_count, adult, video, media_type, recommended_age, age_processed, title_status, watch_next)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       db.run(sql, [
         title, original_title, original_language, genre, director, JSON.stringify(cast), release_date, format,
         imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
         price, runtime, plot, comments, never_seen, acquired_date, import_id,
         poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type, recommended_age, age_processed, title_status
+        popularity, vote_count, adult, video, media_type, recommended_age, age_processed, title_status, watch_next
       ], function(err) {
         if (err) {
           reject(err);
@@ -121,7 +122,8 @@ const Movie = {
             media_type,
             recommended_age,
             age_processed,
-            title_status
+            title_status,
+            watch_next
           };
           resolve(createdMovie);
         }
@@ -302,7 +304,7 @@ const Movie = {
         imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
         price, runtime, plot, comments, never_seen, acquired_date, import_id,
         poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type = 'movie', recommended_age, title_status
+        popularity, vote_count, adult, video, media_type = 'movie', recommended_age, title_status, watch_next
       } = movieData;
       
       const sql = `
@@ -312,7 +314,7 @@ const Movie = {
             rotten_tomatoes_link = ?, tmdb_rating = ?, tmdb_id = ?, imdb_id = ?, 
             price = ?, runtime = ?, plot = ?, comments = ?, never_seen = ?, acquired_date = ?, import_id = ?,
             poster_path = ?, backdrop_path = ?, budget = ?, revenue = ?, trailer_key = ?, trailer_site = ?,
-            status = ?, popularity = ?, vote_count = ?, adult = ?, video = ?, media_type = ?, recommended_age = ?, title_status = ?
+            status = ?, popularity = ?, vote_count = ?, adult = ?, video = ?, media_type = ?, recommended_age = ?, title_status = ?, watch_next = ?
         WHERE id = ?
       `;
       
@@ -321,7 +323,7 @@ const Movie = {
         imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
         price, runtime, plot, comments, never_seen, acquired_date, import_id,
         poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type, recommended_age, title_status, id
+        popularity, vote_count, adult, video, media_type, recommended_age, title_status, watch_next, id
       ], function(err) {
         if (err) {
           reject(err);
@@ -597,6 +599,28 @@ const Movie = {
         } else {
           console.log('title_status column added successfully');
           resolve();
+        }
+      });
+    });
+  },
+
+  // Toggle watch_next status
+  toggleWatchNext: (id) => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const sql = 'UPDATE movies SET watch_next = NOT watch_next WHERE id = ?';
+      db.run(sql, [id], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          // Fetch updated value
+          db.get('SELECT watch_next FROM movies WHERE id = ?', [id], (err, row) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve({ id, watch_next: row.watch_next });
+            }
+          });
         }
       });
     });

@@ -805,6 +805,18 @@ const movieController = {
       logger.error('Error checking movie editions:', error);
       res.status(500).json({ error: error.message });
     }
+  },
+
+  // Toggle watch_next status for a movie
+  toggleWatchNext: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await Movie.toggleWatchNext(id);
+      res.json(result);
+    } catch (error) {
+      logger.error('Error toggling watch_next:', error);
+      res.status(500).json({ error: error.message });
+    }
   }
 };
 

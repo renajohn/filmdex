@@ -1,0 +1,63 @@
+.watch-next-toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  font-size: 24px;
+  line-height: 1;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.watch-next-toggle:hover:not(.disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.1);
+}
+
+.watch-next-toggle:active:not(.disabled) {
+  transform: scale(0.95);
+}
+
+.watch-next-toggle.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.watch-next-toggle .icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Outline style for inactive state */
+.watch-next-toggle:not(.active) .outline {
+  opacity: 0.4;
+  filter: grayscale(100%);
+}
+
+/* Active state */
+.watch-next-toggle.active {
+  animation: pop 0.3s ease;
+}
+
+.watch-next-toggle.active .icon {
+  filter: brightness(1.2);
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+

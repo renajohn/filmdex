@@ -3,7 +3,7 @@ import CircularProgressBar from './CircularProgressBar';
 import AgeDisplay from './AgeDisplay';
 import apiService from '../services/api';
 import { getLanguageName } from '../services/languageCountryUtils';
-import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsCopy } from 'react-icons/bs';
+import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsCopy, BsStar, BsStarFill } from 'react-icons/bs';
 import './MovieDetailCard.css';
 
 const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert }) => {
@@ -406,6 +406,32 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert 
     }
   };
 
+  const handleWatchNextToggle = async (e) => {
+    e.stopPropagation();
+    
+    try {
+      const result = await apiService.toggleWatchNext(movieDetails.id);
+      
+      // Update local state to reflect the change
+      setLocalMovieData(prev => ({
+        ...prev,
+        watch_next: result.watch_next
+      }));
+      
+      if (onShowAlert) {
+        const message = result.watch_next 
+          ? `Added "${title}" to Watch Next 🍿` 
+          : `Removed "${title}" from Watch Next`;
+        onShowAlert(message, 'success');
+      }
+    } catch (error) {
+      console.error('Error toggling watch next:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to update Watch Next status', 'danger');
+      }
+    }
+  };
+
   return (
     <>
       <div className="movie-detail-overlay" onClick={onClose}>
@@ -648,6 +674,18 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert 
                         No Trailer Available
                       </button>
                     )}
+                    
+                    <button 
+                      className={`action-btn watch-next-btn ${currentData.watch_next ? 'active' : ''}`}
+                      onClick={handleWatchNextToggle}
+                    >
+                      {currentData.watch_next ? (
+                        <BsStarFill className="action-icon" />
+                      ) : (
+                        <BsStar className="action-icon" />
+                      )}
+                      {currentData.watch_next ? 'Remove from Watch Next' : 'Add to Watch Next'}
+                    </button>
                     
                     {onDelete && (
                       <button 
