@@ -13,7 +13,8 @@ import {
   BsTv, 
   BsChatText,
   BsThreeDots,
-  BsGrid3X3Gap
+  BsGrid3X3Gap,
+  BsX
 } from 'react-icons/bs';
 // Note: We use popcorn emoji directly instead of an icon import
 import './MovieSearch.css';
@@ -389,8 +390,30 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const handleWatchNextToggle = async (e, movie) => {
     e.stopPropagation(); // Prevent opening movie details
     
-    // Optimistic update - update UI immediately
     const newWatchNextValue = !movie.watch_next;
+    
+    // Check if this is the last movie in watch next
+    const currentWatchNextMovies = allMovies.filter(m => m.watch_next);
+    const isLastMovie = movie.watch_next && currentWatchNextMovies.length === 1;
+    
+    // If removing from watch next, add animation class first
+    if (movie.watch_next) {
+      const cardElement = e.currentTarget.closest('.watch-next-poster-card');
+      if (cardElement) {
+        cardElement.classList.add('removing');
+      }
+      
+      // If this is the last movie, also animate the banner closing
+      if (isLastMovie) {
+        const bannerElement = document.querySelector('.watch-next-banner');
+        if (bannerElement) {
+          bannerElement.classList.add('closing');
+        }
+      }
+      
+      // Wait for animation to complete before updating state
+      await new Promise(resolve => setTimeout(resolve, 400));
+    }
     
     const updateMovieInLists = (moviesList) => {
       return moviesList.map(m => 
@@ -398,7 +421,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       );
     };
     
-    // Update all state lists immediately
+    // Update all state lists
     setAllMovies(prev => updateMovieInLists(prev));
     setFilteredMovies(prev => updateMovieInLists(prev));
     setMovies(prev => updateMovieInLists(prev));
@@ -728,12 +751,93 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     }
   };
 
+  // Get Watch Next movies for banner
+  const watchNextMovies = allMovies.filter(movie => movie.watch_next);
+
+  // Helper function to get poster URL
+  const getPosterUrl = (posterPath) => {
+    if (!posterPath) return null;
+    // If it's already a local path, return as is with ingress support
+    if (posterPath.startsWith('/images/')) {
+      const baseUrl = apiService.getImageBaseUrl();
+      return `${baseUrl}${posterPath}`;
+    }
+    // If it's already a full URL, return as is
+    return posterPath;
+  };
+
   return (
     <div className="movie-search">
 
       {error && <div className="error-message">{error}</div>}
       {message && <div className="success-message">{message}</div>}
       {loadingDetails && <div className="loading-details">Loading movie details...</div>}
+
+      {/* Watch Next Banner */}
+      {watchNextMovies.length > 0 && (
+        <div className="watch-next-banner">
+          <div className="watch-next-banner-header">
+            <div className="banner-title-section">
+              <svg 
+                className="banner-star-icon" 
+                viewBox="0 0 24 24" 
+                fill="currentColor"
+              >
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+              <h2>Watch Next</h2>
+              <span className="watch-next-count">{watchNextMovies.length} {watchNextMovies.length === 1 ? 'movie' : 'movies'}</span>
+            </div>
+          </div>
+          <div className="watch-next-carousel">
+            <div className="carousel-track">
+              {watchNextMovies.map((movie) => (
+                <div 
+                  key={movie.id} 
+                  className="watch-next-poster-card"
+                >
+                  <button
+                    className="remove-from-watch-next"
+                    onClick={(e) => handleWatchNextToggle(e, movie)}
+                    title="Remove from Watch Next"
+                    aria-label="Remove from Watch Next"
+                  >
+                    <BsX size={20} />
+                  </button>
+                  <div 
+                    className="poster-card-image"
+                    onClick={() => handleMovieClick(movie.id)}
+                  >
+                    {movie.poster_path ? (
+                      <img 
+                        src={getPosterUrl(movie.poster_path)}
+                        alt={movie.title}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.parentElement.classList.add('no-poster');
+                        }}
+                      />
+                    ) : (
+                      <div className="poster-card-placeholder">
+                        <BsFilm size={40} />
+                      </div>
+                    )}
+                    <div className="poster-card-overlay">
+                      <h3>{movie.title}</h3>
+                      <div className="poster-card-meta">
+                        {movie.release_date && (
+                          <span>{new Date(movie.release_date).getFullYear()}</span>
+                        )}
+                        {movie.format && <span className="format-tag">{movie.format}</span>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="movies-results">
         <div className="movies-results-header">
@@ -757,17 +861,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                     <BsFilter className="filter-icon" />
                     All ({counts.all})
                   </button>
-                  
-                  {counts.watchNext > 0 && (
-                    <button
-                      className={`filter-pill ${activeFilters.some(f => f.type === 'watchNext') ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''}`}
-                      onClick={() => handleFilterClick('watchNext')}
-                      disabled={filterLoading}
-                    >
-                      <span className="filter-icon">⭐</span>
-                      Watch Next ({counts.watchNext})
-                    </button>
-                  )}
                   
                   {counts.movies > 0 && (
                     <button
