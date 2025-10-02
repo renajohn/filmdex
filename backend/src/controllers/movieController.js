@@ -442,7 +442,7 @@ const movieController = {
   // New simplified add movie endpoint
   addMovie: async (req, res) => {
     try {
-      const { title, year, format, price, acquired_date, comments, never_seen, tmdb_id, tmdb_data } = req.body;
+      const { title, year, format, price, acquired_date, comments, never_seen, tmdb_id, tmdb_data, poster_path: customPosterPath } = req.body;
       
       if (!title) {
         return res.status(400).json({ error: 'Title is required' });
@@ -477,8 +477,18 @@ const movieController = {
         return res.status(404).json({ error: 'Failed to get detailed information from TMDB' });
       }
 
-      // Download images
-      const posterPath = await imageService.downloadPoster(tmdbDetails.poster_path, tmdbDetails.id);
+      // Download images - use custom poster if provided, otherwise download from TMDB
+      let posterPath;
+      if (customPosterPath) {
+        // Custom poster selected - extract the TMDB path from the full URL
+        // URL format: https://image.tmdb.org/t/p/original/filename.jpg
+        // We need: /filename.jpg
+        const tmdbPath = '/' + customPosterPath.split('/').pop(); // Add leading slash
+        posterPath = await imageService.downloadPoster(tmdbPath, tmdbDetails.id);
+      } else {
+        // Use default TMDB poster
+        posterPath = await imageService.downloadPoster(tmdbDetails.poster_path, tmdbDetails.id);
+      }
       const backdropPath = await imageService.downloadBackdrop(tmdbDetails.backdrop_path, tmdbDetails.id);
       
       // Extract trailer information

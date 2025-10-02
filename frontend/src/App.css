@@ -1,42 +1,59 @@
 /* Main Screen Alert - Dark Theme Compatible */
 .main-screen-alert {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  bottom: 24px; /* Moved to bottom to avoid blocking UI */
+  left: 50%; /* Center horizontally */
+  transform: translateX(-50%);
   z-index: 1050;
-  min-width: 300px;
-  max-width: 500px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  border-radius: 8px;
-  backdrop-filter: blur(10px);
+  min-width: 320px;
+  max-width: 600px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  animation: slideUpFadeIn 0.3s ease-out;
+}
+
+@keyframes slideUpFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 /* Alert Success - Dark Theme */
 .alert-success {
-  background: linear-gradient(135deg, rgba(168, 230, 207, 0.95) 0%, rgba(125, 211, 176, 0.95) 100%) !important;
-  border: 1px solid rgba(125, 211, 176, 0.4) !important;
-  color: #1a1a1a !important;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(22, 163, 74, 0.15) 100%) !important;
+  border: 1px solid rgba(34, 197, 94, 0.4) !important;
+  color: #86efac !important;
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.2) !important;
 }
 
 /* Alert Danger - Dark Theme */
 .alert-danger {
-  background: linear-gradient(135deg, rgba(255, 179, 186, 0.95) 0%, rgba(255, 154, 162, 0.95) 100%) !important;
-  border: 1px solid rgba(255, 154, 162, 0.4) !important;
-  color: #1a1a1a !important;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.15) 100%) !important;
+  border: 1px solid rgba(239, 68, 68, 0.4) !important;
+  color: #fca5a5 !important;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.2) !important;
 }
 
 /* Alert Info - Dark Theme */
 .alert-info {
-  background: linear-gradient(135deg, rgba(168, 216, 234, 0.95) 0%, rgba(123, 196, 212, 0.95) 100%) !important;
-  border: 1px solid rgba(123, 196, 212, 0.4) !important;
-  color: #1a1a1a !important;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.15) 100%) !important;
+  border: 1px solid rgba(59, 130, 246, 0.4) !important;
+  color: #93c5fd !important;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.2) !important;
 }
 
 /* Alert Warning - Dark Theme */
 .alert-warning {
-  background: linear-gradient(135deg, rgba(255, 193, 7, 0.95) 0%, rgba(255, 160, 0, 0.95) 100%) !important;
-  border: 1px solid rgba(255, 160, 0, 0.4) !important;
-  color: #1a1a1a !important;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%) !important;
+  border: 1px solid rgba(251, 191, 36, 0.4) !important;
+  color: #fbbf24 !important;
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.2) !important;
 }
 
 .alert .btn-close {
@@ -44,10 +61,11 @@
   border: none;
   cursor: pointer;
   padding: 0.5rem;
-  opacity: 0.7;
-  color: #1a1a1a;
+  opacity: 0.6;
+  color: inherit; /* Use the alert's text color */
   font-size: 1.2rem;
   line-height: 1;
+  transition: opacity 0.2s ease;
 }
 
 .alert .btn-close:hover {

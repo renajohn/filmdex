@@ -12,6 +12,9 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
   const [currentStep, setCurrentStep] = useState(1); // 1: Search, 2: Collection Info
   const [showPosterSelector, setShowPosterSelector] = useState(false);
   const [customPosterUrl, setCustomPosterUrl] = useState(null);
+  const [selectorPosition, setSelectorPosition] = useState({ top: 0, left: 0 });
+  const [posterLoading, setPosterLoading] = useState(false);
+  const posterRef = useRef(null);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -53,12 +56,12 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
 
   // Focus search input when dialog opens
   useEffect(() => {
-    if (isOpen && searchInputRef.current) {
+    if (isOpen && searchInputRef.current && currentStep === 1) {
       setTimeout(() => {
-        searchInputRef.current.focus();
-      }, 100);
+        searchInputRef.current?.focus();
+      }, 150); // Slightly longer delay to ensure dialog is fully rendered
     }
-  }, [isOpen]);
+  }, [isOpen, currentStep]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -156,15 +159,60 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
 
   const handlePosterClick = () => {
     if (selectedMovie?.id) {
+      // Calculate position based on actual poster element dimensions
+      if (posterRef.current) {
+        const posterElement = posterRef.current;
+        const dialog = posterRef.current.closest('.add-movie-dialog');
+        
+        if (posterElement && dialog) {
+          // Get actual computed dimensions
+          const posterRect = posterElement.getBoundingClientRect();
+          const dialogRect = dialog.getBoundingClientRect();
+          
+          // Account for scroll position
+          const scrollTop = dialog.scrollTop || 0;
+          
+          setSelectorPosition({
+            // Position relative to dialog's top, accounting for scroll
+            top: posterRect.bottom - dialogRect.top + scrollTop + 10, // Poster bottom + scroll + gap
+            left: 20, // Padding
+            right: 20, // Padding
+            arrowLeft: posterRect.left - dialogRect.left + (posterElement.offsetWidth / 2) - 12 // Center of poster - half arrow width
+          });
+        }
+      }
       setShowPosterSelector(prev => !prev); // Toggle open/close
     }
   };
 
   const handlePosterSelect = (poster) => {
     const posterUrl = `https://image.tmdb.org/t/p/original${poster.file_path}`;
-    setCustomPosterUrl(posterUrl);
-    // Close the poster selector
+    
+    console.log('=== POSTER SELECTED ===');
+    console.log('Poster file_path:', poster.file_path);
+    console.log('Full poster URL:', posterUrl);
+    
+    // Show loading spinner immediately
+    setPosterLoading(true);
     setShowPosterSelector(false);
+    
+    // Preload the image
+    const img = new Image();
+    img.src = posterUrl;
+    
+    img.onload = () => {
+      // Image loaded, update custom poster
+      console.log('Poster loaded, setting customPosterUrl to:', posterUrl);
+      setCustomPosterUrl(posterUrl);
+      setPosterLoading(false);
+    };
+    
+    img.onerror = () => {
+      // Image failed to load
+      console.log('Poster failed to load:', posterUrl);
+      setPosterLoading(false);
+      alert('Failed to load poster image');
+    };
   };
 
   const handleSubmit = async (e) => {
@@ -202,6 +250,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
       console.log('Current formData:', formData);
       console.log('formData.format:', formData.format);
       console.log('customPosterUrl:', customPosterUrl);
+      console.log('selectedMovie?.poster_path:', selectedMovie?.poster_path);
       
       const movieData = {
         title: trimmedTitle,
@@ -218,7 +267,8 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
         poster_path: customPosterUrl || selectedMovie?.poster_path
       };
       
-      console.log('Submitting with poster_path:', movieData.poster_path);
+      console.log('Final movieData.poster_path:', movieData.poster_path);
+      console.log('Full movieData:', movieData);
 
       console.log('Sending movie data:', movieData);
       const result = await apiService.addMovie(movieData);
@@ -305,7 +355,23 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
           </button>
         </div>
 
+        {/* Inline Poster Selector - positioned relative to dialog */}
+        <InlinePosterSelector
+          movie={selectedMovie}
+          isOpen={showPosterSelector}
+          onSelectPoster={handlePosterSelect}
+          currentPosterPath={customPosterUrl || selectedMovie?.poster_path}
+          position={selectorPosition}
+        />
+
         <div className="add-movie-dialog-content">
+          {/* Overlay when poster selector is open - covers all content */}
+          {showPosterSelector && (
+            <div 
+              className="poster-selector-overlay"
+              onClick={() => setShowPosterSelector(false)}
+            />
+          )}
           {/* Step Indicator */}
               <div className="step-indicator">
                 <div className={`step ${currentStep >= 1 ? 'active' : ''}`}>
@@ -427,6 +493,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                       
                       <div className="selected-movie-details">
                         <div 
+                          ref={posterRef}
                           className="selected-movie-poster"
                           onClick={handlePosterClick}
                           style={{ cursor: selectedMovie?.id ? 'pointer' : 'default' }}
@@ -443,6 +510,13 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                           ) : (
                             <div className="no-poster-large">No Image</div>
                           )}
+                          
+                          {/* Loading spinner overlay */}
+                          {posterLoading && (
+                            <div className="poster-loading-overlay">
+                              <div className="poster-spinner"></div>
+                            </div>
+                          )}
                         </div>
                         <div className="selected-movie-info-text">
                           <p><strong>Year:</strong> {selectedMovie.release_date ? new Date(selectedMovie.release_date).getFullYear() : 'Unknown'}</p>
@@ -451,14 +525,6 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                           )}
                         </div>
                       </div>
-
-                      {/* Inline Poster Selector */}
-                      <InlinePosterSelector
-                        movie={selectedMovie}
-                        isOpen={showPosterSelector}
-                        onSelectPoster={handlePosterSelect}
-                        currentPosterPath={customPosterUrl || selectedMovie.poster_path}
-                      />
 
                       {/* Show existing editions warning */}
                       {selectedMovie.hasEditions && selectedMovie.existingEditions.length > 0 && (

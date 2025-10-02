@@ -454,20 +454,24 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       if (posterRef.current) {
         const posterElement = posterRef.current.querySelector('.movie-detail-poster');
         const headerElement = posterRef.current.closest('.movie-detail-header');
+        const card = posterRef.current.closest('.movie-detail-card');
         
-        if (posterElement && headerElement) {
+        if (posterElement && headerElement && card) {
           // Get actual computed dimensions (works for all screen sizes)
           const posterRect = posterElement.getBoundingClientRect();
           const headerRect = headerElement.getBoundingClientRect();
-          const cardRect = posterRef.current.closest('.movie-detail-card').getBoundingClientRect();
+          const cardRect = card.getBoundingClientRect();
           
           // Get computed padding from header
           const headerStyles = window.getComputedStyle(headerElement);
           const headerPadding = parseInt(headerStyles.paddingLeft) || 20;
           
+          // Account for scroll position
+          const scrollTop = card.scrollTop || 0;
+          
           setSelectorPosition({
-            // Position relative to card's top
-            top: headerRect.top - cardRect.top + posterElement.offsetHeight + headerPadding + 10, // Header offset + poster height + padding + gap
+            // Position relative to card's top, accounting for scroll
+            top: headerRect.top - cardRect.top + scrollTop + posterElement.offsetHeight + headerPadding + 10,
             left: headerPadding,
             right: headerPadding,
             arrowLeft: posterRect.left - cardRect.left + (posterElement.offsetWidth / 2) - 12 // Center of poster - half arrow width
