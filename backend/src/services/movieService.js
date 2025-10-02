@@ -290,6 +290,7 @@ const movieService = {
         recommended_age: localMovie.recommended_age || null,
         age_processed: localMovie.age_processed || false,
         title_status: localMovie.title_status || 'owned',
+        watch_next: localMovie.watch_next || false,
       };
 
       return movieDetails;
@@ -367,7 +368,7 @@ const movieService = {
       for (const key in existingMovie) {
         if (
           Object.prototype.hasOwnProperty.call(existingMovie, key) &&
-          (movieData[key] === undefined || movieData[key] === null)
+          movieData[key] === undefined
         ) {
           movieData[key] = existingMovie[key];
         }

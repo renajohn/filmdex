@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import apiService from '../services/api';
+import InlinePosterSelector from './InlinePosterSelector';
 import './AddMovieDialog.css';
 
 const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess, onMovieAdded }) => {
@@ -9,6 +10,8 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [mode, setMode] = useState(initialMode);
   const [currentStep, setCurrentStep] = useState(1); // 1: Search, 2: Collection Info
+  const [showPosterSelector, setShowPosterSelector] = useState(false);
+  const [customPosterUrl, setCustomPosterUrl] = useState(null);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -129,6 +132,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
   const handleMovieSelect = (movie) => {
     // Allow selection - we'll show existing editions as info
     setSelectedMovie(movie);
+    setCustomPosterUrl(null); // Reset custom poster when selecting a new movie
     setFormData(prev => ({
       ...prev,
       // Always use the selected movie's title when a movie is selected
@@ -141,12 +145,26 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
 
   const handleBackToSearch = () => {
     setSelectedMovie(null);
+    setCustomPosterUrl(null);
     setFormData(prev => ({
       ...prev,
       title: '',
       year: ''
     }));
     setCurrentStep(1); // Go back to search step
+  };
+
+  const handlePosterClick = () => {
+    if (selectedMovie?.id) {
+      setShowPosterSelector(prev => !prev); // Toggle open/close
+    }
+  };
+
+  const handlePosterSelect = (poster) => {
+    const posterUrl = `https://image.tmdb.org/t/p/original${poster.file_path}`;
+    setCustomPosterUrl(posterUrl);
+    // Close the poster selector
+    setShowPosterSelector(false);
   };
 
   const handleSubmit = async (e) => {
@@ -183,6 +201,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
       console.log('=== FORM SUBMISSION ===');
       console.log('Current formData:', formData);
       console.log('formData.format:', formData.format);
+      console.log('customPosterUrl:', customPosterUrl);
       
       const movieData = {
         title: trimmedTitle,
@@ -194,8 +213,12 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
         title_status: mode === 'wishlist' ? 'wish' : 'owned',
         // Add the selected movie data so backend knows which TMDB movie to use
         tmdb_id: selectedMovie?.id,
-        tmdb_data: selectedMovie
+        tmdb_data: selectedMovie,
+        // Use custom poster if selected, otherwise use selectedMovie's poster
+        poster_path: customPosterUrl || selectedMovie?.poster_path
       };
+      
+      console.log('Submitting with poster_path:', movieData.poster_path);
 
       console.log('Sending movie data:', movieData);
       const result = await apiService.addMovie(movieData);
@@ -403,10 +426,15 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                       </div>
                       
                       <div className="selected-movie-details">
-                        <div className="selected-movie-poster">
-                          {selectedMovie.poster_path ? (
+                        <div 
+                          className="selected-movie-poster"
+                          onClick={handlePosterClick}
+                          style={{ cursor: selectedMovie?.id ? 'pointer' : 'default' }}
+                          title={selectedMovie?.id ? 'Click to choose a different poster' : ''}
+                        >
+                          {(customPosterUrl || selectedMovie.poster_path) ? (
                             <img
-                              src={`https://image.tmdb.org/t/p/w185${selectedMovie.poster_path}`}
+                              src={customPosterUrl || `https://image.tmdb.org/t/p/w185${selectedMovie.poster_path}`}
                               alt={selectedMovie.title}
                               onError={(e) => {
                                 e.target.style.display = 'none';
@@ -423,6 +451,14 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                           )}
                         </div>
                       </div>
+
+                      {/* Inline Poster Selector */}
+                      <InlinePosterSelector
+                        movie={selectedMovie}
+                        isOpen={showPosterSelector}
+                        onSelectPoster={handlePosterSelect}
+                        currentPosterPath={customPosterUrl || selectedMovie.poster_path}
+                      />
 
                       {/* Show existing editions warning */}
                       {selectedMovie.hasEditions && selectedMovie.existingEditions.length > 0 && (
@@ -575,6 +611,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
               )}
         </div>
       </div>
+      
     </div>
   );
 };

@@ -249,7 +249,8 @@ const Movie = {
             media_type: row.media_type,
             recommended_age: row.recommended_age,
             age_processed: row.age_processed,
-            title_status: row.title_status || 'owned'
+            title_status: row.title_status || 'owned',
+            watch_next: row.watch_next || false
           };
           
           console.log('findById returning movie:', {
@@ -257,7 +258,8 @@ const Movie = {
             title: movie.title,
             rotten_tomato_rating: movie.rotten_tomato_rating,
             tmdb_rating: movie.tmdb_rating,
-            imdb_rating: movie.imdb_rating
+            imdb_rating: movie.imdb_rating,
+            watch_next: movie.watch_next
           });
           
           resolve(movie);
@@ -307,6 +309,13 @@ const Movie = {
         popularity, vote_count, adult, video, media_type = 'movie', recommended_age, title_status, watch_next
       } = movieData;
       
+      console.log(`[Movie.update] Updating movie ID ${id}:`, {
+        title,
+        plot: plot?.substring(0, 50) + '...',
+        watch_next,
+        title_status
+      });
+      
       const sql = `
         UPDATE movies 
         SET title = ?, original_title = ?, original_language = ?, genre = ?, director = ?, cast = ?, 
@@ -326,8 +335,10 @@ const Movie = {
         popularity, vote_count, adult, video, media_type, recommended_age, title_status, watch_next, id
       ], function(err) {
         if (err) {
+          console.error(`[Movie.update] Error updating movie ID ${id}:`, err);
           reject(err);
         } else {
+          console.log(`[Movie.update] Successfully updated movie ID ${id}, changes: ${this.changes}`);
           resolve({ id: id, changes: this.changes });
         }
       });

@@ -535,6 +535,11 @@
   width: 80px;
   height: 120px;
   flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.selected-movie-poster:hover {
+  transform: scale(1.05);
 }
 
 .selected-movie-poster img {
@@ -542,6 +547,11 @@
   height: 100%;
   object-fit: cover;
   border-radius: 6px;
+  transition: box-shadow 0.2s ease;
+}
+
+.selected-movie-poster:hover img {
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
 }
 
 .no-poster-large {

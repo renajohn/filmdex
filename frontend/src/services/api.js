@@ -417,6 +417,12 @@ class ApiService {
     
     return await response.json();
   }
+
+  // Get available posters from TMDB
+  async getMoviePosters(tmdbId) {
+    const response = await this.makeRequest(`/tmdb/${tmdbId}/posters`);
+    return await response.json();
+  }
 }
 
 const apiService = new ApiService();

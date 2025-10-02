@@ -1296,6 +1296,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           onEdit={handleEditMovie}
           onDelete={handleDeleteMovie}
           onShowAlert={onShowAlert}
+          onRefresh={loadAllMovies}
         />
       )}
 

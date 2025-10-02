@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import CircularProgressBar from './CircularProgressBar';
 import AgeDisplay from './AgeDisplay';
+import InlinePosterSelector from './InlinePosterSelector';
 import apiService from '../services/api';
 import { getLanguageName } from '../services/languageCountryUtils';
 import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsCopy, BsStar, BsStarFill } from 'react-icons/bs';
 import './MovieDetailCard.css';
 
-const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert }) => {
+const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert, onRefresh }) => {
   const [showTrailer, setShowTrailer] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -20,6 +21,10 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert 
   const [refreshingRatings, setRefreshingRatings] = useState(false);
   const [localMovieData, setLocalMovieData] = useState(movieDetails);
   const [showCopyIcon, setShowCopyIcon] = useState(false);
+  const [showPosterSelector, setShowPosterSelector] = useState(false);
+  const [selectorPosition, setSelectorPosition] = useState({ top: 0, left: 0 });
+  const [posterLoading, setPosterLoading] = useState(false);
+  const posterRef = useRef(null);
   
   // Debug initial data (only once)
   useEffect(() => {
@@ -293,7 +298,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert 
         updateData = { title_status: editValue };
         await apiService.updateMovieStatus(id, editValue);
       } else {
-        updateData = { [editingField]: editValue };
+        // Map frontend field names to backend field names
+        const fieldMapping = {
+          'overview': 'plot'
+        };
+        const backendField = fieldMapping[editingField] || editingField;
+        
+        updateData = { [backendField]: editValue };
         await apiService.updateMovie(id, updateData);
       }
       
@@ -305,6 +316,11 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert 
       
       setEditingField(null);
       setEditValue('');
+      
+      // Refresh the movie list to update thumbnails (without closing detail view)
+      if (onRefresh) {
+        onRefresh();
+      }
     } catch (error) {
       console.error('Error updating movie:', error);
       
@@ -432,6 +448,103 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert 
     }
   };
 
+  const handlePosterClick = () => {
+    if (currentData.tmdb_id) {
+      // Calculate position based on actual poster element dimensions
+      if (posterRef.current) {
+        const posterElement = posterRef.current.querySelector('.movie-detail-poster');
+        const headerElement = posterRef.current.closest('.movie-detail-header');
+        
+        if (posterElement && headerElement) {
+          // Get actual computed dimensions (works for all screen sizes)
+          const posterRect = posterElement.getBoundingClientRect();
+          const headerRect = headerElement.getBoundingClientRect();
+          const cardRect = posterRef.current.closest('.movie-detail-card').getBoundingClientRect();
+          
+          // Get computed padding from header
+          const headerStyles = window.getComputedStyle(headerElement);
+          const headerPadding = parseInt(headerStyles.paddingLeft) || 20;
+          
+          setSelectorPosition({
+            // Position relative to card's top
+            top: headerRect.top - cardRect.top + posterElement.offsetHeight + headerPadding + 10, // Header offset + poster height + padding + gap
+            left: headerPadding,
+            right: headerPadding,
+            arrowLeft: posterRect.left - cardRect.left + (posterElement.offsetWidth / 2) - 12 // Center of poster - half arrow width
+          });
+        }
+      }
+      setShowPosterSelector(prev => !prev); // Toggle open/close
+    }
+  };
+
+  const handlePosterSelect = async (poster) => {
+    const posterUrl = `https://image.tmdb.org/t/p/original${poster.file_path}`;
+    
+    // Show loading spinner immediately
+    setPosterLoading(true);
+    
+    // Close the poster selector immediately
+    setShowPosterSelector(false);
+    
+    // Preload the image
+    const img = new Image();
+    img.src = posterUrl;
+    
+    img.onload = async () => {
+      // Image loaded, update UI
+      setLocalMovieData(prev => ({
+        ...prev,
+        poster_path: posterUrl
+      }));
+      
+      // Hide spinner
+      setPosterLoading(false);
+      
+      try {
+        // Fetch the latest movie data to ensure we have all fields including watch_next
+        const latestMovie = await apiService.getMovieById(movieDetails.id);
+        
+        // Update movie with new poster path - preserve ALL existing fields
+        const updateData = {
+          ...latestMovie,
+          poster_path: posterUrl
+        };
+        
+        await apiService.updateMovie(movieDetails.id, updateData);
+        
+        if (onShowAlert) {
+          onShowAlert('Poster updated successfully', 'success');
+        }
+        
+        // Refresh the movie list to show new poster (without closing detail view)
+        if (onRefresh) {
+          onRefresh();
+        }
+      } catch (error) {
+        console.error('Error updating poster:', error);
+        
+        // ROLLBACK: Revert to original poster on error
+        setLocalMovieData(prev => ({
+          ...prev,
+          poster_path: movieDetails.poster_path
+        }));
+        
+        if (onShowAlert) {
+          onShowAlert('Failed to update poster', 'danger');
+        }
+      }
+    };
+    
+    img.onerror = () => {
+      // Image failed to load
+      setPosterLoading(false);
+      if (onShowAlert) {
+        onShowAlert('Failed to load poster image', 'danger');
+      }
+    };
+  };
+
   return (
     <>
       <div className="movie-detail-overlay" onClick={onClose}>
@@ -439,8 +552,24 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert 
           <button className="movie-detail-close" onClick={onClose}>
             <BsX />
           </button>
+
+          {/* Inline Poster Selector - positioned relative to card */}
+          <InlinePosterSelector
+            movie={currentData}
+            isOpen={showPosterSelector}
+            onSelectPoster={handlePosterSelect}
+            currentPosterPath={poster_path}
+            position={selectorPosition}
+          />
           
           <div className="movie-detail-content">
+            {/* Overlay when poster selector is open - covers all content */}
+            {showPosterSelector && (
+              <div 
+                className="poster-selector-overlay"
+                onClick={() => setShowPosterSelector(false)}
+              />
+            )}
             {/* Main Header Section */}
             <div 
               className="movie-detail-header"
@@ -450,20 +579,34 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert 
                   : 'none'
               }}
             >
-              <div className="movie-detail-poster">
-                {poster_path ? (
-                  <img 
-                    src={getPosterUrl(poster_path)} 
-                    alt={`${title} poster`}
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div className="movie-detail-poster-placeholder">
-                    No Image Available
-                  </div>
-                )}
+              <div className="movie-detail-poster-container" ref={posterRef}>
+                <div 
+                  className="movie-detail-poster"
+                  onClick={handlePosterClick}
+                  style={{ cursor: currentData.tmdb_id ? 'pointer' : 'default' }}
+                  title={currentData.tmdb_id ? 'Click to change poster' : ''}
+                >
+                  {poster_path ? (
+                    <img 
+                      src={getPosterUrl(poster_path)} 
+                      alt={`${title} poster`}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="movie-detail-poster-placeholder">
+                      No Image Available
+                    </div>
+                  )}
+                  
+                  {/* Loading spinner overlay */}
+                  {posterLoading && (
+                    <div className="poster-loading-overlay">
+                      <div className="poster-spinner"></div>
+                    </div>
+                  )}
+                </div>
               </div>
               
               <div className="movie-detail-main-info">

@@ -355,6 +355,43 @@ const tmdbService = {
       console.error('TMDB genres error:', error.message);
       return [];
     }
+  },
+
+  // Get available posters for a movie
+  getMoviePosters: async (tmdbId) => {
+    try {
+      const apiKey = getTmdbApiKey();
+      if (!apiKey) {
+        console.warn('TMDB_API_KEY not found');
+        return [];
+      }
+
+      const response = await axios.get(`${TMDB_BASE_URL}/movie/${tmdbId}/images`, {
+        params: {
+          api_key: apiKey,
+          include_image_language: 'en,null' // Get English and language-neutral posters
+        }
+      });
+
+      if (!response.data.posters) {
+        return [];
+      }
+
+      // Return posters sorted by vote average (most popular first)
+      return response.data.posters
+        .sort((a, b) => b.vote_average - a.vote_average)
+        .map(poster => ({
+          file_path: poster.file_path,
+          width: poster.width,
+          height: poster.height,
+          iso_639_1: poster.iso_639_1,
+          vote_average: poster.vote_average,
+          vote_count: poster.vote_count
+        }));
+    } catch (error) {
+      console.error('TMDB posters error:', error.message);
+      return [];
+    }
   }
 };
 

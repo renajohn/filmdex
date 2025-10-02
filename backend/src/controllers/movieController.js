@@ -817,6 +817,18 @@ const movieController = {
       logger.error('Error toggling watch_next:', error);
       res.status(500).json({ error: error.message });
     }
+  },
+
+  // Get available posters from TMDB
+  getMoviePosters: async (req, res) => {
+    try {
+      const { tmdbId } = req.params;
+      const posters = await tmdbService.getMoviePosters(tmdbId);
+      res.json(posters);
+    } catch (error) {
+      logger.error('Error fetching movie posters:', error);
+      res.status(500).json({ error: error.message });
+    }
   }
 };
 
