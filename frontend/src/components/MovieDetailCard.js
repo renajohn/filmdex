@@ -26,15 +26,10 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const [posterLoading, setPosterLoading] = useState(false);
   const posterRef = useRef(null);
   
-  // Debug initial data (only once)
+  // Initialize local movie data when movieDetails changes
   useEffect(() => {
-    console.log('Initial movie data loaded:', {
-      title: movieDetails.title,
-      rotten_tomato_rating: movieDetails.rotten_tomato_rating,
-      tmdb_rating: movieDetails.tmdb_rating,
-      imdb_rating: movieDetails.imdb_rating
-    });
-  }, [movieDetails.title, movieDetails.rotten_tomato_rating, movieDetails.tmdb_rating, movieDetails.imdb_rating]); // Include all dependencies
+    setLocalMovieData(movieDetails);
+  }, [movieDetails]);
   
   // Handle ESC key press for main detail view
   useEffect(() => {
@@ -365,26 +360,18 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     
     setRefreshingRatings(true);
     try {
-      // Call API to refresh ratings from external sources
       const updatedMovie = await apiService.refreshMovieRatings(id);
       
-      console.log('Updated movie data received:', updatedMovie);
-      console.log('Current RT rating before update:', localMovieData.rotten_tomato_rating);
-      console.log('New RT rating after update:', updatedMovie.rotten_tomato_rating);
-      
-      // Update local data with refreshed ratings
-      setLocalMovieData(prev => {
-        const newData = {
-          ...prev,
-          ...updatedMovie
-        };
-        console.log('Updated local data:', newData);
-        return newData;
-      });
+      setLocalMovieData(prev => ({
+        ...prev,
+        ...updatedMovie
+      }));
       
     } catch (error) {
       console.error('Error refreshing ratings:', error);
-      alert('Failed to refresh ratings. Please try again.');
+      if (onShowAlert) {
+        onShowAlert('Failed to refresh ratings. Please try again.', 'danger');
+      }
     } finally {
       setRefreshingRatings(false);
     }
@@ -393,8 +380,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const copyTitleToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(title);
-      // Optional: Show a brief confirmation
-      console.log('Title copied to clipboard');
+      // Title copied successfully
     } catch (error) {
       console.error('Failed to copy title:', error);
       // Fallback for older browsers
@@ -416,7 +402,9 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       setShowDeleteConfirm(false);
     } catch (error) {
       console.error('Error deleting movie:', error);
-      alert('Failed to delete movie. Please try again.');
+      if (onShowAlert) {
+        onShowAlert('Failed to delete movie. Please try again.', 'danger');
+      }
     } finally {
       setDeleting(false);
     }

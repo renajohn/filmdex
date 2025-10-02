@@ -440,36 +440,19 @@ const movieService = {
       let rottenTomatoRating = null;
       if (tmdbData.imdb_id) {
         try {
-          console.log('Fetching OMDB data for IMDB ID:', tmdbData.imdb_id);
           const omdbData = await omdbService.getMovieByImdbId(tmdbData.imdb_id);
-          console.log('OMDB data received:', {
-            imdbRating: omdbData?.imdbRating,
-            rottenTomatoRating: omdbData?.rottenTomatoRating
-          });
-          
           imdbRating = omdbData?.imdbRating ? parseFloat(omdbData.imdbRating) : null;
           rottenTomatoRating = omdbData?.rottenTomatoRating ? parseInt(omdbData.rottenTomatoRating) : null;
-          
-          console.log('Parsed ratings:', { imdbRating, rottenTomatoRating });
         } catch (error) {
           console.warn('Failed to fetch OMDB ratings:', error.message);
         }
       } else {
-        console.log('No IMDB ID available for OMDB lookup, trying title search');
         // Try to get OMDB data by title as fallback
         try {
           const year = movie.release_date ? new Date(movie.release_date).getFullYear() : null;
-          console.log('Searching OMDB by title:', movie.title, 'year:', year);
           const omdbData = await omdbService.searchMovie(movie.title, year);
-          console.log('OMDB data by title:', {
-            imdbRating: omdbData?.imdbRating,
-            rottenTomatoRating: omdbData?.rottenTomatoRating
-          });
-          
           imdbRating = omdbData?.imdbRating ? parseFloat(omdbData.imdbRating) : null;
           rottenTomatoRating = omdbData?.rottenTomatoRating ? parseInt(omdbData.rottenTomatoRating) : null;
-          
-          console.log('Parsed ratings from title search:', { imdbRating, rottenTomatoRating });
         } catch (error) {
           console.warn('Failed to fetch OMDB ratings by title:', error.message);
         }
@@ -489,22 +472,10 @@ const movieService = {
       };
 
       // Update in database - use updateFields to preserve existing data
-      console.log('Updating database with:', updateData);
-      const updateResult = await Movie.updateFields(movieId, updateData);
-      console.log('Database update result:', updateResult);
+      await Movie.updateFields(movieId, updateData);
 
       // Return updated movie data
       const updatedMovie = await Movie.findById(movieId);
-      
-      console.log('Returning updated movie data:', {
-        id: updatedMovie.id,
-        tmdb_rating: updatedMovie.tmdb_rating,
-        imdb_rating: updatedMovie.imdb_rating,
-        rotten_tomato_rating: updatedMovie.rotten_tomato_rating,
-        vote_count: updatedMovie.vote_count,
-        popularity: updatedMovie.popularity
-      });
-      
       return updatedMovie;
 
     } catch (error) {

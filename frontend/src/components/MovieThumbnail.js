@@ -32,19 +32,15 @@ const MovieThumbnail = ({ imdbLink, title, year, className = '', disableZoom = f
       setLoading(true);
       setError(null);
       
-      console.log(`Fetching thumbnail for: ${title} (${year}) - ${imdbLink}`);
       const result = await apiService.getMovieThumbnail(imdbLink, title, year);
       
       if (result.success) {
-        console.log(`Thumbnail loaded successfully for: ${title}`);
         setThumbnailUrl(result.thumbnailUrl);
         setPosterSource(result.source);
       } else {
-        console.log(`Thumbnail failed for: ${title} - ${result.error}`);
         setError(result.error || 'Failed to load thumbnail');
       }
     } catch (err) {
-      console.log(`Thumbnail error for: ${title} - ${err.message}`);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -67,14 +63,12 @@ const MovieThumbnail = ({ imdbLink, title, year, className = '', disableZoom = f
   }, [imdbLink, title, year, posterPath]);
 
   const handleImageError = () => {
-    console.log('Image failed to load:', thumbnailUrl);
     setError('Failed to load image');
     setThumbnailUrl(null);
     
     // If it was a local image that failed, try to fetch from external source
     // But only retry once to prevent infinite loops
     if (posterSource === 'local' && imdbLink && retryCount === 0) {
-      console.log('Local image failed, trying external source...');
       setRetryCount(1);
       fetchThumbnail();
     }

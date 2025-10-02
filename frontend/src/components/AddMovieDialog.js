@@ -30,8 +30,6 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
   // Reset form when dialog opens/closes or mode changes
   useEffect(() => {
     if (isOpen) {
-      console.log('=== DIALOG OPENING ===');
-      console.log('initialMode:', initialMode);
       setMode(initialMode);
       setCurrentStep(1);
       const newFormData = {
@@ -42,17 +40,11 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
         acquired_date: new Date().toISOString().split('T')[0],
         comments: ''
       };
-      console.log('Setting formData to:', newFormData);
       setFormData(newFormData);
       setSelectedMovie(null);
       setSearchResults([]);
     }
   }, [isOpen, initialMode]);
-
-  // Debug: Log formData changes
-  useEffect(() => {
-    console.log('formData changed:', formData);
-  }, [formData]);
 
   // Focus search input when dialog opens
   useEffect(() => {
@@ -65,15 +57,10 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    console.log(`Input changed - ${name}:`, value);
-    setFormData(prev => {
-      const newData = {
-        ...prev,
-        [name]: type === 'checkbox' ? checked : value
-      };
-      console.log('Updated formData:', newData);
-      return newData;
-    });
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
   };
 
   const searchMovies = async (query) => {
@@ -85,9 +72,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
     setSearching(true);
 
     try {
-      console.log('Searching for:', query);
       const results = await apiService.searchAllTMDB(query);
-      console.log('Search results:', results);
       
       // Check editions for each movie
       const resultsWithStatus = await Promise.all(
@@ -188,30 +173,22 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
   const handlePosterSelect = (poster) => {
     const posterUrl = `https://image.tmdb.org/t/p/original${poster.file_path}`;
     
-    console.log('=== POSTER SELECTED ===');
-    console.log('Poster file_path:', poster.file_path);
-    console.log('Full poster URL:', posterUrl);
-    
-    // Show loading spinner immediately
     setPosterLoading(true);
     setShowPosterSelector(false);
     
-    // Preload the image
     const img = new Image();
     img.src = posterUrl;
     
     img.onload = () => {
-      // Image loaded, update custom poster
-      console.log('Poster loaded, setting customPosterUrl to:', posterUrl);
       setCustomPosterUrl(posterUrl);
       setPosterLoading(false);
     };
     
     img.onerror = () => {
-      // Image failed to load
-      console.log('Poster failed to load:', posterUrl);
       setPosterLoading(false);
-      alert('Failed to load poster image');
+      if (onMovieAdded) {
+        onMovieAdded('Failed to load poster image', 'danger');
+      }
     };
   };
 
@@ -246,12 +223,6 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
     setLoading(true);
 
     try {
-      console.log('=== FORM SUBMISSION ===');
-      console.log('Current formData:', formData);
-      console.log('formData.format:', formData.format);
-      console.log('customPosterUrl:', customPosterUrl);
-      console.log('selectedMovie?.poster_path:', selectedMovie?.poster_path);
-      
       const movieData = {
         title: trimmedTitle,
         year: formData.year ? parseInt(formData.year) : null,
@@ -260,17 +231,11 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
         acquired_date: formData.acquired_date,
         comments: formData.comments,
         title_status: mode === 'wishlist' ? 'wish' : 'owned',
-        // Add the selected movie data so backend knows which TMDB movie to use
         tmdb_id: selectedMovie?.id,
         tmdb_data: selectedMovie,
-        // Use custom poster if selected, otherwise use selectedMovie's poster
         poster_path: customPosterUrl || selectedMovie?.poster_path
       };
-      
-      console.log('Final movieData.poster_path:', movieData.poster_path);
-      console.log('Full movieData:', movieData);
 
-      console.log('Sending movie data:', movieData);
       const result = await apiService.addMovie(movieData);
       
       // Call onMovieAdded callback with success message

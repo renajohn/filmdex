@@ -33,8 +33,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const [expandAllGroups, setExpandAllGroups] = useState(false); // Expand/collapse all state
   const [showMoreDropdown, setShowMoreDropdown] = useState(false); // More dropdown visibility
   const moreDropdownRef = useRef(null); // Ref for more dropdown
-  const [error, setError] = useState(null);
-  const [message, setMessage] = useState('');
+  const previousSearchTextRef = useRef(''); // Track previous search text to avoid infinite loops
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingMovie, setEditingMovie] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -114,7 +113,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const loadAllMovies = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null);
       const data = await apiService.getAllMovies();
       setAllMovies(data);
       setFilteredMovies(data);
@@ -122,16 +120,18 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       const sorted = sortMovies(data, sortBy);
       setMovies(sorted);
     } catch (err) {
-      setError(err.message);
+      if (onShowAlert) {
+        onShowAlert('Failed to load movies: ' + err.message, 'danger');
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortBy]);
 
   const handleSearch = useCallback(async (criteria) => {
     try {
       setLoading(true);
-      setError(null);
       
       // If no search text, load all movies, otherwise search
       let data;
@@ -147,22 +147,46 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       setMovies(sorted);
       setActiveFilters([]); // Reset filters when search changes
     } catch (err) {
-      setError(err.message);
+      if (onShowAlert) {
+        onShowAlert('Failed to search movies: ' + err.message, 'danger');
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortBy]);
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     handleAddMovieClick,
     handleExportCSVClick,
-    refreshMovies: loadAllMovies,
+    refreshMovies: () => {
+      // When refreshing, respect current search criteria
+      if (searchCriteria?.searchText && searchCriteria.searchText.trim()) {
+        handleSearch(searchCriteria);
+      } else {
+        loadAllMovies();
+      }
+    },
   }));
 
+  // Load movies based on search criteria
   useEffect(() => {
-    loadAllMovies();
-  }, [loadAllMovies]);
+    const currentSearchText = searchCriteria?.searchText || '';
+    
+    // Only run if search text has actually changed
+    if (currentSearchText !== previousSearchTextRef.current) {
+      previousSearchTextRef.current = currentSearchText;
+      
+      // Only run search if searchText has a value, otherwise load all
+      if (currentSearchText.trim()) {
+        handleSearch(searchCriteria);
+      } else {
+        loadAllMovies();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchCriteria?.searchText]); // Only re-run when the actual search text changes
 
   // Handle click outside more dropdown
   useEffect(() => {
@@ -227,14 +251,15 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const handleEditMovie = async (movie) => {
     try {
       setLoadingDetails(true);
-      setError(null);
       const details = await apiService.getMovieDetails(movie.id);
       // Store the current details before editing
       setMovieDetailsBeforeEdit(selectedMovieDetails);
       setEditingMovie(details);
       setSelectedMovieDetails(null); // Close details view
     } catch (err) {
-      setError('Failed to load movie details for editing: ' + err.message);
+      if (onShowAlert) {
+        onShowAlert('Failed to load movie details for editing: ' + err.message, 'danger');
+      }
       // Fallback to basic movie data if details fetch fails
       setMovieDetailsBeforeEdit(selectedMovieDetails);
       setEditingMovie(movie);
@@ -283,8 +308,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
   const handleExportCSVClick = async () => {
     try {
-      setError(null);
-      
       const blob = await apiService.exportCSV();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -294,8 +317,13 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      if (onShowAlert) {
+        onShowAlert('CSV exported successfully', 'success');
+      }
     } catch (err) {
-      setError('Failed to export CSV: ' + err.message);
+      if (onShowAlert) {
+        onShowAlert('Failed to export CSV: ' + err.message, 'danger');
+      }
     }
   };
 
@@ -304,11 +332,12 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const handleMovieClick = async (movieId) => {
     try {
       setLoadingDetails(true);
-      setError(null);
       const details = await apiService.getMovieDetails(movieId);
       setSelectedMovieDetails(details);
     } catch (err) {
-      setError('Failed to load movie details: ' + err.message);
+      if (onShowAlert) {
+        onShowAlert('Failed to load movie details: ' + err.message, 'danger');
+      }
     } finally {
       setLoadingDetails(false);
     }
@@ -380,10 +409,13 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
         setMovies(filtered);
       }
       
-      setMessage('Movie deleted successfully');
-      setTimeout(() => setMessage(''), 3000);
+      if (onShowAlert) {
+        onShowAlert('Movie deleted successfully', 'success');
+      }
     } catch (error) {
-      setError('Failed to delete movie: ' + error.message);
+      if (onShowAlert) {
+        onShowAlert('Failed to delete movie: ' + error.message, 'danger');
+      }
     }
   };
 
@@ -769,8 +801,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   return (
     <div className="movie-search">
 
-      {error && <div className="error-message">{error}</div>}
-      {message && <div className="success-message">{message}</div>}
       {loadingDetails && <div className="loading-details">Loading movie details...</div>}
 
       {/* Watch Next Banner */}

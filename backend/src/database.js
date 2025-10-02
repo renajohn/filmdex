@@ -18,7 +18,6 @@ let db = null;
  */
 const runEditionsMigration = async (database) => {
   return new Promise((resolve, reject) => {
-    console.log('\n--- Checking Multiple Editions Migration ---');
     
     // Check if migration is needed
     database.all("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='movies'", (err, indexes) => {
@@ -31,12 +30,9 @@ const runEditionsMigration = async (database) => {
       // Check if new index already exists
       const hasNewIndex = indexes.some(idx => idx.name === 'idx_movie_edition_unique');
       if (hasNewIndex) {
-        console.log('✓ Multiple editions support already enabled');
         resolve();
         return;
       }
-      
-      console.log('🔄 Migrating database to support multiple editions...');
       
       database.serialize(() => {
         // Create new table with updated schema
@@ -122,9 +118,7 @@ const runEditionsMigration = async (database) => {
                     return;
                   }
                   
-                  console.log('✓ Multiple editions migration completed successfully');
-                  console.log('  - New constraint: UNIQUE (title, tmdb_id, format)');
-                  console.log('  - You can now add multiple editions of the same movie!');
+                  console.log('✓ Multiple editions support enabled');
                   resolve();
                 });
               });
@@ -148,7 +142,7 @@ const initDatabase = async () => {
         console.error('Database connection error:', err.message);
         reject(err);
       } else {
-        console.log('Connected to the SQLite database.');
+        console.log('Connected to SQLite database.');
         
         // Create tables
         try {
@@ -174,9 +168,8 @@ const initDatabase = async () => {
                 }
               });
             });
-            console.log('Added media_type column to movies table.');
           } catch (migrationError) {
-            console.log('media_type column already exists or migration failed:', migrationError.message);
+            // Column already exists
           }
           
           // Add recommended_age column to existing movies table if it doesn't exist
@@ -190,9 +183,8 @@ const initDatabase = async () => {
                 }
               });
             });
-            console.log('Added recommended_age column to movies table.');
           } catch (migrationError) {
-            console.log('recommended_age column already exists or migration failed:', migrationError.message);
+            // Column already exists
           }
           
           // Add age_processed column to existing movies table if it doesn't exist
@@ -206,9 +198,8 @@ const initDatabase = async () => {
                 }
               });
             });
-            console.log('Added age_processed column to movies table.');
           } catch (migrationError) {
-            console.log('age_processed column already exists or migration failed:', migrationError.message);
+            // Column already exists
           }
           
           // Add title_status column to existing movies table if it doesn't exist
@@ -222,16 +213,15 @@ const initDatabase = async () => {
                 }
               });
             });
-            console.log('Added title_status column to movies table.');
           } catch (migrationError) {
-            console.log('title_status column already exists or migration failed:', migrationError.message);
+            // Column already exists
           }
           
           // Run migration to change unique constraints for multiple editions support
           try {
             await runEditionsMigration(db);
           } catch (migrationError) {
-            console.log('Editions migration check:', migrationError.message);
+            // Migration already applied or failed
           }
           
           // Add watch_next column to existing movies table if it doesn't exist
@@ -245,12 +235,11 @@ const initDatabase = async () => {
                 }
               });
             });
-            console.log('Added watch_next column to movies table.');
           } catch (migrationError) {
-            console.log('watch_next column already exists or migration failed:', migrationError.message);
+            // Column already exists
           }
           
-          console.log('Database tables created successfully.');
+          console.log('Database initialized successfully.');
         } catch (error) {
           console.error('Database creation error:', error);
           reject(error);
