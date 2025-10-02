@@ -357,8 +357,8 @@ const tmdbService = {
     }
   },
 
-  // Get available posters for a movie
-  getMoviePosters: async (tmdbId) => {
+  // Get available posters for a movie or TV show
+  getMoviePosters: async (tmdbId, mediaType = 'movie') => {
     try {
       const apiKey = getTmdbApiKey();
       if (!apiKey) {
@@ -366,7 +366,9 @@ const tmdbService = {
         return [];
       }
 
-      const response = await axios.get(`${TMDB_BASE_URL}/movie/${tmdbId}/images`, {
+      // Use correct endpoint based on media type
+      const endpoint = mediaType === 'tv' ? 'tv' : 'movie';
+      const response = await axios.get(`${TMDB_BASE_URL}/${endpoint}/${tmdbId}/images`, {
         params: {
           api_key: apiKey,
           include_image_language: 'en,null' // Get English and language-neutral posters

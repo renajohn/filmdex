@@ -291,6 +291,7 @@ const movieService = {
         age_processed: localMovie.age_processed || false,
         title_status: localMovie.title_status || 'owned',
         watch_next: localMovie.watch_next || false,
+        media_type: localMovie.media_type || 'movie',
       };
 
       return movieDetails;

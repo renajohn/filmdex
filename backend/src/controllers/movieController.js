@@ -833,7 +833,8 @@ const movieController = {
   getMoviePosters: async (req, res) => {
     try {
       const { tmdbId } = req.params;
-      const posters = await tmdbService.getMoviePosters(tmdbId);
+      const { mediaType } = req.query; // Get media_type from query parameter
+      const posters = await tmdbService.getMoviePosters(tmdbId, mediaType);
       res.json(posters);
     } catch (error) {
       logger.error('Error fetching movie posters:', error);

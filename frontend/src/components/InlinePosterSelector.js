@@ -21,7 +21,8 @@ const InlinePosterSelector = ({ movie, isOpen, onSelectPoster, currentPosterPath
 
       setLoading(true);
       try {
-        const posterData = await apiService.getMoviePosters(tmdbId);
+        const mediaType = movie.media_type || 'movie';
+        const posterData = await apiService.getMoviePosters(tmdbId, mediaType);
         setPosters(posterData);
         
         // Mark current poster as selected

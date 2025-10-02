@@ -123,7 +123,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     trailer_key,
     trailer_site,
     recommended_age,
-    title_status
+    title_status,
+    media_type
   } = currentData;
 
   const formatRating = (rating) => {

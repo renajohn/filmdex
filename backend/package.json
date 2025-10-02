@@ -10,11 +10,12 @@
   },
   "devDependencies": {
     "jest": "^29.7.0",
+    "nodemon": "^3.0.1",
     "supertest": "^7.1.4"
   },
   "scripts": {
     "start": "node index.js",
-    "dev": "node index.js --deployment=../deployment.dev.json",
+    "dev": "nodemon index.js --deployment=../deployment.dev.json",
     "prod": "node index.js --deployment=../deployment.prod.json",
     "test": "jest --setupFilesAfterEnv=./tests/setup.js"
   },

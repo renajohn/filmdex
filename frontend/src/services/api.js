@@ -419,8 +419,9 @@ class ApiService {
   }
 
   // Get available posters from TMDB
-  async getMoviePosters(tmdbId) {
-    const response = await this.makeRequest(`/tmdb/${tmdbId}/posters`);
+  async getMoviePosters(tmdbId, mediaType = 'movie') {
+    const queryParam = mediaType ? `?mediaType=${mediaType}` : '';
+    const response = await this.makeRequest(`/tmdb/${tmdbId}/posters${queryParam}`);
     return await response.json();
   }
 }
