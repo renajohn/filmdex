@@ -72,8 +72,8 @@
 }
 
 .wishlist-label {
-  background-color: #007bff;
-  color: white;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #1a1a1a;
 }
 
 .mode-disabled-message {
@@ -191,8 +191,8 @@
 }
 
 .step.active .step-number {
-  background: #007bff;
-  color: white;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #1a1a1a;
 }
 
 .step-label {
@@ -203,7 +203,7 @@
 }
 
 .step.active .step-label {
-  color: #007bff;
+  color: #fbbf24;
 }
 
 .step-connector {
@@ -216,7 +216,7 @@
 
 .step.active + .step-connector,
 .step-connector:has(+ .step.active) {
-  background: #007bff;
+  background: #fbbf24;
 }
 
 /* Step Content Styles */
@@ -292,26 +292,26 @@
 }
 
 .mode-toggle .btn-primary {
-  background: #007bff;
-  color: white;
-  border-color: #007bff;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #1a1a1a;
+  border-color: rgba(251, 191, 36, 0.3);
 }
 
 .mode-toggle .btn-primary:hover {
-  background: #0056b3;
-  border-color: #0056b3;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  border-color: rgba(251, 191, 36, 0.5);
 }
 
 .mode-toggle .btn-outline-secondary {
   background: transparent;
-  color: #6c757d;
-  border-color: #6c757d;
+  color: #f8f9fa;
+  border-color: #444;
 }
 
 .mode-toggle .btn-outline-secondary:hover {
-  background: #6c757d;
-  color: white;
-  border-color: #6c757d;
+  background: #2a2a2a;
+  color: #f8f9fa;
+  border-color: #555;
 }
 
 /* Form Styles */
@@ -343,8 +343,8 @@
 
 .form-control:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.25);
   background-color: #333;
 }
 
@@ -379,7 +379,7 @@
 }
 
 .search-loading {
-  color: #007bff;
+  color: #fbbf24;
   font-style: italic;
   font-size: 0.9rem;
   padding: 8px 0;
@@ -560,6 +560,25 @@
   border-top: 1px solid #444;
 }
 
+.form-actions .btn-primary {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+  color: #1a1a1a !important;
+  border: 1px solid rgba(251, 191, 36, 0.3) !important;
+}
+
+.form-actions .btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  border-color: rgba(251, 191, 36, 0.5) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3) !important;
+}
+
+.form-actions .btn-primary:focus {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+  border-color: rgba(251, 191, 36, 0.5) !important;
+  box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.25) !important;
+}
+
 .btn {
   padding: 10px 20px;
   border: none;
@@ -571,12 +590,22 @@
 }
 
 .btn-primary {
-  background-color: #007bff;
-  color: white;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+  color: #1a1a1a !important;
+  border: 1px solid rgba(251, 191, 36, 0.3) !important;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #0056b3;
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  border-color: rgba(251, 191, 36, 0.5) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3) !important;
+}
+
+.btn-primary:focus {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+  border-color: rgba(251, 191, 36, 0.5) !important;
+  box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.25) !important;
 }
 
 .btn-primary:disabled {
@@ -586,23 +615,27 @@
 }
 
 .btn-secondary {
-  background-color: #6c757d;
-  color: white;
+  background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+  color: #f8f9fa;
+  border: 1px solid #444;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background-color: #545b62;
+  background: linear-gradient(135deg, #3a3a3a, #2a2a2a);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .btn-outline-secondary {
-  background-color: transparent;
-  color: #6c757d;
-  border: 1px solid #6c757d;
+  background: transparent;
+  color: #f8f9fa;
+  border: 1px solid #444;
 }
 
-.btn-outline-secondary:hover {
-  background-color: #6c757d;
-  color: white;
+.btn-outline-secondary:hover:not(:disabled) {
+  background: #2a2a2a;
+  color: #f8f9fa;
+  transform: translateY(-1px);
 }
 
 .error-message {

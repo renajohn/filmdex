@@ -5,10 +5,10 @@
 }
 
 .cog-button {
-  background: #2a2a2a;
+  background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
   border: 2px solid #444;
   border-radius: 8px;
-  color: #fff;
+  color: #f8f9fa;
   cursor: pointer;
   padding: 12px;
   transition: all 0.3s ease;
@@ -21,8 +21,9 @@
 }
 
 .cog-button:hover {
-  background: #333;
-  border-color: #007bff;
+  background: linear-gradient(135deg, #3a3a3a, #2a2a2a);
+  border-color: #fbbf24;
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);
 }
 
 .cog-button svg {
@@ -35,7 +36,7 @@
 
 .cog-button:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.25);
 }
 
 .cog-dropdown-menu {
@@ -64,12 +65,14 @@
 }
 
 .cog-menu-item:hover {
-  background: #2a2a2a;
+  background: #fbbf24;
+  color: #1a1a1a;
 }
 
 .cog-menu-item:focus {
   outline: none;
-  background: #2a2a2a;
+  background: #fbbf24;
+  color: #1a1a1a;
 }
 
 .menu-icon {
