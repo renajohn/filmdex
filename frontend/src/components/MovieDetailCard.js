@@ -251,8 +251,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   };
 
   const getTrailerEmbedUrl = (trailerKey, trailerSite) => {
-    if (!trailerKey || trailerSite !== 'YouTube') return null;
-    return `https://www.youtube.com/embed/${trailerKey}`;
+    if (!trailerKey || trailerSite !== 'YouTube') {
+      console.log('No trailer available:', { trailerKey, trailerSite });
+      return null;
+    }
+    const embedUrl = `https://www.youtube.com/embed/${trailerKey}?rel=0&modestbranding=1&showinfo=0`;
+    console.log('Generated trailer embed URL:', embedUrl);
+    return embedUrl;
   };
 
   const trailerEmbedUrl = getTrailerEmbedUrl(trailer_key, trailer_site);
@@ -1136,6 +1141,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 className="trailer-video"
+                onError={(e) => {
+                  console.error('YouTube iframe error:', e);
+                  console.log('Failed URL:', trailerEmbedUrl);
+                }}
+                onLoad={() => {
+                  console.log('YouTube iframe loaded successfully:', trailerEmbedUrl);
+                }}
               />
             </div>
           </div>
