@@ -4,7 +4,7 @@ import AgeDisplay from './AgeDisplay';
 import InlinePosterSelector from './InlinePosterSelector';
 import apiService from '../services/api';
 import { getLanguageName } from '../services/languageCountryUtils';
-import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsCopy, BsStar, BsStarFill } from 'react-icons/bs';
+import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsCopy } from 'react-icons/bs';
 import './MovieDetailCard.css';
 
 const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert, onRefresh, loading = false }) => {
@@ -420,10 +420,19 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const handleWatchNextToggle = async (e) => {
     e.stopPropagation();
     
+    // Optimistically update the UI immediately
+    const previousValue = localMovieData.watch_next;
+    const newValue = !previousValue;
+    
+    setLocalMovieData(prev => ({
+      ...prev,
+      watch_next: newValue
+    }));
+    
     try {
       const result = await apiService.toggleWatchNext(movieDetails.id);
       
-      // Update local state to reflect the change
+      // Update with the actual result from the server
       setLocalMovieData(prev => ({
         ...prev,
         watch_next: result.watch_next
@@ -437,6 +446,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       }
     } catch (error) {
       console.error('Error toggling watch next:', error);
+      
+      // Rollback the optimistic update on error
+      setLocalMovieData(prev => ({
+        ...prev,
+        watch_next: previousValue
+      }));
+      
       if (onShowAlert) {
         onShowAlert('Failed to update Watch Next status', 'danger');
       }
@@ -661,6 +677,26 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                       <div className="poster-spinner"></div>
                     </div>
                   )}
+                  
+                  {/* Watch Next Star Overlay */}
+                  <button
+                    className={`poster-watch-next-star ${currentData.watch_next ? 'active' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleWatchNextToggle(e);
+                    }}
+                    title={currentData.watch_next ? 'Remove from Watch Next' : 'Add to Watch Next'}
+                    aria-label="Toggle Watch Next"
+                  >
+                    <svg 
+                      className="star-icon" 
+                      viewBox="0 0 24 24" 
+                      fill={currentData.watch_next ? "currentColor" : "none"}
+                      stroke="currentColor"
+                    >
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                  </button>
                 </div>
               </div>
               
@@ -872,18 +908,6 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                         No Trailer Available
                       </button>
                     )}
-                    
-                    <button 
-                      className={`action-btn watch-next-btn ${currentData.watch_next ? 'active' : ''}`}
-                      onClick={handleWatchNextToggle}
-                    >
-                      {currentData.watch_next ? (
-                        <BsStarFill className="action-icon" />
-                      ) : (
-                        <BsStar className="action-icon" />
-                      )}
-                      {currentData.watch_next ? 'Remove from Watch Next' : 'Add to Watch Next'}
-                    </button>
                     
                     {onDelete && (
                       <button 
