@@ -14,6 +14,7 @@ const WishListPage = forwardRef(({ onAddMovie, onMovieMovedToCollection, onShowA
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
   const [selectedMovieDetails, setSelectedMovieDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState({ show: false, movieId: null });
   const [showMarkOwnedModal, setShowMarkOwnedModal] = useState({ show: false, movie: null });
   const [markOwnedForm, setMarkOwnedForm] = useState({ title: '', format: 'Blu-ray 4K', price: '' });
@@ -62,11 +63,14 @@ const WishListPage = forwardRef(({ onAddMovie, onMovieMovedToCollection, onShowA
 
   const handleMovieClick = async (movieId) => {
     try {
+      setLoadingDetails(true);
       const movieDetails = await apiService.getMovieDetails(movieId);
       setSelectedMovieDetails(movieDetails);
     } catch (error) {
       console.error('Failed to load movie details:', error);
       setError('Failed to load movie details: ' + error.message);
+    } finally {
+      setLoadingDetails(false);
     }
   };
 
@@ -349,9 +353,10 @@ const WishListPage = forwardRef(({ onAddMovie, onMovieMovedToCollection, onShowA
       )}
 
       {/* Movie Detail Card */}
-      {selectedMovieDetails && (
+      {(selectedMovieDetails || loadingDetails) && (
         <MovieDetailCard 
           movieDetails={selectedMovieDetails} 
+          loading={loadingDetails}
           onClose={handleCloseDetails}
           onEdit={handleEditMovie}
           onDelete={handleDeleteMovieFromDetails}

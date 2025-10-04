@@ -801,7 +801,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   return (
     <div className="movie-search">
 
-      {loadingDetails && <div className="loading-details">Loading movie details...</div>}
 
       {/* Watch Next Banner */}
       {watchNextMovies.length > 0 && (
@@ -1319,9 +1318,10 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
 
       {/* Movie Detail Card */}
-      {selectedMovieDetails && (
+      {(selectedMovieDetails || loadingDetails) && (
         <MovieDetailCard 
           movieDetails={selectedMovieDetails} 
+          loading={loadingDetails}
           onClose={handleCloseDetails}
           onEdit={handleEditMovie}
           onDelete={handleDeleteMovie}

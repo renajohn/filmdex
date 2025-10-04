@@ -1171,20 +1171,6 @@
   font-style: italic;
 }
 
-.loading-details {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.8);
-  color: #fff;
-  padding: 15px 25px;
-  border-radius: 8px;
-  font-style: italic;
-  z-index: 1000;
-  backdrop-filter: blur(5px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
 
 .movies-grid {
   display: grid;

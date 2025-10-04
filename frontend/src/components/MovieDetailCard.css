@@ -1067,9 +1067,21 @@
 .title-container {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   position: relative;
-  width: 100%;
+  max-width: calc(100% - 60px); /* Leave space for close button */
+  margin-right: 60px; /* Ensure space for close button */
+}
+
+/* Mobile-specific positioning - center the title better */
+@media (max-width: 768px) {
+  .title-container {
+    max-width: calc(100% - 80px);
+    margin-right: 0; /* Remove right margin on mobile */
+    margin-left: auto; /* Center the title container */
+    margin-right: auto; /* Center the title container */
+    justify-content: center; /* Center content within container */
+  }
 }
 
 .title-container > span {
@@ -1102,6 +1114,8 @@
   align-items: center;
   justify-content: center;
   opacity: 0.7;
+  z-index: 5; /* Above content but below close button (which is z-index: 1000) */
+  flex-shrink: 0; /* Prevent button from shrinking */
 }
 
 .copy-title-btn:hover {
@@ -1113,4 +1127,101 @@
 
 .copy-title-btn:active {
   transform: scale(0.95);
+}
+
+/* Skeleton Loading Styles */
+.skeleton-loading {
+  pointer-events: auto;
+}
+
+.skeleton-header {
+  background: linear-gradient(135deg, #1a1a1a, #2a2a2a) !important;
+}
+
+.skeleton-poster {
+  background: #2a2a2a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.skeleton-placeholder {
+  background: linear-gradient(90deg, #2a2a2a 25%, #3a3a3a 50%, #2a2a2a 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-title .skeleton-placeholder {
+  height: 40px; /* 2rem = 32px, but with line-height 1.1, actual height is ~40px */
+  width: 70%;
+  margin-bottom: 8px;
+}
+
+.skeleton-section-title .skeleton-placeholder {
+  height: 28px; /* 1.3rem font-size with margin */
+  width: 40%;
+  margin-bottom: 12px;
+}
+
+.skeleton-plot {
+  height: 20px; /* line-height 1.6 for plot text */
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.skeleton-plot-short {
+  height: 20px;
+  width: 60%;
+  margin-bottom: 8px;
+}
+
+.skeleton-info {
+  height: 18px; /* 0.9rem font-size for facts */
+  width: 80%;
+  margin-bottom: 6px;
+}
+
+.skeleton-loading-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 20px;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Responsive skeleton adjustments */
+@media (max-width: 768px) {
+  .skeleton-loading-spinner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  
+  .skeleton-title .skeleton-placeholder {
+    width: 85%;
+  }
+  
+  .skeleton-plot {
+    width: 95%;
+  }
+  
+  .skeleton-info {
+    width: 90%;
+  }
+  
 }

@@ -7,7 +7,7 @@ import { getLanguageName } from '../services/languageCountryUtils';
 import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsCopy, BsStar, BsStarFill } from 'react-icons/bs';
 import './MovieDetailCard.css';
 
-const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert, onRefresh }) => {
+const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert, onRefresh, loading = false }) => {
   const [showTrailer, setShowTrailer] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -89,11 +89,12 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     loadCastAndCrew();
   }, [movieDetails?.id]);
   
-  if (!movieDetails) return null;
+  if (!movieDetails && !loading) return null;
 
   // Use local data for display, fallback to original movieDetails
   const currentData = localMovieData || movieDetails;
   
+  // Only destructure if we have data (not in loading state)
   const {
     title,
     plot,
@@ -125,7 +126,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     recommended_age,
     title_status,
     media_type
-  } = currentData;
+  } = currentData || {};
 
   const formatRating = (rating) => {
     return rating ? rating.toString() : '-';
@@ -542,6 +543,62 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       }
     };
   };
+
+  // Skeleton loading state
+  if (loading) {
+    return (
+      <>
+        <div className="movie-detail-overlay" onClick={onClose}>
+          <div className="movie-detail-card skeleton-loading" onClick={(e) => e.stopPropagation()}>
+            <button className="movie-detail-close" onClick={onClose}>
+              <BsX />
+            </button>
+            
+            <div className="movie-detail-content">
+              {/* Header Section Skeleton */}
+              <div className="movie-detail-header skeleton-header">
+                <div className="movie-detail-poster-container">
+                  <div className="movie-detail-poster skeleton-poster">
+                    <div className="skeleton-placeholder"></div>
+                  </div>
+                </div>
+                
+                <div className="movie-detail-main-info">
+                  {/* Just the poster placeholder - no other placeholders */}
+                </div>
+              </div>
+              
+              {/* Content Section Skeleton */}
+              <div className="movie-detail-body">
+                <div className="movie-detail-section">
+                  <h3 className="section-title skeleton-section-title">
+                    <div className="skeleton-placeholder"></div>
+                  </h3>
+                  <div className="skeleton-placeholder skeleton-plot"></div>
+                  <div className="skeleton-placeholder skeleton-plot"></div>
+                  <div className="skeleton-placeholder skeleton-plot-short"></div>
+                </div>
+                
+                <div className="movie-detail-section">
+                  <h3 className="section-title skeleton-section-title">
+                    <div className="skeleton-placeholder"></div>
+                  </h3>
+                  <div className="skeleton-placeholder skeleton-info"></div>
+                  <div className="skeleton-placeholder skeleton-info"></div>
+                  <div className="skeleton-placeholder skeleton-info"></div>
+                </div>
+              </div>
+              
+              {/* Loading Spinner */}
+              <div className="skeleton-loading-spinner">
+                <div className="poster-spinner"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
