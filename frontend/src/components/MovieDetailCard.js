@@ -494,7 +494,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   };
 
   const handlePosterSelect = async (poster) => {
-    const posterUrl = `https://image.tmdb.org/t/p/original${poster.file_path}`;
+    // Check if this is a custom uploaded poster or a TMDB poster
+    const isCustomPoster = poster.isCustom || poster.file_path.startsWith('/images/');
+    
+    // For custom posters, use the file_path directly; for TMDB posters, construct full URL
+    const posterUrl = isCustomPoster 
+      ? `${apiService.getImageBaseUrl()}${poster.file_path}`
+      : `https://image.tmdb.org/t/p/original${poster.file_path}`;
     
     // Show loading spinner immediately
     setPosterLoading(true);
@@ -517,24 +523,38 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       setPosterLoading(false);
       
       try {
-        // Fetch the latest movie data to ensure we have all fields including watch_next
-        const latestMovie = await apiService.getMovieById(movieDetails.id);
-        
-        // Update movie with new poster path - preserve ALL existing fields
-        const updateData = {
-          ...latestMovie,
-          poster_path: posterUrl
-        };
-        
-        await apiService.updateMovie(movieDetails.id, updateData);
-        
-        if (onShowAlert) {
-          onShowAlert('Poster updated successfully', 'success');
-        }
-        
-        // Refresh the movie list to show new poster (without closing detail view)
-        if (onRefresh) {
-          onRefresh();
+        // For custom posters, the backend already updated the movie record
+        // We just need to refresh the UI
+        if (isCustomPoster) {
+          if (onShowAlert) {
+            onShowAlert('Custom poster uploaded successfully', 'success');
+          }
+          
+          // Refresh the movie list to show new poster
+          if (onRefresh) {
+            onRefresh();
+          }
+        } else {
+          // For TMDB posters, update the movie record
+          // Fetch the latest movie data to ensure we have all fields including watch_next
+          const latestMovie = await apiService.getMovieById(movieDetails.id);
+          
+          // Update movie with new poster path - preserve ALL existing fields
+          const updateData = {
+            ...latestMovie,
+            poster_path: posterUrl
+          };
+          
+          await apiService.updateMovie(movieDetails.id, updateData);
+          
+          if (onShowAlert) {
+            onShowAlert('Poster updated successfully', 'success');
+          }
+          
+          // Refresh the movie list to show new poster (without closing detail view)
+          if (onRefresh) {
+            onRefresh();
+          }
         }
       } catch (error) {
         console.error('Error updating poster:', error);

@@ -171,7 +171,13 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
   };
 
   const handlePosterSelect = (poster) => {
-    const posterUrl = `https://image.tmdb.org/t/p/original${poster.file_path}`;
+    // Check if this is a custom uploaded poster or a TMDB poster
+    const isCustomPoster = poster.isCustom || poster.file_path.startsWith('/images/');
+    
+    // For custom posters, use the file_path directly; for TMDB posters, construct full URL
+    const posterUrl = isCustomPoster 
+      ? `${apiService.getImageBaseUrl()}${poster.file_path}`
+      : `https://image.tmdb.org/t/p/original${poster.file_path}`;
     
     setPosterLoading(true);
     setShowPosterSelector(false);

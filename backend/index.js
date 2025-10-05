@@ -40,6 +40,7 @@ app.use(express.static('public'));
 
 // Apply multer middleware specifically for file upload routes BEFORE JSON parsing
 app.post('/api/import/csv', uploadMiddleware, importController.uploadCsv);
+app.post('/api/movies/:id/upload-poster', movieController.posterUploadMiddleware, movieController.uploadCustomPoster);
 
 // JSON parsing middleware for all other routes
 app.use(express.json());

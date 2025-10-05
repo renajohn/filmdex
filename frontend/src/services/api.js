@@ -424,6 +424,19 @@ class ApiService {
     const response = await this.makeRequest(`/tmdb/${tmdbId}/posters${queryParam}`);
     return await response.json();
   }
+
+  // Upload custom poster for a movie
+  async uploadCustomPoster(movieId, file) {
+    const formData = new FormData();
+    formData.append('poster', file);
+
+    const response = await this.makeRequest(`/movies/${movieId}/upload-poster`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    return await response.json();
+  }
 }
 
 const apiService = new ApiService();

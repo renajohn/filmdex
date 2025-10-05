@@ -1,3 +1,6 @@
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const movieService = require('../services/movieService');
 const tmdbService = require('../services/tmdbService');
 const omdbService = require('../services/omdbService');
@@ -7,6 +10,40 @@ const Movie = require('../models/movie');
 const MovieCast = require('../models/movieCast');
 const MovieCrew = require('../models/movieCrew');
 const logger = require('../logger');
+
+// Configure multer for poster uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const customPosterDir = path.join(imageService.getLocalImagesDir(), 'posters', 'custom');
+    // Ensure directory exists
+    if (!fs.existsSync(customPosterDir)) {
+      fs.mkdirSync(customPosterDir, { recursive: true });
+    }
+    cb(null, customPosterDir);
+  },
+  filename: (req, file, cb) => {
+    const movieId = req.params.id;
+    const timestamp = Date.now();
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    cb(null, `movie_${movieId}_${timestamp}${ext}`);
+  }
+});
+
+const posterUpload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB max
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept images only
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only JPEG, PNG, and WebP images are allowed'), false);
+    }
+  }
+});
 
 const movieController = {
   getAllMovies: async (req, res) => {
@@ -840,7 +877,66 @@ const movieController = {
       logger.error('Error fetching movie posters:', error);
       res.status(500).json({ error: error.message });
     }
+  },
+
+  // Upload custom poster for a movie
+  uploadCustomPoster: async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const file = req.file;
+      logger.info(`Uploading custom poster for movie ${id}: ${file.filename}`);
+
+      // Get image dimensions (try to use sharp if available, otherwise use defaults)
+      let width = 500;
+      let height = 750;
+      
+      try {
+        // Try to load sharp dynamically
+        const sharp = require('sharp');
+        const metadata = await sharp(file.path).metadata();
+        width = metadata.width;
+        height = metadata.height;
+      } catch (error) {
+        // Sharp not available or error reading metadata - use defaults
+        logger.debug('Using default poster dimensions (sharp not available or error)');
+      }
+
+      // Construct the poster path (relative to images directory)
+      const posterPath = `/images/posters/custom/${file.filename}`;
+
+      // Update only the poster_path field without affecting other data
+      const db = require('../database').getDatabase();
+      await new Promise((resolve, reject) => {
+        const sql = 'UPDATE movies SET poster_path = ? WHERE id = ?';
+        db.run(sql, [posterPath, id], function(err) {
+          if (err) {
+            logger.error(`Failed to update poster for movie ${id}:`, err);
+            reject(err);
+          } else {
+            logger.info(`Updated movie ${id} with custom poster: ${posterPath}`);
+            resolve();
+          }
+        });
+      });
+
+      res.json({
+        success: true,
+        posterPath: posterPath,
+        filename: file.filename,
+        width,
+        height
+      });
+    } catch (error) {
+      logger.error('Error uploading custom poster:', error);
+      res.status(500).json({ error: error.message });
+    }
   }
 };
 
 module.exports = movieController;
+module.exports.posterUploadMiddleware = posterUpload.single('poster');
