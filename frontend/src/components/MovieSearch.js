@@ -170,7 +170,13 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     },
   }));
 
-  // Load movies based on search criteria
+  // Initial load on mount
+  useEffect(() => {
+    loadAllMovies();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
+
+  // Load movies based on search criteria with debouncing
   useEffect(() => {
     const currentSearchText = searchCriteria?.searchText || '';
     
@@ -178,12 +184,17 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     if (currentSearchText !== previousSearchTextRef.current) {
       previousSearchTextRef.current = currentSearchText;
       
-      // Only run search if searchText has a value, otherwise load all
-      if (currentSearchText.trim()) {
-        handleSearch(searchCriteria);
-      } else {
-        loadAllMovies();
-      }
+      // Debounce search by 200ms
+      const timeoutId = setTimeout(() => {
+        // Only run search if searchText has a value, otherwise load all
+        if (currentSearchText.trim()) {
+          handleSearch(searchCriteria);
+        } else {
+          loadAllMovies();
+        }
+      }, 200);
+
+      return () => clearTimeout(timeoutId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchCriteria?.searchText]); // Only re-run when the actual search text changes
@@ -214,15 +225,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       loadAllMovies();
     }
   }, [refreshTrigger, loadAllMovies]);
-
-  useEffect(() => {
-    // Real-time search with debouncing
-    const timeoutId = setTimeout(() => {
-      handleSearch(searchCriteria);
-    }, 100);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchCriteria, handleSearch]);
 
   // Handle ESC key press for modals
   useEffect(() => {
