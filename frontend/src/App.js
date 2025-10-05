@@ -6,6 +6,7 @@ import ImportPage from './pages/ImportPage';
 import WishListPage from './pages/WishListPage';
 import CogDropdown from './components/CogDropdown';
 import BackfillModal from './components/BackfillModal';
+import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
 import { BsSearch, BsX } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -273,6 +274,9 @@ function AppContent() {
         onComplete={handleBackfillComplete}
         onIgnore={handleBackfillIgnore}
       />
+
+      {/* Scroll to Top FAB - Mobile Only */}
+      <ScrollToTop />
     </div>
   );
 }
