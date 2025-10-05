@@ -1176,6 +1176,15 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
   gap: 10px;
+  /* Show subtle pattern during fast scrolling to reduce jarring black areas */
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 150px,
+      rgba(251, 191, 36, 0.02) 150px,
+      rgba(251, 191, 36, 0.02) 151px
+    );
 }
 
 .movie-card-compact {
@@ -1190,6 +1199,9 @@
   display: flex;
   height: 140px;
   overflow: hidden;
+  /* Optimize rendering: browser skips rendering off-screen cards */
+  content-visibility: auto;
+  contain-intrinsic-size: 330px 140px;
 }
 
 .movie-card-compact:hover {
@@ -1204,6 +1216,8 @@
   width: 90px;
   height: 140px;
   position: relative;
+  /* Placeholder gradient while images load */
+  background: linear-gradient(135deg, #2d2d2d 0%, #252525 100%);
 }
 
 .movie-thumbnail-compact {
@@ -1329,6 +1343,8 @@
   flex-direction: column;
   justify-content: space-between;
   min-width: 0;
+  /* Subtle background for better appearance during fast scrolling */
+  background: linear-gradient(90deg, #1a1a1a 0%, rgba(26, 26, 26, 0.98) 100%);
   padding: 12px;
 }
 
