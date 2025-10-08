@@ -8,7 +8,7 @@ import CogDropdown from './components/CogDropdown';
 import BackfillModal from './components/BackfillModal';
 import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
-import { BsSearch, BsX } from 'react-icons/bs';
+import { BsSearch, BsX, BsCollectionFill, BsHeart } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
@@ -198,13 +198,15 @@ function AppContent() {
                 className={`segment ${location.pathname === '/' ? 'active' : ''}`}
                 onClick={handleCollection}
               >
-                FilmDex
+                <BsCollectionFill className="segment-icon" />
+                <span className="segment-text">FilmDex</span>
               </button>
               <button 
                 className={`segment ${location.pathname === '/wishlist' ? 'active' : ''}`}
                 onClick={handleWishList}
               >
-                Wish List
+                <BsHeart className="segment-icon" />
+                <span className="segment-text">Wish List</span>
               </button>
             </div>
           ) : (

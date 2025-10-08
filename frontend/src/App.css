@@ -240,6 +240,18 @@
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.segmented-control .segment-icon {
+  font-size: 16px;
+  display: inline;
+}
+
+.segmented-control .segment-text {
+  display: inline;
 }
 
 .segmented-control .segment:hover {
@@ -364,6 +376,16 @@
   .segmented-control .segment {
     padding: 10px 16px;
     font-size: 13px;
+  }
+  
+  /* Show icons only on mobile */
+  .segmented-control .segment-icon {
+    display: inline;
+    font-size: 18px;
+  }
+  
+  .segmented-control .segment-text {
+    display: none;
   }
   
   .import-modal {
