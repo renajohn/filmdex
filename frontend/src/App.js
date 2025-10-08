@@ -33,6 +33,9 @@ function AppContent() {
   // Check if we're on the thumbnail view (root path)
   const isThumbnailView = location.pathname === '/';
   
+  // Check if we should show the search bar (collection or wishlist)
+  const showSearchBar = location.pathname === '/' || location.pathname === '/wishlist';
+  
   // Get the page title based on current route
   const getPageTitle = () => {
     switch (location.pathname) {
@@ -41,7 +44,7 @@ function AppContent() {
       case '/import':
         return 'FilmDex - CSV Import';
       case '/wishlist':
-        return 'FilmDex - Wish List';
+        return 'FilmDex';
       default:
         return 'FilmDex';
     }
@@ -147,6 +150,11 @@ function AppContent() {
     }, 6000);
   };
 
+  // Clear search when navigating between pages
+  useEffect(() => {
+    setSearchCriteria({ searchText: '' });
+  }, [location.pathname]);
+
   // Check for backfill on app startup
   useEffect(() => {
     const checkBackfillStatus = async () => {
@@ -179,11 +187,11 @@ function AppContent() {
   return (
     <div className="App">
       <header className="App-header">
-        <div className={`App-header-content ${!isThumbnailView ? 'no-search' : ''}`}>
+        <div className={`App-header-content ${!showSearchBar ? 'no-search' : ''}`}>
           <div className="App-title" onClick={handleFilmDexClick}>
             <h1>{getPageTitle()}</h1>
           </div>
-          {isThumbnailView && (
+          {showSearchBar && (
             <div className="App-search">
               <div className="search-input-container">
                 <BsSearch className="search-icon" />
@@ -235,7 +243,7 @@ function AppContent() {
             } 
           />
           <Route path="/import" element={<ImportPage />} />
-          <Route path="/wishlist" element={<WishListPage ref={wishListRef} onAddMovie={handleWishListAddMovie} onMovieMovedToCollection={handleMovieMovedToCollection} onShowAlert={handleMovieAdded} />} />
+          <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onMovieMovedToCollection={handleMovieMovedToCollection} onShowAlert={handleMovieAdded} />} />
         </Routes>
       </main>
 

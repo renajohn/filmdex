@@ -285,6 +285,12 @@ label {
   font-weight: 400;
 }
 
+.wishlist-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
 .add-movie-btn {
   background: #007bff;
   color: white;
@@ -299,6 +305,28 @@ label {
 
 .add-movie-btn:hover {
   background: #0056b3;
+}
+
+.copy-clipboard-btn {
+  background: #3a3a3a;
+  color: #ccc;
+  border: 1px solid #555;
+  padding: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  width: 48px;
+  height: 48px;
+}
+
+.copy-clipboard-btn:hover {
+  background: #4a4a4a;
+  color: #fff;
+  border-color: #666;
 }
 
 .error-message {
@@ -452,6 +480,10 @@ label {
   
   .wishlist-header h1 {
     text-align: center;
+  }
+  
+  .wishlist-actions {
+    justify-content: center;
   }
   
   /* Table responsive adjustments */

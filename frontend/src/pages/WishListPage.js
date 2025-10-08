@@ -1,14 +1,15 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BsTrash, BsCurrencyDollar } from 'react-icons/bs';
+import { BsTrash, BsCurrencyDollar, BsClipboard } from 'react-icons/bs';
 import apiService from '../services/api';
 import MovieThumbnail from '../components/MovieThumbnail';
 import MovieDetailCard from '../components/MovieDetailCard';
 import CircularProgressBar from '../components/CircularProgressBar';
 import './WishListPage.css';
 
-const WishListPage = forwardRef(({ onAddMovie, onMovieMovedToCollection, onShowAlert }, ref) => {
+const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onMovieMovedToCollection, onShowAlert }, ref) => {
   const navigate = useNavigate();
+  const [allMovies, setAllMovies] = useState([]);
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -32,6 +33,7 @@ const WishListPage = forwardRef(({ onAddMovie, onMovieMovedToCollection, onShowA
       setLoading(true);
       setError('');
       const wishListMovies = await apiService.getMoviesByStatus('wish');
+      setAllMovies(wishListMovies);
       setMovies(wishListMovies);
     } catch (err) {
       setError('Failed to load wish list: ' + err.message);
@@ -40,10 +42,30 @@ const WishListPage = forwardRef(({ onAddMovie, onMovieMovedToCollection, onShowA
     }
   };
 
+  // Filter movies based on search text from searchCriteria
+  useEffect(() => {
+    const searchText = searchCriteria?.searchText || '';
+    if (!searchText || searchText.trim() === '') {
+      setMovies(allMovies);
+    } else {
+      const searchLower = searchText.toLowerCase().trim();
+      const filtered = allMovies.filter(movie => {
+        return (
+          (movie.title && movie.title.toLowerCase().includes(searchLower)) ||
+          (movie.original_title && movie.original_title.toLowerCase().includes(searchLower)) ||
+          (movie.director && movie.director.toLowerCase().includes(searchLower)) ||
+          (movie.comments && movie.comments.toLowerCase().includes(searchLower))
+        );
+      });
+      setMovies(filtered);
+    }
+  }, [searchCriteria, allMovies]);
+
   const handleDeleteMovie = async (movieId) => {
     try {
       setDeletingId(movieId);
       await apiService.deleteMovie(movieId);
+      setAllMovies(allMovies.filter(movie => movie.id !== movieId));
       setMovies(movies.filter(movie => movie.id !== movieId));
     } catch (err) {
       setError('Failed to delete movie: ' + err.message);
@@ -114,6 +136,7 @@ const WishListPage = forwardRef(({ onAddMovie, onMovieMovedToCollection, onShowA
         await apiService.updateMovie(showMarkOwnedModal.movie.id, movieData);
         
         // Remove from wish list
+        setAllMovies(allMovies.filter(m => m.id !== showMarkOwnedModal.movie.id));
         setMovies(movies.filter(m => m.id !== showMarkOwnedModal.movie.id));
         
         // Notify parent component to refresh collection
@@ -133,6 +156,31 @@ const WishListPage = forwardRef(({ onAddMovie, onMovieMovedToCollection, onShowA
     }
   };
 
+  const handleCopyToClipboard = async () => {
+    if (allMovies.length === 0) return;
+    
+    // Create markdown list from all movies (not filtered)
+    let markdown = 'wishlist:\n';
+    allMovies.forEach(movie => {
+      const year = getYear(movie);
+      const format = movie.format || 'Unspecified';
+      markdown += ` - ${movie.title} (${year}) in ${format}\n`;
+    });
+    
+    try {
+      await navigator.clipboard.writeText(markdown);
+      // Show success feedback
+      if (onShowAlert) {
+        onShowAlert('Wishlist copied to clipboard!', 'success');
+      }
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      if (onShowAlert) {
+        onShowAlert('Failed to copy to clipboard', 'danger');
+      }
+    }
+  };
+
   const handleEditMovie = (movieId) => {
     // Navigate to edit page or open edit modal
     console.log('Edit movie:', movieId);
@@ -141,6 +189,7 @@ const WishListPage = forwardRef(({ onAddMovie, onMovieMovedToCollection, onShowA
   const handleDeleteMovieFromDetails = async (movieId) => {
     try {
       await apiService.deleteMovie(movieId);
+      setAllMovies(allMovies.filter(movie => movie.id !== movieId));
       setMovies(movies.filter(movie => movie.id !== movieId));
       setSelectedMovieDetails(null);
     } catch (err) {
@@ -202,21 +251,37 @@ const WishListPage = forwardRef(({ onAddMovie, onMovieMovedToCollection, onShowA
     );
   }
 
+  const searchText = searchCriteria?.searchText || '';
+  const hasSearchText = searchText && searchText.trim() !== '';
+
   return (
     <div className="wishlist-page">
       <div className="wishlist-header">
         <div className="wishlist-title-section">
           <h1>My Wish List</h1>
-          {movies.length > 0 && (
-            <span className="wishlist-count">({movies.length} item{movies.length !== 1 ? 's' : ''})</span>
+          {allMovies.length > 0 && (
+            <span className="wishlist-count">
+              ({movies.length}{hasSearchText ? ` of ${allMovies.length}` : ''} item{movies.length !== 1 ? 's' : ''})
+            </span>
           )}
         </div>
-        <button 
-          className="add-movie-btn"
-          onClick={handleAddMovie}
-        >
-          Add to Wish List
-        </button>
+        <div className="wishlist-actions">
+          {allMovies.length > 0 && (
+            <button 
+              className="copy-clipboard-btn"
+              onClick={handleCopyToClipboard}
+              title="Copy wishlist to clipboard as markdown"
+            >
+              <BsClipboard />
+            </button>
+          )}
+          <button 
+            className="add-movie-btn"
+            onClick={handleAddMovie}
+          >
+            Add to Wish List
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -225,7 +290,7 @@ const WishListPage = forwardRef(({ onAddMovie, onMovieMovedToCollection, onShowA
         </div>
       )}
 
-      {movies.length === 0 ? (
+      {allMovies.length === 0 ? (
         <div className="empty-wishlist">
           <h3>Your wish list is empty</h3>
           <p>Add movies you'd like to acquire to your collection.</p>
@@ -235,6 +300,11 @@ const WishListPage = forwardRef(({ onAddMovie, onMovieMovedToCollection, onShowA
           >
             Add Your First Movie
           </button>
+        </div>
+      ) : movies.length === 0 ? (
+        <div className="empty-wishlist">
+          <h3>No movies found</h3>
+          <p>Try a different search term.</p>
         </div>
       ) : (
         <div className="table-responsive">
