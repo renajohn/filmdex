@@ -1,14 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { BsGear, BsPlus, BsUpload, BsCollection, BsHeart } from 'react-icons/bs';
+import { BsGear, BsPlus, BsUpload } from 'react-icons/bs';
 import './CogDropdown.css';
 
 const CogDropdown = ({ 
   onImportMovies, 
   onAddMovie, 
-  onExportCSV,
-  onCollection,
-  onWishList
+  onExportCSV
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
@@ -78,23 +76,6 @@ const CogDropdown = ({
             zIndex: 1001
           }}
         >
-          <button 
-            className="cog-menu-item"
-            onClick={() => handleMenuClick(onCollection)}
-          >
-            <BsCollection className="menu-icon" />
-            Collection
-          </button>
-          {onWishList && (
-            <button 
-              className="cog-menu-item"
-              onClick={() => handleMenuClick(onWishList)}
-            >
-              <BsHeart className="menu-icon" />
-              Wish List
-            </button>
-          )}
-          <div className="cog-menu-separator"></div>
           <button 
             className="cog-menu-item"
             onClick={() => handleMenuClick(onAddMovie)}

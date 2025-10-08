@@ -192,9 +192,26 @@ function AppContent() {
     <div className="App">
       <header className="App-header">
         <div className={`App-header-content ${!showSearchBar ? 'no-search' : ''}`}>
-          <div className="App-title" onClick={handleFilmDexClick}>
-            <h1>{getPageTitle()}</h1>
-          </div>
+          {showSearchBar ? (
+            <div className="segmented-control">
+              <button 
+                className={`segment ${location.pathname === '/' ? 'active' : ''}`}
+                onClick={handleCollection}
+              >
+                FilmDex
+              </button>
+              <button 
+                className={`segment ${location.pathname === '/wishlist' ? 'active' : ''}`}
+                onClick={handleWishList}
+              >
+                Wish List
+              </button>
+            </div>
+          ) : (
+            <div className="App-title" onClick={handleFilmDexClick}>
+              <h1>{getPageTitle()}</h1>
+            </div>
+          )}
           {showSearchBar && (
             <div className="App-search">
               <div className="search-input-container">
@@ -204,7 +221,7 @@ function AppContent() {
                   name="searchText"
                   value={searchCriteria.searchText}
                   onChange={handleSearchChange}
-                  placeholder="Search by movie title, director..."
+                  placeholder="Search FilmDex by title, director..."
                   className="search-input-large"
                 />
                 {searchCriteria.searchText && (
@@ -224,8 +241,6 @@ function AppContent() {
               onImportMovies={handleImportMovies}
               onAddMovie={handleAddMovie}
               onExportCSV={handleExportCSV}
-              onCollection={handleCollection}
-              onWishList={handleWishList}
             />
           </div>
         </div>
