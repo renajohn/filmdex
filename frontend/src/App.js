@@ -223,7 +223,7 @@ function AppContent() {
                   name="searchText"
                   value={searchCriteria.searchText}
                   onChange={handleSearchChange}
-                  placeholder="Search FilmDex by title, director..."
+                  placeholder={location.pathname === '/wishlist' ? 'Search wish list by title, director...' : 'Search FilmDex by title, director...'}
                   className="search-input-large"
                 />
                 {searchCriteria.searchText && (
