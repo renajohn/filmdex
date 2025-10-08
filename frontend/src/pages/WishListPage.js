@@ -7,7 +7,7 @@ import MovieDetailCard from '../components/MovieDetailCard';
 import CircularProgressBar from '../components/CircularProgressBar';
 import './WishListPage.css';
 
-const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onMovieMovedToCollection, onShowAlert }, ref) => {
+const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onMovieMovedToCollection, onShowAlert, onMovieAdded }, ref) => {
   const navigate = useNavigate();
   const [allMovies, setAllMovies] = useState([]);
   const [movies, setMovies] = useState([]);
@@ -168,10 +168,63 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onMovieMovedToCol
     });
     
     try {
-      await navigator.clipboard.writeText(markdown);
-      // Show success feedback
-      if (onShowAlert) {
-        onShowAlert('Wishlist copied to clipboard!', 'success');
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(markdown);
+        if (onShowAlert) {
+          onShowAlert('Wishlist copied to clipboard!', 'success');
+        }
+        return;
+      }
+    } catch (err) {
+      console.log('Modern clipboard API failed, trying fallback method:', err);
+    }
+    
+    // Fallback method for iframe/restricted contexts (like Home Assistant)
+    try {
+      // Save the current active element to restore focus later
+      const activeElement = document.activeElement;
+      
+      const textArea = document.createElement('textarea');
+      textArea.value = markdown;
+      // Position off-screen to prevent any visual flickering
+      textArea.style.position = 'absolute';
+      textArea.style.left = '-9999px';
+      textArea.style.top = '-9999px';
+      textArea.style.width = '1px';
+      textArea.style.height = '1px';
+      textArea.style.padding = '0';
+      textArea.style.border = '0';
+      textArea.style.outline = '0';
+      textArea.style.boxShadow = 'none';
+      textArea.style.background = 'transparent';
+      textArea.style.pointerEvents = 'none';
+      textArea.setAttribute('readonly', '');
+      textArea.setAttribute('aria-hidden', 'true');
+      textArea.tabIndex = -1;
+      
+      document.body.appendChild(textArea);
+      
+      // Select the text
+      textArea.select();
+      textArea.setSelectionRange(0, textArea.value.length);
+      
+      const successful = document.execCommand('copy');
+      
+      // Clean up
+      document.body.removeChild(textArea);
+      
+      // Restore focus to prevent flickering
+      if (activeElement && activeElement.focus) {
+        activeElement.focus();
+      }
+      
+      if (successful) {
+        if (onShowAlert) {
+          onShowAlert('Wishlist copied to clipboard!', 'success');
+        }
+      } else {
+        throw new Error('execCommand failed');
       }
     } catch (err) {
       console.error('Failed to copy:', err);
@@ -430,7 +483,7 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onMovieMovedToCol
           onClose={handleCloseDetails}
           onEdit={handleEditMovie}
           onDelete={handleDeleteMovieFromDetails}
-          onShowAlert={onShowAlert}
+          onShowAlert={onMovieAdded || onShowAlert}
         />
       )}
 

@@ -129,10 +129,20 @@ function AppContent() {
     }
   };
 
-  const handleMovieAdded = (message, type) => {
+  const handleShowAlert = (message, type) => {
     setAlertMessage(message);
     setAlertType(type);
     setShowAlert(true);
+    
+    // Auto-hide after 6 seconds
+    setTimeout(() => {
+      setShowAlert(false);
+      setAlertMessage('');
+    }, 6000);
+  };
+
+  const handleMovieAdded = (message, type) => {
+    handleShowAlert(message, type);
     
     // Refresh the appropriate list based on current page
     setTimeout(() => {
@@ -142,12 +152,6 @@ function AppContent() {
         movieSearchRef.current.refreshMovies();
       }
     }, 100);
-    
-    // Auto-hide after 6 seconds
-    setTimeout(() => {
-      setShowAlert(false);
-      setAlertMessage('');
-    }, 6000);
   };
 
   // Clear search when navigating between pages
@@ -243,7 +247,7 @@ function AppContent() {
             } 
           />
           <Route path="/import" element={<ImportPage />} />
-          <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onMovieMovedToCollection={handleMovieMovedToCollection} onShowAlert={handleMovieAdded} />} />
+          <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onMovieMovedToCollection={handleMovieMovedToCollection} onShowAlert={handleShowAlert} onMovieAdded={handleMovieAdded} />} />
         </Routes>
       </main>
 
