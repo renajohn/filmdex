@@ -424,14 +424,28 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const handleWatchNextToggle = async (e, movie) => {
     e.stopPropagation(); // Prevent opening movie details
     
-    const newWatchNextValue = !movie.watch_next;
+    // Toggle: if has timestamp, set to null; if null, set to current timestamp
+    const newWatchNextValue = movie.watch_next_added ? null : new Date().toISOString();
+    const isAdding = !movie.watch_next_added; // true if adding to watch next
     
     // Check if this is the last movie in watch next
-    const currentWatchNextMovies = allMovies.filter(m => m.watch_next);
-    const isLastMovie = movie.watch_next && currentWatchNextMovies.length === 1;
+    const currentWatchNextMovies = allMovies.filter(m => m.watch_next_added);
+    const isLastMovie = movie.watch_next_added && currentWatchNextMovies.length === 1;
     
-    // If removing from watch next, add animation class first
-    if (movie.watch_next) {
+    // Define the update function once
+    const updateMovieInLists = (moviesList) => {
+      return moviesList.map(m => 
+        m.id === movie.id ? { ...m, watch_next_added: newWatchNextValue } : m
+      );
+    };
+    
+    // Update state immediately (optimistic update for responsive UI)
+    setAllMovies(prev => updateMovieInLists(prev));
+    setFilteredMovies(prev => updateMovieInLists(prev));
+    setMovies(prev => updateMovieInLists(prev));
+    
+    // Handle removal animation in background (non-blocking)
+    if (!isAdding && movie.watch_next_added) {
       const cardElement = e.currentTarget.closest('.watch-next-poster-card');
       if (cardElement) {
         cardElement.classList.add('removing');
@@ -444,21 +458,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           bannerElement.classList.add('closing');
         }
       }
-      
-      // Wait for animation to complete before updating state
-      await new Promise(resolve => setTimeout(resolve, 400));
     }
-    
-    const updateMovieInLists = (moviesList) => {
-      return moviesList.map(m => 
-        m.id === movie.id ? { ...m, watch_next: newWatchNextValue } : m
-      );
-    };
-    
-    // Update all state lists
-    setAllMovies(prev => updateMovieInLists(prev));
-    setFilteredMovies(prev => updateMovieInLists(prev));
-    setMovies(prev => updateMovieInLists(prev));
     
     // Then make the API call
     try {
@@ -466,15 +466,16 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     } catch (error) {
       console.error('Error toggling watch next:', error);
       
-      // Revert on error
+      // Revert on error (toggle back)
+      const revertValue = newWatchNextValue ? null : new Date().toISOString();
       setAllMovies(prev => updateMovieInLists(prev).map(m => 
-        m.id === movie.id ? { ...m, watch_next: !newWatchNextValue } : m
+        m.id === movie.id ? { ...m, watch_next_added: revertValue } : m
       ));
       setFilteredMovies(prev => updateMovieInLists(prev).map(m => 
-        m.id === movie.id ? { ...m, watch_next: !newWatchNextValue } : m
+        m.id === movie.id ? { ...m, watch_next_added: revertValue } : m
       ));
       setMovies(prev => updateMovieInLists(prev).map(m => 
-        m.id === movie.id ? { ...m, watch_next: !newWatchNextValue } : m
+        m.id === movie.id ? { ...m, watch_next_added: revertValue } : m
       ));
       
       if (onShowAlert) {
@@ -490,7 +491,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       movies: allMovies.filter(movie => movie.media_type === 'movie' || !movie.media_type).length,
       tvShows: allMovies.filter(movie => movie.media_type === 'tv').length,
       comments: allMovies.filter(movie => movie.comments && movie.comments.trim()).length,
-      watchNext: allMovies.filter(movie => movie.watch_next).length,
+      watchNext: allMovies.filter(movie => movie.watch_next_added).length,
       formats: {},
       ageGroups: {}
     };
@@ -543,7 +544,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
             case 'comments':
               return movie.comments && movie.comments.trim();
             case 'watchNext':
-              return movie.watch_next;
+              return movie.watch_next_added;
             case 'format':
               return movie.format === filter.value;
             case 'ageGroup':
@@ -785,8 +786,10 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     }
   };
 
-  // Get Watch Next movies for banner
-  const watchNextMovies = allMovies.filter(movie => movie.watch_next);
+  // Get Watch Next movies for banner (sorted by most recently added)
+  const watchNextMovies = allMovies
+    .filter(movie => movie.watch_next_added)
+    .sort((a, b) => new Date(b.watch_next_added) - new Date(a.watch_next_added));
 
   // Helper function to get poster URL
   const getPosterUrl = (posterPath) => {
@@ -1099,15 +1102,15 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                         recommendedAge={movie.recommended_age}
                       />
                       <button 
-                        className={`watch-next-badge-toggle ${movie.watch_next ? 'active' : ''}`}
+                        className={`watch-next-badge-toggle ${movie.watch_next_added ? 'active' : ''}`}
                         onClick={(e) => handleWatchNextToggle(e, movie)}
-                        title={movie.watch_next ? "Remove from Watch Next" : "Add to Watch Next"}
+                        title={movie.watch_next_added ? "Remove from Watch Next" : "Add to Watch Next"}
                         aria-label="Toggle Watch Next"
                       >
                         <svg 
                           className="star-icon" 
                           viewBox="0 0 24 24" 
-                          fill={movie.watch_next ? "currentColor" : "none"}
+                          fill={movie.watch_next_added ? "currentColor" : "none"}
                           stroke="currentColor"
                         >
                           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />

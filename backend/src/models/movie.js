@@ -43,7 +43,7 @@ const Movie = {
           recommended_age INTEGER,
           age_processed BOOLEAN DEFAULT 0,
           title_status TEXT DEFAULT 'owned',
-          watch_next BOOLEAN DEFAULT 0
+          watch_next_added DATETIME DEFAULT NULL
         )
       `;
       db.run(sql, (err) => {
@@ -64,14 +64,14 @@ const Movie = {
         imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
         price, runtime, plot, comments, never_seen, acquired_date, import_id,
         poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type = 'movie', recommended_age, age_processed = false, title_status = 'owned', watch_next = false
+        popularity, vote_count, adult, video, media_type = 'movie', recommended_age, age_processed = false, title_status = 'owned', watch_next_added = null
       } = movie;
       const sql = `
         INSERT INTO movies (title, original_title, original_language, genre, director, cast, release_date, format, 
                            imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
                            price, runtime, plot, comments, never_seen, acquired_date, import_id,
                            poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-                           popularity, vote_count, adult, video, media_type, recommended_age, age_processed, title_status, watch_next)
+                           popularity, vote_count, adult, video, media_type, recommended_age, age_processed, title_status, watch_next_added)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       db.run(sql, [
@@ -79,7 +79,7 @@ const Movie = {
         imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
         price, runtime, plot, comments, never_seen, acquired_date, import_id,
         poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type, recommended_age, age_processed, title_status, watch_next
+        popularity, vote_count, adult, video, media_type, recommended_age, age_processed, title_status, watch_next_added
       ], function(err) {
         if (err) {
           reject(err);
@@ -123,7 +123,7 @@ const Movie = {
             recommended_age,
             age_processed,
             title_status,
-            watch_next
+            watch_next_added
           };
           resolve(createdMovie);
         }
@@ -250,7 +250,7 @@ const Movie = {
             recommended_age: row.recommended_age,
             age_processed: row.age_processed,
             title_status: row.title_status || 'owned',
-            watch_next: row.watch_next || false
+            watch_next_added: row.watch_next_added || null
           };
           
           console.log('findById returning movie:', {
@@ -259,7 +259,7 @@ const Movie = {
             rotten_tomato_rating: movie.rotten_tomato_rating,
             tmdb_rating: movie.tmdb_rating,
             imdb_rating: movie.imdb_rating,
-            watch_next: movie.watch_next
+            watch_next_added: movie.watch_next_added
           });
           
           resolve(movie);
@@ -306,13 +306,13 @@ const Movie = {
         imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
         price, runtime, plot, comments, never_seen, acquired_date, import_id,
         poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type = 'movie', recommended_age, title_status, watch_next
+        popularity, vote_count, adult, video, media_type = 'movie', recommended_age, title_status, watch_next_added
       } = movieData;
       
       console.log(`[Movie.update] Updating movie ID ${id}:`, {
         title,
         plot: plot?.substring(0, 50) + '...',
-        watch_next,
+        watch_next_added,
         title_status
       });
       
@@ -323,7 +323,7 @@ const Movie = {
             rotten_tomatoes_link = ?, tmdb_rating = ?, tmdb_id = ?, imdb_id = ?, 
             price = ?, runtime = ?, plot = ?, comments = ?, never_seen = ?, acquired_date = ?, import_id = ?,
             poster_path = ?, backdrop_path = ?, budget = ?, revenue = ?, trailer_key = ?, trailer_site = ?,
-            status = ?, popularity = ?, vote_count = ?, adult = ?, video = ?, media_type = ?, recommended_age = ?, title_status = ?, watch_next = ?
+            status = ?, popularity = ?, vote_count = ?, adult = ?, video = ?, media_type = ?, recommended_age = ?, title_status = ?, watch_next_added = ?
         WHERE id = ?
       `;
       
@@ -332,7 +332,7 @@ const Movie = {
         imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
         price, runtime, plot, comments, never_seen, acquired_date, import_id,
         poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type, recommended_age, title_status, watch_next, id
+        popularity, vote_count, adult, video, media_type, recommended_age, title_status, watch_next_added, id
       ], function(err) {
         if (err) {
           console.error(`[Movie.update] Error updating movie ID ${id}:`, err);
@@ -615,24 +615,28 @@ const Movie = {
     });
   },
 
-  // Toggle watch_next status
+  // Toggle watch_next_added status (set to current timestamp or NULL)
   toggleWatchNext: (id) => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
-      const sql = 'UPDATE movies SET watch_next = NOT watch_next WHERE id = ?';
-      db.run(sql, [id], function(err) {
+      
+      // First, check current status
+      db.get('SELECT watch_next_added FROM movies WHERE id = ?', [id], (err, row) => {
         if (err) {
           reject(err);
-        } else {
-          // Fetch updated value
-          db.get('SELECT watch_next FROM movies WHERE id = ?', [id], (err, row) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve({ id, watch_next: row.watch_next });
-            }
-          });
+          return;
         }
+        
+        // Toggle: if it has a timestamp, set to NULL; if NULL, set to NOW
+        const newValue = row.watch_next_added ? null : new Date().toISOString();
+        
+        db.run('UPDATE movies SET watch_next_added = ? WHERE id = ?', [newValue, id], function(err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({ id, watch_next_added: newValue });
+          }
+        });
       });
     });
   },

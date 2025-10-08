@@ -5,14 +5,17 @@ This feature allows you to mark movies for future "popcorn sessions" with a simp
 ## Features Implemented
 
 ### 1. Database Schema
-- Added `watch_next` BOOLEAN column to the `movies` table
-- Automatic migration on backend boot
-- Default value: `false` (0)
+- **Field:** `watch_next_added` DATETIME column in the `movies` table
+- **Values:** 
+  - `NULL` = Not in watch next list
+  - ISO timestamp = Added to watch next at that time
+- **Automatic migration** on backend boot (migrates old BOOLEAN to DATETIME)
+- **Sorting:** Movies are automatically sorted by most recently added (streaming service style!)
 
 ### 2. Backend API
 - **Endpoint:** `PUT /api/movies/:id/watch-next`
-- **Action:** Toggles the watch_next status
-- **Response:** `{ id: number, watch_next: boolean }`
+- **Action:** Toggles the watch_next_added status (sets timestamp or NULL)
+- **Response:** `{ id: number, watch_next_added: string|null }`
 
 ### 3. Frontend Components
 
@@ -96,11 +99,27 @@ const ICON_CONFIG = {
 Just change `type: 'popcorn'` to `type: 'star'` to experiment with different icons!
 
 ### Database Migration
-The migration runs automatically when the backend starts. It checks if the `watch_next` column already exists before attempting to add it, so it's safe to run multiple times.
+The migration runs automatically when the backend starts:
+1. **First-time setup:** Creates `watch_next_added` DATETIME column
+2. **Existing databases:** Automatically migrates old `watch_next` BOOLEAN to `watch_next_added` DATETIME
+3. **Migration logic:** 
+   - Movies with `watch_next = 1` are converted to current timestamp
+   - Movies with `watch_next = 0` become NULL
+4. **Idempotent:** Safe to run multiple times
 
 ### API Integration
 - Frontend: `apiService.toggleWatchNext(movieId)`
-- Backend: `Movie.toggleWatchNext(id)` using SQL `SET watch_next = NOT watch_next`
+- Backend: `Movie.toggleWatchNext(id)` 
+  - If `watch_next_added` is NULL → Set to current timestamp
+  - If `watch_next_added` has value → Set to NULL
+
+### Sorting Algorithm (Netflix/Disney+ Style)
+Watch Next movies are automatically sorted by **most recently added first**:
+```javascript
+.filter(movie => movie.watch_next_added)
+.sort((a, b) => new Date(b.watch_next_added) - new Date(a.watch_next_added))
+```
+This means the last movie you added to "Watch Next" appears first in the carousel!
 
 ## Files Modified
 
@@ -120,9 +139,10 @@ The migration runs automatically when the backend starts. It checks if the `watc
 - `frontend/src/components/MovieSearch.css` - Added badge styles with pulse animation
 
 ## Future Enhancements (Optional)
-- Sort by "Watch Next" to show marked movies first
+- ✅ ~~Sort by "Watch Next" to show marked movies first~~ **IMPLEMENTED!** (Sorted by most recently added)
 - Bulk actions (mark multiple movies at once)
-- Watch Next queue with ordering/priority
+- Manual reordering of watch next queue (drag & drop)
 - Notifications/reminders for unwatched movies
 - Integration with calendar for movie nights
+- Watch history tracking
 

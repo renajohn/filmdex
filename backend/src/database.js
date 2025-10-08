@@ -130,6 +130,133 @@ const runEditionsMigration = async (database) => {
   });
 };
 
+/**
+ * Migration: Replace watch_next BOOLEAN with watch_next_added DATETIME
+ * This allows sorting watch next movies by when they were added
+ */
+const migrateWatchNextToDateTime = async (database) => {
+  return new Promise((resolve, reject) => {
+    // Check if migration is needed
+    database.all("PRAGMA table_info(movies)", (err, columns) => {
+      if (err) {
+        console.error('Error checking table schema:', err.message);
+        reject(err);
+        return;
+      }
+      
+      const hasWatchNextAdded = columns.some(col => col.name === 'watch_next_added');
+      const hasWatchNext = columns.some(col => col.name === 'watch_next');
+      
+      if (hasWatchNextAdded && !hasWatchNext) {
+        console.log('✓ Watch next datetime migration already completed');
+        resolve();
+        return;
+      }
+      
+      if (!hasWatchNext) {
+        console.log('✓ No watch_next column found, skipping migration');
+        resolve();
+        return;
+      }
+      
+      console.log('\n=== Migrating watch_next BOOLEAN to watch_next_added DATETIME ===');
+      
+      database.serialize(() => {
+        // Step 1: Add the new watch_next_added column
+        database.run('ALTER TABLE movies ADD COLUMN watch_next_added DATETIME DEFAULT NULL', (err) => {
+          if (err) {
+            console.error('Error adding watch_next_added column:', err.message);
+            reject(err);
+            return;
+          }
+          
+          console.log('✓ Added watch_next_added column');
+          
+          // Step 2: Migrate data - set timestamp for movies where watch_next = 1
+          database.run(`
+            UPDATE movies 
+            SET watch_next_added = datetime('now') 
+            WHERE watch_next = 1
+          `, (err) => {
+            if (err) {
+              console.error('Error migrating data:', err.message);
+              reject(err);
+              return;
+            }
+            
+            console.log('✓ Migrated watch_next data to timestamps');
+            
+            // Step 3: Create a backup of the table with old column removed
+            // We need to recreate the table to remove the watch_next column
+            database.all("PRAGMA table_info(movies)", (err, tableInfo) => {
+              if (err) {
+                console.error('Error getting table info:', err.message);
+                reject(err);
+                return;
+              }
+              
+              // Get all columns except watch_next
+              const newColumns = tableInfo
+                .filter(col => col.name !== 'watch_next')
+                .map(col => col.name);
+              
+              const columnList = newColumns.join(', ');
+              
+              // Create new table without watch_next
+              const createSQL = `
+                CREATE TABLE movies_new AS 
+                SELECT ${columnList} FROM movies
+              `;
+              
+              database.run(createSQL, (err) => {
+                if (err) {
+                  console.error('Error creating new table:', err.message);
+                  reject(err);
+                  return;
+                }
+                
+                // Drop old table
+                database.run('DROP TABLE movies', (err) => {
+                  if (err) {
+                    console.error('Error dropping old table:', err.message);
+                    reject(err);
+                    return;
+                  }
+                  
+                  // Rename new table
+                  database.run('ALTER TABLE movies_new RENAME TO movies', (err) => {
+                    if (err) {
+                      console.error('Error renaming table:', err.message);
+                      reject(err);
+                      return;
+                    }
+                    
+                    // Recreate the unique index
+                    database.run(`
+                      CREATE UNIQUE INDEX IF NOT EXISTS idx_movie_edition_unique 
+                      ON movies(title, tmdb_id, format)
+                    `, (err) => {
+                      if (err) {
+                        console.error('Error creating index:', err.message);
+                        reject(err);
+                        return;
+                      }
+                      
+                      console.log('✓ Removed old watch_next column');
+                      console.log('✓ Watch next migration completed successfully\n');
+                      resolve();
+                    });
+                  });
+                });
+              });
+            });
+          });
+        });
+      });
+    });
+  });
+};
+
 const initDatabase = async () => {
   return new Promise(async (resolve, reject) => {
     if (db) {
@@ -237,6 +364,14 @@ const initDatabase = async () => {
             });
           } catch (migrationError) {
             // Column already exists
+          }
+          
+          // Migrate watch_next BOOLEAN to watch_next_added DATETIME
+          try {
+            await migrateWatchNextToDateTime(db);
+          } catch (migrationError) {
+            console.error('Watch next migration error:', migrationError);
+            // Migration failed, but don't block initialization
           }
           
           console.log('Database initialized successfully.');

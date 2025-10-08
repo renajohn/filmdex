@@ -421,12 +421,12 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     e.stopPropagation();
     
     // Optimistically update the UI immediately
-    const previousValue = localMovieData.watch_next;
-    const newValue = !previousValue;
+    const previousValue = localMovieData.watch_next_added;
+    const newValue = previousValue ? null : new Date().toISOString();
     
     setLocalMovieData(prev => ({
       ...prev,
-      watch_next: newValue
+      watch_next_added: newValue
     }));
     
     try {
@@ -435,11 +435,11 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       // Update with the actual result from the server
       setLocalMovieData(prev => ({
         ...prev,
-        watch_next: result.watch_next
+        watch_next_added: result.watch_next_added
       }));
       
       if (onShowAlert) {
-        const message = result.watch_next 
+        const message = result.watch_next_added 
           ? `Added "${title}" to Watch Next 🍿` 
           : `Removed "${title}" from Watch Next`;
         onShowAlert(message, 'success');
@@ -450,7 +450,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       // Rollback the optimistic update on error
       setLocalMovieData(prev => ({
         ...prev,
-        watch_next: previousValue
+        watch_next_added: previousValue
       }));
       
       if (onShowAlert) {
@@ -536,7 +536,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
           }
         } else {
           // For TMDB posters, update the movie record
-          // Fetch the latest movie data to ensure we have all fields including watch_next
+          // Fetch the latest movie data to ensure we have all fields including watch_next_added
           const latestMovie = await apiService.getMovieById(movieDetails.id);
           
           // Update movie with new poster path - preserve ALL existing fields
@@ -700,18 +700,18 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                   
                   {/* Watch Next Star Overlay */}
                   <button
-                    className={`poster-watch-next-star ${currentData.watch_next ? 'active' : ''}`}
+                    className={`poster-watch-next-star ${currentData.watch_next_added ? 'active' : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleWatchNextToggle(e);
                     }}
-                    title={currentData.watch_next ? 'Remove from Watch Next' : 'Add to Watch Next'}
+                    title={currentData.watch_next_added ? 'Remove from Watch Next' : 'Add to Watch Next'}
                     aria-label="Toggle Watch Next"
                   >
                     <svg 
                       className="star-icon" 
                       viewBox="0 0 24 24" 
-                      fill={currentData.watch_next ? "currentColor" : "none"}
+                      fill={currentData.watch_next_added ? "currentColor" : "none"}
                       stroke="currentColor"
                     >
                       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
