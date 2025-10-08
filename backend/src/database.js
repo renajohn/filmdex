@@ -374,6 +374,35 @@ const initDatabase = async () => {
             // Migration failed, but don't block initialization
           }
           
+          // Add collection fields to existing movies table if they don't exist
+          try {
+            await new Promise((resolve, reject) => {
+              db.run("ALTER TABLE movies ADD COLUMN collection_name TEXT", (err) => {
+                if (err && !err.message.includes('duplicate column name')) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
+              });
+            });
+          } catch (migrationError) {
+            // Column already exists
+          }
+          
+          try {
+            await new Promise((resolve, reject) => {
+              db.run("ALTER TABLE movies ADD COLUMN collection_order INTEGER", (err) => {
+                if (err && !err.message.includes('duplicate column name')) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
+              });
+            });
+          } catch (migrationError) {
+            // Column already exists
+          }
+          
           console.log('Database initialized successfully.');
         } catch (error) {
           console.error('Database creation error:', error);

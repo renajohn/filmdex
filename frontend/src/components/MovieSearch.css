@@ -1388,6 +1388,19 @@
   display: inline-block;
 }
 
+.boxset-badge {
+  background: #444;
+  color: #ccc;
+  padding: 3px 7px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  display: inline-block;
+  margin-left: 6px;
+}
+
 .movie-content-compact {
   flex: 1;
   display: grid;
@@ -1592,6 +1605,12 @@
   .format-badge {
     font-size: 0.6rem;
     padding: 1px 4px;
+  }
+  
+  .boxset-badge {
+    font-size: 0.6rem;
+    padding: 1px 4px;
+    margin-left: 4px;
   }
   
   .filter-pills {

@@ -935,7 +935,135 @@ const movieController = {
       logger.error('Error uploading custom poster:', error);
       res.status(500).json({ error: error.message });
     }
-  }
+  },
+
+  // Get all unique collection names for autocomplete
+  getCollectionNames: async (req, res) => {
+    try {
+      const db = require('../database').getDatabase();
+      const collections = await new Promise((resolve, reject) => {
+        db.all(`
+          SELECT DISTINCT collection_name 
+          FROM movies 
+          WHERE collection_name IS NOT NULL 
+          AND collection_name != '' 
+          ORDER BY collection_name
+        `, (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows.map(row => row.collection_name));
+          }
+        });
+      });
+      
+      res.json(collections);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Get the highest order number for a collection
+  getCollectionMaxOrder: async (req, res) => {
+    try {
+      const { collectionName } = req.query;
+      if (!collectionName) {
+        return res.status(400).json({ error: 'Collection name is required' });
+      }
+
+      const db = require('../database').getDatabase();
+      const result = await new Promise((resolve, reject) => {
+        db.get(`
+          SELECT MAX(collection_order) as max_order 
+          FROM movies 
+          WHERE collection_name = ?
+        `, [collectionName], (err, row) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(row ? (row.max_order || 0) : 0);
+          }
+        });
+      });
+      
+      res.json({ maxOrder: result });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Get movies by collection name
+  getMoviesByCollection: async (req, res) => {
+    try {
+      const { collectionName } = req.query;
+      if (!collectionName) {
+        return res.status(400).json({ error: 'Collection name is required' });
+      }
+
+      const db = require('../database').getDatabase();
+      const movies = await new Promise((resolve, reject) => {
+        db.all(`
+          SELECT * FROM movies 
+          WHERE collection_name = ? 
+          ORDER BY collection_order ASC, title ASC
+        `, [collectionName], (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows);
+          }
+        });
+      });
+
+      // Parse cast field and validate image paths
+      const parsedMovies = movies.map(movie => {
+        const validatedMovie = Movie.validateImagePaths(movie);
+        return {
+          ...validatedMovie,
+          cast: Array.isArray(validatedMovie.cast) ? validatedMovie.cast : (validatedMovie.cast ? JSON.parse(validatedMovie.cast) : [])
+        };
+      });
+
+      res.json(parsedMovies);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Update collection order for multiple movies
+  updateCollectionOrder: async (req, res) => {
+    try {
+      const { movies } = req.body;
+      if (!Array.isArray(movies)) {
+        return res.status(400).json({ error: 'Movies array is required' });
+      }
+
+      const db = require('../database').getDatabase();
+      
+      // Use a transaction to update all movies
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        
+        movies.forEach((movie, index) => {
+          db.run(
+            'UPDATE movies SET collection_order = ? WHERE id = ?',
+            [index + 1, movie.id]
+          );
+        });
+        
+        db.run('COMMIT', (err) => {
+          if (err) {
+            db.run('ROLLBACK');
+            res.status(500).json({ error: err.message });
+          } else {
+            res.json({ success: true, updated: movies.length });
+          }
+        });
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
 };
 
 module.exports = movieController;

@@ -1296,3 +1296,331 @@
   }
   
 }
+
+/* Box Set Members Styles - Clean Design */
+.movie-detail-collection {
+  margin-top: 20px;
+}
+
+.movie-detail-collection h3 {
+  color: #ffffff;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.collection-members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.collection-member {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  cursor: move;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  position: relative;
+}
+
+.collection-member:hover {
+  background: rgba(255, 255, 255, 0.05);
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.collection-member.dragging {
+  opacity: 0.6;
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.02);
+}
+
+/* Drop indicator */
+.drop-indicator {
+  height: 2px;
+  background: linear-gradient(90deg, #00d4aa, #00a8cc);
+  margin: 4px 0;
+  border-radius: 1px;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.collection-member.drag-over {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.collection-member-title.clickable {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.collection-member-title.clickable:hover {
+  color: #00d4aa;
+}
+
+.collection-member-poster {
+  width: 30px;
+  height: 45px;
+  margin-right: 12px;
+  border-radius: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.collection-member-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.collection-member-poster .poster-placeholder {
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.8rem;
+}
+
+.collection-member-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.collection-member-title {
+  color: #ffffff;
+  font-weight: 500;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.current-movie-badge {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.8);
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.collection-member-year {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.8rem;
+}
+
+.drag-handle {
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.9rem;
+  padding: 4px;
+  cursor: grab;
+  transition: color 0.2s ease;
+  opacity: 0;
+}
+
+.collection-member:hover .drag-handle {
+  opacity: 1;
+}
+
+.drag-handle:hover {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.collection-help-text {
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.7rem;
+  text-align: center;
+  font-style: italic;
+}
+
+/* Responsive adjustments for box set members */
+@media (max-width: 768px) {
+  .movie-detail-collection {
+    margin-top: 15px;
+  }
+  
+  .collection-member {
+    padding: 6px 0;
+  }
+  
+  .collection-member:hover {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+  
+  .collection-member-poster {
+    width: 25px;
+    height: 37px;
+    margin-right: 10px;
+  }
+  
+  .collection-member-title {
+    font-size: 0.85rem;
+  }
+  
+  .collection-member-year {
+    font-size: 0.75rem;
+  }
+  
+  .drag-handle {
+    font-size: 0.8rem;
+    padding: 3px;
+  }
+}
+
+/* Box Set Propagation Dialog */
+.propagation-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.propagation-dialog {
+  background: linear-gradient(135deg, #2d2d2d 0%, #3a3a3a 100%);
+  border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.propagation-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.propagation-dialog-header h3 {
+  color: #ffffff;
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.propagation-dialog-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.propagation-dialog-close:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.propagation-dialog-content {
+  padding: 24px;
+}
+
+.propagation-dialog-content p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0 0 24px 0;
+}
+
+.propagation-dialog-content strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.propagation-dialog-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.propagation-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 140px;
+}
+
+.propagation-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.propagation-btn.this-movie {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.propagation-btn.this-movie:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.propagation-btn.all-movies {
+  background: linear-gradient(135deg, #00d4aa, #00a8cc);
+  color: white;
+  border: 1px solid transparent;
+}
+
+.propagation-btn.all-movies:hover:not(:disabled) {
+  background: linear-gradient(135deg, #00b894, #0099bb);
+  transform: translateY(-1px);
+}
+
+/* Responsive adjustments for propagation dialog */
+@media (max-width: 768px) {
+  .propagation-dialog {
+    margin: 20px;
+    max-width: none;
+  }
+  
+  .propagation-dialog-buttons {
+    flex-direction: column;
+  }
+  
+  .propagation-btn {
+    min-width: auto;
+    width: 100%;
+  }
+}

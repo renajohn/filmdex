@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { FormControl, Dropdown } from 'react-bootstrap';
 import CircularProgressBar from './CircularProgressBar';
 import AgeDisplay from './AgeDisplay';
 import InlinePosterSelector from './InlinePosterSelector';
 import apiService from '../services/api';
 import { getLanguageName } from '../services/languageCountryUtils';
-import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsCopy } from 'react-icons/bs';
+import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsCopy, BsGripVertical, BsFilm } from 'react-icons/bs';
 import './MovieDetailCard.css';
 
-const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert, onRefresh, loading = false }) => {
+const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert, onRefresh, onMovieClick, loading = false }) => {
   const [showTrailer, setShowTrailer] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -24,6 +25,14 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const [showPosterSelector, setShowPosterSelector] = useState(false);
   const [selectorPosition, setSelectorPosition] = useState({ top: 0, left: 0 });
   const [posterLoading, setPosterLoading] = useState(false);
+  const [collectionNames, setCollectionNames] = useState([]);
+  const [showCollectionDropdown, setShowCollectionDropdown] = useState(false);
+  const [filteredCollections, setFilteredCollections] = useState([]);
+  const [collectionMembers, setCollectionMembers] = useState([]);
+  const [draggedIndex, setDraggedIndex] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
+  const [showPropagationDialog, setShowPropagationDialog] = useState(false);
+  const [pendingUpdate, setPendingUpdate] = useState(null);
   const posterRef = useRef(null);
   
   // Initialize local movie data when movieDetails changes
@@ -88,6 +97,54 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
 
     loadCastAndCrew();
   }, [movieDetails?.id]);
+
+  // Load collection names for autocomplete
+  useEffect(() => {
+    const loadCollectionNames = async () => {
+      try {
+        const names = await apiService.getCollectionNames();
+        setCollectionNames(names);
+      } catch (error) {
+        console.warn('Failed to load collection names:', error);
+      }
+    };
+
+    loadCollectionNames();
+  }, []);
+
+  // Load collection members when movie has a collection
+  useEffect(() => {
+    const loadCollectionMembers = async () => {
+      if (!movieDetails?.collection_name) {
+        setCollectionMembers([]);
+        return;
+      }
+
+      try {
+        const members = await apiService.getMoviesByCollection(movieDetails.collection_name);
+        setCollectionMembers(members);
+      } catch (error) {
+        console.warn('Failed to load collection members:', error);
+        setCollectionMembers([]);
+      }
+    };
+
+    loadCollectionMembers();
+  }, [movieDetails?.collection_name]);
+
+  // Close collection dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showCollectionDropdown && !event.target.closest('.collection-dropdown') && !event.target.closest('.input-group')) {
+        setShowCollectionDropdown(false);
+      }
+    };
+
+    if (showCollectionDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showCollectionDropdown]);
   
   if (!movieDetails && !loading) return null;
 
@@ -125,7 +182,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     trailer_site,
     recommended_age,
     title_status,
-    media_type
+    media_type,
+    collection_name
   } = currentData || {};
 
   const formatRating = (rating) => {
@@ -286,34 +344,109 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const cancelEditing = () => {
     setEditingField(null);
     setEditValue('');
+    setShowCollectionDropdown(false);
+    setFilteredCollections([]);
+  };
+
+  // Collection name typeahead functions
+  const handleCollectionInputChange = (value) => {
+    setEditValue(value);
+    
+    if (value.length > 0) {
+      const filtered = collectionNames.filter(name => 
+        name.toLowerCase().includes(value.toLowerCase())
+      );
+      setFilteredCollections(filtered);
+      setShowCollectionDropdown(filtered.length > 0);
+    } else {
+      setFilteredCollections([]);
+      setShowCollectionDropdown(false);
+    }
+  };
+
+  const handleCollectionSelect = async (collectionName) => {
+    setEditValue(collectionName);
+    setShowCollectionDropdown(false);
+    setFilteredCollections([]);
+    
+    // Update the local data with the collection name
+    setLocalMovieData(prev => ({
+      ...prev,
+      collection_name: collectionName
+    }));
+  };
+
+  const handleCollectionInputFocus = () => {
+    if (editValue.length > 0) {
+      const filtered = collectionNames.filter(name => 
+        name.toLowerCase().includes(editValue.toLowerCase())
+      );
+      setFilteredCollections(filtered);
+      setShowCollectionDropdown(filtered.length > 0);
+    }
   };
 
   const saveEdit = async () => {
     if (!editingField) return;
     
+    // Check if this field should trigger box set propagation dialog
+    const propagationFields = ['format', 'price', 'acquired_date', 'title_status'];
+    const shouldShowDialog = collection_name && collectionMembers.length > 1 && propagationFields.includes(editingField);
+    
+    if (shouldShowDialog) {
+      // Store the pending update and show dialog
+      setPendingUpdate({
+        field: editingField,
+        value: editValue,
+        updateData: editingField === 'title_status' ? { title_status: editValue } : { [editingField]: editValue }
+      });
+      setShowPropagationDialog(true);
+      return;
+    }
+    
+    // Proceed with normal save if no dialog needed
+    await performUpdate(editingField, editValue, false);
+  };
+
+  const performUpdate = async (field, value, propagateToAll = false) => {
     setSaving(true);
     try {
       let updateData;
       
       // Special handling for title_status
-      if (editingField === 'title_status') {
-        updateData = { title_status: editValue };
-        await apiService.updateMovieStatus(id, editValue);
+      if (field === 'title_status') {
+        updateData = { title_status: value };
+        if (propagateToAll) {
+          // Update all movies in the box set
+          for (const member of collectionMembers) {
+            await apiService.updateMovieStatus(member.id, value);
+          }
+        } else {
+          await apiService.updateMovieStatus(id, value);
+        }
       } else {
         // Map frontend field names to backend field names
         const fieldMapping = {
           'overview': 'plot'
         };
-        const backendField = fieldMapping[editingField] || editingField;
+        const backendField = fieldMapping[field] || field;
         
-        updateData = { [backendField]: editValue };
-        await apiService.updateMovie(id, updateData);
+        updateData = { [backendField]: value };
+        
+        if (propagateToAll) {
+          // Update all movies in the box set
+          for (const member of collectionMembers) {
+            await apiService.updateMovie(member.id, updateData);
+          }
+        } else {
+          await apiService.updateMovie(id, updateData);
+        }
       }
       
       // Update local data
       setLocalMovieData(prev => ({
         ...prev,
-        [editingField]: editValue
+        [field]: value
       }));
       
       setEditingField(null);
@@ -635,6 +768,99 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       </>
     );
   }
+
+  // Drag and drop handlers for collection members
+  const handleDragStart = (e, index) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.target.outerHTML);
+    e.target.style.opacity = '0.5';
+  };
+
+  const handleDragEnd = (e) => {
+    e.target.style.opacity = '1';
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverIndex(index);
+  };
+
+  const handleDragLeave = (e) => {
+    // Only clear dragOverIndex if we're actually leaving the drop zone
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDragOverIndex(null);
+    }
+  };
+
+  const handleDrop = async (e, dropIndex) => {
+    e.preventDefault();
+    
+    if (draggedIndex === null || draggedIndex === dropIndex) {
+      return;
+    }
+
+    // Create new array with reordered items
+    const newMembers = [...collectionMembers];
+    const draggedItem = newMembers[draggedIndex];
+    
+    // Remove dragged item from original position
+    newMembers.splice(draggedIndex, 1);
+    
+    // Insert at new position
+    newMembers.splice(dropIndex, 0, draggedItem);
+    
+    // Update local state immediately for better UX
+    setCollectionMembers(newMembers);
+    
+    // Update collection order in database
+    try {
+      const moviesWithNewOrder = newMembers.map((movie, index) => ({
+        id: movie.id,
+        collection_order: index + 1
+      }));
+      
+      await apiService.updateCollectionOrder(moviesWithNewOrder);
+      
+      // Refresh the parent component to reflect changes
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (error) {
+      console.error('Failed to update collection order:', error);
+      
+      // Revert local state on error
+      setCollectionMembers(collectionMembers);
+      
+      if (onShowAlert) {
+        onShowAlert('Failed to update collection order', 'danger');
+      }
+    }
+  };
+
+  const handleMovieTitleClick = (member) => {
+    if (onMovieClick) {
+      onMovieClick(member.id);
+    }
+  };
+
+  const handlePropagationChoice = async (propagateToAll) => {
+    if (pendingUpdate) {
+      await performUpdate(pendingUpdate.field, pendingUpdate.value, propagateToAll);
+      setPendingUpdate(null);
+    }
+    setShowPropagationDialog(false);
+  };
+
+  const handlePropagationCancel = () => {
+    setPendingUpdate(null);
+    setShowPropagationDialog(false);
+    setEditingField(null);
+    setEditValue('');
+  };
 
   return (
     <>
@@ -976,6 +1202,72 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                   </div>
                 )}
 
+                {/* Collection Members Section */}
+                {collectionMembers && collectionMembers.length > 1 && (
+                  <div className="movie-detail-collection">
+                    <h3>"{movieDetails.collection_name}" box set</h3>
+                    <div className="collection-members-list">
+                      {collectionMembers.map((member, index) => (
+                        <React.Fragment key={member.id}>
+                          {/* Drop indicator above - show when dragging over this item and we're inserting before it */}
+                          {dragOverIndex === index && draggedIndex !== null && draggedIndex !== index && draggedIndex > index && (
+                            <div className="drop-indicator" />
+                          )}
+                          
+                          <div
+                            className={`collection-member ${draggedIndex === index ? 'dragging' : ''} ${dragOverIndex === index ? 'drag-over' : ''}`}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, index)}
+                            onDragEnd={handleDragEnd}
+                            onDragOver={(e) => handleDragOver(e, index)}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e) => handleDrop(e, index)}
+                          >
+                            <div className="collection-member-poster">
+                              {member.poster_path ? (
+                                <img 
+                                  src={getPosterUrl(member.poster_path)} 
+                                  alt={member.title}
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null}
+                              <div className="poster-placeholder" style={{ display: member.poster_path ? 'none' : 'flex' }}>
+                                <BsFilm />
+                              </div>
+                            </div>
+                            <div className="collection-member-info">
+                              <span 
+                                className="collection-member-title clickable"
+                                onClick={() => handleMovieTitleClick(member)}
+                              >
+                                {member.title}
+                                {member.id === movieDetails.id && (
+                                  <span className="current-movie-badge">Current</span>
+                                )}
+                              </span>
+                              <span className="collection-member-year">{member.year}</span>
+                            </div>
+                            <div className="drag-handle">
+                              <BsGripVertical />
+                            </div>
+                          </div>
+                          
+                          {/* Drop indicator below - show when dragging over this item and we're inserting after it */}
+                          {dragOverIndex === index && draggedIndex !== null && draggedIndex !== index && draggedIndex < index && (
+                            <div className="drop-indicator" />
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                    <div className="collection-help-text">
+                      Drag to reorder box set
+                    </div>
+                  </div>
+                )}
+
               </div>
 
               {/* Sidebar */}
@@ -996,9 +1288,9 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                   <p>{formatCurrency(revenue)}</p>
                 </div>
 
-                {/* Collection Info */}
+                {/* Movie Details */}
                 <div className="sidebar-section">
-                  <h4>Collection Info</h4>
+                  <h4>Movie Details</h4>
                   <div className="collection-facts">
                     <div className="fact-row">
                       <span className="fact-label">Format:</span>
@@ -1175,6 +1467,89 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                         )}
                       </div>
                     )}
+                    
+                    {/* Box Set Name */}
+                    <div className="fact-row">
+                      <span className="fact-label">Box Set:</span>
+                      {editingField === 'collection_name' ? (
+                        <div className="input-group" style={{ position: 'relative' }}>
+                          <FormControl
+                            type="text"
+                            value={editValue}
+                            onChange={(e) => handleCollectionInputChange(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            onFocus={handleCollectionInputFocus}
+                            autoFocus
+                            placeholder="Enter collection name"
+                            style={{ paddingRight: '60px' }}
+                          />
+                          
+                          {/* Collection suggestions dropdown */}
+                          {showCollectionDropdown && filteredCollections.length > 0 && (
+                            <div 
+                              className="collection-dropdown"
+                              style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                right: 0,
+                                backgroundColor: '#2d3748',
+                                border: '1px solid #4a5568',
+                                borderRadius: '4px',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                                zIndex: 1000,
+                                maxHeight: '200px',
+                                overflowY: 'auto'
+                              }}
+                            >
+                              {filteredCollections.map((name, index) => (
+                                <div
+                                  key={index}
+                                  className="collection-suggestion"
+                                  onClick={() => handleCollectionSelect(name)}
+                                  style={{
+                                    padding: '8px 12px',
+                                    cursor: 'pointer',
+                                    color: '#e2e8f0',
+                                    borderBottom: index < filteredCollections.length - 1 ? '1px solid #4a5568' : 'none'
+                                  }}
+                                  onMouseEnter={(e) => e.target.style.backgroundColor = '#4a5568'}
+                                  onMouseLeave={(e) => e.target.style.backgroundColor = '#2d3748'}
+                                >
+                                  {name}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          <div className="input-group-append">
+                            <button 
+                              className="edit-action-btn" 
+                              onClick={saveEdit}
+                              disabled={saving}
+                              title="Save"
+                            >
+                              <BsCheck size={12} />
+                            </button>
+                            <button 
+                              className="edit-action-btn" 
+                              onClick={cancelEditing}
+                              title="Cancel"
+                            >
+                              <BsX size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <span 
+                          className="fact-value editable" 
+                          onClick={() => startEditing('collection_name', collection_name)}
+                        >
+                          {collection_name || '-'}
+                        </span>
+                      )}
+                    </div>
+                    
                   </div>
                 </div>
 
@@ -1279,6 +1654,42 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                 <BsTrash className="action-icon" />
                 {deleting ? 'Deleting...' : 'Delete Movie'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Box Set Propagation Dialog */}
+      {showPropagationDialog && pendingUpdate && (
+        <div className="propagation-dialog-overlay">
+          <div className="propagation-dialog">
+            <div className="propagation-dialog-header">
+              <h3>Update Box Set</h3>
+              <button className="propagation-dialog-close" onClick={handlePropagationCancel}>
+                <BsX />
+              </button>
+            </div>
+            <div className="propagation-dialog-content">
+              <p>
+                You're updating the <strong>{pendingUpdate.field}</strong> field. 
+                Would you like to apply this change to all movies in the "{collection_name}" box set?
+              </p>
+              <div className="propagation-dialog-buttons">
+                <button 
+                  className="propagation-btn this-movie"
+                  onClick={() => handlePropagationChoice(false)}
+                  disabled={saving}
+                >
+                  This movie only
+                </button>
+                <button 
+                  className="propagation-btn all-movies"
+                  onClick={() => handlePropagationChoice(true)}
+                  disabled={saving}
+                >
+                  All movies in box set
+                </button>
+              </div>
             </div>
           </div>
         </div>

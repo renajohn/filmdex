@@ -174,6 +174,36 @@ class ApiService {
     return await response.json();
   }
 
+  async getCollectionNames() {
+    const response = await this.makeRequest('/movies/collections');
+    return await response.json();
+  }
+
+  async getCollectionMaxOrder(collectionName) {
+    const params = new URLSearchParams({ collectionName });
+    const response = await this.makeRequest(`/movies/collections/max-order?${params}`);
+    return await response.json();
+  }
+
+  // Get movies by collection name
+  async getMoviesByCollection(collectionName) {
+    const params = new URLSearchParams({ collectionName });
+    const response = await this.makeRequest(`/movies/collections/movies?${params}`);
+    return await response.json();
+  }
+
+  // Update collection order for multiple movies
+  async updateCollectionOrder(movies) {
+    const response = await this.makeRequest('/movies/collections/order', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ movies }),
+    });
+    return await response.json();
+  }
+
   // Search movies using TMDB API
   async searchMoviesTMDB(query, year = null) {
     const params = new URLSearchParams({ query });

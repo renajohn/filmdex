@@ -119,6 +119,16 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       // Apply current sort to all movies
       const sorted = sortMovies(data, sortBy);
       setMovies(sorted);
+      
+      // If we have a selected movie, refresh its details to get updated collection data
+      if (selectedMovieDetails?.id) {
+        try {
+          const updatedDetails = await apiService.getMovieDetails(selectedMovieDetails.id);
+          setSelectedMovieDetails(updatedDetails);
+        } catch (error) {
+          console.warn('Failed to refresh selected movie details:', error);
+        }
+      }
     } catch (err) {
       if (onShowAlert) {
         onShowAlert('Failed to load movies: ' + err.message, 'danger');
@@ -127,7 +137,43 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy]);
+  }, [sortBy, selectedMovieDetails?.id]);
+
+  // Refresh movie data while preserving current search/filter state
+  const refreshMovieData = useCallback(async () => {
+    try {
+      const data = await apiService.getAllMovies();
+      setAllMovies(data);
+      
+      // Reapply current filters to the new data
+      if (activeFilters.length > 0) {
+        await applyFilters(activeFilters);
+      } else if (searchCriteria?.searchText) {
+        // Reapply search if there's a search term
+        handleSearch(searchCriteria);
+      } else {
+        // No filters or search, just apply current sort
+        const sorted = sortMovies(data, sortBy);
+        setMovies(sorted);
+        setFilteredMovies(data);
+      }
+      
+      // If we have a selected movie, refresh its details to get updated collection data
+      if (selectedMovieDetails?.id) {
+        try {
+          const updatedDetails = await apiService.getMovieDetails(selectedMovieDetails.id);
+          setSelectedMovieDetails(updatedDetails);
+        } catch (error) {
+          console.warn('Failed to refresh selected movie details:', error);
+        }
+      }
+    } catch (err) {
+      if (onShowAlert) {
+        onShowAlert('Failed to refresh movies: ' + err.message, 'danger');
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFilters, searchCriteria, sortBy, selectedMovieDetails?.id]);
 
   const handleSearch = useCallback(async (criteria) => {
     try {
@@ -222,9 +268,9 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
   useEffect(() => {
     if (refreshTrigger) {
-      loadAllMovies();
+      refreshMovieData();
     }
-  }, [refreshTrigger, loadAllMovies]);
+  }, [refreshTrigger, refreshMovieData]);
 
   // Handle ESC key press for modals
   useEffect(() => {
@@ -288,9 +334,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const handleFormSave = async () => {
     setShowAddForm(false);
     setEditingMovie(null);
-    await loadAllMovies();
-    // Reapply current filters after loading new data
-    applyFilters(activeFilters);
+    await refreshMovieData();
     
     // Restore the details view with updated data if we were editing from details
     if (movieDetailsBeforeEdit) {
@@ -645,6 +689,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
   const groupOptions = [
     { value: 'none', label: 'No grouping' },
+    { value: 'collection', label: 'Group by Box Set' },
     { value: 'director', label: 'Group by Director' },
     { value: 'genre', label: 'Group by Genre' },
     { value: 'format', label: 'Group by Format' },
@@ -677,6 +722,9 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       let groupKeys = [];
       
       switch (groupOption) {
+        case 'collection':
+          groupKeys = [movie.collection_name || 'No Box Set'];
+          break;
         case 'director':
           groupKeys = [movie.director || 'Unknown Director'];
           break;
@@ -1126,6 +1174,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                             <span className="movie-year">({movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year})</span>
                           }
                           {movie.format && <span className="format-badge">{movie.format}</span>}
+                          {movie.collection_name && <span className="boxset-badge">Box set</span>}
                         </div>
                       </div>
                       
@@ -1242,6 +1291,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                                         <span className="movie-year">({movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year})</span>
                                       }
                                       {movie.format && <span className="format-badge">{movie.format}</span>}
+                          {movie.collection_name && <span className="boxset-badge">Box set</span>}
                                     </div>
                                   </div>
                                   
@@ -1331,7 +1381,8 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           onEdit={handleEditMovie}
           onDelete={handleDeleteMovie}
           onShowAlert={onShowAlert}
-          onRefresh={loadAllMovies}
+          onRefresh={refreshMovieData}
+          onMovieClick={handleMovieClick}
         />
       )}
 

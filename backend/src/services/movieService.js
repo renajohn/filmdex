@@ -290,8 +290,10 @@ const movieService = {
         recommended_age: localMovie.recommended_age || null,
         age_processed: localMovie.age_processed || false,
         title_status: localMovie.title_status || 'owned',
-        watch_next: localMovie.watch_next || false,
+        watch_next_added: localMovie.watch_next_added || null,
         media_type: localMovie.media_type || 'movie',
+        collection_name: localMovie.collection_name || null,
+        collection_order: localMovie.collection_order || null,
       };
 
       return movieDetails;

@@ -43,7 +43,9 @@ const Movie = {
           recommended_age INTEGER,
           age_processed BOOLEAN DEFAULT 0,
           title_status TEXT DEFAULT 'owned',
-          watch_next_added DATETIME DEFAULT NULL
+          watch_next_added DATETIME DEFAULT NULL,
+          collection_name TEXT,
+          collection_order INTEGER
         )
       `;
       db.run(sql, (err) => {
@@ -250,7 +252,9 @@ const Movie = {
             recommended_age: row.recommended_age,
             age_processed: row.age_processed,
             title_status: row.title_status || 'owned',
-            watch_next_added: row.watch_next_added || null
+            watch_next_added: row.watch_next_added || null,
+            collection_name: row.collection_name || null,
+            collection_order: row.collection_order || null
           };
           
           console.log('findById returning movie:', {
@@ -259,7 +263,9 @@ const Movie = {
             rotten_tomato_rating: movie.rotten_tomato_rating,
             tmdb_rating: movie.tmdb_rating,
             imdb_rating: movie.imdb_rating,
-            watch_next_added: movie.watch_next_added
+            watch_next_added: movie.watch_next_added,
+            collection_name: movie.collection_name,
+            collection_order: movie.collection_order
           });
           
           resolve(movie);
@@ -306,7 +312,8 @@ const Movie = {
         imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
         price, runtime, plot, comments, never_seen, acquired_date, import_id,
         poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type = 'movie', recommended_age, title_status, watch_next_added
+        popularity, vote_count, adult, video, media_type = 'movie', recommended_age, title_status, watch_next_added,
+        collection_name, collection_order
       } = movieData;
       
       console.log(`[Movie.update] Updating movie ID ${id}:`, {
@@ -323,7 +330,8 @@ const Movie = {
             rotten_tomatoes_link = ?, tmdb_rating = ?, tmdb_id = ?, imdb_id = ?, 
             price = ?, runtime = ?, plot = ?, comments = ?, never_seen = ?, acquired_date = ?, import_id = ?,
             poster_path = ?, backdrop_path = ?, budget = ?, revenue = ?, trailer_key = ?, trailer_site = ?,
-            status = ?, popularity = ?, vote_count = ?, adult = ?, video = ?, media_type = ?, recommended_age = ?, title_status = ?, watch_next_added = ?
+            status = ?, popularity = ?, vote_count = ?, adult = ?, video = ?, media_type = ?, recommended_age = ?, title_status = ?, watch_next_added = ?,
+            collection_name = ?, collection_order = ?
         WHERE id = ?
       `;
       
@@ -332,7 +340,8 @@ const Movie = {
         imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
         price, runtime, plot, comments, never_seen, acquired_date, import_id,
         poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type, recommended_age, title_status, watch_next_added, id
+        popularity, vote_count, adult, video, media_type, recommended_age, title_status, watch_next_added,
+        collection_name, collection_order, id
       ], function(err) {
         if (err) {
           console.error(`[Movie.update] Error updating movie ID ${id}:`, err);
