@@ -1297,6 +1297,80 @@
   
 }
 
+/* Box Set Members Section - Simple List */
+.movie-detail-boxset {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #444;
+}
+
+.movie-detail-boxset h3 {
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.boxset-members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.boxset-member {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background: #3a3a3a;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.boxset-member:hover {
+  background: #374151;
+  border-color: #4a5568;
+}
+
+.boxset-member.current {
+  background: rgba(0, 212, 170, 0.1);
+  border-color: #00d4aa;
+}
+
+.boxset-member.current:hover {
+  background: rgba(0, 212, 170, 0.15);
+}
+
+.boxset-member-poster {
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.boxset-member-poster img {
+  border-radius: 4px;
+}
+
+.boxset-poster-placeholder {
+  background: #4a5568;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+}
+
+.boxset-member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.boxset-member-title {
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
 /* Box Set Members Styles - Clean Design */
 .movie-detail-collection {
   margin-top: 20px;

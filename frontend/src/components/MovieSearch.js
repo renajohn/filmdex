@@ -723,7 +723,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       
       switch (groupOption) {
         case 'collection':
-          groupKeys = [movie.collection_name || 'No Box Set'];
+          groupKeys = [movie.box_set_name || 'No Box Set'];
           break;
         case 'director':
           groupKeys = [movie.director || 'Unknown Director'];
@@ -1174,7 +1174,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                             <span className="movie-year">({movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year})</span>
                           }
                           {movie.format && <span className="format-badge">{movie.format}</span>}
-                          {movie.collection_name && <span className="boxset-badge">Box set</span>}
+                          {movie.box_set_name && <span className="boxset-badge">Box set</span>}
                         </div>
                       </div>
                       
@@ -1291,7 +1291,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                                         <span className="movie-year">({movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year})</span>
                                       }
                                       {movie.format && <span className="format-badge">{movie.format}</span>}
-                          {movie.collection_name && <span className="boxset-badge">Box set</span>}
+                          {movie.box_set_name && <span className="boxset-badge">Box set</span>}
                                     </div>
                                   </div>
                                   

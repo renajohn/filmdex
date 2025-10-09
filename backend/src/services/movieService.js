@@ -292,8 +292,7 @@ const movieService = {
         title_status: localMovie.title_status || 'owned',
         watch_next_added: localMovie.watch_next_added || null,
         media_type: localMovie.media_type || 'movie',
-        collection_name: localMovie.collection_name || null,
-        collection_order: localMovie.collection_order || null,
+        box_set_name: localMovie.box_set_name || null,
       };
 
       return movieDetails;

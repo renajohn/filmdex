@@ -943,16 +943,16 @@ const movieController = {
       const db = require('../database').getDatabase();
       const collections = await new Promise((resolve, reject) => {
         db.all(`
-          SELECT DISTINCT collection_name 
+          SELECT DISTINCT box_set_name 
           FROM movies 
-          WHERE collection_name IS NOT NULL 
-          AND collection_name != '' 
-          ORDER BY collection_name
+          WHERE box_set_name IS NOT NULL 
+          AND box_set_name != '' 
+          ORDER BY box_set_name
         `, (err, rows) => {
           if (err) {
             reject(err);
           } else {
-            resolve(rows.map(row => row.collection_name));
+            resolve(rows.map(row => row.box_set_name));
           }
         });
       });
@@ -964,33 +964,6 @@ const movieController = {
   },
 
   // Get the highest order number for a collection
-  getCollectionMaxOrder: async (req, res) => {
-    try {
-      const { collectionName } = req.query;
-      if (!collectionName) {
-        return res.status(400).json({ error: 'Collection name is required' });
-      }
-
-      const db = require('../database').getDatabase();
-      const result = await new Promise((resolve, reject) => {
-        db.get(`
-          SELECT MAX(collection_order) as max_order 
-          FROM movies 
-          WHERE collection_name = ?
-        `, [collectionName], (err, row) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(row ? (row.max_order || 0) : 0);
-          }
-        });
-      });
-      
-      res.json({ maxOrder: result });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  },
 
   // Get movies by collection name
   getMoviesByCollection: async (req, res) => {
@@ -1004,8 +977,8 @@ const movieController = {
       const movies = await new Promise((resolve, reject) => {
         db.all(`
           SELECT * FROM movies 
-          WHERE collection_name = ? 
-          ORDER BY collection_order ASC, title ASC
+          WHERE box_set_name = ? 
+          ORDER BY release_date ASC, title ASC
         `, [collectionName], (err, rows) => {
           if (err) {
             reject(err);
@@ -1025,41 +998,6 @@ const movieController = {
       });
 
       res.json(parsedMovies);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  },
-
-  // Update collection order for multiple movies
-  updateCollectionOrder: async (req, res) => {
-    try {
-      const { movies } = req.body;
-      if (!Array.isArray(movies)) {
-        return res.status(400).json({ error: 'Movies array is required' });
-      }
-
-      const db = require('../database').getDatabase();
-      
-      // Use a transaction to update all movies
-      db.serialize(() => {
-        db.run('BEGIN TRANSACTION');
-        
-        movies.forEach((movie, index) => {
-          db.run(
-            'UPDATE movies SET collection_order = ? WHERE id = ?',
-            [index + 1, movie.id]
-          );
-        });
-        
-        db.run('COMMIT', (err) => {
-          if (err) {
-            db.run('ROLLBACK');
-            res.status(500).json({ error: err.message });
-          } else {
-            res.json({ success: true, updated: movies.length });
-          }
-        });
-      });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

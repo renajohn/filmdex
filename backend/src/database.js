@@ -403,6 +403,66 @@ const initDatabase = async () => {
             // Column already exists
           }
           
+          // Add box_set_name field to existing movies table if it doesn't exist
+          try {
+            await new Promise((resolve, reject) => {
+              db.run("ALTER TABLE movies ADD COLUMN box_set_name TEXT", (err) => {
+                if (err && !err.message.includes('duplicate column name')) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
+              });
+            });
+          } catch (migrationError) {
+            // Column already exists
+          }
+          
+          // Migrate existing collection_name data to box_set_name
+          try {
+            await new Promise((resolve, reject) => {
+              db.run("UPDATE movies SET box_set_name = collection_name WHERE collection_name IS NOT NULL", (err) => {
+                if (err) {
+                  reject(err);
+                } else {
+                  console.log('✓ Migrated collection_name to box_set_name');
+                  resolve();
+                }
+              });
+            });
+          } catch (migrationError) {
+            console.error('Collection name migration error:', migrationError);
+          }
+          
+          // Drop old collection columns after migration
+          try {
+            await new Promise((resolve, reject) => {
+              db.run("ALTER TABLE movies DROP COLUMN collection_name", (err) => {
+                if (err && !err.message.includes('no such column')) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
+              });
+            });
+          } catch (dropError) {
+            // Column might not exist
+          }
+          
+          try {
+            await new Promise((resolve, reject) => {
+              db.run("ALTER TABLE movies DROP COLUMN collection_order", (err) => {
+                if (err && !err.message.includes('no such column')) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
+              });
+            });
+          } catch (dropError) {
+            // Column might not exist
+          }
+          
           console.log('Database initialized successfully.');
         } catch (error) {
           console.error('Database creation error:', error);
