@@ -1,0 +1,199 @@
+.collection-tags-input {
+  position: relative;
+  width: 100%;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid #4a5568 !important;
+  border-radius: 0.375rem !important;
+  background-color: #1a1a1a !important;
+  min-height: 38px;
+}
+
+.tags-container:focus-within {
+  border-color: #ffd700 !important;
+  box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.25) !important;
+}
+
+.collection-tag {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 4px 8px !important;
+  font-size: 0.875rem !important;
+  border-radius: 0.25rem !important;
+  background-color: #4a5568 !important;
+  color: white !important;
+  border: none !important;
+  margin: 0 !important;
+}
+
+.tag-remove-btn {
+  padding: 0 !important;
+  margin: 0 !important;
+  color: white !important;
+  text-decoration: none !important;
+  border: none !important;
+  background: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 50% !important;
+  transition: background-color 0.2s !important;
+  font-size: 0.75rem !important;
+}
+
+.tag-remove-btn.btn {
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  background: none !important;
+  color: white !important;
+  font-size: 0.75rem !important;
+}
+
+.tag-remove-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.tag-remove-btn.btn:hover {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.tag-input {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-width: 120px;
+  flex: 1;
+  color: #fff !important;
+  font-size: 0.875rem !important;
+}
+
+.tag-input.form-control {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  color: #fff !important;
+  font-size: 0.875rem !important;
+}
+
+.tag-input:focus {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: #fff !important;
+}
+
+.tag-input.form-control:focus {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: #fff !important;
+}
+
+.tag-input::placeholder {
+  color: #9ca3af !important;
+}
+
+.tag-input.form-control::placeholder {
+  color: #9ca3af !important;
+}
+
+.suggestions-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #1a1a1a !important;
+  border: 1px solid #4a5568 !important;
+  border-top: none !important;
+  border-radius: 0 0 0.375rem 0.375rem !important;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.3) !important;
+  z-index: 1000;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.suggestion-item {
+  padding: 8px 12px !important;
+  cursor: pointer !important;
+  border-bottom: 1px solid #4a5568 !important;
+  transition: background-color 0.2s !important;
+  color: #fff !important;
+  background: transparent !important;
+  border: none !important;
+  width: 100% !important;
+  text-align: left !important;
+  font-size: 0.875rem !important;
+}
+
+.suggestion-item:hover {
+  background-color: #374151 !important;
+  color: #fff !important;
+}
+
+.suggestion-item.create-new {
+  color: #ffd700 !important;
+  font-style: italic !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background: transparent !important;
+}
+
+.suggestion-item.create-new:hover {
+  background-color: rgba(255, 215, 0, 0.1) !important;
+  color: #ffd700 !important;
+}
+
+.suggestions-loading {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  padding: 8px 12px;
+  background: #1a1a1a !important;
+  border: 1px solid #4a5568 !important;
+  border-top: none !important;
+  color: #9ca3af !important;
+  font-style: italic;
+  text-align: center;
+  font-size: 0.875rem !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .tags-container {
+    padding: 6px 8px;
+    min-height: 36px;
+  }
+
+  .collection-tag {
+    font-size: 0.8rem;
+    padding: 3px 6px;
+  }
+
+  .tag-input {
+    min-width: 100px;
+  }
+}

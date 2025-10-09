@@ -451,6 +451,122 @@ class ApiService {
     
     return await response.json();
   }
+
+  // ===== COLLECTION METHODS =====
+
+  // Get all collections
+  async getAllCollections() {
+    const response = await this.makeRequest('/collections');
+    return await response.json();
+  }
+
+  // Get collection suggestions for typeahead
+  async getCollectionSuggestions(query = '') {
+    const params = new URLSearchParams();
+    if (query) params.append('q', query);
+    
+    const response = await this.makeRequest(`/collections/suggestions?${params}`);
+    return await response.json();
+  }
+
+  // Create a new collection
+  async createCollection(name) {
+    const response = await this.makeRequest('/collections', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    
+    return await response.json();
+  }
+
+  // Update collection name
+  async updateCollection(id, name) {
+    const response = await this.makeRequest(`/collections/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name }),
+    });
+    
+    return await response.json();
+  }
+
+  // Delete collection
+  async deleteCollection(id) {
+    const response = await this.makeRequest(`/collections/${id}`, {
+      method: 'DELETE',
+    });
+    
+    return await response.json();
+  }
+
+  // Get movies in a collection
+  async getCollectionMovies(collectionId) {
+    const response = await this.makeRequest(`/collections/${collectionId}/movies`);
+    return await response.json();
+  }
+
+  // Get movie's collections
+  async getMovieCollections(movieId) {
+    const response = await this.makeRequest(`/movies/${movieId}/collections`);
+    return await response.json();
+  }
+
+  // Add movie to collection
+  async addMovieToCollection(movieId, collectionName) {
+    const response = await this.makeRequest(`/movies/${movieId}/collections`, {
+      method: 'POST',
+      body: JSON.stringify({ collectionName }),
+    });
+    
+    return await response.json();
+  }
+
+  // Remove movie from collection
+  async removeMovieFromCollection(movieId, collectionId) {
+    const response = await this.makeRequest(`/movies/${movieId}/collections/${collectionId}`, {
+      method: 'DELETE',
+    });
+    
+    return await response.json();
+  }
+
+  // Update movie's collections (replaces all collections)
+  async updateMovieCollections(movieId, collectionNames) {
+    const response = await this.makeRequest(`/movies/${movieId}/collections`, {
+      method: 'PUT',
+      body: JSON.stringify({ collectionNames }),
+    });
+    
+    return await response.json();
+  }
+
+  // Handle collection name change (rename vs create new)
+  async handleCollectionNameChange(oldName, newName, action) {
+    const response = await this.makeRequest('/collections/handle-name-change', {
+      method: 'POST',
+      body: JSON.stringify({ oldName, newName, action }),
+    });
+    
+    return await response.json();
+  }
+
+  // Update movie order in collection
+  async updateMovieOrder(movieId, collectionId, order) {
+    const response = await this.makeRequest(`/movies/${movieId}/collections/${collectionId}/order`, {
+      method: 'PUT',
+      body: JSON.stringify({ order }),
+    });
+    
+    return await response.json();
+  }
+
+  // Clean up empty collections
+  async cleanupEmptyCollections() {
+    const response = await this.makeRequest('/collections/cleanup', {
+      method: 'POST',
+    });
+    
+    return await response.json();
+  }
 }
 
 const apiService = new ApiService();

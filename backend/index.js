@@ -13,6 +13,8 @@ const Movie = require('./src/models/movie');
 const MovieImport = require('./src/models/movieImport');
 const MovieCast = require('./src/models/movieCast');
 const MovieCrew = require('./src/models/movieCrew');
+const Collection = require('./src/models/collection');
+const MovieCollection = require('./src/models/movieCollection');
 const { initDatabase } = require('./src/database');
 const imageService = require('./src/services/imageService');
 
@@ -49,10 +51,6 @@ app.use(express.json());
 const startServer = async () => {
   try {
     await initDatabase();
-    await Movie.createTable();
-    await MovieImport.createTable();
-    await MovieCast.createTable();
-    await MovieCrew.createTable();
     
     // Initialize services with configuration
     await imageService.init();
@@ -79,6 +77,23 @@ app.get('/api/movies/autocomplete', movieController.getAutocompleteSuggestions);
 app.get('/api/movies/formats', movieController.getFormats);
 app.get('/api/movies/collections', movieController.getCollectionNames);
 app.get('/api/movies/collections/movies', movieController.getMoviesByCollection);
+
+// Collection routes
+app.get('/api/collections', movieController.getAllCollections);
+app.get('/api/collections/suggestions', movieController.getCollectionSuggestions);
+app.post('/api/collections', movieController.createCollection);
+app.put('/api/collections/:id', movieController.updateCollection);
+app.delete('/api/collections/:id', movieController.deleteCollection);
+app.get('/api/collections/:id/movies', movieController.getCollectionMovies);
+app.post('/api/collections/cleanup', movieController.cleanupEmptyCollections);
+
+// Movie collection routes
+app.get('/api/movies/:id/collections', movieController.getMovieCollections);
+app.post('/api/movies/:id/collections', movieController.addMovieToCollection);
+app.put('/api/movies/:id/collections', movieController.updateMovieCollections);
+app.delete('/api/movies/:movieId/collections/:collectionId', movieController.removeMovieFromCollection);
+app.put('/api/movies/:movieId/collections/:collectionId/order', movieController.updateMovieOrder);
+app.post('/api/collections/handle-name-change', movieController.handleCollectionNameChange);
 app.get('/api/movies/check-status', movieController.checkMovieStatus);
 app.get('/api/movies/check-editions', movieController.checkMovieEditions);
 app.get('/api/movies/:id', movieController.getMovieById);

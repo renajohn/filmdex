@@ -6,6 +6,7 @@ const tmdbService = require('../services/tmdbService');
 const omdbService = require('../services/omdbService');
 const importService = require('../services/importService');
 const imageService = require('../services/imageService');
+const collectionService = require('../services/collectionService');
 const Movie = require('../models/movie');
 const MovieCast = require('../models/movieCast');
 const MovieCrew = require('../models/movieCrew');
@@ -998,6 +999,182 @@ const movieController = {
       });
 
       res.json(parsedMovies);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // ===== COLLECTION ENDPOINTS =====
+
+  // Get all collections
+  getAllCollections: async (req, res) => {
+    try {
+      const collections = await collectionService.getAllCollections();
+      res.json(collections);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Get collection suggestions for typeahead
+  getCollectionSuggestions: async (req, res) => {
+    try {
+      const { q = '' } = req.query;
+      const suggestions = await collectionService.getSuggestions(q);
+      res.json(suggestions);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Create a new collection
+  createCollection: async (req, res) => {
+    try {
+      const { name } = req.body;
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'Collection name is required' });
+      }
+
+      const collection = await collectionService.createCollection(name.trim());
+      res.status(201).json(collection);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Update collection name
+  updateCollection: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name } = req.body;
+      
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'Collection name is required' });
+      }
+
+      const result = await collectionService.updateCollection(id, name.trim());
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Delete collection
+  deleteCollection: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await collectionService.deleteCollection(id);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Get movies in a collection
+  getCollectionMovies: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await collectionService.getCollectionMovies(id);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Add movie to collection
+  addMovieToCollection: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { collectionName } = req.body;
+      
+      if (!collectionName || !collectionName.trim()) {
+        return res.status(400).json({ error: 'Collection name is required' });
+      }
+
+      const result = await collectionService.addMovieToCollection(id, collectionName.trim());
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Remove movie from collection
+  removeMovieFromCollection: async (req, res) => {
+    try {
+      const { movieId, collectionId } = req.params;
+      const result = await collectionService.removeMovieFromCollection(movieId, collectionId);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Update movie's collections (replaces all collections)
+  updateMovieCollections: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { collectionNames = [] } = req.body;
+      
+      const result = await collectionService.updateMovieCollections(id, collectionNames);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Get movie's collections
+  getMovieCollections: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const collections = await collectionService.getMovieCollections(id);
+      res.json(collections);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Handle collection name change (rename vs create new)
+  handleCollectionNameChange: async (req, res) => {
+    try {
+      const { oldName, newName, action } = req.body;
+      
+      if (!oldName || !newName || !action) {
+        return res.status(400).json({ error: 'oldName, newName, and action are required' });
+      }
+
+      if (!['rename', 'create'].includes(action)) {
+        return res.status(400).json({ error: 'action must be "rename" or "create"' });
+      }
+
+      const result = await collectionService.handleCollectionNameChange(oldName, newName, action);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Update movie order in collection
+  updateMovieOrder: async (req, res) => {
+    try {
+      const { movieId, collectionId } = req.params;
+      const { order } = req.body;
+      
+      if (order === undefined || order === null) {
+        return res.status(400).json({ error: 'Order is required' });
+      }
+
+      const result = await collectionService.updateMovieOrder(movieId, collectionId, order);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Clean up empty collections
+  cleanupEmptyCollections: async (req, res) => {
+    try {
+      const result = await collectionService.cleanupEmptyCollections();
+      res.json(result);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

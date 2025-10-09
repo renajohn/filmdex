@@ -1,0 +1,25 @@
+.action-description {
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-top: 4px;
+  margin-left: 20px;
+}
+
+.form-check {
+  margin-bottom: 16px;
+}
+
+.form-check-input {
+  margin-top: 0.25rem;
+}
+
+.form-check-label {
+  cursor: pointer;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .action-description {
+    color: #adb5bd;
+  }
+}

@@ -278,11 +278,15 @@ const initDatabase = async () => {
           const UnmatchedMovie = require('./models/unmatchedMovie');
           const MovieCast = require('./models/movieCast');
           const MovieCrew = require('./models/movieCrew');
+          const Collection = require('./models/collection');
+          const MovieCollection = require('./models/movieCollection');
           await Movie.createTable();
           await MovieImport.createTable();
           await UnmatchedMovie.createTable();
           await MovieCast.createTable();
           await MovieCrew.createTable();
+          await Collection.createTable();
+          await MovieCollection.createTable();
           
           // Add media_type column to existing movies table if it doesn't exist
           try {

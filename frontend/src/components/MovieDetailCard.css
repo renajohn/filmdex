@@ -1394,23 +1394,26 @@
 .collection-member {
   display: flex;
   align-items: center;
-  padding: 8px 0;
-  cursor: move;
+  padding: 12px;
+  background: #3a3a3a;
+  border-radius: 8px;
+  cursor: pointer;
   transition: all 0.2s ease;
-  border-radius: 4px;
-  position: relative;
+  border: 1px solid transparent;
 }
 
 .collection-member:hover {
-  background: rgba(255, 255, 255, 0.05);
-  padding-left: 8px;
-  padding-right: 8px;
+  background: #374151;
+  border-color: #4a5568;
 }
 
-.collection-member.dragging {
-  opacity: 0.6;
-  background: rgba(255, 255, 255, 0.1);
-  transform: scale(1.02);
+.collection-member.current {
+  background: rgba(0, 212, 170, 0.1);
+  border-color: #00d4aa;
+}
+
+.collection-member.current:hover {
+  background: rgba(0, 212, 170, 0.15);
 }
 
 /* Drop indicator */
@@ -1442,47 +1445,32 @@
 }
 
 .collection-member-poster {
-  width: 30px;
-  height: 45px;
   margin-right: 12px;
-  border-radius: 3px;
-  overflow: hidden;
   flex-shrink: 0;
-  position: relative;
 }
 
 .collection-member-poster img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  border-radius: 4px;
 }
 
-.collection-member-poster .poster-placeholder {
-  width: 100%;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.08);
+.collection-poster-placeholder {
+  background: #4a5568;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 0.8rem;
+  color: #9ca3af;
 }
 
 .collection-member-info {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .collection-member-title {
-  color: #ffffff;
+  color: #fff;
+  font-size: 0.95rem;
   font-weight: 500;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .current-movie-badge {
@@ -1697,4 +1685,271 @@
     min-width: auto;
     width: 100%;
   }
+}
+
+/* Collections Section Styles */
+.movie-detail-collections {
+  margin-top: 20px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.movie-detail-collections h3 {
+  margin: 0 0 15px 0;
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.collections-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.collections-display {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.collections-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.collection-tag-display {
+  display: inline-block;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.collection-tag-display:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.no-collections {
+  color: #888;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.edit-collections-btn {
+  align-self: flex-start;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.edit-collections-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.edit-collections-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.collections-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.save-collections-btn {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #00b894, #0099bb);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.save-collections-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.save-collections-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Responsive adjustments for collections */
+@media (max-width: 768px) {
+  .movie-detail-collections {
+    margin-top: 15px;
+    padding: 15px;
+  }
+  
+  .collections-tags {
+    gap: 6px;
+  }
+  
+  .collection-tag-display {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+  }
+  
+  .edit-collections-btn,
+  .save-collections-btn {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Collections Section Styles - Dark Theme */
+.movie-detail-collections-section {
+  margin-top: 20px;
+}
+
+.movie-detail-collections-section h3 {
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+/* Collection Section Styles - Matching Box Set Layout */
+.movie-detail-collection {
+  margin-top: 20px;
+}
+
+.movie-detail-collection h3 {
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.collection-members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.collection-member {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background: #3a3a3a;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.collection-member:hover {
+  background: #374151;
+  border-color: #4a5568;
+}
+
+.collection-member.current {
+  background: rgba(0, 212, 170, 0.1);
+  border-color: #00d4aa;
+}
+
+.collection-member.current:hover {
+  background: rgba(0, 212, 170, 0.15);
+}
+
+.collection-member-poster {
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.collection-member-poster img {
+  border-radius: 4px;
+}
+
+.collection-poster-placeholder {
+  background: #4a5568;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+}
+
+.collection-member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.collection-member-title {
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* Responsive adjustments for collection members */
+@media (max-width: 768px) {
+  .movie-detail-collection {
+    margin-top: 15px;
+  }
+
+  .collection-member {
+    padding: 10px;
+  }
+
+  .collection-member-poster img,
+  .collection-poster-placeholder {
+    width: 32px !important;
+    height: 48px !important;
+  }
+
+  .collection-member-title {
+    font-size: 0.9rem;
+  }
+}
+
+/* Drag and Drop Styles for Collection Members */
+.collection-member-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  color: #9ca3af;
+  cursor: grab;
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.collection-member-drag-handle:hover {
+  color: #fff;
+}
+
+.collection-member-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Ensure collection members have relative positioning for drag operations */
+.collection-member {
+  position: relative;
 }

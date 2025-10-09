@@ -7,6 +7,7 @@ const posterService = require('./posterService');
 const tmdbService = require('./tmdbService');
 const { getDatabase } = require('../database');
 const logger = require('../logger');
+const collectionService = require('./collectionService');
 
 
 
@@ -398,14 +399,28 @@ const movieService = {
 
   deleteMovie: async (id) => {
     const db = getDatabase();
-    return new Promise((resolve, reject) => {
-      db.run('DELETE FROM movies WHERE id = ?', [id], function(err) {
-        if (err) {
-          reject(err);
-        } else {
-          resolve({ id, deletedRows: this.changes });
-        }
-      });
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Delete the movie
+        db.run('DELETE FROM movies WHERE id = ?', [id], async function(err) {
+          if (err) {
+            reject(err);
+          } else {
+            // Clean up empty collections after movie deletion
+            try {
+              await collectionService.cleanupEmptyCollections();
+              logger.info(`Cleaned up empty collections after deleting movie ${id}`);
+            } catch (cleanupError) {
+              logger.warn('Failed to cleanup empty collections after movie deletion:', cleanupError);
+              // Don't fail the deletion if cleanup fails
+            }
+            
+            resolve({ id, deletedRows: this.changes });
+          }
+        });
+      } catch (error) {
+        reject(error);
+      }
     });
   },
 

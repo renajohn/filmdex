@@ -3,10 +3,71 @@ import { FormControl, Dropdown } from 'react-bootstrap';
 import CircularProgressBar from './CircularProgressBar';
 import AgeDisplay from './AgeDisplay';
 import InlinePosterSelector from './InlinePosterSelector';
+import CollectionTagsInput from './CollectionTagsInput';
+import CollectionRenameDialog from './CollectionRenameDialog';
 import apiService from '../services/api';
 import { getLanguageName } from '../services/languageCountryUtils';
-import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsCopy, BsFilm } from 'react-icons/bs';
+import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsCopy, BsFilm, BsGripVertical } from 'react-icons/bs';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import './MovieDetailCard.css';
+
+// Sortable Collection Member Component
+const SortableCollectionMember = ({ movie, collectionName, onMovieClick, getPosterUrl, currentMovieId }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `${collectionName}-${movie.id}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div 
+      ref={setNodeRef}
+      style={style}
+      className={`collection-member ${movie.id === currentMovieId ? 'current' : ''}`}
+      onClick={() => onMovieClick(movie.id)}
+    >
+      <div className="collection-member-drag-handle" {...attributes} {...listeners}>
+        <BsGripVertical size={16} />
+      </div>
+      <div className="collection-member-poster">
+        {movie.poster_path ? (
+          <img 
+            src={getPosterUrl(movie.poster_path)} 
+            alt={movie.title}
+            style={{ width: '40px', height: '60px', objectFit: 'cover' }}
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+        ) : (
+          <div 
+            className="collection-poster-placeholder"
+            style={{ width: '40px', height: '60px' }}
+          >
+            <BsFilm size={16} />
+          </div>
+        )}
+      </div>
+      <div className="collection-member-info">
+        <span className="collection-member-title">
+          {movie.title}
+        </span>
+      </div>
+    </div>
+  );
+};
 
 const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert, onRefresh, onMovieClick, loading = false }) => {
   const [showTrailer, setShowTrailer] = useState(false);
@@ -31,7 +92,19 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const [boxSetMembers, setBoxSetMembers] = useState([]);
   const [showPropagationDialog, setShowPropagationDialog] = useState(false);
   const [pendingUpdate, setPendingUpdate] = useState(null);
+  const [collections, setCollections] = useState([]);
+  const [showCollectionRenameDialog, setShowCollectionRenameDialog] = useState(false);
+  const [collectionRenameData, setCollectionRenameData] = useState({ oldName: '', newName: '', action: 'create' });
+  const [collectionMembers, setCollectionMembers] = useState({}); // { collectionName: [movies] }
   const posterRef = useRef(null);
+  
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
   
   // Initialize local movie data when movieDetails changes
   useEffect(() => {
@@ -131,6 +204,57 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
 
     loadBoxSetMembers();
   }, [movieDetails?.box_set_name]);
+
+  // Load collections when movie changes
+  useEffect(() => {
+    const loadCollections = async () => {
+      if (!movieDetails?.id) {
+        setCollections([]);
+        setCollectionMembers({});
+        return;
+      }
+
+      try {
+        const movieCollections = await apiService.getMovieCollections(movieDetails.id);
+        const collectionNames = movieCollections.map(c => c.collection_name);
+        setCollections(collectionNames);
+        
+        // Load members for each collection
+        if (collectionNames.length > 0) {
+          const allCollections = await apiService.getAllCollections();
+          const membersPromises = collectionNames.map(async (collectionName) => {
+            try {
+              const collection = allCollections.find(c => c.name === collectionName);
+              if (collection) {
+                const result = await apiService.getCollectionMovies(collection.id);
+                return { collectionName, movies: result.movies };
+              }
+              return { collectionName, movies: [] };
+            } catch (error) {
+              console.error(`Error loading members for collection ${collectionName}:`, error);
+              return { collectionName, movies: [] };
+            }
+          });
+          
+          const membersResults = await Promise.all(membersPromises);
+          const membersMap = {};
+          membersResults.forEach(({ collectionName, movies }) => {
+            membersMap[collectionName] = movies;
+          });
+          
+          setCollectionMembers(membersMap);
+        } else {
+          setCollectionMembers({});
+        }
+      } catch (error) {
+        console.error('Error loading collections:', error);
+        setCollections([]);
+        setCollectionMembers({});
+      }
+    };
+
+    loadCollections();
+  }, [movieDetails?.id]);
 
   // Close box set dropdown when clicking outside
   useEffect(() => {
@@ -795,6 +919,143 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     setEditValue('');
   };
 
+  // Collections handling functions
+  const handleCollectionsChange = async (newCollections) => {
+    try {
+      setSaving(true);
+      await apiService.updateMovieCollections(movieDetails.id, newCollections);
+      setCollections(newCollections);
+      
+      // Reload collection members for the updated collections
+      if (newCollections.length > 0) {
+        const allCollections = await apiService.getAllCollections();
+        const membersPromises = newCollections.map(async (collectionName) => {
+          try {
+            const collection = allCollections.find(c => c.name === collectionName);
+            if (collection) {
+              const result = await apiService.getCollectionMovies(collection.id);
+              return { collectionName, movies: result.movies };
+            }
+            return { collectionName, movies: [] };
+          } catch (error) {
+            console.error(`Error loading members for collection ${collectionName}:`, error);
+            return { collectionName, movies: [] };
+          }
+        });
+        
+        const membersResults = await Promise.all(membersPromises);
+        const membersMap = {};
+        membersResults.forEach(({ collectionName, movies }) => {
+          membersMap[collectionName] = movies;
+        });
+        
+        setCollectionMembers(membersMap);
+      } else {
+        setCollectionMembers({});
+      }
+      
+      onRefresh(); // Refresh the movie data
+    } catch (error) {
+      console.error('Error updating collections:', error);
+      onShowAlert('Failed to update collections', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCollectionRename = (action) => {
+    setCollectionRenameData(prev => ({ ...prev, action }));
+    setShowCollectionRenameDialog(false);
+    // The actual rename logic will be handled by the dialog
+  };
+
+  const handleCollectionRenameConfirm = async (action) => {
+    try {
+      await apiService.handleCollectionNameChange(
+        collectionRenameData.oldName, 
+        collectionRenameData.newName, 
+        action
+      );
+      // Reload collections after rename
+      const movieCollections = await apiService.getMovieCollections(movieDetails.id);
+      setCollections(movieCollections.map(c => c.collection_name));
+      onRefresh();
+    } catch (error) {
+      console.error('Error handling collection rename:', error);
+      onShowAlert('Failed to handle collection rename', 'error');
+    }
+  };
+
+  // Drag and drop handler for collection reordering
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    // Extract collection name and movie IDs from the drag event
+    const activeId = active.id;
+    const overId = over.id;
+    
+    // Find which collection this belongs to
+    let targetCollection = null;
+    let activeMovie = null;
+    let overMovie = null;
+    
+    for (const [collectionName, movies] of Object.entries(collectionMembers)) {
+      const activeFound = movies.find(m => `${collectionName}-${m.id}` === activeId);
+      const overFound = movies.find(m => `${collectionName}-${m.id}` === overId);
+      
+      if (activeFound && overFound) {
+        targetCollection = collectionName;
+        activeMovie = activeFound;
+        overMovie = overFound;
+        break;
+      }
+    }
+
+    if (!targetCollection || !activeMovie || !overMovie) {
+      return;
+    }
+
+    try {
+      // Get the collection ID
+      const allCollections = await apiService.getAllCollections();
+      const collection = allCollections.find(c => c.name === targetCollection);
+      
+      if (!collection) {
+        console.error('Collection not found:', targetCollection);
+        return;
+      }
+
+      // Calculate new order
+      const movies = collectionMembers[targetCollection];
+      const oldIndex = movies.findIndex(m => m.id === activeMovie.id);
+      const newIndex = movies.findIndex(m => m.id === overMovie.id);
+      
+      // Update local state immediately for better UX
+      const newMovies = arrayMove(movies, oldIndex, newIndex);
+      setCollectionMembers(prev => ({
+        ...prev,
+        [targetCollection]: newMovies
+      }));
+
+      // Update ALL movies in the collection with sequential ordering
+      const updatePromises = newMovies.map((movie, index) => 
+        apiService.updateMovieOrder(movie.id, collection.id, index + 1)
+      );
+      
+      await Promise.all(updatePromises);
+      
+    } catch (error) {
+      console.error('Error updating collection order:', error);
+      onShowAlert('Failed to update collection order', 'error');
+      // Revert local state on error
+      onRefresh();
+    }
+  };
+
   return (
     <>
       <div className="movie-detail-overlay" onClick={onClose}>
@@ -1176,6 +1437,40 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                   </div>
                 )}
 
+                {/* Collection Members Sections */}
+                <DndContext 
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  {Object.entries(collectionMembers).map(([collectionName, members]) => {
+                    if (members.length === 0) return null;
+                    
+                    return (
+                      <div key={collectionName} className="movie-detail-collection">
+                        <h3>"{collectionName}" collection</h3>
+                        <SortableContext 
+                          items={members.map(member => `${collectionName}-${member.id}`)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <div className="collection-members-list">
+                            {members.map((member, index) => (
+                              <SortableCollectionMember
+                                key={member.id}
+                                movie={member}
+                                collectionName={collectionName}
+                                onMovieClick={handleMovieTitleClick}
+                                getPosterUrl={getPosterUrl}
+                                currentMovieId={movieDetails.id}
+                              />
+                            ))}
+                          </div>
+                        </SortableContext>
+                      </div>
+                    );
+                  })}
+                </DndContext>
+
               </div>
 
               {/* Sidebar */}
@@ -1461,6 +1756,17 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                   </div>
                 </div>
 
+                {/* Collections Section */}
+                <div className="sidebar-section">
+                  <h4>Collections</h4>
+                  <CollectionTagsInput
+                    value={collections}
+                    onChange={handleCollectionsChange}
+                    placeholder="Add collections..."
+                    movieId={movieDetails.id}
+                  />
+                </div>
+
                 {/* Comments Section */}
                 <div className="sidebar-section">
                   <h4>Comments</h4>
@@ -1602,6 +1908,15 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
           </div>
         </div>
       )}
+
+      {/* Collection Rename Dialog */}
+      <CollectionRenameDialog
+        show={showCollectionRenameDialog}
+        onHide={() => setShowCollectionRenameDialog(false)}
+        oldName={collectionRenameData.oldName}
+        newName={collectionRenameData.newName}
+        onConfirm={handleCollectionRenameConfirm}
+      />
     </>
   );
 };
