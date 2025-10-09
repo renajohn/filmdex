@@ -305,91 +305,141 @@ const Movie = {
   },
 
   update: (id, movieData) => {
-    return new Promise((resolve, reject) => {
-      const db = getDatabase();
-      const { 
-        title, original_title, original_language, genre, director, cast, release_date, format, 
-        imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
-        price, runtime, plot, comments, never_seen, acquired_date, import_id,
-        poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type = 'movie', recommended_age, title_status, watch_next_added,
-        collection_name, collection_order
-      } = movieData;
-      
-      console.log(`[Movie.update] Updating movie ID ${id}:`, {
-        title,
-        plot: plot?.substring(0, 50) + '...',
-        watch_next_added,
-        title_status
-      });
-      
-      const sql = `
-        UPDATE movies 
-        SET title = ?, original_title = ?, original_language = ?, genre = ?, director = ?, cast = ?, 
-            release_date = ?, format = ?, imdb_rating = ?, rotten_tomato_rating = ?, 
-            rotten_tomatoes_link = ?, tmdb_rating = ?, tmdb_id = ?, imdb_id = ?, 
-            price = ?, runtime = ?, plot = ?, comments = ?, never_seen = ?, acquired_date = ?, import_id = ?,
-            poster_path = ?, backdrop_path = ?, budget = ?, revenue = ?, trailer_key = ?, trailer_site = ?,
-            status = ?, popularity = ?, vote_count = ?, adult = ?, video = ?, media_type = ?, recommended_age = ?, title_status = ?, watch_next_added = ?,
-            collection_name = ?, collection_order = ?
-        WHERE id = ?
-      `;
-      
-      db.run(sql, [
-        title, original_title, original_language, genre, director, JSON.stringify(cast), release_date, format,
-        imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
-        price, runtime, plot, comments, never_seen, acquired_date, import_id,
-        poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type, recommended_age, title_status, watch_next_added,
-        collection_name, collection_order, id
-      ], function(err) {
-        if (err) {
-          console.error(`[Movie.update] Error updating movie ID ${id}:`, err);
-          reject(err);
-        } else {
-          console.log(`[Movie.update] Successfully updated movie ID ${id}, changes: ${this.changes}`);
-          resolve({ id: id, changes: this.changes });
+    return new Promise(async (resolve, reject) => {
+      try {
+        const db = getDatabase();
+        const { 
+          title, original_title, original_language, genre, director, cast, release_date, format, 
+          imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
+          price, runtime, plot, comments, never_seen, acquired_date, import_id,
+          poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
+          popularity, vote_count, adult, video, media_type = 'movie', recommended_age, title_status, watch_next_added,
+          collection_name, collection_order
+        } = movieData;
+        
+        console.log(`[Movie.update] Updating movie ID ${id}:`, {
+          title,
+          plot: plot?.substring(0, 50) + '...',
+          watch_next_added,
+          title_status,
+          collection_name,
+          collection_order
+        });
+        
+        // Auto-assign collection order if collection_name is set but collection_order is not
+        let finalCollectionOrder = collection_order;
+        if (collection_name && !collection_order) {
+          // Get the highest order for this collection
+          const maxOrderResult = await new Promise((resolve, reject) => {
+            db.get('SELECT MAX(collection_order) as max_order FROM movies WHERE collection_name = ? AND id != ?', 
+                   [collection_name, id], (err, row) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve(row);
+              }
+            });
+          });
+          
+          finalCollectionOrder = (maxOrderResult.max_order || 0) + 1;
+          console.log(`[Movie.update] Auto-assigned collection_order ${finalCollectionOrder} for collection "${collection_name}"`);
         }
-      });
+        
+        const sql = `
+          UPDATE movies 
+          SET title = ?, original_title = ?, original_language = ?, genre = ?, director = ?, cast = ?, 
+              release_date = ?, format = ?, imdb_rating = ?, rotten_tomato_rating = ?, 
+              rotten_tomatoes_link = ?, tmdb_rating = ?, tmdb_id = ?, imdb_id = ?, 
+              price = ?, runtime = ?, plot = ?, comments = ?, never_seen = ?, acquired_date = ?, import_id = ?,
+              poster_path = ?, backdrop_path = ?, budget = ?, revenue = ?, trailer_key = ?, trailer_site = ?,
+              status = ?, popularity = ?, vote_count = ?, adult = ?, video = ?, media_type = ?, recommended_age = ?, title_status = ?, watch_next_added = ?,
+              collection_name = ?, collection_order = ?
+          WHERE id = ?
+        `;
+        
+        db.run(sql, [
+          title, original_title, original_language, genre, director, JSON.stringify(cast), release_date, format,
+          imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
+          price, runtime, plot, comments, never_seen, acquired_date, import_id,
+          poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
+          popularity, vote_count, adult, video, media_type, recommended_age, title_status, watch_next_added,
+          collection_name, finalCollectionOrder, id
+        ], function(err) {
+          if (err) {
+            console.error(`[Movie.update] Error updating movie ID ${id}:`, err);
+            reject(err);
+          } else {
+            console.log(`[Movie.update] Successfully updated movie ID ${id}, changes: ${this.changes}`);
+            resolve({ id: id, changes: this.changes });
+          }
+        });
+      } catch (error) {
+        console.error(`[Movie.update] Error in update process for movie ID ${id}:`, error);
+        reject(error);
+      }
     });
   },
 
   // Update only specific fields (for simplified editing)
   updateFields: (id, movieData) => {
-    return new Promise((resolve, reject) => {
-      const db = getDatabase();
-      
-      // Build dynamic SQL based on provided fields
-      const fields = [];
-      const values = [];
-      
-      Object.keys(movieData).forEach(key => {
-        if (movieData[key] !== undefined) {
-          if (key === 'cast' && Array.isArray(movieData[key])) {
-            fields.push(`${key} = ?`);
-            values.push(JSON.stringify(movieData[key]));
-          } else {
-            fields.push(`${key} = ?`);
-            values.push(movieData[key]);
+    return new Promise(async (resolve, reject) => {
+      try {
+        const db = getDatabase();
+        
+        // Auto-assign collection order if collection_name is set but collection_order is not
+        let processedMovieData = { ...movieData };
+        if (movieData.collection_name && !movieData.collection_order) {
+          // Get the highest order for this collection
+          const maxOrderResult = await new Promise((resolve, reject) => {
+            db.get('SELECT MAX(collection_order) as max_order FROM movies WHERE collection_name = ? AND id != ?', 
+                   [movieData.collection_name, id], (err, row) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve(row);
+              }
+            });
+          });
+          
+          processedMovieData.collection_order = (maxOrderResult.max_order || 0) + 1;
+          console.log(`[Movie.updateFields] Auto-assigned collection_order ${processedMovieData.collection_order} for collection "${movieData.collection_name}"`);
+        }
+        
+        // Build dynamic SQL based on provided fields
+        const fields = [];
+        const values = [];
+        
+        Object.keys(processedMovieData).forEach(key => {
+          if (processedMovieData[key] !== undefined) {
+            if (key === 'cast' && Array.isArray(processedMovieData[key])) {
+              fields.push(`${key} = ?`);
+              values.push(JSON.stringify(processedMovieData[key]));
+            } else {
+              fields.push(`${key} = ?`);
+              values.push(processedMovieData[key]);
+            }
           }
+        });
+        
+        if (fields.length === 0) {
+          resolve({ id: id, changes: 0 });
+          return;
         }
-      });
-      
-      if (fields.length === 0) {
-        resolve({ id: id, changes: 0 });
-        return;
+        
+        values.push(id);
+        const sql = `UPDATE movies SET ${fields.join(', ')} WHERE id = ?`;
+        
+        db.run(sql, values, function(err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({ id: id, changes: this.changes });
+          }
+        });
+      } catch (error) {
+        console.error(`[Movie.updateFields] Error in updateFields process for movie ID ${id}:`, error);
+        reject(error);
       }
-      
-      values.push(id);
-      const sql = `UPDATE movies SET ${fields.join(', ')} WHERE id = ?`;
-      
-      db.run(sql, values, function(err) {
-        if (err) {
-          reject(err);
-        } else {
-          resolve({ id: id, changes: this.changes });
-        }
-      });
     });
   },
 

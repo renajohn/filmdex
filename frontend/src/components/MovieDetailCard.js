@@ -99,16 +99,18 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   }, [movieDetails?.id]);
 
   // Load collection names for autocomplete
-  useEffect(() => {
-    const loadCollectionNames = async () => {
-      try {
-        const names = await apiService.getCollectionNames();
-        setCollectionNames(names);
-      } catch (error) {
-        console.warn('Failed to load collection names:', error);
-      }
-    };
+  // Load collection names
+  const loadCollectionNames = async () => {
+    try {
+      const names = await apiService.getCollectionNames();
+      setCollectionNames(names);
+    } catch (error) {
+      console.warn('Failed to load collection names:', error);
+    }
+  };
 
+  // Load collection names on component mount
+  useEffect(() => {
     loadCollectionNames();
   }, []);
 
@@ -390,7 +392,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     if (!editingField) return;
     
     // Check if this field should trigger box set propagation dialog
-    const propagationFields = ['format', 'price', 'acquired_date', 'title_status'];
+    const propagationFields = ['format', 'price', 'acquired_date', 'title_status', 'collection_name'];
     const shouldShowDialog = collection_name && collectionMembers.length > 1 && propagationFields.includes(editingField);
     
     if (shouldShowDialog) {
@@ -455,6 +457,11 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       // Refresh the movie list to update thumbnails (without closing detail view)
       if (onRefresh) {
         onRefresh();
+      }
+      
+      // Refresh collection names if collection_name was updated
+      if (field === 'collection_name') {
+        await loadCollectionNames();
       }
     } catch (error) {
       console.error('Error updating movie:', error);
