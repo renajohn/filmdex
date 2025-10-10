@@ -2020,6 +2020,7 @@
 /* Drag and Drop States */
 .collection-poster-item[data-dragging="true"] {
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3) !important;
+  transition: none !important;
 }
 
 .collection-poster-item[data-drag-over="true"] {
@@ -2161,9 +2162,11 @@
 /* Drag and Drop States for Box Sets */
 .boxset-poster-item[data-dragging="true"] {
   transform: rotate(-5deg) scale(1.1) !important;
+  transform-origin: 5px 5px !important;
   z-index: 1000 !important;
   opacity: 0.8 !important;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3) !important;
+  transition: none !important;
 }
 
 .boxset-poster-item[data-drag-over="true"] {

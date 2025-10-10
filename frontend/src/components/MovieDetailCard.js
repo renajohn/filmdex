@@ -29,7 +29,8 @@ const SortableCollectionMember = ({ movie, collectionName, onMovieClick, getPost
     transform: CSS.Transform.toString(transform),
     transition: isDragging ? 'none' : 'transform 0.1s ease',
     ...(isDragging && {
-      transform: `${CSS.Transform.toString(transform)} rotate(-8deg) scale(1.07)`,
+      transform: `${CSS.Transform.toString(transform)} rotate(-1deg) scale(1.1)`,
+      
       zIndex: 1001,
       position: 'relative',
     }),
