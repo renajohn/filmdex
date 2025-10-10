@@ -9,7 +9,7 @@ import apiService from '../services/api';
 import { getLanguageName } from '../services/languageCountryUtils';
 import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsCopy, BsFilm, BsGripVertical } from 'react-icons/bs';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import './MovieDetailCard.css';
@@ -27,43 +27,43 @@ const SortableCollectionMember = ({ movie, collectionName, onMovieClick, getPost
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+    transition: isDragging ? 'none' : 'transform 0.1s ease',
+    ...(isDragging && {
+      transform: `${CSS.Transform.toString(transform)} rotate(-8deg) scale(1.07)`,
+      zIndex: 1001,
+      position: 'relative',
+    }),
   };
 
   return (
     <div 
       ref={setNodeRef}
       style={style}
-      className={`collection-member ${movie.id === currentMovieId ? 'current' : ''}`}
+      className={`collection-poster-item ${movie.id === currentMovieId ? 'current' : ''}`}
+      data-dragging={isDragging}
       onClick={() => onMovieClick(movie.id)}
     >
-      <div className="collection-member-drag-handle" {...attributes} {...listeners}>
+      <div className="collection-poster-drag-handle" {...attributes} {...listeners}>
         <BsGripVertical size={16} />
       </div>
-      <div className="collection-member-poster">
+      <div className="collection-poster-container">
         {movie.poster_path ? (
           <img 
             src={getPosterUrl(movie.poster_path)} 
             alt={movie.title}
-            style={{ width: '40px', height: '60px', objectFit: 'cover' }}
+            className="collection-poster-image"
             onError={(e) => {
               e.target.style.display = 'none';
             }}
           />
         ) : (
-          <div 
-            className="collection-poster-placeholder"
-            style={{ width: '40px', height: '60px' }}
-          >
-            <BsFilm size={16} />
+          <div className="collection-poster-placeholder">
+            <BsFilm size={32} />
           </div>
         )}
-      </div>
-      <div className="collection-member-info">
-        <span className="collection-member-title">
-          {movie.title}
-        </span>
+        <div className="collection-poster-overlay">
+          <div className="collection-poster-title">{movie.title}</div>
+        </div>
       </div>
     </div>
   );
@@ -990,7 +990,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const handleDragEnd = async (event) => {
     const { active, over } = event;
 
-    if (!over || active.id === over.id) {
+    if (!over) {
       return;
     }
 
@@ -1046,8 +1046,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
         apiService.updateMovieOrder(movie.id, collection.id, index + 1)
       );
       
-      await Promise.all(updatePromises);
-      
+      // Don't await - let it happen in background
+      Promise.all(updatePromises).catch(error => {
+        console.error('Error updating collection order:', error);
+        onShowAlert('Failed to update collection order', 'error');
+        // Revert local state on error
+        onRefresh();
+      });
     } catch (error) {
       console.error('Error updating collection order:', error);
       onShowAlert('Failed to update collection order', 'error');
@@ -1400,36 +1405,31 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                 {boxSetMembers && boxSetMembers.length > 1 && (
                   <div className="movie-detail-boxset">
                     <h3>"{movieDetails.box_set_name}" box set</h3>
-                    <div className="boxset-members-list">
+                    <div className="boxset-posters-horizontal">
                       {boxSetMembers.map((member, index) => (
                         <div 
                           key={member.id} 
-                          className={`boxset-member ${member.id === id ? 'current' : ''}`}
+                          className={`boxset-poster-item ${member.id === id ? 'current' : ''}`}
                           onClick={() => handleMovieTitleClick(member.id)}
                         >
-                          <div className="boxset-member-poster">
+                          <div className="boxset-poster-container">
                             {member.poster_path ? (
                               <img 
                                 src={getPosterUrl(member.poster_path)} 
                                 alt={member.title}
-                                style={{ width: '40px', height: '60px', objectFit: 'cover' }}
+                                className="boxset-poster-image"
                                 onError={(e) => {
                                   e.target.style.display = 'none';
                                 }}
                               />
                             ) : (
-                              <div 
-                                className="boxset-poster-placeholder"
-                                style={{ width: '40px', height: '60px' }}
-                              >
-                                <BsFilm size={16} />
+                              <div className="boxset-poster-placeholder">
+                                <BsFilm size={32} />
                               </div>
                             )}
-                          </div>
-                          <div className="boxset-member-info">
-                            <span className="boxset-member-title">
-                              {member.title}
-                            </span>
+                            <div className="boxset-poster-overlay">
+                              <div className="boxset-poster-title">{member.title}</div>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1442,6 +1442,16 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                   sensors={sensors}
                   collisionDetection={closestCenter}
                   onDragEnd={handleDragEnd}
+                  autoScroll={{
+                    enabled: true,
+                    threshold: {
+                      x: 0.2,
+                      y: 0
+                    },
+                    acceleration: 10,
+                    interval: 5,
+                    order: ['x', 'y']
+                  }}
                 >
                   {Object.entries(collectionMembers).map(([collectionName, members]) => {
                     if (members.length === 0) return null;
@@ -1451,9 +1461,9 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                         <h3>"{collectionName}" collection</h3>
                         <SortableContext 
                           items={members.map(member => `${collectionName}-${member.id}`)}
-                          strategy={verticalListSortingStrategy}
+                          strategy={horizontalListSortingStrategy}
                         >
-                          <div className="collection-members-list">
+                          <div className="collection-posters-horizontal">
                             {members.map((member, index) => (
                               <SortableCollectionMember
                                 key={member.id}

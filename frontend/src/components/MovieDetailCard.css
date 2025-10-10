@@ -22,6 +22,7 @@
   width: 100%;
   max-height: 95vh;
   overflow-y: auto; /* Scrollbar appears inside the card */
+  overflow-x: hidden; /* Prevent horizontal overflow */
   position: relative; /* Positioning context for poster selector and overlay */
   animation: slideIn 0.3s ease-out;
   color: #f8f9fa;
@@ -70,6 +71,8 @@
 .movie-detail-content {
   padding: 0;
   position: relative; /* Positioning context for overlay */
+  overflow-x: hidden; /* Prevent horizontal overflow */
+  width: 100%;
 }
 
 /* Header Section */
@@ -81,6 +84,8 @@
   position: relative;
   overflow: hidden;
   min-height: 400px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Backdrop Background with Filigree Effect */
@@ -472,15 +477,26 @@
   display: flex;
   gap: 20px;
   padding: 20px;
+  min-height: 400px;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .movie-detail-main {
-  flex: 2;
+  flex: 3;
+  padding-right: 20px;
+  box-sizing: border-box;
+  overflow: hidden;
+  max-width: calc(75% - 10px);
 }
 
 .movie-detail-sidebar {
   flex: 1;
   min-width: 300px;
+  max-width: calc(25% - 10px);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 /* Cast Section */
@@ -500,6 +516,10 @@
   flex-wrap: wrap;
   gap: 15px;
   padding-bottom: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .cast-member {
@@ -610,8 +630,14 @@
     flex-direction: column;
   }
   
+  .movie-detail-main {
+    max-width: 100%;
+    padding-right: 0;
+  }
+  
   .movie-detail-sidebar {
     min-width: auto;
+    max-width: 100%;
   }
 }
 
@@ -930,7 +956,7 @@
   content: '';
   opacity: 0;
   position: absolute;
-  left: -20px;
+  left: 0;
   top: 50%;
   transform: translateY(-50%);
   font-size: 12px;
@@ -1299,16 +1325,18 @@
 
 /* Box Set Members Section - Simple List */
 .movie-detail-boxset {
-  margin-top: 2rem;
-  padding-top: 2rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
   border-top: 1px solid #444;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .movie-detail-boxset h3 {
   color: #fff;
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 600;
-  margin-bottom: 1rem;
+  margin-bottom: 8px;
 }
 
 .boxset-members-list {
@@ -1836,14 +1864,16 @@
 
 /* Collection Section Styles - Matching Box Set Layout */
 .movie-detail-collection {
-  margin-top: 20px;
+  margin-top: 15px;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .movie-detail-collection h3 {
   color: #fff;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
-  margin-bottom: 1rem;
+  margin-bottom: 8px;
 }
 
 .collection-members-list {
@@ -1927,29 +1957,284 @@
   }
 }
 
-/* Drag and Drop Styles for Collection Members */
-.collection-member-drag-handle {
+/* Horizontal Scrolling Poster Layouts for Collections and Box Sets */
+
+/* Collection Posters Horizontal */
+.collection-posters-horizontal {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #4a5568 transparent;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  height: 230px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.collection-posters-horizontal::-webkit-scrollbar {
+  height: 6px;
+}
+
+.collection-posters-horizontal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.collection-posters-horizontal::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 3px;
+}
+
+.collection-posters-horizontal::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+.collection-poster-item {
+  flex: 0 0 auto;
+  width: 160px;
+  min-width: 160px;
+  max-width: 160px;
+  height: 200px;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.collection-poster-item:hover {
+  transform: scale(1.05);
+}
+
+.collection-poster-item.current {
+  box-shadow: 0 0 0 3px #00d4aa;
+  border-radius: 8px;
+}
+
+/* Drag and Drop States */
+.collection-poster-item[data-dragging="true"] {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3) !important;
+}
+
+.collection-poster-item[data-drag-over="true"] {
+  transform: scale(1.1);
+  border: 2px dashed #00d4aa;
+  border-radius: 8px;
+}
+
+.collection-poster-drag-handle {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  z-index: 10;
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  margin-right: 8px;
-  color: #9ca3af;
-  cursor: grab;
-  transition: color 0.2s ease;
-  flex-shrink: 0;
-}
-
-.collection-member-drag-handle:hover {
   color: #fff;
+  cursor: grab;
+  transition: background-color 0.2s ease;
 }
 
-.collection-member-drag-handle:active {
+.collection-poster-drag-handle:hover {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.collection-poster-drag-handle:active {
   cursor: grabbing;
 }
 
-/* Ensure collection members have relative positioning for drag operations */
-.collection-member {
+.collection-poster-container {
   position: relative;
+  width: 100%;
+  height: 200px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #2d3748;
+  flex: 1;
+}
+
+.collection-poster-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.collection-poster-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #4a5568;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+}
+
+.collection-poster-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  padding: 20px 8px 8px;
+  color: white;
+}
+
+.collection-poster-title {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #fff;
+  text-align: center;
+  line-height: 1.2;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Box Set Posters Horizontal */
+.boxset-posters-horizontal {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #4a5568 transparent;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  height: 220px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+}
+
+.boxset-posters-horizontal::-webkit-scrollbar {
+  height: 6px;
+}
+
+.boxset-posters-horizontal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.boxset-posters-horizontal::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 3px;
+}
+
+.boxset-posters-horizontal::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+.boxset-poster-item {
+  flex: 0 0 auto;
+  width: 160px;
+  min-width: 160px;
+  max-width: 160px;
+  height: 200px;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.boxset-poster-item:hover {
+  transform: scale(1.05);
+}
+
+.boxset-poster-item.current {
+  box-shadow: 0 0 0 2px #00d4aa;
+  border-radius: 8px;
+}
+
+/* Drag and Drop States for Box Sets */
+.boxset-poster-item[data-dragging="true"] {
+  transform: rotate(-5deg) scale(1.1) !important;
+  z-index: 1000 !important;
+  opacity: 0.8 !important;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3) !important;
+}
+
+.boxset-poster-item[data-drag-over="true"] {
+  transform: scale(1.02);
+  border: 2px dashed #00d4aa;
+  border-radius: 8px;
+}
+
+.boxset-poster-container {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #2d3748;
+  flex: 1;
+}
+
+.boxset-poster-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  padding: 20px 8px 8px;
+  color: white;
+}
+
+.boxset-poster-title {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #fff;
+  text-align: center;
+  line-height: 1.2;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.boxset-poster-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.boxset-poster-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #4a5568;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .collection-poster-item,
+  .boxset-poster-item {
+    width: 140px;
+  }
+  
+  .collection-poster-container,
+  .boxset-poster-container {
+    height: 190px;
+  }
+  
+  .collection-poster-title,
+  .boxset-poster-title {
+    font-size: 0.8rem;
+  }
 }
