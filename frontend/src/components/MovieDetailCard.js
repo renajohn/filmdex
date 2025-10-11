@@ -175,7 +175,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
         setCast(castData);
         setCrew(crewData);
       } catch (error) {
-        console.warn('Failed to load cast and crew:', error);
+        // Failed to load cast and crew
       }
     };
 
@@ -191,7 +191,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       const names = boxSetCollections.map(c => c.name);
       setBoxSetNames(names);
     } catch (error) {
-      console.warn('Failed to load box set names:', error);
+      // Failed to load box set names
     }
   };
 
@@ -221,7 +221,6 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
         const members = await apiService.getMoviesByCollection(boxSetCollection.name);
         setBoxSetMembers(members);
       } catch (error) {
-        console.warn('Failed to load box set members:', error);
         setBoxSetMembers([]);
       }
     };
@@ -260,7 +259,6 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                 const result = await apiService.getCollectionMovies(collection.id);
                 return { collectionName, movies: result.movies };
               }
-              console.log('Collection not found:', collectionName);
               return { collectionName, movies: [] };
             } catch (error) {
               console.error(`Error loading members for collection ${collectionName}:`, error);
@@ -472,12 +470,9 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
 
   const getTrailerEmbedUrl = (trailerKey, trailerSite) => {
     if (!trailerKey || trailerSite !== 'YouTube') {
-      console.log('No trailer available:', { trailerKey, trailerSite });
       return null;
     }
-    const embedUrl = `https://www.youtube.com/embed/${trailerKey}?rel=0&modestbranding=1&showinfo=0`;
-    console.log('Generated trailer embed URL:', embedUrl);
-    return embedUrl;
+    return `https://www.youtube.com/embed/${trailerKey}?rel=0&modestbranding=1&showinfo=0`;
   };
 
   const trailerEmbedUrl = getTrailerEmbedUrl(trailer_key, trailer_site);
@@ -668,7 +663,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
               }
             }
           } catch (error) {
-            console.warn('Failed to cleanup empty collections:', error);
+            // Failed to cleanup empty collections
           }
         }, 200);
         
@@ -2113,10 +2108,6 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                 className="trailer-video"
                 onError={(e) => {
                   console.error('YouTube iframe error:', e);
-                  console.log('Failed URL:', trailerEmbedUrl);
-                }}
-                onLoad={() => {
-                  console.log('YouTube iframe loaded successfully:', trailerEmbedUrl);
                 }}
               />
             </div>

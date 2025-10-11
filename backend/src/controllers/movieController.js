@@ -965,17 +965,13 @@ const movieController = {
       if (!collectionName) {
         return res.status(400).json({ error: 'Collection name is required' });
       }
-
-      console.log('Looking for collection:', collectionName);
       const collectionService = require('../services/collectionService');
       const collection = await collectionService.findByName(collectionName);
       
       if (!collection) {
-        console.log('Collection not found:', collectionName);
         return res.status(404).json({ error: 'Collection not found' });
       }
 
-      console.log('Found collection:', collection.id, collection.name);
       const result = await collectionService.getCollectionMovies(collection.id);
       const movies = result.movies;
 

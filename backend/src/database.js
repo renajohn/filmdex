@@ -118,7 +118,6 @@ const runEditionsMigration = async (database) => {
                     return;
                   }
                   
-                  console.log('✓ Multiple editions support enabled');
                   resolve();
                 });
               });
@@ -146,7 +145,6 @@ const migrateWatchNextToCollections = async (database) => {
       const watchNextCollection = await Collection.findByType('watch_next');
       
       if (!watchNextCollection) {
-        console.log('Watch Next collection not found, skipping migration');
         resolve();
         return;
       }
@@ -164,7 +162,6 @@ const migrateWatchNextToCollections = async (database) => {
       });
       
       if (existingMappings > 0) {
-        console.log('Watch Next migration already completed, skipping');
         resolve();
         return;
       }
@@ -182,8 +179,6 @@ const migrateWatchNextToCollections = async (database) => {
         });
       });
       
-      console.log(`Migrating ${movies.length} movies to Watch Next collection...`);
-      
       // Add each movie to Watch Next collection with position
       for (let i = 0; i < movies.length; i++) {
         const movie = movies[i];
@@ -194,7 +189,6 @@ const migrateWatchNextToCollections = async (database) => {
         });
       }
       
-      console.log(`✓ Migrated ${movies.length} movies to Watch Next collection`);
       resolve();
     } catch (error) {
       reject(error);
@@ -216,18 +210,14 @@ const migrateWatchNextToDateTime = async (database) => {
       const hasWatchNext = columns.some(col => col.name === 'watch_next');
       
       if (hasWatchNextAdded && !hasWatchNext) {
-        console.log('✓ Watch next datetime migration already completed');
         resolve();
         return;
       }
       
       if (!hasWatchNext) {
-        console.log('✓ No watch_next column found, skipping migration');
         resolve();
         return;
       }
-      
-      console.log('\n=== Migrating watch_next BOOLEAN to watch_next_added DATETIME ===');
       
       database.serialize(() => {
         // Step 1: Add the new watch_next_added column
@@ -237,8 +227,6 @@ const migrateWatchNextToDateTime = async (database) => {
             reject(err);
             return;
           }
-          
-          console.log('✓ Added watch_next_added column');
           
           // Step 2: Migrate data - set timestamp for movies where watch_next = 1
           database.run(`
@@ -251,8 +239,6 @@ const migrateWatchNextToDateTime = async (database) => {
               reject(err);
               return;
             }
-            
-            console.log('✓ Migrated watch_next data to timestamps');
             
             // Step 3: Create a backup of the table with old column removed
             // We need to recreate the table to remove the watch_next column
@@ -310,8 +296,6 @@ const migrateWatchNextToDateTime = async (database) => {
                         return;
                       }
                       
-                      console.log('✓ Removed old watch_next column');
-                      console.log('✓ Watch next migration completed successfully\n');
                       resolve();
                     });
                   });
@@ -337,8 +321,6 @@ const initDatabase = async () => {
         console.error('Database connection error:', err.message);
         reject(err);
       } else {
-        console.log('Connected to SQLite database.');
-        
         // Create tables
         try {
           const Movie = require('./models/movie');
@@ -395,7 +377,6 @@ const initDatabase = async () => {
           }
           
           // Skip migrating existing watch_next_added data - start fresh
-          console.log('✓ Watch Next collection initialized (starting fresh)');
           
           // Add media_type column to existing movies table if it doesn't exist
           try {
@@ -548,7 +529,6 @@ const initDatabase = async () => {
                 if (err) {
                   reject(err);
                 } else {
-                  console.log('✓ Migrated collection_name to box_set_name');
                   resolve();
                 }
               });
@@ -592,7 +572,6 @@ const initDatabase = async () => {
           try {
             const migrateBoxSetsToCollections = require('../migrations/003_migrate_box_sets_to_collections');
             await migrateBoxSetsToCollections();
-            console.log('✓ Box sets migrated to collections');
           } catch (migrationError) {
             console.error('Box sets migration error:', migrationError);
             // Migration failed, but don't block initialization
@@ -602,7 +581,6 @@ const initDatabase = async () => {
           try {
             const dropOldColumns = require('../migrations/004_drop_old_columns');
             await dropOldColumns();
-            console.log('✓ Old columns dropped from movies table');
           } catch (migrationError) {
             console.error('Drop columns migration error:', migrationError);
             // Migration failed, but don't block initialization

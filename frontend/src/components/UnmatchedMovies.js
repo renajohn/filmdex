@@ -53,7 +53,6 @@ const UnmatchedMovies = ({ importId, onImportComplete, setCurrentStep }) => {
         // Auto-select the first suggestion if available
         if (movieSuggestions.length > 0) {
           selectedData[movie.title] = movieSuggestions[0];
-          console.log(`Auto-selected for "${movie.title}":`, movieSuggestions[0]);
         }
       } catch (error) {
         console.error(`Error loading suggestions for ${movie.title}:`, error);
@@ -155,10 +154,8 @@ const UnmatchedMovies = ({ importId, onImportComplete, setCurrentStep }) => {
     if (!query.trim()) return;
     
     try {
-      console.log(`Searching for movie: "${query}"${year ? ` (${year})` : ''}`);
       setIsLoading(true);
       const result = await apiService.getMovieSuggestions(importId, query, year);
-      console.log('Search result:', result);
       const movieSuggestions = result.suggestions || [];
       
       if (searchingMovie) {

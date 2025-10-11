@@ -267,7 +267,6 @@ const Collection = {
             if (err) {
               reject(err);
             } else {
-              console.log('✓ Watch Next system collection initialized');
               resolve();
             }
           });

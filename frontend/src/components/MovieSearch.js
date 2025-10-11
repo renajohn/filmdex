@@ -127,7 +127,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           const updatedDetails = await apiService.getMovieDetails(selectedMovieDetails.id);
           setSelectedMovieDetails(updatedDetails);
         } catch (error) {
-          console.warn('Failed to refresh selected movie details:', error);
+          // Failed to refresh selected movie details
         }
       }
     } catch (err) {
@@ -146,25 +146,14 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       const watchNextMovies = await apiService.getWatchNextMovies();
       setWatchNextMovies(watchNextMovies);
     } catch (error) {
-      console.warn('Failed to refresh Watch Next movies:', error);
+      // Failed to refresh Watch Next movies
     }
   }, []);
 
   // Refresh movie data while preserving current search/filter state
   const refreshMovieData = useCallback(async () => {
     try {
-      console.log('📡 Fetching fresh movie data from backend...');
       const data = await apiService.getAllMovies();
-      
-      // Debug: Check if a specific movie's box set status changed
-      const movie300 = data.find(m => m.title === '300');
-      if (movie300) {
-        console.log('Movie 300 after refresh:', {
-          has_box_set: movie300.has_box_set,
-          box_set_name: movie300.box_set_name
-        });
-      }
-      
       setAllMovies(data);
       
       // Reapply current filters to the new data
@@ -200,15 +189,8 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   // Refresh all movie data including box set status (used by detail view)
   const refreshAllMovieData = useCallback(async () => {
     try {
-      console.log('🔄 refreshAllMovieData called');
-      
-      // Refresh Watch Next
       await refreshWatchNextMovies();
-      
-      // Refresh main movie list to update has_box_set and other fields
       await refreshMovieData();
-      
-      console.log('✅ refreshAllMovieData completed');
     } catch (error) {
       console.error('Failed to refresh movie data:', error);
     }

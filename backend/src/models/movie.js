@@ -291,14 +291,6 @@ const Movie = {
             title_status: row.title_status || 'owned'
           };
           
-          console.log('findById returning movie:', {
-            id: movie.id,
-            title: movie.title,
-            rotten_tomato_rating: movie.rotten_tomato_rating,
-            tmdb_rating: movie.tmdb_rating,
-            imdb_rating: movie.imdb_rating
-          });
-          
           resolve(movie);
         }
       });
@@ -347,12 +339,6 @@ const Movie = {
           popularity, vote_count, adult, video, media_type = 'movie', recommended_age, title_status
         } = movieData;
         
-        console.log(`[Movie.update] Updating movie ID ${id}:`, {
-          title,
-          plot: plot?.substring(0, 50) + '...',
-          title_status
-        });
-        
         const sql = `
           UPDATE movies 
           SET title = ?, original_title = ?, original_language = ?, genre = ?, director = ?, cast = ?, 
@@ -375,7 +361,6 @@ const Movie = {
             console.error(`[Movie.update] Error updating movie ID ${id}:`, err);
             reject(err);
           } else {
-            console.log(`[Movie.update] Successfully updated movie ID ${id}, changes: ${this.changes}`);
             resolve({ id: id, changes: this.changes });
           }
         });
@@ -573,7 +558,6 @@ const Movie = {
       if (movie.poster_path && movie.poster_path.startsWith('/images/')) {
         const localPath = path.join(imagesPath, movie.poster_path.replace('/images/', ''));
         if (!fs.existsSync(localPath)) {
-          console.log(`Poster image not found: ${movie.poster_path}, setting to null`);
           cleanedMovie.poster_path = null;
         }
       }
@@ -582,7 +566,6 @@ const Movie = {
       if (movie.backdrop_path && movie.backdrop_path.startsWith('/images/')) {
         const localPath = path.join(imagesPath, movie.backdrop_path.replace('/images/', ''));
         if (!fs.existsSync(localPath)) {
-          console.log(`Backdrop image not found: ${movie.backdrop_path}, setting to null`);
           cleanedMovie.backdrop_path = null;
         }
       }
@@ -679,13 +662,11 @@ const Movie = {
         if (err) {
           // Column might already exist, which is fine
           if (err.message.includes('duplicate column name')) {
-            console.log('title_status column already exists');
             resolve();
           } else {
             reject(err);
           }
         } else {
-          console.log('title_status column added successfully');
           resolve();
         }
       });
