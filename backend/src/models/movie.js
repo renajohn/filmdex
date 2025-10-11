@@ -156,7 +156,12 @@ const Movie = {
             CASE WHEN c.type = 'box_set' 
             THEN c.id || ':' || c.name || ':' || c.type 
             END
-          ) as box_set_collections
+          ) as box_set_collections,
+          GROUP_CONCAT(
+            CASE WHEN c.type = 'user' 
+            THEN c.name 
+            END
+          ) as user_collections
         FROM movies m
         LEFT JOIN movie_collections mc ON m.id = mc.movie_id
         LEFT JOIN collections c ON mc.collection_id = c.id
@@ -168,11 +173,21 @@ const Movie = {
       sql += ' AND (m.title_status = ? OR m.title_status IS NULL)';
       params.push('owned');
 
-      // Full-text search on title, director, and comments
+      // Full-text search on title, director, comments, and collection names
       if (criteria.searchText) {
-        sql += ' AND (m.title LIKE ? OR m.original_title LIKE ? OR m.director LIKE ? OR m.comments LIKE ?)';
+        sql += ` AND (
+          m.title LIKE ? OR 
+          m.original_title LIKE ? OR 
+          m.director LIKE ? OR 
+          m.comments LIKE ? OR
+          EXISTS (
+            SELECT 1 FROM movie_collections mc2
+            JOIN collections c2 ON mc2.collection_id = c2.id
+            WHERE mc2.movie_id = m.id AND c2.name LIKE ?
+          )
+        )`;
         const searchTerm = `%${criteria.searchText}%`;
-        params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+        params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
       }
 
       if (criteria.format) {
@@ -211,6 +226,16 @@ const Movie = {
             }
             // Remove the raw concatenated string
             delete movie.box_set_collections;
+            
+            // Parse user collections info
+            if (movie.user_collections && movie.user_collections.trim() !== '') {
+              const collectionNames = movie.user_collections.split(',').filter(name => name && name.trim() !== '');
+              movie.collection_names = collectionNames;
+            } else {
+              movie.collection_names = [];
+            }
+            // Remove the raw concatenated string
+            delete movie.user_collections;
             
             return movie;
           });
@@ -587,7 +612,12 @@ const Movie = {
             CASE WHEN c.type = 'box_set' 
             THEN c.id || ':' || c.name || ':' || c.type 
             END
-          ) as box_set_collections
+          ) as box_set_collections,
+          GROUP_CONCAT(
+            CASE WHEN c.type = 'user' 
+            THEN c.name 
+            END
+          ) as user_collections
         FROM movies m
         LEFT JOIN movie_collections mc ON m.id = mc.movie_id
         LEFT JOIN collections c ON mc.collection_id = c.id
@@ -627,6 +657,16 @@ const Movie = {
             }
             // Remove the raw concatenated string
             delete movie.box_set_collections;
+            
+            // Parse user collections info
+            if (movie.user_collections && movie.user_collections.trim() !== '') {
+              const collectionNames = movie.user_collections.split(',').filter(name => name && name.trim() !== '');
+              movie.collection_names = collectionNames;
+            } else {
+              movie.collection_names = [];
+            }
+            // Remove the raw concatenated string
+            delete movie.user_collections;
             
             return movie;
           });

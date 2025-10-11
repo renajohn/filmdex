@@ -423,8 +423,22 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
             className="movie-thumbnail-compact"
             disableZoom={true}
             posterPath={movie.poster_path}
-            recommendedAge={movie.recommended_age}
+            recommendedAge={null}
           />
+          <div className="poster-info-hover">
+            {movie.recommended_age && (
+              <span className="age-badge-hover">{movie.recommended_age}+</span>
+            )}
+            {movie.format && (
+              <span className="format-badge-hover">
+                {movie.format === 'Blu-ray 4K' ? '4K' : 
+                 movie.format === 'Blu-ray' ? 'BR' : 
+                 movie.format === 'DVD' ? 'DVD' : 
+                 movie.format === 'Digital' ? 'DIG' : 
+                 movie.format.substring(0, 3).toUpperCase()}
+              </span>
+            )}
+          </div>
           <button 
             className={`watch-next-badge-toggle ${watchNextMovies.some(wm => wm.id === movie.id) ? 'active' : ''}`}
             onClick={(e) => handleWatchNextToggle(e, movie)}
@@ -444,15 +458,38 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
         
         <div className="movie-info-compact">
           <div className="movie-header-compact">
-            <h4 title={movie.title}>{movie.title}</h4>
-            <div className="movie-meta">
+            <h4 title={`${movie.title} (${movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year || ''})`}>
+              <span className="movie-title-text">{movie.title}</span>
               {(movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year) && 
-                <span className="movie-year">({movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year})</span>
+                <span className="movie-year-inline"> ({movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year})</span>
               }
-              {movie.format && <span className="format-badge">{movie.format}</span>}
-              {movie.has_box_set && <span className="boxset-badge">BOX SET</span>}
-            </div>
+            </h4>
+            {(() => {
+              const collectionParts = [];
+              
+              // Priority 1: Box set
+              if (movie.has_box_set && movie.box_set_name) {
+                collectionParts.push(`${movie.box_set_name} box set`);
+              }
+              
+              // Priority 2: User collections
+              if (movie.collection_names && movie.collection_names.length > 0) {
+                const collectionsText = movie.collection_names.map(name => `${name} collection`).join(', ');
+                collectionParts.push(collectionsText);
+              }
+              
+              if (collectionParts.length > 0) {
+                return (
+                  <div className="movie-collection-info" title={`Part of ${collectionParts.join(', ')}`}>
+                    Part of {collectionParts.join(', ')}
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
+          
+          <div className="movie-spacer"></div>
           
           <div className="movie-content-compact">
             <div className="movie-details-left">

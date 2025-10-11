@@ -1220,6 +1220,50 @@
   background: linear-gradient(135deg, #2d2d2d 0%, #252525 100%);
 }
 
+.poster-info-hover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
+  padding: 4px 4px 20px 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 4px;
+  z-index: 5;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.movie-card-compact:hover .poster-info-hover {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.age-badge-hover,
+.format-badge-hover {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 3px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.format-badge-hover {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
 .movie-thumbnail-compact {
   width: 100%;
   height: 100%;
@@ -1341,15 +1385,23 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   min-width: 0;
   /* Subtle background for better appearance during fast scrolling */
   background: linear-gradient(90deg, #1a1a1a 0%, rgba(26, 26, 26, 0.98) 100%);
-  padding: 12px;
+  padding: 12px 12px 10px 12px;
 }
 
 .movie-header-compact {
-  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+
+.movie-spacer {
+  flex: .5 .5;
+  min-height: 8px;
 }
 
 .movie-header-compact h4 {
@@ -1358,55 +1410,35 @@
   font-weight: 600;
   color: #ffffff;
   line-height: 1.3;
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.movie-title-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-bottom: 4px;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
-.movie-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.movie-year {
-  font-size: 0.85rem;
+.movie-year-inline {
   color: #888;
   font-weight: 400;
-}
-
-.format-badge {
-  background: #444;
-  color: #ccc;
-  padding: 3px 7px;
-  border-radius: 12px;
-  font-size: 0.7rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  display: inline-block;
-}
-
-.boxset-badge {
-  background: #444;
-  color: #ccc;
-  padding: 3px 7px;
-  border-radius: 12px;
-  font-size: 0.7rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  display: inline-block;
-  margin-left: 6px;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .movie-content-compact {
-  flex: 1;
   display: grid;
   grid-template-columns: 4fr 1fr 1fr;
-  gap: 12px;
+  gap: 10px;
   align-items: start;
+  padding-bottom: 2px;
+  flex-shrink: 0;
 }
 
 .movie-details-left,
@@ -1414,13 +1446,13 @@
 .movie-details-right {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .detail-row {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .detail-label {
@@ -1447,7 +1479,15 @@
   font-size: 0.9rem !important;
 }
 
-
+.movie-collection-info {
+  font-size: 0.7rem;
+  color: #888;
+  font-style: italic;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .movie-header {
   display: flex;
@@ -1579,38 +1619,59 @@
   }
   
   .movie-info-compact {
-    padding: 6px;
+    padding: 8px 8px 6px 8px;
   }
   
-  .movie-ratings-compact {
-    gap: 6px;
+  .movie-header-compact {
+    gap: 3px;
+    padding-top: 1px;
+    flex-shrink: 0;
   }
   
-  .movie-title-compact h4 {
+  .movie-spacer {
+    min-height: 6px;
+  }
+  
+  .movie-content-compact {
+    gap: 8px;
+    padding-bottom: 1px;
+    flex-shrink: 0;
+  }
+  
+  .movie-header-compact h4 {
     font-size: 0.9rem;
   }
   
-  .movie-year {
-    font-size: 0.7rem;
+  .movie-title-text {
+    flex-shrink: 1;
   }
   
-  .movie-ratings-compact {
-    gap: 6px;
+  .movie-year-inline {
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+  
+  .movie-collection-info {
+    font-size: 0.6rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .poster-info-hover {
+    padding: 3px 3px 16px 3px;
+    gap: 3px;
+  }
+  
+  .age-badge-hover,
+  .format-badge-hover {
+    font-size: 0.55rem;
+    padding: 1px 4px;
+    flex-shrink: 0;
   }
   
   .rating-label-compact {
     font-size: 0.55rem;
-  }
-  
-  .format-badge {
-    font-size: 0.6rem;
-    padding: 1px 4px;
-  }
-  
-  .boxset-badge {
-    font-size: 0.6rem;
-    padding: 1px 4px;
-    margin-left: 4px;
   }
   
   .filter-pills {
