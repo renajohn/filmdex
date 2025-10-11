@@ -31,8 +31,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const [groupLoading, setGroupLoading] = useState(false); // Group loading state
   const [expandedGroups, setExpandedGroups] = useState(new Set()); // Track expanded groups
   const [expandAllGroups, setExpandAllGroups] = useState(false); // Expand/collapse all state
-  const [showMoreDropdown, setShowMoreDropdown] = useState(false); // More dropdown visibility
-  const moreDropdownRef = useRef(null); // Ref for more dropdown
   const previousSearchTextRef = useRef(''); // Track previous search text to avoid infinite loops
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingMovie, setEditingMovie] = useState(null);
@@ -266,27 +264,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchCriteria?.searchText]); // Only re-run when the actual search text changes
 
-  // Handle click outside more dropdown
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (moreDropdownRef.current && !moreDropdownRef.current.contains(event.target)) {
-        setShowMoreDropdown(false);
-      }
-    };
-
-    if (showMoreDropdown) {
-      // Add a small delay to prevent immediate closing
-      const timeoutId = setTimeout(() => {
-        document.addEventListener('mousedown', handleClickOutside);
-      }, 100);
-      
-      return () => {
-        clearTimeout(timeoutId);
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }
-  }, [showMoreDropdown]);
-
   useEffect(() => {
     if (refreshTrigger) {
       refreshMovieData();
@@ -482,7 +459,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                 return (
                   <div className="movie-collection-info" title={`Part of ${collectionParts.join(', ')}`}>
                     Part of {collectionParts.join(', ')}
-                  </div>
+            </div>
                 );
               }
               return null;
@@ -808,16 +785,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     });
   };
 
-  const handleMoreToggle = () => {
-    setShowMoreDropdown(!showMoreDropdown);
-  };
-
-  const handleMorePillClick = (filterType, filterValue = null) => {
-    handleFilterClick(filterType, filterValue);
-    setShowMoreDropdown(false);
-  };
-
-
   // Check if a filter is active
   const isFilterActive = (filterType, filterValue = null) => {
     return activeFilters.some(f => 
@@ -1086,184 +1053,217 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
       <div className="movies-results">
         <div className="movies-results-header">
-          <div className="filter-pills">
+          <div className="movies-count-display">
+            Showing {filteredMovies.length} of {allMovies.length} movies
+          </div>
+          
+          {/* Dropdowns Container */}
+          <div className="dropdowns-container">
+            {/* Filter Dropdown */}
+            <Dropdown className="filter-dropdown-container">
+              <Dropdown.Toggle 
+                as="button"
+                className={`filter-pill filter-dropdown-button ${activeFilters.length > 0 ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''}`}
+                disabled={filterLoading}
+              >
+                {filterLoading ? (
+                  <>
+                    <span className="filter-loading-spinner"></span>
+                    Filtering...
+                  </>
+                ) : (
+                  <>
+                    <BsFilter className="filter-icon" />
+                    {activeFilters.length === 0 ? 'Filter: All' : `Filter: ${activeFilters.length} active`}
+                  </>
+                )}
+              </Dropdown.Toggle>
+              
+              <Dropdown.Menu className="filter-dropdown-menu">
             {(() => {
               const counts = getFilterCounts();
-              const isAllActive = activeFilters.length === 0;
               const hasFormats = Object.keys(counts.formats).length > 0;
               const hasAgeGroups = Object.keys(counts.ageGroups).length > 0;
-              const hasCollections = Object.keys(counts.collections).length > 0;
-              const hasBoxSets = Object.keys(counts.boxSets).length > 0;
-              const hasActiveFormatFilters = activeFilters.some(f => f.type === 'format');
-              const hasActiveAgeGroupFilters = activeFilters.some(f => f.type === 'ageGroup');
-              const hasActiveCollectionFilters = activeFilters.some(f => f.type === 'collection');
-              const hasActiveBoxSetFilters = activeFilters.some(f => f.type === 'boxSet');
+                  const hasCollections = Object.keys(counts.collections).length > 0;
+                  const hasBoxSets = Object.keys(counts.boxSets).length > 0;
               
               return (
                 <>
-                  {/* Main Category Pills */}
-                  <button
-                    className={`filter-pill ${isAllActive ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} first-child`}
-                    onClick={() => handleFilterClick('all')}
-                    disabled={filterLoading}
-                  >
-                    <BsFilter className="filter-icon" />
-                    All ({counts.all})
-                  </button>
-                  
-                  {counts.movies > 0 && (
-                    <button
-                      className={`filter-pill ${activeFilters.some(f => f.type === 'movies') ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''}`}
-                      onClick={() => handleFilterClick('movies')}
-                      disabled={filterLoading}
-                    >
-                      <BsFilm className="filter-icon" />
-                      Movies ({counts.movies})
-                    </button>
-                  )}
-                  
-                  {counts.tvShows > 0 && (
-                    <button
-                      className={`filter-pill ${activeFilters.some(f => f.type === 'tvShows') ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''}`}
-                      onClick={() => handleFilterClick('tvShows')}
-                      disabled={filterLoading}
-                    >
-                      <BsTv className="filter-icon" />
-                      TV Shows ({counts.tvShows})
-                    </button>
-                  )}
-                  
-                  {counts.comments > 0 && (
-                    <button
-                      className={`filter-pill ${activeFilters.some(f => f.type === 'comments') ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''}`}
-                      onClick={() => handleFilterClick('comments')}
-                      disabled={filterLoading}
-                    >
-                      <BsChatText className="filter-icon" />
-                      Comments ({counts.comments})
-                    </button>
-                  )}
-                  
-                  {/* More Dropdown for Formats, Age Groups, Collections, and Box Sets */}
-                  {(hasFormats || hasAgeGroups || hasCollections || hasBoxSets) && (
-                    <div className="more-dropdown-container" ref={moreDropdownRef}>
-                      <button
-                        className={`filter-pill more-pill ${(hasActiveFormatFilters || hasActiveAgeGroupFilters || hasActiveCollectionFilters || hasActiveBoxSetFilters) ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} last-child`}
-                        onClick={handleMoreToggle}
-                        disabled={filterLoading}
+                      {/* Clear All Filters */}
+                      <Dropdown.Item
+                        className="filter-dropdown-item clear-all"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleFilterClick('all');
+                        }}
                       >
-                        <BsThreeDots className="filter-icon" />
-                      </button>
+                        <BsX className="clear-icon" />
+                        Clear All Filters
+                      </Dropdown.Item>
                       
-                      {showMoreDropdown && (
-                        <div className="more-dropdown-menu">
-                          {/* Age Group Filters */}
-                          {hasAgeGroups && (
-                            <>
-                              <div className="more-dropdown-section-title">Age Groups</div>
-                              {Object.entries(counts.ageGroups)
-                                .filter(([ageGroup, count]) => count > 0)
-                                .map(([ageGroup, count]) => {
-                                  const isActive = isFilterActive('ageGroup', ageGroup);
-                                  return (
-                                    <button
-                                      key={`age-${ageGroup}`}
-                                      className={`more-dropdown-item ${isActive ? 'active' : ''}`}
-                                      onClick={() => handleMorePillClick('ageGroup', ageGroup)}
-                                    >
-                                      {isActive && <BsCheck className="checkmark" />}
-                                      {ageGroup} ({count})
-                                    </button>
-                                  );
-                                })}
+                      <Dropdown.Divider />
+                      
+                      {/* Media Type Section */}
+                      <div className="filter-section-title">Media Type</div>
+                  {counts.movies > 0 && (
+                        <Dropdown.Item
+                          className={`filter-dropdown-item ${isFilterActive('movies') ? 'active' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleFilterClick('movies');
+                          }}
+                        >
+                          {isFilterActive('movies') && <BsCheck className="checkmark" />}
+                          <BsFilm className="item-icon" />
+                      Movies ({counts.movies})
+                        </Dropdown.Item>
+                  )}
+                  {counts.tvShows > 0 && (
+                        <Dropdown.Item
+                          className={`filter-dropdown-item ${isFilterActive('tvShows') ? 'active' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleFilterClick('tvShows');
+                          }}
+                        >
+                          {isFilterActive('tvShows') && <BsCheck className="checkmark" />}
+                          <BsTv className="item-icon" />
+                      TV Shows ({counts.tvShows})
+                        </Dropdown.Item>
+                  )}
+                  
+                      {/* Special Section */}
+                      {(counts.comments > 0 || counts.watchNext > 0) && (
+                        <>
+                          <Dropdown.Divider />
+                          <div className="filter-section-title">Special</div>
+                  {counts.comments > 0 && (
+                            <Dropdown.Item
+                              className={`filter-dropdown-item ${isFilterActive('comments') ? 'active' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleFilterClick('comments');
+                              }}
+                            >
+                              {isFilterActive('comments') && <BsCheck className="checkmark" />}
+                              <BsChatText className="item-icon" />
+                      Comments ({counts.comments})
+                            </Dropdown.Item>
+                          )}
+                          {counts.watchNext > 0 && (
+                            <Dropdown.Item
+                              className={`filter-dropdown-item ${isFilterActive('watchNext') ? 'active' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleFilterClick('watchNext');
+                              }}
+                            >
+                              {isFilterActive('watchNext') && <BsCheck className="checkmark" />}
+                              <span className="item-icon">⭐</span>
+                              Watch Next ({counts.watchNext})
+                            </Dropdown.Item>
+                          )}
+                        </>
+                      )}
+                      
+                      {/* Collections Section */}
+                      {hasCollections && (
+                        <>
+                          <Dropdown.Divider />
+                          <div className="filter-section-title">Collections</div>
+                          {Object.entries(counts.collections)
+                            .sort(([a], [b]) => a.localeCompare(b))
+                            .filter(([collection, count]) => count > 0)
+                            .map(([collection, count]) => (
+                              <Dropdown.Item
+                                key={`collection-${collection}`}
+                                className={`filter-dropdown-item ${isFilterActive('collection', collection) ? 'active' : ''}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleFilterClick('collection', collection);
+                                }}
+                              >
+                                {isFilterActive('collection', collection) && <BsCheck className="checkmark" />}
+                                {collection} ({count})
+                              </Dropdown.Item>
+                            ))}
+                        </>
+                      )}
+                      
+                      {/* Box Sets Section */}
+                      {hasBoxSets && (
+                        <>
+                          <Dropdown.Divider />
+                          <div className="filter-section-title">Box Sets</div>
+                          {Object.entries(counts.boxSets)
+                            .sort(([a], [b]) => a.localeCompare(b))
+                            .filter(([boxSet, count]) => count > 0)
+                            .map(([boxSet, count]) => (
+                              <Dropdown.Item
+                                key={`boxSet-${boxSet}`}
+                                className={`filter-dropdown-item ${isFilterActive('boxSet', boxSet) ? 'active' : ''}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleFilterClick('boxSet', boxSet);
+                                }}
+                              >
+                                {isFilterActive('boxSet', boxSet) && <BsCheck className="checkmark" />}
+                                {boxSet} ({count})
+                              </Dropdown.Item>
+                            ))}
                             </>
                           )}
                           
-                          {/* Format Filters */}
+                      {/* Formats Section */}
                           {hasFormats && (
                             <>
-                              {hasAgeGroups && <div className="more-dropdown-section-title">Formats</div>}
+                          <Dropdown.Divider />
+                          <div className="filter-section-title">Formats</div>
                               {Object.entries(counts.formats)
                                 .filter(([format, count]) => count > 0)
-                                .map(([format, count]) => {
-                                  const isActive = isFilterActive('format', format);
-                                  return (
-                                    <button
-                                      key={format}
-                                      className={`more-dropdown-item ${isActive ? 'active' : ''}`}
-                                      onClick={() => handleMorePillClick('format', format)}
-                                    >
-                                      {isActive && <BsCheck className="checkmark" />}
+                            .map(([format, count]) => (
+                              <Dropdown.Item
+                                key={`format-${format}`}
+                                className={`filter-dropdown-item ${isFilterActive('format', format) ? 'active' : ''}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleFilterClick('format', format);
+                                }}
+                              >
+                                {isFilterActive('format', format) && <BsCheck className="checkmark" />}
                                       {format} ({count})
-                                    </button>
-                                  );
-                                })}
-                            </>
-                          )}
-                          
-                          {/* Collection Filters */}
-                          {hasCollections && (
-                            <>
-                              {(hasAgeGroups || hasFormats) && <div className="more-dropdown-section-title">Collections</div>}
-                              {Object.entries(counts.collections)
-                                .sort(([a], [b]) => a.localeCompare(b))
-                                .filter(([collection, count]) => count > 0)
-                                .map(([collection, count]) => {
-                                  const isActive = isFilterActive('collection', collection);
-                                  return (
-                                    <button
-                                      key={`collection-${collection}`}
-                                      className={`more-dropdown-item ${isActive ? 'active' : ''}`}
-                                      onClick={() => handleMorePillClick('collection', collection)}
-                                    >
-                                      {isActive && <BsCheck className="checkmark" />}
-                                      {collection} ({count})
-                                    </button>
-                                  );
-                                })}
-                            </>
-                          )}
-                          
-                          {/* Box Set Filters */}
-                          {hasBoxSets && (
-                            <>
-                              {(hasAgeGroups || hasFormats || hasCollections) && <div className="more-dropdown-section-title">Box Sets</div>}
-                              {Object.entries(counts.boxSets)
-                                .sort(([a], [b]) => a.localeCompare(b))
-                                .filter(([boxSet, count]) => count > 0)
-                                .map(([boxSet, count]) => {
-                                  const isActive = isFilterActive('boxSet', boxSet);
-                                  return (
-                                    <button
-                                      key={`boxSet-${boxSet}`}
-                                      className={`more-dropdown-item ${isActive ? 'active' : ''}`}
-                                      onClick={() => handleMorePillClick('boxSet', boxSet)}
-                                    >
-                                      {isActive && <BsCheck className="checkmark" />}
-                                      {boxSet} ({count})
-                                    </button>
-                                  );
-                                })}
-                            </>
-                          )}
-                        </div>
+                              </Dropdown.Item>
+                            ))}
+                        </>
                       )}
-                    </div>
-                  )}
-                  
-                  {/* Filter Loading Spinner */}
-                  {filterLoading && (
-                    <div className="filter-loading-spinner-container">
-                      <span className="filter-loading-spinner"></span>
-                    </div>
+                      
+                      {/* Age Groups Section */}
+                      {hasAgeGroups && (
+                        <>
+                          <Dropdown.Divider />
+                          <div className="filter-section-title">Age Groups</div>
+                          {Object.entries(counts.ageGroups)
+                            .filter(([ageGroup, count]) => count > 0)
+                            .map(([ageGroup, count]) => (
+                              <Dropdown.Item
+                                key={`age-${ageGroup}`}
+                                className={`filter-dropdown-item ${isFilterActive('ageGroup', ageGroup) ? 'active' : ''}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleFilterClick('ageGroup', ageGroup);
+                                }}
+                              >
+                                {isFilterActive('ageGroup', ageGroup) && <BsCheck className="checkmark" />}
+                                {ageGroup} ({count})
+                              </Dropdown.Item>
+                            ))}
+                        </>
                   )}
                 </>
               );
             })()}
-          </div>
-          
-          {/* Dropdowns Container - Grouped on the right */}
-          <div className="dropdowns-container">
+              </Dropdown.Menu>
+            </Dropdown>
             {/* Sort Dropdown */}
             <Dropdown className="sort-dropdown-container">
               <Dropdown.Toggle 
