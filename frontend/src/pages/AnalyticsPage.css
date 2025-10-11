@@ -329,6 +329,42 @@
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.2);
 }
 
+.list-item.clickable-item {
+  cursor: pointer;
+}
+
+.list-item.clickable-item:hover {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.1) 100%);
+  border-color: rgba(212, 175, 55, 0.5);
+  transform: translateX(6px) scale(1.02);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+}
+
+.list-item.clickable-item:active {
+  transform: translateX(4px) scale(0.98);
+}
+
+/* Clickable chart elements */
+.recharts-bar .recharts-bar-rectangle {
+  transition: all 0.2s ease;
+}
+
+.recharts-bar .recharts-bar-rectangle:hover {
+  opacity: 0.8;
+  filter: brightness(1.1);
+}
+
+.recharts-pie .recharts-pie-sector {
+  transition: all 0.2s ease;
+}
+
+.recharts-pie .recharts-pie-sector:hover {
+  opacity: 0.8;
+  filter: brightness(1.1);
+  stroke: #fbbf24;
+  stroke-width: 2;
+}
+
 .list-rank {
   display: flex;
   align-items: center;

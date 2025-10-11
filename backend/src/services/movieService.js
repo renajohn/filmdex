@@ -310,27 +310,45 @@ const movieService = {
       
       switch (field) {
         case 'title':
-          sql = `SELECT DISTINCT title FROM movies WHERE title LIKE ? ORDER BY title LIMIT 10`;
+          sql = `SELECT DISTINCT title FROM movies WHERE title LIKE ? ORDER BY title LIMIT 20`;
           params = [`%${query}%`];
           break;
         case 'director':
-          sql = `SELECT DISTINCT director FROM movies WHERE director IS NOT NULL AND director != '' AND director LIKE ? ORDER BY director LIMIT 10`;
+          sql = `SELECT DISTINCT director FROM movies WHERE director IS NOT NULL AND director != '' AND director LIKE ? ORDER BY director LIMIT 20`;
           params = [`%${query}%`];
           break;
         case 'genre':
-          sql = `SELECT DISTINCT genre FROM movies WHERE genre IS NOT NULL AND genre != '' AND genre LIKE ? ORDER BY genre LIMIT 10`;
+          // Get all genres and split them to extract individual genre names
+          sql = `SELECT DISTINCT genre FROM movies WHERE genre IS NOT NULL AND genre != '' AND genre LIKE ? ORDER BY genre LIMIT 20`;
           params = [`%${query}%`];
           break;
         case 'actor':
-          sql = `SELECT DISTINCT value as actor FROM movies, json_each(cast) WHERE value LIKE ? ORDER BY value LIMIT 10`;
+          // Use cast field from movies table - return full cast arrays, frontend will parse
+          sql = `SELECT DISTINCT m.cast FROM movies m WHERE m.cast IS NOT NULL AND m.cast != '' AND m.cast != '[]' AND m.cast LIKE ? ORDER BY m.cast LIMIT 20`;
+          params = [`%${query}%`];
+          break;
+        case 'collection':
+          sql = `SELECT DISTINCT c.name as collection 
+                 FROM collections c 
+                 WHERE c.type = 'user' AND c.name IS NOT NULL AND c.name != '' AND c.name LIKE ? 
+                 ORDER BY c.name LIMIT 20`;
           params = [`%${query}%`];
           break;
         case 'format':
-          sql = `SELECT DISTINCT format FROM movies WHERE format IS NOT NULL AND format != '' AND format LIKE ? ORDER BY format LIMIT 10`;
+          sql = `SELECT DISTINCT format FROM movies WHERE format IS NOT NULL AND format != '' AND format LIKE ? ORDER BY format LIMIT 20`;
           params = [`%${query}%`];
           break;
         case 'year':
-          sql = `SELECT DISTINCT strftime('%Y', release_date) as year FROM movies WHERE release_date IS NOT NULL AND release_date LIKE ? ORDER BY year DESC LIMIT 10`;
+          sql = `SELECT DISTINCT strftime('%Y', release_date) as year FROM movies WHERE release_date IS NOT NULL AND release_date LIKE ? ORDER BY year DESC LIMIT 20`;
+          params = [`%${query}%`];
+          break;
+        case 'original_language':
+          // Return language codes directly, not display names
+          sql = `SELECT DISTINCT original_language FROM movies WHERE original_language IS NOT NULL AND original_language != '' AND original_language LIKE ? ORDER BY original_language LIMIT 20`;
+          params = [`%${query}%`];
+          break;
+        case 'media_type':
+          sql = `SELECT DISTINCT media_type FROM movies WHERE media_type IS NOT NULL AND media_type != '' AND media_type LIKE ? ORDER BY media_type LIMIT 20`;
           params = [`%${query}%`];
           break;
         case 'minImdbRating':
@@ -350,7 +368,33 @@ const movieService = {
           }
         });
       });
-      return rows.map(row => row[field] || row.actor || row.year);
+      // Return proper object format for frontend
+      let processedRows = rows.map(row => {
+        const value = row[field] || row.actor || row.year || row.collection || row.cast || row.original_language || row.media_type;
+        return { [field]: value };
+      });
+
+      // Special processing for genre field - split comma-separated genres
+      if (field === 'genre') {
+        const allGenres = new Set();
+        processedRows.forEach(row => {
+          const genreString = row.genre;
+          if (genreString) {
+            // Split by comma and clean up each genre
+            const genres = genreString.split(',').map(g => g.trim()).filter(g => g.length > 0);
+            genres.forEach(genre => {
+              if (genre.toLowerCase().includes(query.toLowerCase())) {
+                allGenres.add(genre);
+              }
+            });
+          }
+        });
+        
+        // Convert back to array format
+        processedRows = Array.from(allGenres).slice(0, 20).map(genre => ({ [field]: genre }));
+      }
+
+      return processedRows;
     } catch (error) {
       console.error('Error getting autocomplete suggestions:', error);
       return [];

@@ -17,6 +17,7 @@ function AppContent() {
   const [refreshTrigger] = useState(0);
   const movieSearchRef = useRef(null);
   const wishListRef = useRef(null);
+  const searchInputRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchCriteria, setSearchCriteria] = useState({
@@ -30,6 +31,10 @@ function AppContent() {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState('success');
   const [showAlert, setShowAlert] = useState(false);
+  const [autocompleteOptions, setAutocompleteOptions] = useState([]);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [autocompleteIndex, setAutocompleteIndex] = useState(-1);
+  const autocompleteTimeoutRef = useRef(null);
 
   // Check if we're on the thumbnail view (root path)
   const isThumbnailView = location.pathname === '/';
@@ -52,12 +57,195 @@ function AppContent() {
   };
 
 
-  const handleSearchChange = (e) => {
+  const getAutocompleteOptions = async (text) => {
+    const keywords = [
+      'actor:', 'director:', 'title:', 'collection:', 'genre:', 'format:', 
+      'original_language:', 'media_type:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=',
+      'imdb_rating:', 'imdb_rating:>', 'imdb_rating:<', 'imdb_rating:>=', 'imdb_rating:<=',
+      'recommended_age:', 'recommended_age:>', 'recommended_age:<', 'recommended_age:>=', 'recommended_age:<=',
+      'price:', 'price:>', 'price:<', 'price:>=', 'price:<='
+    ];
+    
+    // Get the cursor position (end of text)
+    const cursorPos = text.length;
+    
+    // Find the last word being typed (after last space or at start)
+    const beforeCursor = text.substring(0, cursorPos);
+    const lastSpaceIndex = beforeCursor.lastIndexOf(' ');
+    const currentWord = beforeCursor.substring(lastSpaceIndex + 1);
+    
+    // Check if we're inside a filter value (after a keyword)
+    const filterMatch = currentWord.match(/^(actor|director|title|collection|genre|format|original_language|media_type):(.*)$/);
+    
+    if (filterMatch) {
+      const [, filterType, filterValue] = filterMatch;
+      
+      // Don't show suggestions if already inside quotes
+      if (filterValue.includes('"')) {
+        return [];
+      }
+      
+      // Show suggestions immediately when predicate is typed (even with empty value)
+      // or when user starts typing a value
+      
+      // Fetch value suggestions from backend
+      try {
+        const response = await apiService.getAutocompleteSuggestions(filterType, filterValue);
+        
+        // Extract values from response (backend now returns {field: value} format)
+        let values = response.map(item => item[filterType]).filter(value => value && value !== 'undefined');
+        
+        // For actors, we get JSON arrays, so parse them to extract individual names
+        if (filterType === 'actor') {
+          values = values.map(cast => {
+            if (typeof cast === 'string') {
+              try {
+                const parsed = JSON.parse(cast);
+                return Array.isArray(parsed) ? parsed : [cast];
+              } catch (e) {
+                return [cast];
+              }
+            }
+            return Array.isArray(cast) ? cast : [cast];
+          }).flat();
+          
+          // Filter actors to only show those that match the search term
+          const searchTerm = filterValue.toLowerCase();
+          values = values.filter(actor => 
+            actor && typeof actor === 'string' && actor.toLowerCase().includes(searchTerm)
+          );
+        }
+        
+        // Remove duplicates and limit to 20
+        values = [...new Set(values)].slice(0, 20);
+        
+        return values.map(value => ({
+          isValue: true,
+          keyword: value,
+          filterType,
+          replaceText: text.substring(0, lastSpaceIndex + 1) + `${filterType}:"${value}"`
+        }));
+      } catch (error) {
+        console.error('Error fetching autocomplete suggestions:', error);
+        return [];
+      }
+    }
+    
+    // Otherwise, show keyword suggestions
+    const currentWordLower = currentWord.toLowerCase();
+    
+    // Only show keyword suggestions if typing a partial keyword
+    if (currentWord.length === 0 || currentWord.includes(':') || currentWord.includes('"')) {
+      return [];
+    }
+    
+    // Filter keywords that start with current word
+    const matches = keywords.filter(kw => kw.startsWith(currentWordLower));
+    
+    return matches.map(kw => ({
+      isValue: false,
+      keyword: kw,
+      replaceText: text.substring(0, lastSpaceIndex + 1) + kw
+    }));
+  };
+
+  const handleSearchChange = async (e) => {
     const { name, value } = e.target;
     setSearchCriteria(prev => ({
       ...prev,
       [name]: value
     }));
+    
+    // Clear existing timeout
+    if (autocompleteTimeoutRef.current) {
+      clearTimeout(autocompleteTimeoutRef.current);
+    }
+    
+    // Debounce autocomplete suggestions by 300ms
+    autocompleteTimeoutRef.current = setTimeout(async () => {
+      const options = await getAutocompleteOptions(value);
+      setAutocompleteOptions(options);
+      setShowAutocomplete(options.length > 0);
+      setAutocompleteIndex(-1);
+    }, 300);
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (!showAutocomplete || autocompleteOptions.length === 0) return;
+    
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      // Select first option or currently highlighted option
+      const indexToSelect = autocompleteIndex >= 0 ? autocompleteIndex : 0;
+      selectAutocompleteSuggestion(autocompleteOptions[indexToSelect]);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setAutocompleteIndex(prev => 
+        prev < autocompleteOptions.length - 1 ? prev + 1 : prev
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setAutocompleteIndex(prev => prev > 0 ? prev - 1 : -1);
+    } else if (e.key === 'Enter' && autocompleteIndex >= 0) {
+      e.preventDefault();
+      selectAutocompleteSuggestion(autocompleteOptions[autocompleteIndex]);
+    } else if (e.key === 'Escape') {
+      setShowAutocomplete(false);
+      setAutocompleteIndex(-1);
+    }
+  };
+
+  const selectAutocompleteSuggestion = async (option) => {
+    console.log('Selecting autocomplete option:', option); // Debug log
+    console.log('Current search text:', searchCriteria.searchText); // Debug log
+    console.log('Replace text:', option.replaceText); // Debug log
+    
+    // First, close the dropdown
+    setShowAutocomplete(false);
+    setAutocompleteIndex(-1);
+    
+    // Update the search text
+    setSearchCriteria(prev => ({
+      ...prev,
+      searchText: option.replaceText
+    }));
+    
+    // Keep focus on input and set cursor position
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+      
+      // Use setTimeout to ensure state update has been processed
+      setTimeout(() => {
+        // Move cursor to end of the inserted text
+        const cursorPosition = option.replaceText.length;
+        searchInputRef.current.setSelectionRange(cursorPosition, cursorPosition);
+        
+        // Only add space and trigger autocomplete if we selected a VALUE (not a keyword)
+        if (option.isValue) {
+          setTimeout(async () => {
+            const newText = option.replaceText + ' ';
+            setSearchCriteria(prev => ({
+              ...prev,
+              searchText: newText
+            }));
+            
+            // Trigger autocomplete for the next part
+            const options = await getAutocompleteOptions(newText);
+            setAutocompleteOptions(options);
+            setShowAutocomplete(options.length > 0);
+            setAutocompleteIndex(-1);
+          }, 100);
+        } else {
+          // For keywords (like "collection:"), trigger autocomplete immediately for values
+          setTimeout(async () => {
+            const options = await getAutocompleteOptions(option.replaceText);
+            setAutocompleteOptions(options);
+            setShowAutocomplete(options.length > 0);
+            setAutocompleteIndex(-1);
+          }, 100);
+        }
+      }, 10);
+    }
   };
 
   const handleFilmDexClick = () => {
@@ -159,10 +347,58 @@ function AppContent() {
     }, 100);
   };
 
-  // Clear search when navigating between pages
+  // Close autocomplete on click outside
   useEffect(() => {
-    setSearchCriteria({ searchText: '' });
-  }, [location.pathname]);
+    const handleClickOutside = (event) => {
+      if (searchInputRef.current && !searchInputRef.current.contains(event.target)) {
+        setShowAutocomplete(false);
+        setAutocompleteIndex(-1);
+      }
+    };
+
+    if (showAutocomplete) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showAutocomplete]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autocompleteTimeoutRef.current) {
+        clearTimeout(autocompleteTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Handle search query parameter from URL
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const searchParam = params.get('search');
+    
+    if (searchParam) {
+      // Set the search criteria
+      setSearchCriteria({ searchText: searchParam });
+      // Clear the URL parameter after a brief delay to keep URL clean
+      setTimeout(() => {
+        navigate(location.pathname, { replace: true });
+      }, 100);
+    }
+  }, [location.search, navigate, location.pathname]);
+
+  // Clear search when navigating between pages (without search param)
+  useEffect(() => {
+    // Only clear search if we're changing paths and there's no search param
+    if (!location.search && searchCriteria.searchText) {
+      const previousPath = sessionStorage.getItem('previousPath');
+      if (previousPath && previousPath !== location.pathname) {
+        setSearchCriteria({ searchText: '' });
+      }
+    }
+    sessionStorage.setItem('previousPath', location.pathname);
+  }, [location.pathname, location.search, searchCriteria.searchText]);
 
   // Check for backfill on app startup
   useEffect(() => {
@@ -224,21 +460,86 @@ function AppContent() {
               <div className="search-input-container">
                 <BsSearch className="search-icon" />
                 <input
+                  ref={searchInputRef}
                   type="text"
                   name="searchText"
                   value={searchCriteria.searchText}
                   onChange={handleSearchChange}
+                  onKeyDown={handleSearchKeyDown}
                   placeholder={location.pathname === '/wishlist' ? 'Search wish list by title, director...' : 'Search FilmDex by title, director...'}
                   className="search-input-large"
+                  autoComplete="off"
                 />
                 {searchCriteria.searchText && (
                   <button 
                     className="search-clear-button"
-                    onClick={() => setSearchCriteria({ searchText: '' })}
+                    onClick={() => {
+                      setSearchCriteria({ searchText: '' });
+                      setShowAutocomplete(false);
+                    }}
                     type="button"
                   >
                     <BsX />
                   </button>
+                )}
+                {showAutocomplete && autocompleteOptions.length > 0 && (
+                  <div className="search-autocomplete-dropdown">
+                    {autocompleteOptions.map((option, index) => (
+                      <div
+                        key={option.keyword + index}
+                        className={`search-autocomplete-item ${index === autocompleteIndex ? 'active' : ''}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Clicking autocomplete item:', option); // Debug log
+                          selectAutocompleteSuggestion(option);
+                        }}
+                        onMouseEnter={() => setAutocompleteIndex(index)}
+                      >
+                        <span className={option.isValue ? 'autocomplete-value' : 'autocomplete-keyword'}>
+                          {option.keyword}
+                        </span>
+                        <span className="autocomplete-hint">
+                          {option.isValue && option.filterType === 'actor' && '(Actor)'}
+                          {option.isValue && option.filterType === 'director' && '(Director)'}
+                          {option.isValue && option.filterType === 'title' && '(Title)'}
+                          {option.isValue && option.filterType === 'collection' && '(Collection)'}
+                          {option.isValue && option.filterType === 'genre' && '(Genre)'}
+                          {option.isValue && option.filterType === 'format' && '(Format)'}
+                          {option.isValue && option.filterType === 'original_language' && '(Language)'}
+                          {option.isValue && option.filterType === 'media_type' && '(Media Type)'}
+                          {!option.isValue && option.keyword === 'actor:' && 'Search by actor name'}
+                          {!option.isValue && option.keyword === 'director:' && 'Search by director name'}
+                          {!option.isValue && option.keyword === 'title:' && 'Search by movie title'}
+                          {!option.isValue && option.keyword === 'collection:' && 'Search by collection name'}
+                          {!option.isValue && option.keyword === 'genre:' && 'Search by genre'}
+                          {!option.isValue && option.keyword === 'format:' && 'Search by format'}
+                          {!option.isValue && option.keyword === 'original_language:' && 'Search by language'}
+                          {!option.isValue && option.keyword === 'media_type:' && 'Search by media type'}
+                          {!option.isValue && option.keyword === 'year:' && 'Exact year match'}
+                          {!option.isValue && option.keyword === 'year:>' && 'Year greater than'}
+                          {!option.isValue && option.keyword === 'year:<' && 'Year less than'}
+                          {!option.isValue && option.keyword === 'year:>=' && 'Year greater or equal'}
+                          {!option.isValue && option.keyword === 'year:<=' && 'Year less or equal'}
+                          {!option.isValue && option.keyword === 'imdb_rating:' && 'Exact IMDB rating match'}
+                          {!option.isValue && option.keyword === 'imdb_rating:>' && 'IMDB rating greater than'}
+                          {!option.isValue && option.keyword === 'imdb_rating:<' && 'IMDB rating less than'}
+                          {!option.isValue && option.keyword === 'imdb_rating:>=' && 'IMDB rating greater or equal'}
+                          {!option.isValue && option.keyword === 'imdb_rating:<=' && 'IMDB rating less or equal'}
+                          {!option.isValue && option.keyword === 'recommended_age:' && 'Exact age recommendation match'}
+                          {!option.isValue && option.keyword === 'recommended_age:>' && 'Age recommendation greater than'}
+                          {!option.isValue && option.keyword === 'recommended_age:<' && 'Age recommendation less than'}
+                          {!option.isValue && option.keyword === 'recommended_age:>=' && 'Age recommendation greater or equal'}
+                          {!option.isValue && option.keyword === 'recommended_age:<=' && 'Age recommendation less or equal'}
+                          {!option.isValue && option.keyword === 'price:' && 'Exact price match'}
+                          {!option.isValue && option.keyword === 'price:>' && 'Price greater than'}
+                          {!option.isValue && option.keyword === 'price:<' && 'Price less than'}
+                          {!option.isValue && option.keyword === 'price:>=' && 'Price greater or equal'}
+                          {!option.isValue && option.keyword === 'price:<=' && 'Price less or equal'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>

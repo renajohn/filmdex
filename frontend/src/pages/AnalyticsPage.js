@@ -92,6 +92,41 @@ const AnalyticsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Helper function to navigate to FilmDex with search filters
+  const navigateWithSearch = (searchQuery) => {
+    navigate(`/?search=${encodeURIComponent(searchQuery)}`);
+  };
+
+  // Helper function to convert language display names back to codes
+  const getLanguageCode = (displayName) => {
+    const languageMap = {
+      'English': 'en',
+      'Spanish': 'es', 
+      'French': 'fr',
+      'German': 'de',
+      'Italian': 'it',
+      'Japanese': 'ja',
+      'Korean': 'ko',
+      'Chinese': 'zh',
+      'Portuguese': 'pt',
+      'Russian': 'ru',
+      'Arabic': 'ar',
+      'Hindi': 'hi',
+      'Dutch': 'nl',
+      'Swedish': 'sv',
+      'Norwegian': 'no',
+      'Danish': 'da',
+      'Finnish': 'fi',
+      'Polish': 'pl',
+      'Czech': 'cs',
+      'Hungarian': 'hu',
+      'Turkish': 'tr',
+      'Thai': 'th',
+      'Vietnamese': 'vi'
+    };
+    return languageMap[displayName] || displayName.toLowerCase();
+  };
+
   useEffect(() => {
     fetchAnalytics();
   }, []);
@@ -306,7 +341,15 @@ const AnalyticsPage = () => {
                 />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                   {analytics.priceDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS.genre[index % COLORS.genre.length]} />
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={COLORS.genre[index % COLORS.genre.length]}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {
+                        const [min, max] = entry.range.split('-').map(Number);
+                        navigateWithSearch(`price:>=${min} price:<=${max}`);
+                      }}
+                    />
                   ))}
                 </Bar>
               </BarChart>
@@ -383,7 +426,12 @@ const AnalyticsPage = () => {
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="count" radius={[0, 8, 8, 0]}>
                     {analytics.genreDistribution.slice(0, 10).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS.genre[index % COLORS.genre.length]} />
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={COLORS.genre[index % COLORS.genre.length]}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => navigateWithSearch(`genre:"${entry.genre}"`)}
+                      />
                     ))}
                   </Bar>
                 </BarChart>
@@ -406,7 +454,12 @@ const AnalyticsPage = () => {
                     label={false}
                   >
                     {analytics.formatDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS.format[index % COLORS.format.length]} />
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={COLORS.format[index % COLORS.format.length]}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => navigateWithSearch(`format:"${entry.format}"`)}
+                      />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -441,7 +494,12 @@ const AnalyticsPage = () => {
                     {analytics.mediaTypeDistribution.map((entry) => (
                       <Cell 
                         key={`cell-${entry.type}`} 
-                        fill={entry.type === 'Movie' ? COLORS.mediaType.movie : COLORS.mediaType.tvShow} 
+                        fill={entry.type === 'Movie' ? COLORS.mediaType.movie : COLORS.mediaType.tvShow}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => {
+                          const mediaType = entry.type === 'Movie' ? 'movie' : 'tv';
+                          navigateWithSearch(`media_type:"${mediaType}"`);
+                        }}
                       />
                     ))}
                   </Pie>
@@ -476,7 +534,12 @@ const AnalyticsPage = () => {
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="count" radius={[0, 8, 8, 0]}>
                     {analytics.originDistribution.slice(0, 10).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS.genre[index % COLORS.genre.length]} />
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={COLORS.genre[index % COLORS.genre.length]}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => navigateWithSearch(`original_language:"${getLanguageCode(entry.origin)}"`)}
+                      />
                     ))}
                   </Bar>
                 </BarChart>
@@ -496,7 +559,17 @@ const AnalyticsPage = () => {
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="count" radius={[8, 8, 0, 0]}>
                     {analytics.moviesByDecade.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS.decade[index % COLORS.decade.length]} />
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={COLORS.decade[index % COLORS.decade.length]}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => {
+                          const decade = entry.decade;
+                          const startYear = parseInt(decade);
+                          const endYear = startYear + 9;
+                          navigateWithSearch(`year:>=${startYear} year:<=${endYear}`);
+                        }}
+                      />
                     ))}
                   </Bar>
                 </BarChart>
@@ -513,7 +586,16 @@ const AnalyticsPage = () => {
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="count" radius={[8, 8, 0, 0]}>
                     {analytics.ratingDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS.rating[index % COLORS.rating.length]} />
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={COLORS.rating[index % COLORS.rating.length]}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => {
+                          const rating = entry.rating;
+                          const [min, max] = rating.split('-').map(Number);
+                          navigateWithSearch(`imdb_rating:>=${min} imdb_rating:<=${max}`);
+                        }}
+                      />
                     ))}
                   </Bar>
                 </BarChart>
@@ -532,7 +614,20 @@ const AnalyticsPage = () => {
                 <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="count" radius={[8, 8, 0, 0]}>
                     {analytics.ageDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS.age[index % COLORS.age.length]} />
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={COLORS.age[index % COLORS.age.length]}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => {
+                          const age = entry.ageRecommendation;
+                          if (age === 'All Ages') {
+                            navigateWithSearch(`recommended_age:<=6`);
+                          } else {
+                            const ageNum = parseInt(age.replace('+', ''));
+                            navigateWithSearch(`recommended_age:${ageNum}`);
+                          }
+                        }}
+                      />
                     ))}
                   </Bar>
               </BarChart>
@@ -596,7 +691,12 @@ const AnalyticsPage = () => {
                     <Tooltip content={<CustomTooltip />} />
                     <Bar dataKey="averageROI" radius={[0, 8, 8, 0]}>
                       {analytics.roiByGenre.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS.genre[index % COLORS.genre.length]} />
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={COLORS.genre[index % COLORS.genre.length]}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => navigateWithSearch(`genre:"${entry.genre}"`)}
+                        />
                       ))}
                     </Bar>
                   </BarChart>
@@ -614,7 +714,12 @@ const AnalyticsPage = () => {
             <h3 className="chart-title">Top Directors</h3>
             <div className="custom-list">
               {analytics.topDirectors.slice(0, 10).map((item, index) => (
-                <div key={index} className="list-item">
+                <div 
+                  key={index} 
+                  className="list-item clickable-item"
+                  onClick={() => navigate(`/?search=director:"${item.director}"`)}
+                  title={`Click to view all movies by ${item.director}`}
+                >
                   <span className="list-rank" style={{ backgroundColor: COLORS.genre[index] }}>{index + 1}</span>
                   <span className="list-name" title={item.director}>
                     {item.director.length > 25 ? item.director.substring(0, 25) + '...' : item.director}
@@ -630,7 +735,12 @@ const AnalyticsPage = () => {
             <h3 className="chart-title">Top Actors</h3>
             <div className="custom-list">
               {analytics.topActors.slice(0, 10).map((item, index) => (
-                <div key={index} className="list-item">
+                <div 
+                  key={index} 
+                  className="list-item clickable-item"
+                  onClick={() => navigate(`/?search=actor:"${item.actor}"`)}
+                  title={`Click to view all movies with ${item.actor}`}
+                >
                   <span className="list-rank" style={{ backgroundColor: COLORS.genre[index] }}>{index + 1}</span>
                   <span className="list-name" title={item.actor}>
                     {item.actor.length > 25 ? item.actor.substring(0, 25) + '...' : item.actor}
@@ -641,26 +751,6 @@ const AnalyticsPage = () => {
             </div>
           </div>
 
-          {/* Genre-Director Breakdown */}
-          {analytics.genreDirectorBreakdown && analytics.genreDirectorBreakdown.slice(0, 2).map((genreData, genreIndex) => (
-            <div key={genreIndex} className="list-card">
-              <h3 className="chart-title">{genreData.genre} Directors</h3>
-              <div className="custom-list">
-                {genreData.directors.slice(0, 6).map((item, index) => (
-                  <div key={index} className="list-item">
-                    <span className="list-rank" style={{ backgroundColor: COLORS.genre[index] }}>
-                      {index + 1}
-                    </span>
-                    <span className="list-name" title={item.director}>
-                      {item.director.length > 22 ? item.director.substring(0, 22) + '...' : item.director}
-                    </span>
-                    <span className="list-value">{item.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-
           {/* Commercial Success Lists */}
           {analytics.topROIMovies && analytics.topROIMovies.length > 0 && (
             <>
@@ -668,7 +758,12 @@ const AnalyticsPage = () => {
                 <h3 className="chart-title">Highest ROI Movies</h3>
                 <div className="custom-list">
                   {analytics.topROIMovies.slice(0, 8).map((item, index) => (
-                    <div key={index} className="list-item">
+                    <div 
+                      key={index} 
+                      className="list-item clickable-item"
+                      onClick={() => navigateWithSearch(`title:"${item.title}"`)}
+                      title={`Click to view ${item.title}`}
+                    >
                       <span className="list-rank" style={{ backgroundColor: '#FFD700' }}>{index + 1}</span>
                       <span className="list-name" title={item.title}>
                         {item.title.length > 20 ? item.title.substring(0, 20) + '...' : item.title}
@@ -683,7 +778,12 @@ const AnalyticsPage = () => {
                 <h3 className="chart-title">Most Profitable Movies</h3>
                 <div className="custom-list">
                   {analytics.topProfitableMovies.slice(0, 8).map((item, index) => (
-                    <div key={index} className="list-item">
+                    <div 
+                      key={index} 
+                      className="list-item clickable-item"
+                      onClick={() => navigateWithSearch(`title:"${item.title}"`)}
+                      title={`Click to view ${item.title}`}
+                    >
                       <span className="list-rank" style={{ backgroundColor: '#DC143C' }}>{index + 1}</span>
                       <span className="list-name" title={item.title}>
                         {item.title.length > 20 ? item.title.substring(0, 20) + '...' : item.title}

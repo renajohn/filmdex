@@ -48,6 +48,23 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onMovieMovedToCol
     if (!searchText || searchText.trim() === '') {
       setMovies(allMovies);
     } else {
+      // Use the same advanced search logic as MovieSearch
+      performAdvancedSearch(searchText);
+    }
+  }, [searchCriteria, allMovies]);
+
+  const performAdvancedSearch = async (searchText) => {
+    try {
+      // Use the backend search API which supports advanced predicates
+      // Specify title_status to search only wish list movies
+      const searchResults = await apiService.searchMovies({ 
+        searchText, 
+        title_status: 'wish' 
+      });
+      setMovies(searchResults);
+    } catch (error) {
+      console.error('Advanced search failed, falling back to simple search:', error);
+      // Fallback to simple search if advanced search fails
       const searchLower = searchText.toLowerCase().trim();
       const filtered = allMovies.filter(movie => {
         return (
@@ -59,7 +76,7 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onMovieMovedToCol
       });
       setMovies(filtered);
     }
-  }, [searchCriteria, allMovies]);
+  };
 
   const handleDeleteMovie = async (movieId) => {
     try {

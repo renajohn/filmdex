@@ -598,6 +598,16 @@ class ApiService {
     return await response.json();
   }
 
+  // Get autocomplete suggestions for search filters
+  async getAutocompleteSuggestions(field, query) {
+    const queryParams = new URLSearchParams();
+    queryParams.append('field', field);
+    queryParams.append('query', query);
+    
+    const response = await this.makeRequest(`/movies/autocomplete?${queryParams}`);
+    return await response.json();
+  }
+
   // Get analytics data
   async getAnalytics() {
     const response = await this.makeRequest('/analytics');

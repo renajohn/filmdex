@@ -1946,10 +1946,11 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                       </div>
                     )}
                     
-                    {/* Box Set Name */}
-                    <div className="fact-row">
-                      <span className="fact-label">Box Set:</span>
-                      {editingField === 'box_set_collection' ? (
+                    {/* Box Set Name - Only show for owned movies */}
+                    {currentData.title_status !== 'wish' && (
+                      <div className="fact-row">
+                        <span className="fact-label">Box Set:</span>
+                        {editingField === 'box_set_collection' ? (
                         <div className="input-group" style={{ position: 'relative' }}>
                           <FormControl
                             type="text"
@@ -2027,20 +2028,23 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                         </span>
                       )}
                     </div>
+                    )}
                     
                   </div>
                 </div>
 
-                {/* Collections Section */}
-                <div className="sidebar-section">
-                  <h4>Collections</h4>
-                  <CollectionTagsInput
-                    value={collections.filter(c => c.type === 'user').map(c => c.name)}
-                    onChange={handleCollectionsChange}
-                    placeholder="Add collections..."
-                    movieId={movieDetails.id}
-                  />
-                </div>
+                {/* Collections Section - Only show for owned movies */}
+                {currentData.title_status !== 'wish' && (
+                  <div className="sidebar-section">
+                    <h4>Collections</h4>
+                    <CollectionTagsInput
+                      value={collections.filter(c => c.type === 'user').map(c => c.name)}
+                      onChange={handleCollectionsChange}
+                      placeholder="Add collections..."
+                      movieId={movieDetails.id}
+                    />
+                  </div>
+                )}
 
                 {/* Comments Section */}
                 <div className="sidebar-section">

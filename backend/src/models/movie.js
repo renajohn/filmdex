@@ -169,25 +169,373 @@ const Movie = {
       `;
       const params = [];
 
-      // Only return owned movies by default (for collection search)
-      sql += ' AND (m.title_status = ? OR m.title_status IS NULL)';
-      params.push('owned');
+      // Filter by title_status if specified, otherwise return owned movies by default
+      if (criteria.title_status) {
+        sql += ' AND m.title_status = ?';
+        params.push(criteria.title_status);
+      } else {
+        // Only return owned movies by default (for collection search)
+        sql += ' AND (m.title_status = ? OR m.title_status IS NULL)';
+        params.push('owned');
+      }
 
-      // Full-text search on title, director, comments, and collection names
+      // Advanced search with multiple filter support
       if (criteria.searchText) {
-        sql += ` AND (
-          m.title LIKE ? OR 
-          m.original_title LIKE ? OR 
-          m.director LIKE ? OR 
-          m.comments LIKE ? OR
-          EXISTS (
-            SELECT 1 FROM movie_collections mc2
-            JOIN collections c2 ON mc2.collection_id = c2.id
-            WHERE mc2.movie_id = m.id AND c2.name LIKE ?
-          )
-        )`;
-        const searchTerm = `%${criteria.searchText}%`;
-        params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+        let searchText = criteria.searchText.trim();
+        
+        // Parse all special syntax filters
+        const filters = {
+          actors: [],
+          directors: [],
+          titles: [],
+          collections: [],
+          genres: [],
+          formats: [],
+          languages: [],
+          mediaTypes: [],
+          years: [],
+          imdbRatings: [],
+          ages: [],
+          prices: []
+        };
+        
+        // Extract actor:"Name" or actor:Name filters (can be multiple)
+        let actorMatches;
+        const actorQuotedRegex = /actor:"([^"]+)"/g;
+        const actorWordRegex = /actor:(\S+)/g;
+        
+        while ((actorMatches = actorQuotedRegex.exec(searchText)) !== null) {
+          filters.actors.push(actorMatches[1]);
+        }
+        searchText = searchText.replace(actorQuotedRegex, '').trim();
+        
+        while ((actorMatches = actorWordRegex.exec(searchText)) !== null) {
+          filters.actors.push(actorMatches[1]);
+        }
+        searchText = searchText.replace(actorWordRegex, '').trim();
+        
+        // Extract director:"Name" or director:Name filters (can be multiple)
+        let directorMatches;
+        const directorQuotedRegex = /director:"([^"]+)"/g;
+        const directorWordRegex = /director:(\S+)/g;
+        
+        while ((directorMatches = directorQuotedRegex.exec(searchText)) !== null) {
+          filters.directors.push(directorMatches[1]);
+        }
+        searchText = searchText.replace(directorQuotedRegex, '').trim();
+        
+        while ((directorMatches = directorWordRegex.exec(searchText)) !== null) {
+          filters.directors.push(directorMatches[1]);
+        }
+        searchText = searchText.replace(directorWordRegex, '').trim();
+        
+        // Extract title: filters (quoted or single word)
+        const titleQuotedRegex = /title:"([^"]+)"/g;
+        const titleWordRegex = /title:(\S+)/g;
+        let titleMatches;
+        
+        while ((titleMatches = titleQuotedRegex.exec(searchText)) !== null) {
+          filters.titles.push(titleMatches[1]);
+        }
+        searchText = searchText.replace(titleQuotedRegex, '').trim();
+        
+        while ((titleMatches = titleWordRegex.exec(searchText)) !== null) {
+          filters.titles.push(titleMatches[1]);
+        }
+        searchText = searchText.replace(titleWordRegex, '').trim();
+        
+        // Extract collection:"Name" or collection:Name filters (can be multiple)
+        let collectionMatches;
+        const collectionQuotedRegex = /collection:"([^"]+)"/g;
+        const collectionWordRegex = /collection:(\S+)/g;
+        
+        while ((collectionMatches = collectionQuotedRegex.exec(searchText)) !== null) {
+          filters.collections.push(collectionMatches[1]);
+        }
+        searchText = searchText.replace(collectionQuotedRegex, '').trim();
+        
+        while ((collectionMatches = collectionWordRegex.exec(searchText)) !== null) {
+          filters.collections.push(collectionMatches[1]);
+        }
+        searchText = searchText.replace(collectionWordRegex, '').trim();
+        
+        // Extract genre:"Name" or genre:Name filters (can be multiple)
+        let genreMatches;
+        const genreQuotedRegex = /genre:"([^"]+)"/g;
+        const genreWordRegex = /genre:(\S+)/g;
+        
+        while ((genreMatches = genreQuotedRegex.exec(searchText)) !== null) {
+          filters.genres.push(genreMatches[1]);
+        }
+        searchText = searchText.replace(genreQuotedRegex, '').trim();
+        
+        while ((genreMatches = genreWordRegex.exec(searchText)) !== null) {
+          filters.genres.push(genreMatches[1]);
+        }
+        searchText = searchText.replace(genreWordRegex, '').trim();
+        
+        // Extract format:"Name" or format:Name filters (can be multiple)
+        let formatMatches;
+        const formatQuotedRegex = /format:"([^"]+)"/g;
+        const formatWordRegex = /format:(\S+)/g;
+        
+        while ((formatMatches = formatQuotedRegex.exec(searchText)) !== null) {
+          filters.formats.push(formatMatches[1]);
+        }
+        searchText = searchText.replace(formatQuotedRegex, '').trim();
+        
+        while ((formatMatches = formatWordRegex.exec(searchText)) !== null) {
+          filters.formats.push(formatMatches[1]);
+        }
+        searchText = searchText.replace(formatWordRegex, '').trim();
+        
+        // Extract original_language:"Name" or original_language:Name filters (can be multiple)
+        let languageMatches;
+        const languageQuotedRegex = /original_language:"([^"]+)"/g;
+        const languageWordRegex = /original_language:(\S+)/g;
+        
+        while ((languageMatches = languageQuotedRegex.exec(searchText)) !== null) {
+          filters.languages.push(languageMatches[1]);
+        }
+        searchText = searchText.replace(languageQuotedRegex, '').trim();
+        
+        while ((languageMatches = languageWordRegex.exec(searchText)) !== null) {
+          filters.languages.push(languageMatches[1]);
+        }
+        searchText = searchText.replace(languageWordRegex, '').trim();
+        
+        // Extract media_type:"Name" or media_type:Name filters (can be multiple)
+        let mediaTypeMatches;
+        const mediaTypeQuotedRegex = /media_type:"([^"]+)"/g;
+        const mediaTypeWordRegex = /media_type:(\S+)/g;
+        
+        while ((mediaTypeMatches = mediaTypeQuotedRegex.exec(searchText)) !== null) {
+          filters.mediaTypes.push(mediaTypeMatches[1]);
+        }
+        searchText = searchText.replace(mediaTypeQuotedRegex, '').trim();
+        
+        while ((mediaTypeMatches = mediaTypeWordRegex.exec(searchText)) !== null) {
+          filters.mediaTypes.push(mediaTypeMatches[1]);
+        }
+        searchText = searchText.replace(mediaTypeWordRegex, '').trim();
+        
+        // Extract year: filters with operators
+        const yearRegex = /year:(>=|<=|>|<|)(\d+)/g;
+        let yearMatches;
+        while ((yearMatches = yearRegex.exec(searchText)) !== null) {
+          const operator = yearMatches[1] || '=';
+          const value = parseInt(yearMatches[2]);
+          filters.years.push({ operator, value });
+        }
+        searchText = searchText.replace(yearRegex, '').trim();
+        
+        // Extract imdb_rating: filters with operators
+        const imdbRatingRegex = /imdb_rating:(>=|<=|>|<|)(\d+(?:\.\d+)?)/g;
+        let imdbRatingMatches;
+        while ((imdbRatingMatches = imdbRatingRegex.exec(searchText)) !== null) {
+          const operator = imdbRatingMatches[1] || '=';
+          const value = parseFloat(imdbRatingMatches[2]);
+          filters.imdbRatings.push({ operator, value });
+        }
+        searchText = searchText.replace(imdbRatingRegex, '').trim();
+        
+        // Extract recommended_age: filters with operators
+        const ageRegex = /recommended_age:(>=|<=|>|<|)(\d+)/g;
+        let ageMatches;
+        while ((ageMatches = ageRegex.exec(searchText)) !== null) {
+          const operator = ageMatches[1] || '=';
+          const value = parseInt(ageMatches[2]);
+          filters.ages.push({ operator, value });
+        }
+        searchText = searchText.replace(ageRegex, '').trim();
+        
+        // Extract price: filters with operators
+        const priceRegex = /price:(>=|<=|>|<|)(\d+(?:\.\d+)?)/g;
+        let priceMatches;
+        while ((priceMatches = priceRegex.exec(searchText)) !== null) {
+          const operator = priceMatches[1] || '=';
+          const value = parseFloat(priceMatches[2]);
+          filters.prices.push({ operator, value });
+        }
+        searchText = searchText.replace(priceRegex, '').trim();
+        
+        // Apply actor filters (AND logic)
+        filters.actors.forEach(actorName => {
+          sql += ` AND m.cast LIKE ?`;
+          params.push(`%${actorName}%`);
+        });
+        
+        // Apply director filters (AND logic)
+        filters.directors.forEach(directorName => {
+          sql += ` AND m.director LIKE ?`;
+          params.push(`%${directorName}%`);
+        });
+        
+        // Apply title filters (AND logic - all titles must match)
+        filters.titles.forEach(titleTerm => {
+          sql += ` AND (m.title LIKE ? OR m.original_title LIKE ?)`;
+          const titleSearch = `%${titleTerm}%`;
+          params.push(titleSearch, titleSearch);
+        });
+        
+        // Apply collection filters (AND logic - all collections must match)
+        filters.collections.forEach(collectionName => {
+          sql += ` AND EXISTS (
+            SELECT 1 FROM movie_collections mc3
+            JOIN collections c3 ON mc3.collection_id = c3.id
+            WHERE mc3.movie_id = m.id AND c3.name LIKE ?
+          )`;
+          params.push(`%${collectionName}%`);
+        });
+        
+        // Apply genre filters (AND logic)
+        filters.genres.forEach(genreName => {
+          sql += ` AND m.genre LIKE ?`;
+          params.push(`%${genreName}%`);
+        });
+        
+        // Apply format filters (AND logic)
+        filters.formats.forEach(formatName => {
+          sql += ` AND m.format LIKE ?`;
+          params.push(`%${formatName}%`);
+        });
+        
+        // Apply language filters (AND logic)
+        filters.languages.forEach(languageName => {
+          sql += ` AND m.original_language LIKE ?`;
+          params.push(`%${languageName}%`);
+        });
+        
+        // Apply media type filters (AND logic)
+        filters.mediaTypes.forEach(mediaType => {
+          sql += ` AND m.media_type LIKE ?`;
+          params.push(`%${mediaType}%`);
+        });
+        
+        // Apply year filters (AND logic)
+        filters.years.forEach(yearFilter => {
+          switch (yearFilter.operator) {
+            case '>':
+              sql += ` AND strftime('%Y', m.release_date) > ?`;
+              params.push(yearFilter.value.toString());
+              break;
+            case '<':
+              sql += ` AND strftime('%Y', m.release_date) < ?`;
+              params.push(yearFilter.value.toString());
+              break;
+            case '>=':
+              sql += ` AND strftime('%Y', m.release_date) >= ?`;
+              params.push(yearFilter.value.toString());
+              break;
+            case '<=':
+              sql += ` AND strftime('%Y', m.release_date) <= ?`;
+              params.push(yearFilter.value.toString());
+              break;
+            case '=':
+            default:
+              sql += ` AND strftime('%Y', m.release_date) = ?`;
+              params.push(yearFilter.value.toString());
+              break;
+          }
+        });
+        
+        // Apply IMDB rating filters (AND logic)
+        filters.imdbRatings.forEach(ratingFilter => {
+          switch (ratingFilter.operator) {
+            case '>':
+              sql += ` AND m.imdb_rating > ?`;
+              params.push(ratingFilter.value);
+              break;
+            case '<':
+              sql += ` AND m.imdb_rating < ?`;
+              params.push(ratingFilter.value);
+              break;
+            case '>=':
+              sql += ` AND m.imdb_rating >= ?`;
+              params.push(ratingFilter.value);
+              break;
+            case '<=':
+              sql += ` AND m.imdb_rating <= ?`;
+              params.push(ratingFilter.value);
+              break;
+            case '=':
+            default:
+              sql += ` AND m.imdb_rating = ?`;
+              params.push(ratingFilter.value);
+              break;
+          }
+        });
+        
+        // Apply age filters (AND logic)
+        filters.ages.forEach(ageFilter => {
+          switch (ageFilter.operator) {
+            case '>':
+              sql += ` AND m.recommended_age > ?`;
+              params.push(ageFilter.value);
+              break;
+            case '<':
+              sql += ` AND m.recommended_age < ?`;
+              params.push(ageFilter.value);
+              break;
+            case '>=':
+              sql += ` AND m.recommended_age >= ?`;
+              params.push(ageFilter.value);
+              break;
+            case '<=':
+              sql += ` AND m.recommended_age <= ?`;
+              params.push(ageFilter.value);
+              break;
+            case '=':
+            default:
+              sql += ` AND m.recommended_age = ?`;
+              params.push(ageFilter.value);
+              break;
+          }
+        });
+        
+        // Apply price filters (AND logic)
+        filters.prices.forEach(priceFilter => {
+          switch (priceFilter.operator) {
+            case '>':
+              sql += ` AND m.price > ?`;
+              params.push(priceFilter.value);
+              break;
+            case '<':
+              sql += ` AND m.price < ?`;
+              params.push(priceFilter.value);
+              break;
+            case '>=':
+              sql += ` AND m.price >= ?`;
+              params.push(priceFilter.value);
+              break;
+            case '<=':
+              sql += ` AND m.price <= ?`;
+              params.push(priceFilter.value);
+              break;
+            case '=':
+            default:
+              sql += ` AND m.price = ?`;
+              params.push(priceFilter.value);
+              break;
+          }
+        });
+        
+        // Apply remaining generic search terms (if any)
+        if (searchText.length > 0) {
+          sql += ` AND (
+            m.title LIKE ? OR 
+            m.original_title LIKE ? OR 
+            m.director LIKE ? OR 
+            m.comments LIKE ? OR
+            EXISTS (
+              SELECT 1 FROM movie_collections mc2
+              JOIN collections c2 ON mc2.collection_id = c2.id
+              WHERE mc2.movie_id = m.id AND c2.name LIKE ?
+            )
+          )`;
+          const genericTerm = `%${searchText}%`;
+          params.push(genericTerm, genericTerm, genericTerm, genericTerm, genericTerm);
+        }
       }
 
       if (criteria.format) {
