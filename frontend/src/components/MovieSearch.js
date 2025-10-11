@@ -489,8 +489,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
             })()}
           </div>
           
-          <div className="movie-spacer"></div>
-          
           <div className="movie-content-compact">
             <div className="movie-details-left">
               {movie.director && (
