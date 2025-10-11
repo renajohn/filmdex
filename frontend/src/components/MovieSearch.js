@@ -665,13 +665,31 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       comments: allMovies.filter(movie => movie.comments && movie.comments.trim()).length,
       watchNext: watchNextMovies.length,
       formats: {},
-      ageGroups: {}
+      ageGroups: {},
+      collections: {},
+      boxSets: {}
     };
 
     // Count formats
     allMovies.forEach(movie => {
       if (movie.format) {
         counts.formats[movie.format] = (counts.formats[movie.format] || 0) + 1;
+      }
+    });
+
+    // Count collections (user collections)
+    allMovies.forEach(movie => {
+      if (movie.collection_names && Array.isArray(movie.collection_names)) {
+        movie.collection_names.forEach(collectionName => {
+          counts.collections[collectionName] = (counts.collections[collectionName] || 0) + 1;
+        });
+      }
+    });
+
+    // Count box sets
+    allMovies.forEach(movie => {
+      if (movie.has_box_set && movie.box_set_name) {
+        counts.boxSets[movie.box_set_name] = (counts.boxSets[movie.box_set_name] || 0) + 1;
       }
     });
 
@@ -734,6 +752,10 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                 }
               }
               return movieAgeGroup === filter.value;
+            case 'collection':
+              return movie.collection_names && movie.collection_names.includes(filter.value);
+            case 'boxSet':
+              return movie.has_box_set && movie.box_set_name === filter.value;
             default:
               return false;
           }
@@ -1070,8 +1092,12 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
               const isAllActive = activeFilters.length === 0;
               const hasFormats = Object.keys(counts.formats).length > 0;
               const hasAgeGroups = Object.keys(counts.ageGroups).length > 0;
+              const hasCollections = Object.keys(counts.collections).length > 0;
+              const hasBoxSets = Object.keys(counts.boxSets).length > 0;
               const hasActiveFormatFilters = activeFilters.some(f => f.type === 'format');
               const hasActiveAgeGroupFilters = activeFilters.some(f => f.type === 'ageGroup');
+              const hasActiveCollectionFilters = activeFilters.some(f => f.type === 'collection');
+              const hasActiveBoxSetFilters = activeFilters.some(f => f.type === 'boxSet');
               
               return (
                 <>
@@ -1118,11 +1144,11 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                     </button>
                   )}
                   
-                  {/* More Dropdown for Formats and Age Groups */}
-                  {(hasFormats || hasAgeGroups) && (
+                  {/* More Dropdown for Formats, Age Groups, Collections, and Box Sets */}
+                  {(hasFormats || hasAgeGroups || hasCollections || hasBoxSets) && (
                     <div className="more-dropdown-container" ref={moreDropdownRef}>
                       <button
-                        className={`filter-pill more-pill ${(hasActiveFormatFilters || hasActiveAgeGroupFilters) ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} last-child`}
+                        className={`filter-pill more-pill ${(hasActiveFormatFilters || hasActiveAgeGroupFilters || hasActiveCollectionFilters || hasActiveBoxSetFilters) ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''} last-child`}
                         onClick={handleMoreToggle}
                         disabled={filterLoading}
                       >
@@ -1169,6 +1195,52 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                                     >
                                       {isActive && <BsCheck className="checkmark" />}
                                       {format} ({count})
+                                    </button>
+                                  );
+                                })}
+                            </>
+                          )}
+                          
+                          {/* Collection Filters */}
+                          {hasCollections && (
+                            <>
+                              {(hasAgeGroups || hasFormats) && <div className="more-dropdown-section-title">Collections</div>}
+                              {Object.entries(counts.collections)
+                                .sort(([a], [b]) => a.localeCompare(b))
+                                .filter(([collection, count]) => count > 0)
+                                .map(([collection, count]) => {
+                                  const isActive = isFilterActive('collection', collection);
+                                  return (
+                                    <button
+                                      key={`collection-${collection}`}
+                                      className={`more-dropdown-item ${isActive ? 'active' : ''}`}
+                                      onClick={() => handleMorePillClick('collection', collection)}
+                                    >
+                                      {isActive && <BsCheck className="checkmark" />}
+                                      {collection} ({count})
+                                    </button>
+                                  );
+                                })}
+                            </>
+                          )}
+                          
+                          {/* Box Set Filters */}
+                          {hasBoxSets && (
+                            <>
+                              {(hasAgeGroups || hasFormats || hasCollections) && <div className="more-dropdown-section-title">Box Sets</div>}
+                              {Object.entries(counts.boxSets)
+                                .sort(([a], [b]) => a.localeCompare(b))
+                                .filter(([boxSet, count]) => count > 0)
+                                .map(([boxSet, count]) => {
+                                  const isActive = isFilterActive('boxSet', boxSet);
+                                  return (
+                                    <button
+                                      key={`boxSet-${boxSet}`}
+                                      className={`more-dropdown-item ${isActive ? 'active' : ''}`}
+                                      onClick={() => handleMorePillClick('boxSet', boxSet)}
+                                    >
+                                      {isActive && <BsCheck className="checkmark" />}
+                                      {boxSet} ({count})
                                     </button>
                                   );
                                 })}
