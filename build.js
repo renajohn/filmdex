@@ -103,7 +103,8 @@ class BuildSystem {
     ];
     
     const backendDirs = [
-      'src'
+      'src',
+      'migrations'
       // Removed 'node_modules' - Docker will install fresh dependencies
     ];
     
