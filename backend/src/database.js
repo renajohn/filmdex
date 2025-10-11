@@ -131,9 +131,77 @@ const runEditionsMigration = async (database) => {
 };
 
 /**
- * Migration: Replace watch_next BOOLEAN with watch_next_added DATETIME
- * This allows sorting watch next movies by when they were added
+ * Migration: Move watch_next_added to collection-based system
+ * This allows position-based ordering and better integration with collections
  */
+// Migration: Move watch_next_added to collection-based system
+const migrateWatchNextToCollections = async (database) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const Collection = require('./models/collection');
+      const MovieCollection = require('./models/movieCollection');
+      
+      // Ensure Watch Next collection exists
+      await Collection.initializeSystemCollections();
+      const watchNextCollection = await Collection.findByType('watch_next');
+      
+      if (!watchNextCollection) {
+        console.log('Watch Next collection not found, skipping migration');
+        resolve();
+        return;
+      }
+      
+      // Check if migration has already been done
+      const existingMappings = await new Promise((resolve, reject) => {
+        database.get(`
+          SELECT COUNT(*) as count 
+          FROM movie_collections 
+          WHERE collection_id = ?
+        `, [watchNextCollection.id], (err, row) => {
+          if (err) reject(err);
+          else resolve(row.count);
+        });
+      });
+      
+      if (existingMappings > 0) {
+        console.log('Watch Next migration already completed, skipping');
+        resolve();
+        return;
+      }
+      
+      // Get all movies with watch_next_added
+      const movies = await new Promise((resolve, reject) => {
+        database.all(`
+          SELECT id, watch_next_added 
+          FROM movies 
+          WHERE watch_next_added IS NOT NULL 
+          ORDER BY watch_next_added ASC
+        `, (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        });
+      });
+      
+      console.log(`Migrating ${movies.length} movies to Watch Next collection...`);
+      
+      // Add each movie to Watch Next collection with position
+      for (let i = 0; i < movies.length; i++) {
+        const movie = movies[i];
+        await MovieCollection.create({
+          movie_id: movie.id,
+          collection_id: watchNextCollection.id,
+          collection_order: i + 1
+        });
+      }
+      
+      console.log(`✓ Migrated ${movies.length} movies to Watch Next collection`);
+      resolve();
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
 const migrateWatchNextToDateTime = async (database) => {
   return new Promise((resolve, reject) => {
     // Check if migration is needed
@@ -288,6 +356,47 @@ const initDatabase = async () => {
           await Collection.createTable();
           await MovieCollection.createTable();
           
+          // Add system collection support to collections table
+          try {
+            await new Promise((resolve, reject) => {
+              db.run("ALTER TABLE collections ADD COLUMN type TEXT DEFAULT 'user'", (err) => {
+                if (err && !err.message.includes('duplicate column name')) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
+              });
+            });
+          } catch (migrationError) {
+            // Column already exists
+          }
+          
+          try {
+            await new Promise((resolve, reject) => {
+              db.run("ALTER TABLE collections ADD COLUMN is_system BOOLEAN DEFAULT 0", (err) => {
+                if (err && !err.message.includes('duplicate column name')) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
+              });
+            });
+          } catch (migrationError) {
+            // Column already exists
+          }
+          
+          // Initialize system collections
+          try {
+            const Collection = require('./models/collection');
+            await Collection.initializeSystemCollections();
+          } catch (error) {
+            console.error('Error initializing system collections:', error);
+            // Don't block initialization
+          }
+          
+          // Skip migrating existing watch_next_added data - start fresh
+          console.log('✓ Watch Next collection initialized (starting fresh)');
+          
           // Add media_type column to existing movies table if it doesn't exist
           try {
             await new Promise((resolve, reject) => {
@@ -355,7 +464,7 @@ const initDatabase = async () => {
             // Migration already applied or failed
           }
           
-          // Add watch_next column to existing movies table if it doesn't exist
+          // Add watch_next column to existing movies table if it doesn't exist (for backward compatibility)
           try {
             await new Promise((resolve, reject) => {
               db.run("ALTER TABLE movies ADD COLUMN watch_next BOOLEAN DEFAULT 0", (err) => {
@@ -370,13 +479,23 @@ const initDatabase = async () => {
             // Column already exists
           }
           
-          // Migrate watch_next BOOLEAN to watch_next_added DATETIME
+          // Add watch_next_added column if it doesn't exist (for backward compatibility)
           try {
-            await migrateWatchNextToDateTime(db);
+            await new Promise((resolve, reject) => {
+              db.run("ALTER TABLE movies ADD COLUMN watch_next_added DATETIME DEFAULT NULL", (err) => {
+                if (err && !err.message.includes('duplicate column name')) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
+              });
+            });
           } catch (migrationError) {
-            console.error('Watch next migration error:', migrationError);
-            // Migration failed, but don't block initialization
+            // Column already exists
           }
+          
+          // NOTE: We no longer migrate watch_next data - using collection-based system instead
+          // Old watch_next and watch_next_added columns will be dropped at the end
           
           // Add collection fields to existing movies table if they don't exist
           try {
@@ -465,6 +584,28 @@ const initDatabase = async () => {
             });
           } catch (dropError) {
             // Column might not exist
+          }
+          
+          // NOW run data migrations (after all columns are added)
+          
+          // Migrate box sets to collections
+          try {
+            const migrateBoxSetsToCollections = require('../migrations/003_migrate_box_sets_to_collections');
+            await migrateBoxSetsToCollections();
+            console.log('✓ Box sets migrated to collections');
+          } catch (migrationError) {
+            console.error('Box sets migration error:', migrationError);
+            // Migration failed, but don't block initialization
+          }
+          
+          // Drop old columns from movies table (AFTER migrations complete)
+          try {
+            const dropOldColumns = require('../migrations/004_drop_old_columns');
+            await dropOldColumns();
+            console.log('✓ Old columns dropped from movies table');
+          } catch (migrationError) {
+            console.error('Drop columns migration error:', migrationError);
+            // Migration failed, but don't block initialization
           }
           
           console.log('Database initialized successfully.');

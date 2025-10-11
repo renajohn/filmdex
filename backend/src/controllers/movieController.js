@@ -938,27 +938,19 @@ const movieController = {
     }
   },
 
-  // Get all unique collection names for autocomplete
+  // Get all unique collection names for autocomplete (only user collections)
   getCollectionNames: async (req, res) => {
     try {
-      const db = require('../database').getDatabase();
-      const collections = await new Promise((resolve, reject) => {
-        db.all(`
-          SELECT DISTINCT box_set_name 
-          FROM movies 
-          WHERE box_set_name IS NOT NULL 
-          AND box_set_name != '' 
-          ORDER BY box_set_name
-        `, (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows.map(row => row.box_set_name));
-          }
-        });
-      });
+      const collectionService = require('../services/collectionService');
+      const collections = await collectionService.getAllCollections();
       
-      res.json(collections);
+      // Filter to only show user collections (not system or box_set collections)
+      const userCollections = collections
+        .filter(c => c.type === 'user')
+        .map(c => c.name)
+        .sort();
+      
+      res.json(userCollections);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -974,20 +966,18 @@ const movieController = {
         return res.status(400).json({ error: 'Collection name is required' });
       }
 
-      const db = require('../database').getDatabase();
-      const movies = await new Promise((resolve, reject) => {
-        db.all(`
-          SELECT * FROM movies 
-          WHERE box_set_name = ? 
-          ORDER BY release_date ASC, title ASC
-        `, [collectionName], (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows);
-          }
-        });
-      });
+      console.log('Looking for collection:', collectionName);
+      const collectionService = require('../services/collectionService');
+      const collection = await collectionService.findByName(collectionName);
+      
+      if (!collection) {
+        console.log('Collection not found:', collectionName);
+        return res.status(404).json({ error: 'Collection not found' });
+      }
+
+      console.log('Found collection:', collection.id, collection.name);
+      const result = await collectionService.getCollectionMovies(collection.id);
+      const movies = result.movies;
 
       // Parse cast field and validate image paths
       const parsedMovies = movies.map(movie => {
@@ -1006,6 +996,16 @@ const movieController = {
 
   // ===== COLLECTION ENDPOINTS =====
 
+  // Get Watch Next movies
+  getWatchNextMovies: async (req, res) => {
+    try {
+      const movies = await collectionService.getWatchNextMovies();
+      res.json(movies);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
   // Get all collections
   getAllCollections: async (req, res) => {
     try {
@@ -1022,6 +1022,33 @@ const movieController = {
       const { q = '' } = req.query;
       const suggestions = await collectionService.getSuggestions(q);
       res.json(suggestions);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Update collection name
+  updateCollection: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name } = req.body;
+      
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'Collection name is required' });
+      }
+      
+      const updatedCollection = await collectionService.updateCollection(id, name.trim());
+      res.json(updatedCollection);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Clean up empty collections
+  cleanupEmptyCollections: async (req, res) => {
+    try {
+      const result = await collectionService.cleanupEmptyCollections();
+      res.json(result);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -1085,13 +1112,13 @@ const movieController = {
   addMovieToCollection: async (req, res) => {
     try {
       const { id } = req.params;
-      const { collectionName } = req.body;
+      const { collectionName, collectionType = 'user' } = req.body;
       
       if (!collectionName || !collectionName.trim()) {
         return res.status(400).json({ error: 'Collection name is required' });
       }
 
-      const result = await collectionService.addMovieToCollection(id, collectionName.trim());
+      const result = await collectionService.addMovieToCollection(id, collectionName.trim(), collectionType);
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: error.message });

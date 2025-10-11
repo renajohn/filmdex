@@ -5,17 +5,17 @@ This feature allows you to mark movies for future "popcorn sessions" with a simp
 ## Features Implemented
 
 ### 1. Database Schema
-- **Field:** `watch_next_added` DATETIME column in the `movies` table
-- **Values:** 
-  - `NULL` = Not in watch next list
-  - ISO timestamp = Added to watch next at that time
-- **Automatic migration** on backend boot (migrates old BOOLEAN to DATETIME)
-- **Sorting:** Movies are automatically sorted by most recently added (streaming service style!)
+- **Collection-Based:** Watch Next is implemented as a system collection
+- **Position-Based Ordering:** Movies are added at the end with `collection_order = count + 1`
+- **Reverse Display:** UI shows newest additions first by sorting in reverse order
+- **Clean Implementation:** Uses collection-based system instead of direct movie fields
+- **System Collection:** Watch Next collection is protected and cannot be deleted
 
 ### 2. Backend API
 - **Endpoint:** `PUT /api/movies/:id/watch-next`
-- **Action:** Toggles the watch_next_added status (sets timestamp or NULL)
-- **Response:** `{ id: number, watch_next_added: string|null }`
+- **Action:** Toggles movie in Watch Next collection (adds/removes from collection)
+- **Response:** `{ id: number }` (success confirmation)
+- **New Endpoint:** `GET /api/collections/watch-next/movies` - Get Watch Next movies in reverse order
 
 ### 3. Frontend Components
 
@@ -108,16 +108,21 @@ The migration runs automatically when the backend starts:
 4. **Idempotent:** Safe to run multiple times
 
 ### API Integration
-- Frontend: `apiService.toggleWatchNext(movieId)`
+- Frontend: `apiService.toggleWatchNext(movieId)` and `apiService.getWatchNextMovies()`
 - Backend: `Movie.toggleWatchNext(id)` 
-  - If `watch_next_added` is NULL → Set to current timestamp
-  - If `watch_next_added` has value → Set to NULL
+  - If movie not in Watch Next collection → Add to collection with position = count + 1
+  - If movie in Watch Next collection → Remove from collection
+- Collection Service: `collectionService.getWatchNextMovies()` - Returns movies in reverse order
 
-### Sorting Algorithm (Netflix/Disney+ Style)
-Watch Next movies are automatically sorted by **most recently added first**:
+### Sorting Algorithm (Position-Based)
+Watch Next movies are automatically sorted by **collection_order in reverse**:
 ```javascript
-.filter(movie => movie.watch_next_added)
-.sort((a, b) => new Date(b.watch_next_added) - new Date(a.watch_next_added))
+.filter(movie => watchNextMovies.some(wm => wm.id === movie.id))
+.sort((a, b) => {
+  const aOrder = a.collection_order || 0;
+  const bOrder = b.collection_order || 0;
+  return bOrder - aOrder;
+})
 ```
 This means the last movie you added to "Watch Next" appears first in the carousel!
 

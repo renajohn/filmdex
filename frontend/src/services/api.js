@@ -432,6 +432,11 @@ class ApiService {
     return await response.json();
   }
 
+  async getWatchNextMovies() {
+    const response = await this.makeRequest('/collections/watch-next/movies');
+    return await response.json();
+  }
+
   // Get available posters from TMDB
   async getMoviePosters(tmdbId, mediaType = 'movie') {
     const queryParam = mediaType ? `?mediaType=${mediaType}` : '';
@@ -511,10 +516,13 @@ class ApiService {
   }
 
   // Add movie to collection
-  async addMovieToCollection(movieId, collectionName) {
+  async addMovieToCollection(movieId, collectionName, collectionType = 'user') {
     const response = await this.makeRequest(`/movies/${movieId}/collections`, {
       method: 'POST',
-      body: JSON.stringify({ collectionName }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ collectionName, collectionType }),
     });
     
     return await response.json();
@@ -524,6 +532,28 @@ class ApiService {
   async removeMovieFromCollection(movieId, collectionId) {
     const response = await this.makeRequest(`/movies/${movieId}/collections/${collectionId}`, {
       method: 'DELETE',
+    });
+    
+    return await response.json();
+  }
+
+  // Update collection name
+  async updateCollectionName(collectionId, newName) {
+    const response = await this.makeRequest(`/collections/${collectionId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name: newName }),
+    });
+    
+    return await response.json();
+  }
+
+  // Clean up empty collections
+  async cleanupEmptyCollections() {
+    const response = await this.makeRequest('/collections/cleanup', {
+      method: 'POST',
     });
     
     return await response.json();

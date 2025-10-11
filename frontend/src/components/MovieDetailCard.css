@@ -1362,12 +1362,12 @@
 }
 
 .boxset-member.current {
-  background: rgba(0, 212, 170, 0.1);
-  border-color: #00d4aa;
+  background: rgba(184, 134, 11, 0.1);
+  border-color: #b8860b;
 }
 
 .boxset-member.current:hover {
-  background: rgba(0, 212, 170, 0.15);
+  background: rgba(184, 134, 11, 0.15);
 }
 
 .boxset-member-poster {
@@ -1436,12 +1436,12 @@
 }
 
 .collection-member.current {
-  background: rgba(0, 212, 170, 0.1);
-  border-color: #00d4aa;
+  background: rgba(184, 134, 11, 0.1);
+  border-color: #b8860b;
 }
 
 .collection-member.current:hover {
-  background: rgba(0, 212, 170, 0.15);
+  background: rgba(184, 134, 11, 0.15);
 }
 
 /* Drop indicator */
@@ -1899,12 +1899,12 @@
 }
 
 .collection-member.current {
-  background: rgba(0, 212, 170, 0.1);
-  border-color: #00d4aa;
+  background: rgba(184, 134, 11, 0.1);
+  border-color: #b8860b;
 }
 
 .collection-member.current:hover {
-  background: rgba(0, 212, 170, 0.15);
+  background: rgba(184, 134, 11, 0.15);
 }
 
 .collection-member-poster {
@@ -1971,7 +1971,7 @@
   max-width: 100%;
   width: 100%;
   box-sizing: border-box;
-  height: 230px;
+  height: 270px;
   background: rgba(0, 0, 0, 0.1);
   border-radius: 6px;
   position: relative;
@@ -2000,7 +2000,7 @@
   width: 160px;
   min-width: 160px;
   max-width: 160px;
-  height: 200px;
+  height: 240px;
   position: relative;
   cursor: pointer;
   transition: transform 0.2s ease;
@@ -2013,7 +2013,7 @@
 }
 
 .collection-poster-item.current {
-  box-shadow: 0 0 0 3px #00d4aa;
+  box-shadow: 0 0 0 3px #b8860b;
   border-radius: 8px;
 }
 
@@ -2115,7 +2115,7 @@
   max-width: 100%;
   width: 100%;
   box-sizing: border-box;
-  height: 220px;
+  height: 270px;
   background: rgba(0, 0, 0, 0.1);
   border-radius: 6px;
 }
@@ -2142,7 +2142,7 @@
   width: 160px;
   min-width: 160px;
   max-width: 160px;
-  height: 200px;
+  height: 240px;
   position: relative;
   cursor: pointer;
   transition: transform 0.2s ease;
@@ -2155,7 +2155,7 @@
 }
 
 .boxset-poster-item.current {
-  box-shadow: 0 0 0 2px #00d4aa;
+  box-shadow: 0 0 0 2px #b8860b;
   border-radius: 8px;
 }
 
@@ -2178,7 +2178,7 @@
 .boxset-poster-container {
   position: relative;
   width: 100%;
-  height: 200px;
+  height: 240px;
   border-radius: 8px;
   overflow: hidden;
   background: #2d3748;
@@ -2229,15 +2229,72 @@
   .collection-poster-item,
   .boxset-poster-item {
     width: 140px;
+    height: 210px;
   }
   
   .collection-poster-container,
   .boxset-poster-container {
-    height: 190px;
+    height: 210px;
+  }
+  
+  .collection-posters-horizontal,
+  .boxset-posters-horizontal {
+    height: 240px;
   }
   
   .collection-poster-title,
   .boxset-poster-title {
     font-size: 0.8rem;
+  }
+}
+
+/* Watch Next Collection Styles */
+.watch-next-collection {
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.08) 0%, rgba(255, 152, 0, 0.05) 100%);
+  border-left: 3px solid #ffc107;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 20px !important;
+}
+
+.watch-next-collection h3 {
+  color: #ffc107 !important;
+  border-bottom: 1px solid rgba(255, 193, 7, 0.3) !important;
+}
+
+.watch-next-star-icon {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  margin-right: 8px;
+  color: #fbbf24;
+  stroke-width: 1.5;
+  animation: starPulse 2s ease-in-out infinite;
+  vertical-align: middle;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+@keyframes starPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.85;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .watch-next-collection {
+    padding: 12px;
+    margin-top: 15px !important;
+  }
+  
+  .watch-next-star-icon {
+    width: 1.1em;
+    height: 1.1em;
+    margin-right: 6px;
   }
 }

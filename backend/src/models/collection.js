@@ -25,20 +25,22 @@ const Collection = {
   create: (collectionData) => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
-      const { name } = collectionData;
+      const { name, type = 'user', is_system = false } = collectionData;
       
       const sql = `
-        INSERT INTO collections (name, created_at, updated_at)
-        VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        INSERT INTO collections (name, type, is_system, created_at, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       `;
       
-      db.run(sql, [name], function(err) {
+      db.run(sql, [name, type, is_system ? 1 : 0], function(err) {
         if (err) {
           reject(err);
         } else {
           resolve({
             id: this.lastID,
             name,
+            type,
+            is_system: !!is_system,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           });
@@ -231,6 +233,50 @@ const Collection = {
           resolve(row.count === 0);
         }
       });
+    });
+  },
+
+  // Find collection by type
+  findByType: (type) => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const sql = 'SELECT * FROM collections WHERE type = ?';
+      
+      db.get(sql, [type], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row);
+        }
+      });
+    });
+  },
+
+  // Initialize system collections
+  initializeSystemCollections: () => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const db = getDatabase();
+        
+        // Create Watch Next system collection if it doesn't exist
+        await new Promise((resolve, reject) => {
+          db.run(`
+            INSERT OR IGNORE INTO collections (name, type, is_system, created_at, updated_at)
+            VALUES ('Watch Next', 'watch_next', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          `, (err) => {
+            if (err) {
+              reject(err);
+            } else {
+              console.log('✓ Watch Next system collection initialized');
+              resolve();
+            }
+          });
+        });
+        
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 };

@@ -42,9 +42,7 @@ const Movie = {
           media_type TEXT DEFAULT 'movie',
           recommended_age INTEGER,
           age_processed BOOLEAN DEFAULT 0,
-          title_status TEXT DEFAULT 'owned',
-          watch_next_added DATETIME DEFAULT NULL,
-          box_set_name TEXT
+          title_status TEXT DEFAULT 'owned'
         )
       `;
       db.run(sql, (err) => {
@@ -65,25 +63,22 @@ const Movie = {
         imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
         price, runtime, plot, comments, never_seen, acquired_date, import_id,
         poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type = 'movie', recommended_age, age_processed = false, title_status = 'owned', watch_next_added = null,
-        box_set_name
+        popularity, vote_count, adult, video, media_type = 'movie', recommended_age, age_processed = false, title_status = 'owned'
       } = movie;
       const sql = `
         INSERT INTO movies (title, original_title, original_language, genre, director, cast, release_date, format, 
                            imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
                            price, runtime, plot, comments, never_seen, acquired_date, import_id,
                            poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-                           popularity, vote_count, adult, video, media_type, recommended_age, age_processed, title_status, watch_next_added,
-                           box_set_name)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                           popularity, vote_count, adult, video, media_type, recommended_age, age_processed, title_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       db.run(sql, [
         title, original_title, original_language, genre, director, JSON.stringify(cast), release_date, format,
         imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
         price, runtime, plot, comments, never_seen, acquired_date, import_id,
         poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-        popularity, vote_count, adult, video, media_type, recommended_age, age_processed, title_status, watch_next_added,
-        box_set_name
+        popularity, vote_count, adult, video, media_type, recommended_age, age_processed, title_status
       ], function(err) {
         if (err) {
           reject(err);
@@ -126,9 +121,7 @@ const Movie = {
             media_type,
             recommended_age,
             age_processed,
-            title_status,
-            watch_next_added,
-            box_set_name
+            title_status
           };
           resolve(createdMovie);
         }
@@ -139,7 +132,11 @@ const Movie = {
   findAll: () => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
-      const sql = 'SELECT * FROM movies ORDER BY title';
+      const sql = `
+        SELECT m.*
+        FROM movies m
+        ORDER BY m.title
+      `;
       db.all(sql, (err, rows) => {
         if (err) {
           reject(err);
@@ -153,38 +150,71 @@ const Movie = {
   search: (criteria) => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
-      let sql = 'SELECT * FROM movies WHERE 1=1';
+      let sql = `
+        SELECT m.*,
+          GROUP_CONCAT(
+            CASE WHEN c.type = 'box_set' 
+            THEN c.id || ':' || c.name || ':' || c.type 
+            END
+          ) as box_set_collections
+        FROM movies m
+        LEFT JOIN movie_collections mc ON m.id = mc.movie_id
+        LEFT JOIN collections c ON mc.collection_id = c.id
+        WHERE 1=1
+      `;
       const params = [];
 
       // Only return owned movies by default (for collection search)
-      sql += ' AND (title_status = ? OR title_status IS NULL)';
+      sql += ' AND (m.title_status = ? OR m.title_status IS NULL)';
       params.push('owned');
 
       // Full-text search on title, director, and comments
       if (criteria.searchText) {
-        sql += ' AND (title LIKE ? OR original_title LIKE ? OR director LIKE ? OR comments LIKE ?)';
+        sql += ' AND (m.title LIKE ? OR m.original_title LIKE ? OR m.director LIKE ? OR m.comments LIKE ?)';
         const searchTerm = `%${criteria.searchText}%`;
         params.push(searchTerm, searchTerm, searchTerm, searchTerm);
       }
 
       if (criteria.format) {
-        sql += ' AND format = ?';
+        sql += ' AND m.format = ?';
         params.push(criteria.format);
       }
 
       // Search by year in release_date
       if (criteria.year) {
-        sql += ' AND (release_date LIKE ? OR strftime("%Y", release_date) = ?)';
+        sql += ' AND (m.release_date LIKE ? OR strftime("%Y", m.release_date) = ?)';
         params.push(`%${criteria.year}%`, criteria.year.toString());
       }
 
-      sql += ' ORDER BY title';
+      sql += ' GROUP BY m.id ORDER BY m.title';
 
       db.all(sql, params, (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          resolve(rows);
+          const movies = rows.map(row => {
+            const movie = { ...row };
+            
+            // Parse box set collections info
+            if (movie.box_set_collections && movie.box_set_collections.trim() !== '') {
+              const boxSetData = movie.box_set_collections.split(',')[0].split(':');
+              if (boxSetData.length >= 2) {
+                movie.has_box_set = true;
+                movie.box_set_name = boxSetData[1];
+              } else {
+                movie.has_box_set = false;
+                movie.box_set_name = null;
+              }
+            } else {
+              movie.has_box_set = false;
+              movie.box_set_name = null;
+            }
+            // Remove the raw concatenated string
+            delete movie.box_set_collections;
+            
+            return movie;
+          });
+          resolve(movies);
         }
       });
     });
@@ -208,7 +238,11 @@ const Movie = {
   findById: (id) => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
-      const sql = 'SELECT * FROM movies WHERE id = ?';
+      const sql = `
+        SELECT m.*
+        FROM movies m
+        WHERE m.id = ?
+      `;
       
       db.get(sql, [id], (err, row) => {
         if (err) {
@@ -254,9 +288,7 @@ const Movie = {
             media_type: row.media_type,
             recommended_age: row.recommended_age,
             age_processed: row.age_processed,
-            title_status: row.title_status || 'owned',
-            watch_next_added: row.watch_next_added || null,
-            box_set_name: row.box_set_name || null
+            title_status: row.title_status || 'owned'
           };
           
           console.log('findById returning movie:', {
@@ -264,9 +296,7 @@ const Movie = {
             title: movie.title,
             rotten_tomato_rating: movie.rotten_tomato_rating,
             tmdb_rating: movie.tmdb_rating,
-            imdb_rating: movie.imdb_rating,
-            watch_next_added: movie.watch_next_added,
-            box_set_name: movie.box_set_name
+            imdb_rating: movie.imdb_rating
           });
           
           resolve(movie);
@@ -314,16 +344,13 @@ const Movie = {
           imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
           price, runtime, plot, comments, never_seen, acquired_date, import_id,
           poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-          popularity, vote_count, adult, video, media_type = 'movie', recommended_age, title_status, watch_next_added,
-          box_set_name
+          popularity, vote_count, adult, video, media_type = 'movie', recommended_age, title_status
         } = movieData;
         
         console.log(`[Movie.update] Updating movie ID ${id}:`, {
           title,
           plot: plot?.substring(0, 50) + '...',
-          watch_next_added,
-          title_status,
-          box_set_name
+          title_status
         });
         
         const sql = `
@@ -333,8 +360,7 @@ const Movie = {
               rotten_tomatoes_link = ?, tmdb_rating = ?, tmdb_id = ?, imdb_id = ?, 
               price = ?, runtime = ?, plot = ?, comments = ?, never_seen = ?, acquired_date = ?, import_id = ?,
               poster_path = ?, backdrop_path = ?, budget = ?, revenue = ?, trailer_key = ?, trailer_site = ?,
-              status = ?, popularity = ?, vote_count = ?, adult = ?, video = ?, media_type = ?, recommended_age = ?, title_status = ?, watch_next_added = ?,
-              box_set_name = ?
+              status = ?, popularity = ?, vote_count = ?, adult = ?, video = ?, media_type = ?, recommended_age = ?, title_status = ?
           WHERE id = ?
         `;
         
@@ -343,8 +369,7 @@ const Movie = {
           imdb_rating, rotten_tomato_rating, rotten_tomatoes_link, tmdb_rating, tmdb_id, imdb_id,
           price, runtime, plot, comments, never_seen, acquired_date, import_id,
           poster_path, backdrop_path, budget, revenue, trailer_key, trailer_site, status,
-          popularity, vote_count, adult, video, media_type, recommended_age, title_status, watch_next_added,
-          box_set_name, id
+          popularity, vote_count, adult, video, media_type, recommended_age, title_status, id
         ], function(err) {
           if (err) {
             console.error(`[Movie.update] Error updating movie ID ${id}:`, err);
@@ -573,7 +598,20 @@ const Movie = {
   findByStatus: (status) => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
-      const sql = 'SELECT * FROM movies WHERE title_status = ? ORDER BY title';
+      const sql = `
+        SELECT m.*,
+          GROUP_CONCAT(
+            CASE WHEN c.type = 'box_set' 
+            THEN c.id || ':' || c.name || ':' || c.type 
+            END
+          ) as box_set_collections
+        FROM movies m
+        LEFT JOIN movie_collections mc ON m.id = mc.movie_id
+        LEFT JOIN collections c ON mc.collection_id = c.id
+        WHERE m.title_status = ?
+        GROUP BY m.id
+        ORDER BY m.title
+      `;
       db.all(sql, [status], (err, rows) => {
         if (err) {
           reject(err);
@@ -589,6 +627,24 @@ const Movie = {
             } else {
               movie.cast = [];
             }
+            
+            // Parse box set collections info
+            if (movie.box_set_collections && movie.box_set_collections.trim() !== '') {
+              const boxSetData = movie.box_set_collections.split(',')[0].split(':');
+              if (boxSetData.length >= 2) {
+                movie.has_box_set = true;
+                movie.box_set_name = boxSetData[1];
+              } else {
+                movie.has_box_set = false;
+                movie.box_set_name = null;
+              }
+            } else {
+              movie.has_box_set = false;
+              movie.box_set_name = null;
+            }
+            // Remove the raw concatenated string
+            delete movie.box_set_collections;
+            
             return movie;
           });
           resolve(movies);
@@ -636,29 +692,51 @@ const Movie = {
     });
   },
 
-  // Toggle watch_next_added status (set to current timestamp or NULL)
+  // Toggle Watch Next collection membership
   toggleWatchNext: (id) => {
-    return new Promise((resolve, reject) => {
-      const db = getDatabase();
-      
-      // First, check current status
-      db.get('SELECT watch_next_added FROM movies WHERE id = ?', [id], (err, row) => {
-        if (err) {
-          reject(err);
-          return;
+    return new Promise(async (resolve, reject) => {
+      try {
+        const db = getDatabase();
+        const Collection = require('./collection');
+        const MovieCollection = require('./movieCollection');
+        
+        // Get the Watch Next system collection
+        const watchNextCollection = await Collection.findByType('watch_next');
+        if (!watchNextCollection) {
+          throw new Error('Watch Next collection not found');
         }
         
-        // Toggle: if it has a timestamp, set to NULL; if NULL, set to NOW
-        const newValue = row.watch_next_added ? null : new Date().toISOString();
+        // Check if movie is already in Watch Next
+        const existing = await MovieCollection.findByMovieAndCollection(id, watchNextCollection.id);
         
-        db.run('UPDATE movies SET watch_next_added = ? WHERE id = ?', [newValue, id], function(err) {
-          if (err) {
-            reject(err);
-          } else {
-            resolve({ id, watch_next_added: newValue });
-          }
-        });
-      });
+        if (existing) {
+          // Remove from Watch Next
+          await new Promise((resolve, reject) => {
+            db.run('DELETE FROM movie_collections WHERE id = ?', [existing.id], function(err) {
+              if (err) {
+                reject(err);
+              } else {
+                resolve();
+              }
+            });
+          });
+          
+          resolve({ id });
+        } else {
+          // Add to Watch Next at the end
+          const position = await MovieCollection.getNextOrder(watchNextCollection.id);
+          
+          await MovieCollection.create({
+            movie_id: id,
+            collection_id: watchNextCollection.id,
+            collection_order: position
+          });
+          
+          resolve({ id });
+        }
+      } catch (error) {
+        reject(error);
+      }
     });
   },
 

@@ -245,6 +245,38 @@ const MovieCollection = {
         reject(error);
       }
     });
+  },
+
+  // Get count of movies in a collection
+  getCollectionCount: (collectionId) => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const sql = 'SELECT COUNT(*) as count FROM movie_collections WHERE collection_id = ?';
+      
+      db.get(sql, [collectionId], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row.count);
+        }
+      });
+    });
+  },
+
+  // Find movie in specific collection
+  findByMovieAndCollection: (movieId, collectionId) => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const sql = 'SELECT * FROM movie_collections WHERE movie_id = ? AND collection_id = ?';
+      
+      db.get(sql, [movieId, collectionId], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row);
+        }
+      });
+    });
   }
 };
 

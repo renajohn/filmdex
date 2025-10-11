@@ -32,7 +32,7 @@ const SortableCollectionMember = ({ movie, collectionName, onMovieClick, getPost
       transform: `${CSS.Transform.toString(transform)} rotate(-1deg) scale(1.1)`,
       
       zIndex: 1001,
-      position: 'relative',
+      position: 'relative'
     }),
   };
 
@@ -111,6 +111,18 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   useEffect(() => {
     setLocalMovieData(movieDetails);
   }, [movieDetails]);
+
+  // Prevent body scroll when detail view is open
+  useEffect(() => {
+    if (movieDetails) {
+      // Disable body scroll
+      document.body.style.overflow = 'hidden';
+      return () => {
+        // Re-enable body scroll when component unmounts
+        document.body.style.overflow = 'unset';
+      };
+    }
+  }, [movieDetails]);
   
   // Handle ESC key press for main detail view
   useEffect(() => {
@@ -174,7 +186,9 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   // Load collection names
   const loadBoxSetNames = async () => {
     try {
-      const names = await apiService.getCollectionNames();
+      const allCollections = await apiService.getAllCollections();
+      const boxSetCollections = allCollections.filter(c => c.type === 'box_set');
+      const names = boxSetCollections.map(c => c.name);
       setBoxSetNames(names);
     } catch (error) {
       console.warn('Failed to load box set names:', error);
@@ -186,16 +200,25 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     loadBoxSetNames();
   }, []);
 
+  // Clear box set members when no box set collection exists
+  useEffect(() => {
+    const boxSetCollection = collections.find(c => c.type === 'box_set');
+    if (!boxSetCollection) {
+      setBoxSetMembers([]);
+    }
+  }, [collections]);
+
   // Load box set members when movie has a box set
   useEffect(() => {
     const loadBoxSetMembers = async () => {
-      if (!movieDetails?.box_set_name) {
-        setBoxSetMembers([]);
-        return;
+      // Check if movie is in any box_set collection
+      const boxSetCollection = collections.find(c => c.type === 'box_set');
+      if (!boxSetCollection) {
+        return; // Already handled by the effect above
       }
 
       try {
-        const members = await apiService.getMoviesByCollection(movieDetails.box_set_name);
+        const members = await apiService.getMoviesByCollection(boxSetCollection.name);
         setBoxSetMembers(members);
       } catch (error) {
         console.warn('Failed to load box set members:', error);
@@ -204,7 +227,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     };
 
     loadBoxSetMembers();
-  }, [movieDetails?.box_set_name]);
+  }, [collections, movieDetails?.id]);
+
 
   // Load collections when movie changes
   useEffect(() => {
@@ -218,11 +242,17 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       try {
         const movieCollections = await apiService.getMovieCollections(movieDetails.id);
         const collectionNames = movieCollections.map(c => c.collection_name);
-        setCollections(collectionNames);
+        
+        // Get full collection objects with type information
+        const allCollections = await apiService.getAllCollections();
+        const movieCollectionObjects = collectionNames.map(name => 
+          allCollections.find(c => c.name === name)
+        ).filter(Boolean);
+        
+        setCollections(movieCollectionObjects);
         
         // Load members for each collection
         if (collectionNames.length > 0) {
-          const allCollections = await apiService.getAllCollections();
           const membersPromises = collectionNames.map(async (collectionName) => {
             try {
               const collection = allCollections.find(c => c.name === collectionName);
@@ -230,6 +260,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                 const result = await apiService.getCollectionMovies(collection.id);
                 return { collectionName, movies: result.movies };
               }
+              console.log('Collection not found:', collectionName);
               return { collectionName, movies: [] };
             } catch (error) {
               console.error(`Error loading members for collection ${collectionName}:`, error);
@@ -240,7 +271,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
           const membersResults = await Promise.all(membersPromises);
           const membersMap = {};
           membersResults.forEach(({ collectionName, movies }) => {
-            membersMap[collectionName] = movies;
+            // Check if this is the Watch Next collection and reverse the order
+            const collection = allCollections.find(c => c.name === collectionName);
+            if (collection && collection.type === 'watch_next') {
+              membersMap[collectionName] = movies.reverse();
+            } else {
+              membersMap[collectionName] = movies;
+            }
           });
           
           setCollectionMembers(membersMap);
@@ -307,8 +344,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     trailer_site,
     recommended_age,
     title_status,
-    media_type,
-    box_set_name
+    media_type
   } = currentData || {};
 
   const formatRating = (rating) => {
@@ -494,11 +530,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     setShowBoxSetDropdown(false);
     setFilteredBoxSets([]);
     
-    // Update the local data with the box set name
-    setLocalMovieData(prev => ({
-      ...prev,
-      box_set_name: boxSetName
-    }));
+    // Save the box set collection using the same logic as performUpdate
+    await performUpdate('box_set_collection', boxSetName, false);
   };
 
   const handleBoxSetInputFocus = () => {
@@ -515,8 +548,9 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     if (!editingField) return;
     
     // Check if this field should trigger box set propagation dialog
-    const propagationFields = ['format', 'price', 'acquired_date', 'title_status', 'box_set_name'];
-    const shouldShowDialog = box_set_name && boxSetMembers.length > 1 && propagationFields.includes(editingField);
+    const propagationFields = ['format', 'price', 'acquired_date', 'title_status'];
+    const boxSetCollection = collections.find(c => c.type === 'box_set');
+    const shouldShowDialog = boxSetCollection && boxSetMembers.length > 1 && propagationFields.includes(editingField);
     
     if (shouldShowDialog) {
       // Store the pending update and show dialog
@@ -549,6 +583,105 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
         } else {
           await apiService.updateMovieStatus(id, value);
         }
+      } else if (field === 'box_set_collection') {
+        // Special handling for box set name - rename collection or create new one
+        const currentBoxSetCollection = collections.find(c => c.type === 'box_set');
+        
+        if (value && value.trim()) {
+          const newBoxSetName = value.trim();
+          
+          // Get all collections to check if target box set exists
+          const allCollections = await apiService.getAllCollections();
+          const targetBoxSetCollection = allCollections.find(c => c.name === newBoxSetName && c.type === 'box_set');
+          
+          if (currentBoxSetCollection) {
+            // Case 2: Existing box set, new name doesn't exist - rename collection
+            if (!targetBoxSetCollection) {
+              await apiService.updateCollectionName(currentBoxSetCollection.id, newBoxSetName);
+            }
+            // Case 3: Existing box set, target box set exists - move movie
+            else if (currentBoxSetCollection.id !== targetBoxSetCollection.id) {
+              await apiService.removeMovieFromCollection(id, currentBoxSetCollection.id);
+              await apiService.addMovieToCollection(id, newBoxSetName, 'box_set');
+            }
+            // Same box set, do nothing
+          } else {
+            // Case 1: No box set, create new one
+            if (!targetBoxSetCollection) {
+              await apiService.addMovieToCollection(id, newBoxSetName, 'box_set');
+            }
+            // Case 4: No box set, add to existing box set
+            else {
+              await apiService.addMovieToCollection(id, newBoxSetName, 'box_set');
+            }
+          }
+        } else {
+          // Case 5: Remove from box set (will auto-delete if empty)
+          if (currentBoxSetCollection) {
+            await apiService.removeMovieFromCollection(id, currentBoxSetCollection.id);
+          }
+        }
+        
+        // Refresh collections
+        const movieCollections = await apiService.getMovieCollections(id);
+        const collectionNames = movieCollections.map(c => c.collection_name);
+        
+        const allCollections = await apiService.getAllCollections();
+        const movieCollectionObjects = collectionNames.map(name => 
+          allCollections.find(c => c.name === name)
+        ).filter(Boolean);
+        
+        setCollections(movieCollectionObjects);
+        
+        // Refresh box set members if we have a box set
+        const newBoxSetCollection = movieCollectionObjects.find(c => c.type === 'box_set');
+        if (newBoxSetCollection) {
+          const members = await apiService.getMoviesByCollection(newBoxSetCollection.name);
+          setBoxSetMembers(members);
+        } else {
+          setBoxSetMembers([]);
+        }
+        
+        // Clean up any empty collections AFTER refreshing UI
+        setTimeout(async () => {
+          try {
+            const cleanupResult = await apiService.cleanupEmptyCollections();
+            
+            // If collections were cleaned up, refresh the collections list
+            if (cleanupResult.cleanedCount > 0) {
+              const refreshedCollections = await apiService.getAllCollections();
+              const refreshedMovieCollections = await apiService.getMovieCollections(id);
+              const refreshedCollectionNames = refreshedMovieCollections.map(c => c.collection_name);
+              const refreshedMovieCollectionObjects = refreshedCollectionNames.map(name => 
+                refreshedCollections.find(c => c.name === name)
+              ).filter(Boolean);
+              
+              setCollections(refreshedMovieCollectionObjects);
+              
+              // Also refresh box set members after cleanup
+              const newBoxSetCollection = refreshedMovieCollectionObjects.find(c => c.type === 'box_set');
+              if (newBoxSetCollection) {
+                const members = await apiService.getMoviesByCollection(newBoxSetCollection.name);
+                setBoxSetMembers(members);
+              } else {
+                setBoxSetMembers([]);
+              }
+            }
+          } catch (error) {
+            console.warn('Failed to cleanup empty collections:', error);
+          }
+        }, 200);
+        
+        // Exit edit mode for box set field
+        setEditingField(null);
+        setEditValue('');
+        
+        // Refresh main movie list to update box set pill
+        if (onRefresh) {
+          onRefresh();
+        }
+        
+        return; // Don't continue with normal update logic
       } else {
         // Map frontend field names to backend field names
         const fieldMapping = {
@@ -582,9 +715,19 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
         onRefresh();
       }
       
-      // Refresh box set names if box_set_name was updated
-      if (field === 'box_set_name') {
+      // Refresh box set names if box_set_collection was updated
+      if (field === 'box_set_collection') {
         await loadBoxSetNames();
+        // Also refresh collections to show the new box set
+        const movieCollections = await apiService.getMovieCollections(movieDetails.id);
+        const collectionNames = movieCollections.map(c => c.collection_name);
+        
+        const allCollections = await apiService.getAllCollections();
+        const movieCollectionObjects = collectionNames.map(name => 
+          allCollections.find(c => c.name === name)
+        ).filter(Boolean);
+        
+        setCollections(movieCollectionObjects);
       }
     } catch (error) {
       console.error('Error updating movie:', error);
@@ -683,41 +826,78 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const handleWatchNextToggle = async (e) => {
     e.stopPropagation();
     
-    // Optimistically update the UI immediately
-    const previousValue = localMovieData.watch_next_added;
-    const newValue = previousValue ? null : new Date().toISOString();
-    
-    setLocalMovieData(prev => ({
-      ...prev,
-      watch_next_added: newValue
-    }));
+    // Check if movie is currently in Watch Next collection
+    const isCurrentlyInWatchNext = collections.some(c => c.type === 'watch_next');
     
     try {
       const result = await apiService.toggleWatchNext(movieDetails.id);
       
-      // Update with the actual result from the server
-      setLocalMovieData(prev => ({
-        ...prev,
-        watch_next_added: result.watch_next_added
-      }));
+      // Refresh collections to show/hide Watch Next collection immediately
+      const movieCollections = await apiService.getMovieCollections(movieDetails.id);
+      const collectionNames = movieCollections.map(c => c.collection_name);
       
-      if (onShowAlert) {
-        const message = result.watch_next_added 
-          ? `Added "${title}" to Watch Next 🍿` 
-          : `Removed "${title}" from Watch Next`;
-        onShowAlert(message, 'success');
+      // Get full collection objects with type information
+      const allCollections = await apiService.getAllCollections();
+      const movieCollectionObjects = collectionNames.map(name => 
+        allCollections.find(c => c.name === name)
+      ).filter(Boolean);
+      
+      setCollections(movieCollectionObjects);
+      
+      // Load members for each collection
+      if (collectionNames.length > 0) {
+        const membersPromises = collectionNames.map(async (collectionName) => {
+          try {
+            const collection = allCollections.find(c => c.name === collectionName);
+            if (collection) {
+              const result = await apiService.getCollectionMovies(collection.id);
+              return { collectionName, movies: result.movies };
+            }
+            return { collectionName, movies: [] };
+          } catch (error) {
+            console.error(`Error loading members for collection ${collectionName}:`, error);
+            return { collectionName, movies: [] };
+          }
+        });
+        
+        const membersResults = await Promise.all(membersPromises);
+        const membersMap = {};
+        membersResults.forEach(({ collectionName, movies }) => {
+          // Check if this is the Watch Next collection and reverse the order
+          const collection = allCollections.find(c => c.name === collectionName);
+          if (collection && collection.type === 'watch_next') {
+            membersMap[collectionName] = movies.reverse();
+          } else {
+            membersMap[collectionName] = movies;
+          }
+        });
+        
+        setCollectionMembers(membersMap);
+      } else {
+        setCollectionMembers({});
+      }
+      
+      // Refresh the main screen to update Watch Next UI
+      if (onRefresh) {
+        // Use setTimeout to avoid immediate refresh that might conflict with thumbnail updates
+        setTimeout(() => {
+          onRefresh();
+        }, 100);
       }
     } catch (error) {
       console.error('Error toggling watch next:', error);
       
-      // Rollback the optimistic update on error
-      setLocalMovieData(prev => ({
-        ...prev,
-        watch_next_added: previousValue
-      }));
+      // No rollback needed since we don't use optimistic updates anymore
       
       if (onShowAlert) {
         onShowAlert('Failed to update Watch Next status', 'danger');
+      }
+      
+      // Refresh the main screen even on error to ensure consistency
+      if (onRefresh) {
+        setTimeout(() => {
+          onRefresh();
+        }, 100);
       }
     }
   };
@@ -799,7 +979,6 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
           }
         } else {
           // For TMDB posters, update the movie record
-          // Fetch the latest movie data to ensure we have all fields including watch_next_added
           const latestMovie = await apiService.getMovieById(movieDetails.id);
           
           // Update movie with new poster path - preserve ALL existing fields
@@ -921,16 +1100,30 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   };
 
   // Collections handling functions
-  const handleCollectionsChange = async (newCollections) => {
+  const handleCollectionsChange = async (newUserCollectionNames) => {
     try {
       setSaving(true);
-      await apiService.updateMovieCollections(movieDetails.id, newCollections);
-      setCollections(newCollections);
+      
+      // Get current non-user collections (watch_next, box_set)
+      const currentNonUserCollections = collections.filter(c => c.type !== 'user');
+      const currentNonUserNames = currentNonUserCollections.map(c => c.name);
+      
+      // Combine user collections with existing non-user collections
+      const allCollectionNames = [...newUserCollectionNames, ...currentNonUserNames];
+      
+      await apiService.updateMovieCollections(movieDetails.id, allCollectionNames);
+      
+      // Get full collection objects with type information
+      const allCollections = await apiService.getAllCollections();
+      const movieCollectionObjects = allCollectionNames.map(name => 
+        allCollections.find(c => c.name === name)
+      ).filter(Boolean);
+      
+      setCollections(movieCollectionObjects);
       
       // Reload collection members for the updated collections
-      if (newCollections.length > 0) {
-        const allCollections = await apiService.getAllCollections();
-        const membersPromises = newCollections.map(async (collectionName) => {
+      if (allCollectionNames.length > 0) {
+        const membersPromises = allCollectionNames.map(async (collectionName) => {
           try {
             const collection = allCollections.find(c => c.name === collectionName);
             if (collection) {
@@ -947,7 +1140,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
         const membersResults = await Promise.all(membersPromises);
         const membersMap = {};
         membersResults.forEach(({ collectionName, movies }) => {
-          membersMap[collectionName] = movies;
+          // Check if this is the Watch Next collection and reverse the order
+          const collection = allCollections.find(c => c.name === collectionName);
+          if (collection && collection.type === 'watch_next') {
+            membersMap[collectionName] = movies.reverse();
+          } else {
+            membersMap[collectionName] = movies;
+          }
         });
         
         setCollectionMembers(membersMap);
@@ -979,7 +1178,15 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       );
       // Reload collections after rename
       const movieCollections = await apiService.getMovieCollections(movieDetails.id);
-      setCollections(movieCollections.map(c => c.collection_name));
+      const collectionNames = movieCollections.map(c => c.collection_name);
+      
+      // Get full collection objects with type information
+      const allCollections = await apiService.getAllCollections();
+      const movieCollectionObjects = collectionNames.map(name => 
+        allCollections.find(c => c.name === name)
+      ).filter(Boolean);
+      
+      setCollections(movieCollectionObjects);
       onRefresh();
     } catch (error) {
       console.error('Error handling collection rename:', error);
@@ -1042,13 +1249,21 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
         [targetCollection]: newMovies
       }));
 
-      // Update ALL movies in the collection with sequential ordering
-      const updatePromises = newMovies.map((movie, index) => 
-        apiService.updateMovieOrder(movie.id, collection.id, index + 1)
-      );
+      // Update ALL movies in the collection with appropriate ordering
+      const updatePromises = newMovies.map((movie, index) => {
+        // For Watch Next collection, use reverse order (highest order first)
+        // For other collections, use sequential order (lowest order first)
+        const order = collection.type === 'watch_next' 
+          ? newMovies.length - index  // Reverse order: first item gets highest number
+          : index + 1;                 // Sequential order: first item gets 1
+        return apiService.updateMovieOrder(movie.id, collection.id, order);
+      });
       
-      // Don't await - let it happen in background
-      Promise.all(updatePromises).catch(error => {
+      // Update backend and refresh main UI
+      Promise.all(updatePromises).then(() => {
+        // Success: refresh main UI to reflect changes
+        onRefresh();
+      }).catch(error => {
         console.error('Error updating collection order:', error);
         onShowAlert('Failed to update collection order', 'error');
         // Revert local state on error
@@ -1064,8 +1279,29 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
 
   return (
     <>
-      <div className="movie-detail-overlay" onClick={onClose}>
-        <div className="movie-detail-card" onClick={(e) => e.stopPropagation()}>
+      <div 
+        className="movie-detail-overlay" 
+        onClick={onClose}
+        onWheel={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        onScroll={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        onTouchMove={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+      >
+        <div 
+          className="movie-detail-card" 
+          onClick={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
+          onScroll={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+        >
           <button className="movie-detail-close" onClick={onClose}>
             <BsX />
           </button>
@@ -1126,18 +1362,18 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                   
                   {/* Watch Next Star Overlay */}
                   <button
-                    className={`poster-watch-next-star ${currentData.watch_next_added ? 'active' : ''}`}
+                    className={`poster-watch-next-star ${collections.some(c => c.type === 'watch_next') ? 'active' : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleWatchNextToggle(e);
                     }}
-                    title={currentData.watch_next_added ? 'Remove from Watch Next' : 'Add to Watch Next'}
+                    title={collections.some(c => c.type === 'watch_next') ? 'Remove from Watch Next' : 'Add to Watch Next'}
                     aria-label="Toggle Watch Next"
                   >
                     <svg 
                       className="star-icon" 
                       viewBox="0 0 24 24" 
-                      fill={currentData.watch_next_added ? "currentColor" : "none"}
+                      fill={collections.some(c => c.type === 'watch_next') ? "currentColor" : "none"}
                       stroke="currentColor"
                     >
                       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
@@ -1403,13 +1639,15 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                 )}
 
                 {/* Box Set Members Section */}
-                {boxSetMembers && boxSetMembers.length > 1 && (
+                {boxSetMembers && boxSetMembers.length > 1 && collections.find(c => c.type === 'box_set') && (() => {
+                  const boxSetCollection = collections.find(c => c.type === 'box_set');
+                  return (
                   <div className="movie-detail-boxset">
-                    <h3>"{movieDetails.box_set_name}" box set</h3>
+                    <h3>"{collections.find(c => c.type === 'box_set')?.name}" box set</h3>
                     <div className="boxset-posters-horizontal">
                       {boxSetMembers.map((member, index) => (
                         <div 
-                          key={member.id} 
+                          key={`boxset-${member.id}`} 
                           className={`boxset-poster-item ${member.id === id ? 'current' : ''}`}
                           onClick={() => handleMovieTitleClick(member.id)}
                         >
@@ -1436,7 +1674,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                       ))}
                     </div>
                   </div>
-                )}
+                  );
+                })()}
 
                 {/* Collection Members Sections */}
                 <DndContext 
@@ -1457,9 +1696,39 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                   {Object.entries(collectionMembers).map(([collectionName, members]) => {
                     if (members.length === 0) return null;
                     
+                    // Filter out box_set collections from display (they have their own section)
+                    const collection = collections.find(c => c.name === collectionName);
+                    if (collection && collection.type === 'box_set') {
+                      return null;
+                    }
+                    
+                    // If collection not found in current movie's collections, skip it (e.g., after removal)
+                    if (!collection) {
+                      return null;
+                    }
+                    
+                    // Special styling for Watch Next collection
+                    const isWatchNext = collection && collection.type === 'watch_next';
+                    
                     return (
-                      <div key={collectionName} className="movie-detail-collection">
-                        <h3>"{collectionName}" collection</h3>
+                      <div key={collectionName} className={`movie-detail-collection ${isWatchNext ? 'watch-next-collection' : ''}`}>
+                        <h3>
+                          {isWatchNext ? (
+                            <>
+                              <svg 
+                                className="watch-next-star-icon" 
+                                viewBox="0 0 24 24" 
+                                fill="currentColor"
+                                stroke="currentColor"
+                              >
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                              </svg>
+                              In Watch Next
+                            </>
+                          ) : (
+                            `"${collectionName}" collection`
+                          )}
+                        </h3>
                         <SortableContext 
                           items={members.map(member => `${collectionName}-${member.id}`)}
                           strategy={horizontalListSortingStrategy}
@@ -1685,7 +1954,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                     {/* Box Set Name */}
                     <div className="fact-row">
                       <span className="fact-label">Box Set:</span>
-                      {editingField === 'box_set_name' ? (
+                      {editingField === 'box_set_collection' ? (
                         <div className="input-group" style={{ position: 'relative' }}>
                           <FormControl
                             type="text"
@@ -1757,9 +2026,9 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                       ) : (
                         <span 
                           className="fact-value editable" 
-                          onClick={() => startEditing('box_set_name', box_set_name)}
+                          onClick={() => startEditing('box_set_collection', collections.find(c => c.type === 'box_set')?.name || '')}
                         >
-                          {box_set_name || '-'}
+                          {collections.find(c => c.type === 'box_set')?.name || '-'}
                         </span>
                       )}
                     </div>
@@ -1771,7 +2040,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                 <div className="sidebar-section">
                   <h4>Collections</h4>
                   <CollectionTagsInput
-                    value={collections}
+                    value={collections.filter(c => c.type === 'user').map(c => c.name)}
                     onChange={handleCollectionsChange}
                     placeholder="Add collections..."
                     movieId={movieDetails.id}
@@ -1897,7 +2166,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
             <div className="propagation-dialog-content">
               <p>
                 You're updating the <strong>{pendingUpdate.field}</strong> field. 
-                Would you like to apply this change to all movies in the "{box_set_name}" box set?
+                Would you like to apply this change to all movies in the "{collections.find(c => c.type === 'box_set')?.name}" box set?
               </p>
               <div className="propagation-dialog-buttons">
                 <button 

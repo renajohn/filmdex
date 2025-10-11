@@ -114,6 +114,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     try {
       setLoading(true);
       const data = await apiService.getAllMovies();
+      
       setAllMovies(data);
       setFilteredMovies(data);
       // Apply current sort to all movies
@@ -139,10 +140,31 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortBy, selectedMovieDetails?.id]);
 
+  // Refresh only Watch Next movies
+  const refreshWatchNextMovies = useCallback(async () => {
+    try {
+      const watchNextMovies = await apiService.getWatchNextMovies();
+      setWatchNextMovies(watchNextMovies);
+    } catch (error) {
+      console.warn('Failed to refresh Watch Next movies:', error);
+    }
+  }, []);
+
   // Refresh movie data while preserving current search/filter state
   const refreshMovieData = useCallback(async () => {
     try {
+      console.log('📡 Fetching fresh movie data from backend...');
       const data = await apiService.getAllMovies();
+      
+      // Debug: Check if a specific movie's box set status changed
+      const movie300 = data.find(m => m.title === '300');
+      if (movie300) {
+        console.log('Movie 300 after refresh:', {
+          has_box_set: movie300.has_box_set,
+          box_set_name: movie300.box_set_name
+        });
+      }
+      
       setAllMovies(data);
       
       // Reapply current filters to the new data
@@ -174,6 +196,23 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeFilters, searchCriteria, sortBy, selectedMovieDetails?.id]);
+
+  // Refresh all movie data including box set status (used by detail view)
+  const refreshAllMovieData = useCallback(async () => {
+    try {
+      console.log('🔄 refreshAllMovieData called');
+      
+      // Refresh Watch Next
+      await refreshWatchNextMovies();
+      
+      // Refresh main movie list to update has_box_set and other fields
+      await refreshMovieData();
+      
+      console.log('✅ refreshAllMovieData completed');
+    } catch (error) {
+      console.error('Failed to refresh movie data:', error);
+    }
+  }, [refreshWatchNextMovies, refreshMovieData]);
 
   const handleSearch = useCallback(async (criteria) => {
     try {
@@ -390,6 +429,97 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   };
 
 
+  // Reusable movie card renderer
+  const renderMovieCard = (movie) => {
+    return (
+      <div key={movie.id} className="movie-card-compact" onClick={() => handleMovieClick(movie.id)}>
+        <div className="movie-poster-compact">
+          <MovieThumbnail 
+            imdbLink={movie.imdb_id ? `https://www.imdb.com/title/${movie.imdb_id}` : movie.imdb_link} 
+            title={movie.title}
+            year={movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year}
+            className="movie-thumbnail-compact"
+            disableZoom={true}
+            posterPath={movie.poster_path}
+            recommendedAge={movie.recommended_age}
+          />
+          <button 
+            className={`watch-next-badge-toggle ${watchNextMovies.some(wm => wm.id === movie.id) ? 'active' : ''}`}
+            onClick={(e) => handleWatchNextToggle(e, movie)}
+            title={watchNextMovies.some(wm => wm.id === movie.id) ? "Remove from Watch Next" : "Add to Watch Next"}
+            aria-label="Toggle Watch Next"
+          >
+            <svg 
+              className="star-icon" 
+              viewBox="0 0 24 24" 
+              fill={watchNextMovies.some(wm => wm.id === movie.id) ? "currentColor" : "none"}
+              stroke="currentColor"
+            >
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          </button>
+        </div>
+        
+        <div className="movie-info-compact">
+          <div className="movie-header-compact">
+            <h4 title={movie.title}>{movie.title}</h4>
+            <div className="movie-meta">
+              {(movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year) && 
+                <span className="movie-year">({movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year})</span>
+              }
+              {movie.format && <span className="format-badge">{movie.format}</span>}
+              {movie.has_box_set && <span className="boxset-badge">BOX SET</span>}
+            </div>
+          </div>
+          
+          <div className="movie-content-compact">
+            <div className="movie-details-left">
+              {movie.director && (
+                <div className="detail-row">
+                  <span className="detail-label">Directed by</span>
+                  <span className="detail-value">{movie.director}</span>
+                </div>
+              )}
+              
+              {movie.genres && movie.genres.length > 0 && (
+                <div className="detail-row">
+                  <span className="detail-label">Genres</span>
+                  <span className="detail-value">{movie.genres.join(', ')}</span>
+                </div>
+              )}
+            </div>
+            
+            <div className="movie-details-center">
+              {movie.runtime && (
+                <div className="detail-row">
+                  <span className="detail-label">Runtime</span>
+                  <span className="detail-value">{movie.runtime}</span>
+                </div>
+              )}
+            </div>
+            
+            <div className="movie-details-right">
+              {(() => {
+                const combinedScore = getCombinedScore(movie);
+                if (combinedScore) {
+                  return (
+                    <div className="detail-row">
+                      <span className="detail-label">Score</span>
+                      <span className="detail-value score-value" style={{ color: getRatingColor(combinedScore, 10) }}>
+                        {combinedScore.toFixed(1)}/10
+                      </span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const getRatingColor = (rating, maxRating = 10) => {
     if (!rating || rating === 'N/A') return '#3a3a3a';
     
@@ -468,28 +598,16 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const handleWatchNextToggle = async (e, movie) => {
     e.stopPropagation(); // Prevent opening movie details
     
-    // Toggle: if has timestamp, set to null; if null, set to current timestamp
-    const newWatchNextValue = movie.watch_next_added ? null : new Date().toISOString();
-    const isAdding = !movie.watch_next_added; // true if adding to watch next
+    // Check if movie is currently in Watch Next
+    const isCurrentlyInWatchNext = watchNextMovies.some(m => m.id === movie.id);
+    const newWatchNextValue = !isCurrentlyInWatchNext;
+    const isAdding = newWatchNextValue; // true if adding to watch next
     
     // Check if this is the last movie in watch next
-    const currentWatchNextMovies = allMovies.filter(m => m.watch_next_added);
-    const isLastMovie = movie.watch_next_added && currentWatchNextMovies.length === 1;
-    
-    // Define the update function once
-    const updateMovieInLists = (moviesList) => {
-      return moviesList.map(m => 
-        m.id === movie.id ? { ...m, watch_next_added: newWatchNextValue } : m
-      );
-    };
-    
-    // Update state immediately (optimistic update for responsive UI)
-    setAllMovies(prev => updateMovieInLists(prev));
-    setFilteredMovies(prev => updateMovieInLists(prev));
-    setMovies(prev => updateMovieInLists(prev));
+    const isLastMovie = isCurrentlyInWatchNext && watchNextMovies.length === 1;
     
     // Handle removal animation in background (non-blocking)
-    if (!isAdding && movie.watch_next_added) {
+    if (!isAdding && isCurrentlyInWatchNext) {
       const cardElement = e.currentTarget.closest('.watch-next-poster-card');
       if (cardElement) {
         cardElement.classList.add('removing');
@@ -507,20 +625,13 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     // Then make the API call
     try {
       await apiService.toggleWatchNext(movie.id);
+      
+      // Refresh Watch Next movies after successful toggle
+      const updatedWatchNextMovies = await apiService.getWatchNextMovies();
+      setWatchNextMovies(updatedWatchNextMovies);
+      
     } catch (error) {
       console.error('Error toggling watch next:', error);
-      
-      // Revert on error (toggle back)
-      const revertValue = newWatchNextValue ? null : new Date().toISOString();
-      setAllMovies(prev => updateMovieInLists(prev).map(m => 
-        m.id === movie.id ? { ...m, watch_next_added: revertValue } : m
-      ));
-      setFilteredMovies(prev => updateMovieInLists(prev).map(m => 
-        m.id === movie.id ? { ...m, watch_next_added: revertValue } : m
-      ));
-      setMovies(prev => updateMovieInLists(prev).map(m => 
-        m.id === movie.id ? { ...m, watch_next_added: revertValue } : m
-      ));
       
       if (onShowAlert) {
         onShowAlert('Failed to update Watch Next status', 'danger');
@@ -535,7 +646,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       movies: allMovies.filter(movie => movie.media_type === 'movie' || !movie.media_type).length,
       tvShows: allMovies.filter(movie => movie.media_type === 'tv').length,
       comments: allMovies.filter(movie => movie.comments && movie.comments.trim()).length,
-      watchNext: allMovies.filter(movie => movie.watch_next_added).length,
+      watchNext: watchNextMovies.length,
       formats: {},
       ageGroups: {}
     };
@@ -588,7 +699,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
             case 'comments':
               return movie.comments && movie.comments.trim();
             case 'watchNext':
-              return movie.watch_next_added;
+              return watchNextMovies.some(wm => wm.id === movie.id);
             case 'format':
               return movie.format === filter.value;
             case 'ageGroup':
@@ -723,7 +834,8 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       
       switch (groupOption) {
         case 'collection':
-          groupKeys = [movie.box_set_name || 'No Box Set'];
+          // Box sets are now managed via collections - grouping removed from thumbnail view
+          groupKeys = ['All Movies'];
           break;
         case 'director':
           groupKeys = [movie.director || 'Unknown Director'];
@@ -834,10 +946,22 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     }
   };
 
-  // Get Watch Next movies for banner (sorted by most recently added)
-  const watchNextMovies = allMovies
-    .filter(movie => movie.watch_next_added)
-    .sort((a, b) => new Date(b.watch_next_added) - new Date(a.watch_next_added));
+  // Get Watch Next movies for banner (already sorted by API)
+  const [watchNextMovies, setWatchNextMovies] = useState([]);
+  
+  useEffect(() => {
+    const loadWatchNextMovies = async () => {
+      try {
+        const movies = await apiService.getWatchNextMovies();
+        setWatchNextMovies(movies);
+      } catch (error) {
+        console.warn('Failed to load Watch Next movies:', error);
+        setWatchNextMovies([]);
+      }
+    };
+    
+    loadWatchNextMovies();
+  }, [refreshTrigger]);
 
   // Helper function to get poster URL
   const getPosterUrl = (posterPath) => {
@@ -1137,93 +1261,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
             {/* Movies Grid - Grouped or Ungrouped */}
             {groupBy === 'none' ? (
               <div className={`movies-grid ${sortLoading || filterLoading ? 'sort-loading' : ''}`}>
-                {movies && movies.map((movie) => (
-                  <div key={movie.id} className="movie-card-compact" onClick={() => handleMovieClick(movie.id)}>
-                    <div className="movie-poster-compact">
-                      <MovieThumbnail 
-                        imdbLink={movie.imdb_id ? `https://www.imdb.com/title/${movie.imdb_id}` : movie.imdb_link} 
-                        title={movie.title}
-                        year={movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year}
-                        className="movie-thumbnail-compact"
-                        disableZoom={true}
-                        posterPath={movie.poster_path}
-                        recommendedAge={movie.recommended_age}
-                      />
-                      <button 
-                        className={`watch-next-badge-toggle ${movie.watch_next_added ? 'active' : ''}`}
-                        onClick={(e) => handleWatchNextToggle(e, movie)}
-                        title={movie.watch_next_added ? "Remove from Watch Next" : "Add to Watch Next"}
-                        aria-label="Toggle Watch Next"
-                      >
-                        <svg 
-                          className="star-icon" 
-                          viewBox="0 0 24 24" 
-                          fill={movie.watch_next_added ? "currentColor" : "none"}
-                          stroke="currentColor"
-                        >
-                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                        </svg>
-                      </button>
-                    </div>
-                    
-                    <div className="movie-info-compact">
-                      <div className="movie-header-compact">
-                        <h4 title={movie.title}>{movie.title}</h4>
-                        <div className="movie-meta">
-                          {(movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year) && 
-                            <span className="movie-year">({movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year})</span>
-                          }
-                          {movie.format && <span className="format-badge">{movie.format}</span>}
-                          {movie.box_set_name && <span className="boxset-badge">Box set</span>}
-                        </div>
-                      </div>
-                      
-                      <div className="movie-content-compact">
-                        <div className="movie-details-left">
-                          {movie.director && (
-                            <div className="detail-row">
-                              <span className="detail-label">Directed by</span>
-                              <span className="detail-value">{movie.director}</span>
-                            </div>
-                          )}
-                          
-                          {movie.genres && movie.genres.length > 0 && (
-                            <div className="detail-row">
-                              <span className="detail-label">Genres</span>
-                              <span className="detail-value">{movie.genres.join(', ')}</span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="movie-details-center">
-                          {movie.runtime && (
-                            <div className="detail-row">
-                              <span className="detail-label">Runtime</span>
-                              <span className="detail-value">{movie.runtime}</span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="movie-details-right">
-                          {(() => {
-                            const combinedScore = getCombinedScore(movie);
-                            if (combinedScore) {
-                              return (
-                                <div className="detail-row">
-                                  <span className="detail-label">Score</span>
-                                  <span className="detail-value score-value" style={{ color: getRatingColor(combinedScore, 10) }}>
-                                    {combinedScore.toFixed(1)}/10
-                                  </span>
-                                </div>
-                              );
-                            }
-                            return null;
-                          })()}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                {movies && movies.map((movie) => renderMovieCard(movie))}
               </div>
             ) : (
               <div className={`movies-groups ${sortLoading || filterLoading || groupLoading ? 'sort-loading' : ''}`}>
@@ -1269,78 +1307,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                         
                         {isExpanded && (
                           <div className="movies-grid">
-                            {sortedGroupMovies.map((movie) => (
-                              <div key={movie.id} className="movie-card-compact" onClick={() => handleMovieClick(movie.id)}>
-                                <div className="movie-poster-compact">
-                                  <MovieThumbnail 
-                                    imdbLink={movie.imdb_id ? `https://www.imdb.com/title/${movie.imdb_id}` : movie.imdb_link} 
-                                    title={movie.title}
-                                    year={movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year}
-                                    className="movie-thumbnail-compact"
-                                    disableZoom={true}
-                                    posterPath={movie.poster_path}
-                                    recommendedAge={movie.recommended_age}
-                                  />
-                                </div>
-                                
-                                <div className="movie-info-compact">
-                                  <div className="movie-header-compact">
-                                    <h4 title={movie.title}>{movie.title}</h4>
-                                    <div className="movie-meta">
-                                      {(movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year) && 
-                                        <span className="movie-year">({movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year})</span>
-                                      }
-                                      {movie.format && <span className="format-badge">{movie.format}</span>}
-                          {movie.box_set_name && <span className="boxset-badge">Box set</span>}
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="movie-content-compact">
-                                    <div className="movie-details-left">
-                                      {movie.director && (
-                                        <div className="detail-row">
-                                          <span className="detail-label">Directed by</span>
-                                          <span className="detail-value">{movie.director}</span>
-                                        </div>
-                                      )}
-                                      
-                                      {movie.genres && movie.genres.length > 0 && (
-                                        <div className="detail-row">
-                                          <span className="detail-label">Genres</span>
-                                          <span className="detail-value">{movie.genres.join(', ')}</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                    
-                                    <div className="movie-details-center">
-                                      {movie.runtime && (
-                                        <div className="detail-row">
-                                          <span className="detail-label">Runtime</span>
-                                          <span className="detail-value">{movie.runtime}</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                    
-                                    <div className="movie-details-right">
-                                      {(() => {
-                                        const combinedScore = getCombinedScore(movie);
-                                        if (combinedScore) {
-                                          return (
-                                            <div className="detail-row">
-                                              <span className="detail-label">Score</span>
-                                              <span className="detail-value score-value" style={{ color: getRatingColor(combinedScore, 10) }}>
-                                                {combinedScore.toFixed(1)}/10
-                                              </span>
-                                            </div>
-                                          );
-                                        }
-                                        return null;
-                                      })()}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
+                            {sortedGroupMovies.map((movie) => renderMovieCard(movie))}
                           </div>
                         )}
                       </div>
@@ -1381,7 +1348,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           onEdit={handleEditMovie}
           onDelete={handleDeleteMovie}
           onShowAlert={onShowAlert}
-          onRefresh={refreshMovieData}
+          onRefresh={refreshAllMovieData}
           onMovieClick={handleMovieClick}
         />
       )}

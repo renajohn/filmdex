@@ -84,6 +84,8 @@ app.get('/api/collections/suggestions', movieController.getCollectionSuggestions
 app.post('/api/collections', movieController.createCollection);
 app.put('/api/collections/:id', movieController.updateCollection);
 app.delete('/api/collections/:id', movieController.deleteCollection);
+// Specific route for Watch Next must come before generic :id route
+app.get('/api/collections/watch-next/movies', movieController.getWatchNextMovies);
 app.get('/api/collections/:id/movies', movieController.getCollectionMovies);
 app.post('/api/collections/cleanup', movieController.cleanupEmptyCollections);
 

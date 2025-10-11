@@ -24,6 +24,16 @@ const collectionService = {
     }
   },
 
+  // Find collection by name
+  findByName: async (name) => {
+    try {
+      return await Collection.findByName(name);
+    } catch (error) {
+      logger.error('Error finding collection by name:', error);
+      throw error;
+    }
+  },
+
   // Get collection suggestions for typeahead
   getSuggestions: async (query = '') => {
     try {
@@ -66,9 +76,32 @@ const collectionService = {
     }
   },
 
+  // Get Watch Next movies in reverse order (newest additions first)
+  getWatchNextMovies: async () => {
+    try {
+      const watchNextCollection = await Collection.findByType('watch_next');
+      if (!watchNextCollection) {
+        return [];
+      }
+      
+      const movies = await Collection.getMovies(watchNextCollection.id);
+      // Return in reverse order (newest additions first)
+      return movies.reverse();
+    } catch (error) {
+      logger.error('Error getting Watch Next movies:', error);
+      throw error;
+    }
+  },
+
   // Delete collection
   deleteCollection: async (id) => {
     try {
+      // Check if this is a system collection
+      const collection = await Collection.findById(id);
+      if (collection.is_system) {
+        throw new Error('Cannot delete system collections');
+      }
+      
       // Check if collection is empty
       const isEmpty = await Collection.isEmpty(id);
       if (!isEmpty) {
@@ -78,6 +111,37 @@ const collectionService = {
       return await Collection.delete(id);
     } catch (error) {
       logger.error('Error deleting collection:', error);
+      throw error;
+    }
+  },
+
+  // Clean up empty collections (auto-delete when empty)
+  cleanupEmptyCollections: async () => {
+    try {
+      const collections = await Collection.getAll();
+      const collectionsWithCounts = await Promise.all(
+        collections.map(async (collection) => {
+          const movies = await Collection.getMovies(collection.id);
+          return {
+            ...collection,
+            movie_count: movies.length
+          };
+        })
+      );
+      
+      const emptyCollections = collectionsWithCounts.filter(c => c.movie_count === 0);
+      
+      for (const emptyCollection of emptyCollections) {
+        // Don't delete system collections (watch_next)
+        if (!emptyCollection.is_system) {
+          await Collection.delete(emptyCollection.id);
+          logger.info(`Deleted empty collection: ${emptyCollection.name}`);
+        }
+      }
+      
+      return { deleted: emptyCollections.length };
+    } catch (error) {
+      logger.error('Error cleaning up empty collections:', error);
       throw error;
     }
   },
@@ -102,10 +166,26 @@ const collectionService = {
   },
 
   // Add movie to collection (auto-creates collection if needed)
-  addMovieToCollection: async (movieId, collectionName) => {
+  addMovieToCollection: async (movieId, collectionName, collectionType = 'user') => {
     try {
-      // Find or create collection
-      const collection = await Collection.findOrCreate(collectionName);
+      // First check if a collection with this name and type already exists
+      const existingCollection = await Collection.findByName(collectionName);
+      
+      let collection;
+      if (existingCollection && existingCollection.type === collectionType) {
+        // Use existing collection
+        collection = existingCollection;
+      } else if (existingCollection && existingCollection.type !== collectionType) {
+        // Collection exists but with different type - this is an error
+        throw new Error(`Collection "${collectionName}" already exists as a ${existingCollection.type} collection`);
+      } else {
+        // Create new collection with specified type
+        collection = await Collection.create({ 
+          name: collectionName, 
+          type: collectionType,
+          is_system: collectionType === 'watch_next'
+        });
+      }
       
       // Check if movie is already in this collection
       const existing = await MovieCollection.findByMovieAndCollection(movieId, collection.id);

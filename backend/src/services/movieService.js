@@ -291,9 +291,7 @@ const movieService = {
         recommended_age: localMovie.recommended_age || null,
         age_processed: localMovie.age_processed || false,
         title_status: localMovie.title_status || 'owned',
-        watch_next_added: localMovie.watch_next_added || null,
-        media_type: localMovie.media_type || 'movie',
-        box_set_name: localMovie.box_set_name || null,
+        media_type: localMovie.media_type || 'movie'
       };
 
       return movieDetails;
