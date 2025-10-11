@@ -426,7 +426,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
             recommendedAge={null}
           />
           <div className="poster-info-hover">
-            {movie.recommended_age && (
+            {movie.recommended_age != null && (
               <span className="age-badge-hover">{movie.recommended_age}+</span>
             )}
             {movie.format && (

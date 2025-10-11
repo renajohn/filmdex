@@ -1397,7 +1397,7 @@
   flex-direction: column;
   gap: 4px;
   flex-shrink: 0;
-  padding-bottom: 15px;
+  min-height: 40%;
 }
 
 .movie-header-compact h4 {
@@ -1626,6 +1626,7 @@
   .movie-content-compact {
     gap: 8px;
     flex-shrink: 0;
+    min-height: 40%;
   }
   
   .movie-header-compact h4 {
