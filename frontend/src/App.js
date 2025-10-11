@@ -4,6 +4,7 @@ import MovieSearch from './components/MovieSearch';
 import AddMovieDialog from './components/AddMovieDialog';
 import ImportPage from './pages/ImportPage';
 import WishListPage from './pages/WishListPage';
+import AnalyticsPage from './pages/AnalyticsPage';
 import CogDropdown from './components/CogDropdown';
 import BackfillModal from './components/BackfillModal';
 import ScrollToTop from './components/ScrollToTop';
@@ -76,6 +77,10 @@ function AppContent() {
     if (movieSearchRef.current) {
       movieSearchRef.current.handleExportCSVClick();
     }
+  };
+
+  const handleAnalytics = () => {
+    navigate('/analytics');
   };
 
 
@@ -243,6 +248,7 @@ function AppContent() {
               onImportMovies={handleImportMovies}
               onAddMovie={handleAddMovie}
               onExportCSV={handleExportCSV}
+              onAnalytics={handleAnalytics}
             />
           </div>
         </div>
@@ -265,6 +271,7 @@ function AppContent() {
           />
           <Route path="/import" element={<ImportPage />} />
           <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onMovieMovedToCollection={handleMovieMovedToCollection} onShowAlert={handleShowAlert} onMovieAdded={handleMovieAdded} />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
         </Routes>
       </main>
 

@@ -597,6 +597,12 @@ class ApiService {
     
     return await response.json();
   }
+
+  // Get analytics data
+  async getAnalytics() {
+    const response = await this.makeRequest('/analytics');
+    return await response.json();
+  }
 }
 
 const apiService = new ApiService();

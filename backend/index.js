@@ -9,6 +9,7 @@ const logger = require('./src/logger');
 const movieController = require('./src/controllers/movieController');
 const { importController, uploadMiddleware } = require('./src/controllers/importController');
 const backfillController = require('./src/controllers/backfillController');
+const analyticsController = require('./src/controllers/analyticsController');
 const Movie = require('./src/models/movie');
 const MovieImport = require('./src/models/movieImport');
 const MovieCast = require('./src/models/movieCast');
@@ -148,6 +149,9 @@ app.post('/api/backfill/start', backfillController.startBackfill);
 app.get('/api/backfill/progress', backfillController.getProgress);
 app.post('/api/backfill/retry', backfillController.retryFailedMovies);
 app.get('/api/import/:id/suggestions', importController.getMovieSuggestions);
+
+// Analytics routes
+app.get('/api/analytics', analyticsController.getAnalytics);
 
 // Configuration endpoint for frontend
 app.get('/api/config', (req, res) => {
