@@ -57,7 +57,9 @@ const AutocompleteInput = ({
   };
 
   const handleSuggestionClick = (suggestion) => {
-    onChange({ target: { value: suggestion } });
+    // Extract the actual value from the suggestion object
+    const suggestionValue = typeof suggestion === 'object' ? suggestion[field] : suggestion;
+    onChange({ target: { value: suggestionValue } });
     setShowSuggestions(false);
     setHighlightedIndex(-1);
   };
@@ -157,7 +159,7 @@ const AutocompleteInput = ({
               }`}
               onClick={() => handleSuggestionClick(suggestion)}
             >
-              {suggestion}
+              {typeof suggestion === 'object' ? suggestion[field] : suggestion}
             </div>
           ))}
         </div>

@@ -196,22 +196,27 @@ function AppContent() {
   };
 
   const selectAutocompleteSuggestion = async (option) => {
-    console.log('Selecting autocomplete option:', option); // Debug log
-    console.log('Current search text:', searchCriteria.searchText); // Debug log
-    console.log('Replace text:', option.replaceText); // Debug log
+    // Clear any existing autocomplete timeout to prevent interference
+    if (autocompleteTimeoutRef.current) {
+      clearTimeout(autocompleteTimeoutRef.current);
+      autocompleteTimeoutRef.current = null;
+    }
     
     // First, close the dropdown
     setShowAutocomplete(false);
     setAutocompleteIndex(-1);
     
-    // Update the search text
-    setSearchCriteria(prev => ({
-      ...prev,
-      searchText: option.replaceText
-    }));
-    
-    // Keep focus on input and set cursor position
+    // Directly set the input value first
     if (searchInputRef.current) {
+      searchInputRef.current.value = option.replaceText;
+      
+      // Also update the state
+      setSearchCriteria(prev => ({
+        ...prev,
+        searchText: option.replaceText
+      }));
+      
+      // Keep focus on input and set cursor position
       searchInputRef.current.focus();
       
       // Use setTimeout to ensure state update has been processed
@@ -224,6 +229,7 @@ function AppContent() {
         if (option.isValue) {
           setTimeout(async () => {
             const newText = option.replaceText + ' ';
+            searchInputRef.current.value = newText;
             setSearchCriteria(prev => ({
               ...prev,
               searchText: newText
@@ -391,14 +397,14 @@ function AppContent() {
   // Clear search when navigating between pages (without search param)
   useEffect(() => {
     // Only clear search if we're changing paths and there's no search param
-    if (!location.search && searchCriteria.searchText) {
+    if (!location.search) {
       const previousPath = sessionStorage.getItem('previousPath');
       if (previousPath && previousPath !== location.pathname) {
         setSearchCriteria({ searchText: '' });
       }
     }
     sessionStorage.setItem('previousPath', location.pathname);
-  }, [location.pathname, location.search, searchCriteria.searchText]);
+  }, [location.pathname, location.search]);
 
   // Check for backfill on app startup
   useEffect(() => {
@@ -488,11 +494,14 @@ function AppContent() {
                       <div
                         key={option.keyword + index}
                         className={`search-autocomplete-item ${index === autocompleteIndex ? 'active' : ''}`}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          selectAutocompleteSuggestion(option);
+                        }}
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          console.log('Clicking autocomplete item:', option); // Debug log
-                          selectAutocompleteSuggestion(option);
                         }}
                         onMouseEnter={() => setAutocompleteIndex(index)}
                       >
