@@ -147,14 +147,6 @@
   z-index: 10001;
 }
 
-.search-icon {
-  position: absolute;
-  left: 12px;
-  color: #888;
-  font-size: 16px;
-  z-index: 1;
-}
-
 .search-clear-button {
   position: absolute;
   right: 12px;
@@ -176,6 +168,103 @@
   color: #f8f9fa;
 }
 
+.search-filter-button {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  z-index: 1;
+}
+
+.search-filter-button:hover {
+  background: #444;
+  color: #f8f9fa;
+}
+
+.search-filter-button.active {
+  background: #444;
+  color: #f8f9fa;
+}
+
+.chevron-icon {
+  transition: transform 0.2s ease;
+}
+
+.chevron-icon.rotated {
+  transform: rotate(180deg);
+}
+
+/* Adjust clear button position when filter button is present */
+.search-input-container:has(.search-filter-button) .search-clear-button {
+  right: 48px;
+}
+
+/* Filter dropdown styling */
+.search-filter-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: #2d2d2d;
+  border: 1px solid #555;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 200px;
+  max-height: 400px;
+  overflow-y: auto;
+  z-index: 1000;
+  margin-top: 4px;
+}
+
+.filter-section {
+  padding: 8px 0;
+  border-bottom: 1px solid #404040;
+}
+
+.filter-section:last-child {
+  border-bottom: none;
+}
+
+.filter-section-title {
+  padding: 8px 12px 4px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filter-option {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: #d2d2d2;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-option:hover {
+  background: #404040;
+  color: #fff;
+}
+
+.filter-option:active {
+  background: #fbbf24;
+  color: #1a1a1a;
+}
+
 .App-search .search-loading-indicator {
   position: absolute;
   right: 16px;
@@ -191,7 +280,7 @@
 
 .App-search .search-input-large {
   width: 100%;
-  padding: 12px 40px 12px 40px; /* Left padding for search icon, right padding for clear button */
+  padding: 12px 40px 12px 12px; /* Right padding for clear button */
   border: 2px solid #444;
   border-radius: 8px;
   font-size: 16px;

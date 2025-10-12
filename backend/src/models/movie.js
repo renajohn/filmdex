@@ -198,7 +198,8 @@ const Movie = {
           tmdbRatings: [],
           rottenTomatoRatings: [],
           ages: [],
-          prices: []
+          prices: [],
+          hasComments: []
         };
         
         // Extract actor:"Name" or actor:Name filters (can be multiple)
@@ -381,9 +382,18 @@ const Movie = {
         }
         searchText = searchText.replace(priceRegex, '').trim();
         
+        // Extract has_comments: filters (boolean)
+        const hasCommentsRegex = /has_comments:(true|false)/g;
+        let hasCommentsMatches;
+        while ((hasCommentsMatches = hasCommentsRegex.exec(searchText)) !== null) {
+          const value = hasCommentsMatches[1] === 'true';
+          filters.hasComments.push(value);
+        }
+        searchText = searchText.replace(hasCommentsRegex, '').trim();
+        
         // Remove incomplete predicates (predicates without values) from search text
         // This prevents them from being treated as generic search terms
-        const incompletePredicateRegex = /\b(actor|director|title|collection|genre|format|original_language|media_type|year|imdb_rating|tmdb_rating|rotten_tomato_rating|recommended_age|price):\s*$/g;
+        const incompletePredicateRegex = /\b(actor|director|title|collection|genre|format|original_language|media_type|year|imdb_rating|tmdb_rating|rotten_tomato_rating|recommended_age|price|has_comments):\s*$/g;
         searchText = searchText.replace(incompletePredicateRegex, '').trim();
         
         // Also remove predicates with operators but no values (e.g., "imdb_rating:>", "year:<=")
@@ -602,6 +612,17 @@ const Movie = {
               sql += ` AND m.price = ?`;
               params.push(priceFilter.value);
               break;
+          }
+        });
+        
+        // Apply has_comments filters (AND logic)
+        filters.hasComments.forEach(hasComments => {
+          if (hasComments) {
+            // Has comments: comments is not null and not empty
+            sql += ` AND m.comments IS NOT NULL AND m.comments != ''`;
+          } else {
+            // No comments: comments is null or empty
+            sql += ` AND (m.comments IS NULL OR m.comments = '')`;
           }
         });
         

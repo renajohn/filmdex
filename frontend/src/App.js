@@ -9,7 +9,7 @@ import CogDropdown from './components/CogDropdown';
 import BackfillModal from './components/BackfillModal';
 import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
-import { BsSearch, BsX, BsCollectionFill, BsHeart } from 'react-icons/bs';
+import { BsX, BsCollectionFill, BsHeart, BsChevronDown } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
@@ -37,6 +37,9 @@ function AppContent() {
   const autocompleteTimeoutRef = useRef(null);
   const emptyFieldTimerRef = useRef(null);
   const mouseEnterTimeoutRef = useRef(null);
+  const filterDropdownRef = useRef(null);
+  const filterButtonRef = useRef(null);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
   // Check if we're on the thumbnail view (root path)
   const isThumbnailView = location.pathname === '/';
@@ -67,7 +70,8 @@ function AppContent() {
       'tmdb_rating:', 'tmdb_rating:>', 'tmdb_rating:<', 'tmdb_rating:>=', 'tmdb_rating:<=',
       'rotten_tomato_rating:', 'rotten_tomato_rating:>', 'rotten_tomato_rating:<', 'rotten_tomato_rating:>=', 'rotten_tomato_rating:<=',
       'recommended_age:', 'recommended_age:>', 'recommended_age:<', 'recommended_age:>=', 'recommended_age:<=',
-      'price:', 'price:>', 'price:<', 'price:>=', 'price:<='
+      'price:', 'price:>', 'price:<', 'price:>=', 'price:<=',
+      'has_comments:true', 'has_comments:false'
     ];
     
     // If text is empty, return all keywords (for the 5-second delay feature)
@@ -235,6 +239,70 @@ function AppContent() {
       emptyFieldTimerRef.current = null;
     }
   };
+
+  // Handle filter selection and generate predicates
+  const handleFilterSelection = (filterType, filterValue) => {
+    let predicate = '';
+    
+    switch (filterType) {
+      case 'media_type':
+        predicate = `media_type:${filterValue}`;
+        break;
+      case 'format':
+        predicate = `format:"${filterValue}"`;
+        break;
+      case 'genre':
+        predicate = `genre:"${filterValue}"`;
+        break;
+      case 'collection':
+        predicate = `collection:"${filterValue}"`;
+        break;
+      case 'age_group':
+        const ageRanges = {
+          'All Ages (0-3)': 'recommended_age:>=0 recommended_age:<=3',
+          'Children (4-9)': 'recommended_age:>=4 recommended_age:<=9',
+          'Pre-teens (10-14)': 'recommended_age:>=10 recommended_age:<=14',
+          'Teens & Adults (15+)': 'recommended_age:>=15'
+        };
+        predicate = ageRanges[filterValue] || '';
+        break;
+      case 'imdb_rating':
+        predicate = `imdb_rating:>=${filterValue}`;
+        break;
+      case 'tmdb_rating':
+        predicate = `tmdb_rating:>=${filterValue}`;
+        break;
+      case 'rotten_tomato_rating':
+        predicate = `rotten_tomato_rating:>=${filterValue}`;
+        break;
+      case 'year':
+        predicate = `year:${filterValue}`;
+        break;
+      case 'comments':
+        predicate = 'has_comments:true';
+        break;
+      default:
+        return;
+    }
+    
+    if (predicate) {
+      const currentText = searchCriteria.searchText.trim();
+      const newText = currentText ? `${currentText} ${predicate}` : predicate;
+      
+      // Update the state first
+      setSearchCriteria({ searchText: newText });
+      
+      // Then update the input field directly to ensure immediate visual update
+      if (searchInputRef.current) {
+        searchInputRef.current.value = newText;
+        // Trigger the change event to ensure React knows about the change
+        const event = new Event('input', { bubbles: true });
+        searchInputRef.current.dispatchEvent(event);
+      }
+    }
+    
+    setShowFilterDropdown(false);
+  };
   const handleMouseEnter = (index) => {
     if (mouseEnterTimeoutRef.current) {
       clearTimeout(mouseEnterTimeoutRef.current);
@@ -295,7 +363,9 @@ function AppContent() {
         'price:>': 'Price greater than',
         'price:<': 'Price less than',
         'price:>=': 'Price greater or equal',
-        'price:<=': 'Price less or equal'
+        'price:<=': 'Price less or equal',
+        'has_comments:true': 'Movies with comments',
+        'has_comments:false': 'Movies without comments'
       };
       return hintMap[option.keyword] || '';
     }
@@ -459,22 +529,36 @@ function AppContent() {
     }, 100);
   };
 
-  // Close autocomplete on click outside
+  // Close autocomplete and filter dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (searchInputRef.current && !searchInputRef.current.contains(event.target)) {
+      const searchInput = searchInputRef.current;
+      const filterDropdown = filterDropdownRef.current;
+      const filterButton = filterButtonRef.current;
+      
+      console.log('Click outside handler triggered');
+      console.log('Target:', event.target);
+      console.log('Search input contains:', searchInput?.contains(event.target));
+      console.log('Filter dropdown contains:', filterDropdown?.contains(event.target));
+      console.log('Filter button contains:', filterButton?.contains(event.target));
+      
+      if (searchInput && !searchInput.contains(event.target) && 
+          (!filterDropdown || !filterDropdown.contains(event.target)) &&
+          (!filterButton || !filterButton.contains(event.target))) {
+        console.log('Closing dropdowns');
         setShowAutocomplete(false);
         setAutocompleteIndex(-1);
+        setShowFilterDropdown(false);
       }
     };
 
-    if (showAutocomplete) {
+    if (showAutocomplete || showFilterDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => {
         document.removeEventListener('mousedown', handleClickOutside);
       };
     }
-  }, [showAutocomplete]);
+  }, [showAutocomplete, showFilterDropdown]);
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -576,7 +660,6 @@ function AppContent() {
           {showSearchBar && (
             <div className="App-search">
               <div className="search-input-container">
-                <BsSearch className="search-icon" />
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -602,6 +685,18 @@ function AppContent() {
                     <BsX />
                   </button>
                 )}
+                <button 
+                  ref={filterButtonRef}
+                  className={`search-filter-button ${showFilterDropdown ? 'active' : ''}`}
+                  onClick={() => {
+                    console.log('Filter button clicked, current state:', showFilterDropdown);
+                    setShowFilterDropdown(!showFilterDropdown);
+                  }}
+                  type="button"
+                  title="Advanced Filters"
+                >
+                  <BsChevronDown className={`chevron-icon ${showFilterDropdown ? 'rotated' : ''}`} />
+                </button>
                 {showAutocomplete && autocompleteOptions.length > 0 && (
                   <div className="search-autocomplete-dropdown">
                     {autocompleteOptions.slice(0, 50).map((option, index) => (
@@ -627,6 +722,125 @@ function AppContent() {
                         </span>
                       </div>
                     ))}
+                  </div>
+                )}
+                {showFilterDropdown && (
+                  <div className="search-filter-dropdown" ref={filterDropdownRef}>
+                    <div className="filter-section">
+                      <div className="filter-section-title">Media Type</div>
+                      <button 
+                        className="filter-option"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleFilterSelection('media_type', 'movie');
+                        }}
+                      >
+                        Movies
+                      </button>
+                      <button 
+                        className="filter-option"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleFilterSelection('media_type', 'tv');
+                        }}
+                      >
+                        TV Shows
+                      </button>
+                    </div>
+                    
+                    <div className="filter-section">
+                      <div className="filter-section-title">Age Groups</div>
+                      <button 
+                        className="filter-option"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleFilterSelection('age_group', 'All Ages (0-3)');
+                        }}
+                      >
+                        All Ages (0-3)
+                      </button>
+                      <button 
+                        className="filter-option"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleFilterSelection('age_group', 'Children (4-9)');
+                        }}
+                      >
+                        Children (4-9)
+                      </button>
+                      <button 
+                        className="filter-option"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleFilterSelection('age_group', 'Pre-teens (10-14)');
+                        }}
+                      >
+                        Pre-teens (10-14)
+                      </button>
+                      <button 
+                        className="filter-option"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleFilterSelection('age_group', 'Teens & Adults (15+)');
+                        }}
+                      >
+                        Teens & Adults (15+)
+                      </button>
+                    </div>
+                    
+                    <div className="filter-section">
+                      <div className="filter-section-title">Formats</div>
+                      <button 
+                        className="filter-option"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleFilterSelection('format', 'Blu-ray');
+                        }}
+                      >
+                        Blu-ray
+                      </button>
+                      <button 
+                        className="filter-option"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleFilterSelection('format', 'DVD');
+                        }}
+                      >
+                        DVD
+                      </button>
+                      <button 
+                        className="filter-option"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleFilterSelection('format', 'Digital');
+                        }}
+                      >
+                        Digital
+                      </button>
+                    </div>
+                    
+                    <div className="filter-section">
+                      <div className="filter-section-title">Special</div>
+                      <button 
+                        className="filter-option"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleFilterSelection('comments', '');
+                        }}
+                      >
+                        Has Comments
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

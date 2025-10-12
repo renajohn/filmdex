@@ -23,10 +23,8 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const [movies, setMovies] = useState([]);
   const [allMovies, setAllMovies] = useState([]); // Store all movies from backend
   const [filteredMovies, setFilteredMovies] = useState([]); // Store filtered movies
-  const [activeFilters, setActiveFilters] = useState([]); // Store active filter pills
   const [sortBy, setSortBy] = useState('title'); // Current sort option
   const [sortLoading, setSortLoading] = useState(false); // Sort loading state
-  const [filterLoading, setFilterLoading] = useState(false); // Filter loading state
   const [groupBy, setGroupBy] = useState('none'); // Current group option
   const [groupLoading, setGroupLoading] = useState(false); // Group loading state
   const [expandedGroups, setExpandedGroups] = useState(new Set()); // Track expanded groups
@@ -154,14 +152,11 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       const data = await apiService.getAllMovies();
       setAllMovies(data);
       
-      // Reapply current filters to the new data
-      if (activeFilters.length > 0) {
-        await applyFilters(activeFilters);
-      } else if (searchCriteria?.searchText) {
-        // Reapply search if there's a search term
+      // Reapply search if there's a search term
+      if (searchCriteria?.searchText) {
         handleSearch(searchCriteria);
       } else {
-        // No filters or search, just apply current sort
+        // No search, just apply current sort
         const sorted = sortMovies(data, sortBy);
         setMovies(sorted);
         setFilteredMovies(data);
@@ -182,7 +177,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilters, searchCriteria, sortBy, selectedMovieDetails?.id]);
+  }, [searchCriteria, sortBy, selectedMovieDetails?.id]);
 
   // Refresh all movie data including box set status (used by detail view)
   const refreshAllMovieData = useCallback(async () => {
@@ -210,7 +205,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       // Apply current sort to search results
       const sorted = sortMovies(data, sortBy);
       setMovies(sorted);
-      setActiveFilters([]); // Reset filters when search changes
     } catch (err) {
       if (onShowAlert) {
         onShowAlert('Failed to search movies: ' + err.message, 'danger');
@@ -554,30 +548,10 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       const updatedMovies = allMovies.filter(movie => movie.id !== movieId);
       setAllMovies(updatedMovies);
       
-      // Apply filters to the updated data
-      if (activeFilters.length === 0) {
-        setFilteredMovies(updatedMovies);
-        setMovies(updatedMovies);
-      } else {
-        const filtered = updatedMovies.filter(movie => {
-          return activeFilters.some(filter => {
-            switch (filter.type) {
-              case 'movies':
-                return movie.media_type === 'movie' || !movie.media_type;
-              case 'tvShows':
-                return movie.media_type === 'tv';
-              case 'comments':
-                return movie.comments && movie.comments.trim();
-              case 'format':
-                return movie.format === filter.value;
-              default:
-                return false;
-            }
-          });
-        });
-        setFilteredMovies(filtered);
-        setMovies(filtered);
-      }
+      // Apply current sort to updated data
+      const sorted = sortMovies(updatedMovies, sortBy);
+      setMovies(sorted);
+      setFilteredMovies(updatedMovies);
       
       if (onShowAlert) {
         onShowAlert('Movie deleted successfully', 'success');
@@ -631,165 +605,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
         onShowAlert('Failed to update Watch Next status', 'danger');
       }
     }
-  };
-
-  // Filter functions
-  const getFilterCounts = () => {
-    const counts = {
-      all: allMovies.length,
-      movies: allMovies.filter(movie => movie.media_type === 'movie' || !movie.media_type).length,
-      tvShows: allMovies.filter(movie => movie.media_type === 'tv').length,
-      comments: allMovies.filter(movie => movie.comments && movie.comments.trim()).length,
-      watchNext: watchNextMovies.length,
-      formats: {},
-      ageGroups: {},
-      collections: {},
-      boxSets: {}
-    };
-
-    // Count formats
-    allMovies.forEach(movie => {
-      if (movie.format) {
-        counts.formats[movie.format] = (counts.formats[movie.format] || 0) + 1;
-      }
-    });
-
-    // Count collections (user collections)
-    allMovies.forEach(movie => {
-      if (movie.collection_names && Array.isArray(movie.collection_names)) {
-        movie.collection_names.forEach(collectionName => {
-          counts.collections[collectionName] = (counts.collections[collectionName] || 0) + 1;
-        });
-      }
-    });
-
-    // Count box sets
-    allMovies.forEach(movie => {
-      if (movie.has_box_set && movie.box_set_name) {
-        counts.boxSets[movie.box_set_name] = (counts.boxSets[movie.box_set_name] || 0) + 1;
-      }
-    });
-
-    // Count age groups
-    allMovies.forEach(movie => {
-      let ageGroup = 'Not Rated';
-      if (movie.recommended_age !== null && movie.recommended_age !== undefined) {
-        const age = movie.recommended_age;
-        if (age <= 3) {
-          ageGroup = 'All Ages (0-3)';
-        } else if (age < 10) {
-          ageGroup = 'Children (4-9)';
-        } else if (age <= 14) {
-          ageGroup = 'Pre-teens (10-14)';
-        } else {
-          ageGroup = 'Teens & Adults (15+)';
-        }
-      }
-      counts.ageGroups[ageGroup] = (counts.ageGroups[ageGroup] || 0) + 1;
-    });
-
-    return counts;
-  };
-
-  const applyFilters = async (filters) => {
-    setFilterLoading(true);
-    
-    // Add a small delay to show loading state for better UX
-    await new Promise(resolve => setTimeout(resolve, 150));
-    
-    let filtered;
-    if (filters.length === 0) {
-      filtered = allMovies;
-    } else {
-      filtered = allMovies.filter(movie => {
-        return filters.some(filter => {
-          switch (filter.type) {
-            case 'movies':
-              return movie.media_type === 'movie' || !movie.media_type;
-            case 'tvShows':
-              return movie.media_type === 'tv';
-            case 'comments':
-              return movie.comments && movie.comments.trim();
-            case 'watchNext':
-              return watchNextMovies.some(wm => wm.id === movie.id);
-            case 'format':
-              return movie.format === filter.value;
-            case 'ageGroup':
-              let movieAgeGroup = 'Not Rated';
-              if (movie.recommended_age !== null && movie.recommended_age !== undefined) {
-                const age = movie.recommended_age;
-                if (age <= 3) {
-                  movieAgeGroup = 'All Ages (0-3)';
-                } else if (age < 10) {
-                  movieAgeGroup = 'Children (4-9)';
-                } else if (age <= 14) {
-                  movieAgeGroup = 'Pre-teens (10-14)';
-                } else {
-                  movieAgeGroup = 'Teens & Adults (15+)';
-                }
-              }
-              return movieAgeGroup === filter.value;
-            case 'collection':
-              return movie.collection_names && movie.collection_names.includes(filter.value);
-            case 'boxSet':
-              return movie.has_box_set && movie.box_set_name === filter.value;
-            default:
-              return false;
-          }
-        });
-      });
-    }
-
-    setFilteredMovies(filtered);
-    
-    // Apply current grouping and sorting to filtered movies
-    if (groupBy !== 'none') {
-      // When grouping is enabled, we don't set movies directly
-      // The grouped movies will be rendered in the JSX
-    } else {
-      // Apply current sort to filtered movies when not grouping
-      const sorted = sortMovies(filtered, sortBy);
-      setMovies(sorted);
-    }
-    
-    setFilterLoading(false);
-  };
-
-  const handleFilterClick = async (filterType, filterValue = null) => {
-    if (filterType === 'all') {
-      setActiveFilters([]);
-      await applyFilters([]);
-      return;
-    }
-
-    const newFilter = { type: filterType, value: filterValue };
-    
-    setActiveFilters(prev => {
-      const isActive = prev.some(f => 
-        f.type === filterType && (filterValue ? f.value === filterValue : true)
-      );
-      
-      if (isActive) {
-        // Remove filter
-        const newFilters = prev.filter(f => 
-          !(f.type === filterType && (filterValue ? f.value === filterValue : true))
-        );
-        applyFilters(newFilters);
-        return newFilters;
-      } else {
-        // Add filter
-        const newFilters = [...prev, newFilter];
-        applyFilters(newFilters);
-        return newFilters;
-      }
-    });
-  };
-
-  // Check if a filter is active
-  const isFilterActive = (filterType, filterValue = null) => {
-    return activeFilters.some(f => 
-      f.type === filterType && (filterValue ? f.value === filterValue : true)
-    );
   };
 
   // Sort functions
@@ -1059,211 +874,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           
           {/* Dropdowns Container */}
           <div className="dropdowns-container">
-            {/* Filter Dropdown */}
-            <Dropdown className="filter-dropdown-container">
-              <Dropdown.Toggle 
-                as="button"
-                className={`filter-pill filter-dropdown-button ${activeFilters.length > 0 ? 'active' : ''} ${loading || filterLoading ? 'filter-pill-loading' : ''}`}
-                disabled={filterLoading}
-              >
-                {filterLoading ? (
-                  <>
-                    <span className="filter-loading-spinner"></span>
-                    Filtering...
-                  </>
-                ) : (
-                  <>
-                    <BsFilter className="filter-icon" />
-                    {activeFilters.length === 0 ? 'Filter: All' : `Filter: ${activeFilters.length} active`}
-                  </>
-                )}
-              </Dropdown.Toggle>
-              
-              <Dropdown.Menu className="filter-dropdown-menu">
-            {(() => {
-              const counts = getFilterCounts();
-              const hasFormats = Object.keys(counts.formats).length > 0;
-              const hasAgeGroups = Object.keys(counts.ageGroups).length > 0;
-                  const hasCollections = Object.keys(counts.collections).length > 0;
-                  const hasBoxSets = Object.keys(counts.boxSets).length > 0;
-              
-              return (
-                <>
-                      {/* Clear All Filters */}
-                      <Dropdown.Item
-                        className="filter-dropdown-item clear-all"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleFilterClick('all');
-                        }}
-                      >
-                        <BsX className="clear-icon" />
-                        Clear All Filters
-                      </Dropdown.Item>
-                      
-                      <Dropdown.Divider />
-                      
-                      {/* Media Type Section */}
-                      <div className="filter-section-title">Media Type</div>
-                  {counts.movies > 0 && (
-                        <Dropdown.Item
-                          className={`filter-dropdown-item ${isFilterActive('movies') ? 'active' : ''}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleFilterClick('movies');
-                          }}
-                        >
-                          {isFilterActive('movies') && <BsCheck className="checkmark" />}
-                          <BsFilm className="item-icon" />
-                      Movies ({counts.movies})
-                        </Dropdown.Item>
-                  )}
-                  {counts.tvShows > 0 && (
-                        <Dropdown.Item
-                          className={`filter-dropdown-item ${isFilterActive('tvShows') ? 'active' : ''}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleFilterClick('tvShows');
-                          }}
-                        >
-                          {isFilterActive('tvShows') && <BsCheck className="checkmark" />}
-                          <BsTv className="item-icon" />
-                      TV Shows ({counts.tvShows})
-                        </Dropdown.Item>
-                  )}
-                  
-                      {/* Special Section */}
-                      {(counts.comments > 0 || counts.watchNext > 0) && (
-                        <>
-                          <Dropdown.Divider />
-                          <div className="filter-section-title">Special</div>
-                  {counts.comments > 0 && (
-                            <Dropdown.Item
-                              className={`filter-dropdown-item ${isFilterActive('comments') ? 'active' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleFilterClick('comments');
-                              }}
-                            >
-                              {isFilterActive('comments') && <BsCheck className="checkmark" />}
-                              <BsChatText className="item-icon" />
-                      Comments ({counts.comments})
-                            </Dropdown.Item>
-                          )}
-                          {counts.watchNext > 0 && (
-                            <Dropdown.Item
-                              className={`filter-dropdown-item ${isFilterActive('watchNext') ? 'active' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleFilterClick('watchNext');
-                              }}
-                            >
-                              {isFilterActive('watchNext') && <BsCheck className="checkmark" />}
-                              <span className="item-icon">⭐</span>
-                              Watch Next ({counts.watchNext})
-                            </Dropdown.Item>
-                          )}
-                        </>
-                      )}
-                      
-                      {/* Collections Section */}
-                      {hasCollections && (
-                        <>
-                          <Dropdown.Divider />
-                          <div className="filter-section-title">Collections</div>
-                          {Object.entries(counts.collections)
-                            .sort(([a], [b]) => a.localeCompare(b))
-                            .filter(([collection, count]) => count > 0)
-                            .map(([collection, count]) => (
-                              <Dropdown.Item
-                                key={`collection-${collection}`}
-                                className={`filter-dropdown-item ${isFilterActive('collection', collection) ? 'active' : ''}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleFilterClick('collection', collection);
-                                }}
-                              >
-                                {isFilterActive('collection', collection) && <BsCheck className="checkmark" />}
-                                {collection} ({count})
-                              </Dropdown.Item>
-                            ))}
-                        </>
-                      )}
-                      
-                      {/* Box Sets Section */}
-                      {hasBoxSets && (
-                        <>
-                          <Dropdown.Divider />
-                          <div className="filter-section-title">Box Sets</div>
-                          {Object.entries(counts.boxSets)
-                            .sort(([a], [b]) => a.localeCompare(b))
-                            .filter(([boxSet, count]) => count > 0)
-                            .map(([boxSet, count]) => (
-                              <Dropdown.Item
-                                key={`boxSet-${boxSet}`}
-                                className={`filter-dropdown-item ${isFilterActive('boxSet', boxSet) ? 'active' : ''}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleFilterClick('boxSet', boxSet);
-                                }}
-                              >
-                                {isFilterActive('boxSet', boxSet) && <BsCheck className="checkmark" />}
-                                {boxSet} ({count})
-                              </Dropdown.Item>
-                            ))}
-                            </>
-                          )}
-                          
-                      {/* Formats Section */}
-                          {hasFormats && (
-                            <>
-                          <Dropdown.Divider />
-                          <div className="filter-section-title">Formats</div>
-                              {Object.entries(counts.formats)
-                                .filter(([format, count]) => count > 0)
-                            .map(([format, count]) => (
-                              <Dropdown.Item
-                                key={`format-${format}`}
-                                className={`filter-dropdown-item ${isFilterActive('format', format) ? 'active' : ''}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleFilterClick('format', format);
-                                }}
-                              >
-                                {isFilterActive('format', format) && <BsCheck className="checkmark" />}
-                                      {format} ({count})
-                              </Dropdown.Item>
-                            ))}
-                        </>
-                      )}
-                      
-                      {/* Age Groups Section */}
-                      {hasAgeGroups && (
-                        <>
-                          <Dropdown.Divider />
-                          <div className="filter-section-title">Age Groups</div>
-                          {Object.entries(counts.ageGroups)
-                            .filter(([ageGroup, count]) => count > 0)
-                            .map(([ageGroup, count]) => (
-                              <Dropdown.Item
-                                key={`age-${ageGroup}`}
-                                className={`filter-dropdown-item ${isFilterActive('ageGroup', ageGroup) ? 'active' : ''}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleFilterClick('ageGroup', ageGroup);
-                                }}
-                              >
-                                {isFilterActive('ageGroup', ageGroup) && <BsCheck className="checkmark" />}
-                                {ageGroup} ({count})
-                              </Dropdown.Item>
-                            ))}
-                        </>
-                  )}
-                </>
-              );
-            })()}
-              </Dropdown.Menu>
-            </Dropdown>
             {/* Sort Dropdown */}
             <Dropdown className="sort-dropdown-container">
               <Dropdown.Toggle 
@@ -1349,11 +959,11 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           <>
             {/* Movies Grid - Grouped or Ungrouped */}
             {groupBy === 'none' ? (
-              <div className={`movies-grid ${sortLoading || filterLoading ? 'sort-loading' : ''}`}>
+              <div className={`movies-grid ${sortLoading ? 'sort-loading' : ''}`}>
                 {movies && movies.map((movie) => renderMovieCard(movie))}
               </div>
             ) : (
-              <div className={`movies-groups ${sortLoading || filterLoading || groupLoading ? 'sort-loading' : ''}`}>
+              <div className={`movies-groups ${sortLoading || groupLoading ? 'sort-loading' : ''}`}>
                 {(() => {
                   const grouped = groupMovies(filteredMovies, groupBy);
                   
