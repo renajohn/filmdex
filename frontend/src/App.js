@@ -35,6 +35,8 @@ function AppContent() {
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [autocompleteIndex, setAutocompleteIndex] = useState(-1);
   const autocompleteTimeoutRef = useRef(null);
+  const emptyFieldTimerRef = useRef(null);
+  const mouseEnterTimeoutRef = useRef(null);
 
   // Check if we're on the thumbnail view (root path)
   const isThumbnailView = location.pathname === '/';
@@ -67,6 +69,15 @@ function AppContent() {
       'recommended_age:', 'recommended_age:>', 'recommended_age:<', 'recommended_age:>=', 'recommended_age:<=',
       'price:', 'price:>', 'price:<', 'price:>=', 'price:<='
     ];
+    
+    // If text is empty, return all keywords (for the 5-second delay feature)
+    if (text.trim() === '') {
+      return keywords.map(kw => ({
+        keyword: kw,
+        replaceText: kw,
+        isValue: false
+      }));
+    }
     
     // Get the cursor position (end of text)
     const cursorPos = text.length;
@@ -163,6 +174,14 @@ function AppContent() {
       clearTimeout(autocompleteTimeoutRef.current);
     }
     
+    // Clear empty field timer if field is no longer empty
+    if (value.trim() !== '') {
+      if (emptyFieldTimerRef.current) {
+        clearTimeout(emptyFieldTimerRef.current);
+        emptyFieldTimerRef.current = null;
+      }
+    }
+    
     // Debounce autocomplete suggestions by 300ms
     autocompleteTimeoutRef.current = setTimeout(async () => {
       const options = await getAutocompleteOptions(value);
@@ -194,6 +213,91 @@ function AppContent() {
     } else if (e.key === 'Escape') {
       setShowAutocomplete(false);
       setAutocompleteIndex(-1);
+    }
+  };
+
+  const handleSearchFocus = () => {
+    // Start timer for empty field if field is empty
+    if (searchCriteria.searchText.trim() === '') {
+      emptyFieldTimerRef.current = setTimeout(async () => {
+        const options = await getAutocompleteOptions('');
+        setAutocompleteOptions(options);
+        setShowAutocomplete(options.length > 0);
+        setAutocompleteIndex(-1);
+      }, 5000); // 5 seconds
+    }
+  };
+
+  const handleSearchBlur = () => {
+    // Clear empty field timer when losing focus
+    if (emptyFieldTimerRef.current) {
+      clearTimeout(emptyFieldTimerRef.current);
+      emptyFieldTimerRef.current = null;
+    }
+  };
+  const handleMouseEnter = (index) => {
+    if (mouseEnterTimeoutRef.current) {
+      clearTimeout(mouseEnterTimeoutRef.current);
+    }
+    mouseEnterTimeoutRef.current = setTimeout(() => {
+      setAutocompleteIndex(index);
+    }, 16); // ~60fps throttling
+  };
+  const getAutocompleteHint = (option) => {
+    if (option.isValue) {
+      const hintMap = {
+        'actor': '(Actor)',
+        'director': '(Director)',
+        'title': '(Title)',
+        'collection': '(Collection)',
+        'genre': '(Genre)',
+        'format': '(Format)',
+        'original_language': '(Language)',
+        'media_type': '(Media Type)'
+      };
+      return hintMap[option.filterType] || '';
+    } else {
+      const hintMap = {
+        'actor:': 'Search by actor name',
+        'director:': 'Search by director name',
+        'title:': 'Search by movie title',
+        'collection:': 'Search by collection name',
+        'genre:': 'Search by genre',
+        'format:': 'Search by format',
+        'original_language:': 'Search by language',
+        'media_type:': 'Search by media type',
+        'year:': 'Exact year match',
+        'year:>': 'Year greater than',
+        'year:<': 'Year less than',
+        'year:>=': 'Year greater or equal',
+        'year:<=': 'Year less or equal',
+        'imdb_rating:': 'Exact IMDB rating match',
+        'imdb_rating:>': 'IMDB rating greater than',
+        'imdb_rating:<': 'IMDB rating less than',
+        'imdb_rating:>=': 'IMDB rating greater or equal',
+        'imdb_rating:<=': 'IMDB rating less or equal',
+        'tmdb_rating:': 'Exact TMDB rating match',
+        'tmdb_rating:>': 'TMDB rating greater than',
+        'tmdb_rating:<': 'TMDB rating less than',
+        'tmdb_rating:>=': 'TMDB rating greater or equal',
+        'tmdb_rating:<=': 'TMDB rating less or equal',
+        'rotten_tomato_rating:': 'Exact Rotten Tomatoes rating match',
+        'rotten_tomato_rating:>': 'Rotten Tomatoes rating greater than',
+        'rotten_tomato_rating:<': 'Rotten Tomatoes rating less than',
+        'rotten_tomato_rating:>=': 'Rotten Tomatoes rating greater or equal',
+        'rotten_tomato_rating:<=': 'Rotten Tomatoes rating less or equal',
+        'recommended_age:': 'Exact age recommendation match',
+        'recommended_age:>': 'Age recommendation greater than',
+        'recommended_age:<': 'Age recommendation less than',
+        'recommended_age:>=': 'Age recommendation greater or equal',
+        'recommended_age:<=': 'Age recommendation less or equal',
+        'price:': 'Exact price match',
+        'price:>': 'Price greater than',
+        'price:<': 'Price less than',
+        'price:>=': 'Price greater or equal',
+        'price:<=': 'Price less or equal'
+      };
+      return hintMap[option.keyword] || '';
     }
   };
 
@@ -372,11 +476,17 @@ function AppContent() {
     }
   }, [showAutocomplete]);
 
-  // Cleanup timeout on unmount
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (autocompleteTimeoutRef.current) {
         clearTimeout(autocompleteTimeoutRef.current);
+      }
+      if (emptyFieldTimerRef.current) {
+        clearTimeout(emptyFieldTimerRef.current);
+      }
+      if (mouseEnterTimeoutRef.current) {
+        clearTimeout(mouseEnterTimeoutRef.current);
       }
     };
   }, []);
@@ -474,6 +584,8 @@ function AppContent() {
                   value={searchCriteria.searchText}
                   onChange={handleSearchChange}
                   onKeyDown={handleSearchKeyDown}
+                  onFocus={handleSearchFocus}
+                  onBlur={handleSearchBlur}
                   placeholder={location.pathname === '/wishlist' ? 'Search wish list by title, director...' : 'Search FilmDex by title, director...'}
                   className="search-input-large"
                   autoComplete="off"
@@ -492,7 +604,7 @@ function AppContent() {
                 )}
                 {showAutocomplete && autocompleteOptions.length > 0 && (
                   <div className="search-autocomplete-dropdown">
-                    {autocompleteOptions.map((option, index) => (
+                    {autocompleteOptions.slice(0, 50).map((option, index) => (
                       <div
                         key={option.keyword + index}
                         className={`search-autocomplete-item ${index === autocompleteIndex ? 'active' : ''}`}
@@ -505,58 +617,13 @@ function AppContent() {
                           e.preventDefault();
                           e.stopPropagation();
                         }}
-                        onMouseEnter={() => setAutocompleteIndex(index)}
+                        onMouseEnter={() => handleMouseEnter(index)}
                       >
                         <span className={option.isValue ? 'autocomplete-value' : 'autocomplete-keyword'}>
                           {option.keyword}
                         </span>
                         <span className="autocomplete-hint">
-                          {option.isValue && option.filterType === 'actor' && '(Actor)'}
-                          {option.isValue && option.filterType === 'director' && '(Director)'}
-                          {option.isValue && option.filterType === 'title' && '(Title)'}
-                          {option.isValue && option.filterType === 'collection' && '(Collection)'}
-                          {option.isValue && option.filterType === 'genre' && '(Genre)'}
-                          {option.isValue && option.filterType === 'format' && '(Format)'}
-                          {option.isValue && option.filterType === 'original_language' && '(Language)'}
-                          {option.isValue && option.filterType === 'media_type' && '(Media Type)'}
-                          {!option.isValue && option.keyword === 'actor:' && 'Search by actor name'}
-                          {!option.isValue && option.keyword === 'director:' && 'Search by director name'}
-                          {!option.isValue && option.keyword === 'title:' && 'Search by movie title'}
-                          {!option.isValue && option.keyword === 'collection:' && 'Search by collection name'}
-                          {!option.isValue && option.keyword === 'genre:' && 'Search by genre'}
-                          {!option.isValue && option.keyword === 'format:' && 'Search by format'}
-                          {!option.isValue && option.keyword === 'original_language:' && 'Search by language'}
-                          {!option.isValue && option.keyword === 'media_type:' && 'Search by media type'}
-                          {!option.isValue && option.keyword === 'year:' && 'Exact year match'}
-                          {!option.isValue && option.keyword === 'year:>' && 'Year greater than'}
-                          {!option.isValue && option.keyword === 'year:<' && 'Year less than'}
-                          {!option.isValue && option.keyword === 'year:>=' && 'Year greater or equal'}
-                          {!option.isValue && option.keyword === 'year:<=' && 'Year less or equal'}
-                          {!option.isValue && option.keyword === 'imdb_rating:' && 'Exact IMDB rating match'}
-                          {!option.isValue && option.keyword === 'imdb_rating:>' && 'IMDB rating greater than'}
-                          {!option.isValue && option.keyword === 'imdb_rating:<' && 'IMDB rating less than'}
-                          {!option.isValue && option.keyword === 'imdb_rating:>=' && 'IMDB rating greater or equal'}
-                          {!option.isValue && option.keyword === 'imdb_rating:<=' && 'IMDB rating less or equal'}
-                          {!option.isValue && option.keyword === 'tmdb_rating:' && 'Exact TMDB rating match'}
-                          {!option.isValue && option.keyword === 'tmdb_rating:>' && 'TMDB rating greater than'}
-                          {!option.isValue && option.keyword === 'tmdb_rating:<' && 'TMDB rating less than'}
-                          {!option.isValue && option.keyword === 'tmdb_rating:>=' && 'TMDB rating greater or equal'}
-                          {!option.isValue && option.keyword === 'tmdb_rating:<=' && 'TMDB rating less or equal'}
-                          {!option.isValue && option.keyword === 'rotten_tomato_rating:' && 'Exact Rotten Tomatoes rating match'}
-                          {!option.isValue && option.keyword === 'rotten_tomato_rating:>' && 'Rotten Tomatoes rating greater than'}
-                          {!option.isValue && option.keyword === 'rotten_tomato_rating:<' && 'Rotten Tomatoes rating less than'}
-                          {!option.isValue && option.keyword === 'rotten_tomato_rating:>=' && 'Rotten Tomatoes rating greater or equal'}
-                          {!option.isValue && option.keyword === 'rotten_tomato_rating:<=' && 'Rotten Tomatoes rating less or equal'}
-                          {!option.isValue && option.keyword === 'recommended_age:' && 'Exact age recommendation match'}
-                          {!option.isValue && option.keyword === 'recommended_age:>' && 'Age recommendation greater than'}
-                          {!option.isValue && option.keyword === 'recommended_age:<' && 'Age recommendation less than'}
-                          {!option.isValue && option.keyword === 'recommended_age:>=' && 'Age recommendation greater or equal'}
-                          {!option.isValue && option.keyword === 'recommended_age:<=' && 'Age recommendation less or equal'}
-                          {!option.isValue && option.keyword === 'price:' && 'Exact price match'}
-                          {!option.isValue && option.keyword === 'price:>' && 'Price greater than'}
-                          {!option.isValue && option.keyword === 'price:<' && 'Price less than'}
-                          {!option.isValue && option.keyword === 'price:>=' && 'Price greater or equal'}
-                          {!option.isValue && option.keyword === 'price:<=' && 'Price less or equal'}
+                          {getAutocompleteHint(option)}
                         </span>
                       </div>
                     ))}

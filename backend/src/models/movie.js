@@ -381,6 +381,15 @@ const Movie = {
         }
         searchText = searchText.replace(priceRegex, '').trim();
         
+        // Remove incomplete predicates (predicates without values) from search text
+        // This prevents them from being treated as generic search terms
+        const incompletePredicateRegex = /\b(actor|director|title|collection|genre|format|original_language|media_type|year|imdb_rating|tmdb_rating|rotten_tomato_rating|recommended_age|price):\s*$/g;
+        searchText = searchText.replace(incompletePredicateRegex, '').trim();
+        
+        // Also remove predicates with operators but no values (e.g., "imdb_rating:>", "year:<=")
+        const incompleteOperatorPredicateRegex = /\b(year|imdb_rating|tmdb_rating|rotten_tomato_rating|recommended_age|price):(>=|<=|>|<)\s*$/g;
+        searchText = searchText.replace(incompleteOperatorPredicateRegex, '').trim();
+        
         // Apply actor filters (AND logic)
         filters.actors.forEach(actorName => {
           sql += ` AND m.cast LIKE ?`;
