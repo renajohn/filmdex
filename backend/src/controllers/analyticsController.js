@@ -202,32 +202,58 @@ const analyticsController = {
         .map(([year, count]) => ({ year: parseInt(year), count }))
         .sort((a, b) => a.year - b.year);
 
-      // Rating distribution
-      const ratingRanges = {
-        '0-2': 0,
-        '2-4': 0,
-        '4-6': 0,
-        '6-7': 0,
-        '7-8': 0,
-        '8-9': 0,
-        '9-10': 0
-      };
+      // Rating distribution - separate series for IMDB, TMDB, and Rotten Tomatoes
+      const ratingRanges = ['0-2', '2-4', '4-6', '6-7', '7-8', '8-9', '9-10'];
+      
+      const imdbRanges = { '0-2': 0, '2-4': 0, '4-6': 0, '6-7': 0, '7-8': 0, '8-9': 0, '9-10': 0 };
+      const tmdbRanges = { '0-2': 0, '2-4': 0, '4-6': 0, '6-7': 0, '7-8': 0, '8-9': 0, '9-10': 0 };
+      const rtRanges = { '0-2': 0, '2-4': 0, '4-6': 0, '6-7': 0, '7-8': 0, '8-9': 0, '9-10': 0 };
 
       movies.forEach(movie => {
-        const rating = movie.imdb_rating || movie.tmdb_rating;
-        if (rating && rating > 0) {
-          if (rating < 2) ratingRanges['0-2']++;
-          else if (rating < 4) ratingRanges['2-4']++;
-          else if (rating < 6) ratingRanges['4-6']++;
-          else if (rating < 7) ratingRanges['6-7']++;
-          else if (rating < 8) ratingRanges['7-8']++;
-          else if (rating < 9) ratingRanges['8-9']++;
-          else ratingRanges['9-10']++;
+        // IMDB ratings (already 0-10 scale)
+        if (movie.imdb_rating && movie.imdb_rating > 0) {
+          const rating = parseFloat(movie.imdb_rating);
+          if (rating < 2) imdbRanges['0-2']++;
+          else if (rating < 4) imdbRanges['2-4']++;
+          else if (rating < 6) imdbRanges['4-6']++;
+          else if (rating < 7) imdbRanges['6-7']++;
+          else if (rating < 8) imdbRanges['7-8']++;
+          else if (rating < 9) imdbRanges['8-9']++;
+          else imdbRanges['9-10']++;
+        }
+
+        // TMDB ratings (already 0-10 scale)
+        if (movie.tmdb_rating && movie.tmdb_rating > 0) {
+          const rating = parseFloat(movie.tmdb_rating);
+          if (rating < 2) tmdbRanges['0-2']++;
+          else if (rating < 4) tmdbRanges['2-4']++;
+          else if (rating < 6) tmdbRanges['4-6']++;
+          else if (rating < 7) tmdbRanges['6-7']++;
+          else if (rating < 8) tmdbRanges['7-8']++;
+          else if (rating < 9) tmdbRanges['8-9']++;
+          else tmdbRanges['9-10']++;
+        }
+
+        // Rotten Tomatoes ratings (convert from percentage to 0-10 scale)
+        if (movie.rotten_tomato_rating && movie.rotten_tomato_rating > 0) {
+          const rating = parseFloat(movie.rotten_tomato_rating) / 10; // Convert percentage to 0-10 scale
+          if (rating < 2) rtRanges['0-2']++;
+          else if (rating < 4) rtRanges['2-4']++;
+          else if (rating < 6) rtRanges['4-6']++;
+          else if (rating < 7) rtRanges['6-7']++;
+          else if (rating < 8) rtRanges['7-8']++;
+          else if (rating < 9) rtRanges['8-9']++;
+          else rtRanges['9-10']++;
         }
       });
 
-      analytics.ratingDistribution = Object.entries(ratingRanges)
-        .map(([rating, count]) => ({ rating, count }));
+      // Create combined rating distribution data
+      analytics.ratingDistribution = ratingRanges.map(range => ({
+        rating: range,
+        imdb: imdbRanges[range],
+        tmdb: tmdbRanges[range],
+        rottenTomatoes: rtRanges[range]
+      }));
 
       // Age recommendation distribution
       const ageCounts = {};
@@ -246,6 +272,29 @@ const analyticsController = {
           return parseInt(a.ageRecommendation) - parseInt(b.ageRecommendation);
         });
 
+      // Runtime distribution
+      const runtimeRanges = {
+        'Under 90 min': 0,
+        '90-120 min': 0,
+        '120-150 min': 0,
+        '150-180 min': 0,
+        'Over 180 min': 0
+      };
+
+      movies.forEach(movie => {
+        const runtime = movie.runtime;
+        if (runtime && runtime > 0) {
+          if (runtime < 90) runtimeRanges['Under 90 min']++;
+          else if (runtime <= 120) runtimeRanges['90-120 min']++;
+          else if (runtime <= 150) runtimeRanges['120-150 min']++;
+          else if (runtime <= 180) runtimeRanges['150-180 min']++;
+          else runtimeRanges['Over 180 min']++;
+        }
+      });
+
+      analytics.runtimeDistribution = Object.entries(runtimeRanges)
+        .map(([runtime, count]) => ({ runtime, count }));
+
       // Movies acquired over time
       const acquiredCounts = {};
       movies.forEach(movie => {
@@ -260,30 +309,6 @@ const analyticsController = {
         .map(([date, count]) => ({ period: date, count }))
         .sort((a, b) => a.period.localeCompare(b.period));
 
-      // Runtime distribution
-      const runtimeRanges = {
-        '0-60': 0,
-        '60-90': 0,
-        '90-120': 0,
-        '120-150': 0,
-        '150-180': 0,
-        '180+': 0
-      };
-
-      movies.forEach(movie => {
-        const runtime = movie.runtime;
-        if (runtime && runtime > 0) {
-          if (runtime < 60) runtimeRanges['0-60']++;
-          else if (runtime < 90) runtimeRanges['60-90']++;
-          else if (runtime < 120) runtimeRanges['90-120']++;
-          else if (runtime < 150) runtimeRanges['120-150']++;
-          else if (runtime < 180) runtimeRanges['150-180']++;
-          else runtimeRanges['180+']++;
-        }
-      });
-
-      analytics.runtimeDistribution = Object.entries(runtimeRanges)
-        .map(([range, count]) => ({ range, count }));
 
       // Collections by genre → director
       const collectionsByGenreDirector = {};

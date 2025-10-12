@@ -311,6 +311,33 @@ const AnalyticsPage = () => {
             </ResponsiveContainer>
           </div>
 
+          {/* Movies Acquired Over Time */}
+          <div className="chart-card">
+            <h3 className="chart-title">Movies Acquired Over Time</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <AreaChart data={analytics.moviesAcquiredOverTime}>
+                <defs>
+                  <linearGradient id="colorMovies" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#DC143C" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#DC143C" stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#3a3a3a" />
+                <XAxis 
+                  dataKey="period" 
+                  stroke="#a0a0a0" 
+                  style={{ fontSize: '11px' }}
+                  tickFormatter={formatMonthYear}
+                  interval="preserveStartEnd"
+                  minTickGap={50}
+                />
+                <YAxis stroke="#a0a0a0" style={{ fontSize: '12px' }} />
+                <Tooltip content={<CustomTooltip isDate={true} />} />
+                <Area type="monotone" dataKey="count" stroke={COLORS.areaCrimson} strokeWidth={3} fillOpacity={1} fill="url(#colorMovies)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
           {/* Price Distribution with Percentiles */}
           <div className="chart-card">
             <h3 className="chart-title">Price Distribution with Percentiles (CHF)</h3>
@@ -375,33 +402,6 @@ const AnalyticsPage = () => {
             <div className="percentile-note-compact">
               <strong>Note:</strong> Box set prices divided by movie count (e.g., CHF 99 box set ÷ 11 movies = CHF 9 each)
             </div>
-          </div>
-
-          {/* Movies Acquired Over Time */}
-          <div className="chart-card">
-            <h3 className="chart-title">Movies Acquired Over Time</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={analytics.moviesAcquiredOverTime}>
-                <defs>
-                  <linearGradient id="colorMovies" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#DC143C" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#DC143C" stopOpacity={0.1}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#3a3a3a" />
-                <XAxis 
-                  dataKey="period" 
-                  stroke="#a0a0a0" 
-                  style={{ fontSize: '11px' }}
-                  tickFormatter={formatMonthYear}
-                  interval="preserveStartEnd"
-                  minTickGap={50}
-                />
-                <YAxis stroke="#a0a0a0" style={{ fontSize: '12px' }} />
-                <Tooltip content={<CustomTooltip isDate={true} />} />
-                <Area type="monotone" dataKey="count" stroke={COLORS.areaCrimson} strokeWidth={3} fillOpacity={1} fill="url(#colorMovies)" />
-              </AreaChart>
-            </ResponsiveContainer>
           </div>
 
           {/* Genre Distribution and Format Distribution - Side by Side */}
@@ -584,16 +584,110 @@ const AnalyticsPage = () => {
                   <XAxis dataKey="rating" stroke="#a0a0a0" style={{ fontSize: '12px' }} />
                   <YAxis stroke="#a0a0a0" style={{ fontSize: '12px' }} />
                   <Tooltip content={<CustomTooltip />} />
+                  <Legend />
+                  <Bar 
+                    dataKey="imdb" 
+                    name="IMDB" 
+                    fill="#FFD700" 
+                    radius={[8, 8, 0, 0]}
+                    style={{ cursor: 'pointer' }}
+                    onClick={(data, index) => {
+                      const entry = analytics.ratingDistribution[index];
+                      const [min, max] = entry.rating.split('-').map(Number);
+                      navigateWithSearch(`imdb_rating:>=${min} imdb_rating:<=${max}`);
+                    }}
+                  />
+                  <Bar 
+                    dataKey="tmdb" 
+                    name="TMDB" 
+                    fill="#DC143C" 
+                    radius={[8, 8, 0, 0]}
+                    style={{ cursor: 'pointer' }}
+                    onClick={(data, index) => {
+                      const entry = analytics.ratingDistribution[index];
+                      const [min, max] = entry.rating.split('-').map(Number);
+                      navigateWithSearch(`tmdb_rating:>=${min} tmdb_rating:<=${max}`);
+                    }}
+                  />
+                  <Bar 
+                    dataKey="rottenTomatoes" 
+                    name="Rotten Tomatoes" 
+                    fill="#32CD32" 
+                    radius={[8, 8, 0, 0]}
+                    style={{ cursor: 'pointer' }}
+                    onClick={(data, index) => {
+                      const entry = analytics.ratingDistribution[index];
+                      const [min, max] = entry.rating.split('-').map(Number);
+                      // Convert back to percentage for Rotten Tomatoes search
+                      const minPercent = min * 10;
+                      const maxPercent = max * 10;
+                      navigateWithSearch(`rotten_tomato_rating:>=${minPercent} rotten_tomato_rating:<=${maxPercent}`);
+                    }}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Age Distribution and Runtime Distribution */}
+          <div className="chart-row">
+            <div className="chart-card">
+              <h3 className="chart-title">Age Recommendations</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={analytics.ageDistribution}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#3a3a3a" />
+                  <XAxis dataKey="ageRecommendation" stroke="#a0a0a0" style={{ fontSize: '12px' }} />
+                  <YAxis stroke="#a0a0a0" style={{ fontSize: '12px' }} />
+                  <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="count" radius={[8, 8, 0, 0]}>
+                      {analytics.ageDistribution.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={COLORS.age[index % COLORS.age.length]}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => {
+                            const age = entry.ageRecommendation;
+                            if (age === 'All Ages') {
+                              navigateWithSearch(`recommended_age:<=6`);
+                            } else {
+                              const ageNum = parseInt(age.replace('+', ''));
+                              navigateWithSearch(`recommended_age:${ageNum}`);
+                            }
+                          }}
+                        />
+                      ))}
+                    </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="chart-card">
+              <h3 className="chart-title">Runtime Distribution</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={analytics.runtimeDistribution}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#3a3a3a" />
+                  <XAxis dataKey="runtime" stroke="#a0a0a0" style={{ fontSize: '12px' }} />
+                  <YAxis stroke="#a0a0a0" style={{ fontSize: '12px' }} />
+                  <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="count" radius={[8, 8, 0, 0]}>
-                    {analytics.ratingDistribution.map((entry, index) => (
+                    {analytics.runtimeDistribution.map((entry, index) => (
                       <Cell 
                         key={`cell-${index}`} 
-                        fill={COLORS.rating[index % COLORS.rating.length]}
+                        fill={COLORS.decade[index % COLORS.decade.length]}
                         style={{ cursor: 'pointer' }}
                         onClick={() => {
-                          const rating = entry.rating;
-                          const [min, max] = rating.split('-').map(Number);
-                          navigateWithSearch(`imdb_rating:>=${min} imdb_rating:<=${max}`);
+                          const runtime = entry.runtime;
+                          if (runtime === 'Under 90 min') {
+                            navigateWithSearch(`runtime:<90`);
+                          } else if (runtime === '90-120 min') {
+                            navigateWithSearch(`runtime:>=90 runtime:<=120`);
+                          } else if (runtime === '120-150 min') {
+                            navigateWithSearch(`runtime:>=120 runtime:<=150`);
+                          } else if (runtime === '150-180 min') {
+                            navigateWithSearch(`runtime:>=150 runtime:<=180`);
+                          } else if (runtime === 'Over 180 min') {
+                            navigateWithSearch(`runtime:>180`);
+                          }
                         }}
                       />
                     ))}
@@ -601,37 +695,6 @@ const AnalyticsPage = () => {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </div>
-
-          {/* Age Distribution */}
-          <div className="chart-card">
-            <h3 className="chart-title">Age Recommendations</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={analytics.ageDistribution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#3a3a3a" />
-                <XAxis dataKey="ageRecommendation" stroke="#a0a0a0" style={{ fontSize: '12px' }} />
-                <YAxis stroke="#a0a0a0" style={{ fontSize: '12px' }} />
-                <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" radius={[8, 8, 0, 0]}>
-                    {analytics.ageDistribution.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={COLORS.age[index % COLORS.age.length]}
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => {
-                          const age = entry.ageRecommendation;
-                          if (age === 'All Ages') {
-                            navigateWithSearch(`recommended_age:<=6`);
-                          } else {
-                            const ageNum = parseInt(age.replace('+', ''));
-                            navigateWithSearch(`recommended_age:${ageNum}`);
-                          }
-                        }}
-                      />
-                    ))}
-                  </Bar>
-              </BarChart>
-            </ResponsiveContainer>
           </div>
 
           {/* Commercial Success Section */}

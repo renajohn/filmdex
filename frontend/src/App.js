@@ -62,6 +62,8 @@ function AppContent() {
       'actor:', 'director:', 'title:', 'collection:', 'genre:', 'format:', 
       'original_language:', 'media_type:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=',
       'imdb_rating:', 'imdb_rating:>', 'imdb_rating:<', 'imdb_rating:>=', 'imdb_rating:<=',
+      'tmdb_rating:', 'tmdb_rating:>', 'tmdb_rating:<', 'tmdb_rating:>=', 'tmdb_rating:<=',
+      'rotten_tomato_rating:', 'rotten_tomato_rating:>', 'rotten_tomato_rating:<', 'rotten_tomato_rating:>=', 'rotten_tomato_rating:<=',
       'recommended_age:', 'recommended_age:>', 'recommended_age:<', 'recommended_age:>=', 'recommended_age:<=',
       'price:', 'price:>', 'price:<', 'price:>=', 'price:<='
     ];
@@ -75,7 +77,7 @@ function AppContent() {
     const currentWord = beforeCursor.substring(lastSpaceIndex + 1);
     
     // Check if we're inside a filter value (after a keyword)
-    const filterMatch = currentWord.match(/^(actor|director|title|collection|genre|format|original_language|media_type):(.*)$/);
+    const filterMatch = currentWord.match(/^(actor|director|title|collection|genre|format|original_language|media_type|imdb_rating|tmdb_rating|rotten_tomato_rating):(.*)$/);
     
     if (filterMatch) {
       const [, filterType, filterValue] = filterMatch;
@@ -535,6 +537,16 @@ function AppContent() {
                           {!option.isValue && option.keyword === 'imdb_rating:<' && 'IMDB rating less than'}
                           {!option.isValue && option.keyword === 'imdb_rating:>=' && 'IMDB rating greater or equal'}
                           {!option.isValue && option.keyword === 'imdb_rating:<=' && 'IMDB rating less or equal'}
+                          {!option.isValue && option.keyword === 'tmdb_rating:' && 'Exact TMDB rating match'}
+                          {!option.isValue && option.keyword === 'tmdb_rating:>' && 'TMDB rating greater than'}
+                          {!option.isValue && option.keyword === 'tmdb_rating:<' && 'TMDB rating less than'}
+                          {!option.isValue && option.keyword === 'tmdb_rating:>=' && 'TMDB rating greater or equal'}
+                          {!option.isValue && option.keyword === 'tmdb_rating:<=' && 'TMDB rating less or equal'}
+                          {!option.isValue && option.keyword === 'rotten_tomato_rating:' && 'Exact Rotten Tomatoes rating match'}
+                          {!option.isValue && option.keyword === 'rotten_tomato_rating:>' && 'Rotten Tomatoes rating greater than'}
+                          {!option.isValue && option.keyword === 'rotten_tomato_rating:<' && 'Rotten Tomatoes rating less than'}
+                          {!option.isValue && option.keyword === 'rotten_tomato_rating:>=' && 'Rotten Tomatoes rating greater or equal'}
+                          {!option.isValue && option.keyword === 'rotten_tomato_rating:<=' && 'Rotten Tomatoes rating less or equal'}
                           {!option.isValue && option.keyword === 'recommended_age:' && 'Exact age recommendation match'}
                           {!option.isValue && option.keyword === 'recommended_age:>' && 'Age recommendation greater than'}
                           {!option.isValue && option.keyword === 'recommended_age:<' && 'Age recommendation less than'}

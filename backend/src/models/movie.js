@@ -195,6 +195,8 @@ const Movie = {
           mediaTypes: [],
           years: [],
           imdbRatings: [],
+          tmdbRatings: [],
+          rottenTomatoRatings: [],
           ages: [],
           prices: []
         };
@@ -339,6 +341,26 @@ const Movie = {
         }
         searchText = searchText.replace(imdbRatingRegex, '').trim();
         
+        // Extract tmdb_rating: filters with operators
+        const tmdbRatingRegex = /tmdb_rating:(>=|<=|>|<|)(\d+(?:\.\d+)?)/g;
+        let tmdbRatingMatches;
+        while ((tmdbRatingMatches = tmdbRatingRegex.exec(searchText)) !== null) {
+          const operator = tmdbRatingMatches[1] || '=';
+          const value = parseFloat(tmdbRatingMatches[2]);
+          filters.tmdbRatings.push({ operator, value });
+        }
+        searchText = searchText.replace(tmdbRatingRegex, '').trim();
+        
+        // Extract rotten_tomato_rating: filters with operators
+        const rottenTomatoRatingRegex = /rotten_tomato_rating:(>=|<=|>|<|)(\d+(?:\.\d+)?)/g;
+        let rottenTomatoRatingMatches;
+        while ((rottenTomatoRatingMatches = rottenTomatoRatingRegex.exec(searchText)) !== null) {
+          const operator = rottenTomatoRatingMatches[1] || '=';
+          const value = parseFloat(rottenTomatoRatingMatches[2]);
+          filters.rottenTomatoRatings.push({ operator, value });
+        }
+        searchText = searchText.replace(rottenTomatoRatingRegex, '').trim();
+        
         // Extract recommended_age: filters with operators
         const ageRegex = /recommended_age:(>=|<=|>|<|)(\d+)/g;
         let ageMatches;
@@ -461,6 +483,60 @@ const Movie = {
             case '=':
             default:
               sql += ` AND m.imdb_rating = ?`;
+              params.push(ratingFilter.value);
+              break;
+          }
+        });
+        
+        // Apply TMDB rating filters (AND logic)
+        filters.tmdbRatings.forEach(ratingFilter => {
+          switch (ratingFilter.operator) {
+            case '>':
+              sql += ` AND m.tmdb_rating > ?`;
+              params.push(ratingFilter.value);
+              break;
+            case '<':
+              sql += ` AND m.tmdb_rating < ?`;
+              params.push(ratingFilter.value);
+              break;
+            case '>=':
+              sql += ` AND m.tmdb_rating >= ?`;
+              params.push(ratingFilter.value);
+              break;
+            case '<=':
+              sql += ` AND m.tmdb_rating <= ?`;
+              params.push(ratingFilter.value);
+              break;
+            case '=':
+            default:
+              sql += ` AND m.tmdb_rating = ?`;
+              params.push(ratingFilter.value);
+              break;
+          }
+        });
+        
+        // Apply Rotten Tomatoes rating filters (AND logic)
+        filters.rottenTomatoRatings.forEach(ratingFilter => {
+          switch (ratingFilter.operator) {
+            case '>':
+              sql += ` AND m.rotten_tomato_rating > ?`;
+              params.push(ratingFilter.value);
+              break;
+            case '<':
+              sql += ` AND m.rotten_tomato_rating < ?`;
+              params.push(ratingFilter.value);
+              break;
+            case '>=':
+              sql += ` AND m.rotten_tomato_rating >= ?`;
+              params.push(ratingFilter.value);
+              break;
+            case '<=':
+              sql += ` AND m.rotten_tomato_rating <= ?`;
+              params.push(ratingFilter.value);
+              break;
+            case '=':
+            default:
+              sql += ` AND m.rotten_tomato_rating = ?`;
               params.push(ratingFilter.value);
               break;
           }
