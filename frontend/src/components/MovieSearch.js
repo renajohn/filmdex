@@ -410,21 +410,23 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
               </span>
             )}
           </div>
-          <button 
-            className={`watch-next-badge-toggle ${watchNextMovies.some(wm => wm.id === movie.id) ? 'active' : ''}`}
-            onClick={(e) => handleWatchNextToggle(e, movie)}
-            title={watchNextMovies.some(wm => wm.id === movie.id) ? "Remove from Watch Next" : "Add to Watch Next"}
-            aria-label="Toggle Watch Next"
-          >
-            <svg 
-              className="star-icon" 
-              viewBox="0 0 24 24" 
-              fill={watchNextMovies.some(wm => wm.id === movie.id) ? "currentColor" : "none"}
-              stroke="currentColor"
+          {!searchCriteria?.searchText && (
+            <button 
+              className={`watch-next-badge-toggle ${watchNextMovies.some(wm => wm.id === movie.id) ? 'active' : ''}`}
+              onClick={(e) => handleWatchNextToggle(e, movie)}
+              title={watchNextMovies.some(wm => wm.id === movie.id) ? "Remove from Watch Next" : "Add to Watch Next"}
+              aria-label="Toggle Watch Next"
             >
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-            </svg>
-          </button>
+              <svg 
+                className="star-icon" 
+                viewBox="0 0 24 24" 
+                fill={watchNextMovies.some(wm => wm.id === movie.id) ? "currentColor" : "none"}
+                stroke="currentColor"
+              >
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+            </button>
+          )}
         </div>
         
         <div className="movie-info-compact">
@@ -801,7 +803,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
 
       {/* Watch Next Banner */}
-      {watchNextMovies.length > 0 && (
+      {watchNextMovies.length > 0 && !searchCriteria?.searchText && (
         <div className="watch-next-banner">
           <div className="watch-next-banner-header">
             <div className="banner-title-section">
