@@ -40,6 +40,8 @@ function AppContent() {
   const filterDropdownRef = useRef(null);
   const filterButtonRef = useRef(null);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [collections, setCollections] = useState([]);
+  const [boxSets, setBoxSets] = useState([]);
 
   // Check if we're on the thumbnail view (root path)
   const isThumbnailView = location.pathname === '/';
@@ -64,7 +66,7 @@ function AppContent() {
 
   const getAutocompleteOptions = async (text) => {
     const keywords = [
-      'actor:', 'director:', 'title:', 'collection:', 'genre:', 'format:', 
+      'actor:', 'director:', 'title:', 'collection:', 'box_set:', 'genre:', 'format:', 
       'original_language:', 'media_type:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=',
       'imdb_rating:', 'imdb_rating:>', 'imdb_rating:<', 'imdb_rating:>=', 'imdb_rating:<=',
       'tmdb_rating:', 'tmdb_rating:>', 'tmdb_rating:<', 'tmdb_rating:>=', 'tmdb_rating:<=',
@@ -240,6 +242,30 @@ function AppContent() {
     }
   };
 
+  // Fetch collections and box sets for filter dropdown
+  const fetchFilterData = async () => {
+    try {
+      // Fetch collections
+      const collectionsData = await apiService.getAllCollections();
+      const userCollections = collectionsData
+        .filter(c => c.type === 'user')
+        .map(c => c.name)
+        .sort();
+      setCollections(userCollections);
+
+      // Fetch box sets (we'll need to get this from movies data)
+      const moviesData = await apiService.getAllMovies();
+      const uniqueBoxSets = [...new Set(
+        moviesData
+          .filter(movie => movie.has_box_set && movie.box_set_name)
+          .map(movie => movie.box_set_name)
+      )].sort();
+      setBoxSets(uniqueBoxSets);
+    } catch (error) {
+      console.error('Failed to fetch filter data:', error);
+    }
+  };
+
   // Handle filter selection and generate predicates
   const handleFilterSelection = (filterType, filterValue) => {
     let predicate = '';
@@ -256,6 +282,9 @@ function AppContent() {
         break;
       case 'collection':
         predicate = `collection:"${filterValue}"`;
+        break;
+      case 'box_set':
+        predicate = `box_set:"${filterValue}"`;
         break;
       case 'age_group':
         const ageRanges = {
@@ -330,6 +359,7 @@ function AppContent() {
         'director:': 'Search by director name',
         'title:': 'Search by movie title',
         'collection:': 'Search by collection name',
+        'box_set:': 'Search by box set name',
         'genre:': 'Search by genre',
         'format:': 'Search by format',
         'original_language:': 'Search by language',
@@ -536,16 +566,9 @@ function AppContent() {
       const filterDropdown = filterDropdownRef.current;
       const filterButton = filterButtonRef.current;
       
-      console.log('Click outside handler triggered');
-      console.log('Target:', event.target);
-      console.log('Search input contains:', searchInput?.contains(event.target));
-      console.log('Filter dropdown contains:', filterDropdown?.contains(event.target));
-      console.log('Filter button contains:', filterButton?.contains(event.target));
-      
       if (searchInput && !searchInput.contains(event.target) && 
           (!filterDropdown || !filterDropdown.contains(event.target)) &&
           (!filterButton || !filterButton.contains(event.target))) {
-        console.log('Closing dropdowns');
         setShowAutocomplete(false);
         setAutocompleteIndex(-1);
         setShowFilterDropdown(false);
@@ -689,7 +712,10 @@ function AppContent() {
                   ref={filterButtonRef}
                   className={`search-filter-button ${showFilterDropdown ? 'active' : ''}`}
                   onClick={() => {
-                    console.log('Filter button clicked, current state:', showFilterDropdown);
+                    if (!showFilterDropdown) {
+                      // Fetch data when opening dropdown
+                      fetchFilterData();
+                    }
                     setShowFilterDropdown(!showFilterDropdown);
                   }}
                   type="button"
@@ -726,30 +752,6 @@ function AppContent() {
                 )}
                 {showFilterDropdown && (
                   <div className="search-filter-dropdown" ref={filterDropdownRef}>
-                    <div className="filter-section">
-                      <div className="filter-section-title">Media Type</div>
-                      <button 
-                        className="filter-option"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleFilterSelection('media_type', 'movie');
-                        }}
-                      >
-                        Movies
-                      </button>
-                      <button 
-                        className="filter-option"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleFilterSelection('media_type', 'tv');
-                        }}
-                      >
-                        TV Shows
-                      </button>
-                    </div>
-                    
                     <div className="filter-section">
                       <div className="filter-section-title">Age Groups</div>
                       <button 
@@ -801,6 +803,16 @@ function AppContent() {
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
+                          handleFilterSelection('format', 'Blu-ray 4K');
+                        }}
+                      >
+                        Blu-ray 4K
+                      </button>
+                      <button 
+                        className="filter-option"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           handleFilterSelection('format', 'Blu-ray');
                         }}
                       >
@@ -815,16 +827,6 @@ function AppContent() {
                         }}
                       >
                         DVD
-                      </button>
-                      <button 
-                        className="filter-option"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleFilterSelection('format', 'Digital');
-                        }}
-                      >
-                        Digital
                       </button>
                     </div>
                     
@@ -841,6 +843,44 @@ function AppContent() {
                         Has Comments
                       </button>
                     </div>
+                    
+                    {collections.length > 0 && (
+                      <div className="filter-section">
+                        <div className="filter-section-title">Collections</div>
+                        {collections.map(collection => (
+                          <button 
+                            key={collection}
+                            className="filter-option"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleFilterSelection('collection', collection);
+                            }}
+                          >
+                            {collection}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {boxSets.length > 0 && (
+                      <div className="filter-section">
+                        <div className="filter-section-title">Box Sets</div>
+                        {boxSets.map(boxSet => (
+                          <button 
+                            key={boxSet}
+                            className="filter-option"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleFilterSelection('box_set', boxSet);
+                            }}
+                          >
+                            {boxSet}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

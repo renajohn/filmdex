@@ -189,6 +189,7 @@ const Movie = {
           directors: [],
           titles: [],
           collections: [],
+          boxSets: [],
           genres: [],
           formats: [],
           languages: [],
@@ -261,6 +262,21 @@ const Movie = {
           filters.collections.push(collectionMatches[1]);
         }
         searchText = searchText.replace(collectionWordRegex, '').trim();
+        
+        // Extract box_set:"Name" or box_set:Name filters (can be multiple)
+        let boxSetMatches;
+        const boxSetQuotedRegex = /box_set:"([^"]+)"/g;
+        const boxSetWordRegex = /box_set:(\S+)/g;
+        
+        while ((boxSetMatches = boxSetQuotedRegex.exec(searchText)) !== null) {
+          filters.boxSets.push(boxSetMatches[1]);
+        }
+        searchText = searchText.replace(boxSetQuotedRegex, '').trim();
+        
+        while ((boxSetMatches = boxSetWordRegex.exec(searchText)) !== null) {
+          filters.boxSets.push(boxSetMatches[1]);
+        }
+        searchText = searchText.replace(boxSetWordRegex, '').trim();
         
         // Extract genre:"Name" or genre:Name filters (can be multiple)
         let genreMatches;
@@ -393,7 +409,7 @@ const Movie = {
         
         // Remove incomplete predicates (predicates without values) from search text
         // This prevents them from being treated as generic search terms
-        const incompletePredicateRegex = /\b(actor|director|title|collection|genre|format|original_language|media_type|year|imdb_rating|tmdb_rating|rotten_tomato_rating|recommended_age|price|has_comments):\s*$/g;
+        const incompletePredicateRegex = /\b(actor|director|title|collection|box_set|genre|format|original_language|media_type|year|imdb_rating|tmdb_rating|rotten_tomato_rating|recommended_age|price|has_comments):\s*$/g;
         searchText = searchText.replace(incompletePredicateRegex, '').trim();
         
         // Also remove predicates with operators but no values (e.g., "imdb_rating:>", "year:<=")
@@ -427,6 +443,16 @@ const Movie = {
             WHERE mc3.movie_id = m.id AND c3.name LIKE ?
           )`;
           params.push(`%${collectionName}%`);
+        });
+        
+        // Apply box set filters (AND logic - all box sets must match)
+        filters.boxSets.forEach(boxSetName => {
+          sql += ` AND EXISTS (
+            SELECT 1 FROM movie_collections mc4
+            JOIN collections c4 ON mc4.collection_id = c4.id
+            WHERE mc4.movie_id = m.id AND c4.type = 'box_set' AND c4.name LIKE ?
+          )`;
+          params.push(`%${boxSetName}%`);
         });
         
         // Apply genre filters (AND logic)
