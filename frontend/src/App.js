@@ -42,6 +42,7 @@ function AppContent() {
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [collections, setCollections] = useState([]);
   const [boxSets, setBoxSets] = useState([]);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // Check if we're on the thumbnail view (root path)
   const isThumbnailView = location.pathname === '/';
@@ -681,7 +682,7 @@ function AppContent() {
   return (
     <div className="App">
       <header className="App-header">
-        <div className={`App-header-content ${!showSearchBar ? 'no-search' : ''}`}>
+        <div className={`App-header-content ${!showSearchBar ? 'no-search' : ''} ${isSearchFocused ? 'search-focused' : ''}`}>
           {showSearchBar ? (
             <div className="segmented-control">
               <button 
@@ -714,8 +715,14 @@ function AppContent() {
                   value={searchCriteria.searchText}
                   onChange={handleSearchChange}
                   onKeyDown={handleSearchKeyDown}
-                  onFocus={handleSearchFocus}
-                  onBlur={handleSearchBlur}
+                  onFocus={() => {
+                    handleSearchFocus();
+                    setIsSearchFocused(true);
+                  }}
+                  onBlur={() => {
+                    handleSearchBlur();
+                    setIsSearchFocused(false);
+                  }}
                   placeholder={location.pathname === '/wishlist' ? 'Search wish list by title, director...' : 'Search FilmDex by title, director...'}
                   className="search-input-large"
                   autoComplete="off"

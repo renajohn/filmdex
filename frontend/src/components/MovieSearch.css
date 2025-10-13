@@ -1834,14 +1834,23 @@
   }
 }
 
+/* Small screen styles */
+@media (max-width: 768px) {
+  .movies-results-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .movies-count-display {
+    margin-bottom: 4px;
+  }
+}
+
 /* iPhone specific styles */
 @media (max-width: 480px) {
   .filter-pills {
     display: none !important; /* Ensure filter pills are hidden on iPhone */
-  }
-  
-  .movies-results-header {
-    margin-bottom: 8px;
   }
 }
 

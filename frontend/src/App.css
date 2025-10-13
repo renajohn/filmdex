@@ -503,6 +503,21 @@
     justify-content: space-between;
   }
   
+  /* Hide segmented control and toolbar when search is focused on small screens */
+  .App-header-content.search-focused .segmented-control {
+    display: none;
+  }
+  
+  .App-header-content.search-focused .App-toolbar {
+    display: none;
+  }
+  
+  /* Make search bar take full width when focused */
+  .App-header-content.search-focused .App-search {
+    width: 100%;
+    margin: 0;
+  }
+  
   .App-title {
     min-width: auto;
   }
