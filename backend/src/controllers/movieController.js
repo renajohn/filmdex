@@ -938,6 +938,89 @@ const movieController = {
     }
   },
 
+  // Fix box set collection types based on actual movie data
+  fixBoxSetTypes: async (req, res) => {
+    try {
+      const db = require('../database').getDatabase();
+      
+      // Get all unique box_set_name values from movies table
+      const boxSetNames = await new Promise((resolve, reject) => {
+        db.all(`
+          SELECT DISTINCT box_set_name 
+          FROM movies 
+          WHERE box_set_name IS NOT NULL 
+          AND box_set_name != '' 
+          ORDER BY box_set_name
+        `, (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows.map(row => row.box_set_name));
+          }
+        });
+      });
+      
+      console.log(`Found ${boxSetNames.length} box sets in movies table:`, boxSetNames);
+      
+      // Update collections that match these box set names
+      let updatedCount = 0;
+      for (const boxSetName of boxSetNames) {
+        const result = await new Promise((resolve, reject) => {
+          db.run(`
+            UPDATE collections 
+            SET type = 'box_set' 
+            WHERE name = ? AND type != 'box_set'
+          `, [boxSetName], function(err) {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(this.changes);
+            }
+          });
+        });
+        
+        if (result > 0) {
+          console.log(`Updated collection "${boxSetName}" to box_set type`);
+          updatedCount += result;
+        } else {
+          console.log(`Collection "${boxSetName}" already has correct type or doesn't exist`);
+        }
+      }
+      
+      res.json({ 
+        message: `Updated ${updatedCount} collections to box_set type`,
+        updatedCount,
+        boxSetNames
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Debug endpoint to check collection types
+  debugCollections: async (req, res) => {
+    try {
+      const db = require('../database').getDatabase();
+      const collections = await new Promise((resolve, reject) => {
+        db.all(`
+          SELECT name, type, is_system, created_at 
+          FROM collections 
+          ORDER BY name
+        `, (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows);
+          }
+        });
+      });
+      
+      res.json(collections);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
   // Get all unique collection names for autocomplete (only user collections)
   getCollectionNames: async (req, res) => {
     try {

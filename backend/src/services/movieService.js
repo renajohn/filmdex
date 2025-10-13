@@ -328,9 +328,16 @@ const movieService = {
           params = [`%${query}%`];
           break;
         case 'collection':
-          sql = `SELECT DISTINCT c.name as collection 
+          sql = `SELECT DISTINCT c.name as collection, c.type as collection_type
                  FROM collections c 
-                 WHERE c.type = 'user' AND c.name IS NOT NULL AND c.name != '' AND c.name LIKE ? 
+                 WHERE c.name IS NOT NULL AND c.name != '' AND c.name LIKE ? 
+                 ORDER BY c.name LIMIT 20`;
+          params = [`%${query}%`];
+          break;
+        case 'box_set':
+          sql = `SELECT DISTINCT c.name as box_set, c.type as collection_type
+                 FROM collections c 
+                 WHERE c.type = 'box_set' AND c.name IS NOT NULL AND c.name != '' AND c.name LIKE ? 
                  ORDER BY c.name LIMIT 20`;
           params = [`%${query}%`];
           break;
@@ -360,18 +367,25 @@ const movieService = {
       }
       
       const rows = await new Promise((resolve, reject) => {
-        db.all(sql, params, (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows);
-          }
-        });
+      db.all(sql, params, (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      });
       });
       // Return proper object format for frontend
       let processedRows = rows.map(row => {
         const value = row[field] || row.actor || row.year || row.collection || row.cast || row.original_language || row.media_type;
-        return { [field]: value };
+        const result = { [field]: value };
+        
+        // For collections, include collection_type
+        if (field === 'collection' || field === 'box_set') {
+          result.collection_type = row.collection_type;
+        }
+        
+        return result;
       });
 
       // Special processing for genre field - split comma-separated genres

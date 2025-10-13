@@ -94,7 +94,7 @@ function AppContent() {
     const currentWord = beforeCursor.substring(lastSpaceIndex + 1);
     
     // Check if we're inside a filter value (after a keyword)
-    const filterMatch = currentWord.match(/^(actor|director|title|collection|genre|format|original_language|media_type|imdb_rating|tmdb_rating|rotten_tomato_rating):(.*)$/);
+    const filterMatch = currentWord.match(/^(actor|director|title|collection|box_set|genre|format|original_language|media_type|imdb_rating|tmdb_rating|rotten_tomato_rating):(.*)$/);
     
     if (filterMatch) {
       const [, filterType, filterValue] = filterMatch;
@@ -113,6 +113,19 @@ function AppContent() {
         
         // Extract values from response (backend now returns {field: value} format)
         let values = response.map(item => item[filterType]).filter(value => value && value !== 'undefined');
+        
+        // For collections, include collection type information
+        let collectionTypes = {};
+        if (filterType === 'collection' || filterType === 'box_set') {
+          collectionTypes = response.reduce((acc, item) => {
+            const name = item[filterType];
+            const type = item.collection_type;
+            if (name && type) {
+              acc[name] = type;
+            }
+            return acc;
+          }, {});
+        }
         
         // For actors, we get JSON arrays, so parse them to extract individual names
         if (filterType === 'actor') {
@@ -142,6 +155,7 @@ function AppContent() {
           isValue: true,
           keyword: value,
           filterType,
+          collectionType: collectionTypes[value], // Include collection type for proper hinting
           replaceText: text.substring(0, lastSpaceIndex + 1) + `${filterType}:"${value}"`
         }));
       } catch (error) {
@@ -245,24 +259,24 @@ function AppContent() {
   // Fetch collections and box sets for filter dropdown
   const fetchFilterData = async () => {
     try {
-      // Fetch collections
+      // Fetch all collections (both user collections and box sets)
       const collectionsData = await apiService.getAllCollections();
+      
+      // Separate user collections from box sets
       const userCollections = collectionsData
         .filter(c => c.type === 'user')
         .map(c => c.name)
         .sort();
+      
+      const boxSetCollections = collectionsData
+        .filter(c => c.type === 'box_set')
+        .map(c => c.name)
+        .sort();
+      
       setCollections(userCollections);
-
-      // Fetch box sets (we'll need to get this from movies data)
-      const moviesData = await apiService.getAllMovies();
-      const uniqueBoxSets = [...new Set(
-        moviesData
-          .filter(movie => movie.has_box_set && movie.box_set_name)
-          .map(movie => movie.box_set_name)
-      )].sort();
-      setBoxSets(uniqueBoxSets);
+      setBoxSets(boxSetCollections);
     } catch (error) {
-      console.error('Failed to fetch filter data:', error);
+      console.error('Failed to fetch collections:', error);
     }
   };
 
@@ -342,11 +356,21 @@ function AppContent() {
   };
   const getAutocompleteHint = (option) => {
     if (option.isValue) {
+      // Special handling for collections to show collection type
+      if (option.filterType === 'collection' || option.filterType === 'box_set') {
+        if (option.collectionType === 'box_set') {
+          return '(Box Set)';
+        } else {
+          return '(Collection)';
+        }
+      }
+      
       const hintMap = {
         'actor': '(Actor)',
         'director': '(Director)',
         'title': '(Title)',
         'collection': '(Collection)',
+        'box_set': '(Box Set)',
         'genre': '(Genre)',
         'format': '(Format)',
         'original_language': '(Language)',
@@ -359,7 +383,7 @@ function AppContent() {
         'director:': 'Search by director name',
         'title:': 'Search by movie title',
         'collection:': 'Search by collection name',
-        'box_set:': 'Search by box set name',
+        'box_set:': 'Search by box set collection name',
         'genre:': 'Search by genre',
         'format:': 'Search by format',
         'original_language:': 'Search by language',

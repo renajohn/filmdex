@@ -324,8 +324,10 @@
   padding: 10px 16px;
   cursor: pointer;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   border-bottom: 1px solid #333;
   transition: background 0.15s ease;
 }
@@ -362,6 +364,7 @@
   color: #999;
   font-style: italic;
 }
+
 
 .App-toolbar {
   display: flex;

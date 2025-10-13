@@ -77,6 +77,8 @@ app.get('/api/omdb/search', movieController.searchOMDB);
 app.get('/api/movies/autocomplete', movieController.getAutocompleteSuggestions);
 app.get('/api/movies/formats', movieController.getFormats);
 app.get('/api/movies/collections', movieController.getCollectionNames);
+app.get('/api/debug/collections', movieController.debugCollections);
+app.post('/api/fix/box-set-types', movieController.fixBoxSetTypes);
 app.get('/api/movies/collections/movies', movieController.getMoviesByCollection);
 
 // Collection routes
