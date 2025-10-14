@@ -8,6 +8,8 @@ const Collection = {
         CREATE TABLE IF NOT EXISTS collections (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT UNIQUE NOT NULL,
+          type TEXT DEFAULT 'user',
+          is_system BOOLEAN DEFAULT 0,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )

@@ -19,8 +19,8 @@ const Movie = {
           rotten_tomato_rating INTEGER,
           rotten_tomatoes_link TEXT,
           tmdb_rating REAL,
-          tmdb_id INTEGER UNIQUE,
-          imdb_id TEXT UNIQUE,
+          tmdb_id INTEGER,
+          imdb_id TEXT,
           price REAL,
           runtime INTEGER,
           plot TEXT,
@@ -49,7 +49,17 @@ const Movie = {
         if (err) {
           reject(err);
         } else {
-          resolve();
+          // Create unique index for multiple editions support
+          db.run(`
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_movie_edition_unique 
+            ON movies(title, tmdb_id, format)
+          `, (err) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
         }
       });
     });
