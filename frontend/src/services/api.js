@@ -137,8 +137,16 @@ class ApiService {
     return await response.json();
   }
 
-  async exportCSV() {
-    const response = await this.makeRequest('/movies/export/csv');
+  async exportCSV(columns = null) {
+    const params = new URLSearchParams();
+    if (columns && columns.length > 0) {
+      params.append('columns', columns.join(','));
+    }
+    
+    const queryString = params.toString();
+    const endpoint = queryString ? `/movies/export/csv?${queryString}` : '/movies/export/csv';
+    
+    const response = await this.makeRequest(endpoint);
     return await response.blob();
   }
 

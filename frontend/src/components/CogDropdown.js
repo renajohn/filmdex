@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { BsGear, BsPlus, BsUpload, BsBarChart } from 'react-icons/bs';
+import { BsGear, BsPlus, BsUpload, BsBarChart, BsDownload } from 'react-icons/bs';
 import './CogDropdown.css';
 
 const CogDropdown = ({ 
@@ -84,6 +84,9 @@ const CogDropdown = ({
             <BsPlus className="menu-icon" />
             Add Movie
           </button>
+          
+          <div className="cog-menu-separator"></div>
+          
           <button 
             className="cog-menu-item"
             onClick={() => handleMenuClick(onImportMovies)}
@@ -93,18 +96,21 @@ const CogDropdown = ({
           </button>
           <button 
             className="cog-menu-item"
+            onClick={() => handleMenuClick(onExportCSV)}
+          >
+            <BsDownload className="menu-icon" />
+            CSV Export
+          </button>
+          
+          <div className="cog-menu-separator"></div>
+          
+          <button 
+            className="cog-menu-item"
             onClick={() => handleMenuClick(onAnalytics)}
           >
             <BsBarChart className="menu-icon" />
             Analytics
           </button>
-          {/* <button 
-            className="cog-menu-item"
-            onClick={() => handleMenuClick(onExportCSV)}
-          >
-            <span className="menu-icon">📊</span>
-            Export CSV
-          </button> */}
         </div>,
         document.body
       )}

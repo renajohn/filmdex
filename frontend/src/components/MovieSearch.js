@@ -218,7 +218,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     handleAddMovieClick,
-    handleExportCSVClick,
     refreshMovies: () => {
       // When refreshing, respect current search criteria
       if (searchCriteria?.searchText && searchCriteria.searchText.trim()) {
@@ -344,26 +343,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     }
   };
 
-  const handleExportCSVClick = async () => {
-    try {
-      const blob = await apiService.exportCSV();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'movies.csv';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      if (onShowAlert) {
-        onShowAlert('CSV exported successfully', 'success');
-      }
-    } catch (err) {
-      if (onShowAlert) {
-        onShowAlert('Failed to export CSV: ' + err.message, 'danger');
-      }
-    }
-  };
 
 
 

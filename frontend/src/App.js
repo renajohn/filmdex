@@ -7,6 +7,7 @@ import WishListPage from './pages/WishListPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import CogDropdown from './components/CogDropdown';
 import BackfillModal from './components/BackfillModal';
+import CsvExportDialog from './components/CsvExportDialog';
 import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
 import { BsX, BsCollectionFill, BsHeart, BsChevronDown } from 'react-icons/bs';
@@ -28,6 +29,7 @@ function AppContent() {
   const [hasCheckedBackfill, setHasCheckedBackfill] = useState(false);
   const [showAddMovieDialog, setShowAddMovieDialog] = useState(false);
   const [addMovieMode, setAddMovieMode] = useState('collection');
+  const [showCsvExportDialog, setShowCsvExportDialog] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState('success');
   const [showAlert, setShowAlert] = useState(false);
@@ -499,8 +501,24 @@ function AppContent() {
   };
 
   const handleExportCSV = () => {
-    if (movieSearchRef.current) {
-      movieSearchRef.current.handleExportCSVClick();
+    setShowCsvExportDialog(true);
+  };
+
+  const handleCsvExport = async (columns) => {
+    try {
+      const blob = await apiService.exportCSV(columns);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'movies.csv';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      handleShowAlert('CSV exported successfully', 'success');
+    } catch (error) {
+      console.error('CSV export error:', error);
+      handleShowAlert('Failed to export CSV: ' + error.message, 'danger');
     }
   };
 
@@ -968,6 +986,12 @@ function AppContent() {
         initialMode={addMovieMode}
         onSuccess={handleAddMovieSuccess}
         onMovieAdded={handleMovieAdded}
+      />
+
+      <CsvExportDialog 
+        isOpen={showCsvExportDialog}
+        onClose={() => setShowCsvExportDialog(false)}
+        onExport={handleCsvExport}
       />
 
       <BackfillModal 

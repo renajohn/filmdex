@@ -203,11 +203,56 @@ const movieController = {
     try {
       const movies = await movieService.getAllMovies();
       
-      // Convert to CSV format
-      const csvHeader = 'Title,Genre,Director,Cast,Year,Format,IMDB Rating,Rotten Tomato Rating,Plot,Acquired Date\n';
+      // Get selected columns from query parameter
+      const selectedColumns = req.query.columns ? req.query.columns.split(',') : [
+        'title', 'original_title', 'original_language', 'genre', 'director', 'cast',
+        'release_date', 'format', 'imdb_rating', 'rotten_tomato_rating', 'tmdb_rating',
+        'tmdb_id', 'imdb_id', 'price', 'runtime', 'plot', 'comments',
+        'acquired_date', 'budget', 'revenue', 'trailer_key', 'trailer_site', 'status',
+        'popularity', 'vote_count', 'media_type', 'recommended_age', 'title_status'
+      ];
+      
+      // Validate columns - only allow meaningful columns
+      const allowedColumns = [
+        'title', 'original_title', 'original_language', 'genre', 'director', 'cast',
+        'release_date', 'format', 'imdb_rating', 'rotten_tomato_rating', 'tmdb_rating',
+        'tmdb_id', 'imdb_id', 'price', 'runtime', 'plot', 'comments',
+        'acquired_date', 'budget', 'revenue', 'trailer_key', 'trailer_site', 'status',
+        'popularity', 'vote_count', 'media_type', 'recommended_age', 'title_status'
+      ];
+      
+      const validColumns = selectedColumns.filter(col => allowedColumns.includes(col));
+      
+      if (validColumns.length === 0) {
+        return res.status(400).json({ error: 'No valid columns selected for export' });
+      }
+      
+      // Create CSV header
+      const csvHeader = validColumns.map(col => {
+        // Convert snake_case to Title Case for headers
+        return col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      }).join(',') + '\n';
+      
+      // Create CSV rows
       const csvRows = movies.map(movie => {
-        const cast = Array.isArray(movie.cast) ? movie.cast.join('; ') : movie.cast;
-        return `"${movie.title}","${movie.genre}","${movie.director}","${cast}","${movie.year}","${movie.format}","${movie.imdb_rating || ''}","${movie.rotten_tomato_rating || ''}","${movie.plot}","${movie.acquired_date}"`;
+        return validColumns.map(col => {
+          let value = movie[col];
+          
+          // Handle special cases
+          if (col === 'cast' && Array.isArray(value)) {
+            value = value.join('; ');
+          }
+          if (value === null || value === undefined) {
+            value = '';
+          }
+          
+          // Escape quotes and wrap in quotes if contains comma, quote, or newline
+          const stringValue = String(value);
+          if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+            return `"${stringValue.replace(/"/g, '""')}"`;
+          }
+          return stringValue;
+        }).join(',');
       }).join('\n');
       
       const csvContent = csvHeader + csvRows;
