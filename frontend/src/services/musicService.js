@@ -1,9 +1,45 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || '';
-
 class MusicService {
+  constructor() {
+    this.baseUrl = null;
+    this.configPromise = null;
+  }
+
+  async getBaseUrl() {
+    // If we already have the base URL, return it
+    if (this.baseUrl) {
+      return this.baseUrl;
+    }
+
+    // If we're already loading the config, wait for it
+    if (!this.configPromise) {
+      this.configPromise = this.loadConfig();
+    }
+
+    this.baseUrl = await this.configPromise;
+    return this.baseUrl;
+  }
+
+  async loadConfig() {
+    // Detect if we're running in Home Assistant ingress mode
+    const pathname = window.location.pathname;
+    
+    if (pathname.includes('/api/hassio_ingress/')) {
+      // Extract the ingress path from the current URL
+      const match = pathname.match(/\/api\/hassio_ingress\/[^/]+/);
+      if (match) {
+        const ingressPath = match[0];
+        return `${ingressPath}/api`;
+      }
+    }
+    
+    // Default to /api for normal mode
+    return '/api';
+  }
+
   async getAllAlbums() {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/albums`);
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/albums`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -16,7 +52,8 @@ class MusicService {
 
   async getAlbumById(id) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/albums/${id}`);
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/albums/${id}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -29,7 +66,8 @@ class MusicService {
 
   async searchAlbums(query) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/albums/search?q=${encodeURIComponent(query)}`);
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/albums/search?q=${encodeURIComponent(query)}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -42,7 +80,8 @@ class MusicService {
 
   async addAlbum(albumData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/albums`, {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/albums`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -61,7 +100,8 @@ class MusicService {
 
   async updateAlbum(id, albumData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/albums/${id}`, {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/albums/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -80,7 +120,8 @@ class MusicService {
 
   async deleteAlbum(id) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/albums/${id}`, {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/albums/${id}`, {
         method: 'DELETE',
       });
       if (!response.ok) {
@@ -95,7 +136,8 @@ class MusicService {
 
   async searchMusicBrainz(query) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/search?q=${encodeURIComponent(query)}`);
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/search?q=${encodeURIComponent(query)}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -108,7 +150,8 @@ class MusicService {
 
   async searchByCatalogNumber(catalogNumber) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/search/catalog?catalogNumber=${encodeURIComponent(catalogNumber)}`);
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/search/catalog?catalogNumber=${encodeURIComponent(catalogNumber)}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -121,7 +164,8 @@ class MusicService {
 
   async searchByBarcode(barcode) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/search/barcode?barcode=${encodeURIComponent(barcode)}`);
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/search/barcode?barcode=${encodeURIComponent(barcode)}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -134,7 +178,8 @@ class MusicService {
 
   async getMusicBrainzReleaseDetails(releaseId) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/release/${releaseId}`);
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/release/${releaseId}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -147,7 +192,8 @@ class MusicService {
 
   async addAlbumFromMusicBrainz(releaseId, additionalData = {}) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/release/${releaseId}`, {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/release/${releaseId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -166,7 +212,8 @@ class MusicService {
 
   async addAlbumByBarcode(barcode, additionalData = {}) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/barcode/${barcode}`, {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/barcode/${barcode}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -185,8 +232,9 @@ class MusicService {
 
   async getAutocompleteSuggestions(filterType, filterValue) {
     try {
+      const baseUrl = await this.getBaseUrl();
       const response = await fetch(
-        `${API_BASE_URL}/api/music/autocomplete?field=${encodeURIComponent(filterType)}&value=${encodeURIComponent(filterValue)}`
+        `${baseUrl}/music/autocomplete?field=${encodeURIComponent(filterType)}&value=${encodeURIComponent(filterValue)}`
       );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
