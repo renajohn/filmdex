@@ -1,6 +1,6 @@
 const Album = require('../models/album');
 const Track = require('../models/track');
-const musicbrainzService = require('./musicBrainzService');
+const musicbrainzService = require('./musicbrainzService');
 const imageService = require('./imageService');
 
 class MusicService {
