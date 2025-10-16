@@ -125,7 +125,7 @@ const Album = {
         country: cdData.country || null,
         edition_notes: cdData.editionNotes || null,
         genres: JSON.stringify(cdData.genres || []),
-        moods: JSON.stringify(cdData.moods || []),
+        moods: JSON.stringify([]), // Keep column but don't populate
         tags: JSON.stringify(cdData.tags || []),
         rating: cdData.rating || null,
         total_duration: cdData.totalDuration || null,
@@ -258,13 +258,14 @@ const Album = {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
       
-      // Parse filter syntax (e.g., artist:"Dire Straits" title:"Brothers in Arms" genre:"rock" mood:"calm")
+      // Parse filter syntax (e.g., artist:"Dire Straits" title:"Brothers in Arms" genre:"rock" mood:"calm" track:"Money for Nothing")
       const filters = [];
       const params = [];
       let whereClauses = [];
+      let hasTrackFilter = false;
       
-      // Extract filters like artist:"value" or title:"value" or genre:"value" or mood:"value"
-      const filterRegex = /(artist|title|genre|mood):"([^"]+)"/g;
+      // Extract filters like artist:"value" or title:"value" or genre:"value" or mood:"value" or track:"value"
+      const filterRegex = /(artist|title|genre|mood|track):"([^"]+)"/g;
       let match;
       let hasFilters = false;
       
@@ -273,29 +274,35 @@ const Album = {
         const field = match[1];
         const value = match[2];
         
-        // Map singular field names to plural column names where needed
-        const columnMap = {
-          'artist': 'artist',
-          'title': 'title',
-          'genre': 'genres',
-          'mood': 'moods'
-        };
-        const column = columnMap[field];
-        
-        whereClauses.push(`${column} LIKE ?`);
-        params.push(`%${value}%`);
+        if (field === 'track') {
+          // Track filter requires a JOIN with the tracks table
+          hasTrackFilter = true;
+          whereClauses.push(`EXISTS (SELECT 1 FROM tracks WHERE tracks.album_id = albums.id AND tracks.title LIKE ?)`);
+          params.push(`%${value}%`);
+        } else {
+          // Map singular field names to plural column names where needed
+          const columnMap = {
+            'artist': 'artist',
+            'title': 'title',
+            'genre': 'genres'
+          };
+          const column = columnMap[field];
+          
+          whereClauses.push(`${column} LIKE ?`);
+          params.push(`%${value}%`);
+        }
       }
       
       // If no filters found, do a general search
       if (!hasFilters) {
         const sql = `
           SELECT * FROM albums 
-          WHERE title LIKE ? OR artist LIKE ? OR labels LIKE ? OR genres LIKE ? OR moods LIKE ?
+          WHERE title LIKE ? OR artist LIKE ? OR labels LIKE ? OR genres LIKE ?
           ORDER BY artist, title
         `;
         const searchTerm = `%${query}%`;
         
-        db.all(sql, [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm], (err, rows) => {
+        db.all(sql, [searchTerm, searchTerm, searchTerm, searchTerm], (err, rows) => {
           if (err) {
             reject(err);
           } else {
@@ -305,7 +312,7 @@ const Album = {
       } else {
         // Build filtered query
         const sql = `
-          SELECT * FROM albums 
+          SELECT ${hasTrackFilter ? 'DISTINCT' : ''} albums.* FROM albums 
           WHERE ${whereClauses.join(' AND ')}
           ORDER BY artist, title
         `;
@@ -349,7 +356,7 @@ const Album = {
         cdData.country || null,
         cdData.editionNotes || null,
         JSON.stringify(cdData.genres || []),
-        JSON.stringify(cdData.moods || []),
+        JSON.stringify([]), // Keep column but don't populate
         cdData.recordingQuality || null,
         cdData.cover || null,
         cdData.format || 'CD',
@@ -412,7 +419,7 @@ const Album = {
       country: row.country,
       editionNotes: row.edition_notes,
       genres: JSON.parse(row.genres || '[]'),
-      moods: JSON.parse(row.moods || '[]'),
+      moods: JSON.parse(row.moods || '[]'), // Keep in response but will be empty
       tags: JSON.parse(row.tags || '[]'),
       rating: row.rating,
       totalDuration: row.total_duration,
@@ -450,17 +457,38 @@ const Album = {
       const db = getDatabase();
       
       // Validate field to prevent SQL injection (accept singular forms)
-      const allowedFields = ['title', 'artist', 'genre', 'mood'];
+      const allowedFields = ['title', 'artist', 'genre', 'track'];
       if (!allowedFields.includes(field)) {
         return reject(new Error(`Invalid field: ${field}`));
       }
       
-      // Map 'genre' and 'mood' to their plural database column names
+      // Handle track autocomplete separately (from tracks table)
+      if (field === 'track') {
+        const sql = `
+          SELECT DISTINCT title 
+          FROM tracks 
+          WHERE title LIKE ?
+          ORDER BY title
+          LIMIT 20
+        `;
+        const searchTerm = `%${value}%`;
+        
+        db.all(sql, [searchTerm], (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            // Return rows with 'track' as the field name
+            resolve(rows.map(row => ({ track: row.title })));
+          }
+        });
+        return;
+      }
+      
+      // Map 'genre' to its plural database column name
       const columnMap = {
         'title': 'title',
         'artist': 'artist',
-        'genre': 'genres',
-        'mood': 'moods'
+        'genre': 'genres'
       };
       const column = columnMap[field] || field;
       

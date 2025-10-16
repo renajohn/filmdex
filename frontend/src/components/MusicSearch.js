@@ -327,12 +327,6 @@ const MusicSearch = forwardRef(({
       const details = await musicService.getMusicBrainzReleaseDetails(release.musicbrainzReleaseId);
       
       // Convert MusicBrainz data to album form data
-      console.log('🔍 Frontend received from backend:', {
-        tags: details.tags,
-        moods: details.moods,
-        genres: details.genres
-      });
-      
       const cdData = {
         title: details.title || release.title,
         artist: details.artist || release.artist,
@@ -343,7 +337,6 @@ const MusicSearch = forwardRef(({
         country: details.country || release.country,
         format: details.format || release.format || 'CD',
         genres: details.genres || release.genres || [],
-        moods: details.moods || release.moods || release.tags || [],
         tags: details.tags || release.tags || [],
         cover: details.coverArt?.url || release.coverArt?.url,
         musicbrainzReleaseId: details.musicbrainzReleaseId || release.musicbrainzReleaseId,
@@ -358,12 +351,6 @@ const MusicSearch = forwardRef(({
         // Add available covers for the picker
         availableCovers: availableCovers.length > 1 ? availableCovers : null
       };
-      
-      console.log('🎵 Sending to MusicForm:', {
-        moods: cdData.moods,
-        tags: cdData.tags,
-        genres: cdData.genres
-      });
       
       setReviewingRelease(cdData);
     } catch (err) {

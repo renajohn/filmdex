@@ -93,14 +93,12 @@ const musicbrainzService = {
       });
 
       const releases = response.data.releases || [];
-      console.log(`Barcode search found ${releases.length} releases`);
       
       // Fetch cover art for each release
       const releasesWithCovers = await Promise.all(
         releases.map(async (release) => {
           try {
             const coverArt = await this.getCoverArt(release.id);
-            console.log(`Cover art for ${release.id}:`, coverArt ? 'Found' : 'Not found');
             return { ...release, coverArt: coverArt };
           } catch (error) {
             console.warn(`Failed to fetch cover art for release ${release.id}:`, error.message);
@@ -109,9 +107,6 @@ const musicbrainzService = {
         })
       );
 
-      const withCovers = releasesWithCovers.filter(r => r.coverArt).length;
-      console.log(`Barcode search: ${releases.length} releases, ${withCovers} with cover art`);
-      
       return releasesWithCovers;
     } catch (error) {
       console.error('MusicBrainz barcode search error:', error.message);
@@ -285,7 +280,7 @@ const musicbrainzService = {
     const releaseGenres = release.genres?.map(genre => genre.name) || [];
     const genres = [...new Set([...releaseGroupGenres, ...releaseGenres])]; // Combine and deduplicate
     
-    // Extract tags (can be used for moods and additional metadata)
+    // Extract tags for additional metadata
     const releaseGroupTags = release['release-group']?.tags?.map(tag => tag.name) || [];
     const releaseTags = release.tags?.map(tag => tag.name) || [];
     const tags = [...new Set([...releaseGroupTags, ...releaseTags])].slice(0, 20); // Combine, deduplicate, limit
@@ -417,7 +412,6 @@ const musicbrainzService = {
       labels: labels,
       genres: genres,
       tags: tags,
-      moods: tags, // Use all tags as moods initially, user can filter later
       rating: rating,
       releaseEvents: releaseEvents,
       totalDuration: totalDuration ? Math.floor(totalDuration / 1000) : null, // Convert to seconds
@@ -436,11 +430,6 @@ const musicbrainzService = {
       isrcCodes: isrcCodes,
       annotation: annotation
     };
-    console.log('🎼 formatReleaseData OUTPUT:', {
-      tags: result.tags,
-      moods: result.moods,
-      hasMoods: !!result.moods
-    });
 
     return result;
   },
@@ -486,5 +475,4 @@ const musicbrainzService = {
   }
 };
 
-console.log('MusicBrainz service loaded, methods:', Object.keys(musicbrainzService));
 module.exports = musicbrainzService;

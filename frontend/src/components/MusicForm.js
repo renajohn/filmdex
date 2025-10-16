@@ -23,7 +23,6 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
     format: 'CD',
     editionNotes: '',
     genres: [],
-    moods: [],
     recordingQuality: '',
     producer: [],
     engineer: [],
@@ -56,12 +55,6 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
 
   useEffect(() => {
     if (cd) {
-      console.log('📝 MusicForm received cd prop:', {
-        moods: cd.moods,
-        tags: cd.tags,
-        genres: cd.genres
-      });
-      
       // Set available covers if this is a new album being inserted
       if (cd.availableCovers && !cd.id) {
         setAvailableCovers(cd.availableCovers);
@@ -107,7 +100,6 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
         format: cd.format || 'CD',
         editionNotes: cd.editionNotes || '',
         genres: Array.isArray(cd.genres) ? cd.genres : (cd.genres ? [cd.genres] : []),
-        moods: Array.isArray(cd.moods) ? cd.moods : (cd.moods ? [cd.moods] : []),
         recordingQuality: cd.recordingQuality || '',
         producer: Array.isArray(cd.producer) ? cd.producer : (cd.producer ? [cd.producer] : []),
         engineer: Array.isArray(cd.engineer) ? cd.engineer : (cd.engineer ? [cd.engineer] : []),
@@ -921,7 +913,7 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
           </Row>
 
           <Row>
-            <Col md={6}>
+            <Col md={12}>
               <Form.Group className="mb-3">
                 <Form.Label>Genres</Form.Label>
                 <Form.Control
@@ -929,18 +921,6 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
                   value={getArrayDisplayValue(formData.genres)}
                   onChange={(e) => handleArrayInputChange('genres', e.target.value)}
                   placeholder="e.g., rock, classical, jazz"
-                />
-              </Form.Group>
-            </Col>
-            
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Moods</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={getArrayDisplayValue(formData.moods)}
-                  onChange={(e) => handleArrayInputChange('moods', e.target.value)}
-                  placeholder="e.g., calm, energetic, night"
                 />
               </Form.Group>
             </Col>

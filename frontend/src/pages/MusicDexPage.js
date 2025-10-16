@@ -53,12 +53,6 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
   };
 
   const handleAddCd = async (cdData) => {
-    console.log('💾 handleAddCd called with cdData:', {
-      title: cdData.title,
-      moods: cdData.moods,
-      tags: cdData.tags,
-      genres: cdData.genres
-    });
     try {
       await musicService.addAlbum(cdData);
       await loadCds();

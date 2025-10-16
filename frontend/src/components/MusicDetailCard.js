@@ -66,8 +66,6 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
         predicate = `artist:"${value}"`;
       } else if (searchType === 'genre') {
         predicate = `genre:"${value}"`;
-      } else if (searchType === 'mood') {
-        predicate = `mood:"${value}"`;
       } else {
         predicate = value; // fallback to plain value
       }
@@ -179,24 +177,6 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
                         onClick={() => handleSearch('genre', genre)}
                       >
                         {genre}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {cd.moods && cd.moods.length > 0 && (
-                <div className="tags-section">
-                  <div className="tags-label">Moods:</div>
-                  <div className="tags-container">
-                    {cd.moods.map((mood, index) => (
-                      <Badge 
-                        key={index} 
-                        bg="primary" 
-                        className="clickable-badge"
-                        onClick={() => handleSearch('mood', mood)}
-                      >
-                        {mood}
                       </Badge>
                     ))}
                   </div>

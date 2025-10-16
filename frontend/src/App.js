@@ -75,7 +75,7 @@ function AppContent() {
   const getAutocompleteOptions = async (text) => {
     // Different keywords for MusicDex vs FilmDex
     const keywords = location.pathname === '/musicdex' 
-      ? ['title:', 'artist:', 'genre:', 'mood:']
+      ? ['title:', 'artist:', 'genre:', 'track:']
       : [
           'actor:', 'director:', 'title:', 'collection:', 'box_set:', 'genre:', 'format:', 
           'original_language:', 'media_type:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=',
@@ -106,7 +106,7 @@ function AppContent() {
     
     // Check if we're inside a filter value (after a keyword)
     const filterMatch = location.pathname === '/musicdex'
-      ? currentWord.match(/^(title|artist|genre|mood):(.*)$/)
+      ? currentWord.match(/^(title|artist|genre|mood|track):(.*)$/)
       : currentWord.match(/^(actor|director|title|collection|box_set|genre|format|original_language|media_type|imdb_rating|tmdb_rating|rotten_tomato_rating):(.*)$/);
     
     if (filterMatch) {
@@ -397,8 +397,7 @@ function AppContent() {
         ? {
             'title:': 'Search by CD title',
             'artist:': 'Search by artist name',
-            'genre:': 'Search by genre',
-            'mood:': 'Search by mood'
+            'genre:': 'Search by genre'
           }
         : {
             'actor:': 'Search by actor name',

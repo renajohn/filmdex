@@ -76,12 +76,6 @@ class MusicService {
 
   async addAlbum(albumData) {
     try {
-      // Use all tags as moods if moods not already present
-      // Users can remove unwanted ones manually
-      if ((!albumData.moods || albumData.moods.length === 0) && albumData.tags && albumData.tags.length > 0) {
-        albumData.moods = albumData.tags;
-      }
-
       // Create the album
       const album = await Album.create(albumData);
       
@@ -192,7 +186,6 @@ class MusicService {
     maxScore += 30;
     if (album.labels && album.labels.length > 0) score += 5;
     if (album.genres && album.genres.length > 0) score += 5;
-    if (album.moods && album.moods.length > 0) score += 5;
     if (album.barcode) score += 5;
     if (album.catalogNumber) score += 5;
     if (album.country) score += 5;
@@ -222,7 +215,6 @@ class MusicService {
         hasCover: !!album.cover,
         hasLabels: !!(album.labels && album.labels.length > 0),
         hasGenres: !!(album.genres && album.genres.length > 0),
-        hasMoods: !!(album.moods && album.moods.length > 0),
         hasBarcode: !!album.barcode,
         hasCatalogNumber: !!album.catalogNumber,
         hasCountry: !!album.country,
@@ -279,13 +271,9 @@ class MusicService {
         }
       }
 
-      // Use all tags as moods - users can remove unwanted ones manually
-      const moods = formattedData.tags || [];
-
       // Prepare album data
       const albumData = {
         ...formattedData,
-        moods: moods.length > 0 ? moods : formattedData.moods || [],
         cover: coverPath,
         ...additionalData
       };
@@ -347,7 +335,7 @@ class MusicService {
    */
   async getAutocompleteSuggestions(field, value) {
     // Validate field to prevent injection
-    const allowedFields = ['title', 'artist', 'genre', 'mood'];
+    const allowedFields = ['title', 'artist', 'genre', 'mood', 'track'];
     if (!allowedFields.includes(field)) {
       throw new Error(`Invalid field: ${field}`);
     }
