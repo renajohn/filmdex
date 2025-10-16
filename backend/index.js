@@ -47,8 +47,9 @@ app.use(express.static('public'));
 app.post('/api/import/csv', uploadMiddleware, importController.uploadCsv);
 app.post('/api/movies/:id/upload-poster', movieController.posterUploadMiddleware, movieController.uploadCustomPoster);
 
-// JSON parsing middleware for all other routes
-app.use(express.json());
+// JSON parsing middleware for all other routes (with increased limit for cover art)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Initialize database
 const startServer = async () => {
