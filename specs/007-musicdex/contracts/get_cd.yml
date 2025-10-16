@@ -1,0 +1,36 @@
+openapi: 3.0.0
+info:
+  title: Get CD
+  version: 1.0.0
+paths:
+  /api/music/cds/{id}:
+    get:
+      summary: Get a CD by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CD'
+components:
+  schemas:
+    CD:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        artist:
+          type: string
+        title:
+          type: string
+        release_year:
+          type: integer

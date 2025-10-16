@@ -1,0 +1,35 @@
+openapi: 3.0.0
+info:
+  title: Add CD
+  version: 1.0.0
+paths:
+  /api/music/cds:
+    post:
+      summary: Add a new CD
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewCD'
+      responses:
+        '201':
+          description: CD created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CD'
+components:
+  schemas:
+    NewCD:
+      type: object
+      properties:
+        musicbrainz_release_id:
+          type: string
+          format: uuid
+    CD:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid

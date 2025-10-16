@@ -18,7 +18,7 @@ const ImageService = {
   
   init: async () => {
     // Create image directories if they don't exist
-    const dirs = ['posters', 'backdrops', 'profiles', 'posters/custom'];
+    const dirs = ['posters', 'backdrops', 'profiles', 'posters/custom', 'cd'];
     for (const dir of dirs) {
       const dirPath = path.join(ImageService.getLocalImagesDir(), dir);
       if (!fs.existsSync(dirPath)) {
@@ -80,6 +80,59 @@ const ImageService = {
     return await ImageService.downloadImage(profilePath, 'profiles', tmdbId, filename);
   },
 
+  // Download image from external URL (like MusicBrainz cover art)
+  downloadImageFromUrl: async (imageUrl, type, filename) => {
+    if (!imageUrl) return null;
+    
+    try {
+      const response = await axios.get(imageUrl, { responseType: 'stream' });
+      
+      const localPath = path.join(ImageService.getLocalImagesDir(), type, filename);
+      const writer = fs.createWriteStream(localPath);
+      
+      response.data.pipe(writer);
+      
+      return new Promise((resolve, reject) => {
+        writer.on('finish', () => {
+          logger.debug(`Downloaded ${type} image from URL: ${filename}`);
+          const localPath = `/images/${type}/${filename}`;
+          logger.debug(`Returning local path: ${localPath}`);
+          resolve(localPath);
+        });
+        writer.on('error', (error) => {
+          console.error(`Error writing ${type} image ${filename}:`, error);
+          reject(error);
+        });
+      });
+    } catch (error) {
+      console.error(`Failed to download image from URL ${imageUrl}:`, error.message);
+      return null;
+    }
+  },
+
+  // Save image buffer to file
+  saveImage: async (imageBuffer, type, filename) => {
+    try {
+      const localPath = path.join(ImageService.getLocalImagesDir(), type, filename);
+      
+      // Ensure directory exists
+      const dirPath = path.dirname(localPath);
+      if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+      }
+      
+      fs.writeFileSync(localPath, imageBuffer);
+      
+      logger.debug(`Saved ${type} image: ${filename}`);
+      const localPathUrl = `/images/${type}/${filename}`;
+      logger.debug(`Returning local path: ${localPathUrl}`);
+      return localPathUrl;
+    } catch (error) {
+      console.error(`Error saving ${type} image ${filename}:`, error);
+      throw error;
+    }
+  },
+
   getLocalImagePath: (type, filename) => {
     return path.join(ImageService.getLocalImagesDir(), type, filename);
   },
@@ -91,7 +144,7 @@ const ImageService = {
   // Clean up unused images
   cleanupUnusedImages: async (usedImagePaths) => {
     try {
-      const dirs = ['posters', 'backdrops', 'profiles'];
+      const dirs = ['posters', 'backdrops', 'profiles', 'cd'];
       
       for (const dir of dirs) {
         const dirPath = path.join(ImageService.getLocalImagesDir(), dir);

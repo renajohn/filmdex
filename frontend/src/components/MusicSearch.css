@@ -1,0 +1,365 @@
+.music-search {
+  padding: 20px;
+}
+
+.cds-results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cds-count-display {
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.dropdowns-container {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.filter-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-pill:hover {
+  border-color: #9ca3af;
+  background: #f9fafb;
+}
+
+.filter-pill:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.filter-pill-loading {
+  opacity: 0.7;
+}
+
+.sort-loading-spinner,
+.group-loading-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.sort-dropdown-menu,
+.group-dropdown-menu {
+  min-width: 200px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+}
+
+.sort-dropdown-item,
+.group-dropdown-item {
+  padding: 10px 16px;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.sort-dropdown-item:hover,
+.group-dropdown-item:hover {
+  background-color: #f3f4f6;
+}
+
+.sort-dropdown-item.active,
+.group-dropdown-item.active {
+  background-color: #eff6ff;
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.collapse-all-btn {
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.collapse-all-btn:hover {
+  border-color: #9ca3af;
+  background: #f9fafb;
+}
+
+.cd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.cd-grid.sort-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.cds-groups {
+  margin-top: 20px;
+}
+
+.cds-groups.sort-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.cd-group {
+  margin-bottom: 32px;
+}
+
+.cd-group:last-child {
+  margin-bottom: 0;
+}
+
+.group-header {
+  cursor: pointer;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  transition: background-color 0.15s ease;
+}
+
+.group-header:hover {
+  background: #f3f4f6;
+}
+
+.group-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ececec;
+  
+}
+
+.group-chevron {
+  transition: transform 0.2s ease;
+  color: #6b7280;
+}
+
+.group-chevron.expanded {
+  transform: rotate(180deg);
+}
+
+.group-count {
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.musicbrainz-results {
+  background: #f9fafb;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 32px;
+}
+
+.musicbrainz-results h5 {
+  color: #111827;
+  font-weight: 600;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.musicbrainz-results .card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.musicbrainz-results .card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: #d1d5db;
+}
+
+.musicbrainz-results .card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.musicbrainz-results .card-subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.musicbrainz-results .card-text {
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+  color: #374151;
+}
+
+.musicbrainz-results .card-text strong {
+  color: #111827;
+  font-weight: 600;
+}
+
+.musicbrainz-results .card-footer {
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+}
+
+.musicbrainz-results .btn-primary {
+  font-size: 14px;
+  padding: 6px 16px;
+}
+
+.btn-group .dropdown-toggle {
+  min-width: 120px;
+}
+
+.btn-group .dropdown-menu {
+  min-width: 180px;
+}
+
+.btn-group .dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+}
+
+.btn-group .dropdown-item .visible {
+  visibility: visible;
+}
+
+.btn-group .dropdown-item .invisible {
+  visibility: hidden;
+}
+
+/* Empty State Styles */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 60px 20px;
+  text-align: center;
+  animation: fadeIn 0.5s ease-in;
+}
+
+.empty-state-icon {
+  font-size: 120px;
+  margin-bottom: 24px;
+  animation: float 3s ease-in-out infinite;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+.empty-state-title {
+  font-size: 32px;
+  font-weight: 600;
+  color: #e5e5e5;
+  margin-bottom: 12px;
+  letter-spacing: -0.5px;
+}
+
+.empty-state-description {
+  font-size: 18px;
+  color: #999;
+  max-width: 500px;
+  line-height: 1.6;
+  margin: 0 auto;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@media (max-width: 768px) {
+  .music-search {
+    padding: 10px;
+  }
+  
+  .cd-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+  }
+  
+  .cds-results-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  
+  .dropdowns-container {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+  
+  .filter-pill,
+  .collapse-all-btn,
+  .dropdowns-container .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .cds-count-display {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .group-header {
+    padding: 10px 12px;
+  }
+  
+  .group-title {
+    font-size: 14px;
+  }
+  
+  .musicbrainz-results {
+    padding: 16px;
+  }
+}
+

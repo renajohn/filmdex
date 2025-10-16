@@ -1,0 +1,37 @@
+openapi: 3.0.0
+info:
+  title: Search CDs
+  version: 1.0.0
+paths:
+  /api/music/search:
+    get:
+      summary: Search for CDs
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SearchResult'
+components:
+  schemas:
+    SearchResult:
+      type: object
+      properties:
+        musicbrainz_release_id:
+          type: string
+          format: uuid
+        artist:
+          type: string
+        title:
+          type: string
+        release_year:
+          type: integer

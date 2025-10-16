@@ -1,0 +1,43 @@
+openapi: 3.0.0
+info:
+  title: Update CD
+  version: 1.0.0
+paths:
+  /api/music/cds/{id}:
+    put:
+      summary: Update a CD
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCD'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CD'
+components:
+  schemas:
+    UpdateCD:
+      type: object
+      properties:
+        condition:
+          type: string
+        purchase_notes:
+          type: string
+    CD:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid

@@ -1,0 +1,18 @@
+openapi: 3.0.0
+info:
+  title: Delete CD
+  version: 1.0.0
+paths:
+  /api/music/cds/{id}:
+    delete:
+      summary: Delete a CD by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: No Content

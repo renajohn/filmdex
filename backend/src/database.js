@@ -33,6 +33,8 @@ const initDatabase = async () => {
           const MovieCrew = require('./models/movieCrew');
           const Collection = require('./models/collection');
           const MovieCollection = require('./models/movieCollection');
+          const Album = require('./models/album');
+          const Track = require('./models/track');
           
           // Create all tables with their final schema
           await Movie.createTable();
@@ -42,6 +44,8 @@ const initDatabase = async () => {
           await MovieCrew.createTable();
           await Collection.createTable();
           await MovieCollection.createTable();
+          await Album.createTable();
+          await Track.createTable();
           
           // Initialize system collections
           try {

@@ -7,7 +7,9 @@ const CogDropdown = ({
   onImportMovies, 
   onAddMovie, 
   onExportCSV,
-  onAnalytics
+  onAnalytics,
+  onAddCD,
+  currentPage = 'filmdex'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
@@ -77,40 +79,54 @@ const CogDropdown = ({
             zIndex: 1001
           }}
         >
-          <button 
-            className="cog-menu-item"
-            onClick={() => handleMenuClick(onAddMovie)}
-          >
-            <BsPlus className="menu-icon" />
-            Add Movie
-          </button>
-          
-          <div className="cog-menu-separator"></div>
-          
-          <button 
-            className="cog-menu-item"
-            onClick={() => handleMenuClick(onImportMovies)}
-          >
-            <BsUpload className="menu-icon" />
-            CSV Import
-          </button>
-          <button 
-            className="cog-menu-item"
-            onClick={() => handleMenuClick(onExportCSV)}
-          >
-            <BsDownload className="menu-icon" />
-            CSV Export
-          </button>
-          
-          <div className="cog-menu-separator"></div>
-          
-          <button 
-            className="cog-menu-item"
-            onClick={() => handleMenuClick(onAnalytics)}
-          >
-            <BsBarChart className="menu-icon" />
-            Analytics
-          </button>
+          {currentPage === 'musicdex' ? (
+            // MusicDex menu - only Add CD
+            <button 
+              className="cog-menu-item"
+              onClick={() => handleMenuClick(onAddCD)}
+            >
+              <BsPlus className="menu-icon" />
+              Add album
+            </button>
+          ) : (
+            // FilmDex menu - all options
+            <>
+              <button 
+                className="cog-menu-item"
+                onClick={() => handleMenuClick(onAddMovie)}
+              >
+                <BsPlus className="menu-icon" />
+                Add Movie
+              </button>
+              
+              <div className="cog-menu-separator"></div>
+              
+              <button 
+                className="cog-menu-item"
+                onClick={() => handleMenuClick(onImportMovies)}
+              >
+                <BsUpload className="menu-icon" />
+                CSV Import
+              </button>
+              <button 
+                className="cog-menu-item"
+                onClick={() => handleMenuClick(onExportCSV)}
+              >
+                <BsDownload className="menu-icon" />
+                CSV Export
+              </button>
+              
+              <div className="cog-menu-separator"></div>
+              
+              <button 
+                className="cog-menu-item"
+                onClick={() => handleMenuClick(onAnalytics)}
+              >
+                <BsBarChart className="menu-icon" />
+                Analytics
+              </button>
+            </>
+          )}
         </div>,
         document.body
       )}

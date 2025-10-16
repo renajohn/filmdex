@@ -4,13 +4,15 @@ import MovieSearch from './components/MovieSearch';
 import AddMovieDialog from './components/AddMovieDialog';
 import ImportPage from './pages/ImportPage';
 import WishListPage from './pages/WishListPage';
+import MusicDexPage from './pages/MusicDexPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import CogDropdown from './components/CogDropdown';
 import BackfillModal from './components/BackfillModal';
 import CsvExportDialog from './components/CsvExportDialog';
 import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
-import { BsX, BsCollectionFill, BsHeart, BsChevronDown } from 'react-icons/bs';
+import musicService from './services/musicService';
+import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsMusicNote } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
@@ -18,6 +20,7 @@ function AppContent() {
   const [refreshTrigger] = useState(0);
   const movieSearchRef = useRef(null);
   const wishListRef = useRef(null);
+  const musicDexRef = useRef(null);
   const searchInputRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -49,14 +52,16 @@ function AppContent() {
   // Check if we're on the thumbnail view (root path)
   const isThumbnailView = location.pathname === '/';
   
-  // Check if we should show the search bar (collection or wishlist)
-  const showSearchBar = location.pathname === '/' || location.pathname === '/wishlist';
+  // Check if we should show the search bar (collection, musicdex, or wishlist)
+  const showSearchBar = location.pathname === '/' || location.pathname === '/musicdex' || location.pathname === '/wishlist';
   
   // Get the page title based on current route
   const getPageTitle = () => {
     switch (location.pathname) {
       case '/':
         return 'FilmDex';
+      case '/musicdex':
+        return 'MusicDex';
       case '/import':
         return 'FilmDex - CSV Import';
       case '/wishlist':
@@ -68,16 +73,19 @@ function AppContent() {
 
 
   const getAutocompleteOptions = async (text) => {
-    const keywords = [
-      'actor:', 'director:', 'title:', 'collection:', 'box_set:', 'genre:', 'format:', 
-      'original_language:', 'media_type:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=',
-      'imdb_rating:', 'imdb_rating:>', 'imdb_rating:<', 'imdb_rating:>=', 'imdb_rating:<=',
-      'tmdb_rating:', 'tmdb_rating:>', 'tmdb_rating:<', 'tmdb_rating:>=', 'tmdb_rating:<=',
-      'rotten_tomato_rating:', 'rotten_tomato_rating:>', 'rotten_tomato_rating:<', 'rotten_tomato_rating:>=', 'rotten_tomato_rating:<=',
-      'recommended_age:', 'recommended_age:>', 'recommended_age:<', 'recommended_age:>=', 'recommended_age:<=',
-      'price:', 'price:>', 'price:<', 'price:>=', 'price:<=',
-      'has_comments:true', 'has_comments:false'
-    ];
+    // Different keywords for MusicDex vs FilmDex
+    const keywords = location.pathname === '/musicdex' 
+      ? ['title:', 'artist:', 'genre:', 'mood:']
+      : [
+          'actor:', 'director:', 'title:', 'collection:', 'box_set:', 'genre:', 'format:', 
+          'original_language:', 'media_type:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=',
+          'imdb_rating:', 'imdb_rating:>', 'imdb_rating:<', 'imdb_rating:>=', 'imdb_rating:<=',
+          'tmdb_rating:', 'tmdb_rating:>', 'tmdb_rating:<', 'tmdb_rating:>=', 'tmdb_rating:<=',
+          'rotten_tomato_rating:', 'rotten_tomato_rating:>', 'rotten_tomato_rating:<', 'rotten_tomato_rating:>=', 'rotten_tomato_rating:<=',
+          'recommended_age:', 'recommended_age:>', 'recommended_age:<', 'recommended_age:>=', 'recommended_age:<=',
+          'price:', 'price:>', 'price:<', 'price:>=', 'price:<=',
+          'has_comments:true', 'has_comments:false'
+        ];
     
     // If text is empty, return all keywords (for the 5-second delay feature)
     if (text.trim() === '') {
@@ -97,7 +105,9 @@ function AppContent() {
     const currentWord = beforeCursor.substring(lastSpaceIndex + 1);
     
     // Check if we're inside a filter value (after a keyword)
-    const filterMatch = currentWord.match(/^(actor|director|title|collection|box_set|genre|format|original_language|media_type|imdb_rating|tmdb_rating|rotten_tomato_rating):(.*)$/);
+    const filterMatch = location.pathname === '/musicdex'
+      ? currentWord.match(/^(title|artist|genre|mood):(.*)$/)
+      : currentWord.match(/^(actor|director|title|collection|box_set|genre|format|original_language|media_type|imdb_rating|tmdb_rating|rotten_tomato_rating):(.*)$/);
     
     if (filterMatch) {
       const [, filterType, filterValue] = filterMatch;
@@ -112,7 +122,9 @@ function AppContent() {
       
       // Fetch value suggestions from backend
       try {
-        const response = await apiService.getAutocompleteSuggestions(filterType, filterValue);
+        const response = location.pathname === '/musicdex'
+          ? await musicService.getAutocompleteSuggestions(filterType, filterValue)
+          : await apiService.getAutocompleteSuggestions(filterType, filterValue);
         
         // Extract values from response (backend now returns {field: value} format)
         let values = response.map(item => item[filterType]).filter(value => value && value !== 'undefined');
@@ -130,8 +142,8 @@ function AppContent() {
           }, {});
         }
         
-        // For actors, we get JSON arrays, so parse them to extract individual names
-        if (filterType === 'actor') {
+        // For actors, artists, genres, and moods - we get JSON arrays, so parse them to extract individual names
+        if (filterType === 'actor' || filterType === 'artist' || filterType === 'genre' || filterType === 'mood') {
           values = values.map(cast => {
             if (typeof cast === 'string') {
               try {
@@ -144,10 +156,10 @@ function AppContent() {
             return Array.isArray(cast) ? cast : [cast];
           }).flat();
           
-          // Filter actors to only show those that match the search term
+          // Filter to only show those that match the search term
           const searchTerm = filterValue.toLowerCase();
-          values = values.filter(actor => 
-            actor && typeof actor === 'string' && actor.toLowerCase().includes(searchTerm)
+          values = values.filter(item => 
+            item && typeof item === 'string' && item.toLowerCase().includes(searchTerm)
           );
         }
         
@@ -381,49 +393,56 @@ function AppContent() {
       };
       return hintMap[option.filterType] || '';
     } else {
-      const hintMap = {
-        'actor:': 'Search by actor name',
-        'director:': 'Search by director name',
-        'title:': 'Search by movie title',
-        'collection:': 'Search by collection name',
-        'box_set:': 'Search by box set collection name',
-        'genre:': 'Search by genre',
-        'format:': 'Search by format',
-        'original_language:': 'Search by language',
-        'media_type:': 'Search by media type',
-        'year:': 'Exact year match',
-        'year:>': 'Year greater than',
-        'year:<': 'Year less than',
-        'year:>=': 'Year greater or equal',
-        'year:<=': 'Year less or equal',
-        'imdb_rating:': 'Exact IMDB rating match',
-        'imdb_rating:>': 'IMDB rating greater than',
-        'imdb_rating:<': 'IMDB rating less than',
-        'imdb_rating:>=': 'IMDB rating greater or equal',
-        'imdb_rating:<=': 'IMDB rating less or equal',
-        'tmdb_rating:': 'Exact TMDB rating match',
-        'tmdb_rating:>': 'TMDB rating greater than',
-        'tmdb_rating:<': 'TMDB rating less than',
-        'tmdb_rating:>=': 'TMDB rating greater or equal',
-        'tmdb_rating:<=': 'TMDB rating less or equal',
-        'rotten_tomato_rating:': 'Exact Rotten Tomatoes rating match',
-        'rotten_tomato_rating:>': 'Rotten Tomatoes rating greater than',
-        'rotten_tomato_rating:<': 'Rotten Tomatoes rating less than',
-        'rotten_tomato_rating:>=': 'Rotten Tomatoes rating greater or equal',
-        'rotten_tomato_rating:<=': 'Rotten Tomatoes rating less or equal',
-        'recommended_age:': 'Exact age recommendation match',
-        'recommended_age:>': 'Age recommendation greater than',
-        'recommended_age:<': 'Age recommendation less than',
-        'recommended_age:>=': 'Age recommendation greater or equal',
-        'recommended_age:<=': 'Age recommendation less or equal',
-        'price:': 'Exact price match',
-        'price:>': 'Price greater than',
-        'price:<': 'Price less than',
-        'price:>=': 'Price greater or equal',
-        'price:<=': 'Price less or equal',
-        'has_comments:true': 'Movies with comments',
-        'has_comments:false': 'Movies without comments'
-      };
+      const hintMap = location.pathname === '/musicdex' 
+        ? {
+            'title:': 'Search by CD title',
+            'artist:': 'Search by artist name',
+            'genre:': 'Search by genre',
+            'mood:': 'Search by mood'
+          }
+        : {
+            'actor:': 'Search by actor name',
+            'director:': 'Search by director name',
+            'title:': 'Search by movie title',
+            'collection:': 'Search by collection name',
+            'box_set:': 'Search by box set collection name',
+            'genre:': 'Search by genre',
+            'format:': 'Search by format',
+            'original_language:': 'Search by language',
+            'media_type:': 'Search by media type',
+            'year:': 'Exact year match',
+            'year:>': 'Year greater than',
+            'year:<': 'Year less than',
+            'year:>=': 'Year greater or equal',
+            'year:<=': 'Year less or equal',
+            'imdb_rating:': 'Exact IMDB rating match',
+            'imdb_rating:>': 'IMDB rating greater than',
+            'imdb_rating:<': 'IMDB rating less than',
+            'imdb_rating:>=': 'IMDB rating greater or equal',
+            'imdb_rating:<=': 'IMDB rating less or equal',
+            'tmdb_rating:': 'Exact TMDB rating match',
+            'tmdb_rating:>': 'TMDB rating greater than',
+            'tmdb_rating:<': 'TMDB rating less than',
+            'tmdb_rating:>=': 'TMDB rating greater or equal',
+            'tmdb_rating:<=': 'TMDB rating less or equal',
+            'rotten_tomato_rating:': 'Exact Rotten Tomatoes rating match',
+            'rotten_tomato_rating:>': 'Rotten Tomatoes rating greater than',
+            'rotten_tomato_rating:<': 'Rotten Tomatoes rating less than',
+            'rotten_tomato_rating:>=': 'Rotten Tomatoes rating greater or equal',
+            'rotten_tomato_rating:<=': 'Rotten Tomatoes rating less or equal',
+            'recommended_age:': 'Exact age recommendation match',
+            'recommended_age:>': 'Age recommendation greater than',
+            'recommended_age:<': 'Age recommendation less than',
+            'recommended_age:>=': 'Age recommendation greater or equal',
+            'recommended_age:<=': 'Age recommendation less or equal',
+            'price:': 'Exact price match',
+            'price:>': 'Price greater than',
+            'price:<': 'Price less than',
+            'price:>=': 'Price greater or equal',
+            'price:<=': 'Price less or equal',
+            'has_comments:true': 'Movies with comments',
+            'has_comments:false': 'Movies without comments'
+          };
       return hintMap[option.keyword] || '';
     }
   };
@@ -529,6 +548,18 @@ function AppContent() {
 
   const handleCollection = () => {
     navigate('/');
+  };
+
+  const handleMusicDex = () => {
+    navigate('/musicdex');
+  };
+
+  const handleAddCD = () => {
+    // Trigger the Add CD dialog in MusicDexPage
+    // We'll pass this via a ref to MusicDexPage
+    if (musicDexRef.current && musicDexRef.current.openAddDialog) {
+      musicDexRef.current.openAddDialog();
+    }
   };
 
   const handleWishList = () => {
@@ -711,6 +742,13 @@ function AppContent() {
                 <span className="segment-text">FilmDex</span>
               </button>
               <button 
+                className={`segment ${location.pathname === '/musicdex' ? 'active' : ''}`}
+                onClick={handleMusicDex}
+              >
+                <BsMusicNote className="segment-icon" />
+                <span className="segment-text">MusicDex</span>
+              </button>
+              <button 
                 className={`segment ${location.pathname === '/wishlist' ? 'active' : ''}`}
                 onClick={handleWishList}
               >
@@ -741,7 +779,13 @@ function AppContent() {
                     handleSearchBlur();
                     setIsSearchFocused(false);
                   }}
-                  placeholder={location.pathname === '/wishlist' ? 'Search wish list by title, director...' : 'Search FilmDex by title, director...'}
+                  placeholder={
+                    location.pathname === '/musicdex' 
+                      ? 'Search albums by title, artist...' 
+                      : location.pathname === '/wishlist' 
+                        ? 'Search wish list by title, director...' 
+                        : 'Search FilmDex by title, director...'
+                  }
                   className="search-input-large"
                   autoComplete="off"
                 />
@@ -757,21 +801,23 @@ function AppContent() {
                     <BsX />
                   </button>
                 )}
-                <button 
-                  ref={filterButtonRef}
-                  className={`search-filter-button ${showFilterDropdown ? 'active' : ''}`}
-                  onClick={() => {
-                    if (!showFilterDropdown) {
-                      // Fetch data when opening dropdown
-                      fetchFilterData();
-                    }
-                    setShowFilterDropdown(!showFilterDropdown);
-                  }}
-                  type="button"
-                  title="Advanced Filters"
-                >
-                  <BsChevronDown className={`chevron-icon ${showFilterDropdown ? 'rotated' : ''}`} />
-                </button>
+                {location.pathname !== '/musicdex' && (
+                  <button 
+                    ref={filterButtonRef}
+                    className={`search-filter-button ${showFilterDropdown ? 'active' : ''}`}
+                    onClick={() => {
+                      if (!showFilterDropdown) {
+                        // Fetch data when opening dropdown
+                        fetchFilterData();
+                      }
+                      setShowFilterDropdown(!showFilterDropdown);
+                    }}
+                    type="button"
+                    title="Advanced Filters"
+                  >
+                    <BsChevronDown className={`chevron-icon ${showFilterDropdown ? 'rotated' : ''}`} />
+                  </button>
+                )}
                 {showAutocomplete && autocompleteOptions.length > 0 && (
                   <div className="search-autocomplete-dropdown">
                     {autocompleteOptions.slice(0, 50).map((option, index) => (
@@ -941,6 +987,8 @@ function AppContent() {
               onAddMovie={handleAddMovie}
               onExportCSV={handleExportCSV}
               onAnalytics={handleAnalytics}
+              onAddCD={handleAddCD}
+              currentPage={location.pathname === '/musicdex' ? 'musicdex' : 'filmdex'}
             />
           </div>
         </div>
@@ -958,10 +1006,12 @@ function AppContent() {
                 loading={loading}
                 setLoading={setLoading}
                 onShowAlert={handleMovieAdded}
+                onAddMovie={handleAddMovie}
               />
             } 
           />
           <Route path="/import" element={<ImportPage />} />
+          <Route path="/musicdex" element={<MusicDexPage ref={musicDexRef} searchCriteria={searchCriteria} />} />
           <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onMovieMovedToCollection={handleMovieMovedToCollection} onShowAlert={handleShowAlert} onMovieAdded={handleMovieAdded} />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
         </Routes>

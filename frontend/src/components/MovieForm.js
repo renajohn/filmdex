@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import apiService from '../services/api';
 import './MovieForm.css';
 
@@ -75,6 +75,95 @@ const MovieForm = ({ movie = null, prefilledData = null, onSave, onCancel }) => 
       });
     }
   }, [movie, prefilledData]);
+
+  // Helper function to construct Rotten Tomatoes link
+  const constructRottenTomatoesLink = useCallback((title, releaseDate) => {
+    if (!title) return '';
+    
+    // Convert title to Rotten Tomatoes URL format
+    let urlTitle = title
+      .toLowerCase()
+      .replace(/^the\s+/, '') // Remove "the" from the beginning
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters but keep hyphens
+      .replace(/\s+/g, '_') // Replace spaces with underscores
+      .replace(/-/g, '_') // Replace hyphens with underscores
+      .replace(/_+/g, '_') // Replace multiple underscores with single
+      .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+    
+    return `https://www.rottentomatoes.com/m/${urlTitle}`;
+  }, []);
+
+  // Internal auto-fetch function that can be called from useEffect
+  const autoFetchData = useCallback(async (title) => {
+    if (!title?.trim()) {
+      return;
+    }
+
+    // Only auto-fetch from local database when editing an existing movie
+    if (!movie) {
+      console.log('Skipping auto-fetch for new movie - will fetch from TMDB on submit');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      // Search local database for the movie
+      const localResults = await apiService.searchMovies({ searchText: title });
+      
+      if (!localResults || localResults.length === 0) {
+        console.warn('No movies found in local database for:', title);
+        return;
+      }
+
+      // Use the first result (most relevant)
+      const localMovie = localResults[0];
+      
+      // Get detailed local data including cast and crew
+      const [movieDetails, cast, crew] = await Promise.all([
+        apiService.getMovieDetails(localMovie.id),
+        apiService.getMovieCast(localMovie.id),
+        apiService.getMovieCrew(localMovie.id)
+      ]);
+
+      // Extract director from crew
+      const director = crew?.find(person => person.job === 'Director')?.name || '';
+      
+      // Extract cast (first 5 actors)
+      const castNames = cast?.slice(0, 5).map(actor => actor.name).join(', ') || '';
+
+      // Combine data from local sources
+      const combinedData = {
+        title: movieDetails.title || title,
+        original_title: movieDetails.original_title || '',
+        original_language: movieDetails.original_language || '',
+        release_date: movieDetails.release_date || '',
+        genre: movieDetails.genre || '',
+        director: director || '',
+        cast: castNames || '',
+        runtime: movieDetails.runtime || '',
+        plot: movieDetails.plot || '',
+        imdb_rating: movieDetails.imdb_rating || '',
+        rotten_tomato_rating: movieDetails.rotten_tomato_rating || '',
+        rotten_tomatoes_link: movieDetails.rotten_tomatoes_link || constructRottenTomatoesLink(movieDetails.title, movieDetails.release_date),
+        tmdb_rating: movieDetails.tmdb_rating || '',
+        tmdb_id: movieDetails.tmdb_id || '',
+        imdb_id: movieDetails.imdb_id || ''
+      };
+
+      setFormData(prev => ({
+        ...prev,
+        ...combinedData
+      }));
+
+    } catch (err) {
+      console.error('Error auto-fetching movie data:', err);
+      setError('Could not fetch movie data from local database');
+    } finally {
+      setLoading(false);
+    }
+  }, [movie, constructRottenTomatoesLink]);
 
   // Auto-fetch data when form loads with a title (but not when editing existing movie)
   useEffect(() => {
@@ -196,103 +285,6 @@ const MovieForm = ({ movie = null, prefilledData = null, onSave, onCancel }) => 
       setLoading(false);
     }
   };
-
-  // Helper function to construct Rotten Tomatoes link
-  const constructRottenTomatoesLink = (title, releaseDate) => {
-    if (!title) return '';
-    
-    // Convert title to Rotten Tomatoes URL format
-    let urlTitle = title
-      .toLowerCase()
-      .replace(/^the\s+/, '') // Remove "the" from the beginning
-      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters but keep hyphens
-      .replace(/\s+/g, '_') // Replace spaces with underscores
-      .replace(/-/g, '_') // Replace hyphens with underscores
-      .replace(/_+/g, '_') // Replace multiple underscores with single
-      .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
-    
-    return `https://www.rottentomatoes.com/m/${urlTitle}`;
-  };
-
-  // Internal auto-fetch function that can be called from useEffect
-  const autoFetchData = async (title) => {
-    if (!title?.trim()) {
-      return;
-    }
-
-    // Only auto-fetch from local database when editing an existing movie
-    if (!movie) {
-      console.log('Skipping auto-fetch for new movie - will fetch from TMDB on submit');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      // Search local database for the movie
-      const localResults = await apiService.searchMovies({ searchText: title });
-      
-      if (!localResults || localResults.length === 0) {
-        console.warn('No movies found in local database for:', title);
-        return;
-      }
-
-      // Use the first result (most relevant)
-      const localMovie = localResults[0];
-      
-      // Get detailed local data including cast and crew
-      const [movieDetails, cast, crew] = await Promise.all([
-        apiService.getMovieDetails(localMovie.id),
-        apiService.getMovieCast(localMovie.id),
-        apiService.getMovieCrew(localMovie.id)
-      ]);
-
-      // Extract director from crew
-      const director = crew?.find(person => person.job === 'Director')?.name || '';
-      
-      // Extract cast (first 5 actors)
-      const castNames = cast?.slice(0, 5).map(actor => actor.name).join(', ') || '';
-
-      // Combine data from local sources
-      const combinedData = {
-        title: movieDetails.title || title,
-        original_title: movieDetails.original_title || '',
-        original_language: movieDetails.original_language || '',
-        release_date: movieDetails.release_date || '',
-        genre: movieDetails.genre || '',
-        director: director || '',
-        cast: castNames || '',
-        plot: movieDetails.plot || '',
-        imdb_rating: movieDetails.imdb_rating || '',
-        rotten_tomato_rating: movieDetails.rotten_tomato_rating || '',
-        imdb_id: movieDetails.imdb_id || '',
-        rotten_tomatoes_link: constructRottenTomatoesLink(movieDetails.title, movieDetails.release_date),
-        tmdb_id: movieDetails.tmdb_id || '',
-        tmdb_rating: movieDetails.tmdb_rating || '',
-        runtime: movieDetails.runtime || '',
-        // Keep existing values for these fields
-        format: formData.format || 'Blu-ray',
-        acquired_date: formData.acquired_date,
-        price: formData.price,
-        comments: formData.comments,
-        never_seen: formData.never_seen
-      };
-
-      // Update form data
-      setFormData(prev => ({
-        ...prev,
-        ...combinedData
-      }));
-
-    } catch (error) {
-      console.error('Auto-fetch failed:', error);
-      setError('Failed to fetch movie data: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
 
   return (
     <div className="movie-form">

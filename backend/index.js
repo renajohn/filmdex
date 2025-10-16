@@ -10,6 +10,8 @@ const movieController = require('./src/controllers/movieController');
 const { importController, uploadMiddleware } = require('./src/controllers/importController');
 const backfillController = require('./src/controllers/backfillController');
 const analyticsController = require('./src/controllers/analyticsController');
+const musicController = require('./src/controllers/musicController');
+const musicService = require('./src/services/musicService');
 const Movie = require('./src/models/movie');
 const MovieImport = require('./src/models/movieImport');
 const MovieCast = require('./src/models/movieCast');
@@ -55,6 +57,9 @@ const startServer = async () => {
     
     // Initialize services with configuration
     await imageService.init();
+    
+    // Initialize music tables
+    await musicService.initializeTables();
     
     logger.info('Database initialized successfully');
     logger.info(`Using database: ${configManager.getDatabasePath()}`);
@@ -154,6 +159,24 @@ app.get('/api/import/:id/suggestions', importController.getMovieSuggestions);
 
 // Analytics routes
 app.get('/api/analytics', analyticsController.getAnalytics);
+
+// Music routes
+app.get('/api/music/cds', musicController.getAllCds);
+app.get('/api/music/cds/search', musicController.searchCds);
+app.get('/api/music/cds/:id', musicController.getCdById);
+app.post('/api/music/cds', musicController.addCd);
+app.put('/api/music/cds/:id', musicController.updateCd);
+app.delete('/api/music/cds/:id', musicController.deleteCd);
+app.post('/api/music/cds/:id/upload-cover', musicController.coverUploadMiddleware, musicController.uploadCustomCover);
+app.get('/api/music/autocomplete', musicController.getAutocompleteSuggestions);
+app.get('/api/music/search', musicController.searchMusicBrainz);
+app.get('/api/music/search/catalog', musicController.searchByCatalogNumber);
+app.get('/api/music/search/barcode', musicController.searchByBarcode);
+app.get('/api/music/release-groups/search', musicController.searchReleaseGroups);
+app.get('/api/music/release-groups/:releaseGroupId/releases', musicController.getReleaseGroupReleases);
+app.get('/api/music/release/:releaseId', musicController.getMusicBrainzReleaseDetails);
+app.post('/api/music/release/:releaseId', musicController.addCdFromMusicBrainz);
+app.post('/api/music/barcode/:barcode', musicController.addCdByBarcode);
 
 // Configuration endpoint for frontend
 app.get('/api/config', (req, res) => {

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from 'react';
 import { Dropdown } from 'react-bootstrap';
 import apiService from '../services/api';
-import MovieForm from './MovieForm';
 import MovieThumbnail from './MovieThumbnail';
 import MovieDetailCard from './MovieDetailCard';
 import { 
@@ -19,7 +18,7 @@ import {
 // Note: We use popcorn emoji directly instead of an icon import
 import './MovieSearch.css';
 
-const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLoading, onShowAlert }, ref) => {
+const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLoading, onShowAlert, onAddMovie }, ref) => {
   const [movies, setMovies] = useState([]);
   const [allMovies, setAllMovies] = useState([]); // Store all movies from backend
   const [filteredMovies, setFilteredMovies] = useState([]); // Store filtered movies
@@ -30,12 +29,9 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const [expandedGroups, setExpandedGroups] = useState(new Set()); // Track expanded groups
   const [expandAllGroups, setExpandAllGroups] = useState(false); // Expand/collapse all state
   const previousSearchTextRef = useRef(''); // Track previous search text to avoid infinite loops
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [editingMovie, setEditingMovie] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedMovieDetails, setSelectedMovieDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [movieDetailsBeforeEdit, setMovieDetailsBeforeEdit] = useState(null);
 
   const getCombinedScore = (movie) => {
     const ratings = [];
@@ -194,17 +190,25 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       setLoading(true);
       
       // If no search text, load all movies, otherwise search
-      let data;
       if (criteria.searchText && criteria.searchText.trim()) {
-        data = await apiService.searchMovies({ searchText: criteria.searchText });
+        // When searching, we need both: all movies for count AND search results for display
+        const [allData, searchData] = await Promise.all([
+          apiService.getAllMovies(),
+          apiService.searchMovies({ searchText: criteria.searchText })
+        ]);
+        
+        setAllMovies(allData); // Keep full collection for count
+        setFilteredMovies(searchData);
+        const sorted = sortMovies(searchData, sortBy);
+        setMovies(sorted);
       } else {
-        data = await apiService.getAllMovies();
+        // No search - load all movies
+        const data = await apiService.getAllMovies();
+        setAllMovies(data);
+        setFilteredMovies(data);
+        const sorted = sortMovies(data, sortBy);
+        setMovies(sorted);
       }
-      setAllMovies(data);
-      setFilteredMovies(data);
-      // Apply current sort to search results
-      const sorted = sortMovies(data, sortBy);
-      setMovies(sorted);
     } catch (err) {
       if (onShowAlert) {
         onShowAlert('Failed to search movies: ' + err.message, 'danger');
@@ -217,7 +221,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
-    handleAddMovieClick,
     refreshMovies: () => {
       // When refreshing, respect current search criteria
       if (searchCriteria?.searchText && searchCriteria.searchText.trim()) {
@@ -269,10 +272,6 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       if (event.key === 'Escape') {
         if (showExportModal) {
           setShowExportModal(false);
-        } else if (editingMovie) {
-          setEditingMovie(null);
-        } else if (showAddForm) {
-          setShowAddForm(false);
         } else if (selectedMovieDetails) {
           setSelectedMovieDetails(null);
         }
@@ -284,64 +283,10 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showExportModal, editingMovie, showAddForm, selectedMovieDetails]);
+  }, [showExportModal, selectedMovieDetails]);
 
 
-  const handleEditMovie = async (movie) => {
-    try {
-      setLoadingDetails(true);
-      const details = await apiService.getMovieDetails(movie.id);
-      // Store the current details before editing
-      setMovieDetailsBeforeEdit(selectedMovieDetails);
-      setEditingMovie(details);
-      setSelectedMovieDetails(null); // Close details view
-    } catch (err) {
-      if (onShowAlert) {
-        onShowAlert('Failed to load movie details for editing: ' + err.message, 'danger');
-      }
-      // Fallback to basic movie data if details fetch fails
-      setMovieDetailsBeforeEdit(selectedMovieDetails);
-      setEditingMovie(movie);
-      setSelectedMovieDetails(null);
-    } finally {
-      setLoadingDetails(false);
-    }
-  };
-
-  const handleAddMovieClick = () => {
-    setShowAddForm(true);
-  };
-
-  const handleFormCancel = () => {
-    setShowAddForm(false);
-    setEditingMovie(null);
-    // Restore the details view if we were editing from details
-    if (movieDetailsBeforeEdit) {
-      setSelectedMovieDetails(movieDetailsBeforeEdit);
-      setMovieDetailsBeforeEdit(null);
-    }
-  };
-
-  const handleFormSave = async () => {
-    setShowAddForm(false);
-    setEditingMovie(null);
-    await refreshMovieData();
-    
-    // Restore the details view with updated data if we were editing from details
-    if (movieDetailsBeforeEdit) {
-      try {
-        // Reload the details with updated data
-        const updatedDetails = await apiService.getMovieDetails(movieDetailsBeforeEdit.id);
-        setSelectedMovieDetails(updatedDetails);
-        setMovieDetailsBeforeEdit(null);
-      } catch (err) {
-        console.error('Failed to reload movie details after save:', err);
-        // Fallback to the original details
-        setSelectedMovieDetails(movieDetailsBeforeEdit);
-        setMovieDetailsBeforeEdit(null);
-      }
-    }
-  };
+  // Edit is now handled directly in the detail card - no separate form needed
 
 
 
@@ -936,6 +881,41 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
         
         {loading ? (
           <div className="loading">Loading movies...</div>
+        ) : movies.length === 0 ? (
+          /* Empty State - Check if it's a search or truly empty database */
+          searchCriteria?.searchText && searchCriteria.searchText.trim() ? (
+            /* Search returned no results */
+            <div className="empty-state">
+              <div className="empty-state-icon">🎬</div>
+              <h3 className="empty-state-title">No Results Found</h3>
+              <p className="empty-state-description">
+                No movies match "{searchCriteria.searchText}"
+              </p>
+              <p className="empty-state-hint">
+                Try different keywords or clear your search
+              </p>
+              <div className="empty-state-collection-info">
+                You have <strong>{allMovies.length}</strong> {allMovies.length === 1 ? 'movie' : 'movies'} in your collection
+              </div>
+            </div>
+          ) : (
+            /* Database is empty */
+            <div className="empty-state">
+              <div className="empty-state-icon">🍿</div>
+              <h3 className="empty-state-title">Welcome to FilmDex!</h3>
+              <p className="empty-state-description">
+                Your movie collection is empty. Add your first movie to get started and begin tracking your film library.
+              </p>
+             
+              <button 
+                className="btn btn-primary btn-lg mt-4"
+                onClick={onAddMovie}
+              >
+                <BsFilm className="me-2" />
+                Add Your First Movie
+              </button>
+            </div>
+          )
         ) : (
           <>
             {/* Movies Grid - Grouped or Ungrouped */}
@@ -1000,32 +980,12 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
         )}
       </div>
 
-      {/* Add Movie Form */}
-      {showAddForm && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <MovieForm onSave={handleFormSave} onCancel={handleFormCancel} />
-          </div>
-        </div>
-      )}
-
-      {/* Edit Movie Form */}
-      {editingMovie && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <MovieForm movie={editingMovie} onSave={handleFormSave} onCancel={handleFormCancel} />
-          </div>
-        </div>
-      )}
-
-
       {/* Movie Detail Card */}
       {(selectedMovieDetails || loadingDetails) && (
         <MovieDetailCard 
           movieDetails={selectedMovieDetails} 
           loading={loadingDetails}
           onClose={handleCloseDetails}
-          onEdit={handleEditMovie}
           onDelete={handleDeleteMovie}
           onShowAlert={onShowAlert}
           onRefresh={refreshAllMovieData}
