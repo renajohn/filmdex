@@ -161,13 +161,13 @@ app.get('/api/import/:id/suggestions', importController.getMovieSuggestions);
 app.get('/api/analytics', analyticsController.getAnalytics);
 
 // Music routes
-app.get('/api/music/cds', musicController.getAllCds);
-app.get('/api/music/cds/search', musicController.searchCds);
-app.get('/api/music/cds/:id', musicController.getCdById);
-app.post('/api/music/cds', musicController.addCd);
-app.put('/api/music/cds/:id', musicController.updateCd);
-app.delete('/api/music/cds/:id', musicController.deleteCd);
-app.post('/api/music/cds/:id/upload-cover', musicController.coverUploadMiddleware, musicController.uploadCustomCover);
+app.get('/api/music/albums', musicController.getAllAlbums);
+app.get('/api/music/albums/search', musicController.searchAlbums);
+app.get('/api/music/albums/:id', musicController.getAlbumById);
+app.post('/api/music/albums', musicController.addAlbum);
+app.put('/api/music/albums/:id', musicController.updateAlbum);
+app.delete('/api/music/albums/:id', musicController.deleteAlbum);
+app.post('/api/music/albums/:id/upload-cover', musicController.coverUploadMiddleware, musicController.uploadCustomCover);
 app.get('/api/music/autocomplete', musicController.getAutocompleteSuggestions);
 app.get('/api/music/search', musicController.searchMusicBrainz);
 app.get('/api/music/search/catalog', musicController.searchByCatalogNumber);
@@ -175,8 +175,8 @@ app.get('/api/music/search/barcode', musicController.searchByBarcode);
 app.get('/api/music/release-groups/search', musicController.searchReleaseGroups);
 app.get('/api/music/release-groups/:releaseGroupId/releases', musicController.getReleaseGroupReleases);
 app.get('/api/music/release/:releaseId', musicController.getMusicBrainzReleaseDetails);
-app.post('/api/music/release/:releaseId', musicController.addCdFromMusicBrainz);
-app.post('/api/music/barcode/:barcode', musicController.addCdByBarcode);
+app.post('/api/music/release/:releaseId', musicController.addAlbumFromMusicBrainz);
+app.post('/api/music/barcode/:barcode', musicController.addAlbumByBarcode);
 
 // Configuration endpoint for frontend
 app.get('/api/config', (req, res) => {

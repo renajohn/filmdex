@@ -51,92 +51,92 @@ const musicController = {
     }
   },
 
-  // Get all CDs
-  getAllCds: async (req, res) => {
+  // Get all albums
+  getAllAlbums: async (req, res) => {
     try {
-      const cds = await musicService.getAllCds();
-      res.json(cds);
+      const albums = await musicService.getAllAlbums();
+      res.json(albums);
     } catch (error) {
-      console.error('Error getting all CDs:', error);
-      res.status(500).json({ error: 'Failed to get CDs' });
+      console.error('Error getting all albums:', error);
+      res.status(500).json({ error: 'Failed to get albums' });
     }
   },
 
-  // Get CD by ID
-  getCdById: async (req, res) => {
+  // Get album by ID
+  getAlbumById: async (req, res) => {
     try {
       const { id } = req.params;
-      const cd = await musicService.getCdById(id);
-      res.json(cd);
+      const album = await musicService.getAlbumById(id);
+      res.json(album);
     } catch (error) {
-      console.error('Error getting CD by ID:', error);
-      if (error.message === 'CD not found') {
-        res.status(404).json({ error: 'CD not found' });
+      console.error('Error getting album by ID:', error);
+      if (error.message === 'Album not found') {
+        res.status(404).json({ error: 'Album not found' });
       } else {
-        res.status(500).json({ error: 'Failed to get CD' });
+        res.status(500).json({ error: 'Failed to get album' });
       }
     }
   },
 
-  // Add new CD
-  addCd: async (req, res) => {
+  // Add new album
+  addAlbum: async (req, res) => {
     try {
-      const cdData = req.body;
-      console.log('=== ADD CD REQUEST ===');
-      console.log('Has discs:', !!cdData.discs);
-      console.log('Discs length:', cdData.discs?.length);
-      if (cdData.discs && cdData.discs.length > 0) {
-        cdData.discs.forEach((disc, idx) => {
+      const albumData = req.body;
+      console.log('=== ADD ALBUM REQUEST ===');
+      console.log('Has discs:', !!albumData.discs);
+      console.log('Discs length:', albumData.discs?.length);
+      if (albumData.discs && albumData.discs.length > 0) {
+        albumData.discs.forEach((disc, idx) => {
           console.log(`  Disc ${idx + 1}: ${disc.tracks?.length || 0} tracks`);
         });
       }
-      const cd = await musicService.addCd(cdData);
-      res.status(201).json(cd);
+      const album = await musicService.addAlbum(albumData);
+      res.status(201).json(album);
     } catch (error) {
-      console.error('Error adding CD:', error);
-      res.status(500).json({ error: 'Failed to add CD' });
+      console.error('Error adding album:', error);
+      res.status(500).json({ error: 'Failed to add album' });
     }
   },
 
-  // Update CD
-  updateCd: async (req, res) => {
+  // Update album
+  updateAlbum: async (req, res) => {
     try {
       const { id } = req.params;
-      const cdData = req.body;
-      const cd = await musicService.updateCd(id, cdData);
-      res.json(cd);
+      const albumData = req.body;
+      const album = await musicService.updateAlbum(id, albumData);
+      res.json(album);
     } catch (error) {
-      console.error('Error updating CD:', error);
-      res.status(500).json({ error: 'Failed to update CD' });
+      console.error('Error updating album:', error);
+      res.status(500).json({ error: 'Failed to update album' });
     }
   },
 
-  // Delete CD
-  deleteCd: async (req, res) => {
+  // Delete album
+  deleteAlbum: async (req, res) => {
     try {
       const { id } = req.params;
-      const result = await musicService.deleteCd(id);
+      const result = await musicService.deleteAlbum(id);
       if (result.deleted) {
-        res.json({ message: 'CD deleted successfully' });
+        res.json({ message: 'Album deleted successfully' });
       } else {
-        res.status(404).json({ error: 'CD not found' });
+        res.status(404).json({ error: 'Album not found' });
       }
     } catch (error) {
-      console.error('Error deleting CD:', error);
-      res.status(500).json({ error: 'Failed to delete CD' });
+      console.error('Error deleting album:', error);
+      res.status(500).json({ error: 'Failed to delete album' });
     }
   },
 
-  // Search CDs
-  searchCds: async (req, res) => {
+  // Search albums
+  searchAlbums: async (req, res) => {
     try {
       const { q } = req.query;
       if (!q) {
         return res.status(400).json({ error: 'Search query is required' });
       }
       
-      const cds = await musicService.searchCds(q);
-      res.json(cds);
+      const albums = await musicService.searchAlbums(q);
+      res.json(albums);
     } catch (error) {
       console.error('Error searching albums:', error);
       res.status(500).json({ error: 'Failed to search albums' });
@@ -205,38 +205,38 @@ const musicController = {
     }
   },
 
-  // Add CD from MusicBrainz
-  addCdFromMusicBrainz: async (req, res) => {
+  // Add album from MusicBrainz
+  addAlbumFromMusicBrainz: async (req, res) => {
     try {
       const { releaseId } = req.params;
       const additionalData = req.body || {};
       
-      const cd = await musicService.addCdFromMusicBrainz(releaseId, additionalData);
-      res.status(201).json(cd);
+      const album = await musicService.addAlbumFromMusicBrainz(releaseId, additionalData);
+      res.status(201).json(album);
     } catch (error) {
-      console.error('Error adding CD from MusicBrainz:', error);
-      if (error.message === 'CD already exists in collection') {
-        res.status(409).json({ error: 'CD already exists in collection' });
+      console.error('Error adding album from MusicBrainz:', error);
+      if (error.message === 'Album already exists in collection') {
+        res.status(409).json({ error: 'Album already exists in collection' });
       } else {
-        res.status(500).json({ error: 'Failed to add CD from MusicBrainz' });
+        res.status(500).json({ error: 'Failed to add album from MusicBrainz' });
       }
     }
   },
 
-  // Add CD by barcode
-  addCdByBarcode: async (req, res) => {
+  // Add album by barcode
+  addAlbumByBarcode: async (req, res) => {
     try {
       const { barcode } = req.params;
       const additionalData = req.body || {};
       
-      const cd = await musicService.addCdByBarcode(barcode, additionalData);
-      res.status(201).json(cd);
+      const album = await musicService.addAlbumByBarcode(barcode, additionalData);
+      res.status(201).json(album);
     } catch (error) {
-      console.error('Error adding CD by barcode:', error);
+      console.error('Error adding album by barcode:', error);
       if (error.message === 'No release found for this barcode') {
         res.status(404).json({ error: 'No release found for this barcode' });
       } else {
-        res.status(500).json({ error: 'Failed to add CD by barcode' });
+        res.status(500).json({ error: 'Failed to add album by barcode' });
       }
     }
   },

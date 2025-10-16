@@ -1,86 +1,86 @@
 const API_BASE_URL = process.env.REACT_APP_API_URL || '';
 
 class MusicService {
-  async getAllCds() {
+  async getAllAlbums() {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/cds`);
+      const response = await fetch(`${API_BASE_URL}/api/music/albums`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       return await response.json();
     } catch (error) {
-      console.error('Error fetching CDs:', error);
+      console.error('Error fetching albums:', error);
       throw error;
     }
   }
 
-  async getCdById(id) {
+  async getAlbumById(id) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/cds/${id}`);
+      const response = await fetch(`${API_BASE_URL}/api/music/albums/${id}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       return await response.json();
     } catch (error) {
-      console.error('Error fetching CD:', error);
+      console.error('Error fetching album:', error);
       throw error;
     }
   }
 
-  async searchCds(query) {
+  async searchAlbums(query) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/cds/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`${API_BASE_URL}/api/music/albums/search?q=${encodeURIComponent(query)}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       return await response.json();
     } catch (error) {
-      console.error('Error searching CDs:', error);
+      console.error('Error searching albums:', error);
       throw error;
     }
   }
 
-  async addCd(cdData) {
+  async addAlbum(albumData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/cds`, {
+      const response = await fetch(`${API_BASE_URL}/api/music/albums`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(cdData),
+        body: JSON.stringify(albumData),
       });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       return await response.json();
     } catch (error) {
-      console.error('Error adding CD:', error);
+      console.error('Error adding album:', error);
       throw error;
     }
   }
 
-  async updateCd(id, cdData) {
+  async updateAlbum(id, albumData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/cds/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/music/albums/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(cdData),
+        body: JSON.stringify(albumData),
       });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       return await response.json();
     } catch (error) {
-      console.error('Error updating CD:', error);
+      console.error('Error updating album:', error);
       throw error;
     }
   }
 
-  async deleteCd(id) {
+  async deleteAlbum(id) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/music/cds/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/music/albums/${id}`, {
         method: 'DELETE',
       });
       if (!response.ok) {
@@ -88,7 +88,7 @@ class MusicService {
       }
       return await response.json();
     } catch (error) {
-      console.error('Error deleting CD:', error);
+      console.error('Error deleting album:', error);
       throw error;
     }
   }
@@ -145,7 +145,7 @@ class MusicService {
     }
   }
 
-  async addCdFromMusicBrainz(releaseId, additionalData = {}) {
+  async addAlbumFromMusicBrainz(releaseId, additionalData = {}) {
     try {
       const response = await fetch(`${API_BASE_URL}/api/music/release/${releaseId}`, {
         method: 'POST',
@@ -159,12 +159,12 @@ class MusicService {
       }
       return await response.json();
     } catch (error) {
-      console.error('Error adding CD from MusicBrainz:', error);
+      console.error('Error adding album from MusicBrainz:', error);
       throw error;
     }
   }
 
-  async addCdByBarcode(barcode, additionalData = {}) {
+  async addAlbumByBarcode(barcode, additionalData = {}) {
     try {
       const response = await fetch(`${API_BASE_URL}/api/music/barcode/${barcode}`, {
         method: 'POST',
@@ -178,7 +178,7 @@ class MusicService {
       }
       return await response.json();
     } catch (error) {
-      console.error('Error adding CD by barcode:', error);
+      console.error('Error adding album by barcode:', error);
       throw error;
     }
   }
@@ -199,5 +199,6 @@ class MusicService {
   }
 }
 
-export default new MusicService();
+const musicServiceInstance = new MusicService();
+export default musicServiceInstance;
 

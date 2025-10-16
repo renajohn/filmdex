@@ -52,6 +52,12 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
 
   useEffect(() => {
     if (cd) {
+      console.log('📝 MusicForm received cd prop:', {
+        moods: cd.moods,
+        tags: cd.tags,
+        genres: cd.genres
+      });
+      
       // Set available covers if this is a new album being inserted
       if (cd.availableCovers && !cd.id) {
         setAvailableCovers(cd.availableCovers);
@@ -232,7 +238,7 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
       const formData = new FormData();
       formData.append('cover', file);
 
-      const response = await fetch(`/api/music/cds/${cd.id}/upload-cover`, {
+      const response = await fetch(`/api/music/albums/${cd.id}/upload-cover`, {
         method: 'POST',
         body: formData
       });

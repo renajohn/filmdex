@@ -11,7 +11,7 @@ const musicbrainzService = {
         params: {
           query: query,
           limit: limit,
-          inc: 'artists+labels+release-groups',
+          inc: 'artists+labels+release-groups+tags+genres',
           fmt: 'json'
         },
         headers: {
@@ -55,7 +55,7 @@ const musicbrainzService = {
     try {
       const response = await axios.get(`${this.baseUrl}/release/${releaseId}`, {
         params: {
-          inc: 'artists+recordings+release-groups+labels+media+tags+genres+ratings+annotation+artist-rels+url-rels+work-rels+recording-rels+isrcs',
+          inc: 'artists+recordings+release-groups+labels+media+tags+genres+artist-rels+url-rels+work-rels+recording-rels+isrcs+annotation',
           fmt: 'json'
         },
         headers: {
@@ -83,6 +83,7 @@ const musicbrainzService = {
       const response = await axios.get(`${this.baseUrl}/release`, {
         params: {
           query: `barcode:${barcode}`,
+          inc: 'artists+labels+release-groups+tags+genres',
           fmt: 'json'
         },
         headers: {
@@ -91,7 +92,27 @@ const musicbrainzService = {
         timeout: 10000
       });
 
-      return response.data.releases || [];
+      const releases = response.data.releases || [];
+      console.log(`Barcode search found ${releases.length} releases`);
+      
+      // Fetch cover art for each release
+      const releasesWithCovers = await Promise.all(
+        releases.map(async (release) => {
+          try {
+            const coverArt = await this.getCoverArt(release.id);
+            console.log(`Cover art for ${release.id}:`, coverArt ? 'Found' : 'Not found');
+            return { ...release, coverArt: coverArt };
+          } catch (error) {
+            console.warn(`Failed to fetch cover art for release ${release.id}:`, error.message);
+            return { ...release, coverArt: null };
+          }
+        })
+      );
+
+      const withCovers = releasesWithCovers.filter(r => r.coverArt).length;
+      console.log(`Barcode search: ${releases.length} releases, ${withCovers} with cover art`);
+      
+      return releasesWithCovers;
     } catch (error) {
       console.error('MusicBrainz barcode search error:', error.message);
       if (error.code === 'ECONNABORTED') {
@@ -103,10 +124,13 @@ const musicbrainzService = {
 
   getReleaseByCatalogNumber: async function(catalogNumber) {
     try {
+      // Remove spaces from catalog number for better search results
+      const cleanCatalogNumber = catalogNumber.replace(/\s+/g, '');
+      
       const response = await axios.get(`${this.baseUrl}/release`, {
         params: {
-          query: `catno:${catalogNumber}`,
-          inc: 'artists+recordings+release-groups+labels+media',
+          query: `catno:${cleanCatalogNumber}`,
+          inc: 'artists+recordings+release-groups+labels+media+tags+genres',
           fmt: 'json'
         },
         headers: {
@@ -266,6 +290,7 @@ const musicbrainzService = {
     const releaseTags = release.tags?.map(tag => tag.name) || [];
     const tags = [...new Set([...releaseGroupTags, ...releaseTags])].slice(0, 20); // Combine, deduplicate, limit
     
+    
     // Extract release group rating - may not be available in basic request
     const rating = release['release-group']?.rating?.value ? 
       Math.round(release['release-group'].rating.value * 20) / 20 : null; // Convert to 5-point scale
@@ -375,8 +400,9 @@ const musicbrainzService = {
     
     // Extract annotation
     const annotation = release.annotation || null;
+    
 
-    return {
+    let result = {
       musicbrainzReleaseId: release.id,
       musicbrainzReleaseGroupId: release['release-group']?.id || null,
       title: release.title,
@@ -391,6 +417,7 @@ const musicbrainzService = {
       labels: labels,
       genres: genres,
       tags: tags,
+      moods: tags, // Use all tags as moods initially, user can filter later
       rating: rating,
       releaseEvents: releaseEvents,
       totalDuration: totalDuration ? Math.floor(totalDuration / 1000) : null, // Convert to seconds
@@ -409,6 +436,13 @@ const musicbrainzService = {
       isrcCodes: isrcCodes,
       annotation: annotation
     };
+    console.log('🎼 formatReleaseData OUTPUT:', {
+      tags: result.tags,
+      moods: result.moods,
+      hasMoods: !!result.moods
+    });
+
+    return result;
   },
 
   formatReleaseGroupData: (releaseGroup) => {

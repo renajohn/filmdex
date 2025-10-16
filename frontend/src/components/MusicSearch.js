@@ -7,15 +7,10 @@ import MusicThumbnail from './MusicThumbnail';
 import MusicDetailCard from './MusicDetailCard';
 import AddMusicDialog from './AddMusicDialog';
 import { 
-  BsFilter, 
   BsSortDown, 
   BsChevronDown, 
-  BsCheck, 
   BsMusicNote,
-  BsThreeDots,
-  BsGrid3X3Gap,
-  BsX,
-  BsPlus
+  BsGrid3X3Gap
 } from 'react-icons/bs';
 import './MusicSearch.css';
 
@@ -46,7 +41,7 @@ const MusicSearch = forwardRef(({
   const [editingCd, setEditingCd] = useState(null);
   const [reviewingRelease, setReviewingRelease] = useState(null);
   const [selectedCdDetails, setSelectedCdDetails] = useState(null);
-  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [, setLoadingDetails] = useState(false);
   const [cdDetailsBeforeEdit, setCdDetailsBeforeEdit] = useState(null);
   const previousSearchTextRef = useRef('');
   const navigate = useNavigate();
@@ -66,6 +61,7 @@ const MusicSearch = forwardRef(({
 
   useEffect(() => {
     loadCds();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
 
   // Handle search from App.js
@@ -83,11 +79,12 @@ const MusicSearch = forwardRef(({
         setCdCount({ filtered: allCds.length, total: allCds.length });
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchCriteria?.searchText, allCds]);
 
   const loadCds = async () => {
     try {
-      const data = await musicService.getAllCds();
+      const data = await musicService.getAllAlbums();
       setAllCds(data);
       setFilteredCds(data);
       setCdCount({ filtered: data.length, total: data.length });
@@ -108,7 +105,7 @@ const MusicSearch = forwardRef(({
 
     try {
       // Search local albums
-      const localResults = await musicService.searchCds(query);
+      const localResults = await musicService.searchAlbums(query);
       setFilteredCds(localResults);
       setCdCount({ filtered: localResults.length, total: allCds.length });
     } catch (error) {
@@ -282,7 +279,7 @@ const MusicSearch = forwardRef(({
   const handleEditCd = async (cd) => {
     try {
       setLoadingDetails(true);
-      const details = await musicService.getCdById(cd.id);
+      const details = await musicService.getAlbumById(cd.id);
       setCdDetailsBeforeEdit(selectedCdDetails);
       setEditingCd(details);
       setSelectedCdDetails(null);
@@ -330,6 +327,12 @@ const MusicSearch = forwardRef(({
       const details = await musicService.getMusicBrainzReleaseDetails(release.musicbrainzReleaseId);
       
       // Convert MusicBrainz data to album form data
+      console.log('🔍 Frontend received from backend:', {
+        tags: details.tags,
+        moods: details.moods,
+        genres: details.genres
+      });
+      
       const cdData = {
         title: details.title || release.title,
         artist: details.artist || release.artist,
@@ -339,8 +342,9 @@ const MusicSearch = forwardRef(({
         barcode: details.barcode || release.barcode,
         country: details.country || release.country,
         format: details.format || release.format || 'CD',
-        genres: details.genres || [],
-        moods: details.moods || [],
+        genres: details.genres || release.genres || [],
+        moods: details.moods || release.moods || release.tags || [],
+        tags: details.tags || release.tags || [],
         cover: details.coverArt?.url || release.coverArt?.url,
         musicbrainzReleaseId: details.musicbrainzReleaseId || release.musicbrainzReleaseId,
         musicbrainzReleaseGroupId: details.musicbrainzReleaseGroupId || release.musicbrainzReleaseGroupId,
@@ -354,6 +358,12 @@ const MusicSearch = forwardRef(({
         // Add available covers for the picker
         availableCovers: availableCovers.length > 1 ? availableCovers : null
       };
+      
+      console.log('🎵 Sending to MusicForm:', {
+        moods: cdData.moods,
+        tags: cdData.tags,
+        genres: cdData.genres
+      });
       
       setReviewingRelease(cdData);
     } catch (err) {
@@ -386,7 +396,7 @@ const MusicSearch = forwardRef(({
     
     if (cdDetailsBeforeEdit) {
       try {
-        const updatedDetails = await musicService.getCdById(cdDetailsBeforeEdit.id);
+        const updatedDetails = await musicService.getAlbumById(cdDetailsBeforeEdit.id);
         setSelectedCdDetails(updatedDetails);
         setCdDetailsBeforeEdit(null);
       } catch (err) {
@@ -400,7 +410,7 @@ const MusicSearch = forwardRef(({
   const handleCdClick = async (cdId) => {
     try {
       setLoadingDetails(true);
-      const details = await musicService.getCdById(cdId);
+      const details = await musicService.getAlbumById(cdId);
       setSelectedCdDetails(details);
     } catch (err) {
       if (onShowAlert) {

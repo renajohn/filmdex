@@ -12,6 +12,7 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
 
   useEffect(() => {
     loadCds();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Expose methods to parent component
@@ -32,7 +33,7 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
   const loadCds = async () => {
     try {
       setLoading(true);
-      const data = await musicService.getAllCds();
+      const data = await musicService.getAllAlbums();
       setCds(data);
     } catch (error) {
       console.error('Error loading albums:', error);
@@ -52,8 +53,14 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
   };
 
   const handleAddCd = async (cdData) => {
+    console.log('💾 handleAddCd called with cdData:', {
+      title: cdData.title,
+      moods: cdData.moods,
+      tags: cdData.tags,
+      genres: cdData.genres
+    });
     try {
-      await musicService.addCd(cdData);
+      await musicService.addAlbum(cdData);
       await loadCds();
       showAlertMessage('Album added successfully!', 'success');
     } catch (error) {
@@ -64,7 +71,7 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
 
   const handleAddCdFromMusicBrainz = async (releaseId, additionalData) => {
     try {
-      await musicService.addCdFromMusicBrainz(releaseId, additionalData);
+      await musicService.addAlbumFromMusicBrainz(releaseId, additionalData);
       await loadCds();
       showAlertMessage('Album added successfully from MusicBrainz!', 'success');
     } catch (error) {
@@ -75,7 +82,7 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
 
   const handleAddCdByBarcode = async (barcode, additionalData) => {
     try {
-      await musicService.addCdByBarcode(barcode, additionalData);
+      await musicService.addAlbumByBarcode(barcode, additionalData);
       await loadCds();
       showAlertMessage('Album added successfully by barcode!', 'success');
     } catch (error) {
@@ -86,7 +93,7 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
 
   const handleUpdateCd = async (id, cdData) => {
     try {
-      await musicService.updateCd(id, cdData);
+      await musicService.updateAlbum(id, cdData);
       await loadCds();
       showAlertMessage('Album updated successfully!', 'success');
     } catch (error) {
@@ -97,7 +104,7 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
 
   const handleDeleteCd = async (id) => {
     try {
-      await musicService.deleteCd(id);
+      await musicService.deleteAlbum(id);
       await loadCds();
       showAlertMessage('Album deleted successfully!', 'success');
     } catch (error) {

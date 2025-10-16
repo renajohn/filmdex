@@ -15,29 +15,29 @@ class MusicService {
     }
   }
 
-  async searchCds(query) {
+  async searchAlbums(query) {
     try {
       return await Album.search(query);
     } catch (error) {
-      console.error('Error searching CDs:', error);
+      console.error('Error searching albums:', error);
       throw error;
     }
   }
 
-  async getAllCds() {
+  async getAllAlbums() {
     try {
       return await Album.findAll();
     } catch (error) {
-      console.error('Error getting all CDs:', error);
+      console.error('Error getting all albums:', error);
       throw error;
     }
   }
 
-  async getCdById(id) {
+  async getAlbumById(id) {
     try {
-      const cd = await Album.findById(id);
-      if (!cd) {
-        throw new Error('CD not found');
+      const album = await Album.findById(id);
+      if (!album) {
+        throw new Error('Album not found');
       }
       
       // Get tracks for this CD
@@ -65,30 +65,35 @@ class MusicService {
       }));
 
       return {
-        ...cd,
+        ...album,
         discs: discsArray
       };
     } catch (error) {
-      console.error('Error getting CD by ID:', error);
+      console.error('Error getting album:', error);
       throw error;
     }
   }
 
-  async addCd(cdData) {
+  async addAlbum(albumData) {
     try {
-      // Create the CD
-      const cd = await Album.create(cdData);
+      // Use all tags as moods if moods not already present
+      // Users can remove unwanted ones manually
+      if ((!albumData.moods || albumData.moods.length === 0) && albumData.tags && albumData.tags.length > 0) {
+        albumData.moods = albumData.tags;
+      }
+
+      // Create the album
+      const album = await Album.create(albumData);
       
       // Add tracks if provided
-      if (cdData.discs && cdData.discs.length > 0) {
-        console.log(`Adding ${cdData.discs.length} disc(s) with tracks for album ID: ${cd.id}`);
-        for (const disc of cdData.discs) {
+      if (albumData.discs && albumData.discs.length > 0) {
+        console.log(`Adding ${albumData.discs.length} disc(s) with tracks for album ID: ${album.id}`);
+        for (const disc of albumData.discs) {
           console.log(`  Disc ${disc.number}: ${disc.tracks?.length || 0} tracks`);
           for (const track of disc.tracks) {
             try {
               await Track.create({
-                cdId: cd.id,
-                albumId: cd.id,
+                albumId: album.id,
                 discNumber: disc.number,
                 trackNumber: track.trackNumber || track.no, // Handle both formats
                 title: track.title,
@@ -104,37 +109,36 @@ class MusicService {
             }
           }
         }
-        console.log(`Successfully added tracks for album ID: ${cd.id}`);
+        console.log(`Successfully added tracks for album ID: ${album.id}`);
       } else {
         console.log('No tracks to add for this album');
       }
 
-      return cd;
+      return album;
     } catch (error) {
-      console.error('Error adding CD:', error);
+      console.error('Error adding album:', error);
       throw error;
     }
   }
 
-  async updateCd(id, cdData) {
+  async updateAlbum(id, albumData) {
     try {
-      // Update the CD
-      const cd = await Album.update(id, cdData);
+      // Update the album
+      const album = await Album.update(id, albumData);
       
       // Update tracks if provided
-      if (cdData.discs && cdData.discs.length > 0) {
+      if (albumData.discs && albumData.discs.length > 0) {
         // Delete existing tracks
         console.log(`Deleting existing tracks for album ID: ${id}`);
         await Track.deleteByCdId(id);
         
         // Add new tracks
-        console.log(`Adding ${cdData.discs.length} disc(s) with tracks for album ID: ${id}`);
-        for (const disc of cdData.discs) {
+        console.log(`Adding ${albumData.discs.length} disc(s) with tracks for album ID: ${id}`);
+        for (const disc of albumData.discs) {
           console.log(`  Disc ${disc.number}: ${disc.tracks?.length || 0} tracks`);
           for (const track of disc.tracks) {
             try {
               await Track.create({
-                cdId: id,
                 albumId: id,
                 discNumber: disc.number,
                 trackNumber: track.trackNumber || track.no, // Handle both formats
@@ -154,76 +158,76 @@ class MusicService {
         console.log(`Successfully updated tracks for album ID: ${id}`);
       }
 
-      return cd;
+      return album;
     } catch (error) {
-      console.error('Error updating CD:', error);
+      console.error('Error updating album:', error);
       throw error;
     }
   }
 
-  async deleteCd(id) {
+  async deleteAlbum(id) {
     try {
       // Tracks will be deleted automatically due to foreign key constraint
       const result = await Album.delete(id);
       return result;
     } catch (error) {
-      console.error('Error deleting CD:', error);
+      console.error('Error deleting album:', error);
       throw error;
     }
   }
 
-  // Calculate data quality score for a CD
-  calculateDataQuality(cd) {
+  // Calculate data quality score for an album
+  calculateDataQuality(album) {
     let score = 0;
     let maxScore = 0;
     
     // Basic information (40 points)
     maxScore += 40;
-    if (cd.title) score += 10;
-    if (cd.artist && cd.artist.length > 0) score += 10;
-    if (cd.releaseYear) score += 10;
-    if (cd.cover) score += 10;
+    if (album.title) score += 10;
+    if (album.artist && album.artist.length > 0) score += 10;
+    if (album.releaseYear) score += 10;
+    if (album.cover) score += 10;
     
     // Detailed metadata (30 points)
     maxScore += 30;
-    if (cd.labels && cd.labels.length > 0) score += 5;
-    if (cd.genres && cd.genres.length > 0) score += 5;
-    if (cd.moods && cd.moods.length > 0) score += 5;
-    if (cd.barcode) score += 5;
-    if (cd.catalogNumber) score += 5;
-    if (cd.country) score += 5;
+    if (album.labels && album.labels.length > 0) score += 5;
+    if (album.genres && album.genres.length > 0) score += 5;
+    if (album.moods && album.moods.length > 0) score += 5;
+    if (album.barcode) score += 5;
+    if (album.catalogNumber) score += 5;
+    if (album.country) score += 5;
     
     // Track information (20 points)
     maxScore += 20;
-    if (cd.discs && cd.discs.length > 0) {
+    if (album.discs && album.discs.length > 0) {
       score += 10; // Has disc structure
-      const totalTracks = cd.discs.reduce((sum, disc) => sum + (disc.tracks?.length || 0), 0);
+      const totalTracks = album.discs.reduce((sum, disc) => sum + (disc.tracks?.length || 0), 0);
       if (totalTracks > 0) score += 10; // Has tracks
     }
     
     // Ownership information (10 points)
     maxScore += 10;
-    if (cd.ownership?.condition) score += 3;
-    if (cd.ownership?.purchasedAt) score += 3;
-    if (cd.ownership?.priceChf) score += 2;
-    if (cd.ownership?.notes) score += 2;
+    if (album.ownership?.condition) score += 3;
+    if (album.ownership?.purchasedAt) score += 3;
+    if (album.ownership?.priceChf) score += 2;
+    if (album.ownership?.notes) score += 2;
     
     return {
       score: Math.round((score / maxScore) * 100),
       maxScore,
       details: {
-        hasTitle: !!cd.title,
-        hasArtist: !!(cd.artist && cd.artist.length > 0),
-        hasYear: !!cd.releaseYear,
-        hasCover: !!cd.cover,
-        hasLabels: !!(cd.labels && cd.labels.length > 0),
-        hasGenres: !!(cd.genres && cd.genres.length > 0),
-        hasMoods: !!(cd.moods && cd.moods.length > 0),
-        hasBarcode: !!cd.barcode,
-        hasCatalogNumber: !!cd.catalogNumber,
-        hasCountry: !!cd.country,
-        hasTracks: !!(cd.discs && cd.discs.length > 0 && cd.discs.some(disc => disc.tracks && disc.tracks.length > 0)),
-        hasOwnership: !!(cd.ownership?.condition || cd.ownership?.purchasedAt || cd.ownership?.priceChf || cd.ownership?.notes)
+        hasTitle: !!album.title,
+        hasArtist: !!(album.artist && album.artist.length > 0),
+        hasYear: !!album.releaseYear,
+        hasCover: !!album.cover,
+        hasLabels: !!(album.labels && album.labels.length > 0),
+        hasGenres: !!(album.genres && album.genres.length > 0),
+        hasMoods: !!(album.moods && album.moods.length > 0),
+        hasBarcode: !!album.barcode,
+        hasCatalogNumber: !!album.catalogNumber,
+        hasCountry: !!album.country,
+        hasTracks: !!(album.discs && album.discs.length > 0 && album.discs.some(disc => disc.tracks && disc.tracks.length > 0)),
+        hasOwnership: !!(album.ownership?.condition || album.ownership?.purchasedAt || album.ownership?.priceChf || album.ownership?.notes)
       }
     };
   }
@@ -232,11 +236,12 @@ class MusicService {
     try {
       const releases = await musicbrainzService.searchRelease(query);
       const formatted = releases.map(release => {
-        const formattedRelease = musicbrainzService.formatReleaseData(release);
-        console.log('Original release coverArt:', release.coverArt);
-        console.log('Formatted release coverArt:', formattedRelease.coverArt);
-        return formattedRelease;
+        return musicbrainzService.formatReleaseData(release);
       });
+      
+      const releasesWithCover = formatted.filter(r => r.coverArt?.url).length;
+      console.log(`Searched MusicBrainz: ${formatted.length} releases, ${releasesWithCover} with cover art`);
+      
       return formatted;
     } catch (error) {
       console.error('Error searching MusicBrainz:', error);
@@ -254,7 +259,7 @@ class MusicService {
     }
   }
 
-  async addCdFromMusicBrainz(releaseId, additionalData = {}) {
+  async addAlbumFromMusicBrainz(releaseId, additionalData = {}) {
     try {
       // Get release details from MusicBrainz
       const releaseData = await musicbrainzService.getReleaseDetails(releaseId);
@@ -267,42 +272,39 @@ class MusicService {
       if (coverArt) {
         try {
           // Download and save cover image from MusicBrainz URL
-          const filename = `cd_${releaseId}_${Date.now()}.jpg`;
+          const filename = `album_${releaseId}_${Date.now()}.jpg`;
           coverPath = await imageService.downloadImageFromUrl(coverArt.url, 'cd', filename);
         } catch (coverError) {
           console.warn('Failed to download cover art:', coverError.message);
         }
       }
 
-      // Extract moods from tags based on mood-related keywords
-      const moodKeywords = ['calm', 'energetic', 'melancholic', 'happy', 'sad', 'aggressive', 'mellow', 'upbeat', 'dark', 'bright', 'atmospheric', 'emotional', 'romantic', 'angry', 'peaceful', 'intense', 'relaxing', 'soothing', 'cheerful', 'dreamy', 'night', 'day', 'morning', 'evening'];
-      const moods = formattedData.tags?.filter(tag => 
-        moodKeywords.some(keyword => tag.toLowerCase().includes(keyword))
-      ) || [];
+      // Use all tags as moods - users can remove unwanted ones manually
+      const moods = formattedData.tags || [];
 
-      // Prepare CD data
-      const cdData = {
+      // Prepare album data
+      const albumData = {
         ...formattedData,
         moods: moods.length > 0 ? moods : formattedData.moods || [],
         cover: coverPath,
         ...additionalData
       };
 
-      // Check if CD already exists
-      const existingCd = await Album.findByMusicbrainzId(releaseId);
-      if (existingCd) {
-        throw new Error('CD already exists in collection');
+      // Check if album already exists
+      const existingAlbum = await Album.findByMusicbrainzId(releaseId);
+      if (existingAlbum) {
+        throw new Error('Album already exists in collection');
       }
 
-      // Add the CD
-      return await this.addCd(cdData);
+      // Add the album
+      return await this.addAlbum(albumData);
     } catch (error) {
-      console.error('Error adding CD from MusicBrainz:', error);
+      console.error('Error adding album from MusicBrainz:', error);
       throw error;
     }
   }
 
-  async addCdByBarcode(barcode, additionalData = {}) {
+  async addAlbumByBarcode(barcode, additionalData = {}) {
     try {
       // Search MusicBrainz by barcode
       const releases = await musicbrainzService.getReleaseByBarcode(barcode);
@@ -313,9 +315,9 @@ class MusicService {
 
       // Use the first release found
       const releaseId = releases[0].id;
-      return await this.addCdFromMusicBrainz(releaseId, additionalData);
+      return await this.addAlbumFromMusicBrainz(releaseId, additionalData);
     } catch (error) {
-      console.error('Error adding CD by barcode:', error);
+      console.error('Error adding album by barcode:', error);
       throw error;
     }
   }
