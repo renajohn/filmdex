@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Form, Button, Row, Col, Alert } from 'react-bootstrap';
-import { BsX, BsUpload, BsMusicNote } from 'react-icons/bs';
+import { Modal, Form, Button, Row, Col, Alert, Accordion, Card, Table } from 'react-bootstrap';
+import { BsX, BsUpload, BsMusicNote, BsPlus, BsTrash, BsPencil, BsGripVertical } from 'react-icons/bs';
 import apiService from '../services/api';
 
 const MusicForm = ({ cd = null, onSave, onCancel }) => {
@@ -49,6 +49,10 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [editingTrack, setEditingTrack] = useState(null); // { discIndex, trackIndex, data }
+  const [showTrackDialog, setShowTrackDialog] = useState(false);
+  const [draggedTrack, setDraggedTrack] = useState(null); // { discIndex, trackIndex }
+  const [dropTarget, setDropTarget] = useState(null); // { discIndex, trackIndex } - where track will drop
 
   useEffect(() => {
     if (cd) {
@@ -78,6 +82,20 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
         }
       }
       
+      // Normalize discs data - handle both 'no' and 'trackNumber' fields
+      const normalizedDiscs = (cd.discs || []).map(disc => ({
+        ...disc,
+        tracks: (disc.tracks || []).map(track => ({
+          trackNumber: track.trackNumber || track.no || 0,
+          title: track.title || '',
+          durationSec: track.durationSec || null,
+          isrc: track.isrc || '',
+          musicbrainzRecordingId: track.musicbrainzRecordingId || null,
+          musicbrainzTrackId: track.musicbrainzTrackId || null,
+          toc: track.toc || null
+        }))
+      }));
+
       setFormData({
         title: cd.title || '',
         artist: Array.isArray(cd.artist) ? cd.artist : (cd.artist ? [cd.artist] : []),
@@ -104,7 +122,7 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
         },
         // Preserve fields that shouldn't be edited
         cover: cd.cover || null,
-        discs: cd.discs || [],
+        discs: normalizedDiscs,
         musicbrainzReleaseId: cd.musicbrainzReleaseId || null,
         musicbrainzReleaseGroupId: cd.musicbrainzReleaseGroupId || null,
         releaseGroupFirstReleaseDate: cd.releaseGroupFirstReleaseDate || null,
@@ -149,6 +167,165 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
         [field]: value
       }
     }));
+  };
+
+  // Track Management Functions
+  const addDisc = () => {
+    const newDiscNumber = formData.discs.length + 1;
+    setFormData(prev => ({
+      ...prev,
+      discs: [...prev.discs, { number: newDiscNumber, tracks: [] }]
+    }));
+  };
+
+  const deleteDisc = (discIndex) => {
+    setFormData(prev => ({
+      ...prev,
+      discs: prev.discs.filter((_, idx) => idx !== discIndex).map((disc, idx) => ({
+        ...disc,
+        number: idx + 1
+      }))
+    }));
+  };
+
+  const addTrack = (discIndex) => {
+    setEditingTrack({
+      discIndex,
+      trackIndex: -1,
+      data: {
+        title: '',
+        durationSec: null,
+        isrc: '',
+        musicbrainzRecordingId: null,
+        musicbrainzTrackId: null
+      }
+    });
+    setShowTrackDialog(true);
+  };
+
+  const editTrack = (discIndex, trackIndex) => {
+    const track = formData.discs[discIndex].tracks[trackIndex];
+    setEditingTrack({
+      discIndex,
+      trackIndex,
+      data: { ...track }
+    });
+    setShowTrackDialog(true);
+  };
+
+  const saveTrack = () => {
+    if (!editingTrack) return;
+
+    const { discIndex, trackIndex, data } = editingTrack;
+
+    setFormData(prev => {
+      const newDiscs = [...prev.discs];
+      const disc = { ...newDiscs[discIndex] };
+      
+      if (trackIndex === -1) {
+        // Adding new track - append to end
+        disc.tracks = [...disc.tracks, data];
+      } else {
+        // Editing existing track
+        disc.tracks = disc.tracks.map((t, idx) => idx === trackIndex ? data : t);
+      }
+      
+      // Renumber all tracks based on position
+      disc.tracks = disc.tracks.map((track, idx) => ({
+        ...track,
+        trackNumber: idx + 1
+      }));
+      
+      newDiscs[discIndex] = disc;
+      return { ...prev, discs: newDiscs };
+    });
+
+    setShowTrackDialog(false);
+    setEditingTrack(null);
+  };
+
+  const deleteTrack = (discIndex, trackIndex) => {
+    setFormData(prev => {
+      const newDiscs = [...prev.discs];
+      const disc = { ...newDiscs[discIndex] };
+      disc.tracks = disc.tracks
+        .filter((_, idx) => idx !== trackIndex)
+        .map((track, idx) => ({ ...track, trackNumber: idx + 1 }));
+      newDiscs[discIndex] = disc;
+      return { ...prev, discs: newDiscs };
+    });
+  };
+
+  const formatDuration = (seconds) => {
+    if (!seconds) return '';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const parseDuration = (timeString) => {
+    if (!timeString) return null;
+    const parts = timeString.split(':');
+    if (parts.length !== 2) return null;
+    const mins = parseInt(parts[0]);
+    const secs = parseInt(parts[1]);
+    if (isNaN(mins) || isNaN(secs)) return null;
+    return mins * 60 + secs;
+  };
+
+  // Track Drag and Drop handlers
+  const handleTrackDragStart = (e, discIndex, trackIndex) => {
+    setDraggedTrack({ discIndex, trackIndex });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.currentTarget);
+    e.currentTarget.style.opacity = '0.5';
+  };
+
+  const handleTrackDragEnd = (e) => {
+    e.currentTarget.style.opacity = '1';
+    setDraggedTrack(null);
+    setDropTarget(null);
+  };
+
+  const handleTrackDragOver = (e, discIndex, trackIndex) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    // Only show drop target if dragging within same disc
+    if (draggedTrack && draggedTrack.discIndex === discIndex) {
+      setDropTarget({ discIndex, trackIndex });
+    }
+  };
+
+  const handleTrackDrop = (e, targetDiscIndex, targetTrackIndex) => {
+    e.preventDefault();
+    
+    if (!draggedTrack) return;
+    if (draggedTrack.discIndex !== targetDiscIndex) return; // Only allow reordering within same disc
+    if (draggedTrack.trackIndex === targetTrackIndex) return; // No change
+    
+    setFormData(prev => {
+      const newDiscs = [...prev.discs];
+      const disc = { ...newDiscs[targetDiscIndex] };
+      const tracks = [...disc.tracks];
+      
+      // Remove dragged track
+      const [draggedItem] = tracks.splice(draggedTrack.trackIndex, 1);
+      
+      // Insert at new position
+      tracks.splice(targetTrackIndex, 0, draggedItem);
+      
+      // Renumber all tracks based on new positions
+      disc.tracks = tracks.map((track, idx) => ({
+        ...track,
+        trackNumber: idx + 1
+      }));
+      
+      newDiscs[targetDiscIndex] = disc;
+      return { ...prev, discs: newDiscs };
+    });
+    
+    setDropTarget(null);
   };
 
   const validateForm = () => {
@@ -316,6 +493,7 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
   };
 
   return (
+    <>
     <Modal show={true} onHide={onCancel} size="lg" centered style={{ zIndex: 10100 }}>
       {/* Floating Upload Message */}
       {uploadMessage && (
@@ -894,6 +1072,151 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
               </Form.Group>
             </Col>
           </Row>
+
+          {/* Tracks Section */}
+          <hr className="my-3" />
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h6 className="mb-0">Tracks</h6>
+            <Button variant="outline-primary" size="sm" onClick={addDisc}>
+              <BsPlus size={18} /> Add Disc
+            </Button>
+          </div>
+
+          {formData.discs.length === 0 ? (
+            <Alert variant="info" className="mb-3">
+              <div className="text-center py-2">
+                <BsMusicNote size={24} className="mb-2" />
+                <p className="mb-0">No tracks added yet. Click "Add Disc" to start adding tracks.</p>
+              </div>
+            </Alert>
+          ) : (
+            <Accordion defaultActiveKey="0" className="mb-3">
+              {formData.discs.map((disc, discIndex) => (
+                <Accordion.Item key={discIndex} eventKey={discIndex.toString()}>
+                  <Accordion.Header>
+                    Disc {disc.number} ({disc.tracks.length} {disc.tracks.length === 1 ? 'track' : 'tracks'})
+                  </Accordion.Header>
+                  <Accordion.Body>
+                    <div className="d-flex justify-content-end mb-2 gap-2">
+                      <Button 
+                        variant="outline-success" 
+                        size="sm" 
+                        onClick={() => addTrack(discIndex)}
+                      >
+                        <BsPlus size={18} /> Add Track
+                      </Button>
+                      <Button 
+                        variant="outline-danger" 
+                        size="sm" 
+                        onClick={() => {
+                          if (window.confirm(`Delete Disc ${disc.number}?`)) {
+                            deleteDisc(discIndex);
+                          }
+                        }}
+                      >
+                        <BsTrash /> Delete Disc
+                      </Button>
+                    </div>
+
+                    {disc.tracks.length === 0 ? (
+                      <div className="text-center text-muted py-3">
+                        No tracks yet. Click "Add Track" to add tracks to this disc.
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-muted mb-2" style={{ fontSize: '0.75rem' }}>
+                          <BsGripVertical size={12} className="me-1" />
+                          Drag tracks to reorder
+                        </div>
+                        <Table striped bordered hover size="sm" style={{ fontSize: '0.875rem' }}>
+                          <thead>
+                            <tr>
+                              <th style={{ width: '30px' }}></th>
+                              <th style={{ width: '40px' }}>#</th>
+                              <th>Title</th>
+                              <th style={{ width: '80px' }}>Duration</th>
+                              <th style={{ width: '120px' }}>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {disc.tracks.map((track, trackIndex) => {
+                              const isDragging = draggedTrack?.discIndex === discIndex && draggedTrack?.trackIndex === trackIndex;
+                              const isDropTarget = dropTarget?.discIndex === discIndex && dropTarget?.trackIndex === trackIndex;
+                              
+                              return (
+                            <tr 
+                              key={trackIndex}
+                              draggable
+                              onDragStart={(e) => handleTrackDragStart(e, discIndex, trackIndex)}
+                              onDragEnd={handleTrackDragEnd}
+                              onDragOver={(e) => handleTrackDragOver(e, discIndex, trackIndex)}
+                              onDrop={(e) => handleTrackDrop(e, discIndex, trackIndex)}
+                              style={{ 
+                                cursor: 'move',
+                                backgroundColor: isDragging 
+                                  ? 'rgba(96, 165, 250, 0.1)' 
+                                  : undefined,
+                                transition: 'all 0.2s ease',
+                                borderLeft: isDragging 
+                                  ? '3px solid rgba(96, 165, 250, 0.8)' 
+                                  : undefined,
+                                borderTop: isDropTarget && !isDragging
+                                  ? '3px solid rgba(34, 197, 94, 0.9)'
+                                  : undefined,
+                                boxShadow: isDropTarget && !isDragging
+                                  ? '0 -2px 8px rgba(34, 197, 94, 0.3)'
+                                  : undefined
+                              }}
+                            >
+                                <td style={{ 
+                                  textAlign: 'center', 
+                                  color: 'rgba(255, 255, 255, 0.4)',
+                                  userSelect: 'none',
+                                  padding: '0.25rem'
+                                }}>
+                                  <BsGripVertical size={14} />
+                                </td>
+                                <td style={{ userSelect: 'none' }}>{trackIndex + 1}</td>
+                                <td style={{ userSelect: 'none' }}>{track.title}</td>
+                                <td style={{ userSelect: 'none' }}>{formatDuration(track.durationSec)}</td>
+                                <td>
+                                  <div className="d-flex gap-1">
+                                    <Button
+                                      variant="outline-primary"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        editTrack(discIndex, trackIndex);
+                                      }}
+                                    >
+                                      <BsPencil />
+                                    </Button>
+                                    <Button
+                                      variant="outline-danger"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (window.confirm(`Delete track "${track.title}"?`)) {
+                                          deleteTrack(discIndex, trackIndex);
+                                        }
+                                      }}
+                                    >
+                                      <BsTrash />
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                              );
+                            })}
+                          </tbody>
+                        </Table>
+                      </>
+                    )}
+                  </Accordion.Body>
+                </Accordion.Item>
+              ))}
+            </Accordion>
+          )}
         </Modal.Body>
         
         <Modal.Footer>
@@ -906,6 +1229,93 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
         </Modal.Footer>
       </Form>
     </Modal>
+
+    {/* Track Edit Dialog */}
+    {showTrackDialog && editingTrack && (
+      <Modal 
+        show={showTrackDialog} 
+        onHide={() => {
+          setShowTrackDialog(false);
+          setEditingTrack(null);
+        }} 
+        centered 
+        style={{ zIndex: 10200 }}
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {editingTrack.trackIndex === -1 ? 'Add Track' : 'Edit Track'}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Title *</Form.Label>
+              <Form.Control
+                type="text"
+                value={editingTrack.data.title}
+                onChange={(e) => setEditingTrack(prev => ({
+                  ...prev,
+                  data: { ...prev.data, title: e.target.value }
+                }))}
+                placeholder="Enter track title"
+                autoFocus
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Duration (mm:ss)</Form.Label>
+              <Form.Control
+                type="text"
+                value={formatDuration(editingTrack.data.durationSec)}
+                onChange={(e) => {
+                  const duration = parseDuration(e.target.value);
+                  setEditingTrack(prev => ({
+                    ...prev,
+                    data: { ...prev.data, durationSec: duration }
+                  }));
+                }}
+                placeholder="e.g., 3:45"
+              />
+              <Form.Text className="text-muted">
+                Format: minutes:seconds (e.g., 3:45)
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>ISRC</Form.Label>
+              <Form.Control
+                type="text"
+                value={editingTrack.data.isrc || ''}
+                onChange={(e) => setEditingTrack(prev => ({
+                  ...prev,
+                  data: { ...prev.data, isrc: e.target.value }
+                }))}
+                placeholder="e.g., USRC17607839"
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button 
+            variant="secondary" 
+            onClick={() => {
+              setShowTrackDialog(false);
+              setEditingTrack(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={saveTrack}
+            disabled={!editingTrack.data.title.trim()}
+          >
+            {editingTrack.trackIndex === -1 ? 'Add Track' : 'Save Changes'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    )}
+  </>
   );
 };
 
