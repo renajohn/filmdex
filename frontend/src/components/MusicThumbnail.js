@@ -1,6 +1,7 @@
 import React from 'react';
 import { Dropdown } from 'react-bootstrap';
 import { BsMusicNote, BsThreeDots } from 'react-icons/bs';
+import musicService from '../services/musicService';
 import './MusicThumbnail.css';
 
 const MusicThumbnail = ({ cd, onClick, onEdit, onDelete }) => {
@@ -25,15 +26,7 @@ const MusicThumbnail = ({ cd, onClick, onEdit, onDelete }) => {
   };
 
   const getCoverImage = () => {
-    if (cd.cover) {
-      // If it's already a full URL or starts with /api/images/ or /images/, use as is
-      if (cd.cover.startsWith('http') || cd.cover.startsWith('/api/images/') || cd.cover.startsWith('/images/')) {
-        return cd.cover;
-      }
-      // Otherwise, prepend /api/images/ for ingress compatibility
-      return `/api/images/${cd.cover}`;
-    }
-    return null;
+    return musicService.getImageUrl(cd.cover);
   };
 
   return (

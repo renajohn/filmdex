@@ -266,6 +266,47 @@ class MusicService {
       throw error;
     }
   }
+
+  /**
+   * Get the full URL for an image path, handling Home Assistant ingress mode
+   * @param {string} imagePath - Path starting with /api/images/ or /images/
+   * @returns {string} - Full URL with ingress prefix if needed
+   */
+  getImageUrl(imagePath) {
+    if (!imagePath) return null;
+    
+    // Already a full URL
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    
+    // Detect if we're in Home Assistant ingress mode
+    const pathname = window.location.pathname;
+    if (pathname.includes('/api/hassio_ingress/')) {
+      const match = pathname.match(/\/api\/hassio_ingress\/[^/]+/);
+      if (match) {
+        const ingressPath = match[0];
+        // If path starts with /api/images/, prepend ingress path
+        if (imagePath.startsWith('/api/images/')) {
+          return `${ingressPath}${imagePath}`;
+        }
+        // If path starts with /images/, convert to /api/images/ and prepend ingress
+        if (imagePath.startsWith('/images/')) {
+          return `${ingressPath}/api${imagePath}`;
+        }
+        // Otherwise, assume it needs /api/images/ prefix
+        return `${ingressPath}/api/images/${imagePath}`;
+      }
+    }
+    
+    // Normal mode - just return the path as-is if it starts with /api/images/
+    if (imagePath.startsWith('/api/images/') || imagePath.startsWith('/images/')) {
+      return imagePath;
+    }
+    
+    // Default: prepend /api/images/
+    return `/api/images/${imagePath}`;
+  }
 }
 
 const musicServiceInstance = new MusicService();
