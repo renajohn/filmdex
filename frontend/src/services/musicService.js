@@ -245,6 +245,27 @@ class MusicService {
       throw error;
     }
   }
+
+  async uploadCover(albumId, file) {
+    try {
+      const baseUrl = await this.getBaseUrl();
+      const formData = new FormData();
+      formData.append('cover', file);
+
+      const response = await fetch(`${baseUrl}/music/albums/${albumId}/upload-cover`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error uploading cover:', error);
+      throw error;
+    }
+  }
 }
 
 const musicServiceInstance = new MusicService();

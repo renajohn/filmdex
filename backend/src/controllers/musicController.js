@@ -323,13 +323,13 @@ const musicController = {
       // Update only the cover field without affecting other data
       const db = require('../database').getDatabase();
       await new Promise((resolve, reject) => {
-        const sql = 'UPDATE cds SET cover = ? WHERE id = ?';
+        const sql = 'UPDATE albums SET cover = ? WHERE id = ?';
         db.run(sql, [coverPath, id], function(err) {
           if (err) {
-            logger.error(`Failed to update cover for CD ${id}:`, err);
+            logger.error(`Failed to update cover for album ${id}:`, err);
             reject(err);
           } else {
-            logger.info(`Updated CD ${id} with custom cover: ${coverPath}`);
+            logger.info(`Updated album ${id} with custom cover: ${coverPath}`);
             resolve();
           }
         });

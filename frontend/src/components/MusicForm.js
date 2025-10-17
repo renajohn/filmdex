@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Form, Button, Row, Col, Alert, Accordion, Card, Table } from 'react-bootstrap';
 import { BsX, BsUpload, BsMusicNote, BsPlus, BsTrash, BsPencil, BsGripVertical } from 'react-icons/bs';
 import apiService from '../services/api';
+import musicService from '../services/musicService';
 
 const MusicForm = ({ cd = null, onSave, onCancel }) => {
   const fileInputRef = useRef(null);
@@ -404,19 +405,7 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
     setUploadingCover(true);
 
     try {
-      const formData = new FormData();
-      formData.append('cover', file);
-
-      const response = await fetch(`/api/music/albums/${cd.id}/upload-cover`, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload cover');
-      }
-
-      const result = await response.json();
+      const result = await musicService.uploadCover(cd.id, file);
       
       // Update the cover preview and form data
       setCoverPreview(result.coverPath);
