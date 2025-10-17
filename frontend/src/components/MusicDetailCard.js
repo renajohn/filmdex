@@ -68,7 +68,14 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
   };
 
   return (
-    <Modal show={true} onHide={onClose} size="lg" centered style={{ zIndex: 10100 }}>
+    <Modal 
+      show={true} 
+      onHide={onClose} 
+      size="lg" 
+      centered 
+      style={{ zIndex: 10100 }}
+      className="music-detail-modal"
+    >
       <Modal.Header closeButton>
         <Modal.Title>
           <BsMusicNote className="me-2" />
