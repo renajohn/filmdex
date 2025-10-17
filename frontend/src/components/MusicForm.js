@@ -465,10 +465,15 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
 
   const getCoverImageUrl = () => {
     if (coverPreview) {
-      if (coverPreview.startsWith('http') || coverPreview.startsWith('/images/')) {
+      // Full URLs (http/https) or API paths are already complete
+      if (coverPreview.startsWith('http') || coverPreview.startsWith('/api/images/')) {
         return coverPreview;
       }
-      return `/images/${coverPreview}`;
+      // Legacy /images/ paths (convert to API endpoint for ingress compatibility)
+      if (coverPreview.startsWith('/images/')) {
+        return coverPreview.replace('/images/', '/api/images/');
+      }
+      return `/api/images/${coverPreview}`;
     }
     return null;
   };

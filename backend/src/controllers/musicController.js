@@ -317,8 +317,8 @@ const musicController = {
         logger.debug('Using default cover dimensions (sharp not available or error)');
       }
 
-      // Construct the cover path (relative to images directory)
-      const coverPath = `/images/cd/custom/${file.filename}`;
+      // Construct the cover path using API endpoint (works with Home Assistant ingress)
+      const coverPath = `/api/images/cd/custom/${file.filename}`;
 
       // Update only the cover field without affecting other data
       const db = require('../database').getDatabase();

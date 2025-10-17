@@ -48,7 +48,7 @@ const ImageService = {
       return new Promise((resolve, reject) => {
         writer.on('finish', () => {
           logger.debug(`Downloaded ${type} image: ${filename}`);
-          const localPath = `/images/${type}/${filename}`;
+          const localPath = `/api/images/${type}/${filename}`;
           logger.debug(`Returning local path: ${localPath}`);
           resolve(localPath);
         });
@@ -95,7 +95,7 @@ const ImageService = {
       return new Promise((resolve, reject) => {
         writer.on('finish', () => {
           logger.debug(`Downloaded ${type} image from URL: ${filename}`);
-          const localPath = `/images/${type}/${filename}`;
+          const localPath = `/api/images/${type}/${filename}`;
           logger.debug(`Returning local path: ${localPath}`);
           resolve(localPath);
         });
@@ -124,7 +124,7 @@ const ImageService = {
       fs.writeFileSync(localPath, imageBuffer);
       
       logger.debug(`Saved ${type} image: ${filename}`);
-      const localPathUrl = `/images/${type}/${filename}`;
+      const localPathUrl = `/api/images/${type}/${filename}`;
       logger.debug(`Returning local path: ${localPathUrl}`);
       return localPathUrl;
     } catch (error) {

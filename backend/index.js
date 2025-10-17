@@ -134,6 +134,19 @@ app.get('/api/tmdb/:tmdbId/posters', movieController.getMoviePosters);
 app.get('/api/ratings', movieController.fetchRatings);
 app.get('/api/thumbnail', movieController.getMovieThumbnail);
 app.get('/api/backdrop/:tmdbId', movieController.getMovieBackdrop);
+// Serve images with support for subdirectories (e.g., cd/custom/filename.jpg)
+// Route with subdirectory
+app.get('/api/images/:type/:subdir/:filename', (req, res) => {
+  const { type, subdir, filename } = req.params;
+  const imagePath = path.join(configManager.getImagesPath(), type, subdir, filename);
+  
+  if (fs.existsSync(imagePath)) {
+    res.sendFile(imagePath);
+  } else {
+    res.status(404).json({ error: 'Image not found' });
+  }
+});
+// Route without subdirectory (for backward compatibility)
 app.get('/api/images/:type/:filename', (req, res) => {
   const { type, filename } = req.params;
   const imagePath = path.join(configManager.getImagesPath(), type, filename);
