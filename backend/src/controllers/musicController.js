@@ -302,19 +302,22 @@ const musicController = {
       const file = req.file;
       logger.info(`Uploading custom cover for CD ${id}: ${file.filename}`);
 
-      // Get image dimensions (try to use sharp if available, otherwise use defaults)
+      // Resize the image to max 1000x1000
       let width = 500;
       let height = 500;
       
       try {
-        // Try to load sharp dynamically
+        await imageService.resizeImage(file.path, file.path, 1000, 1000);
+        
+        // Get updated dimensions after resize
         const sharp = require('sharp');
         const metadata = await sharp(file.path).metadata();
         width = metadata.width;
         height = metadata.height;
+        logger.info(`Cover resized to ${width}x${height}`);
       } catch (error) {
-        // Sharp not available or error reading metadata - use defaults
-        logger.debug('Using default cover dimensions (sharp not available or error)');
+        // If resize fails, log but continue
+        logger.warn('Failed to resize cover image:', error.message);
       }
 
       // Construct the cover path using API endpoint (works with Home Assistant ingress)
@@ -345,6 +348,177 @@ const musicController = {
     } catch (error) {
       logger.error('Error uploading custom cover:', error);
       res.status(500).json({ error: 'Failed to upload custom cover' });
+    }
+  },
+
+  // Migrate existing album covers: download external URLs and resize all to 1000x1000
+  resizeAllAlbumCovers: async (req, res) => {
+    try {
+      logger.info('Starting album cover migration (download + resize)...');
+      
+      const Album = require('../models/album');
+      const path = require('path');
+      const fs = require('fs');
+      const db = require('../database').getDatabase();
+      
+      // Get all albums with covers
+      const albums = await Album.findAll();
+      const albumsWithCovers = albums.filter(album => album.cover);
+      
+      logger.info(`Found ${albumsWithCovers.length} albums with covers to process`);
+      
+      let processed = 0;
+      let downloaded = 0;
+      let resized = 0;
+      let skipped = 0;
+      let errors = 0;
+      const errorDetails = [];
+      
+      for (const album of albumsWithCovers) {
+        try {
+          const coverPath = album.cover;
+          logger.debug(`Processing album ${album.id} (${album.title}): ${coverPath}`);
+          
+          let localPath = null;
+          let needsDownload = false;
+          
+          // Check if cover is an external URL
+          if (coverPath.startsWith('http://') || coverPath.startsWith('https://')) {
+            logger.info(`Downloading external cover for album ${album.id}: ${coverPath}`);
+            needsDownload = true;
+            
+            // Generate filename for downloaded cover
+            const urlParts = coverPath.split('/');
+            const originalFilename = urlParts[urlParts.length - 1];
+            const extension = path.extname(originalFilename) || '.jpg';
+            const filename = `album_${album.id}_${Date.now()}${extension}`;
+            
+            try {
+              // Download the image
+              localPath = await imageService.downloadImageFromUrl(coverPath, 'cd', filename);
+              
+              if (localPath) {
+                downloaded++;
+                logger.info(`Downloaded cover for album ${album.id}: ${localPath}`);
+                
+                // Convert URL path to actual file system path for resizing
+                const urlPath = localPath; // Keep the URL path for database
+                const actualFilePath = path.join(imageService.getLocalImagesDir(), 'cd', filename);
+                
+                // Update database with local path
+                await new Promise((resolve, reject) => {
+                  const sql = 'UPDATE albums SET cover = ? WHERE id = ?';
+                  db.run(sql, [urlPath, album.id], function(err) {
+                    if (err) {
+                      logger.error(`Failed to update cover path for album ${album.id}:`, err);
+                      reject(err);
+                    } else {
+                      logger.info(`Updated database for album ${album.id} with local path: ${urlPath}`);
+                      resolve();
+                    }
+                  });
+                });
+                
+                // Set the actual file path for resizing
+                localPath = actualFilePath;
+              } else {
+                throw new Error('Failed to download cover');
+              }
+            } catch (downloadError) {
+              logger.error(`Failed to download cover for album ${album.id}:`, downloadError);
+              errors++;
+              errorDetails.push({ albumId: album.id, title: album.title, error: `Download failed: ${downloadError.message}` });
+              processed++;
+              continue;
+            }
+          } else {
+            // Cover is already local, find the file
+            const filename = coverPath.split('/').pop();
+            
+            // Check if file exists in cd or cd/custom directory
+            const cdDir = path.join(imageService.getLocalImagesDir(), 'cd');
+            const possiblePaths = [
+              path.join(cdDir, filename),
+              path.join(cdDir, 'custom', filename)
+            ];
+            
+            // Also check if the cover path is a direct file path
+            if (coverPath.startsWith('/api/images/')) {
+              const relativePath = coverPath.replace('/api/images/', '');
+              possiblePaths.push(path.join(imageService.getLocalImagesDir(), relativePath));
+            }
+            
+            for (const testPath of possiblePaths) {
+              logger.debug(`Checking path: ${testPath}`);
+              if (fs.existsSync(testPath)) {
+                localPath = testPath;
+                logger.debug(`Found local cover at: ${localPath}`);
+                break;
+              }
+            }
+            
+            if (!localPath) {
+              logger.warn(`Local cover file not found for album ${album.id}: ${filename}. Checked paths: ${possiblePaths.join(', ')}`);
+              skipped++;
+              errorDetails.push({ albumId: album.id, title: album.title, error: 'Local file not found' });
+              processed++;
+              continue;
+            }
+          }
+          
+          // Resize the image (whether downloaded or already local)
+          if (localPath) {
+            try {
+              const wasResized = await imageService.resizeImage(localPath, localPath, 1000, 1000);
+              
+              if (wasResized) {
+                resized++;
+                logger.info(`Resized cover for album ${album.id}: ${album.title}`);
+              } else {
+                skipped++;
+                logger.debug(`Skipped resize for album ${album.id}: ${album.title} (already correct size)`);
+              }
+            } catch (resizeError) {
+              logger.error(`Failed to resize cover for album ${album.id}:`, resizeError);
+              errors++;
+              errorDetails.push({ albumId: album.id, title: album.title, error: `Resize failed: ${resizeError.message}` });
+              processed++;
+              continue;
+            }
+          }
+          
+          processed++;
+          
+          // Send progress update
+          if (processed % 5 === 0) {
+            logger.info(`Progress: ${processed}/${albumsWithCovers.length} albums processed (${downloaded} downloaded, ${resized} resized)`);
+          }
+          
+        } catch (error) {
+          logger.error(`Error processing album ${album.id}:`, error);
+          errors++;
+          errorDetails.push({ albumId: album.id, title: album.title, error: error.message });
+          processed++;
+        }
+      }
+      
+      const result = {
+        success: true,
+        total: albumsWithCovers.length,
+        processed,
+        downloaded,
+        resized,
+        skipped,
+        errors,
+        errorDetails: errorDetails.length > 0 ? errorDetails : undefined
+      };
+      
+      logger.info('Album cover migration completed:', result);
+      res.json(result);
+      
+    } catch (error) {
+      logger.error('Error during album cover migration:', error);
+      res.status(500).json({ error: 'Failed to migrate album covers', details: error.message });
     }
   }
 };

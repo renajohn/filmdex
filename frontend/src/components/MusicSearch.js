@@ -655,7 +655,12 @@ const MusicSearch = forwardRef(({
         <MusicForm
           cd={reviewingRelease}
           onSave={(cdData) => {
-            onAddCd(cdData);
+            // If this came from MusicBrainz search, use the proper method to download covers
+            if (cdData.musicbrainzReleaseId) {
+              onAddCdFromMusicBrainz(cdData.musicbrainzReleaseId, cdData);
+            } else {
+              onAddCd(cdData);
+            }
             handleFormSave();
           }}
           onCancel={handleFormCancel}

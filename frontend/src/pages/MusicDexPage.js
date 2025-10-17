@@ -1,5 +1,6 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
 import MusicSearch from '../components/MusicSearch';
+import ResizeCoversMigrationModal from '../components/ResizeCoversMigrationModal';
 import musicService from '../services/musicService';
 
 const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
@@ -8,6 +9,7 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState('success');
   const [showAlert, setShowAlert] = useState(false);
+  const [showResizeMigrationModal, setShowResizeMigrationModal] = useState(false);
   const musicSearchRef = useRef(null);
 
   useEffect(() => {
@@ -21,6 +23,9 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
       if (musicSearchRef.current) {
         musicSearchRef.current.openAddDialog();
       }
+    },
+    openResizeMigrationModal: () => {
+      setShowResizeMigrationModal(true);
     }
   }));
 
@@ -107,6 +112,10 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
     }
   };
 
+  const handleResizeMigration = async () => {
+    return await musicService.resizeAllAlbumCovers();
+  };
+
   return (
     <div className="musicdex-page">
       <MusicSearch
@@ -136,6 +145,13 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
           ></button>
         </div>
       )}
+
+      {/* Resize Covers Migration Modal */}
+      <ResizeCoversMigrationModal
+        isOpen={showResizeMigrationModal}
+        onClose={() => setShowResizeMigrationModal(false)}
+        onMigrate={handleResizeMigration}
+      />
     </div>
   );
 });

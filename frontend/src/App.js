@@ -561,6 +561,13 @@ function AppContent() {
     }
   };
 
+  const handleResizeCovers = () => {
+    // Trigger the Resize Covers Migration modal in MusicDexPage
+    if (musicDexRef.current && musicDexRef.current.openResizeMigrationModal) {
+      musicDexRef.current.openResizeMigrationModal();
+    }
+  };
+
   const handleWishList = () => {
     navigate('/wishlist');
   };
@@ -987,6 +994,7 @@ function AppContent() {
               onExportCSV={handleExportCSV}
               onAnalytics={handleAnalytics}
               onAddCD={handleAddCD}
+              onResizeCovers={handleResizeCovers}
               currentPage={location.pathname === '/musicdex' ? 'musicdex' : 'filmdex'}
             />
           </div>

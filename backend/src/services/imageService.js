@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const sharp = require('sharp');
 const configManager = require('../config');
 const logger = require('../logger');
 
@@ -139,6 +140,56 @@ const ImageService = {
 
   getImageUrl: (type, filename) => {
     return `/images/${type}/${filename}`;
+  },
+
+  /**
+   * Resize an image to max dimensions while maintaining aspect ratio
+   * @param {string} sourcePath - Full path to source image
+   * @param {string} destPath - Full path to destination (can be same as source)
+   * @param {number} maxWidth - Maximum width (default: 1000)
+   * @param {number} maxHeight - Maximum height (default: 1000)
+   */
+  resizeImage: async (sourcePath, destPath, maxWidth = 1000, maxHeight = 1000) => {
+    try {
+      const image = sharp(sourcePath);
+      const metadata = await image.metadata();
+      
+      // Only resize if image is larger than max dimensions
+      if (metadata.width > maxWidth || metadata.height > maxHeight) {
+        logger.debug(`Resizing image from ${metadata.width}x${metadata.height} to max ${maxWidth}x${maxHeight}`);
+        
+        // Create a temporary file for the resize operation
+        const tempPath = destPath + '.tmp';
+        
+        await image
+          .resize(maxWidth, maxHeight, {
+            fit: 'inside',
+            withoutEnlargement: true
+          })
+          .jpeg({ quality: 90 })
+          .toFile(tempPath);
+        
+        // Replace the original file with the resized version
+        fs.renameSync(tempPath, destPath);
+        
+        return true; // Image was resized
+      } else {
+        logger.debug(`Image ${metadata.width}x${metadata.height} is within limits, no resize needed`);
+        return false; // Image was not resized
+      }
+    } catch (error) {
+      logger.error(`Error resizing image ${sourcePath}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Resize a CD cover image (album art)
+   * @param {string} imagePath - Path to the image file
+   */
+  resizeCDCover: async (imagePath) => {
+    const fullPath = path.join(ImageService.getLocalImagesDir(), 'cd', path.basename(imagePath));
+    return await ImageService.resizeImage(fullPath, fullPath, 1000, 1000);
   },
 
   // Clean up unused images

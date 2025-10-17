@@ -261,11 +261,25 @@ class MusicService {
       const coverArt = await musicbrainzService.getCoverArt(releaseId);
       let coverPath = null;
       
-      if (coverArt) {
+      if (coverArt && coverArt.url) {
         try {
           // Download and save cover image from MusicBrainz URL
           const filename = `album_${releaseId}_${Date.now()}.jpg`;
           coverPath = await imageService.downloadImageFromUrl(coverArt.url, 'cd', filename);
+          
+          // Resize the downloaded cover to max 1000x1000
+          if (coverPath) {
+            try {
+              const path = require('path');
+              // Extract filename from the returned URL path
+              const downloadedFilename = coverPath.split('/').pop();
+              const fullPath = path.join(imageService.getLocalImagesDir(), 'cd', downloadedFilename);
+              
+              await imageService.resizeImage(fullPath, fullPath, 1000, 1000);
+            } catch (resizeError) {
+              console.warn('Failed to resize cover art:', resizeError.message);
+            }
+          }
         } catch (coverError) {
           console.warn('Failed to download cover art:', coverError.message);
         }
@@ -274,8 +288,8 @@ class MusicService {
       // Prepare album data
       const albumData = {
         ...formattedData,
-        cover: coverPath,
-        ...additionalData
+        ...additionalData,
+        cover: coverPath // Use the downloaded local path, not the external URL (overrides any cover in additionalData)
       };
 
       // Check if album already exists

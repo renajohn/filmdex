@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { BsGear, BsPlus, BsUpload, BsBarChart, BsDownload } from 'react-icons/bs';
+import { BsGear, BsPlus, BsUpload, BsBarChart, BsDownload, BsArrowsAngleContract } from 'react-icons/bs';
 import './CogDropdown.css';
 
 const CogDropdown = ({ 
@@ -9,6 +9,7 @@ const CogDropdown = ({
   onExportCSV,
   onAnalytics,
   onAddCD,
+  onResizeCovers,
   currentPage = 'filmdex'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -80,14 +81,26 @@ const CogDropdown = ({
           }}
         >
           {currentPage === 'musicdex' ? (
-            // MusicDex menu - only Add CD
-            <button 
-              className="cog-menu-item"
-              onClick={() => handleMenuClick(onAddCD)}
-            >
-              <BsPlus className="menu-icon" />
-              Add album
-            </button>
+            // MusicDex menu
+            <>
+              <button 
+                className="cog-menu-item"
+                onClick={() => handleMenuClick(onAddCD)}
+              >
+                <BsPlus className="menu-icon" />
+                Add album
+              </button>
+              
+              <div className="cog-menu-separator"></div>
+              
+              <button 
+                className="cog-menu-item"
+                onClick={() => handleMenuClick(onResizeCovers)}
+              >
+                <BsArrowsAngleContract className="menu-icon" />
+                Resize covers
+              </button>
+            </>
           ) : (
             // FilmDex menu - all options
             <>

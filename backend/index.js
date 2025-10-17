@@ -191,6 +191,7 @@ app.get('/api/music/release-groups/:releaseGroupId/releases', musicController.ge
 app.get('/api/music/release/:releaseId', musicController.getMusicBrainzReleaseDetails);
 app.post('/api/music/release/:releaseId', musicController.addAlbumFromMusicBrainz);
 app.post('/api/music/barcode/:barcode', musicController.addAlbumByBarcode);
+app.post('/api/music/migrate/resize-covers', musicController.resizeAllAlbumCovers);
 
 // Configuration endpoint for frontend
 app.get('/api/config', (req, res) => {

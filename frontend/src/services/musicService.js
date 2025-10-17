@@ -307,6 +307,18 @@ class MusicService {
     // Default: prepend /api/images/
     return `/api/images/${imagePath}`;
   }
+
+  // Migration: Resize all album covers to 1000x1000
+  async resizeAllAlbumCovers() {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/migrate/resize-covers`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to resize album covers');
+    }
+    return await response.json();
+  }
 }
 
 const musicServiceInstance = new MusicService();
