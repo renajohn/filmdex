@@ -152,6 +152,26 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
     handleInputChange(field, array);
   };
 
+  const handleArtistInputChange = (value) => {
+    // For artist field, just update the display value without processing
+    // Processing will happen on blur
+    setFormData(prev => ({
+      ...prev,
+      artist: [value] // Store as single element for display purposes
+    }));
+  };
+
+  const handleArtistInputBlur = (value) => {
+    // Process the artist input only when user finishes typing
+    if (value.includes(',')) {
+      const array = value.split(',').map(item => item.trim()).filter(item => item);
+      handleInputChange('artist', array);
+    } else {
+      // Single artist name - store as array with one element
+      handleInputChange('artist', value.trim() ? [value.trim()] : []);
+    }
+  };
+
   const handleOwnershipChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -264,6 +284,23 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
     const secs = parseInt(parts[1]);
     if (isNaN(mins) || isNaN(secs)) return null;
     return mins * 60 + secs;
+  };
+
+  const parseDurationPartial = (timeString) => {
+    if (!timeString) return null;
+    const parts = timeString.split(':');
+    if (parts.length === 1) {
+      // Only minutes provided, assume 0 seconds
+      const mins = parseInt(parts[0]);
+      if (isNaN(mins)) return null;
+      return mins * 60;
+    } else if (parts.length === 2) {
+      const mins = parseInt(parts[0]);
+      const secs = parseInt(parts[1]);
+      if (isNaN(mins) || isNaN(secs)) return null;
+      return mins * 60 + secs;
+    }
+    return null;
   };
 
   // Track Drag and Drop handlers
@@ -768,9 +805,10 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
                     <Form.Control
                       type="text"
                       value={getArrayDisplayValue(formData.artist)}
-                      onChange={(e) => handleArrayInputChange('artist', e.target.value)}
+                      onChange={(e) => handleArtistInputChange(e.target.value)}
+                      onBlur={(e) => handleArtistInputBlur(e.target.value)}
                       isInvalid={!!errors.artist}
-                      placeholder="Enter artists (comma-separated)"
+                      placeholder="Enter artist name or multiple artists (comma-separated)"
                     />
                     <Form.Control.Feedback type="invalid">
                       {errors.artist}
@@ -1229,18 +1267,28 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
               <Form.Label>Duration (mm:ss)</Form.Label>
               <Form.Control
                 type="text"
-                value={formatDuration(editingTrack.data.durationSec)}
+                value={editingTrack.data.durationSec ? formatDuration(editingTrack.data.durationSec) : ''}
                 onChange={(e) => {
-                  const duration = parseDuration(e.target.value);
-                  setEditingTrack(prev => ({
-                    ...prev,
-                    data: { ...prev.data, durationSec: duration }
-                  }));
+                  const inputValue = e.target.value;
+                  // Allow partial input - don't parse until user has typed something meaningful
+                  if (inputValue === '') {
+                    setEditingTrack(prev => ({
+                      ...prev,
+                      data: { ...prev.data, durationSec: null }
+                    }));
+                  } else {
+                    // Try to parse the duration, but don't be too strict
+                    const duration = parseDurationPartial(inputValue);
+                    setEditingTrack(prev => ({
+                      ...prev,
+                      data: { ...prev.data, durationSec: duration }
+                    }));
+                  }
                 }}
-                placeholder="e.g., 3:45"
+                placeholder="e.g., 3:45 or just 3"
               />
               <Form.Text className="text-muted">
-                Format: minutes:seconds (e.g., 3:45)
+                Format: minutes:seconds (e.g., 3:45) or just minutes (e.g., 3)
               </Form.Text>
             </Form.Group>
 
