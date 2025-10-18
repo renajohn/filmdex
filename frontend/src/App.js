@@ -742,7 +742,7 @@ function AppContent() {
               <button 
                 className={`segment ${location.pathname === '/wishlist' ? 'active' : ''}`}
                 onClick={handleWishList}
-                data-tooltip="Wish List - My future precious"
+                data-tooltip="Wish List - My precious to come"
               >
                 <BsHeart className="segment-icon" />
               </button>
