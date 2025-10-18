@@ -10,7 +10,7 @@ const CogDropdown = ({
   onAnalytics,
   onAddCD,
   onResizeCovers,
-  currentPage = 'filmdex'
+  currentPage = 'dexvault'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
@@ -102,7 +102,7 @@ const CogDropdown = ({
               </button>
             </>
           ) : (
-            // FilmDex menu - all options
+            // DexVault menu - all options
             <>
               <button 
                 className="cog-menu-item"

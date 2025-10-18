@@ -1,13 +1,13 @@
-# FilmDex Frontend
+# DexVault Frontend
 
-React frontend application for the FilmDex movie collection manager. Provides a modern, responsive interface for managing and searching your movie collection.
+React frontend application for DexVault media collection manager. Provides a modern, responsive interface for managing and searching your movie and music collections.
 
 ## Features
 
-- **Movie Search**: Advanced search with multiple filters
-- **Movie Management**: Add, edit, and view movie details
+- **Media Search**: Advanced search with multiple filters for movies and music
+- **Media Management**: Add, edit, and view movie and music details
 - **CSV Import**: Upload and process CSV files with column mapping
-- **Image Gallery**: View movie posters and backdrops
+- **Image Gallery**: View movie posters, backdrops, and music covers
 - **Responsive Design**: Works on desktop and mobile devices
 - **Hot Reloading**: Fast development with instant updates
 

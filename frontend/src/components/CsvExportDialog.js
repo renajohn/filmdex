@@ -113,7 +113,7 @@ const CsvExportDialog = ({ isOpen, onClose, onExport }) => {
         <div className="csv-export-content">
           <p className="csv-export-description">
             Select which columns you want to include in your CSV export. 
-            This export is designed for users migrating away from Filmdex.
+            This export is designed for users migrating away from DexVault.
           </p>
           
           <div className="csv-export-controls">

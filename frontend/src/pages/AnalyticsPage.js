@@ -5,7 +5,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import apiService from '../services/api';
-import { BsArrowLeft, BsFilm, BsClock, BsCurrencyDollar, BsCalendar } from 'react-icons/bs';
+import { BsFilm, BsClock, BsCurrencyDollar, BsCalendar } from 'react-icons/bs';
 import './AnalyticsPage.css';
 
 // Refined color palette - Semantic and harmonious
@@ -211,12 +211,6 @@ const AnalyticsPage = () => {
   if (loading) {
     return (
       <div className="analytics-page">
-        <div className="analytics-header">
-          <button className="back-button" onClick={() => navigate(-1)}>
-            <BsArrowLeft /> Back
-          </button>
-          <h1>Analytics Dashboard</h1>
-        </div>
         <div className="loading-message">Loading analytics...</div>
       </div>
     );
@@ -225,12 +219,6 @@ const AnalyticsPage = () => {
   if (error) {
     return (
       <div className="analytics-page">
-        <div className="analytics-header">
-          <button className="back-button" onClick={() => navigate(-1)}>
-            <BsArrowLeft /> Back
-          </button>
-          <h1>Analytics Dashboard</h1>
-        </div>
         <div className="error-message">{error}</div>
       </div>
     );
@@ -242,13 +230,6 @@ const AnalyticsPage = () => {
 
   return (
     <div className="analytics-page">
-      <div className="analytics-header">
-        <button className="back-button" onClick={() => navigate(-1)}>
-          <BsArrowLeft /> Back
-        </button>
-        <h1>Analytics Dashboard</h1>
-      </div>
-
       {/* Key Metrics */}
       <div className="metrics-grid">
         <div className="metric-card metric-gold">

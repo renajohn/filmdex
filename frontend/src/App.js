@@ -7,12 +7,11 @@ import WishListPage from './pages/WishListPage';
 import MusicDexPage from './pages/MusicDexPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import CogDropdown from './components/CogDropdown';
-import BackfillModal from './components/BackfillModal';
 import CsvExportDialog from './components/CsvExportDialog';
 import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
 import musicService from './services/musicService';
-import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsMusicNote } from 'react-icons/bs';
+import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsMusicNote, BsArrowLeft } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
@@ -28,7 +27,6 @@ function AppContent() {
     searchText: ''
   });
   const [loading, setLoading] = useState(false);
-  const [showBackfillModal, setShowBackfillModal] = useState(false);
   const [hasCheckedBackfill, setHasCheckedBackfill] = useState(false);
   const [showAddMovieDialog, setShowAddMovieDialog] = useState(false);
   const [addMovieMode, setAddMovieMode] = useState('collection');
@@ -59,21 +57,23 @@ function AppContent() {
   const getPageTitle = () => {
     switch (location.pathname) {
       case '/':
-        return 'FilmDex';
+        return 'DexVault';
       case '/musicdex':
         return 'MusicDex';
       case '/import':
-        return 'FilmDex - CSV Import';
+        return 'DexVault - CSV Import';
       case '/wishlist':
-        return 'FilmDex';
+        return 'DexVault';
+      case '/analytics':
+        return 'FilmDex Analytics';
       default:
-        return 'FilmDex';
+        return 'DexVault';
     }
   };
 
 
   const getAutocompleteOptions = async (text) => {
-    // Different keywords for MusicDex vs FilmDex
+    // Different keywords for MusicDex vs DexVault
     const keywords = location.pathname === '/musicdex' 
       ? ['title:', 'artist:', 'genre:', 'track:']
       : [
@@ -505,7 +505,7 @@ function AppContent() {
     }
   };
 
-  const handleFilmDexClick = () => {
+  const handleDexVaultClick = () => {
     navigate('/');
   };
 
@@ -570,21 +570,6 @@ function AppContent() {
 
   const handleWishList = () => {
     navigate('/wishlist');
-  };
-
-  const handleBackfillComplete = () => {
-    // Refresh the movie list if we're on the main page
-    // Add a small delay to ensure the modal closes first
-    setTimeout(() => {
-      if (movieSearchRef.current && movieSearchRef.current.refreshMovies) {
-        movieSearchRef.current.refreshMovies();
-      }
-    }, 100);
-  };
-
-  const handleBackfillIgnore = () => {
-    // Store in localStorage that user has ignored the backfill
-    localStorage.setItem('filmdex_backfill_ignored', 'true');
   };
 
   const handleAddMovieDialogClose = () => {
@@ -711,20 +696,17 @@ function AppContent() {
       if (hasCheckedBackfill) return;
       
       // Check if user has previously ignored the backfill
-      const hasIgnoredBackfill = localStorage.getItem('filmdex_backfill_ignored') === 'true';
+      const hasIgnoredBackfill = localStorage.getItem('dexvault_backfill_ignored') === 'true';
       if (hasIgnoredBackfill) {
         setHasCheckedBackfill(true);
         return;
       }
       
       try {
-        const response = await apiService.getBackfillStatus();
-        if (response.success && response.data.moviesWithoutAge > 0) {
-          // Show backfill modal if there are movies without age
-          setShowBackfillModal(true);
-        }
+        // Backfill check removed - no longer needed
+        console.log('Backfill check skipped');
       } catch (error) {
-        console.error('Error checking backfill status:', error);
+        console.error('Error in backfill check:', error);
       } finally {
         setHasCheckedBackfill(true);
       }
@@ -763,8 +745,16 @@ function AppContent() {
               </button>
             </div>
           ) : (
-            <div className="App-title" onClick={handleFilmDexClick}>
-              <h1>{getPageTitle()}</h1>
+            <div className="App-title">
+              {location.pathname === '/analytics' ? (
+                <button className="back-button" onClick={() => navigate(-1)}>
+                  <BsArrowLeft /> Back
+                </button>
+              ) : ""}
+              <div onClick={handleDexVaultClick}>
+                <h1>{getPageTitle()}</h1>
+              </div>
+            
             </div>
           )}
           {showSearchBar && (
@@ -1049,21 +1039,6 @@ function AppContent() {
         isOpen={showCsvExportDialog}
         onClose={() => setShowCsvExportDialog(false)}
         onExport={handleCsvExport}
-      />
-
-      <BackfillModal 
-        isOpen={showBackfillModal}
-        onClose={() => {
-          setShowBackfillModal(false);
-          // Refresh movies when modal closes (in case it was closed without completion)
-          setTimeout(() => {
-            if (movieSearchRef.current && movieSearchRef.current.refreshMovies) {
-              movieSearchRef.current.refreshMovies();
-            }
-          }, 100);
-        }}
-        onComplete={handleBackfillComplete}
-        onIgnore={handleBackfillIgnore}
       />
 
       {/* Scroll to Top FAB - Mobile Only */}

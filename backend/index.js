@@ -8,7 +8,6 @@ const configManager = require('./src/config');
 const logger = require('./src/logger');
 const movieController = require('./src/controllers/movieController');
 const { importController, uploadMiddleware } = require('./src/controllers/importController');
-const backfillController = require('./src/controllers/backfillController');
 const analyticsController = require('./src/controllers/analyticsController');
 const musicController = require('./src/controllers/musicController');
 const musicService = require('./src/services/musicService');
@@ -164,11 +163,6 @@ app.get('/api/import/:id', importController.getImportStatus);
 app.post('/api/import/resolve', importController.resolveMovie);
 app.post('/api/import/ignore', importController.ignoreMovie);
 
-// Backfill routes
-app.get('/api/backfill/status', backfillController.getStatus);
-app.post('/api/backfill/start', backfillController.startBackfill);
-app.get('/api/backfill/progress', backfillController.getProgress);
-app.post('/api/backfill/retry', backfillController.retryFailedMovies);
 app.get('/api/import/:id/suggestions', importController.getMovieSuggestions);
 
 // Analytics routes

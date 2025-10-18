@@ -1,6 +1,6 @@
-# FilmDex Backend
+# DexVault Backend
 
-Express.js backend API for the FilmDex movie collection manager. Provides RESTful endpoints for movie management, CSV import, and data enrichment.
+Express.js backend API for DexVault media collection manager. Provides RESTful endpoints for movie and music management, CSV import, and data enrichment.
 
 ## Architecture
 
@@ -10,7 +10,7 @@ Express.js backend API for the FilmDex movie collection manager. Provides RESTfu
 - **SQLite Database**: Local data storage with SQLite3
 - **Configuration Management**: Hierarchical config system
 - **Logging System**: Structured logging with configurable levels
-- **Image Service**: Automatic poster and backdrop downloads
+- **Image Service**: Automatic poster, backdrop, and cover downloads
 - **Import Service**: CSV processing with column mapping
 
 ### Project Structure

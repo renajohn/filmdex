@@ -1,7 +1,7 @@
 {
-    "name": "FilmDex",
+    "name": "DexVault",
     "version": "0.0.1",
-    "description": "Interactive index for physical movies (DVD, Blu-ray, 4K UHD).",
+    "description": "DexVault - Organize Your Collections. Interactive index for physical media (DVD, Blu-ray, 4K UHD, CDs).",
     "main": "index.js",
     "author": "Renault John Lecoultre",
     "license": "MIT",
