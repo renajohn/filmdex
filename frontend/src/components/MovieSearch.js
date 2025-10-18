@@ -902,7 +902,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
             /* Database is empty */
             <div className="empty-state">
               <div className="empty-state-icon">🍿</div>
-              <h3 className="empty-state-title">Welcome to DexVault!</h3>
+              <h3 className="empty-state-title">Welcome to FilmDex!</h3>
               <p className="empty-state-description">
                 Your movie collection is empty. Add your first movie to get started and begin tracking your film library.
               </p>
