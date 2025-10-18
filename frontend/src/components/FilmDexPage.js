@@ -16,9 +16,9 @@ import {
   BsX
 } from 'react-icons/bs';
 // Note: We use popcorn emoji directly instead of an icon import
-import './MovieSearch.css';
+import './FilmDexPage.css';
 
-const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLoading, onShowAlert, onAddMovie }, ref) => {
+const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLoading, onShowAlert, onAddMovie }, ref) => {
   const [movies, setMovies] = useState([]);
   const [allMovies, setAllMovies] = useState([]); // Store all movies from backend
   const [filteredMovies, setFilteredMovies] = useState([]); // Store filtered movies
@@ -1003,4 +1003,4 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   );
 });
 
-export default MovieSearch;
+export default FilmDexPage;

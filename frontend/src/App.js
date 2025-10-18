@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import MovieSearch from './components/MovieSearch';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import FilmDexPage from './components/FilmDexPage';
 import AddMovieDialog from './components/AddMovieDialog';
 import ImportPage from './pages/ImportPage';
 import WishListPage from './pages/WishListPage';
@@ -47,20 +47,20 @@ function AppContent() {
   const [boxSets, setBoxSets] = useState([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-  // Check if we're on the thumbnail view (root path)
-  const isThumbnailView = location.pathname === '/';
+  // Check if we're on the thumbnail view (filmdex path)
+  const isThumbnailView = location.pathname === '/filmdex';
   
-  // Check if we should show the search bar (collection, musicdex, or wishlist)
-  const showSearchBar = location.pathname === '/' || location.pathname === '/musicdex' || location.pathname === '/wishlist';
+  // Check if we should show the search bar (filmdex, musicdex, or wishlist)
+  const showSearchBar = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/wishlist';
   
   // Get the page title based on current route
   const getPageTitle = () => {
     switch (location.pathname) {
-      case '/':
+      case '/filmdex':
         return 'DexVault';
       case '/musicdex':
         return 'MusicDex';
-      case '/import':
+      case '/filmdex/import':
         return 'DexVault - CSV Import';
       case '/wishlist':
         return 'DexVault';
@@ -506,11 +506,11 @@ function AppContent() {
   };
 
   const handleDexVaultClick = () => {
-    navigate('/');
+    navigate('/filmdex');
   };
 
   const handleImportMovies = () => {
-    navigate('/import');
+    navigate('/filmdex/import');
   };
 
   const handleAddMovie = () => {
@@ -546,7 +546,7 @@ function AppContent() {
 
 
   const handleCollection = () => {
-    navigate('/');
+    navigate('/filmdex');
   };
 
   const handleMusicDex = () => {
@@ -723,7 +723,7 @@ function AppContent() {
           {showSearchBar ? (
             <div className="segmented-control">
               <button 
-                className={`segment ${location.pathname === '/' ? 'active' : ''}`}
+                className={`segment ${location.pathname === '/filmdex' ? 'active' : ''}`}
                 onClick={handleCollection}
               >
                 <BsCollectionFill className="segment-icon" />
@@ -995,8 +995,12 @@ function AppContent() {
         <Routes>
           <Route 
             path="/" 
+            element={<Navigate to="/filmdex" replace />} 
+          />
+          <Route 
+            path="/filmdex" 
             element={
-              <MovieSearch 
+              <FilmDexPage 
                 ref={movieSearchRef}
                 refreshTrigger={refreshTrigger}
                 searchCriteria={searchCriteria}
@@ -1007,7 +1011,7 @@ function AppContent() {
               />
             } 
           />
-          <Route path="/import" element={<ImportPage />} />
+          <Route path="/filmdex/import" element={<ImportPage />} />
           <Route path="/musicdex" element={<MusicDexPage ref={musicDexRef} searchCriteria={searchCriteria} />} />
           <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onMovieMovedToCollection={handleMovieMovedToCollection} onShowAlert={handleShowAlert} onMovieAdded={handleMovieAdded} />} />
           <Route path="/analytics" element={<AnalyticsPage />} />

@@ -214,7 +214,7 @@ const ImportPage = () => {
               
               <div className="complete-actions">
                 <button 
-                  onClick={() => navigate('/')} 
+                  onClick={() => navigate('/filmdex')} 
                   className="btn btn-primary"
                 >
                   View Collection

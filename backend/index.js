@@ -326,15 +326,20 @@ if (frontendPath) {
       res.send(htmlContent);
     });
   } else {
-    // Normal mode: serve frontend at root path (simplified)
-    logger.info('Running in normal mode - serving frontend at root path');
+    // Normal mode: serve frontend with /filmdex routing
+    logger.info('Running in normal mode - serving frontend with /filmdex routing');
+    
+    // Add root redirect to /filmdex
+    app.get('/', (req, res) => {
+      res.redirect('/filmdex');
+    });
     
     // Serve static files from frontend build (CSS, JS, images, etc.)
     app.use('/static', express.static(path.join(frontendPath, 'static')));
     app.use('/', express.static(frontendPath, { index: false }));
     
-    // Handle root route
-    app.get('/', (req, res) => {
+    // Handle /filmdex route
+    app.get('/filmdex', (req, res) => {
       res.sendFile(path.join(frontendPath, 'index.html'));
     });
     
