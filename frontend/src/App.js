@@ -298,6 +298,23 @@ function AppContent() {
     }
   };
 
+  // Handle search term injection from movie detail
+  const handleSearchFromMovieDetail = (predicate) => {
+    // Clear existing search first, then inject new search term
+    const newText = predicate;
+    
+    // Update the state first
+    setSearchCriteria({ searchText: newText });
+    
+    // Then update the input field directly to ensure immediate visual update
+    if (searchInputRef.current) {
+      searchInputRef.current.value = newText;
+      // Trigger the change event to ensure React knows about the change
+      const event = new Event('input', { bubbles: true });
+      searchInputRef.current.dispatchEvent(event);
+    }
+  };
+
   // Handle filter selection and generate predicates
   const handleFilterSelection = (filterType, filterValue) => {
     let predicate = '';
@@ -1012,12 +1029,13 @@ function AppContent() {
                 setLoading={setLoading}
                 onShowAlert={handleMovieAdded}
                 onAddMovie={handleAddMovie}
+                onSearch={handleSearchFromMovieDetail}
               />
             } 
           />
           <Route path="/filmdex/import" element={<ImportPage />} />
           <Route path="/musicdex" element={<MusicDexPage ref={musicDexRef} searchCriteria={searchCriteria} />} />
-          <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onMovieMovedToCollection={handleMovieMovedToCollection} onShowAlert={handleShowAlert} onMovieAdded={handleMovieAdded} />} />
+          <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onMovieMovedToCollection={handleMovieMovedToCollection} onShowAlert={handleShowAlert} onMovieAdded={handleMovieAdded} onSearch={handleSearchFromMovieDetail} />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
         </Routes>
       </main>

@@ -564,6 +564,17 @@
   line-height: 1.2;
 }
 
+.clickable-name {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #fbbf24;
+}
+
+.clickable-name:hover {
+  color: #fef3c7;
+  text-decoration: underline;
+}
+
 .cast-character {
   font-size: 0.9rem;
   color: #b8c5d1;
@@ -706,7 +717,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 2000;
+  z-index: 10003;
   padding: 20px;
 }
 
@@ -732,7 +743,7 @@
   height: 40px;
   border-radius: 50%;
   cursor: pointer;
-  z-index: 2001;
+  z-index: 10004;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -852,7 +863,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 2000;
+  z-index: 10003;
   padding: 20px;
 }
 

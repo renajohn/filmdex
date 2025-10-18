@@ -18,7 +18,7 @@ import {
 // Note: We use popcorn emoji directly instead of an icon import
 import './FilmDexPage.css';
 
-const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLoading, onShowAlert, onAddMovie }, ref) => {
+const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLoading, onShowAlert, onAddMovie, onSearch }, ref) => {
   const [movies, setMovies] = useState([]);
   const [allMovies, setAllMovies] = useState([]); // Store all movies from backend
   const [filteredMovies, setFilteredMovies] = useState([]); // Store filtered movies
@@ -992,10 +992,12 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           movieDetails={selectedMovieDetails} 
           loading={loadingDetails}
           onClose={handleCloseDetails}
+          onEdit={null}
           onDelete={handleDeleteMovie}
           onShowAlert={onShowAlert}
           onRefresh={refreshForDetailCard}
           onMovieClick={handleMovieClick}
+          onSearch={onSearch}
         />
       )}
 

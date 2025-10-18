@@ -70,7 +70,7 @@ const SortableCollectionMember = ({ movie, collectionName, onMovieClick, getPost
   );
 };
 
-const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert, onRefresh, onMovieClick, loading = false }) => {
+const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert, onRefresh, onMovieClick, onSearch, loading = false }) => {
   const [showTrailer, setShowTrailer] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -98,6 +98,48 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const [collectionRenameData, setCollectionRenameData] = useState({ oldName: '', newName: '', action: 'create' });
   const [collectionMembers, setCollectionMembers] = useState({}); // { collectionName: [movies] }
   const posterRef = useRef(null);
+  
+  // Search handlers
+  const handleDirectorClick = (directorName) => {
+    if (onSearch) {
+      onSearch(`director:"${directorName}"`);
+      onClose(); // Close the detail dialog
+    }
+  };
+
+  const handleActorClick = (actorName) => {
+    if (onSearch) {
+      onSearch(`actor:"${actorName}"`);
+      onClose(); // Close the detail dialog
+    }
+  };
+
+  const handleGenreClick = (genreName) => {
+    if (onSearch) {
+      onSearch(`genre:"${genreName}"`);
+      onClose(); // Close the detail dialog
+    }
+  };
+
+  // Helper function to render clickable genres
+  const renderGenres = (genresString) => {
+    if (!genresString) return null;
+    
+    // Split by comma and trim whitespace
+    const genreList = genresString.split(',').map(genre => genre.trim()).filter(genre => genre);
+    
+    return genreList.map((genre, index) => (
+      <span key={index}>
+        <span 
+          className="clickable-name" 
+          onClick={() => handleGenreClick(genre)}
+        >
+          {genre}
+        </span>
+        {index < genreList.length - 1 && ', '}
+      </span>
+    ));
+  };
   
   // Drag and drop sensors
   const sensors = useSensors(
@@ -1483,12 +1525,17 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                 </h1>
                 {director && (
                     <span className="fact-item director">
-                      Directed by {director}
+                      Directed by <span 
+                        className="clickable-name" 
+                        onClick={() => handleDirectorClick(director)}
+                      >
+                        {director}
+                      </span>
                     </span>
                   )}
                 <div className="movie-detail-facts">
                   <span className="fact-item">
-                    {genres}
+                    {renderGenres(genres)}
                   </span>
                   -
                   <span className="fact-item">
@@ -1652,9 +1699,9 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                 {/* Cast Section */}
                 {cast && cast.length > 0 && (
                   <div className="movie-detail-cast">
-                    <h3>Top Billed Cast</h3>
+                    <h3>Cast</h3>
                     <div className="cast-horizontal">
-                      {cast.slice(0, 6).map((actor, index) => (
+                      {cast.slice(0, 10).map((actor, index) => (
                         <div key={index} className="cast-member">
                           {actor.local_profile_path ? (
                             <img 
@@ -1670,7 +1717,12 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                             </div>
                           )}
                           <div className="cast-info">
-                            <span className="cast-name">{actor.name}</span>
+                            <span 
+                              className="cast-name clickable-name" 
+                              onClick={() => handleActorClick(actor.name)}
+                            >
+                              {actor.name}
+                            </span>
                             <span className="cast-character">{actor.character || ''}</span>
                           </div>
                         </div>
