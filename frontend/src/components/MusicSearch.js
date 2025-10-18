@@ -51,7 +51,8 @@ const MusicSearch = forwardRef(({
   useImperativeHandle(ref, () => ({
     refresh: loadCds,
     search: performSearch,
-    openAddDialog: () => setShowAddDialog(true)
+    openAddDialog: () => setShowAddDialog(true),
+    openAlbumDetails: (album) => setSelectedCdDetails(album)
   }));
 
   // Function to update search via URL (which will update the search bar in App.js)
@@ -86,8 +87,19 @@ const MusicSearch = forwardRef(({
     try {
       const data = await musicService.getAllAlbums();
       setAllCds(data);
-      setFilteredCds(data);
-      setCdCount({ filtered: data.length, total: data.length });
+      
+      // Respect current search criteria when reloading
+      const currentSearchText = searchCriteria?.searchText || '';
+      if (currentSearchText.trim()) {
+        // Re-apply search filter
+        const localResults = await musicService.searchAlbums(currentSearchText);
+        setFilteredCds(localResults);
+        setCdCount({ filtered: localResults.length, total: data.length });
+      } else {
+        // No search - show all albums
+        setFilteredCds(data);
+        setCdCount({ filtered: data.length, total: data.length });
+      }
     } catch (error) {
       console.error('Error loading albums:', error);
       if (onShowAlert) {
@@ -375,21 +387,29 @@ const MusicSearch = forwardRef(({
     }
   };
 
-  const handleFormSave = async () => {
+  const handleFormSave = async (createdAlbum = null) => {
     setShowAddForm(false);
     setEditingCd(null);
     setReviewingRelease(null);
-    await loadCds();
     
-    if (cdDetailsBeforeEdit) {
-      try {
-        const updatedDetails = await musicService.getAlbumById(cdDetailsBeforeEdit.id);
-        setSelectedCdDetails(updatedDetails);
-        setCdDetailsBeforeEdit(null);
-      } catch (err) {
-        console.error('Failed to reload album details after save:', err);
-        setSelectedCdDetails(cdDetailsBeforeEdit);
-        setCdDetailsBeforeEdit(null);
+    if (createdAlbum) {
+      // Show the detail dialog for the newly created album first
+      setSelectedCdDetails(createdAlbum);
+      // Then reload the album list
+      await loadCds();
+    } else {
+      // For updates, reload first then show details
+      await loadCds();
+      if (cdDetailsBeforeEdit) {
+        try {
+          const updatedDetails = await musicService.getAlbumById(cdDetailsBeforeEdit.id);
+          setSelectedCdDetails(updatedDetails);
+          setCdDetailsBeforeEdit(null);
+        } catch (err) {
+          console.error('Failed to reload album details after save:', err);
+          setSelectedCdDetails(cdDetailsBeforeEdit);
+          setCdDetailsBeforeEdit(null);
+        }
       }
     }
   };
@@ -646,7 +666,11 @@ const MusicSearch = forwardRef(({
 
       {showAddForm && (
         <MusicForm
-          onSave={onAddCd}
+          onSave={async (cdData) => {
+            const createdAlbum = await onAddCd(cdData);
+            await handleFormSave(createdAlbum);
+            return createdAlbum;
+          }}
           onCancel={handleFormCancel}
         />
       )}
@@ -654,14 +678,15 @@ const MusicSearch = forwardRef(({
       {reviewingRelease && (
         <MusicForm
           cd={reviewingRelease}
-          onSave={(cdData) => {
+          onSave={async (cdData) => {
+            let createdAlbum;
             // If this came from MusicBrainz search, use the proper method to download covers
             if (cdData.musicbrainzReleaseId) {
-              onAddCdFromMusicBrainz(cdData.musicbrainzReleaseId, cdData);
+              createdAlbum = await onAddCdFromMusicBrainz(cdData.musicbrainzReleaseId, cdData);
             } else {
-              onAddCd(cdData);
+              createdAlbum = await onAddCd(cdData);
             }
-            handleFormSave();
+            await handleFormSave(createdAlbum);
           }}
           onCancel={handleFormCancel}
         />

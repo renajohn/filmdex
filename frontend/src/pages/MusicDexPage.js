@@ -59,12 +59,14 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
 
   const handleAddCd = async (cdData) => {
     try {
-      await musicService.addAlbum(cdData);
+      const createdAlbum = await musicService.addAlbum(cdData);
       await loadCds();
       showAlertMessage('Album added successfully!', 'success');
+      return createdAlbum; // Return the created album data
     } catch (error) {
       console.error('Error adding album:', error);
       showAlertMessage('Failed to add album: ' + error.message, 'danger');
+      throw error;
     }
   };
 

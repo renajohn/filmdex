@@ -182,7 +182,14 @@ const Album = {
         if (err) {
           reject(err);
         } else {
-          resolve({ ...cd, id: this.lastID });
+          // Get the created album with proper formatting
+          db.get('SELECT * FROM albums WHERE id = ?', [this.lastID], (err, row) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(Album.formatRow(row));
+            }
+          });
         }
       });
     });

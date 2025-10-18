@@ -418,9 +418,8 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
     // Clear any previous messages
     setUploadMessage(null);
 
+    // Only allow uploads for existing albums with IDs
     if (!cd || !cd.id) {
-      setUploadMessageType('warning');
-      setUploadMessage('Please save the album first before uploading a cover');
       return;
     }
 
@@ -475,7 +474,9 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
   const handleDragEnter = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(true);
+    if (cd && cd.id) {
+      setIsDragging(true);
+    }
   };
 
   const handleDragLeave = (e) => {
@@ -494,9 +495,11 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
     e.stopPropagation();
     setIsDragging(false);
 
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      await uploadCoverFile(files[0]);
+    if (cd && cd.id) {
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        await uploadCoverFile(files[0]);
+      }
     }
   };
 
@@ -641,147 +644,153 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
           
           <Row>
             {/* Cover Display and Upload */}
-            {cd && (
-              <Col md={4} className="mb-3">
-                <Form.Group>
-                  <Form.Label>Album Cover</Form.Label>
-                  <div 
-                    className="cover-upload-container" 
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragEnter={handleDragEnter}
-                    onDragLeave={handleDragLeave}
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                    style={{ 
-                      width: '100%',
-                      aspectRatio: '1',
-                      border: isDragging 
-                        ? '2px dashed rgba(96, 165, 250, 0.8)' 
-                        : '2px dashed rgba(255, 255, 255, 0.2)', 
-                      borderRadius: '8px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      overflow: 'hidden',
-                      backgroundColor: isDragging 
-                        ? 'rgba(96, 165, 250, 0.1)' 
-                        : 'rgba(255, 255, 255, 0.05)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      position: 'relative'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isDragging) {
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)';
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isDragging) {
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
-                      }
-                    }}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/webp"
-                      onChange={handleCoverUpload}
-                      style={{ display: 'none' }}
-                    />
-                    {getCoverImageUrl() ? (
-                      <>
-                        <img 
-                          src={getCoverImageUrl()} 
-                          alt="Album Cover"
-                          style={{ 
-                            width: '100%', 
-                            height: '100%', 
-                            objectFit: 'cover'
-                          }}
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                        {isDragging && (
-                          <div 
-                            style={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                              color: 'rgba(96, 165, 250, 0.9)',
-                              pointerEvents: 'none'
-                            }}
-                          >
-                            <div style={{ textAlign: 'center' }}>
-                              <BsUpload size={48} />
-                              <div style={{ fontSize: '0.875rem', marginTop: '8px', fontWeight: '500' }}>
-                                Drop to replace
-                              </div>
-                            </div>
-                          </div>
-                        )}
+            <Col md={4} className="mb-3">
+              <Form.Group>
+                <Form.Label>Album Cover</Form.Label>
+                <div 
+                  className="cover-upload-container" 
+                  onClick={() => cd && cd.id ? fileInputRef.current?.click() : null}
+                  onDragEnter={handleDragEnter}
+                  onDragLeave={handleDragLeave}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                  style={{ 
+                    width: '100%',
+                    aspectRatio: '1',
+                    border: isDragging 
+                      ? '2px dashed rgba(96, 165, 250, 0.8)' 
+                      : '2px dashed rgba(255, 255, 255, 0.2)', 
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    backgroundColor: isDragging 
+                      ? 'rgba(96, 165, 250, 0.1)' 
+                      : 'rgba(255, 255, 255, 0.05)',
+                    cursor: cd && cd.id ? 'pointer' : 'default',
+                    transition: 'all 0.2s ease',
+                    position: 'relative'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isDragging && cd && cd.id) {
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+                      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isDragging) {
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                    }
+                  }}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    onChange={handleCoverUpload}
+                    style={{ display: 'none' }}
+                  />
+                  {getCoverImageUrl() ? (
+                    <>
+                      <img 
+                        src={getCoverImageUrl()} 
+                        alt="Album Cover"
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          objectFit: 'cover'
+                        }}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                      {isDragging && (
                         <div 
                           style={{
                             position: 'absolute',
-                            bottom: 0,
+                            top: 0,
                             left: 0,
                             right: 0,
-                            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                            color: 'white',
-                            padding: '8px',
-                            fontSize: '0.75rem',
-                            textAlign: 'center',
-                            display: isDragging ? 'none' : 'flex',
+                            bottom: 0,
+                            display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            gap: '4px'
+                            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            color: 'rgba(96, 165, 250, 0.9)',
+                            pointerEvents: 'none'
                           }}
                         >
-                          <BsUpload size={12} />
-                          {uploadingCover ? 'Uploading...' : 'Change Cover'}
-                        </div>
-                      </>
-                    ) : (
-                      <div style={{ 
-                        textAlign: 'center', 
-                        color: isDragging ? 'rgba(96, 165, 250, 0.9)' : 'rgba(255, 255, 255, 0.5)',
-                        pointerEvents: 'none'
-                      }}>
-                        {isDragging ? (
-                          <>
+                          <div style={{ textAlign: 'center' }}>
                             <BsUpload size={48} />
                             <div style={{ fontSize: '0.875rem', marginTop: '8px', fontWeight: '500' }}>
-                              Drop image here
+                              Drop to replace
                             </div>
-                          </>
-                        ) : (
-                          <>
-                            <BsMusicNote size={48} />
-                            <div style={{ fontSize: '0.75rem', marginTop: '8px' }}>
-                              <BsUpload size={12} className="me-1" />
-                              Click or drop to upload
-                            </div>
-                          </>
-                        )}
+                          </div>
+                        </div>
+                      )}
+                      <div 
+                        style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                          color: 'white',
+                          padding: '8px',
+                          fontSize: '0.75rem',
+                          textAlign: 'center',
+                          display: isDragging ? 'none' : 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <BsUpload size={12} />
+                        {uploadingCover ? 'Uploading...' : 'Change Cover'}
                       </div>
-                    )}
-                  </div>
-                  <Form.Text className="text-muted d-block mt-2" style={{ fontSize: '0.75rem' }}>
-                    JPEG, PNG, WebP (max 10MB)
-                  </Form.Text>
-                </Form.Group>
-              </Col>
-            )}
+                    </>
+                  ) : (
+                    <div style={{ 
+                      textAlign: 'center', 
+                      color: isDragging ? 'rgba(96, 165, 250, 0.9)' : 'rgba(255, 255, 255, 0.5)',
+                      pointerEvents: 'none'
+                    }}>
+                      {isDragging ? (
+                        <>
+                          <BsUpload size={48} />
+                          <div style={{ fontSize: '0.875rem', marginTop: '8px', fontWeight: '500' }}>
+                            Drop image here
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <BsMusicNote size={48} />
+                          <div style={{ fontSize: '0.75rem', marginTop: '8px' }}>
+                            {cd && cd.id ? (
+                              <>
+                                <BsUpload size={12} className="me-1" />
+                                Click or drop to upload
+                              </>
+                            ) : (
+                              <>
+                                Save your initial album information before uploading cover art
+                              </>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <Form.Text className="text-muted d-block mt-2" style={{ fontSize: '0.75rem' }}>
+                  JPEG, PNG, WebP (max 10MB)
+                </Form.Text>
+              </Form.Group>
+            </Col>
             
-            <Col md={cd ? 8 : 12}>
+            <Col md={8}>
               <Row>
                 <Col md={12}>
                   <Form.Group className="mb-3">
@@ -1225,7 +1234,7 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
             Cancel
           </Button>
           <Button variant="primary" type="submit" disabled={loading}>
-            {loading ? 'Saving...' : (cd ? 'Update Album' : 'Add Album')}
+            {loading ? 'Saving...' : (cd?.id ? 'Update Album' : 'Create Album')}
           </Button>
         </Modal.Footer>
       </Form>
