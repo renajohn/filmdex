@@ -24,6 +24,15 @@ const initDatabase = async () => {
         console.error('Database connection error:', err.message);
         reject(err);
       } else {
+        // Enable foreign key constraints
+        db.run('PRAGMA foreign_keys = ON', (err) => {
+          if (err) {
+            console.error('Error enabling foreign keys:', err.message);
+          } else {
+            console.log('Foreign key constraints enabled');
+          }
+        });
+        
         // Create tables with final schema
         try {
           const Movie = require('./models/movie');

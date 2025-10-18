@@ -116,7 +116,7 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
               
               {/* Compact metadata grid */}
               <div className="metadata-section">
-                <Row className="g-2">
+                <Row>
                   {cd.releaseYear && (
                     <Col xs={6} md={4}>
                       <div className="metadata-item">
@@ -189,7 +189,7 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
         {/* Ownership Information */}
         {(cd.ownership?.condition || cd.ownership?.purchasedAt || cd.ownership?.priceChf || cd.ownership?.notes) && (
           <div className="mt-4">
-            <h6>Ownership Information</h6>
+            <h4>Ownership Information</h4>
             <Row>
               {cd.ownership?.condition && (
                 <Col md={3}>
@@ -232,8 +232,8 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
         {/* Additional Information */}
         {(cd.producer?.length > 0 || cd.engineer?.length > 0 || cd.recordingLocation || cd.labels?.length > 0 || cd.catalogNumber || cd.barcode || cd.recordingQuality) && (
           <div className="info-section">
-            <h6 className="section-title">Additional Information</h6>
-            <Row className="g-3">
+            <h4>Additional Information</h4>
+            <Row>
               {cd.labels && cd.labels.length > 0 && (
                 <Col md={6}>
                   <div className="info-item">
@@ -299,8 +299,8 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
         {/* Technical Details */}
         {(cd.language || cd.isrcCodes?.length > 0) && (
           <div className="info-section">
-            <h6 className="section-title">Technical Details</h6>
-            <Row className="g-3">
+            <h4>Technical Details</h4>
+            <Row>
               {cd.language && (
                 <Col md={6}>
                   <div className="info-item">
@@ -324,7 +324,7 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
         {/* External Links */}
         {cd.urls && Object.keys(cd.urls).length > 0 && (
           <div className="info-section">
-            <h6 className="section-title">External Links</h6>
+            <h4>External Links</h4>
             <div className="external-links">
               {Object.entries(cd.urls).map(([type, url]) => (
                 <a 
@@ -344,7 +344,7 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
         {/* Annotation */}
         {cd.annotation && (
           <div className="info-section">
-            <h6 className="section-title">Album Notes</h6>
+            <h4>Album Notes</h4>
             <div className="annotation-text">
               {cd.annotation}
             </div>
@@ -354,7 +354,7 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
         {/* Track Listing */}
         {cd.discs && cd.discs.length > 0 && (
           <div className="info-section">
-            <h6 className="section-title">Track Listing</h6>
+            <h4>Track Listing</h4>
             {cd.discs.map((disc, discIndex) => (
               <div key={discIndex} className="disc-tracks mb-3">
                 {cd.discs.length > 1 && (

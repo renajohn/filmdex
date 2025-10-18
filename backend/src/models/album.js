@@ -1,4 +1,5 @@
 const { getDatabase } = require('../database');
+const cacheService = require('../services/cacheService');
 
 const Album = {
   createTable: () => {
@@ -178,10 +179,13 @@ const Album = {
         cd.created_at, cd.updated_at
       ];
 
-      db.run(sql, params, function(err) {
+      db.run(sql, params, async function(err) {
         if (err) {
           reject(err);
         } else {
+          // Invalidate analytics cache when album is created
+          await cacheService.invalidateAnalytics();
+          
           // Get the created album with proper formatting
           db.get('SELECT * FROM albums WHERE id = ?', [this.lastID], (err, row) => {
             if (err) {
@@ -271,32 +275,61 @@ const Album = {
       let whereClauses = [];
       let hasTrackFilter = false;
       
-      // Extract filters like artist:"value" or title:"value" or genre:"value" or mood:"value" or track:"value"
-      const filterRegex = /(artist|title|genre|mood|track):"([^"]+)"/g;
+      // Extract filters like artist:"value" or title:"value" or genre:"value" or mood:"value" or track:"value" or year:2020 or label:"Columbia"
+      const filterRegex = /(artist|title|genre|mood|track|year|label):"([^"]+)"|(year):(>=|<=|>|<)?(\d+)/g;
       let match;
       let hasFilters = false;
       
       while ((match = filterRegex.exec(query)) !== null) {
         hasFilters = true;
-        const field = match[1];
-        const value = match[2];
         
-        if (field === 'track') {
-          // Track filter requires a JOIN with the tracks table
-          hasTrackFilter = true;
-          whereClauses.push(`EXISTS (SELECT 1 FROM tracks WHERE tracks.album_id = albums.id AND tracks.title LIKE ?)`);
-          params.push(`%${value}%`);
-        } else {
-          // Map singular field names to plural column names where needed
-          const columnMap = {
-            'artist': 'artist',
-            'title': 'title',
-            'genre': 'genres'
-          };
-          const column = columnMap[field];
+        // Handle quoted filters (artist:"value", title:"value", etc.)
+        if (match[1] && match[2]) {
+          const field = match[1];
+          const value = match[2];
           
-          whereClauses.push(`${column} LIKE ?`);
-          params.push(`%${value}%`);
+          if (field === 'track') {
+            // Track filter requires a JOIN with the tracks table
+            hasTrackFilter = true;
+            whereClauses.push(`EXISTS (SELECT 1 FROM tracks WHERE tracks.album_id = albums.id AND tracks.title LIKE ?)`);
+            params.push(`%${value}%`);
+          } else {
+            // Map singular field names to plural column names where needed
+            const columnMap = {
+              'artist': 'artist',
+              'title': 'title',
+              'genre': 'genres',
+              'label': 'labels'
+            };
+            const column = columnMap[field];
+            
+            if (column) {
+              whereClauses.push(`${column} LIKE ?`);
+              params.push(`%${value}%`);
+            }
+          }
+        }
+        // Handle year filters (year:2020, year:>=2020, etc.)
+        else if (match[3] === 'year' && match[5]) {
+          const operator = match[4] || '=';
+          const year = parseInt(match[5]);
+          
+          if (operator === '>=') {
+            whereClauses.push(`release_year >= ?`);
+            params.push(year);
+          } else if (operator === '<=') {
+            whereClauses.push(`release_year <= ?`);
+            params.push(year);
+          } else if (operator === '>') {
+            whereClauses.push(`release_year > ?`);
+            params.push(year);
+          } else if (operator === '<') {
+            whereClauses.push(`release_year < ?`);
+            params.push(year);
+          } else {
+            whereClauses.push(`release_year = ?`);
+            params.push(year);
+          }
         }
       }
       
@@ -387,10 +420,12 @@ const Album = {
         id
       ];
 
-      db.run(sql, params, function(err) {
+      db.run(sql, params, async function(err) {
         if (err) {
           reject(err);
         } else {
+          // Invalidate analytics cache when album is updated
+          await cacheService.invalidateAnalytics();
           resolve({ id, ...cdData, updated_at: now });
         }
       });
@@ -398,14 +433,16 @@ const Album = {
   },
 
   delete: (id) => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const db = getDatabase();
       const sql = 'DELETE FROM albums WHERE id = ?';
       
-      db.run(sql, [id], function(err) {
+      db.run(sql, [id], async function(err) {
         if (err) {
           reject(err);
         } else {
+          // Invalidate analytics cache when album is deleted
+          await cacheService.invalidateAnalytics();
           resolve({ deleted: this.changes > 0 });
         }
       });
@@ -464,7 +501,7 @@ const Album = {
       const db = getDatabase();
       
       // Validate field to prevent SQL injection (accept singular forms)
-      const allowedFields = ['title', 'artist', 'genre', 'track'];
+      const allowedFields = ['title', 'artist', 'genre', 'track', 'label'];
       if (!allowedFields.includes(field)) {
         return reject(new Error(`Invalid field: ${field}`));
       }
@@ -495,7 +532,8 @@ const Album = {
       const columnMap = {
         'title': 'title',
         'artist': 'artist',
-        'genre': 'genres'
+        'genre': 'genres',
+        'label': 'labels'
       };
       const column = columnMap[field] || field;
       

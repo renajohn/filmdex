@@ -1,12 +1,26 @@
 const Movie = require('../models/movie');
 const MovieCast = require('../models/movieCast');
 const MovieCrew = require('../models/movieCrew');
+const Album = require('../models/album');
+const Track = require('../models/track');
 const { getDatabase } = require('../database');
 const logger = require('../logger');
+const cacheService = require('../services/cacheService');
 
 const analyticsController = {
   getAnalytics: async (req, res) => {
     try {
+      // Check cache first
+      const cacheKey = cacheService.generateCacheKey('analytics', {});
+      console.log(`🎬 FILMDEX: Checking cache with key: ${cacheKey}`);
+      const cachedAnalytics = await cacheService.get(cacheKey);
+      
+      if (cachedAnalytics) {
+        logger.info('📊 FILMDEX Analytics served from cache (fast)');
+        return res.json(cachedAnalytics);
+      }
+
+      logger.info('🔄 FILMDEX Analytics generating fresh data (slow)');
       const db = getDatabase();
       const analytics = {};
 
@@ -544,9 +558,743 @@ const analyticsController = {
         analytics.budgetRevenueData = [];
       }
 
+      // Cache the analytics data for 2 hours
+      await cacheService.set(cacheKey, { success: true, data: analytics }, 12000);
+      logger.info('💾 FILMDEX Analytics cached successfully');
+      
       res.json({ success: true, data: analytics });
     } catch (error) {
       logger.error('Error fetching analytics:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  getMusicAnalytics: async (req, res) => {
+    try {
+      // Check cache first
+      const cacheKey = cacheService.generateCacheKey('music-analytics', {});
+      console.log(`🎵 MUSICDEX: Checking cache with key: ${cacheKey}`);
+      const cachedAnalytics = await cacheService.get(cacheKey);
+      
+      if (cachedAnalytics) {
+        logger.info('🎵 MUSICDEX Analytics served from cache (fast)');
+        return res.json(cachedAnalytics);
+      }
+
+      logger.info('🔄 MUSICDEX Analytics generating fresh data (slow)');
+      const db = getDatabase();
+      const analytics = {};
+
+      // Get all albums
+      const albums = await Album.findAll();
+      
+      // Get all tracks for overlap analysis
+      const tracks = await Track.findAll();
+
+      // Debug logging
+      logger.info(`Music Analytics: Found ${albums.length} albums and ${tracks.length} tracks`);
+      
+      if (albums.length === 0) {
+        logger.warn('No albums found in database');
+      }
+
+      // Basic stats
+      analytics.totalAlbums = albums.length;
+      analytics.totalTracks = tracks.length;
+      
+      // Calculate actual durations from track data
+      const albumDurations = {};
+      tracks.forEach(track => {
+        if (track.durationSec && track.durationSec > 0) {
+          const albumId = track.albumId;
+          if (!albumDurations[albumId]) {
+            albumDurations[albumId] = 0;
+          }
+          albumDurations[albumId] += track.durationSec;
+        }
+      });
+
+      // Convert seconds to minutes for duration calculations
+      const albumDurationsInMinutes = {};
+      Object.keys(albumDurations).forEach(albumId => {
+        albumDurationsInMinutes[albumId] = Math.round(albumDurations[albumId] / 60);
+      });
+
+      // Calculate total duration from actual track data
+      analytics.totalDuration = Object.values(albumDurationsInMinutes).reduce((sum, duration) => sum + duration, 0);
+      analytics.averageDuration = Object.keys(albumDurationsInMinutes).length > 0 
+        ? Math.round(analytics.totalDuration / Object.keys(albumDurationsInMinutes).length) 
+        : 0;
+
+      // Calculate estimated listening time (assuming average 3 listens per album)
+      analytics.estimatedListeningTime = Math.round(analytics.totalDuration * 3 / 60); // in hours
+
+      // Artist distribution with detailed analysis
+      const artistCounts = {};
+      const artistGenres = {};
+      const artistDecades = {};
+      const artistLabels = {};
+      
+      albums.forEach(album => {
+        if (album.artist && Array.isArray(album.artist)) {
+          album.artist.forEach(artist => {
+            if (artist && typeof artist === 'string' && artist.trim()) {
+              artistCounts[artist] = (artistCounts[artist] || 0) + 1;
+              
+              // Track genres for this artist
+              if (!artistGenres[artist]) artistGenres[artist] = {};
+              if (album.genres && Array.isArray(album.genres)) {
+                album.genres.forEach(genre => {
+                  if (genre && genre.trim()) {
+                    artistGenres[artist][genre] = (artistGenres[artist][genre] || 0) + 1;
+                  }
+                });
+              }
+              
+              // Track decades for this artist
+              if (!artistDecades[artist]) artistDecades[artist] = {};
+              if (album.releaseYear) {
+                const decade = Math.floor(album.releaseYear / 10) * 10;
+                artistDecades[artist][decade] = (artistDecades[artist][decade] || 0) + 1;
+              }
+              
+              // Track labels for this artist
+              if (!artistLabels[artist]) artistLabels[artist] = {};
+              if (album.labels && Array.isArray(album.labels)) {
+                album.labels.forEach(label => {
+                  if (label && label.trim()) {
+                    artistLabels[artist][label] = (artistLabels[artist][label] || 0) + 1;
+                  }
+                });
+              }
+            }
+          });
+        } else if (album.artist && typeof album.artist === 'string' && album.artist.trim()) {
+          artistCounts[album.artist] = (artistCounts[album.artist] || 0) + 1;
+        }
+      });
+      
+      analytics.artistDistribution = Object.entries(artistCounts)
+        .map(([artist, count]) => {
+          const genres = artistGenres[artist] || {};
+          const decades = artistDecades[artist] || {};
+          const labels = artistLabels[artist] || {};
+          
+          const topGenre = Object.entries(genres).sort((a, b) => b[1] - a[1])[0];
+          const topDecade = Object.entries(decades).sort((a, b) => b[1] - a[1])[0];
+          const topLabel = Object.entries(labels).sort((a, b) => b[1] - a[1])[0];
+          
+          return {
+            artist,
+            count,
+            topGenre: topGenre ? topGenre[0] : 'Unknown',
+            topDecade: topDecade ? `${topDecade[0]}s` : 'Unknown',
+            topLabel: topLabel ? topLabel[0] : 'Unknown',
+            genreCount: Object.keys(genres).length,
+            decadeSpan: Object.keys(decades).length
+          };
+        })
+        .sort((a, b) => b.count - a.count);
+
+      // Genre distribution with evolution over time
+      const genreCounts = {};
+      const genreByDecade = {};
+      const genreByArtist = {};
+      
+      albums.forEach(album => {
+        if (album.genres && Array.isArray(album.genres)) {
+          album.genres.forEach(genre => {
+            if (genre && typeof genre === 'string' && genre.trim()) {
+              genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+              
+              // Track genre by decade
+              if (!genreByDecade[genre]) genreByDecade[genre] = {};
+              if (album.releaseYear) {
+                const decade = Math.floor(album.releaseYear / 10) * 10;
+                genreByDecade[genre][decade] = (genreByDecade[genre][decade] || 0) + 1;
+              }
+              
+              // Track genre by artist
+              if (!genreByArtist[genre]) genreByArtist[genre] = {};
+              if (album.artist && Array.isArray(album.artist)) {
+                album.artist.forEach(artist => {
+                  if (artist && artist.trim()) {
+                    genreByArtist[genre][artist] = (genreByArtist[genre][artist] || 0) + 1;
+                  }
+                });
+              }
+            }
+          });
+        } else if (album.genres && typeof album.genres === 'string') {
+          const genres = album.genres.split(',').map(g => g.trim());
+          genres.forEach(genre => {
+            if (genre) {
+              genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+            }
+          });
+        }
+      });
+      
+      analytics.genreDistribution = Object.entries(genreCounts)
+        .map(([genre, count]) => {
+          const decades = genreByDecade[genre] || {};
+          const artists = genreByArtist[genre] || {};
+          
+          const topDecade = Object.entries(decades).sort((a, b) => b[1] - a[1])[0];
+          const topArtist = Object.entries(artists).sort((a, b) => b[1] - a[1])[0];
+          
+          return {
+            genre,
+            count,
+            topDecade: topDecade ? `${topDecade[0]}s` : 'Unknown',
+            topArtist: topArtist ? topArtist[0] : 'Unknown',
+            artistCount: Object.keys(artists).length,
+            decadeSpan: Object.keys(decades).length
+          };
+        })
+        .sort((a, b) => b.count - a.count);
+
+      // Genre evolution over time (last 5 decades)
+      const currentYear = new Date().getFullYear();
+      const decades = [];
+      for (let year = currentYear - 50; year <= currentYear; year += 10) {
+        decades.push(Math.floor(year / 10) * 10); // Ensure we get decade boundaries like 1970, 1980, etc.
+      }
+      
+      analytics.genreEvolution = decades.map(decade => {
+        const decadeData = { decade: `${decade}s` };
+        Object.keys(genreByDecade).forEach(genre => {
+          decadeData[genre] = genreByDecade[genre][decade] || 0;
+        });
+        return decadeData;
+      });
+
+      // Year/Decade distribution with trends
+      const yearCounts = {};
+      const decadeCounts = {};
+      const yearGenres = {};
+      const yearArtists = {};
+      
+      albums.forEach(album => {
+        if (album.releaseYear) {
+          yearCounts[album.releaseYear] = (yearCounts[album.releaseYear] || 0) + 1;
+          const decade = Math.floor(album.releaseYear / 10) * 10;
+          decadeCounts[decade] = (decadeCounts[decade] || 0) + 1;
+          
+          // Track genres by year
+          if (!yearGenres[album.releaseYear]) yearGenres[album.releaseYear] = {};
+          if (album.genres && Array.isArray(album.genres)) {
+            album.genres.forEach(genre => {
+              if (genre && genre.trim()) {
+                yearGenres[album.releaseYear][genre] = (yearGenres[album.releaseYear][genre] || 0) + 1;
+              }
+            });
+          }
+          
+          // Track artists by year
+          if (!yearArtists[album.releaseYear]) yearArtists[album.releaseYear] = {};
+          if (album.artist && Array.isArray(album.artist)) {
+            album.artist.forEach(artist => {
+              if (artist && artist.trim()) {
+                yearArtists[album.releaseYear][artist] = (yearArtists[album.releaseYear][artist] || 0) + 1;
+              }
+            });
+          }
+        }
+      });
+      
+      analytics.yearDistribution = Object.entries(yearCounts)
+        .map(([year, count]) => ({ 
+          year: parseInt(year), 
+          count,
+          topGenre: Object.entries(yearGenres[year] || {}).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Unknown',
+          topArtist: Object.entries(yearArtists[year] || {}).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Unknown'
+        }))
+        .sort((a, b) => a.year - b.year);
+      
+      analytics.decadeDistribution = Object.entries(decadeCounts)
+        .map(([decade, count]) => ({ decade: `${decade}s`, count }))
+        .sort((a, b) => a.decade.localeCompare(b.decade));
+
+      // Label distribution with artist analysis
+      const labelCounts = {};
+      const labelGenres = {};
+      const labelArtists = {};
+      
+      albums.forEach(album => {
+        const uniqueLabels = new Set(); // Track unique labels per album
+        
+        if (album.labels && Array.isArray(album.labels)) {
+          album.labels.forEach(label => {
+            if (label && typeof label === 'string' && label.trim()) {
+              const normalizedLabel = label.trim();
+              uniqueLabels.add(normalizedLabel);
+            }
+          });
+        } else if (album.labels && typeof album.labels === 'string') {
+          const labels = album.labels.split(',').map(l => l.trim());
+          labels.forEach(label => {
+            if (label) {
+              uniqueLabels.add(label);
+            }
+          });
+        }
+        
+        // Only count each unique label once per album
+        uniqueLabels.forEach(label => {
+          labelCounts[label] = (labelCounts[label] || 0) + 1;
+          
+          // Track genres for this label
+          if (!labelGenres[label]) labelGenres[label] = {};
+          if (album.genres && Array.isArray(album.genres)) {
+            album.genres.forEach(genre => {
+              if (genre && genre.trim()) {
+                labelGenres[label][genre] = (labelGenres[label][genre] || 0) + 1;
+              }
+            });
+          }
+          
+          // Track artists for this label
+          if (!labelArtists[label]) labelArtists[label] = {};
+          if (album.artist && Array.isArray(album.artist)) {
+            album.artist.forEach(artist => {
+              if (artist && artist.trim()) {
+                labelArtists[label][artist] = (labelArtists[label][artist] || 0) + 1;
+              }
+            });
+          }
+        });
+      });
+      
+      analytics.labelDistribution = Object.entries(labelCounts)
+        .map(([label, count]) => {
+          const genres = labelGenres[label] || {};
+          const artists = labelArtists[label] || {};
+          
+          const topGenre = Object.entries(genres).sort((a, b) => b[1] - a[1])[0];
+          const topArtist = Object.entries(artists).sort((a, b) => b[1] - a[1])[0];
+          
+          return {
+            label,
+            count,
+            topGenre: topGenre ? topGenre[0] : 'Unknown',
+            topArtist: topArtist ? topArtist[0] : 'Unknown',
+            genreCount: Object.keys(genres).length,
+            artistCount: Object.keys(artists).length
+          };
+        })
+        .sort((a, b) => b.count - a.count);
+
+      // Album type distribution with detailed analysis
+      const typeCounts = {};
+      const typeGenres = {};
+      const typeArtists = {};
+      
+      albums.forEach(album => {
+        if (album.releaseGroupType && typeof album.releaseGroupType === 'string' && album.releaseGroupType.trim()) {
+          typeCounts[album.releaseGroupType] = (typeCounts[album.releaseGroupType] || 0) + 1;
+          
+          // Track genres for this type
+          if (!typeGenres[album.releaseGroupType]) typeGenres[album.releaseGroupType] = {};
+          if (album.genres && Array.isArray(album.genres)) {
+            album.genres.forEach(genre => {
+              if (genre && genre.trim()) {
+                typeGenres[album.releaseGroupType][genre] = (typeGenres[album.releaseGroupType][genre] || 0) + 1;
+              }
+            });
+          }
+          
+          // Track artists for this type
+          if (!typeArtists[album.releaseGroupType]) typeArtists[album.releaseGroupType] = {};
+          if (album.artist && Array.isArray(album.artist)) {
+            album.artist.forEach(artist => {
+              if (artist && artist.trim()) {
+                typeArtists[album.releaseGroupType][artist] = (typeArtists[album.releaseGroupType][artist] || 0) + 1;
+              }
+            });
+          }
+        }
+      });
+      
+      analytics.typeDistribution = Object.entries(typeCounts)
+        .map(([type, count]) => {
+          const genres = typeGenres[type] || {};
+          const artists = typeArtists[type] || {};
+          
+          const topGenre = Object.entries(genres).sort((a, b) => b[1] - a[1])[0];
+          const topArtist = Object.entries(artists).sort((a, b) => b[1] - a[1])[0];
+          
+          return {
+            type,
+            count,
+            topGenre: topGenre ? topGenre[0] : 'Unknown',
+            topArtist: topArtist ? topArtist[0] : 'Unknown',
+            genreCount: Object.keys(genres).length,
+            artistCount: Object.keys(artists).length
+          };
+        })
+        .sort((a, b) => b.count - a.count);
+
+      // Recording quality distribution
+      const qualityCounts = {};
+      const qualityGenres = {};
+      const qualityArtists = {};
+      
+      albums.forEach(album => {
+        if (album.recordingQuality && album.recordingQuality.trim()) {
+          qualityCounts[album.recordingQuality] = (qualityCounts[album.recordingQuality] || 0) + 1;
+          
+          // Track genres for this quality
+          if (!qualityGenres[album.recordingQuality]) qualityGenres[album.recordingQuality] = {};
+          if (album.genres && Array.isArray(album.genres)) {
+            album.genres.forEach(genre => {
+              if (genre && genre.trim()) {
+                qualityGenres[album.recordingQuality][genre] = (qualityGenres[album.recordingQuality][genre] || 0) + 1;
+              }
+            });
+          }
+          
+          // Track artists for this quality
+          if (!qualityArtists[album.recordingQuality]) qualityArtists[album.recordingQuality] = {};
+          if (album.artist && Array.isArray(album.artist)) {
+            album.artist.forEach(artist => {
+              if (artist && artist.trim()) {
+                qualityArtists[album.recordingQuality][artist] = (qualityArtists[album.recordingQuality][artist] || 0) + 1;
+              }
+            });
+          }
+        }
+      });
+      
+      analytics.qualityDistribution = Object.entries(qualityCounts)
+        .map(([quality, count]) => {
+          const genres = qualityGenres[quality] || {};
+          const artists = qualityArtists[quality] || {};
+          
+          const topGenre = Object.entries(genres).sort((a, b) => b[1] - a[1])[0];
+          const topArtist = Object.entries(artists).sort((a, b) => b[1] - a[1])[0];
+          
+          return {
+            quality,
+            count,
+            topGenre: topGenre ? topGenre[0] : 'Unknown',
+            topArtist: topArtist ? topArtist[0] : 'Unknown',
+            genreCount: Object.keys(genres).length,
+            artistCount: Object.keys(artists).length
+          };
+        })
+        .sort((a, b) => b.count - a.count);
+
+      // COMPLETELY RE-IMPLEMENTED: Track overlap analysis
+      // Step 1: Build a map of track titles to their album and artist information
+      const trackMap = {};
+      
+      tracks.forEach(track => {
+        if (track.title && typeof track.title === 'string' && track.title.trim()) {
+          const normalizedTitle = track.title.toLowerCase().trim();
+          
+          if (!trackMap[normalizedTitle]) {
+            trackMap[normalizedTitle] = {
+              title: normalizedTitle,
+              albums: new Set(),
+              artists: new Set(),
+              genres: new Set(),
+              totalOccurrences: 0
+            };
+          }
+          
+          trackMap[normalizedTitle].albums.add(track.albumId);
+          trackMap[normalizedTitle].totalOccurrences++;
+          
+          // Get album info for artist and genre
+          const album = albums.find(a => a.id === track.albumId);
+          if (album) {
+            if (album.artist && Array.isArray(album.artist)) {
+              album.artist.forEach(artist => {
+                if (artist && artist.trim()) {
+                  trackMap[normalizedTitle].artists.add(artist);
+                }
+              });
+            }
+            if (album.genres && Array.isArray(album.genres)) {
+              album.genres.forEach(genre => {
+                if (genre && genre.trim()) {
+                  trackMap[normalizedTitle].genres.add(genre);
+                }
+              });
+            }
+          }
+        }
+      });
+
+      // Step 2: Find tracks that actually appear on multiple DIFFERENT albums
+      const trulySharedTracks = Object.values(trackMap)
+        .filter(track => track.albums.size > 1) // Only tracks on multiple albums
+        .map(track => ({
+          title: track.title,
+          albumCount: track.albums.size,
+          albums: Array.from(track.albums),
+          artists: Array.from(track.artists),
+          genres: Array.from(track.genres),
+          totalOccurrences: track.totalOccurrences
+        }))
+        .sort((a, b) => b.albumCount - a.albumCount);
+
+      analytics.trackOverlap = trulySharedTracks.slice(0, 20);
+
+      // Step 3: Calculate artist overlap statistics correctly
+      const artistOverlapStats = {};
+      
+      // Count total tracks per artist (for context)
+      const artistTotalTracks = {};
+      tracks.forEach(track => {
+        const album = albums.find(a => a.id === track.albumId);
+        if (album && album.artist && Array.isArray(album.artist)) {
+          album.artist.forEach(artist => {
+            if (artist && artist.trim()) {
+              artistTotalTracks[artist] = (artistTotalTracks[artist] || 0) + 1;
+            }
+          });
+        }
+      });
+
+      // Count overlapping tracks per artist
+      trulySharedTracks.forEach(track => {
+        track.artists.forEach(artist => {
+          if (!artistOverlapStats[artist]) {
+            artistOverlapStats[artist] = {
+              overlappingTracks: 0,
+              totalOverlapInstances: 0,
+              affectedAlbums: new Set()
+            };
+          }
+          
+          artistOverlapStats[artist].overlappingTracks++;
+          artistOverlapStats[artist].totalOverlapInstances += track.totalOccurrences;
+          track.albums.forEach(albumId => {
+            artistOverlapStats[artist].affectedAlbums.add(albumId);
+          });
+        });
+      });
+
+      // Step 4: Generate final artist overlap data
+      analytics.topOverlappingArtists = Object.entries(artistOverlapStats)
+        .map(([artist, stats]) => ({
+          artist,
+          overlappingTracks: stats.overlappingTracks,
+          totalOverlapCount: stats.totalOverlapInstances,
+          albumCount: stats.affectedAlbums.size,
+          totalTracks: artistTotalTracks[artist] || 0,
+          totalInstances: stats.totalOverlapInstances,
+          avgAlbumsPerTrack: stats.overlappingTracks > 0 
+            ? Math.round((stats.totalOverlapInstances / stats.overlappingTracks) * 10) / 10 
+            : 0
+        }))
+        .sort((a, b) => b.overlappingTracks - a.overlappingTracks)
+        .slice(0, 15);
+
+      // Calculate overall overlap statistics
+      const albumsWithSharedTracks = new Set();
+      trulySharedTracks.forEach(track => {
+        track.albums.forEach(albumId => {
+          albumsWithSharedTracks.add(albumId);
+        });
+      });
+      
+      analytics.overlapPercentage = albums.length > 0 
+        ? Math.round((albumsWithSharedTracks.size / albums.length) * 100) 
+        : 0;
+
+      // Detailed overlap statistics
+      analytics.overlapStats = {
+        totalSharedTracks: trulySharedTracks.length,
+        totalOverlapInstances: trulySharedTracks.reduce((sum, track) => sum + track.totalOccurrences, 0),
+        albumsWithOverlap: albumsWithSharedTracks.size,
+        averageOverlapPerTrack: trulySharedTracks.length > 0 
+          ? Math.round((trulySharedTracks.reduce((sum, track) => sum + track.totalOccurrences, 0) / trulySharedTracks.length) * 10) / 10 
+          : 0,
+        mostOverlappedTrack: trulySharedTracks.length > 0 ? trulySharedTracks[0] : null,
+        artistsWithOverlap: Object.keys(artistOverlapStats).length
+      };
+
+      // Duration statistics with enhanced analysis using actual track durations
+      const albumsWithCalculatedDuration = albums
+        .filter(album => albumDurationsInMinutes[album.id] && albumDurationsInMinutes[album.id] > 0)
+        .map(album => ({
+          ...album,
+          calculatedDuration: albumDurationsInMinutes[album.id]
+        }))
+        .sort((a, b) => b.calculatedDuration - a.calculatedDuration);
+      
+      analytics.longestAlbums = albumsWithCalculatedDuration.slice(0, 10).map(album => ({
+        title: album.title || 'Unknown Title',
+        artist: Array.isArray(album.artist) ? album.artist.join(', ') : (album.artist || 'Unknown Artist'),
+        duration: album.calculatedDuration,
+        genre: Array.isArray(album.genres) ? album.genres[0] : 'Unknown',
+        year: album.releaseYear || 'Unknown',
+        label: Array.isArray(album.labels) ? album.labels[0] : 'Unknown'
+      }));
+
+      // Shortest albums
+      analytics.shortestAlbums = albumsWithCalculatedDuration.slice(-10).reverse().map(album => ({
+        title: album.title || 'Unknown Title',
+        artist: Array.isArray(album.artist) ? album.artist.join(', ') : (album.artist || 'Unknown Artist'),
+        duration: album.calculatedDuration,
+        genre: Array.isArray(album.genres) ? album.genres[0] : 'Unknown',
+        year: album.releaseYear || 'Unknown',
+        label: Array.isArray(album.labels) ? album.labels[0] : 'Unknown'
+      }));
+
+      // Duration distribution using calculated durations
+      const durationRanges = {
+        'Under 30 min': 0,
+        '30-45 min': 0,
+        '45-60 min': 0,
+        '60-75 min': 0,
+        '75-90 min': 0,
+        'Over 90 min': 0
+      };
+
+      albumsWithCalculatedDuration.forEach(album => {
+        const duration = album.calculatedDuration;
+        if (duration < 30) durationRanges['Under 30 min']++;
+        else if (duration < 45) durationRanges['30-45 min']++;
+        else if (duration < 60) durationRanges['45-60 min']++;
+        else if (duration < 75) durationRanges['60-75 min']++;
+        else if (duration < 90) durationRanges['75-90 min']++;
+        else durationRanges['Over 90 min']++;
+      });
+
+      analytics.durationDistribution = Object.entries(durationRanges)
+        .map(([range, count]) => ({ range, count }));
+
+      // Artist collaboration analysis
+      const artistCollaborations = {};
+      albums.forEach(album => {
+        if (album.artist && Array.isArray(album.artist) && album.artist.length > 1) {
+          const artists = album.artist.filter(a => a && a.trim());
+          for (let i = 0; i < artists.length; i++) {
+            for (let j = i + 1; j < artists.length; j++) {
+              const pair = [artists[i], artists[j]].sort().join(' & ');
+              artistCollaborations[pair] = (artistCollaborations[pair] || 0) + 1;
+            }
+          }
+        }
+      });
+
+      analytics.topCollaborations = Object.entries(artistCollaborations)
+        .map(([collaboration, count]) => ({ collaboration, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 15);
+
+      // Genre crossover analysis
+      const genreCrossovers = {};
+      albums.forEach(album => {
+        if (album.genres && Array.isArray(album.genres) && album.genres.length > 1) {
+          const genres = album.genres.filter(g => g && g.trim());
+          for (let i = 0; i < genres.length; i++) {
+            for (let j = i + 1; j < genres.length; j++) {
+              const pair = [genres[i], genres[j]].sort().join(' + ');
+              genreCrossovers[pair] = (genreCrossovers[pair] || 0) + 1;
+            }
+          }
+        }
+      });
+
+      analytics.topGenreCrossovers = Object.entries(genreCrossovers)
+        .map(([crossover, count]) => ({ crossover, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 15);
+
+      // Collection diversity metrics
+      const uniqueArtists = new Set();
+      const uniqueGenres = new Set();
+      const uniqueLabels = new Set();
+      const uniqueCountries = new Set();
+      
+      albums.forEach(album => {
+        if (album.artist && Array.isArray(album.artist)) {
+          album.artist.forEach(artist => {
+            if (artist && artist.trim()) uniqueArtists.add(artist);
+          });
+        }
+        if (album.genres && Array.isArray(album.genres)) {
+          album.genres.forEach(genre => {
+            if (genre && genre.trim()) uniqueGenres.add(genre);
+          });
+        }
+        if (album.labels && Array.isArray(album.labels)) {
+          album.labels.forEach(label => {
+            if (label && label.trim()) uniqueLabels.add(label);
+          });
+        }
+        if (album.country && album.country.trim()) {
+          uniqueCountries.add(album.country);
+        }
+      });
+
+      analytics.diversityMetrics = {
+        artistDiversity: uniqueArtists.size,
+        genreDiversity: uniqueGenres.size,
+        labelDiversity: uniqueLabels.size,
+        countryDiversity: uniqueCountries.size,
+        averageAlbumsPerArtist: albums.length > 0 ? Math.round((albums.length / uniqueArtists.size) * 10) / 10 : 0,
+        averageAlbumsPerGenre: albums.length > 0 ? Math.round((albums.length / uniqueGenres.size) * 10) / 10 : 0
+      };
+
+      // Top performing artists by decade
+      const artistsByDecade = {};
+      albums.forEach(album => {
+        if (album.releaseYear && album.artist && Array.isArray(album.artist)) {
+          const decade = Math.floor(album.releaseYear / 10) * 10;
+          if (!artistsByDecade[decade]) artistsByDecade[decade] = {};
+          
+          album.artist.forEach(artist => {
+            if (artist && artist.trim()) {
+              artistsByDecade[decade][artist] = (artistsByDecade[decade][artist] || 0) + 1;
+            }
+          });
+        }
+      });
+
+      analytics.topArtistsByDecade = Object.entries(artistsByDecade)
+        .map(([decade, artists]) => ({
+          decade: `${decade}s`,
+          artists: Object.entries(artists)
+            .map(([artist, count]) => ({ artist, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5)
+        }))
+        .sort((a, b) => a.decade.localeCompare(b.decade));
+
+      // Cache the analytics data for 2 hours
+      await cacheService.set(cacheKey, { success: true, data: analytics }, 12000);
+      logger.info('💾 MUSICDEX Analytics cached successfully');
+      
+      res.json({ success: true, data: analytics });
+    } catch (error) {
+      logger.error('Error fetching music analytics:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  // Cache management endpoints
+  invalidateCache: async (req, res) => {
+    try {
+      await cacheService.invalidateAll();
+      res.json({ success: true, message: 'All cache invalidated' });
+    } catch (error) {
+      logger.error('Error invalidating cache:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  getCacheStats: async (req, res) => {
+    try {
+      const stats = cacheService.getStats();
+      res.json({ success: true, data: stats });
+    } catch (error) {
+      logger.error('Error getting cache stats:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   }

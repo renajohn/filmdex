@@ -1,4 +1,5 @@
 const { getDatabase } = require('../database');
+const cacheService = require('../services/cacheService');
 
 const Movie = {
   createTable: () => {
@@ -916,10 +917,12 @@ const Movie = {
         values.push(id);
         const sql = `UPDATE movies SET ${fields.join(', ')} WHERE id = ?`;
         
-        db.run(sql, values, function(err) {
+        db.run(sql, values, async function(err) {
           if (err) {
             reject(err);
           } else {
+            // Invalidate analytics cache when movie is updated
+            await cacheService.invalidateAnalytics();
             resolve({ id: id, changes: this.changes });
           }
         });
@@ -931,14 +934,16 @@ const Movie = {
   },
 
   delete: (id) => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const db = getDatabase();
       const sql = 'DELETE FROM movies WHERE id = ?';
       
-      db.run(sql, [id], function(err) {
+      db.run(sql, [id], async function(err) {
         if (err) {
           reject(err);
         } else {
+          // Invalidate analytics cache when movie is deleted
+          await cacheService.invalidateAnalytics();
           resolve({ id: id, changes: this.changes });
         }
       });

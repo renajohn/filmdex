@@ -1,0 +1,1503 @@
+{
+  "data": {
+    "success": true,
+    "data": {
+      "totalAlbums": 19,
+      "totalTracks": 1358,
+      "totalDuration": 4849,
+      "averageDuration": 323,
+      "estimatedListeningTime": 242,
+      "artistDistribution": [
+        {
+          "artist": "Muse",
+          "count": 5,
+          "topGenre": "alternative rock",
+          "topDecade": "2000s",
+          "topLabel": "Warner Bros. Records",
+          "genreCount": 8,
+          "decadeSpan": 2
+        },
+        {
+          "artist": "Bee Gees",
+          "count": 2,
+          "topGenre": "pop",
+          "topDecade": "1990s",
+          "topLabel": "Polydor",
+          "genreCount": 7,
+          "decadeSpan": 1
+        },
+        {
+          "artist": "Apple Pie",
+          "count": 1,
+          "topGenre": "Unknown",
+          "topDecade": "2000s",
+          "topLabel": "Musea",
+          "genreCount": 0,
+          "decadeSpan": 1
+        },
+        {
+          "artist": "David Bowie",
+          "count": 1,
+          "topGenre": "art rock",
+          "topDecade": "1990s",
+          "topLabel": "EMI",
+          "genreCount": 9,
+          "decadeSpan": 1
+        },
+        {
+          "artist": "Deep Purple",
+          "count": 1,
+          "topGenre": "classic rock",
+          "topDecade": "2000s",
+          "topLabel": "Rhino",
+          "genreCount": 5,
+          "decadeSpan": 1
+        },
+        {
+          "artist": "Florent Pagny",
+          "count": 1,
+          "topGenre": "pop",
+          "topDecade": "1990s",
+          "topLabel": "Mercury Records",
+          "genreCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "artist": "Foor",
+          "count": 1,
+          "topGenre": "Unknown",
+          "topDecade": "Unknown",
+          "topLabel": "Unknown",
+          "genreCount": 0,
+          "decadeSpan": 0
+        },
+        {
+          "artist": "Geometric Vision",
+          "count": 1,
+          "topGenre": "dark wave",
+          "topDecade": "2020s",
+          "topLabel": "Swiss Dark Nights",
+          "genreCount": 4,
+          "decadeSpan": 1
+        },
+        {
+          "artist": "Katherine Jenkins",
+          "count": 1,
+          "topGenre": "classical",
+          "topDecade": "2010s",
+          "topLabel": "Decca Records",
+          "genreCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "artist": "Knodel & Valencia",
+          "count": 1,
+          "topGenre": "Unknown",
+          "topDecade": "1990s",
+          "topLabel": "Spookytree Music",
+          "genreCount": 0,
+          "decadeSpan": 1
+        },
+        {
+          "artist": "Lynda Lemay",
+          "count": 1,
+          "topGenre": "Unknown",
+          "topDecade": "2000s",
+          "topLabel": "WEA Music (France)",
+          "genreCount": 0,
+          "decadeSpan": 1
+        },
+        {
+          "artist": "The Alan Parsons Project",
+          "count": 1,
+          "topGenre": "ambient",
+          "topDecade": "2000s",
+          "topLabel": "Legacy",
+          "genreCount": 11,
+          "decadeSpan": 1
+        },
+        {
+          "artist": "Tracy Chapman",
+          "count": 1,
+          "topGenre": "electronic",
+          "topDecade": "1990s",
+          "topLabel": "Barclay",
+          "genreCount": 3,
+          "decadeSpan": 1
+        },
+        {
+          "artist": "Various Artists",
+          "count": 1,
+          "topGenre": "baroque",
+          "topDecade": "2000s",
+          "topLabel": "Sony Classical",
+          "genreCount": 3,
+          "decadeSpan": 1
+        },
+        {
+          "artist": "two",
+          "count": 1,
+          "topGenre": "Unknown",
+          "topDecade": "Unknown",
+          "topLabel": "Unknown",
+          "genreCount": 0,
+          "decadeSpan": 0
+        }
+      ],
+      "genreDistribution": [
+        {
+          "genre": "rock",
+          "count": 10,
+          "topDecade": "2000s",
+          "topArtist": "Muse",
+          "artistCount": 6,
+          "decadeSpan": 4
+        },
+        {
+          "genre": "art rock",
+          "count": 6,
+          "topDecade": "2000s",
+          "topArtist": "Muse",
+          "artistCount": 3,
+          "decadeSpan": 3
+        },
+        {
+          "genre": "progressive rock",
+          "count": 6,
+          "topDecade": "2000s",
+          "topArtist": "Muse",
+          "artistCount": 2,
+          "decadeSpan": 2
+        },
+        {
+          "genre": "alternative rock",
+          "count": 5,
+          "topDecade": "2000s",
+          "topArtist": "Muse",
+          "artistCount": 1,
+          "decadeSpan": 2
+        },
+        {
+          "genre": "pop",
+          "count": 4,
+          "topDecade": "1990s",
+          "topArtist": "Bee Gees",
+          "artistCount": 4,
+          "decadeSpan": 2
+        },
+        {
+          "genre": "pop rock",
+          "count": 4,
+          "topDecade": "2010s",
+          "topArtist": "Muse",
+          "artistCount": 3,
+          "decadeSpan": 3
+        },
+        {
+          "genre": "classic rock",
+          "count": 3,
+          "topDecade": "2000s",
+          "topArtist": "David Bowie",
+          "artistCount": 3,
+          "decadeSpan": 2
+        },
+        {
+          "genre": "hard rock",
+          "count": 3,
+          "topDecade": "2010s",
+          "topArtist": "Muse",
+          "artistCount": 2,
+          "decadeSpan": 2
+        },
+        {
+          "genre": "electronic",
+          "count": 3,
+          "topDecade": "1990s",
+          "topArtist": "Geometric Vision",
+          "artistCount": 4,
+          "decadeSpan": 3
+        },
+        {
+          "genre": "soft rock",
+          "count": 2,
+          "topDecade": "1990s",
+          "topArtist": "Bee Gees",
+          "artistCount": 2,
+          "decadeSpan": 2
+        },
+        {
+          "genre": "classical",
+          "count": 2,
+          "topDecade": "2000s",
+          "topArtist": "Katherine Jenkins",
+          "artistCount": 2,
+          "decadeSpan": 2
+        },
+        {
+          "genre": "post-britpop",
+          "count": 2,
+          "topDecade": "2000s",
+          "topArtist": "Muse",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "space rock revival",
+          "count": 2,
+          "topDecade": "2000s",
+          "topArtist": "Muse",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "ballad",
+          "count": 1,
+          "topDecade": "1990s",
+          "topArtist": "Bee Gees",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "disco",
+          "count": 1,
+          "topDecade": "1990s",
+          "topArtist": "Bee Gees",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "glam rock",
+          "count": 1,
+          "topDecade": "1990s",
+          "topArtist": "David Bowie",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "rock opera",
+          "count": 1,
+          "topDecade": "1990s",
+          "topArtist": "David Bowie",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "glam",
+          "count": 1,
+          "topDecade": "1990s",
+          "topArtist": "David Bowie",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "proto-punk",
+          "count": 1,
+          "topDecade": "1990s",
+          "topArtist": "David Bowie",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "rock and roll",
+          "count": 1,
+          "topDecade": "1990s",
+          "topArtist": "David Bowie",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "heavy metal",
+          "count": 1,
+          "topDecade": "2000s",
+          "topArtist": "Deep Purple",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "metal",
+          "count": 1,
+          "topDecade": "2000s",
+          "topArtist": "Deep Purple",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "dark wave",
+          "count": 1,
+          "topDecade": "2020s",
+          "topArtist": "Geometric Vision",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "new wave",
+          "count": 1,
+          "topDecade": "2020s",
+          "topArtist": "Geometric Vision",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "ambient",
+          "count": 1,
+          "topDecade": "2000s",
+          "topArtist": "The Alan Parsons Project",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "jazz",
+          "count": 1,
+          "topDecade": "2000s",
+          "topArtist": "The Alan Parsons Project",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "progressive pop",
+          "count": 1,
+          "topDecade": "2000s",
+          "topArtist": "The Alan Parsons Project",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "synth-pop",
+          "count": 1,
+          "topDecade": "1990s",
+          "topArtist": "Tracy Chapman",
+          "artistCount": 2,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "baroque",
+          "count": 1,
+          "topDecade": "2000s",
+          "topArtist": "Various Artists",
+          "artistCount": 1,
+          "decadeSpan": 1
+        },
+        {
+          "genre": "opera",
+          "count": 1,
+          "topDecade": "2000s",
+          "topArtist": "Various Artists",
+          "artistCount": 1,
+          "decadeSpan": 1
+        }
+      ],
+      "genreEvolution": [
+        {
+          "decade": "1970s",
+          "ballad": 0,
+          "disco": 0,
+          "pop": 0,
+          "rock": 0,
+          "soft rock": 0,
+          "art rock": 0,
+          "classic rock": 0,
+          "glam rock": 0,
+          "pop rock": 0,
+          "rock opera": 0,
+          "glam": 0,
+          "proto-punk": 0,
+          "rock and roll": 0,
+          "hard rock": 0,
+          "heavy metal": 0,
+          "metal": 0,
+          "dark wave": 0,
+          "electronic": 0,
+          "new wave": 0,
+          "classical": 0,
+          "alternative rock": 0,
+          "post-britpop": 0,
+          "progressive rock": 0,
+          "space rock revival": 0,
+          "ambient": 0,
+          "jazz": 0,
+          "progressive pop": 0,
+          "synth-pop": 0,
+          "baroque": 0,
+          "opera": 0
+        },
+        {
+          "decade": "1980s",
+          "ballad": 0,
+          "disco": 0,
+          "pop": 0,
+          "rock": 0,
+          "soft rock": 0,
+          "art rock": 0,
+          "classic rock": 0,
+          "glam rock": 0,
+          "pop rock": 0,
+          "rock opera": 0,
+          "glam": 0,
+          "proto-punk": 0,
+          "rock and roll": 0,
+          "hard rock": 0,
+          "heavy metal": 0,
+          "metal": 0,
+          "dark wave": 0,
+          "electronic": 0,
+          "new wave": 0,
+          "classical": 0,
+          "alternative rock": 0,
+          "post-britpop": 0,
+          "progressive rock": 0,
+          "space rock revival": 0,
+          "ambient": 0,
+          "jazz": 0,
+          "progressive pop": 0,
+          "synth-pop": 0,
+          "baroque": 0,
+          "opera": 0
+        },
+        {
+          "decade": "1990s",
+          "ballad": 1,
+          "disco": 1,
+          "pop": 3,
+          "rock": 2,
+          "soft rock": 1,
+          "art rock": 1,
+          "classic rock": 1,
+          "glam rock": 1,
+          "pop rock": 1,
+          "rock opera": 1,
+          "glam": 1,
+          "proto-punk": 1,
+          "rock and roll": 1,
+          "hard rock": 0,
+          "heavy metal": 0,
+          "metal": 0,
+          "dark wave": 0,
+          "electronic": 1,
+          "new wave": 0,
+          "classical": 0,
+          "alternative rock": 0,
+          "post-britpop": 0,
+          "progressive rock": 0,
+          "space rock revival": 0,
+          "ambient": 0,
+          "jazz": 0,
+          "progressive pop": 0,
+          "synth-pop": 1,
+          "baroque": 0,
+          "opera": 0
+        },
+        {
+          "decade": "2000s",
+          "ballad": 0,
+          "disco": 0,
+          "pop": 1,
+          "rock": 5,
+          "soft rock": 1,
+          "art rock": 3,
+          "classic rock": 2,
+          "glam rock": 0,
+          "pop rock": 1,
+          "rock opera": 0,
+          "glam": 0,
+          "proto-punk": 0,
+          "rock and roll": 0,
+          "hard rock": 1,
+          "heavy metal": 1,
+          "metal": 1,
+          "dark wave": 0,
+          "electronic": 1,
+          "new wave": 0,
+          "classical": 1,
+          "alternative rock": 3,
+          "post-britpop": 2,
+          "progressive rock": 4,
+          "space rock revival": 2,
+          "ambient": 1,
+          "jazz": 1,
+          "progressive pop": 1,
+          "synth-pop": 0,
+          "baroque": 1,
+          "opera": 1
+        },
+        {
+          "decade": "2010s",
+          "ballad": 0,
+          "disco": 0,
+          "pop": 0,
+          "rock": 2,
+          "soft rock": 0,
+          "art rock": 2,
+          "classic rock": 0,
+          "glam rock": 0,
+          "pop rock": 2,
+          "rock opera": 0,
+          "glam": 0,
+          "proto-punk": 0,
+          "rock and roll": 0,
+          "hard rock": 2,
+          "heavy metal": 0,
+          "metal": 0,
+          "dark wave": 0,
+          "electronic": 0,
+          "new wave": 0,
+          "classical": 1,
+          "alternative rock": 2,
+          "post-britpop": 0,
+          "progressive rock": 2,
+          "space rock revival": 0,
+          "ambient": 0,
+          "jazz": 0,
+          "progressive pop": 0,
+          "synth-pop": 0,
+          "baroque": 0,
+          "opera": 0
+        },
+        {
+          "decade": "2020s",
+          "ballad": 0,
+          "disco": 0,
+          "pop": 0,
+          "rock": 1,
+          "soft rock": 0,
+          "art rock": 0,
+          "classic rock": 0,
+          "glam rock": 0,
+          "pop rock": 0,
+          "rock opera": 0,
+          "glam": 0,
+          "proto-punk": 0,
+          "rock and roll": 0,
+          "hard rock": 0,
+          "heavy metal": 0,
+          "metal": 0,
+          "dark wave": 1,
+          "electronic": 1,
+          "new wave": 1,
+          "classical": 0,
+          "alternative rock": 0,
+          "post-britpop": 0,
+          "progressive rock": 0,
+          "space rock revival": 0,
+          "ambient": 0,
+          "jazz": 0,
+          "progressive pop": 0,
+          "synth-pop": 0,
+          "baroque": 0,
+          "opera": 0
+        }
+      ],
+      "yearDistribution": [
+        {
+          "year": 1990,
+          "count": 2,
+          "topGenre": "art rock",
+          "topArtist": "David Bowie"
+        },
+        {
+          "year": 1996,
+          "count": 2,
+          "topGenre": "ballad",
+          "topArtist": "Bee Gees"
+        },
+        {
+          "year": 1997,
+          "count": 1,
+          "topGenre": "pop",
+          "topArtist": "Florent Pagny"
+        },
+        {
+          "year": 2000,
+          "count": 1,
+          "topGenre": "classic rock",
+          "topArtist": "Deep Purple"
+        },
+        {
+          "year": 2003,
+          "count": 2,
+          "topGenre": "alternative rock",
+          "topArtist": "Muse"
+        },
+        {
+          "year": 2007,
+          "count": 2,
+          "topGenre": "ambient",
+          "topArtist": "Apple Pie"
+        },
+        {
+          "year": 2008,
+          "count": 3,
+          "topGenre": "alternative rock",
+          "topArtist": "Lynda Lemay"
+        },
+        {
+          "year": 2014,
+          "count": 1,
+          "topGenre": "classical",
+          "topArtist": "Katherine Jenkins"
+        },
+        {
+          "year": 2015,
+          "count": 2,
+          "topGenre": "alternative rock",
+          "topArtist": "Muse"
+        },
+        {
+          "year": 2020,
+          "count": 1,
+          "topGenre": "dark wave",
+          "topArtist": "Geometric Vision"
+        }
+      ],
+      "decadeDistribution": [
+        {
+          "decade": "1990s",
+          "count": 5
+        },
+        {
+          "decade": "2000s",
+          "count": 8
+        },
+        {
+          "decade": "2010s",
+          "count": 3
+        },
+        {
+          "decade": "2020s",
+          "count": 1
+        }
+      ],
+      "labelDistribution": [
+        {
+          "label": "Warner Bros. Records",
+          "count": 3,
+          "topGenre": "alternative rock",
+          "topArtist": "Muse",
+          "genreCount": 6,
+          "artistCount": 1
+        },
+        {
+          "label": "Helium-3",
+          "count": 3,
+          "topGenre": "alternative rock",
+          "topArtist": "Muse",
+          "genreCount": 6,
+          "artistCount": 1
+        },
+        {
+          "label": "Taste Media",
+          "count": 2,
+          "topGenre": "alternative rock",
+          "topArtist": "Muse",
+          "genreCount": 6,
+          "artistCount": 1
+        },
+        {
+          "label": "Musea",
+          "count": 1,
+          "topGenre": "Unknown",
+          "topArtist": "Apple Pie",
+          "genreCount": 0,
+          "artistCount": 1
+        },
+        {
+          "label": "Polydor",
+          "count": 1,
+          "topGenre": "ballad",
+          "topArtist": "Bee Gees",
+          "genreCount": 5,
+          "artistCount": 1
+        },
+        {
+          "label": "EMI",
+          "count": 1,
+          "topGenre": "art rock",
+          "topArtist": "David Bowie",
+          "genreCount": 9,
+          "artistCount": 1
+        },
+        {
+          "label": "Rhino",
+          "count": 1,
+          "topGenre": "classic rock",
+          "topArtist": "Deep Purple",
+          "genreCount": 5,
+          "artistCount": 1
+        },
+        {
+          "label": "Warner Archives",
+          "count": 1,
+          "topGenre": "classic rock",
+          "topArtist": "Deep Purple",
+          "genreCount": 5,
+          "artistCount": 1
+        },
+        {
+          "label": "Mercury Records",
+          "count": 1,
+          "topGenre": "pop",
+          "topArtist": "Florent Pagny",
+          "genreCount": 1,
+          "artistCount": 1
+        },
+        {
+          "label": "Swiss Dark Nights",
+          "count": 1,
+          "topGenre": "dark wave",
+          "topArtist": "Geometric Vision",
+          "genreCount": 4,
+          "artistCount": 1
+        },
+        {
+          "label": "Decca Records",
+          "count": 1,
+          "topGenre": "classical",
+          "topArtist": "Katherine Jenkins",
+          "genreCount": 1,
+          "artistCount": 1
+        },
+        {
+          "label": "Spookytree Music",
+          "count": 1,
+          "topGenre": "Unknown",
+          "topArtist": "Knodel & Valencia",
+          "genreCount": 0,
+          "artistCount": 1
+        },
+        {
+          "label": "WEA Music (France)",
+          "count": 1,
+          "topGenre": "Unknown",
+          "topArtist": "Lynda Lemay",
+          "genreCount": 0,
+          "artistCount": 1
+        },
+        {
+          "label": "naïve",
+          "count": 1,
+          "topGenre": "alternative rock",
+          "topArtist": "Muse",
+          "genreCount": 6,
+          "artistCount": 1
+        },
+        {
+          "label": "EastWest",
+          "count": 1,
+          "topGenre": "alternative rock",
+          "topArtist": "Muse",
+          "genreCount": 6,
+          "artistCount": 1
+        },
+        {
+          "label": "Legacy",
+          "count": 1,
+          "topGenre": "ambient",
+          "topArtist": "The Alan Parsons Project",
+          "genreCount": 11,
+          "artistCount": 1
+        },
+        {
+          "label": "Barclay",
+          "count": 1,
+          "topGenre": "electronic",
+          "topArtist": "Tracy Chapman",
+          "genreCount": 3,
+          "artistCount": 2
+        },
+        {
+          "label": "Sony Classical",
+          "count": 1,
+          "topGenre": "baroque",
+          "topArtist": "Various Artists",
+          "genreCount": 3,
+          "artistCount": 1
+        },
+        {
+          "label": "Sony BMG Music Entertainment",
+          "count": 1,
+          "topGenre": "baroque",
+          "topArtist": "Various Artists",
+          "genreCount": 3,
+          "artistCount": 1
+        }
+      ],
+      "typeDistribution": [
+        {
+          "type": "Album",
+          "count": 16,
+          "topGenre": "rock",
+          "topArtist": "Muse",
+          "genreCount": 30,
+          "artistCount": 12
+        },
+        {
+          "type": "Single",
+          "count": 1,
+          "topGenre": "pop",
+          "topArtist": "Florent Pagny",
+          "genreCount": 1,
+          "artistCount": 1
+        }
+      ],
+      "qualityDistribution": [],
+      "trackOverlap": [
+        {
+          "title": "intro",
+          "albumCount": 2,
+          "albums": [
+            7,
+            24
+          ],
+          "artists": [
+            "Muse"
+          ],
+          "genres": [
+            "alternative rock",
+            "art rock",
+            "post-britpop",
+            "progressive rock",
+            "rock",
+            "space rock revival"
+          ],
+          "totalOccurrences": 2
+        },
+        {
+          "title": "apocalypse please",
+          "albumCount": 2,
+          "albums": [
+            7,
+            24
+          ],
+          "artists": [
+            "Muse"
+          ],
+          "genres": [
+            "alternative rock",
+            "art rock",
+            "post-britpop",
+            "progressive rock",
+            "rock",
+            "space rock revival"
+          ],
+          "totalOccurrences": 2
+        },
+        {
+          "title": "blackout",
+          "albumCount": 2,
+          "albums": [
+            7,
+            24
+          ],
+          "artists": [
+            "Muse"
+          ],
+          "genres": [
+            "alternative rock",
+            "art rock",
+            "post-britpop",
+            "progressive rock",
+            "rock",
+            "space rock revival"
+          ],
+          "totalOccurrences": 2
+        },
+        {
+          "title": "time is running out",
+          "albumCount": 2,
+          "albums": [
+            7,
+            24
+          ],
+          "artists": [
+            "Muse"
+          ],
+          "genres": [
+            "alternative rock",
+            "art rock",
+            "post-britpop",
+            "progressive rock",
+            "rock",
+            "space rock revival"
+          ],
+          "totalOccurrences": 2
+        },
+        {
+          "title": "sing for absolution",
+          "albumCount": 2,
+          "albums": [
+            7,
+            24
+          ],
+          "artists": [
+            "Muse"
+          ],
+          "genres": [
+            "alternative rock",
+            "art rock",
+            "post-britpop",
+            "progressive rock",
+            "rock",
+            "space rock revival"
+          ],
+          "totalOccurrences": 2
+        },
+        {
+          "title": "stockholm syndrome",
+          "albumCount": 2,
+          "albums": [
+            7,
+            24
+          ],
+          "artists": [
+            "Muse"
+          ],
+          "genres": [
+            "alternative rock",
+            "art rock",
+            "post-britpop",
+            "progressive rock",
+            "rock",
+            "space rock revival"
+          ],
+          "totalOccurrences": 2
+        },
+        {
+          "title": "falling away with you",
+          "albumCount": 2,
+          "albums": [
+            7,
+            24
+          ],
+          "artists": [
+            "Muse"
+          ],
+          "genres": [
+            "alternative rock",
+            "art rock",
+            "post-britpop",
+            "progressive rock",
+            "rock",
+            "space rock revival"
+          ],
+          "totalOccurrences": 2
+        },
+        {
+          "title": "interlude",
+          "albumCount": 2,
+          "albums": [
+            7,
+            24
+          ],
+          "artists": [
+            "Muse"
+          ],
+          "genres": [
+            "alternative rock",
+            "art rock",
+            "post-britpop",
+            "progressive rock",
+            "rock",
+            "space rock revival"
+          ],
+          "totalOccurrences": 2
+        },
+        {
+          "title": "hysteria",
+          "albumCount": 2,
+          "albums": [
+            7,
+            24
+          ],
+          "artists": [
+            "Muse"
+          ],
+          "genres": [
+            "alternative rock",
+            "art rock",
+            "post-britpop",
+            "progressive rock",
+            "rock",
+            "space rock revival"
+          ],
+          "totalOccurrences": 2
+        },
+        {
+          "title": "butterflies & hurricanes",
+          "albumCount": 2,
+          "albums": [
+            7,
+            24
+          ],
+          "artists": [
+            "Muse"
+          ],
+          "genres": [
+            "alternative rock",
+            "art rock",
+            "post-britpop",
+            "progressive rock",
+            "rock",
+            "space rock revival"
+          ],
+          "totalOccurrences": 2
+        },
+        {
+          "title": "ruled by secrecy",
+          "albumCount": 2,
+          "albums": [
+            7,
+            24
+          ],
+          "artists": [
+            "Muse"
+          ],
+          "genres": [
+            "alternative rock",
+            "art rock",
+            "post-britpop",
+            "progressive rock",
+            "rock",
+            "space rock revival"
+          ],
+          "totalOccurrences": 2
+        },
+        {
+          "title": "the small print",
+          "albumCount": 2,
+          "albums": [
+            7,
+            24
+          ],
+          "artists": [
+            "Muse"
+          ],
+          "genres": [
+            "alternative rock",
+            "art rock",
+            "post-britpop",
+            "progressive rock",
+            "rock",
+            "space rock revival"
+          ],
+          "totalOccurrences": 2
+        },
+        {
+          "title": "endlessly",
+          "albumCount": 2,
+          "albums": [
+            7,
+            24
+          ],
+          "artists": [
+            "Muse"
+          ],
+          "genres": [
+            "alternative rock",
+            "art rock",
+            "post-britpop",
+            "progressive rock",
+            "rock",
+            "space rock revival"
+          ],
+          "totalOccurrences": 2
+        },
+        {
+          "title": "thoughts of a dying atheist",
+          "albumCount": 2,
+          "albums": [
+            7,
+            24
+          ],
+          "artists": [
+            "Muse"
+          ],
+          "genres": [
+            "alternative rock",
+            "art rock",
+            "post-britpop",
+            "progressive rock",
+            "rock",
+            "space rock revival"
+          ],
+          "totalOccurrences": 2
+        }
+      ],
+      "topOverlappingArtists": [
+        {
+          "artist": "Muse",
+          "overlappingTracks": 14,
+          "totalOverlapCount": 28,
+          "albumCount": 2,
+          "totalTracks": 50,
+          "totalInstances": 28,
+          "avgAlbumsPerTrack": 2
+        }
+      ],
+      "overlapPercentage": 11,
+      "overlapStats": {
+        "totalSharedTracks": 14,
+        "totalOverlapInstances": 28,
+        "albumsWithOverlap": 2,
+        "averageOverlapPerTrack": 2,
+        "mostOverlappedTrack": {
+          "title": "intro",
+          "albumCount": 2,
+          "albums": [
+            7,
+            24
+          ],
+          "artists": [
+            "Muse"
+          ],
+          "genres": [
+            "alternative rock",
+            "art rock",
+            "post-britpop",
+            "progressive rock",
+            "rock",
+            "space rock revival"
+          ],
+          "totalOccurrences": 2
+        },
+        "artistsWithOverlap": 1
+      },
+      "longestAlbums": [
+        {
+          "title": "Baroque Masterpieces",
+          "artist": "Various Artists",
+          "duration": 3899,
+          "genre": "baroque",
+          "year": 2008,
+          "label": "Sony Classical"
+        },
+        {
+          "title": "L’Essentiel",
+          "artist": "Tracy Chapman, Bee Gees",
+          "duration": 135,
+          "genre": "electronic",
+          "year": 1990,
+          "label": "Barclay"
+        },
+        {
+          "title": "Absolution",
+          "artist": "Muse",
+          "duration": 90,
+          "genre": "alternative rock",
+          "year": 2003,
+          "label": "naïve"
+        },
+        {
+          "title": "Drones",
+          "artist": "Muse",
+          "duration": 84,
+          "genre": "alternative rock",
+          "year": 2015,
+          "label": "Warner Bros. Records"
+        },
+        {
+          "title": "Fireball",
+          "artist": "Deep Purple",
+          "duration": 79,
+          "genre": "classic rock",
+          "year": 2000,
+          "label": "Rhino"
+        },
+        {
+          "title": "Eye in the Sky",
+          "artist": "The Alan Parsons Project",
+          "duration": 77,
+          "genre": "ambient",
+          "year": 2007,
+          "label": "Legacy"
+        },
+        {
+          "title": "Crossroad",
+          "artist": "Apple Pie",
+          "duration": 76,
+          "year": 2007,
+          "label": "Musea"
+        },
+        {
+          "title": "Allo c’est moi",
+          "artist": "Lynda Lemay",
+          "duration": 76,
+          "year": 2008,
+          "label": "WEA Music (France)"
+        },
+        {
+          "title": "The Very Best of the Bee Gees",
+          "artist": "Bee Gees",
+          "duration": 68,
+          "genre": "ballad",
+          "year": 1996,
+          "label": "Polydor"
+        },
+        {
+          "title": "The Rise and Fall of Ziggy Stardust and the Spiders From Mars",
+          "artist": "David Bowie",
+          "duration": 56,
+          "genre": "art rock",
+          "year": 1990,
+          "label": "EMI"
+        }
+      ],
+      "shortestAlbums": [
+        {
+          "title": "Savoir aimer",
+          "artist": "Florent Pagny",
+          "duration": 8,
+          "genre": "pop",
+          "year": 1997,
+          "label": "Mercury Records"
+        },
+        {
+          "title": "Fire! Fire! Fire!",
+          "artist": "Geometric Vision",
+          "duration": 40,
+          "genre": "dark wave",
+          "year": 2020,
+          "label": "Swiss Dark Nights"
+        },
+        {
+          "title": "Absolution",
+          "artist": "Muse",
+          "duration": 52,
+          "genre": "alternative rock",
+          "year": 2003,
+          "label": "Taste Media"
+        },
+        {
+          "title": "Forest",
+          "artist": "Knodel & Valencia",
+          "duration": 54,
+          "year": 1996,
+          "label": "Spookytree Music"
+        },
+        {
+          "title": "Home Sweet Home",
+          "artist": "Katherine Jenkins",
+          "duration": 55,
+          "genre": "classical",
+          "year": 2014,
+          "label": "Decca Records"
+        },
+        {
+          "title": "The Rise and Fall of Ziggy Stardust and the Spiders From Mars",
+          "artist": "David Bowie",
+          "duration": 56,
+          "genre": "art rock",
+          "year": 1990,
+          "label": "EMI"
+        },
+        {
+          "title": "The Very Best of the Bee Gees",
+          "artist": "Bee Gees",
+          "duration": 68,
+          "genre": "ballad",
+          "year": 1996,
+          "label": "Polydor"
+        },
+        {
+          "title": "Allo c’est moi",
+          "artist": "Lynda Lemay",
+          "duration": 76,
+          "year": 2008,
+          "label": "WEA Music (France)"
+        },
+        {
+          "title": "Crossroad",
+          "artist": "Apple Pie",
+          "duration": 76,
+          "year": 2007,
+          "label": "Musea"
+        },
+        {
+          "title": "Eye in the Sky",
+          "artist": "The Alan Parsons Project",
+          "duration": 77,
+          "genre": "ambient",
+          "year": 2007,
+          "label": "Legacy"
+        }
+      ],
+      "durationDistribution": [
+        {
+          "range": "Under 30 min",
+          "count": 1
+        },
+        {
+          "range": "30-45 min",
+          "count": 1
+        },
+        {
+          "range": "45-60 min",
+          "count": 4
+        },
+        {
+          "range": "60-75 min",
+          "count": 1
+        },
+        {
+          "range": "75-90 min",
+          "count": 5
+        },
+        {
+          "range": "Over 90 min",
+          "count": 3
+        }
+      ],
+      "topCollaborations": [
+        {
+          "collaboration": "Bee Gees & Tracy Chapman",
+          "count": 1
+        }
+      ],
+      "topGenreCrossovers": [
+        {
+          "crossover": "art rock + rock",
+          "count": 6
+        },
+        {
+          "crossover": "progressive rock + rock",
+          "count": 6
+        },
+        {
+          "crossover": "alternative rock + progressive rock",
+          "count": 5
+        },
+        {
+          "crossover": "alternative rock + rock",
+          "count": 5
+        },
+        {
+          "crossover": "art rock + progressive rock",
+          "count": 5
+        },
+        {
+          "crossover": "art rock + pop rock",
+          "count": 4
+        },
+        {
+          "crossover": "pop rock + rock",
+          "count": 4
+        },
+        {
+          "crossover": "alternative rock + art rock",
+          "count": 4
+        },
+        {
+          "crossover": "classic rock + rock",
+          "count": 3
+        },
+        {
+          "crossover": "hard rock + rock",
+          "count": 3
+        },
+        {
+          "crossover": "pop rock + progressive rock",
+          "count": 3
+        },
+        {
+          "crossover": "pop + rock",
+          "count": 2
+        },
+        {
+          "crossover": "pop + soft rock",
+          "count": 2
+        },
+        {
+          "crossover": "rock + soft rock",
+          "count": 2
+        },
+        {
+          "crossover": "art rock + classic rock",
+          "count": 2
+        }
+      ],
+      "diversityMetrics": {
+        "artistDiversity": 15,
+        "genreDiversity": 30,
+        "labelDiversity": 19,
+        "countryDiversity": 7,
+        "averageAlbumsPerArtist": 1.3,
+        "averageAlbumsPerGenre": 0.6
+      },
+      "topArtistsByDecade": [
+        {
+          "decade": "1990s",
+          "artists": [
+            {
+              "artist": "Bee Gees",
+              "count": 2
+            },
+            {
+              "artist": "David Bowie",
+              "count": 1
+            },
+            {
+              "artist": "Florent Pagny",
+              "count": 1
+            },
+            {
+              "artist": "Knodel & Valencia",
+              "count": 1
+            },
+            {
+              "artist": "Tracy Chapman",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "decade": "2000s",
+          "artists": [
+            {
+              "artist": "Muse",
+              "count": 3
+            },
+            {
+              "artist": "Apple Pie",
+              "count": 1
+            },
+            {
+              "artist": "Deep Purple",
+              "count": 1
+            },
+            {
+              "artist": "Lynda Lemay",
+              "count": 1
+            },
+            {
+              "artist": "The Alan Parsons Project",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "decade": "2010s",
+          "artists": [
+            {
+              "artist": "Muse",
+              "count": 2
+            },
+            {
+              "artist": "Katherine Jenkins",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "decade": "2020s",
+          "artists": [
+            {
+              "artist": "Geometric Vision",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "timestamp": 1760824220906,
+  "ttl": 7200000,
+  "version": "0.0.1"
+}

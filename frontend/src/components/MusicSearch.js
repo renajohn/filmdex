@@ -52,7 +52,11 @@ const MusicSearch = forwardRef(({
     refresh: loadCds,
     search: performSearch,
     openAddDialog: () => setShowAddDialog(true),
-    openAlbumDetails: (album) => setSelectedCdDetails(album)
+    openAlbumDetails: (album) => setSelectedCdDetails(album),
+    setSearchQuery: (query) => {
+      // Update the URL with the new search query
+      navigate(`${location.pathname}?search=${encodeURIComponent(query)}`);
+    }
   }));
 
   // Function to update search via URL (which will update the search bar in App.js)

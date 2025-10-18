@@ -1,4 +1,5 @@
 const { getDatabase } = require('../database');
+const cacheService = require('../services/cacheService');
 
 const Track = {
   createTable: () => {
@@ -91,11 +92,28 @@ const Track = {
         track.toc, track.created_at, track.updated_at
       ];
 
-      db.run(sql, params, function(err) {
+      db.run(sql, params, async function(err) {
         if (err) {
           reject(err);
         } else {
+          // Invalidate analytics cache when track is created
+          await cacheService.invalidateAnalytics();
           resolve({ ...track, id: this.lastID });
+        }
+      });
+    });
+  },
+
+  findAll: () => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const sql = 'SELECT * FROM tracks ORDER BY album_id, disc_number, track_number';
+      
+      db.all(sql, [], (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows.map(Track.formatRow));
         }
       });
     });
@@ -164,10 +182,12 @@ const Track = {
         id
       ];
 
-      db.run(sql, params, function(err) {
+      db.run(sql, params, async function(err) {
         if (err) {
           reject(err);
         } else {
+          // Invalidate analytics cache when track is updated
+          await cacheService.invalidateAnalytics();
           resolve({ id, ...trackData, updated_at: now });
         }
       });
@@ -175,14 +195,16 @@ const Track = {
   },
 
   deleteByCdId: (cdId) => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const db = getDatabase();
       const sql = 'DELETE FROM tracks WHERE album_id = ?';
       
-      db.run(sql, [cdId], function(err) {
+      db.run(sql, [cdId], async function(err) {
         if (err) {
           reject(err);
         } else {
+          // Invalidate analytics cache when tracks are deleted
+          await cacheService.invalidateAnalytics();
           resolve({ deleted: this.changes });
         }
       });
@@ -190,14 +212,16 @@ const Track = {
   },
 
   delete: (id) => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const db = getDatabase();
       const sql = 'DELETE FROM tracks WHERE id = ?';
       
-      db.run(sql, [id], function(err) {
+      db.run(sql, [id], async function(err) {
         if (err) {
           reject(err);
         } else {
+          // Invalidate analytics cache when track is deleted
+          await cacheService.invalidateAnalytics();
           resolve({ deleted: this.changes > 0 });
         }
       });

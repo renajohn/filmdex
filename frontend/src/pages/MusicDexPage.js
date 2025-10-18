@@ -1,9 +1,11 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import MusicSearch from '../components/MusicSearch';
 import ResizeCoversMigrationModal from '../components/ResizeCoversMigrationModal';
 import musicService from '../services/musicService';
 
 const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
+  const location = useLocation();
   const [cds, setCds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
@@ -14,8 +16,16 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
 
   useEffect(() => {
     loadCds();
+    
+    // Check for URL search parameters
+    const urlParams = new URLSearchParams(location.search);
+    const searchParam = urlParams.get('search');
+    if (searchParam && musicSearchRef.current) {
+      // Set the search query in the MusicSearch component
+      musicSearchRef.current.setSearchQuery(searchParam);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [location.search]);
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
