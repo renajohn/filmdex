@@ -15,7 +15,7 @@ const MovieThumbnail = ({ imdbLink, title, year, className = '', disableZoom = f
   const getPosterUrl = (posterPath) => {
     if (!posterPath) return null;
     // If it's already a local path, return as is with ingress support
-    if (posterPath.startsWith('/images/')) {
+    if (posterPath.startsWith('/images/') || posterPath.startsWith('/api/images/')) {
       const baseUrl = apiService.getImageBaseUrl();
       return `${baseUrl}${posterPath}`; // Use dynamic base URL for ingress
     }

@@ -434,7 +434,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const getPosterUrl = (posterPath) => {
     if (!posterPath) return null;
     // If it's already a local path, return as is with ingress support
-    if (posterPath.startsWith('/images/')) {
+    if (posterPath.startsWith('/images/') || posterPath.startsWith('/api/images/')) {
       const baseUrl = apiService.getImageBaseUrl();
       return `${baseUrl}${posterPath}`; // Use dynamic base URL for ingress
     }
@@ -446,7 +446,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const getBackdropUrl = (backdropPath) => {
     if (!backdropPath) return null;
     // If it's already a local path, return as is with ingress support
-    if (backdropPath.startsWith('/images/')) {
+    if (backdropPath.startsWith('/images/') || backdropPath.startsWith('/api/images/')) {
       const baseUrl = apiService.getImageBaseUrl();
       return `${baseUrl}${backdropPath}`; // Use dynamic base URL for ingress
     }
@@ -456,7 +456,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const getProfileUrl = (profilePath) => {
     if (!profilePath) return null;
     // If it's already a local path, return as is with ingress support
-    if (profilePath.startsWith('/images/')) {
+    if (profilePath.startsWith('/api/images/')) {
       const baseUrl = apiService.getImageBaseUrl();
       return `${baseUrl}${profilePath}`; // Use dynamic base URL for ingress
     }
@@ -933,7 +933,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
 
   const handlePosterSelect = async (poster) => {
     // Check if this is a custom uploaded poster or a TMDB poster
-    const isCustomPoster = poster.isCustom || poster.file_path.startsWith('/images/');
+    const isCustomPoster = poster.isCustom || poster.file_path.startsWith('/api/images/');
     
     // For custom posters, use the file_path directly; for TMDB posters, construct full URL
     const posterUrl = isCustomPoster 

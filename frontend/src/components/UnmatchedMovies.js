@@ -356,7 +356,7 @@ const UnmatchedMovies = ({ importId, onImportComplete, setCurrentStep }) => {
                               <div className="suggestion-poster">
                                 {suggestion.posterPath ? (
                                   <img 
-                                    src={suggestion.posterPath.startsWith('/images/') 
+                                    src={suggestion.posterPath.startsWith('/images/') || suggestion.posterPath.startsWith('/api/images/') 
                                       ? suggestion.posterPath
                                       : `https://image.tmdb.org/t/p/w92${suggestion.posterPath}`
                                     }
