@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FormControl, Dropdown } from 'react-bootstrap';
 import CircularProgressBar from './CircularProgressBar';
-import AgeDisplay from './AgeDisplay';
 import InlinePosterSelector from './InlinePosterSelector';
 import CollectionTagsInput from './CollectionTagsInput';
 import CollectionRenameDialog from './CollectionRenameDialog';
@@ -121,6 +120,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     }
   };
 
+  const handleAgeClick = (age) => {
+    if (onSearch && age !== null && age !== undefined) {
+      onSearch(`recommended_age:${age}`);
+      onClose(); // Close the detail dialog
+    }
+  };
+
   // Helper function to render clickable genres
   const renderGenres = (genresString) => {
     if (!genresString) return null;
@@ -139,6 +145,22 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
         {index < genreList.length - 1 && ', '}
       </span>
     ));
+  };
+
+  // Helper function to render clickable age
+  const renderClickableAge = (age) => {
+    if (age === null || age === undefined) {
+      return <span className="fact-item">NR</span>;
+    }
+    
+    return (
+      <span 
+        className="clickable-name" 
+        onClick={() => handleAgeClick(age)}
+      >
+        {age}+
+      </span>
+    );
   };
   
   // Drag and drop sensors
@@ -1543,7 +1565,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                   </span>
                   -
                   <span className="fact-item">
-                    <AgeDisplay age={recommended_age} />
+                    {renderClickableAge(recommended_age)}
                   </span>
                 </div>
 
