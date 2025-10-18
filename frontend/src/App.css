@@ -404,7 +404,7 @@
   min-width: 60px;
 }
 
-/* Segmented Control - Now in header */
+/* Segmented Control - Icon-only with high-quality tooltips */
 .segmented-control {
   display: inline-flex;
   background: #2a2a2a;
@@ -416,7 +416,7 @@
 }
 
 .segmented-control .segment {
-  padding: 10px 28px;
+  padding: 12px 16px;
   border: none;
   background: transparent;
   color: #b8c5d1;
@@ -428,21 +428,26 @@
   white-space: nowrap;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  position: relative;
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .segmented-control .segment-icon {
-  font-size: 16px;
+  font-size: 18px;
   display: inline;
 }
 
 .segmented-control .segment-text {
-  display: inline;
+  display: none; /* Always hidden - icon-only design */
 }
 
 .segmented-control .segment:hover {
   background: #333;
   color: #f8f9fa;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .segmented-control .segment.active {
@@ -450,6 +455,69 @@
   color: #1a1a1a;
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
+  transform: translateY(-1px);
+}
+
+.segmented-control .segment.active:hover {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 4px 16px rgba(251, 191, 36, 0.4);
+}
+
+/* High-quality custom tooltips positioned below buttons */
+.segmented-control .segment[data-tooltip] {
+  position: relative;
+}
+
+.segmented-control .segment[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  color: #f8f9fa;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 9999;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  animation: tooltipFadeIn 0.2s ease-out;
+  pointer-events: none;
+  min-width: max-content;
+  max-width: none;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.segmented-control .segment[data-tooltip]:hover::before {
+  content: '';
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 8px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid #1a1a1a;
+  z-index: 10000;
+  animation: tooltipFadeIn 0.2s ease-out;
+  pointer-events: none;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .App-main {
@@ -574,20 +642,6 @@
     flex: 0 0 auto;
   }
   
-  .segmented-control .segment {
-    padding: 10px 16px;
-    font-size: 13px;
-  }
-  
-  /* Show icons only on mobile */
-  .segmented-control .segment-icon {
-    display: inline;
-    font-size: 18px;
-  }
-  
-  .segmented-control .segment-text {
-    display: none;
-  }
   
   .import-modal {
     min-width: 90vw;

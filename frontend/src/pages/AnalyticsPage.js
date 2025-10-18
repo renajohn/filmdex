@@ -94,7 +94,7 @@ const AnalyticsPage = () => {
 
   // Helper function to navigate to FilmDex with search filters
   const navigateWithSearch = (searchQuery) => {
-    navigate(`/?search=${encodeURIComponent(searchQuery)}`);
+    navigate(`/filmdex?search=${encodeURIComponent(searchQuery)}`);
   };
 
   // Helper function to convert language display names back to codes
@@ -761,7 +761,7 @@ const AnalyticsPage = () => {
                 <div 
                   key={index} 
                   className="list-item clickable-item"
-                  onClick={() => navigate(`/?search=director:"${item.director}"`)}
+                  onClick={() => navigate(`/filmdex?search=director:"${item.director}"`)}
                   title={`Click to view all movies by ${item.director}`}
                 >
                   <span className="list-rank" style={{ backgroundColor: COLORS.genre[index] }}>{index + 1}</span>
@@ -782,7 +782,7 @@ const AnalyticsPage = () => {
                 <div 
                   key={index} 
                   className="list-item clickable-item"
-                  onClick={() => navigate(`/?search=actor:"${item.actor}"`)}
+                  onClick={() => navigate(`/filmdex?search=actor:"${item.actor}"`)}
                   title={`Click to view all movies with ${item.actor}`}
                 >
                   <span className="list-rank" style={{ backgroundColor: COLORS.genre[index] }}>{index + 1}</span>

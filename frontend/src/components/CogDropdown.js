@@ -1,13 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { BsGear, BsPlus, BsUpload, BsBarChart, BsDownload, BsArrowsAngleContract } from 'react-icons/bs';
+import { BsGear, BsPlus, BsUpload, BsDownload, BsArrowsAngleContract } from 'react-icons/bs';
 import './CogDropdown.css';
 
 const CogDropdown = ({ 
   onImportMovies, 
   onAddMovie, 
   onExportCSV,
-  onAnalytics,
   onAddCD,
   onResizeCovers,
   currentPage = 'dexvault'
@@ -127,16 +126,6 @@ const CogDropdown = ({
               >
                 <BsDownload className="menu-icon" />
                 CSV Export
-              </button>
-              
-              <div className="cog-menu-separator"></div>
-              
-              <button 
-                className="cog-menu-item"
-                onClick={() => handleMenuClick(onAnalytics)}
-              >
-                <BsBarChart className="menu-icon" />
-                Analytics
               </button>
             </>
           )}

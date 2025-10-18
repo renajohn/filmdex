@@ -11,7 +11,7 @@ import CsvExportDialog from './components/CsvExportDialog';
 import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
 import musicService from './services/musicService';
-import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsMusicNote, BsArrowLeft } from 'react-icons/bs';
+import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsMusicNote, BsArrowLeft, BsBarChart } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
@@ -52,6 +52,9 @@ function AppContent() {
   
   // Check if we should show the search bar (filmdex, musicdex, or wishlist)
   const showSearchBar = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/wishlist';
+  
+  // Check if we should show the navigation pills (all main sections)
+  const showNavigationPills = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/wishlist' || location.pathname === '/analytics';
   
   // Get the page title based on current route
   const getPageTitle = () => {
@@ -720,37 +723,39 @@ function AppContent() {
     <div className="App">
       <header className="App-header">
         <div className={`App-header-content ${!showSearchBar ? 'no-search' : ''} ${isSearchFocused ? 'search-focused' : ''}`}>
-          {showSearchBar ? (
+          {showNavigationPills ? (
             <div className="segmented-control">
               <button 
                 className={`segment ${location.pathname === '/filmdex' ? 'active' : ''}`}
                 onClick={handleCollection}
+                data-tooltip="FilmDex - My precious movies"
               >
                 <BsCollectionFill className="segment-icon" />
-                <span className="segment-text">FilmDex</span>
               </button>
               <button 
                 className={`segment ${location.pathname === '/musicdex' ? 'active' : ''}`}
                 onClick={handleMusicDex}
+                data-tooltip="MusicDex - My precious albums"
               >
                 <BsMusicNote className="segment-icon" />
-                <span className="segment-text">MusicDex</span>
               </button>
               <button 
                 className={`segment ${location.pathname === '/wishlist' ? 'active' : ''}`}
                 onClick={handleWishList}
+                data-tooltip="Wish List - My future precious"
               >
                 <BsHeart className="segment-icon" />
-                <span className="segment-text">Wish List</span>
+              </button>
+              <button 
+                className={`segment ${location.pathname === '/analytics' ? 'active' : ''}`}
+                onClick={handleAnalytics}
+                data-tooltip="Analytics - The palantír of data"
+              >
+                <BsBarChart className="segment-icon" />
               </button>
             </div>
           ) : (
             <div className="App-title">
-              {location.pathname === '/analytics' ? (
-                <button className="back-button" onClick={() => navigate(-1)}>
-                  <BsArrowLeft /> Back
-                </button>
-              ) : ""}
               <div onClick={handleDexVaultClick}>
                 <h1>{getPageTitle()}</h1>
               </div>
@@ -777,7 +782,7 @@ function AppContent() {
                   }}
                   placeholder={
                     location.pathname === '/musicdex' 
-                      ? 'Search albums by title, artist...' 
+                      ? 'Search MusicDex by title, artist...' 
                       : location.pathname === '/wishlist' 
                         ? 'Search wish list by title, director...' 
                         : 'Search FilmDex by title, director...'
@@ -982,7 +987,6 @@ function AppContent() {
               onImportMovies={handleImportMovies}
               onAddMovie={handleAddMovie}
               onExportCSV={handleExportCSV}
-              onAnalytics={handleAnalytics}
               onAddCD={handleAddCD}
               onResizeCovers={handleResizeCovers}
               currentPage={location.pathname === '/musicdex' ? 'musicdex' : 'filmdex'}
