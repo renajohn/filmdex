@@ -951,7 +951,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     img.src = posterUrl;
     
     img.onload = async () => {
-      // Image loaded, update UI
+      // Image loaded, update UI immediately
       setLocalMovieData(prev => ({
         ...prev,
         poster_path: posterUrl
@@ -962,15 +962,9 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       
       try {
         // For custom posters, the backend already updated the movie record
-        // We just need to refresh the UI
         if (isCustomPoster) {
           if (onShowAlert) {
             onShowAlert('Custom poster uploaded successfully', 'success');
-          }
-          
-          // Refresh the movie list to show new poster
-          if (onRefresh) {
-            onRefresh();
           }
         } else {
           // For TMDB posters, update the movie record
@@ -987,11 +981,11 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
           if (onShowAlert) {
             onShowAlert('Poster updated successfully', 'success');
           }
-          
-          // Refresh the movie list to show new poster (without closing detail view)
-          if (onRefresh) {
-            onRefresh();
-          }
+        }
+        
+        // Refresh the movie list to show new poster (without closing detail view)
+        if (onRefresh) {
+          onRefresh();
         }
       } catch (error) {
         console.error('Error updating poster:', error);

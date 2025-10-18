@@ -143,7 +143,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   }, []);
 
   // Refresh movie data while preserving current search/filter state
-  const refreshMovieData = useCallback(async () => {
+  const refreshMovieData = useCallback(async (skipSelectedMovieRefresh = false) => {
     try {
       const data = await apiService.getAllMovies();
       setAllMovies(data);
@@ -159,7 +159,8 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       }
       
       // If we have a selected movie, refresh its details to get updated collection data
-      if (selectedMovieDetails?.id) {
+      // Skip this if called from detail card to avoid closing/reopening dialog
+      if (selectedMovieDetails?.id && !skipSelectedMovieRefresh) {
         try {
           const updatedDetails = await apiService.getMovieDetails(selectedMovieDetails.id);
           setSelectedMovieDetails(updatedDetails);
@@ -176,14 +177,19 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   }, [searchCriteria, sortBy, selectedMovieDetails?.id]);
 
   // Refresh all movie data including box set status (used by detail view)
-  const refreshAllMovieData = useCallback(async () => {
+  const refreshAllMovieData = useCallback(async (skipSelectedMovieRefresh = false) => {
     try {
       await refreshWatchNextMovies();
-      await refreshMovieData();
+      await refreshMovieData(skipSelectedMovieRefresh);
     } catch (error) {
       console.error('Failed to refresh movie data:', error);
     }
   }, [refreshWatchNextMovies, refreshMovieData]);
+
+  // Wrapper for detail card that skips selected movie refresh to avoid dialog closing/reopening
+  const refreshForDetailCard = useCallback(async () => {
+    await refreshAllMovieData(true);
+  }, [refreshAllMovieData]);
 
   const handleSearch = useCallback(async (criteria) => {
     try {
@@ -988,7 +994,7 @@ const MovieSearch = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           onClose={handleCloseDetails}
           onDelete={handleDeleteMovie}
           onShowAlert={onShowAlert}
-          onRefresh={refreshAllMovieData}
+          onRefresh={refreshForDetailCard}
           onMovieClick={handleMovieClick}
         />
       )}

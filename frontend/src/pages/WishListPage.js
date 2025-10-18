@@ -117,6 +117,32 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onMovieMovedToCol
     setSelectedMovieDetails(null);
   };
 
+  // Refresh function for detail card that updates thumbnails without affecting dialog
+  const handleRefreshForDetailCard = async () => {
+    try {
+      const wishListMovies = await apiService.getMoviesByStatus('wish');
+      
+      // Update the movie lists to refresh thumbnails
+      setAllMovies(wishListMovies);
+      setMovies(wishListMovies);
+      
+      // If there's a selected movie, update its data in the list without changing selectedMovieDetails
+      // This ensures the dialog stays open but thumbnails are updated
+      if (selectedMovieDetails) {
+        const updatedMovie = wishListMovies.find(movie => movie.id === selectedMovieDetails.id);
+        if (updatedMovie) {
+          // Update the selected movie details silently without triggering dialog close/reopen
+          setSelectedMovieDetails(prev => ({
+            ...prev,
+            ...updatedMovie
+          }));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to refresh wish list:', err);
+    }
+  };
+
   const handleDeleteClick = (movieId, e) => {
     e.stopPropagation();
     setShowDeleteModal({ show: true, movieId });
@@ -500,7 +526,8 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onMovieMovedToCol
           onClose={handleCloseDetails}
           onEdit={handleEditMovie}
           onDelete={handleDeleteMovieFromDetails}
-          onShowAlert={onMovieAdded || onShowAlert}
+          onShowAlert={onShowAlert}
+          onRefresh={handleRefreshForDetailCard}
         />
       )}
 
