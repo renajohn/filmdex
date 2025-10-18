@@ -393,10 +393,17 @@ const MusicSearch = forwardRef(({
     setReviewingRelease(null);
     
     if (createdAlbum) {
-      // Show the detail dialog for the newly created album first
-      setSelectedCdDetails(createdAlbum);
-      // Then reload the album list
+      // Reload the album list first
       await loadCds();
+      // Then fetch the complete album details (including tracks) and show the detail dialog
+      try {
+        const completeAlbumDetails = await musicService.getAlbumById(createdAlbum.id);
+        setSelectedCdDetails(completeAlbumDetails);
+      } catch (err) {
+        console.error('Failed to load complete album details after creation:', err);
+        // Fallback to showing the basic album data
+        setSelectedCdDetails(createdAlbum);
+      }
     } else {
       // For updates, reload first then show details
       await loadCds();

@@ -72,23 +72,27 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
 
   const handleAddCdFromMusicBrainz = async (releaseId, additionalData) => {
     try {
-      await musicService.addAlbumFromMusicBrainz(releaseId, additionalData);
+      const createdAlbum = await musicService.addAlbumFromMusicBrainz(releaseId, additionalData);
       await loadCds();
       showAlertMessage('Album added successfully from MusicBrainz!', 'success');
+      return createdAlbum; // Return the created album data
     } catch (error) {
       console.error('Error adding album from MusicBrainz:', error);
       showAlertMessage('Failed to add album: ' + error.message, 'danger');
+      throw error;
     }
   };
 
   const handleAddCdByBarcode = async (barcode, additionalData) => {
     try {
-      await musicService.addAlbumByBarcode(barcode, additionalData);
+      const createdAlbum = await musicService.addAlbumByBarcode(barcode, additionalData);
       await loadCds();
       showAlertMessage('Album added successfully by barcode!', 'success');
+      return createdAlbum; // Return the created album data
     } catch (error) {
       console.error('Error adding album by barcode:', error);
       showAlertMessage('Failed to add album: ' + error.message, 'danger');
+      throw error;
     }
   };
 
