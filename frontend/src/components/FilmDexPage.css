@@ -607,11 +607,15 @@
 
 .movies-results-header {
   display: flex;
+  flex-direction: row;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
   margin-top: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
+
 
 .dropdowns-container {
   display: flex;
@@ -1956,8 +1960,13 @@
     gap: 8px;
   }
   
+  .dropdowns-container {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  
   .movies-count-display {
-    margin-bottom: 4px;
+    font-size: 11px;
   }
 }
 

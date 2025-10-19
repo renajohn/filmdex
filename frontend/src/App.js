@@ -740,45 +740,60 @@ function AppContent() {
     <div className="App">
       <header className="App-header">
         <div className={`App-header-content ${!showSearchBar ? 'no-search' : ''} ${isSearchFocused ? 'search-focused' : ''}`}>
-          {showNavigationPills ? (
-            <div className="segmented-control">
-              <button 
-                className={`segment ${location.pathname === '/filmdex' ? 'active' : ''}`}
-                onClick={handleCollection}
-                data-tooltip="FilmDex - My precious movies"
-              >
-                <BsCollectionFill className="segment-icon" />
-              </button>
-              <button 
-                className={`segment ${location.pathname === '/musicdex' ? 'active' : ''}`}
-                onClick={handleMusicDex}
-                data-tooltip="MusicDex - My precious albums"
-              >
-                <BsMusicNote className="segment-icon" />
-              </button>
-              <button 
-                className={`segment ${location.pathname === '/wishlist' ? 'active' : ''}`}
-                onClick={handleWishList}
-                data-tooltip="Wish List - My precious to come"
-              >
-                <BsHeart className="segment-icon" />
-              </button>
-              <button 
-                className={`segment ${location.pathname === '/analytics' ? 'active' : ''}`}
-                onClick={handleAnalytics}
-                data-tooltip="Analytics - The palantír of data"
-              >
-                <BsBarChart className="segment-icon" />
-              </button>
-            </div>
-          ) : (
-            <div className="App-title">
-              <div onClick={handleDexVaultClick}>
-                <h1>{getPageTitle()}</h1>
+          {/* First row: Navigation and toolbar */}
+          <div className="App-header-top">
+            {showNavigationPills ? (
+              <div className="segmented-control">
+                <button 
+                  className={`segment ${location.pathname === '/filmdex' ? 'active' : ''}`}
+                  onClick={handleCollection}
+                  data-tooltip="FilmDex - My precious movies"
+                >
+                  <BsCollectionFill className="segment-icon" />
+                </button>
+                <button 
+                  className={`segment ${location.pathname === '/musicdex' ? 'active' : ''}`}
+                  onClick={handleMusicDex}
+                  data-tooltip="MusicDex - My precious albums"
+                >
+                  <BsMusicNote className="segment-icon" />
+                </button>
+                <button 
+                  className={`segment ${location.pathname === '/wishlist' ? 'active' : ''}`}
+                  onClick={handleWishList}
+                  data-tooltip="Wish List - My precious to come"
+                >
+                  <BsHeart className="segment-icon" />
+                </button>
+                <button 
+                  className={`segment ${location.pathname === '/analytics' ? 'active' : ''}`}
+                  onClick={handleAnalytics}
+                  data-tooltip="Analytics - The palantír of data"
+                >
+                  <BsBarChart className="segment-icon" />
+                </button>
               </div>
-            
+            ) : (
+              <div className="App-title">
+                <div onClick={handleDexVaultClick}>
+                  <h1>{getPageTitle()}</h1>
+                </div>
+              
+              </div>
+            )}
+            <div className="App-toolbar">
+              <CogDropdown 
+                onImportMovies={handleImportMovies}
+                onAddMovie={handleAddMovie}
+                onExportCSV={handleExportCSV}
+                onAddCD={handleAddCD}
+                onResizeCovers={handleResizeCovers}
+                currentPage={location.pathname === '/musicdex' ? 'musicdex' : 'filmdex'}
+              />
             </div>
-          )}
+          </div>
+          
+          {/* Second row: Search (mobile only) */}
           {showSearchBar && (
             <div className="App-search">
               <div className="search-input-container">
@@ -999,16 +1014,6 @@ function AppContent() {
               </div>
             </div>
           )}
-          <div className="App-toolbar">
-            <CogDropdown 
-              onImportMovies={handleImportMovies}
-              onAddMovie={handleAddMovie}
-              onExportCSV={handleExportCSV}
-              onAddCD={handleAddCD}
-              onResizeCovers={handleResizeCovers}
-              currentPage={location.pathname === '/musicdex' ? 'musicdex' : 'filmdex'}
-            />
-          </div>
         </div>
       </header>
 

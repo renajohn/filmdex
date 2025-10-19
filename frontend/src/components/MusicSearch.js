@@ -577,10 +577,6 @@ const MusicSearch = forwardRef(({
       {/* Results Header with Controls */}
       <div className="cds-results">
         <div className="cds-results-header">
-          <div className="cds-count-display">
-            Showing {cdCount.filtered} of {cdCount.total} albums
-          </div>
-          
           {/* Dropdowns Container */}
           <div className="dropdowns-container">
             {/* Sort Dropdown */}
@@ -658,6 +654,11 @@ const MusicSearch = forwardRef(({
                 {expandAllGroups ? 'Collapse All' : 'Expand All'}
               </button>
             )}
+          </div>
+          
+          {/* Album Count */}
+          <div className="cds-count-display">
+            Showing {cdCount.filtered} of {cdCount.total} albums
           </div>
         </div>
 

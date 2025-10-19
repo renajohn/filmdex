@@ -4,9 +4,13 @@
 
 .cds-results-header {
   display: flex;
+  flex-direction: row;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
 }
+
 
 .cds-count-display {
   font-size: 14px;
@@ -328,14 +332,13 @@
   
   .cds-results-header {
     flex-direction: column;
-    gap: 16px;
     align-items: flex-start;
+    gap: 8px;
   }
   
   .dropdowns-container {
-    flex-direction: column;
-    width: 100%;
-    gap: 8px;
+    flex-wrap: wrap;
+    gap: 6px;
   }
   
   .filter-pill,
@@ -346,8 +349,7 @@
   }
   
   .cds-count-display {
-    width: 100%;
-    text-align: center;
+    font-size: 11px;
   }
   
   .group-header {

@@ -95,10 +95,33 @@
 
 .App-header-content {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   max-width: 1200px;
   margin: 0 auto;
   gap: 20px;
+}
+
+.App-header-top {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Desktop layout - keep everything in one row */
+@media (min-width: 769px) {
+  .App-header-content {
+    flex-direction: row;
+    align-items: center;
+  }
+  
+  .App-header-content.no-search {
+    justify-content: space-between;
+  }
+  
+  .App-search {
+    flex: 1;
+    margin: 0 20px;
+  }
 }
 
 .App-header-content.no-search {
@@ -592,13 +615,16 @@
 
 @media (max-width: 768px) {
   .App-header-content {
-    flex-direction: row;
     gap: 15px;
-    text-align: center;
   }
   
-  .App-header-content.no-search {
+  .App-header-top {
     flex-direction: row;
+    justify-content: space-between;
+    gap: 15px;
+  }
+  
+  .App-header-content.no-search .App-header-top {
     justify-content: space-between;
   }
   
@@ -630,8 +656,8 @@
   }
   
   .App-search {
-    margin: 0 10px;
-    width: calc(100% - 20px);
+    margin: 0;
+    width: 100%;
   }
   
   .App-toolbar {

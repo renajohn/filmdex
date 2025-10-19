@@ -800,10 +800,6 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
       <div className="movies-results">
         <div className="movies-results-header">
-          <div className="movies-count-display">
-            Showing {filteredMovies.length} of {allMovies.length} movies
-          </div>
-          
           {/* Dropdowns Container */}
           <div className="dropdowns-container">
             {/* Sort Dropdown */}
@@ -882,6 +878,11 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                 {expandAllGroups ? 'Collapse All' : 'Expand All'}
               </button>
             )}
+          </div>
+          
+          {/* Movie Count */}
+          <div className="movies-count-display">
+            Showing {filteredMovies.length} of {allMovies.length} movies
           </div>
         </div>
         
