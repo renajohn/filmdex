@@ -40,7 +40,7 @@ const CompactRatingsWidget = ({
       <div className="ratings-header">
         <h3>Ratings</h3>
         <button 
-          className="btn btn-link refresh-btn"
+          className="refresh-btn"
           onClick={onRefresh}
           disabled={refreshing}
           title="Refresh ratings from external sources"
