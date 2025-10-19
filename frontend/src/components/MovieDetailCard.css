@@ -691,6 +691,31 @@
     padding: 20px;
   }
   
+  .movie-detail-facts {
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.85rem;
+    text-align: center;
+  }
+  
+  .movie-detail-facts .fact-item {
+    display: block;
+    margin-bottom: 4px;
+  }
+  
+  .movie-detail-facts .fact-item:not(:last-child)::after {
+    content: '';
+    display: none;
+  }
+  
+  .fact-item.runtime-highlight,
+  .fact-item.age-highlight {
+    padding: 3px 6px;
+    font-size: 0.8rem;
+    margin: 2px 0;
+  }
+  
   .cast-horizontal {
     gap: 15px;
     justify-content: center;

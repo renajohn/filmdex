@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FormControl, Dropdown } from 'react-bootstrap';
 import CircularProgressBar from './CircularProgressBar';
+import CompactRatingsWidget from './CompactRatingsWidget';
 import InlinePosterSelector from './InlinePosterSelector';
 import CollectionTagsInput from './CollectionTagsInput';
 import CollectionRenameDialog from './CollectionRenameDialog';
@@ -1557,88 +1558,21 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                   )}
                 <div className="movie-detail-facts">
                   <span className="fact-item">
-                    {renderGenres(genres)}
-                  </span>
-                  -
-                  <span className="fact-item">
-                    {formatRuntime(runtime)}
-                  </span>
-                  -
-                  <span className="fact-item">
-                    {renderClickableAge(recommended_age)}
+                    {renderGenres(genres)} | {formatRuntime(runtime)} | {renderClickableAge(recommended_age)}
                   </span>
                 </div>
 
                 {/* Ratings Section */}
-                <div className="movie-detail-ratings-section">
-                  <div className="ratings-header">
-                    <h3>Ratings</h3>
-                    <button 
-                      className="btn btn-link"
-                      onClick={refreshRatings}
-                      disabled={refreshingRatings}
-                      title="Refresh ratings from external sources"
-                    >
-                      <BsArrowClockwise className={refreshingRatings ? 'spinning' : ''} />
-                    </button>
-                  </div>
-                  <div className="rating-item tmdb-rating">
-                    <a 
-                      href={`${tmdb_link}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="rating-link"
-                    >
-                      <CircularProgressBar 
-                        percentage={getRatingPercentage(tmdb_rating, 10)} 
-                        color={getRatingColor(tmdb_rating, 10)}
-                        size="large"
-                        className="tmdb-progress"
-                      >
-                        <span className="rating-score">{tmdb_rating ? tmdb_rating.toFixed(1) : '-'}</span>
-                      </CircularProgressBar>
-                      <span className="rating-label">TMDB</span>
-                    </a>
-                  </div>
-
-                  <div className="rating-item imdb-rating">
-                    <a 
-                      href={imdb_link} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="rating-link"
-                    >
-                      <CircularProgressBar 
-                        percentage={getRatingPercentage(imdb_rating, 10)} 
-                        color={getRatingColor(imdb_rating, 10)}
-                        size="large"
-                        className="imdb-progress"
-                      >
-                        <span className="rating-score">{formatRating(imdb_rating)}</span>
-                      </CircularProgressBar>
-                      <span className="rating-label">IMDB</span>
-                    </a>
-                  </div>
-
-                  <div className="rating-item rt-rating">
-                    <a 
-                      href={rotten_tomatoes_link || `https://www.rottentomatoes.com/m/${original_title?.toLowerCase().replace(/[^a-z0-9]/g, '_')}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="rating-link"
-                    >
-                      <CircularProgressBar 
-                        percentage={getRatingPercentage(rotten_tomato_rating, 100)} 
-                        color={getRatingColor(rotten_tomato_rating, 100)}
-                        size="large"
-                        className="rt-progress"
-                      >
-                        <span className="rating-score">{formatPercentage(rotten_tomato_rating)}</span>
-                      </CircularProgressBar>
-                      <span className="rating-label">RT</span>
-                    </a>
-                  </div>
-                </div>
+                <CompactRatingsWidget
+                  tmdbRating={tmdb_rating}
+                  imdbRating={imdb_rating}
+                  rottenTomatoRating={rotten_tomato_rating}
+                  tmdbLink={tmdb_link}
+                  imdbLink={imdb_link}
+                  rottenTomatoesLink={rotten_tomatoes_link || `https://www.rottentomatoes.com/m/${original_title?.toLowerCase().replace(/[^a-z0-9]/g, '_')}`}
+                  onRefresh={refreshRatings}
+                  refreshing={refreshingRatings}
+                />
 
                 {/* Overview */}
                 <div className="movie-detail-overview">
