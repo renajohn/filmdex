@@ -165,19 +165,43 @@ const musicbrainzService = {
         headers: {
           'User-Agent': this.userAgent
         },
-        timeout: 10000
+        timeout: 10000,
+        maxRedirects: 5, // Allow redirects
+        validateStatus: function (status) {
+          return status >= 200 && status < 300; // Accept redirects
+        }
       });
 
-      // Find the front cover image
-      const frontCover = response.data.images?.find(img => img.front === true);
+      // Handle redirect responses that point to archive.org
+      if (typeof response.data === 'string' && response.data.includes('archive.org')) {
+        console.log(`Cover Art Archive redirected to archive.org for release ${releaseId}`);
+        return null; // Skip this release as archive.org links are unreliable
+      }
+
+      const images = response.data.images || [];
+      
+      // Find front and back cover images
+      const frontCover = images.find(img => img.front === true);
+      const backCover = images.find(img => img.back === true);
+      
+      const result = {};
+      
       if (frontCover) {
-        return {
+        result.front = {
           url: frontCover.thumbnails['1200'] || frontCover.thumbnails['500'] || frontCover.thumbnails['large'] || frontCover.image,
           thumbnails: frontCover.thumbnails
         };
       }
+      
+      if (backCover) {
+        result.back = {
+          url: backCover.thumbnails['1200'] || backCover.thumbnails['500'] || backCover.thumbnails['large'] || backCover.image,
+          thumbnails: backCover.thumbnails
+        };
+      }
 
-      return null;
+      // Return null if no covers found, otherwise return the result object
+      return Object.keys(result).length > 0 ? result : null;
     } catch (error) {
       console.error('Cover Art Archive error:', error.message);
       // Don't throw error for cover art - it's optional
@@ -357,7 +381,7 @@ const musicbrainzService = {
       discs: discs,
       discCount: release.media?.length || 1,
       editionNotes: release.disambiguation || null,
-      coverArt: release.coverArt || null,
+      coverArt: release.coverArt?.front?.url || release.coverArt?.back?.url || null,
       producer: producer,
       engineer: engineer,
       recordingLocation: recordingLocation,

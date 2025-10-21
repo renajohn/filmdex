@@ -176,11 +176,14 @@ app.get('/api/cache/stats', analyticsController.getCacheStats);
 // Music routes
 app.get('/api/music/albums', musicController.getAllAlbums);
 app.get('/api/music/albums/search', musicController.searchAlbums);
-app.get('/api/music/albums/:id', musicController.getAlbumById);
+app.get('/api/music/albums/missing-covers', musicController.getAlbumsMissingCovers);
 app.post('/api/music/albums', musicController.addAlbum);
+app.post('/api/music/albums/fill-covers', musicController.fillCovers);
+app.get('/api/music/albums/:id', musicController.getAlbumById);
 app.put('/api/music/albums/:id', musicController.updateAlbum);
 app.delete('/api/music/albums/:id', musicController.deleteAlbum);
 app.post('/api/music/albums/:id/upload-cover', musicController.coverUploadMiddleware, musicController.uploadCustomCover);
+app.post('/api/music/albums/:id/upload-back-cover', musicController.coverUploadMiddleware, musicController.uploadCustomBackCover);
 app.get('/api/music/autocomplete', musicController.getAutocompleteSuggestions);
 app.get('/api/music/search', musicController.searchMusicBrainz);
 app.get('/api/music/search/catalog', musicController.searchByCatalogNumber);

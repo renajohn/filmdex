@@ -65,8 +65,9 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
       group.releases.push(release);
       
       // Use the first available cover art from any release in the group
-      if (!group.cover && release.coverArt?.url) {
-        group.cover = release.coverArt.url;
+      if (!group.cover && release.coverArt) {
+        group.cover = release.coverArt;
+        console.log(`Added cover art for ${group.title}: ${release.coverArt}`);
       }
     });
     
@@ -348,7 +349,11 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
                             alt={`${group.title} cover`}
                             className="group-cover"
                             onError={(e) => {
+                              console.log(`Failed to load cover for ${group.title}: ${group.cover}`);
                               e.target.style.display = 'none';
+                            }}
+                            onLoad={() => {
+                              console.log(`Successfully loaded cover for ${group.title}: ${group.cover}`);
                             }}
                           />
                         ) : (

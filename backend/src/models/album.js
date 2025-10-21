@@ -27,6 +27,7 @@ const Album = {
           release_events TEXT,
           recording_quality TEXT CHECK(recording_quality IN ('demo', 'reference', 'good', 'average')),
           cover TEXT,
+          back_cover TEXT,
           musicbrainz_release_id TEXT,
           musicbrainz_release_group_id TEXT,
           release_group_first_release_date INTEGER,
@@ -73,6 +74,9 @@ const Album = {
             }),
             new Promise((resolve) => {
               db.run(`ALTER TABLE albums ADD COLUMN annotation TEXT`, () => resolve());
+            }),
+            new Promise((resolve) => {
+              db.run(`ALTER TABLE albums ADD COLUMN back_cover TEXT`, () => resolve());
             })
           ];
 
@@ -136,6 +140,7 @@ const Album = {
         release_events: JSON.stringify(cdData.releaseEvents || []),
         recording_quality: cdData.recordingQuality || null,
         cover: cdData.cover || null,
+        back_cover: cdData.backCover || null,
         musicbrainz_release_id: cdData.musicbrainzReleaseId || null,
         musicbrainz_release_group_id: cdData.musicbrainzReleaseGroupId || null,
         release_group_first_release_date: cdData.releaseGroupFirstReleaseDate || null,
@@ -160,19 +165,19 @@ const Album = {
         INSERT INTO albums (
           artist, title, release_year, labels, catalog_number, barcode,
           country, edition_notes, genres, moods, tags, rating, total_duration,
-          format, packaging, status, release_events, recording_quality, cover,
+          format, packaging, status, release_events, recording_quality, cover, back_cover,
           musicbrainz_release_id, musicbrainz_release_group_id, release_group_first_release_date,
           release_group_type, release_group_secondary_types, condition, ownership_notes, purchased_at,
           price_chf, producer, engineer, recording_location, language, urls, isrc_codes, annotation,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const params = [
         cd.artist, cd.title, cd.release_year, cd.labels, cd.catalog_number,
         cd.barcode, cd.country, cd.edition_notes, cd.genres, cd.moods, cd.tags,
         cd.rating, cd.total_duration, cd.format, cd.packaging, cd.status, cd.release_events,
-        cd.recording_quality, cd.cover, cd.musicbrainz_release_id, cd.musicbrainz_release_group_id,
+        cd.recording_quality, cd.cover, cd.back_cover, cd.musicbrainz_release_id, cd.musicbrainz_release_group_id,
         cd.release_group_first_release_date, cd.release_group_type, cd.release_group_secondary_types,
         cd.condition, cd.ownership_notes, cd.purchased_at, cd.price_chf, 
         cd.producer, cd.engineer, cd.recording_location, cd.language, cd.urls, cd.isrc_codes, cd.annotation,
@@ -377,7 +382,7 @@ const Album = {
         UPDATE albums SET
           artist = ?, title = ?, release_year = ?, labels = ?, catalog_number = ?,
           barcode = ?, country = ?, edition_notes = ?, genres = ?, moods = ?,
-          recording_quality = ?, cover = ?, format = ?, musicbrainz_release_id = ?,
+          recording_quality = ?, cover = ?, back_cover = ?, format = ?, musicbrainz_release_id = ?,
           musicbrainz_release_group_id = ?, release_group_first_release_date = ?,
           release_group_type = ?, release_group_secondary_types = ?,
           condition = ?, ownership_notes = ?, purchased_at = ?, price_chf = ?,
@@ -399,6 +404,7 @@ const Album = {
         JSON.stringify([]), // Keep column but don't populate
         cdData.recordingQuality || null,
         cdData.cover || null,
+        cdData.backCover || null,
         cdData.format || 'CD',
         cdData.musicbrainzReleaseId || null,
         cdData.musicbrainzReleaseGroupId || null,
@@ -427,6 +433,40 @@ const Album = {
           // Invalidate analytics cache when album is updated
           await cacheService.invalidateAnalytics();
           resolve({ id, ...cdData, updated_at: now });
+        }
+      });
+    });
+  },
+
+  updateBackCover: (id, backCoverPath) => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const now = new Date().toISOString();
+      
+      const sql = 'UPDATE albums SET back_cover = ?, updated_at = ? WHERE id = ?';
+      
+      db.run(sql, [backCoverPath, now, id], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve({ id, backCover: backCoverPath, updated_at: now });
+        }
+      });
+    });
+  },
+
+  updateFrontCover: (id, frontCoverPath) => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const now = new Date().toISOString();
+      
+      const sql = 'UPDATE albums SET cover = ?, updated_at = ? WHERE id = ?';
+      
+      db.run(sql, [frontCoverPath, now, id], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve({ id, cover: frontCoverPath, updated_at: now });
         }
       });
     });
@@ -473,6 +513,7 @@ const Album = {
       releaseEvents: JSON.parse(row.release_events || '[]'),
       recordingQuality: row.recording_quality,
       cover: row.cover,
+      backCover: row.back_cover,
       musicbrainzReleaseId: row.musicbrainz_release_id,
       musicbrainzReleaseGroupId: row.musicbrainz_release_group_id,
       releaseGroupFirstReleaseDate: row.release_group_first_release_date,

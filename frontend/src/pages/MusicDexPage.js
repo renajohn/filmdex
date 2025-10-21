@@ -2,6 +2,7 @@ import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } f
 import { useLocation } from 'react-router-dom';
 import MusicSearch from '../components/MusicSearch';
 import ResizeCoversMigrationModal from '../components/ResizeCoversMigrationModal';
+import FillBackCoversModal from '../components/FillBackCoversModal';
 import musicService from '../services/musicService';
 
 const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
@@ -12,6 +13,7 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
   const [alertType, setAlertType] = useState('success');
   const [showAlert, setShowAlert] = useState(false);
   const [showResizeMigrationModal, setShowResizeMigrationModal] = useState(false);
+  const [showFillCoversModal, setShowFillCoversModal] = useState(false);
   const musicSearchRef = useRef(null);
 
   useEffect(() => {
@@ -36,6 +38,9 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
     },
     openResizeMigrationModal: () => {
       setShowResizeMigrationModal(true);
+    },
+    openFillCoversModal: () => {
+      setShowFillCoversModal(true);
     }
   }));
 
@@ -132,6 +137,17 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
     return await musicService.resizeAllAlbumCovers();
   };
 
+  const handleFillCovers = async (action, albumIds, type, progressCallback) => {
+    if (action === 'getAlbums') {
+      return await musicService.getAlbumsMissingCovers(type);
+    } else if (action === 'fillCovers') {
+      const result = await musicService.fillCovers(albumIds, type);
+      // Reload albums to show updated covers
+      await loadCds();
+      return result;
+    }
+  };
+
   return (
     <div className="musicdex-page">
       <MusicSearch
@@ -167,6 +183,13 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
         isOpen={showResizeMigrationModal}
         onClose={() => setShowResizeMigrationModal(false)}
         onMigrate={handleResizeMigration}
+      />
+
+      {/* Fill Covers Modal */}
+      <FillBackCoversModal
+        isOpen={showFillCoversModal}
+        onClose={() => setShowFillCoversModal(false)}
+        onFill={handleFillCovers}
       />
     </div>
   );

@@ -267,6 +267,27 @@ class MusicService {
     }
   }
 
+  async uploadBackCover(albumId, file) {
+    try {
+      const baseUrl = await this.getBaseUrl();
+      const formData = new FormData();
+      formData.append('backCover', file);
+
+      const response = await fetch(`${baseUrl}/music/albums/${albumId}/upload-back-cover`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error uploading back cover:', error);
+      throw error;
+    }
+  }
+
   /**
    * Get the full URL for an image path, handling Home Assistant ingress mode
    * @param {string} imagePath - Path starting with /api/images/ or /images/
@@ -316,6 +337,32 @@ class MusicService {
     });
     if (!response.ok) {
       throw new Error('Failed to resize album covers');
+    }
+    return await response.json();
+  }
+
+  // Get albums missing covers (front or back)
+  async getAlbumsMissingCovers(type = 'back') {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/albums/missing-covers?type=${type}`);
+    if (!response.ok) {
+      throw new Error('Failed to get albums missing covers');
+    }
+    return await response.json();
+  }
+
+  // Fill covers for albums (front or back)
+  async fillCovers(albumIds, type = 'back') {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/albums/fill-covers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ albumIds, type }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fill covers');
     }
     return await response.json();
   }

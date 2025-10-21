@@ -146,10 +146,10 @@ const ImageService = {
    * Resize an image to max dimensions while maintaining aspect ratio
    * @param {string} sourcePath - Full path to source image
    * @param {string} destPath - Full path to destination (can be same as source)
-   * @param {number} maxWidth - Maximum width (default: 1000)
-   * @param {number} maxHeight - Maximum height (default: 1000)
+   * @param {number} maxWidth - Maximum width (default: 1200)
+   * @param {number} maxHeight - Maximum height (default: 1200)
    */
-  resizeImage: async (sourcePath, destPath, maxWidth = 1000, maxHeight = 1000) => {
+  resizeImage: async (sourcePath, destPath, maxWidth = 1200, maxHeight = 1200) => {
     try {
       const image = sharp(sourcePath);
       const metadata = await image.metadata();
@@ -189,7 +189,7 @@ const ImageService = {
    */
   resizeCDCover: async (imagePath) => {
     const fullPath = path.join(ImageService.getLocalImagesDir(), 'cd', path.basename(imagePath));
-    return await ImageService.resizeImage(fullPath, fullPath, 1000, 1000);
+    return await ImageService.resizeImage(fullPath, fullPath, 1200, 1200);
   },
 
   // Clean up unused images

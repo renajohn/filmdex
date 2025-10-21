@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Modal, Button, Row, Col, Badge } from 'react-bootstrap';
-import { BsX, BsPencil, BsTrash, BsMusicNote, BsCalendar, BsTag, BsFlag, BsDisc } from 'react-icons/bs';
+import { BsPencil, BsTrash, BsMusicNote, BsCalendar, BsFlag, BsDisc } from 'react-icons/bs';
 import musicService from '../services/musicService';
+import CoverModal from './CoverModal';
 import './MusicDetailCard.css';
 
 const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showCoverModal, setShowCoverModal] = useState(false);
+  const [coverModalData, setCoverModalData] = useState({ coverUrl: '', title: '', artist: '', coverType: '' });
 
   const handleDelete = () => {
     if (window.confirm(`Are you sure you want to delete "${cd.title}"? This action cannot be undone.`)) {
@@ -22,6 +24,10 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
 
   const getCoverImage = () => {
     return musicService.getImageUrl(cd.cover);
+  };
+
+  const getBackCoverImage = () => {
+    return musicService.getImageUrl(cd.backCover);
   };
 
   const formatDuration = (seconds) => {
@@ -67,11 +73,27 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
     }
   };
 
+  const handleCoverClick = (coverUrl, coverType) => {
+    if (coverUrl) {
+      setCoverModalData({
+        coverUrl: coverUrl,
+        title: cd.title,
+        artist: cd.artist,
+        coverType: coverType
+      });
+      setShowCoverModal(true);
+    }
+  };
+
+  const handleCloseCoverModal = () => {
+    setShowCoverModal(false);
+  };
+
   return (
     <Modal 
       show={true} 
       onHide={onClose} 
-      size="lg" 
+      size="md" 
       centered 
       style={{ zIndex: 10100 }}
       className="music-detail-modal"
@@ -84,35 +106,56 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
       </Modal.Header>
       
       <Modal.Body>
-        <Row>
-          <Col md={4}>
-            <div className="cd-cover-container">
-              {getCoverImage() ? (
-                <img 
-                  src={getCoverImage()} 
-                  alt={`${cd.title} cover`}
-                  className="cd-cover-image"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
-                  }}
-                />
-              ) : null}
-              <div 
-                className="cd-cover-placeholder"
-                style={{ display: getCoverImage() ? 'none' : 'flex' }}
-              >
-                <BsMusicNote size={64} />
+        {getCoverImage() || getBackCoverImage() ? (
+          <Row>
+            <Col md={3}>
+              <div className="cd-covers-container">
+                {/* Front Cover */}
+                <div className="cd-cover-container">
+                  <h6 className="cover-label">Front Cover</h6>
+                  {getCoverImage() ? (
+                    <img 
+                      src={getCoverImage()} 
+                      alt={`${cd.title} front cover`}
+                      className="cd-cover-image cd-cover-clickable"
+                      onClick={() => handleCoverClick(getCoverImage(), 'Front')}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div 
+                    className="cd-cover-placeholder"
+                    style={{ display: getCoverImage() ? 'none' : 'flex' }}
+                  >
+                    <BsMusicNote size={64} />
+                  </div>
+                </div>
+                
+                {/* Back Cover */}
+                {getBackCoverImage() && (
+                  <div className="cd-cover-container">
+                    <h6 className="cover-label">Back Cover</h6>
+                    <img 
+                      src={getBackCoverImage()} 
+                      alt={`${cd.title} back cover`}
+                      className="cd-cover-image cd-cover-clickable"
+                      onClick={() => handleCoverClick(getBackCoverImage(), 'Back')}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
               </div>
-            </div>
-          </Col>
-          
-          <Col md={8}>
-            <div className="cd-details">
-              <h4 className="cd-title">{cd.title}</h4>
-              <p className="cd-artist clickable-artist" onClick={() => handleSearch('artist', getArtistDisplay())}>
-                <strong>Artist:</strong> {getArtistDisplay()}
-              </p>
+            </Col>
+            
+            <Col md={9}>
+              <div className="cd-details">
+                <p className="cd-artist clickable-artist" onClick={() => handleSearch('artist', getArtistDisplay())}>
+                  <strong>Artist:</strong> {getArtistDisplay()}
+                </p>
               
               {/* Compact metadata grid */}
               <div className="metadata-section">
@@ -182,9 +225,260 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
                   </div>
                 </div>
               )}
+
+              {/* Additional Information - moved to right side when covers are present */}
+              {(cd.producer?.length > 0 || cd.engineer?.length > 0 || cd.recordingLocation || cd.labels?.length > 0 || cd.catalogNumber || cd.barcode || cd.recordingQuality) && (
+                <div className="info-section">
+                  <h4>Additional Information</h4>
+                  <Row>
+                    {cd.labels && cd.labels.length > 0 && (
+                      <Col md={6}>
+                        <div className="info-item">
+                          <strong>Label{cd.labels.length > 1 ? 's' : ''}:</strong> {cd.labels.join(', ')}
+                        </div>
+                      </Col>
+                    )}
+                    
+                    {cd.catalogNumber && (
+                      <Col md={6}>
+                        <div className="info-item">
+                          <strong>Catalog #:</strong> {cd.catalogNumber}
+                        </div>
+                      </Col>
+                    )}
+                    
+                    {cd.barcode && (
+                      <Col md={6}>
+                        <div className="info-item">
+                          <strong>Barcode:</strong> {cd.barcode}
+                        </div>
+                      </Col>
+                    )}
+                    
+                    {cd.recordingQuality && (
+                      <Col md={6}>
+                        <div className="info-item">
+                          <strong>Quality:</strong> 
+                          <Badge bg="info" className="ms-2">
+                            {cd.recordingQuality}
+                          </Badge>
+                        </div>
+                      </Col>
+                    )}
+                    
+                    {cd.producer && cd.producer.length > 0 && (
+                      <Col md={6}>
+                        <div className="info-item">
+                          <strong>Producer{cd.producer.length > 1 ? 's' : ''}:</strong> {cd.producer.join(', ')}
+                        </div>
+                      </Col>
+                    )}
+                    
+                    {cd.engineer && cd.engineer.length > 0 && (
+                      <Col md={6}>
+                        <div className="info-item">
+                          <strong>Engineer{cd.engineer.length > 1 ? 's' : ''}:</strong> {cd.engineer.join(', ')}
+                        </div>
+                      </Col>
+                    )}
+                    
+                    {cd.recordingLocation && (
+                      <Col md={12}>
+                        <div className="info-item">
+                          <strong>Recording Location:</strong> {cd.recordingLocation}
+                        </div>
+                      </Col>
+                    )}
+                  </Row>
+                </div>
+              )}
+
+              {/* External Links */}
+              {cd.urls && Object.keys(cd.urls).length > 0 && (
+                <div className="info-section">
+                  <h4>External Links</h4>
+                  <div className="external-links">
+                    {Object.entries(cd.urls).map(([label, url], index) => (
+                      <a 
+                        key={index}
+                        href={url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="btn btn-outline-light btn-sm me-2 mb-2"
+                      >
+                        {label}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </Col>
         </Row>
+        ) : (
+          // No cover images - full width layout
+          <div className="cd-details">
+            <p className="cd-artist clickable-artist" onClick={() => handleSearch('artist', getArtistDisplay())}>
+              <strong>Artist:</strong> {getArtistDisplay()}
+            </p>
+          
+            {/* Compact metadata grid */}
+            <div className="metadata-section">
+              <Row>
+                {cd.releaseYear && (
+                  <Col xs={6} md={4}>
+                    <div className="metadata-item">
+                      <BsCalendar className="metadata-icon" />
+                      <span className="metadata-label">Year:</span>
+                      <span className="metadata-value">{cd.releaseYear}</span>
+                    </div>
+                  </Col>
+                )}
+                
+                {cd.country && (
+                  <Col xs={6} md={4}>
+                    <div className="metadata-item">
+                      <BsFlag className="metadata-icon" />
+                      <span className="metadata-label">Country:</span>
+                      <span className="metadata-value">{cd.country}</span>
+                    </div>
+                  </Col>
+                )}
+                
+                {cd.format && (
+                  <Col xs={6} md={4}>
+                    <div className="metadata-item">
+                      <BsDisc className="metadata-icon" />
+                      <span className="metadata-label">Format:</span>
+                      <span className="metadata-value">{cd.format}</span>
+                    </div>
+                  </Col>
+                )}
+                
+                {cd.releaseGroupFirstReleaseDate && (
+                  <Col xs={12} md={4}>
+                    <div className="metadata-item">
+                      <BsCalendar className="metadata-icon" />
+                      <span className="metadata-label">Original:</span>
+                      <span className="metadata-value">{cd.releaseGroupFirstReleaseDate}</span>
+                    </div>
+                  </Col>
+                )}
+              </Row>
+            </div>
+            
+            {cd.editionNotes && (
+              <div className="edition-notes">
+                <strong>Edition Notes:</strong> {cd.editionNotes}
+              </div>
+            )}
+            
+            {cd.genres && cd.genres.length > 0 && (
+              <div className="tags-section">
+                <div className="tags-label">Genres:</div>
+                <div className="tags-container">
+                  {cd.genres.map((genre, index) => (
+                    <Badge 
+                      key={index} 
+                      bg="secondary" 
+                      className="clickable-badge"
+                      onClick={() => handleSearch('genre', genre)}
+                    >
+                      {genre}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Additional Information - full width when no covers */}
+            {(cd.producer?.length > 0 || cd.engineer?.length > 0 || cd.recordingLocation || cd.labels?.length > 0 || cd.catalogNumber || cd.barcode || cd.recordingQuality) && (
+              <div className="info-section">
+                <h4>Additional Information</h4>
+                <Row>
+                  {cd.labels && cd.labels.length > 0 && (
+                    <Col md={6}>
+                      <div className="info-item">
+                        <strong>Label{cd.labels.length > 1 ? 's' : ''}:</strong> {cd.labels.join(', ')}
+                      </div>
+                    </Col>
+                  )}
+                  
+                  {cd.catalogNumber && (
+                    <Col md={6}>
+                      <div className="info-item">
+                        <strong>Catalog #:</strong> {cd.catalogNumber}
+                      </div>
+                    </Col>
+                  )}
+                  
+                  {cd.barcode && (
+                    <Col md={6}>
+                      <div className="info-item">
+                        <strong>Barcode:</strong> {cd.barcode}
+                      </div>
+                    </Col>
+                  )}
+                  
+                  {cd.recordingQuality && (
+                    <Col md={6}>
+                      <div className="info-item">
+                        <strong>Quality:</strong> 
+                        <Badge bg="info" className="ms-2">
+                          {cd.recordingQuality}
+                        </Badge>
+                      </div>
+                    </Col>
+                  )}
+                  
+                  {cd.producer && cd.producer.length > 0 && (
+                    <Col md={6}>
+                      <div className="info-item">
+                        <strong>Producer{cd.producer.length > 1 ? 's' : ''}:</strong> {cd.producer.join(', ')}
+                      </div>
+                    </Col>
+                  )}
+                  
+                  {cd.engineer && cd.engineer.length > 0 && (
+                    <Col md={6}>
+                      <div className="info-item">
+                        <strong>Engineer{cd.engineer.length > 1 ? 's' : ''}:</strong> {cd.engineer.join(', ')}
+                      </div>
+                    </Col>
+                  )}
+                  
+                  {cd.recordingLocation && (
+                    <Col md={12}>
+                      <div className="info-item">
+                        <strong>Recording Location:</strong> {cd.recordingLocation}
+                      </div>
+                    </Col>
+                  )}
+                </Row>
+              </div>
+            )}
+
+            {/* External Links - full width when no covers */}
+            {cd.urls && Object.keys(cd.urls).length > 0 && (
+              <div className="info-section">
+                <h4>External Links</h4>
+                <div className="external-links">
+                  {Object.entries(cd.urls).map(([label, url], index) => (
+                    <a 
+                      key={index}
+                      href={url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="btn btn-outline-light btn-sm me-2 mb-2"
+                    >
+                      {label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Ownership Information */}
         {(cd.ownership?.condition || cd.ownership?.purchasedAt || cd.ownership?.priceChf || cd.ownership?.notes) && (
@@ -229,73 +523,6 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
           </div>
         )}
 
-        {/* Additional Information */}
-        {(cd.producer?.length > 0 || cd.engineer?.length > 0 || cd.recordingLocation || cd.labels?.length > 0 || cd.catalogNumber || cd.barcode || cd.recordingQuality) && (
-          <div className="info-section">
-            <h4>Additional Information</h4>
-            <Row>
-              {cd.labels && cd.labels.length > 0 && (
-                <Col md={6}>
-                  <div className="info-item">
-                    <strong>Label{cd.labels.length > 1 ? 's' : ''}:</strong> {cd.labels.join(', ')}
-                  </div>
-                </Col>
-              )}
-              
-              {cd.catalogNumber && (
-                <Col md={6}>
-                  <div className="info-item">
-                    <strong>Catalog #:</strong> {cd.catalogNumber}
-                  </div>
-                </Col>
-              )}
-              
-              {cd.barcode && (
-                <Col md={6}>
-                  <div className="info-item">
-                    <strong>Barcode:</strong> {cd.barcode}
-                  </div>
-                </Col>
-              )}
-              
-              {cd.recordingQuality && (
-                <Col md={6}>
-                  <div className="info-item">
-                    <strong>Quality:</strong> 
-                    <Badge bg="info" className="ms-2">
-                      {cd.recordingQuality}
-                    </Badge>
-                  </div>
-                </Col>
-              )}
-              
-              {cd.producer && cd.producer.length > 0 && (
-                <Col md={6}>
-                  <div className="info-item">
-                    <strong>Producer{cd.producer.length > 1 ? 's' : ''}:</strong> {cd.producer.join(', ')}
-                  </div>
-                </Col>
-              )}
-              
-              {cd.engineer && cd.engineer.length > 0 && (
-                <Col md={6}>
-                  <div className="info-item">
-                    <strong>Engineer{cd.engineer.length > 1 ? 's' : ''}:</strong> {cd.engineer.join(', ')}
-                  </div>
-                </Col>
-              )}
-              
-              {cd.recordingLocation && (
-                <Col md={12}>
-                  <div className="info-item">
-                    <strong>Recorded at:</strong> {cd.recordingLocation}
-                  </div>
-                </Col>
-              )}
-            </Row>
-          </div>
-        )}
-
         {/* Technical Details */}
         {(cd.language || cd.isrcCodes?.length > 0) && (
           <div className="info-section">
@@ -321,25 +548,7 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
           </div>
         )}
 
-        {/* External Links */}
-        {cd.urls && Object.keys(cd.urls).length > 0 && (
-          <div className="info-section">
-            <h4>External Links</h4>
-            <div className="external-links">
-              {Object.entries(cd.urls).map(([type, url]) => (
-                <a 
-                  key={type} 
-                  href={url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="btn btn-sm btn-outline-secondary me-2 mb-2"
-                >
-                  {type.charAt(0).toUpperCase() + type.slice(1).replace(/_/g, ' ')}
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
+       
 
         {/* Annotation */}
         {cd.annotation && (
@@ -402,6 +611,16 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
           Delete
         </Button>
       </Modal.Footer>
+      
+      {/* Cover Zoom Modal */}
+      <CoverModal
+        isOpen={showCoverModal}
+        onClose={handleCloseCoverModal}
+        coverUrl={coverModalData.coverUrl}
+        title={coverModalData.title}
+        artist={coverModalData.artist}
+        coverType={coverModalData.coverType}
+      />
     </Modal>
   );
 };

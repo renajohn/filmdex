@@ -588,6 +588,13 @@ function AppContent() {
     }
   };
 
+  const handleFillCovers = () => {
+    // Trigger the Fill Covers modal in MusicDexPage
+    if (musicDexRef.current && musicDexRef.current.openFillCoversModal) {
+      musicDexRef.current.openFillCoversModal();
+    }
+  };
+
   const handleWishList = () => {
     navigate('/wishlist');
   };
@@ -788,6 +795,7 @@ function AppContent() {
                 onExportCSV={handleExportCSV}
                 onAddCD={handleAddCD}
                 onResizeCovers={handleResizeCovers}
+                onFillCovers={handleFillCovers}
                 currentPage={location.pathname === '/musicdex' ? 'musicdex' : 'filmdex'}
               />
             </div>

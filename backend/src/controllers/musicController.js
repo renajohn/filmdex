@@ -3,6 +3,9 @@ const path = require('path');
 const fs = require('fs');
 const musicService = require('../services/musicService');
 const imageService = require('../services/imageService');
+const musicbrainzService = require('../services/musicbrainzService');
+const Album = require('../models/album');
+const { getDatabase } = require('../database');
 const logger = require('../logger');
 
 // Configure multer for cover uploads
@@ -306,6 +309,66 @@ const musicController = {
     }
   },
 
+  uploadCustomBackCover: async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const file = req.file;
+      logger.info(`Uploading custom back cover for CD ${id}: ${file.filename}`);
+
+      // Resize the image to max 1200x1200
+      let width = 500;
+      let height = 500;
+      
+      try {
+        await imageService.resizeImage(file.path, file.path, 1200, 1200);
+        
+        // Get updated dimensions after resize
+        const sharp = require('sharp');
+        const metadata = await sharp(file.path).metadata();
+        width = metadata.width;
+        height = metadata.height;
+        logger.info(`Back cover resized to ${width}x${height}`);
+      } catch (error) {
+        // If resize fails, log but continue
+        logger.warn('Failed to resize back cover image:', error.message);
+      }
+
+      // Construct the back cover path using API endpoint (works with Home Assistant ingress)
+      const backCoverPath = `/api/images/cd/custom/${file.filename}`;
+
+      // Update only the back_cover field without affecting other data
+      const db = require('../database').getDatabase();
+      await new Promise((resolve, reject) => {
+        const sql = 'UPDATE albums SET back_cover = ? WHERE id = ?';
+        db.run(sql, [backCoverPath, id], function(err) {
+          if (err) {
+            logger.error(`Failed to update back cover for album ${id}:`, err);
+            reject(err);
+          } else {
+            logger.info(`Updated album ${id} with custom back cover: ${backCoverPath}`);
+            resolve();
+          }
+        });
+      });
+
+      res.json({
+        success: true,
+        backCoverPath: backCoverPath,
+        filename: file.filename,
+        width,
+        height
+      });
+    } catch (error) {
+      logger.error('Error uploading custom back cover:', error);
+      res.status(500).json({ error: 'Failed to upload custom back cover' });
+    }
+  },
+
   // Migrate existing album covers: download external URLs and resize all to 1000x1000
   resizeAllAlbumCovers: async (req, res) => {
     try {
@@ -474,6 +537,125 @@ const musicController = {
     } catch (error) {
       logger.error('Error during album cover migration:', error);
       res.status(500).json({ error: 'Failed to migrate album covers', details: error.message });
+    }
+  },
+
+  // Get albums missing covers (front or back)
+  getAlbumsMissingCovers: async (req, res) => {
+    try {
+      const { type = 'back' } = req.query;
+      const db = getDatabase();
+      
+      const coverField = type === 'front' ? 'cover' : 'back_cover';
+      const sql = `
+        SELECT id, artist, title, musicbrainz_release_id, cover, back_cover
+        FROM albums 
+        WHERE (${coverField} IS NULL OR ${coverField} = '') 
+        AND musicbrainz_release_id IS NOT NULL
+        ORDER BY title
+      `;
+      
+      db.all(sql, [], (err, rows) => {
+        if (err) {
+          console.error(`Error getting albums missing ${type} covers:`, err);
+          return res.status(500).json({ error: `Failed to get albums missing ${type} covers` });
+        }
+        
+        const albums = rows.map(row => ({
+          id: row.id,
+          artist: JSON.parse(row.artist || '[]'),
+          title: row.title,
+          musicbrainzReleaseId: row.musicbrainz_release_id,
+          cover: row.cover,
+          backCover: row.back_cover
+        }));
+        
+        res.json({ albums, count: albums.length });
+      });
+    } catch (error) {
+      console.error(`Error getting albums missing ${req.query.type || 'back'} covers:`, error);
+      res.status(500).json({ error: `Failed to get albums missing ${req.query.type || 'back'} covers` });
+    }
+  },
+
+  // Fill covers for albums (front or back)
+  fillCovers: async (req, res) => {
+    try {
+      const { albumIds, type = 'back' } = req.body;
+      
+      if (!albumIds || !Array.isArray(albumIds)) {
+        return res.status(400).json({ error: 'albumIds array is required' });
+      }
+
+      const results = {
+        processed: 0,
+        successful: 0,
+        failed: 0,
+        errors: []
+      };
+
+      for (let i = 0; i < albumIds.length; i++) {
+        const albumId = albumIds[i];
+        try {
+          results.processed++;
+          
+          // Get album details
+          const album = await Album.findById(albumId);
+          if (!album || !album.musicbrainzReleaseId) {
+            results.failed++;
+            continue; // Don't add to errors array
+          }
+
+          // Get cover art from MusicBrainz
+          const coverArt = await musicbrainzService.getCoverArt(album.musicbrainzReleaseId);
+          
+          const coverData = type === 'front' ? coverArt?.front : coverArt?.back;
+          const existingCover = type === 'front' ? album.cover : album.backCover;
+          
+          // Skip if cover already exists
+          if (existingCover && existingCover.trim() !== '') {
+            results.successful++;
+            console.log(`✅ ${type === 'front' ? 'Front' : 'Back'} cover already exists for album ${albumId}: ${album.title}`);
+            continue;
+          }
+          
+          if (coverData && coverData.url) {
+            try {
+              // Download and save the cover
+              const filename = `album_${albumId}_${type}_${Date.now()}.jpg`;
+              const coverPath = await imageService.downloadImageFromUrl(
+                coverData.url, 
+                'cd', 
+                filename
+              );
+              
+              if (coverPath) {
+                // Update album with cover path
+                if (type === 'front') {
+                  await Album.updateFrontCover(albumId, coverPath);
+                } else {
+                  await Album.updateBackCover(albumId, coverPath);
+                }
+                results.successful++;
+                console.log(`✅ ${type === 'front' ? 'Front' : 'Back'} cover added for album ${albumId}: ${album.title}`);
+              } else {
+                results.failed++;
+              }
+            } catch (downloadError) {
+              results.failed++;
+            }
+          } else {
+            results.failed++;
+          }
+        } catch (error) {
+          results.failed++;
+        }
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error(`Error filling ${req.body.type || 'back'} covers:`, error);
+      res.status(500).json({ error: `Failed to fill ${req.body.type || 'back'} covers` });
     }
   }
 };

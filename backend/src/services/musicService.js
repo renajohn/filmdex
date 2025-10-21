@@ -260,28 +260,53 @@ class MusicService {
       // Get cover art
       const coverArt = await musicbrainzService.getCoverArt(releaseId);
       let coverPath = null;
+      let backCoverPath = null;
       
-      if (coverArt && coverArt.url) {
-        try {
-          // Download and save cover image from MusicBrainz URL
-          const filename = `album_${releaseId}_${Date.now()}.jpg`;
-          coverPath = await imageService.downloadImageFromUrl(coverArt.url, 'cd', filename);
-          
-          // Resize the downloaded cover to max 1000x1000
-          if (coverPath) {
-            try {
-              const path = require('path');
-              // Extract filename from the returned URL path
-              const downloadedFilename = coverPath.split('/').pop();
-              const fullPath = path.join(imageService.getLocalImagesDir(), 'cd', downloadedFilename);
-              
-              await imageService.resizeImage(fullPath, fullPath, 1000, 1000);
-            } catch (resizeError) {
-              console.warn('Failed to resize cover art:', resizeError.message);
+      if (coverArt) {
+        // Handle front cover
+        if (coverArt.front && coverArt.front.url) {
+          try {
+            const filename = `album_${releaseId}_front_${Date.now()}.jpg`;
+            coverPath = await imageService.downloadImageFromUrl(coverArt.front.url, 'cd', filename);
+            
+            // Resize the downloaded cover to max 1200x1200
+            if (coverPath) {
+              try {
+                const path = require('path');
+                const downloadedFilename = coverPath.split('/').pop();
+                const fullPath = path.join(imageService.getLocalImagesDir(), 'cd', downloadedFilename);
+                
+                await imageService.resizeImage(fullPath, fullPath, 1200, 1200);
+              } catch (resizeError) {
+                console.warn('Failed to resize front cover art:', resizeError.message);
+              }
             }
+          } catch (coverError) {
+            console.warn('Failed to download front cover art:', coverError.message);
           }
-        } catch (coverError) {
-          console.warn('Failed to download cover art:', coverError.message);
+        }
+        
+        // Handle back cover
+        if (coverArt.back && coverArt.back.url) {
+          try {
+            const filename = `album_${releaseId}_back_${Date.now()}.jpg`;
+            backCoverPath = await imageService.downloadImageFromUrl(coverArt.back.url, 'cd', filename);
+            
+            // Resize the downloaded back cover to max 1200x1200
+            if (backCoverPath) {
+              try {
+                const path = require('path');
+                const downloadedFilename = backCoverPath.split('/').pop();
+                const fullPath = path.join(imageService.getLocalImagesDir(), 'cd', downloadedFilename);
+                
+                await imageService.resizeImage(fullPath, fullPath, 1200, 1200);
+              } catch (resizeError) {
+                console.warn('Failed to resize back cover art:', resizeError.message);
+              }
+            }
+          } catch (coverError) {
+            console.warn('Failed to download back cover art:', coverError.message);
+          }
         }
       }
 
@@ -289,7 +314,8 @@ class MusicService {
       const albumData = {
         ...formattedData,
         ...additionalData,
-        cover: coverPath // Use the downloaded local path, not the external URL (overrides any cover in additionalData)
+        cover: coverPath, // Use the downloaded local path, not the external URL (overrides any cover in additionalData)
+        backCover: backCoverPath // Use the downloaded local path for back cover
       };
 
       // Check if album already exists

@@ -6,8 +6,10 @@ import musicService from '../services/musicService';
 
 const MusicForm = ({ cd = null, onSave, onCancel }) => {
   const fileInputRef = useRef(null);
+  const backCoverInputRef = useRef(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [coverPreview, setCoverPreview] = useState(null);
+  const [backCoverPreview, setBackCoverPreview] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadMessage, setUploadMessage] = useState(null);
   const [uploadMessageType, setUploadMessageType] = useState('success');
@@ -70,9 +72,13 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
         }
       } else {
         setAvailableCovers([]);
-        // Set cover preview from cd.cover if available
+        // Set cover previews from cd.cover and cd.backCover if available
         if (cd.cover) {
           setCoverPreview(cd.cover);
+        }
+        
+        if (cd.backCover) {
+          setBackCoverPreview(cd.backCover);
         }
       }
       
@@ -466,9 +472,66 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
     }
   };
 
+  const uploadBackCoverFile = async (file) => {
+    if (!file) return;
+
+    // Clear any previous messages
+    setUploadMessage(null);
+
+    // Only allow uploads for existing albums with IDs
+    if (!cd || !cd.id) {
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setUploadMessageType('danger');
+      setUploadMessage('Only JPEG, PNG, and WebP images are allowed');
+      return;
+    }
+
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadMessageType('danger');
+      setUploadMessage('File size must be less than 10MB');
+      return;
+    }
+
+    setUploadingCover(true);
+
+    try {
+      const result = await musicService.uploadBackCover(cd.id, file);
+      
+      // Update the back cover preview
+      setBackCoverPreview(result.backCoverPath);
+
+      setUploadMessageType('success');
+      setUploadMessage('Back cover uploaded successfully!');
+      
+      // Auto-hide success message after 3 seconds
+      setTimeout(() => {
+        setUploadMessage(null);
+      }, 3000);
+    } catch (error) {
+      console.error('Error uploading back cover:', error);
+      setUploadMessageType('danger');
+      setUploadMessage('Failed to upload back cover: ' + error.message);
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
   const handleCoverUpload = async (event) => {
     const file = event.target.files[0];
     await uploadCoverFile(file);
+  };
+
+  const handleBackCoverUpload = async (event) => {
+    const file = event.target.files[0];
+    if (file && cd && cd.id) {
+      await uploadBackCoverFile(file);
+    }
   };
 
   const handleDragEnter = (e) => {
@@ -503,8 +566,10 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
     }
   };
 
-  const getCoverImageUrl = () => {
-    return musicService.getImageUrl(coverPreview);
+  const getCoverImageUrl = (type = 'front') => {
+    // Use coverPreview if available, otherwise fall back to cd.cover
+    const coverPath = type === 'front' ? (coverPreview || cd?.cover) : (backCoverPreview || cd?.backCover);
+    return musicService.getImageUrl(coverPath);
   };
 
   return (
@@ -642,9 +707,45 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
             </Form.Group>
           )}
           
-          <Row>
-            {/* Cover Display and Upload */}
-            <Col md={4} className="mb-3">
+          {/* Title and Artist at the top */}
+          <Row className="mb-4">
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Title *</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange('title', e.target.value)}
+                  isInvalid={!!errors.title}
+                  placeholder="Enter album title"
+                />
+                <Form.Control.Feedback type="invalid">
+                  {errors.title}
+                </Form.Control.Feedback>
+              </Form.Group>
+            </Col>
+            
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Artist(s) *</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={getArrayDisplayValue(formData.artist)}
+                  onChange={(e) => handleArtistInputChange(e.target.value)}
+                  onBlur={(e) => handleArtistInputBlur(e.target.value)}
+                  isInvalid={!!errors.artist}
+                  placeholder="Enter artist name or multiple artists (comma-separated)"
+                />
+                <Form.Control.Feedback type="invalid">
+                  {errors.artist}
+                </Form.Control.Feedback>
+              </Form.Group>
+            </Col>
+          </Row>
+
+          {/* Cover Display and Upload */}
+          <Row className="mb-4">
+            <Col md={6}>
               <Form.Group>
                 <Form.Label>Album Cover</Form.Label>
                 <div 
@@ -692,20 +793,20 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
                     onChange={handleCoverUpload}
                     style={{ display: 'none' }}
                   />
-                  {getCoverImageUrl() ? (
-                    <>
-                      <img 
-                        src={getCoverImageUrl()} 
-                        alt="Album Cover"
-                        style={{ 
-                          width: '100%', 
-                          height: '100%', 
-                          objectFit: 'cover'
-                        }}
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                        }}
-                      />
+                      {getCoverImageUrl('front') ? (
+                        <>
+                          <img 
+                            src={getCoverImageUrl('front')} 
+                            alt="Album Cover"
+                            style={{ 
+                              width: '100%', 
+                              height: '100%', 
+                              objectFit: 'cover'
+                            }}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
                       {isDragging && (
                         <div 
                           style={{
@@ -790,103 +891,171 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
               </Form.Group>
             </Col>
             
-            <Col md={8}>
-              <Row>
-                <Col md={12}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Title *</Form.Label>
-                    <Form.Control
-                      type="text"
-                      value={formData.title}
-                      onChange={(e) => handleInputChange('title', e.target.value)}
-                      isInvalid={!!errors.title}
-                      placeholder="Enter album title"
-                    />
-                    <Form.Control.Feedback type="invalid">
-                      {errors.title}
-                    </Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-                
-                <Col md={12}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Artist(s) *</Form.Label>
-                    <Form.Control
-                      type="text"
-                      value={getArrayDisplayValue(formData.artist)}
-                      onChange={(e) => handleArtistInputChange(e.target.value)}
-                      onBlur={(e) => handleArtistInputBlur(e.target.value)}
-                      isInvalid={!!errors.artist}
-                      placeholder="Enter artist name or multiple artists (comma-separated)"
-                    />
-                    <Form.Control.Feedback type="invalid">
-                      {errors.artist}
-                    </Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
+            {/* Back Cover Display and Upload */}
+            <Col md={6}>
+              <Form.Group>
+                <Form.Label>Back Cover</Form.Label>
+                <div 
+                  className="cover-upload-container" 
+                  onClick={() => cd && cd.id ? backCoverInputRef.current?.click() : null}
+                  style={{ 
+                    width: '100%',
+                    aspectRatio: '1',
+                    border: '2px dashed rgba(255, 255, 255, 0.2)', 
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    cursor: cd && cd.id ? 'pointer' : 'default',
+                    transition: 'all 0.2s ease',
+                    position: 'relative'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (cd && cd.id) {
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+                      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                  }}
+                >
+                  <input
+                    ref={backCoverInputRef}
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    onChange={handleBackCoverUpload}
+                    style={{ display: 'none' }}
+                  />
+                  {getCoverImageUrl('back') ? (
+                    <>
+                      <img 
+                        src={getCoverImageUrl('back')} 
+                        alt="Back Cover"
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          objectFit: 'cover'
+                        }}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                      <div 
+                        style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                          color: 'white',
+                          padding: '8px',
+                          fontSize: '0.75rem',
+                          textAlign: 'center',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <BsUpload size={12} />
+                        {uploadingCover ? 'Uploading...' : 'Change Back Cover'}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ 
+                      textAlign: 'center', 
+                      color: 'rgba(255, 255, 255, 0.5)',
+                      pointerEvents: 'none'
+                    }}>
+                      <BsMusicNote size={48} />
+                      <div style={{ fontSize: '0.75rem', marginTop: '8px' }}>
+                        {cd && cd.id ? (
+                          <>
+                            <BsUpload size={12} className="me-1" />
+                            Click to upload back cover
+                          </>
+                        ) : (
+                          <>
+                            Save album first
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <Form.Text className="text-muted d-block mt-2" style={{ fontSize: '0.75rem' }}>
+                  JPEG, PNG, WebP (max 10MB)
+                </Form.Text>
+              </Form.Group>
+            </Col>
+          </Row>
 
-                <Col md={3}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Release Year</Form.Label>
-                    <Form.Control
-                      type="number"
-                      value={formData.releaseYear}
-                      onChange={(e) => handleInputChange('releaseYear', e.target.value)}
-                      isInvalid={!!errors.releaseYear}
-                      placeholder="e.g., 1995"
-                      min="1900"
-                      max={new Date().getFullYear() + 1}
-                    />
-                    <Form.Control.Feedback type="invalid">
-                      {errors.releaseYear}
-                    </Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-                
-                <Col md={3}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Country</Form.Label>
-                    <Form.Control
-                      type="text"
-                      value={formData.country}
-                      onChange={(e) => handleInputChange('country', e.target.value)}
-                      placeholder="e.g., US, UK, DE"
-                    />
-                  </Form.Group>
-                </Col>
-                
-                <Col md={3}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Format</Form.Label>
-                    <Form.Select
-                      value={formData.format}
-                      onChange={(e) => handleInputChange('format', e.target.value)}
-                    >
-                      <option value="CD">CD</option>
-                      <option value="Vinyl">Vinyl</option>
-                      <option value="Cassette">Cassette</option>
-                      <option value="Digital Media">Digital Media</option>
-                      <option value="Other">Other</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-                
-                <Col md={3}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Recording Quality</Form.Label>
-                    <Form.Select
-                      value={formData.recordingQuality}
-                      onChange={(e) => handleInputChange('recordingQuality', e.target.value)}
-                    >
-                      <option value="">Select quality</option>
-                      <option value="demo">Demo</option>
-                      <option value="reference">Reference</option>
-                      <option value="good">Good</option>
-                      <option value="average">Average</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-              </Row>
+          {/* Release Details below covers */}
+          <Row className="mb-4">
+            <Col md={3}>
+              <Form.Group className="mb-3">
+                <Form.Label>Release Year</Form.Label>
+                <Form.Control
+                  type="number"
+                  value={formData.releaseYear}
+                  onChange={(e) => handleInputChange('releaseYear', e.target.value)}
+                  isInvalid={!!errors.releaseYear}
+                  placeholder="e.g., 1995"
+                  min="1900"
+                  max={new Date().getFullYear() + 1}
+                />
+                <Form.Control.Feedback type="invalid">
+                  {errors.releaseYear}
+                </Form.Control.Feedback>
+              </Form.Group>
+            </Col>
+            
+            <Col md={3}>
+              <Form.Group className="mb-3">
+                <Form.Label>Country</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.country}
+                  onChange={(e) => handleInputChange('country', e.target.value)}
+                  placeholder="e.g., US, UK, DE"
+                />
+              </Form.Group>
+            </Col>
+            
+            <Col md={3}>
+              <Form.Group className="mb-3">
+                <Form.Label>Format</Form.Label>
+                <Form.Select
+                  value={formData.format}
+                  onChange={(e) => handleInputChange('format', e.target.value)}
+                >
+                  <option value="CD">CD</option>
+                  <option value="Vinyl">Vinyl</option>
+                  <option value="Cassette">Cassette</option>
+                  <option value="Digital Media">Digital Media</option>
+                  <option value="Other">Other</option>
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            
+            <Col md={3}>
+              <Form.Group className="mb-3">
+                <Form.Label>Recording Quality</Form.Label>
+                <Form.Select
+                  value={formData.recordingQuality}
+                  onChange={(e) => handleInputChange('recordingQuality', e.target.value)}
+                >
+                  <option value="">Select quality</option>
+                  <option value="demo">Demo</option>
+                  <option value="reference">Reference</option>
+                  <option value="good">Good</option>
+                  <option value="average">Average</option>
+                </Form.Select>
+              </Form.Group>
             </Col>
           </Row>
 

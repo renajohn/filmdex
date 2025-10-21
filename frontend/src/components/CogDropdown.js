@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { BsGear, BsPlus, BsUpload, BsDownload, BsArrowsAngleContract } from 'react-icons/bs';
+import { BsGear, BsPlus, BsUpload, BsDownload, BsArrowsAngleContract, BsImage } from 'react-icons/bs';
 import './CogDropdown.css';
 
 const CogDropdown = ({ 
@@ -9,6 +9,7 @@ const CogDropdown = ({
   onExportCSV,
   onAddCD,
   onResizeCovers,
+  onFillCovers,
   currentPage = 'dexvault'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -99,6 +100,14 @@ const CogDropdown = ({
                 <BsArrowsAngleContract className="menu-icon" />
                 Resize covers
               </button>
+              
+        <button 
+          className="cog-menu-item"
+          onClick={() => handleMenuClick(onFillCovers)}
+        >
+          <BsImage className="menu-icon" />
+          Fill covers
+        </button>
             </>
           ) : (
             // DexVault menu - all options

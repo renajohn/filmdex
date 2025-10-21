@@ -324,9 +324,9 @@ const MusicSearch = forwardRef(({
       let availableCovers = [];
       if (allReleasesInGroup && allReleasesInGroup.length > 0) {
         availableCovers = allReleasesInGroup
-          .filter(r => r.coverArt?.url)
+          .filter(r => r.coverArt?.front?.url || r.coverArt?.url) // Support both old and new format
           .map(r => ({
-            url: r.coverArt.url,
+            url: r.coverArt?.front?.url || r.coverArt?.url, // Use front cover or fallback to old format
             country: r.country,
             year: r.releaseYear,
             catalogNumber: r.catalogNumber
@@ -354,7 +354,7 @@ const MusicSearch = forwardRef(({
         format: details.format || release.format || 'CD',
         genres: details.genres || release.genres || [],
         tags: details.tags || release.tags || [],
-        cover: details.coverArt?.url || release.coverArt?.url,
+        cover: details.coverArt?.front?.url || details.coverArt?.url || release.coverArt?.front?.url || release.coverArt?.url,
         musicbrainzReleaseId: details.musicbrainzReleaseId || release.musicbrainzReleaseId,
         musicbrainzReleaseGroupId: details.musicbrainzReleaseGroupId || release.musicbrainzReleaseGroupId,
         releaseGroupFirstReleaseDate: details.releaseGroupFirstReleaseDate || release.releaseGroupFirstReleaseDate,
