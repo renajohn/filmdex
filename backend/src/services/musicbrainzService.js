@@ -159,70 +159,6 @@ const musicbrainzService = {
     }
   },
 
-  searchReleaseGroup: async function(query, limit = 10) {
-    try {
-      const response = await axios.get(`${this.baseUrl}/release-group`, {
-        params: {
-          query: query,
-          limit: limit,
-          inc: 'artists+tags+ratings',
-          fmt: 'json'
-        },
-        headers: {
-          'User-Agent': this.userAgent
-        },
-        timeout: 10000
-      });
-
-      return response.data['release-groups'] || [];
-    } catch (error) {
-      console.error('MusicBrainz release group search error:', error.message);
-      if (error.code === 'ECONNABORTED') {
-        throw new Error('MusicBrainz request timed out. Please try again.');
-      }
-      throw new Error(`Failed to search release groups: ${error.message}`);
-    }
-  },
-
-  getReleaseGroupReleases: async function(releaseGroupId) {
-    try {
-      const response = await axios.get(`${this.baseUrl}/release`, {
-        params: {
-          'release-group': releaseGroupId,
-          inc: 'artists+recordings+release-groups+labels+media',
-          fmt: 'json'
-        },
-        headers: {
-          'User-Agent': this.userAgent
-        },
-        timeout: 10000
-      });
-
-      const releases = response.data.releases || [];
-      
-      // Fetch cover art for each release
-      const releasesWithCovers = await Promise.all(
-        releases.map(async (release) => {
-          try {
-            const coverArt = await this.getCoverArt(release.id);
-            return { ...release, coverArt: coverArt };
-          } catch (error) {
-            console.warn(`Failed to fetch cover art for release ${release.id}:`, error.message);
-            return { ...release, coverArt: null };
-          }
-        })
-      );
-
-      return releasesWithCovers;
-    } catch (error) {
-      console.error('MusicBrainz release group releases error:', error.message);
-      if (error.code === 'ECONNABORTED') {
-        throw new Error('MusicBrainz request timed out. Please try again.');
-      }
-      throw new Error(`Failed to get releases from release group: ${error.message}`);
-    }
-  },
-
   getCoverArt: async function(releaseId) {
     try {
       const response = await axios.get(`${this.coverArtBaseUrl}/release/${releaseId}`, {
@@ -236,7 +172,7 @@ const musicbrainzService = {
       const frontCover = response.data.images?.find(img => img.front === true);
       if (frontCover) {
         return {
-          url: frontCover.image,
+          url: frontCover.thumbnails['1200'] || frontCover.thumbnails['500'] || frontCover.thumbnails['large'] || frontCover.image,
           thumbnails: frontCover.thumbnails
         };
       }
@@ -434,45 +370,6 @@ const musicbrainzService = {
     return result;
   },
 
-  formatReleaseGroupData: (releaseGroup) => {
-    if (!releaseGroup) return null;
-
-    // Extract artists
-    const artists = releaseGroup['artist-credit']?.map(credit => {
-      if (credit.artist) {
-        return {
-          name: credit.artist.name,
-          id: credit.artist.id,
-          joinphrase: credit.joinphrase || ''
-        };
-      }
-      return null;
-    }).filter(Boolean) || [];
-
-    // Extract genres from release-group
-    const genres = releaseGroup.genres?.map(genre => genre.name) || [];
-    
-    // Extract tags
-    const tags = releaseGroup.tags?.map(tag => tag.name) || [];
-    
-    // Extract rating
-    const rating = releaseGroup.rating?.value ? 
-      Math.round(releaseGroup.rating.value * 20) / 20 : null;
-
-    return {
-      musicbrainzReleaseGroupId: releaseGroup.id,
-      title: releaseGroup.title,
-      artist: artists,
-      releaseYear: releaseGroup['first-release-date'] ? 
-        new Date(releaseGroup['first-release-date']).getFullYear() : null,
-      genres: genres,
-      tags: tags,
-      rating: rating,
-      type: releaseGroup['primary-type'] || 'Unknown',
-      secondaryTypes: releaseGroup['secondary-types']?.map(type => type) || [],
-      disambiguation: releaseGroup.disambiguation || null
-    };
-  }
 };
 
 module.exports = musicbrainzService;

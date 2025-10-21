@@ -185,8 +185,6 @@ app.get('/api/music/autocomplete', musicController.getAutocompleteSuggestions);
 app.get('/api/music/search', musicController.searchMusicBrainz);
 app.get('/api/music/search/catalog', musicController.searchByCatalogNumber);
 app.get('/api/music/search/barcode', musicController.searchByBarcode);
-app.get('/api/music/release-groups/search', musicController.searchReleaseGroups);
-app.get('/api/music/release-groups/:releaseGroupId/releases', musicController.getReleaseGroupReleases);
 app.get('/api/music/release/:releaseId', musicController.getMusicBrainzReleaseDetails);
 app.post('/api/music/release/:releaseId', musicController.addAlbumFromMusicBrainz);
 app.post('/api/music/barcode/:barcode', musicController.addAlbumByBarcode);

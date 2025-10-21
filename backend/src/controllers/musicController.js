@@ -40,17 +40,6 @@ const coverUpload = multer({
 });
 
 const musicController = {
-  // Initialize music tables
-  initialize: async (req, res) => {
-    try {
-      await musicService.initializeTables();
-      res.json({ message: 'Music tables initialized successfully' });
-    } catch (error) {
-      console.error('Error initializing music tables:', error);
-      res.status(500).json({ error: 'Failed to initialize music tables' });
-    }
-  },
-
   // Get all albums
   getAllAlbums: async (req, res) => {
     try {
@@ -168,40 +157,6 @@ const musicController = {
     } catch (error) {
       console.error('Error getting MusicBrainz release details:', error);
       res.status(500).json({ error: 'Failed to get release details' });
-    }
-  },
-
-  // Search release groups
-  searchReleaseGroups: async (req, res) => {
-    try {
-      const { query, limit = 10 } = req.query;
-      
-      if (!query) {
-        return res.status(400).json({ error: 'Query parameter is required' });
-      }
-
-      const releaseGroups = await musicBrainzService.searchReleaseGroup(query, parseInt(limit));
-      const formattedReleaseGroups = releaseGroups.map(musicBrainzService.formatReleaseGroupData);
-      
-      res.json(formattedReleaseGroups);
-    } catch (error) {
-      console.error('Error searching release groups:', error);
-      res.status(500).json({ error: 'Failed to search release groups' });
-    }
-  },
-
-  // Get releases from a release group
-  getReleaseGroupReleases: async (req, res) => {
-    try {
-      const { releaseGroupId } = req.params;
-      
-      const releases = await musicBrainzService.getReleaseGroupReleases(releaseGroupId);
-      const formattedReleases = releases.map(musicBrainzService.formatReleaseData);
-      
-      res.json(formattedReleases);
-    } catch (error) {
-      console.error('Error getting releases from release group:', error);
-      res.status(500).json({ error: 'Failed to get releases from release group' });
     }
   },
 
