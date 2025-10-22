@@ -585,11 +585,14 @@ const analyticsController = {
       const db = getDatabase();
       const analytics = {};
 
-      // Get all albums
-      const albums = await Album.findAll();
+      // Get all owned albums (exclude wish list)
+      const albums = await Album.findByStatus('owned');
       
-      // Get all tracks for overlap analysis
-      const tracks = await Track.findAll();
+      // Get all tracks for overlap analysis (only from owned albums)
+      const ownedAlbumIds = albums.map(album => album.id);
+      const tracks = ownedAlbumIds.length > 0 
+        ? await Track.findByAlbumIds(ownedAlbumIds)
+        : [];
 
       // Debug logging
       logger.info(`Music Analytics: Found ${albums.length} albums and ${tracks.length} tracks`);

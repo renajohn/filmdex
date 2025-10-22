@@ -157,6 +157,31 @@ const Track = {
     });
   },
 
+  findByAlbumIds: (albumIds) => {
+    return new Promise((resolve, reject) => {
+      if (!albumIds || albumIds.length === 0) {
+        resolve([]);
+        return;
+      }
+      
+      const db = getDatabase();
+      const placeholders = albumIds.map(() => '?').join(',');
+      const sql = `
+        SELECT * FROM tracks 
+        WHERE album_id IN (${placeholders})
+        ORDER BY album_id, disc_number, track_number
+      `;
+      
+      db.all(sql, albumIds, (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows.map(Track.formatRow));
+        }
+      });
+    });
+  },
+
   update: (id, trackData) => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();

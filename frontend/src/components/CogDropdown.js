@@ -85,16 +85,6 @@ const CogDropdown = ({
             <>
               <button 
                 className="cog-menu-item"
-                onClick={() => handleMenuClick(onAddCD)}
-              >
-                <BsPlus className="menu-icon" />
-                Add album
-              </button>
-              
-              <div className="cog-menu-separator"></div>
-              
-              <button 
-                className="cog-menu-item"
                 onClick={() => handleMenuClick(onResizeCovers)}
               >
                 <BsArrowsAngleContract className="menu-icon" />
@@ -107,21 +97,11 @@ const CogDropdown = ({
         >
           <BsImage className="menu-icon" />
           Fill covers
-        </button>
+</button>
             </>
           ) : (
             // DexVault menu - all options
             <>
-              <button 
-                className="cog-menu-item"
-                onClick={() => handleMenuClick(onAddMovie)}
-              >
-                <BsPlus className="menu-icon" />
-                Add Movie
-              </button>
-              
-              <div className="cog-menu-separator"></div>
-              
               <button 
                 className="cog-menu-item"
                 onClick={() => handleMenuClick(onImportMovies)}

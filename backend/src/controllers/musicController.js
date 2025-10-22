@@ -54,6 +54,40 @@ const musicController = {
     }
   },
 
+  // Get albums by status (owned or wish)
+  getAlbumsByStatus: async (req, res) => {
+    try {
+      const { status } = req.params;
+      if (!['owned', 'wish'].includes(status)) {
+        return res.status(400).json({ error: 'Status must be "owned" or "wish"' });
+      }
+      
+      const albums = await musicService.getAlbumsByStatus(status);
+      res.json(albums);
+    } catch (error) {
+      console.error('Error getting albums by status:', error);
+      res.status(500).json({ error: 'Failed to get albums by status' });
+    }
+  },
+
+  // Update album status
+  updateAlbumStatus: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      if (!['owned', 'wish'].includes(status)) {
+        return res.status(400).json({ error: 'Status must be "owned" or "wish"' });
+      }
+      
+      const result = await musicService.updateAlbumStatus(id, status);
+      res.json(result);
+    } catch (error) {
+      console.error('Error updating album status:', error);
+      res.status(500).json({ error: 'Failed to update album status' });
+    }
+  },
+
   // Get album by ID
   getAlbumById: async (req, res) => {
     try {
@@ -379,9 +413,18 @@ const musicController = {
       const fs = require('fs');
       const db = require('../database').getDatabase();
       
-      // Get all albums with covers
-      const albums = await Album.findAll();
-      const albumsWithCovers = albums.filter(album => album.cover);
+      // Get all albums with covers (including wish list albums for migration)
+      const allAlbums = await new Promise((resolve, reject) => {
+        const sql = 'SELECT * FROM albums WHERE cover IS NOT NULL AND cover != "" ORDER BY title';
+        db.all(sql, [], (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows.map(Album.formatRow));
+          }
+        });
+      });
+      const albumsWithCovers = allAlbums;
       
       logger.info(`Found ${albumsWithCovers.length} albums with covers to process`);
       

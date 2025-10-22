@@ -178,10 +178,14 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
   };
 
   const handleManualEntry = () => {
+    console.log('Manual entry button clicked');
     onHide();
     // Open form with empty data for manual entry
     if (onReviewMetadata) {
+      console.log('Calling onReviewMetadata(null)');
       onReviewMetadata(null);
+    } else {
+      console.log('onReviewMetadata is not defined');
     }
   };
 
@@ -205,7 +209,7 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
   };
 
   return (
-    <Modal show={show} onHide={handleClose} size="xl" centered style={{ zIndex: 10100 }}>
+    <Modal show={show} onHide={handleClose} size="lg" centered style={{ zIndex: 10100 }} className="add-music-dialog">
       <Modal.Header closeButton className="add-music-dialog-header">
         <Modal.Title>Add New Album</Modal.Title>
       </Modal.Header>
@@ -213,7 +217,7 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
       <Modal.Body className="add-music-dialog-body">
         {/* Search Interface */}
         <div className="search-section mb-3">
-          <h6 className="section-title mb-3">
+          <h6 className="add-album-section-title mb-3">
             <BsSearch className="me-2" />
             Search for Albums on MusicBrainz
           </h6>
@@ -452,7 +456,7 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
         {/* Manual Entry Option */}
         <div className="manual-entry-section">
           <div className="manual-entry-content">
-            <h6 className="section-title mb-2">Can't find your album?</h6>
+            <h6 className="manual-entry-section-title mb-2">Can't find your album?</h6>
             <p className="text-muted mb-2">
               Manually enter album information without searching external databases.
             </p>

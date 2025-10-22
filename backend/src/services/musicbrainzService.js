@@ -175,7 +175,18 @@ const musicbrainzService = {
       // Handle redirect responses that point to archive.org
       if (typeof response.data === 'string' && response.data.includes('archive.org')) {
         console.log(`Cover Art Archive redirected to archive.org for release ${releaseId}`);
-        return null; // Skip this release as archive.org links are unreliable
+        // Instead of returning null, try to extract the archive.org URL
+        const archiveMatch = response.data.match(/https?:\/\/archive\.org\/download\/[^"'\s]+/);
+        if (archiveMatch) {
+          const archiveUrl = archiveMatch[0];
+          console.log(`Extracted archive.org URL: ${archiveUrl}`);
+          return {
+            front: {
+              url: archiveUrl
+            }
+          };
+        }
+        return null; // Skip this release if we can't extract the URL
       }
 
       const images = response.data.images || [];

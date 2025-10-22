@@ -50,6 +50,40 @@ class MusicService {
     }
   }
 
+  async getAlbumsByStatus(status) {
+    try {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/albums/status/${status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching albums by status:', error);
+      throw error;
+    }
+  }
+
+  async updateAlbumStatus(id, status) {
+    try {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/albums/${id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating album status:', error);
+      throw error;
+    }
+  }
+
   async getAlbumById(id) {
     try {
       const baseUrl = await this.getBaseUrl();

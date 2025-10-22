@@ -13,7 +13,8 @@ import {
   BsChatText,
   BsThreeDots,
   BsGrid3X3Gap,
-  BsX
+  BsX,
+  BsPlus
 } from 'react-icons/bs';
 // Note: We use popcorn emoji directly instead of an icon import
 import './FilmDexPage.css';
@@ -878,6 +879,16 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                 {expandAllGroups ? 'Collapse All' : 'Expand All'}
               </button>
             )}
+
+            {/* Add Movie Button */}
+            <button 
+              className="add-item-btn"
+              onClick={() => onAddMovie && onAddMovie('collection')}
+              title="Add Movie to Collection"
+            >
+              <BsPlus className="me-1" />
+              Add Movie
+            </button>
           </div>
           
           {/* Movie Count */}

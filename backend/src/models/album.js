@@ -44,6 +44,7 @@ const Album = {
           urls TEXT,
           isrc_codes TEXT,
           annotation TEXT,
+          title_status TEXT DEFAULT 'owned' CHECK(title_status IN ('owned', 'wish')),
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
@@ -77,6 +78,9 @@ const Album = {
             }),
             new Promise((resolve) => {
               db.run(`ALTER TABLE albums ADD COLUMN back_cover TEXT`, () => resolve());
+            }),
+            new Promise((resolve) => {
+              db.run(`ALTER TABLE albums ADD COLUMN title_status TEXT DEFAULT 'owned'`, () => resolve());
             })
           ];
 
@@ -157,6 +161,7 @@ const Album = {
         urls: JSON.stringify(cdData.urls || {}),
         isrc_codes: JSON.stringify(cdData.isrcCodes || []),
         annotation: cdData.annotation || null,
+        title_status: cdData.titleStatus || 'owned',
         created_at: now,
         updated_at: now
       };
@@ -168,9 +173,9 @@ const Album = {
           format, packaging, status, release_events, recording_quality, cover, back_cover,
           musicbrainz_release_id, musicbrainz_release_group_id, release_group_first_release_date,
           release_group_type, release_group_secondary_types, condition, ownership_notes, purchased_at,
-          price_chf, producer, engineer, recording_location, language, urls, isrc_codes, annotation,
+          price_chf, producer, engineer, recording_location, language, urls, isrc_codes, annotation, title_status,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const params = [
@@ -180,7 +185,7 @@ const Album = {
         cd.recording_quality, cd.cover, cd.back_cover, cd.musicbrainz_release_id, cd.musicbrainz_release_group_id,
         cd.release_group_first_release_date, cd.release_group_type, cd.release_group_secondary_types,
         cd.condition, cd.ownership_notes, cd.purchased_at, cd.price_chf, 
-        cd.producer, cd.engineer, cd.recording_location, cd.language, cd.urls, cd.isrc_codes, cd.annotation,
+        cd.producer, cd.engineer, cd.recording_location, cd.language, cd.urls, cd.isrc_codes, cd.annotation, cd.title_status,
         cd.created_at, cd.updated_at
       ];
 
@@ -224,9 +229,9 @@ const Album = {
   findAll: () => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
-      const sql = 'SELECT * FROM albums ORDER BY artist, title';
+      const sql = 'SELECT * FROM albums WHERE (title_status = ? OR title_status IS NULL) ORDER BY artist, title';
       
-      db.all(sql, [], (err, rows) => {
+      db.all(sql, ['owned'], (err, rows) => {
         if (err) {
           reject(err);
         } else {
@@ -265,6 +270,37 @@ const Album = {
           resolve(null);
         } else {
           resolve(Album.formatRow(row));
+        }
+      });
+    });
+  },
+
+  findByStatus: (status) => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const sql = 'SELECT * FROM albums WHERE title_status = ? ORDER BY artist, title';
+      
+      db.all(sql, [status], (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows.map(Album.formatRow));
+        }
+      });
+    });
+  },
+
+  updateStatus: (id, status) => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const sql = 'UPDATE albums SET title_status = ?, updated_at = ? WHERE id = ?';
+      const now = new Date().toISOString();
+      
+      db.run(sql, [status, now, id], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve({ id, title_status: status });
         }
       });
     });
@@ -342,12 +378,13 @@ const Album = {
       if (!hasFilters) {
         const sql = `
           SELECT * FROM albums 
-          WHERE title LIKE ? OR artist LIKE ? OR labels LIKE ? OR genres LIKE ?
+          WHERE (title LIKE ? OR artist LIKE ? OR labels LIKE ? OR genres LIKE ?)
+          AND (title_status = ? OR title_status IS NULL)
           ORDER BY artist, title
         `;
         const searchTerm = `%${query}%`;
         
-        db.all(sql, [searchTerm, searchTerm, searchTerm, searchTerm], (err, rows) => {
+        db.all(sql, [searchTerm, searchTerm, searchTerm, searchTerm, 'owned'], (err, rows) => {
           if (err) {
             reject(err);
           } else {
@@ -359,10 +396,11 @@ const Album = {
         const sql = `
           SELECT ${hasTrackFilter ? 'DISTINCT' : ''} albums.* FROM albums 
           WHERE ${whereClauses.join(' AND ')}
+          AND (title_status = ? OR title_status IS NULL)
           ORDER BY artist, title
         `;
         
-        db.all(sql, params, (err, rows) => {
+        db.all(sql, [...params, 'owned'], (err, rows) => {
           if (err) {
             reject(err);
           } else {
@@ -386,7 +424,7 @@ const Album = {
           musicbrainz_release_group_id = ?, release_group_first_release_date = ?,
           release_group_type = ?, release_group_secondary_types = ?,
           condition = ?, ownership_notes = ?, purchased_at = ?, price_chf = ?,
-          producer = ?, engineer = ?, recording_location = ?, language = ?, urls = ?, isrc_codes = ?, annotation = ?,
+          producer = ?, engineer = ?, recording_location = ?, language = ?, urls = ?, isrc_codes = ?, annotation = ?, title_status = ?,
           updated_at = ?
         WHERE id = ?
       `;
@@ -422,6 +460,7 @@ const Album = {
         JSON.stringify(cdData.urls || {}),
         JSON.stringify(cdData.isrcCodes || []),
         cdData.annotation || null,
+        cdData.titleStatus || 'owned',
         now,
         id
       ];
@@ -532,6 +571,7 @@ const Album = {
       urls: JSON.parse(row.urls || '{}'),
       isrcCodes: JSON.parse(row.isrc_codes || '[]'),
       annotation: row.annotation,
+      titleStatus: row.title_status,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };

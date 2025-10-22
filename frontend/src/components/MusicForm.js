@@ -47,7 +47,8 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
     releaseGroupType: null,
     releaseGroupSecondaryTypes: [],
     urls: null,
-    isrcCodes: []
+    isrcCodes: [],
+    titleStatus: 'owned'
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -128,7 +129,8 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
         releaseGroupType: cd.releaseGroupType || null,
         releaseGroupSecondaryTypes: cd.releaseGroupSecondaryTypes || [],
         urls: cd.urls || null,
-        isrcCodes: cd.isrcCodes || []
+        isrcCodes: cd.isrcCodes || [],
+        titleStatus: cd.titleStatus || 'owned'
       });
       
       // Set cover preview if available

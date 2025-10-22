@@ -11,7 +11,7 @@ import CsvExportDialog from './components/CsvExportDialog';
 import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
 import musicService from './services/musicService';
-import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsMusicNote, BsArrowLeft, BsBarChart } from 'react-icons/bs';
+import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsMusicNote, BsArrowLeft, BsBarChart, BsFilm } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
@@ -50,7 +50,7 @@ function AppContent() {
   // Check if we're on the thumbnail view (filmdex path)
   const isThumbnailView = location.pathname === '/filmdex';
   
-  // Check if we should show the search bar (filmdex, musicdex, or wishlist)
+  // Check if we should show the search bar (filmdex, musicdex, wishlist)
   const showSearchBar = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/wishlist';
   
   // Check if we should show the navigation pills (all main sections)
@@ -608,6 +608,38 @@ function AppContent() {
     setShowAddMovieDialog(true);
   };
 
+  const handleMovieAddedToWishList = (movie) => {
+    // Refresh the wish list when a movie is added
+    if (wishListRef.current && wishListRef.current.refreshItems) {
+      wishListRef.current.refreshItems();
+    }
+  };
+
+  const handleWishListAddAlbum = (mode) => {
+    // Navigate to musicdex and open add dialog
+    navigate('/musicdex');
+    setTimeout(() => {
+      if (musicDexRef.current && musicDexRef.current.openAddDialog) {
+        musicDexRef.current.openAddDialog();
+      }
+    }, 100);
+  };
+
+  const handleAlbumMovedToCollection = (album) => {
+    // Refresh music dex if it's open
+    if (musicDexRef.current && musicDexRef.current.refreshAlbums) {
+      musicDexRef.current.refreshAlbums();
+    }
+  };
+
+  const handleAlbumAdded = (message) => {
+    handleShowAlert(message, 'success');
+  };
+
+  const handleSearchFromAlbumDetail = (criteria) => {
+    setSearchCriteria(criteria);
+  };
+
   const handleMovieMovedToCollection = () => {
     // Refresh collection when a movie is moved from wish list to collection
     if (movieSearchRef.current && movieSearchRef.current.refreshMovies) {
@@ -621,8 +653,8 @@ function AppContent() {
       movieSearchRef.current.refreshMovies();
     }
     // Also refresh wish list if we're on the wish list page
-    if (wishListRef.current && wishListRef.current.refreshMovies) {
-      wishListRef.current.refreshMovies();
+    if (wishListRef.current && wishListRef.current.refreshItems) {
+      wishListRef.current.refreshItems();
     }
   };
 
@@ -756,7 +788,7 @@ function AppContent() {
                   onClick={handleCollection}
                   data-tooltip="FilmDex - My precious movies"
                 >
-                  <BsCollectionFill className="segment-icon" />
+                  <BsFilm className="segment-icon" />
                 </button>
                 <button 
                   className={`segment ${location.pathname === '/musicdex' ? 'active' : ''}`}
@@ -1048,7 +1080,7 @@ function AppContent() {
           />
           <Route path="/filmdex/import" element={<ImportPage />} />
           <Route path="/musicdex" element={<MusicDexPage ref={musicDexRef} searchCriteria={searchCriteria} />} />
-          <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onMovieMovedToCollection={handleMovieMovedToCollection} onShowAlert={handleShowAlert} onMovieAdded={handleMovieAdded} onSearch={handleSearchFromMovieDetail} />} />
+          <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onAddAlbum={handleWishListAddAlbum} onMovieMovedToCollection={handleMovieMovedToCollection} onAlbumMovedToCollection={handleAlbumMovedToCollection} onShowAlert={handleShowAlert} onMovieAdded={handleMovieAdded} onAlbumAdded={handleAlbumAdded} onSearch={handleSearchFromMovieDetail} />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
         </Routes>
       </main>

@@ -1,9 +1,14 @@
 /* Add Music Dialog Styles - Dark Theme */
 
+/* Dialog Container */
+.add-music-dialog .modal-dialog {
+  max-width: 800px;
+}
+
 /* Dialog Header & Footer */
 .add-music-dialog-header {
-  background: rgba(26, 32, 44, 0.95);
-  border-bottom: 1px solid rgba(74, 85, 104, 0.6);
+  background: rgba(42, 42, 42, 0.95);
+  border-bottom: 1px solid rgba(68, 68, 68, 0.6);
 }
 
 .add-music-dialog-header .btn-close {
@@ -16,21 +21,29 @@
 }
 
 .add-music-dialog-body {
-  background: rgba(26, 32, 44, 0.8);
+  background: rgba(42, 42, 42, 0.8);
   max-height: 70vh;
   overflow-y: auto;
   padding: 20px !important;
 }
 
 /* Section Titles */
-.section-title {
-  color: #e2e8f0;
+.add-album-section-title {
+  color: #fbbf24;
   font-weight: 600;
   font-size: 1rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.manual-entry-section-title {
+  color: #fbbf24;
+  font-weight: 600;
+  font-size: 1rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .section-divider {
-  border-color: rgba(74, 85, 104, 0.4);
+  border-color: rgba(68, 68, 68, 0.4);
   margin: 16px 0;
 }
 
@@ -39,9 +52,9 @@
   display: flex;
   gap: 8px;
   padding: 4px;
-  background: rgba(45, 55, 72, 0.4);
+  background: rgba(68, 68, 68, 0.4);
   border-radius: 8px;
-  border: 1px solid rgba(74, 85, 104, 0.4);
+  border: 1px solid rgba(68, 68, 68, 0.4);
 }
 
 .search-type-btn {
@@ -49,7 +62,7 @@
   padding: 8px 16px;
   background: transparent;
   border: none;
-  color: #cbd5e0;
+  color: #d1d5db;
   border-radius: 6px;
   font-size: 0.875rem;
   font-weight: 500;
@@ -58,45 +71,45 @@
 }
 
 .search-type-btn:hover {
-  background: rgba(74, 85, 104, 0.3);
-  color: #e2e8f0;
+  background: rgba(68, 68, 68, 0.3);
+  color: #f3f4f6;
 }
 
 .search-type-btn.active {
-  background: rgba(160, 174, 192, 0.2);
-  color: #ffffff;
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
   font-weight: 600;
 }
 
 /* Search Input & Button */
 .search-input {
-  background: rgba(45, 55, 72, 0.6) !important;
-  border: 1px solid rgba(74, 85, 104, 0.6) !important;
-  color: #e2e8f0 !important;
+  background: rgba(68, 68, 68, 0.6) !important;
+  border: 1px solid rgba(68, 68, 68, 0.6) !important;
+  color: #f3f4f6 !important;
 }
 
 .search-input:focus {
-  background: rgba(45, 55, 72, 0.8) !important;
-  border-color: rgba(160, 174, 192, 0.6) !important;
-  box-shadow: 0 0 0 0.2rem rgba(160, 174, 192, 0.15) !important;
+  background: rgba(68, 68, 68, 0.8) !important;
+  border-color: rgba(251, 191, 36, 0.6) !important;
+  box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.15) !important;
   color: #ffffff !important;
 }
 
 .search-input::placeholder {
-  color: #a0aec0 !important;
+  color: #9ca3af !important;
 }
 
 .search-btn {
-  background: rgba(160, 174, 192, 0.2) !important;
-  border: 1px solid rgba(160, 174, 192, 0.4) !important;
-  color: #e2e8f0 !important;
+  background: rgba(251, 191, 36, 0.2) !important;
+  border: 1px solid rgba(251, 191, 36, 0.4) !important;
+  color: #fbbf24 !important;
   font-weight: 600;
   transition: all 0.2s ease;
 }
 
 .search-btn:hover:not(:disabled) {
-  background: rgba(160, 174, 192, 0.3) !important;
-  border-color: rgba(160, 174, 192, 0.6) !important;
+  background: rgba(251, 191, 36, 0.3) !important;
+  border-color: rgba(251, 191, 36, 0.6) !important;
   color: #ffffff !important;
   transform: translateY(-1px);
 }
@@ -112,7 +125,7 @@
 }
 
 .results-title {
-  color: #cbd5e0;
+  color: #d1d5db;
   font-size: 0.875rem;
   font-weight: 500;
   margin: 0;
@@ -129,20 +142,20 @@
 
 /* Group Header Card */
 .group-header-card {
-  background: rgba(45, 55, 72, 0.6);
-  border: 1px solid rgba(74, 85, 104, 0.6);
+  background: rgba(68, 68, 68, 0.6);
+  border: 1px solid rgba(68, 68, 68, 0.6);
   border-radius: 8px;
   overflow: hidden;
   transition: all 0.2s ease;
 }
 
 .group-header-card.single-version {
-  background: rgba(45, 55, 72, 0.5);
+  background: rgba(68, 68, 68, 0.5);
 }
 
 .group-header-card.expanded {
-  background: rgba(45, 55, 72, 0.8);
-  border-color: rgba(160, 174, 192, 0.4);
+  background: rgba(68, 68, 68, 0.8);
+  border-color: rgba(251, 191, 36, 0.4);
 }
 
 .group-header-content {
@@ -162,7 +175,7 @@
   height: 80px;
   object-fit: cover;
   border-radius: 4px;
-  border: 1px solid rgba(74, 85, 104, 0.6);
+  border: 1px solid rgba(68, 68, 68, 0.6);
   flex-shrink: 0;
 }
 
@@ -170,8 +183,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(74, 85, 104, 0.3);
-  color: #a0aec0;
+  background: rgba(68, 68, 68, 0.3);
+  color: #9ca3af;
 }
 
 .group-info {
@@ -191,7 +204,7 @@
 }
 
 .group-artist {
-  color: #cbd5e0;
+  color: #d1d5db;
   font-size: 0.95rem;
   font-weight: 500;
   margin-bottom: 6px;
@@ -207,8 +220,8 @@
 }
 
 .format-badge {
-  background-color: rgba(74, 85, 104, 0.8) !important;
-  color: #e2e8f0;
+  background-color: rgba(68, 68, 68, 0.8) !important;
+  color: #f3f4f6;
   font-size: 0.75rem;
   font-weight: 600;
   padding: 4px 8px;
@@ -218,20 +231,20 @@
 }
 
 .group-count {
-  color: #a0aec0;
+  color: #9ca3af;
   font-size: 0.875rem;
 }
 
 .group-toggle {
-  color: #cbd5e0;
+  color: #d1d5db;
   flex-shrink: 0;
   transition: transform 0.2s ease;
 }
 
 /* Releases Table */
 .releases-table-container {
-  background: rgba(26, 32, 44, 0.6);
-  border-top: 1px solid rgba(74, 85, 104, 0.4);
+  background: rgba(42, 42, 42, 0.6);
+  border-top: 1px solid rgba(68, 68, 68, 0.4);
   overflow: hidden;
 }
 
@@ -241,13 +254,13 @@
 }
 
 .releases-table thead {
-  background: rgba(45, 55, 72, 0.8) !important;
+  background: rgba(68, 68, 68, 0.8) !important;
 }
 
 .releases-table thead th {
-  border-bottom: 1px solid rgba(74, 85, 104, 0.6) !important;
+  border-bottom: 1px solid rgba(68, 68, 68, 0.6) !important;
   border-top: none !important;
-  color: #cbd5e0 !important;
+  color: #d1d5db !important;
   font-size: 0.875rem;
   font-weight: 600;
   padding: 12px;
@@ -259,7 +272,7 @@
 }
 
 .releases-table tbody tr {
-  border-bottom: 1px solid rgba(74, 85, 104, 0.3) !important;
+  border-bottom: 1px solid rgba(68, 68, 68, 0.3) !important;
   transition: background 0.2s ease;
   background: transparent !important;
 }
@@ -269,22 +282,22 @@
 }
 
 .releases-table tbody tr:hover {
-  background: rgba(45, 55, 72, 0.5) !important;
+  background: rgba(68, 68, 68, 0.5) !important;
 }
 
 .releases-table tbody td {
   padding: 12px;
   font-size: 0.875rem;
-  color: #e2e8f0 !important;
+  color: #f3f4f6 !important;
   border: none !important;
   background: transparent !important;
 }
 
 .select-release-btn,
 .select-release-btn-header {
-  background: rgba(160, 174, 192, 0.2) !important;
-  border: 1px solid rgba(160, 174, 192, 0.4) !important;
-  color: #e2e8f0 !important;
+  background: rgba(251, 191, 36, 0.2) !important;
+  border: 1px solid rgba(251, 191, 36, 0.4) !important;
+  color: #fbbf24 !important;
   font-weight: 600;
   font-size: 0.75rem;
   padding: 6px 12px;
@@ -294,8 +307,8 @@
 
 .select-release-btn:hover,
 .select-release-btn-header:hover {
-  background: rgba(160, 174, 192, 0.3) !important;
-  border-color: rgba(160, 174, 192, 0.6) !important;
+  background: rgba(251, 191, 36, 0.3) !important;
+  border-color: rgba(251, 191, 36, 0.6) !important;
   color: #ffffff !important;
   transform: translateY(-1px);
 }
@@ -313,27 +326,27 @@
 .manual-entry-content {
   text-align: center;
   padding: 16px;
-  background: rgba(45, 55, 72, 0.3);
+  background: rgba(68, 68, 68, 0.3);
   border-radius: 8px;
-  border: 1px dashed rgba(74, 85, 104, 0.5);
+  border: 1px dashed rgba(68, 68, 68, 0.5);
 }
 
 .manual-entry-content .text-muted {
-  color: #a0aec0 !important;
+  color: #9ca3af !important;
 }
 
 .manual-entry-btn {
   background: transparent !important;
-  border: 1px solid rgba(160, 174, 192, 0.4) !important;
-  color: #cbd5e0 !important;
+  border: 1px solid rgba(251, 191, 36, 0.4) !important;
+  color: #fbbf24 !important;
   font-weight: 600;
   transition: all 0.2s ease;
 }
 
 .manual-entry-btn:hover {
-  background: rgba(160, 174, 192, 0.1) !important;
-  border-color: rgba(160, 174, 192, 0.6) !important;
-  color: #e2e8f0 !important;
+  background: rgba(251, 191, 36, 0.1) !important;
+  border-color: rgba(251, 191, 36, 0.6) !important;
+  color: #ffffff !important;
 }
 
 /* Alert styling */

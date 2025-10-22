@@ -33,6 +33,24 @@ class MusicService {
     }
   }
 
+  async getAlbumsByStatus(status) {
+    try {
+      return await Album.findByStatus(status);
+    } catch (error) {
+      console.error('Error getting albums by status:', error);
+      throw error;
+    }
+  }
+
+  async updateAlbumStatus(id, status) {
+    try {
+      return await Album.updateStatus(id, status);
+    } catch (error) {
+      console.error('Error updating album status:', error);
+      throw error;
+    }
+  }
+
   async getAlbumById(id) {
     try {
       const album = await Album.findById(id);
@@ -259,6 +277,7 @@ class MusicService {
       
       // Get cover art
       const coverArt = await musicbrainzService.getCoverArt(releaseId);
+      console.log('Cover art for release', releaseId, ':', coverArt);
       let coverPath = null;
       let backCoverPath = null;
       
@@ -266,8 +285,10 @@ class MusicService {
         // Handle front cover
         if (coverArt.front && coverArt.front.url) {
           try {
+            console.log('Downloading front cover from:', coverArt.front.url);
             const filename = `album_${releaseId}_front_${Date.now()}.jpg`;
             coverPath = await imageService.downloadImageFromUrl(coverArt.front.url, 'cd', filename);
+            console.log('Cover downloaded to:', coverPath);
             
             // Resize the downloaded cover to max 1200x1200
             if (coverPath) {
@@ -317,6 +338,8 @@ class MusicService {
         cover: coverPath, // Use the downloaded local path, not the external URL (overrides any cover in additionalData)
         backCover: backCoverPath // Use the downloaded local path for back cover
       };
+      
+      console.log('Final album data cover:', albumData.cover);
 
       // Check if album already exists
       const existingAlbum = await Album.findByMusicbrainzId(releaseId);

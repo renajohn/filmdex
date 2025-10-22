@@ -10,7 +10,8 @@ import {
   BsSortDown, 
   BsChevronDown, 
   BsMusicNote,
-  BsGrid3X3Gap
+  BsGrid3X3Gap,
+  BsPlus
 } from 'react-icons/bs';
 import './MusicSearch.css';
 
@@ -89,7 +90,7 @@ const MusicSearch = forwardRef(({
 
   const loadCds = async () => {
     try {
-      const data = await musicService.getAllAlbums();
+      const data = await musicService.getAlbumsByStatus('owned');
       setAllCds(data);
       
       // Respect current search criteria when reloading
@@ -654,6 +655,16 @@ const MusicSearch = forwardRef(({
                 {expandAllGroups ? 'Collapse All' : 'Expand All'}
               </button>
             )}
+
+            {/* Add Album Button */}
+            <button 
+              className="add-item-btn"
+              onClick={() => setShowAddDialog(true)}
+              title="Add Album to Collection"
+            >
+              <BsPlus className="me-1" />
+              Add Album
+            </button>
           </div>
           
           {/* Album Count */}

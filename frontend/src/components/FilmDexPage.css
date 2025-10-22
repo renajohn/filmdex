@@ -530,16 +530,6 @@
   transform: none;
 }
 
-.add-movie-btn {
-  background: linear-gradient(135deg, #16a34a, #15803d) !important;
-  border: 1px solid rgba(34, 197, 94, 0.3) !important;
-}
-
-.add-movie-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #15803d, #166534) !important;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3) !important;
-}
 
 .export-btn {
   background: linear-gradient(135deg, #0891b2, #0e7490) !important;
@@ -1072,6 +1062,37 @@
 .collapse-all-btn:active {
   background: #666;
 }
+
+/* Unified Add Item Button - Used for both movies and albums */
+.add-item-btn {
+  background: #fbbf24 !important;
+  border: 1px solid #f59e0b !important;
+  color: #1a1a1a !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  height: 24px !important;
+  white-space: nowrap !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+.add-item-btn:hover {
+  background: #f59e0b !important;
+  border-color: #d97706 !important;
+  color: #000000 !important;
+  transform: translateY(-1px) !important;
+}
+
+.add-item-btn:active {
+  background: #d97706 !important;
+  transform: translateY(0) !important;
+}
+
 
 /* Movies Groups */
 .movies-groups {

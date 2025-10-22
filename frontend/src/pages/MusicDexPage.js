@@ -53,7 +53,7 @@ const MusicDexPage = forwardRef(({ searchCriteria }, ref) => {
   const loadCds = async () => {
     try {
       setLoading(true);
-      const data = await musicService.getAllAlbums();
+      const data = await musicService.getAlbumsByStatus('owned');
       setCds(data);
     } catch (error) {
       console.error('Error loading albums:', error);
