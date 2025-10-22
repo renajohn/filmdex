@@ -4,7 +4,7 @@ import { BsMusicNote, BsThreeDots } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import './MusicThumbnail.css';
 
-const MusicThumbnail = ({ cd, onClick, onEdit, onDelete }) => {
+const MusicThumbnail = ({ cd, onClick, onEdit, onDelete, disableMenu = false }) => {
   const handleEditClick = (e) => {
     e.stopPropagation();
     onEdit();
@@ -65,26 +65,28 @@ const MusicThumbnail = ({ cd, onClick, onEdit, onDelete }) => {
         )}
       </div>
 
-      <div className="music-thumbnail-menu" onClick={(e) => e.stopPropagation()}>
-        <Dropdown align="end">
-          <Dropdown.Toggle
-            variant="outline-secondary"
-            size="sm"
-            className="music-thumbnail-dropdown-toggle"
-          >
-            <BsThreeDots />
-          </Dropdown.Toggle>
-          
-          <Dropdown.Menu>
-            <Dropdown.Item onClick={handleEditClick}>
-              Edit
-            </Dropdown.Item>
-            <Dropdown.Item onClick={handleDeleteClick} className="text-danger">
-              Delete
-            </Dropdown.Item>
-          </Dropdown.Menu>
-        </Dropdown>
-      </div>
+      {!disableMenu && (
+        <div className="music-thumbnail-menu" onClick={(e) => e.stopPropagation()}>
+          <Dropdown align="end">
+            <Dropdown.Toggle
+              variant="outline-secondary"
+              size="sm"
+              className="music-thumbnail-dropdown-toggle"
+            >
+              <BsThreeDots />
+            </Dropdown.Toggle>
+            
+            <Dropdown.Menu>
+              <Dropdown.Item onClick={handleEditClick}>
+                Edit
+              </Dropdown.Item>
+              <Dropdown.Item onClick={handleDeleteClick} className="text-danger">
+                Delete
+              </Dropdown.Item>
+            </Dropdown.Menu>
+          </Dropdown>
+        </div>
+      )}
     </div>
   );
 };

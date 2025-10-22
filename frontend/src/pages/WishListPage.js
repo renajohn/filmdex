@@ -5,7 +5,6 @@ import apiService from '../services/api';
 import musicService from '../services/musicService';
 import MovieThumbnail from '../components/MovieThumbnail';
 import MovieDetailCard from '../components/MovieDetailCard';
-import MusicThumbnail from '../components/MusicThumbnail';
 import MusicDetailCard from '../components/MusicDetailCard';
 import AddMusicDialog from '../components/AddMusicDialog';
 import MusicForm from '../components/MusicForm';
@@ -893,10 +892,13 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
                       >
                         <td>
                           <div className="album-poster">
-                            <MusicThumbnail 
-                              cd={album}
+                            <img 
+                              src={album.cover || '/placeholder-album.png'} 
+                              alt={album.title}
                               className="music-thumbnail-table"
-                              disableZoom={true}
+                              onError={(e) => {
+                                e.target.src = '/placeholder-album.png';
+                              }}
                             />
                           </div>
                         </td>
@@ -1176,15 +1178,7 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
         </div>
       )}
 
-      {/* Debug info */}
-      {process.env.NODE_ENV === 'development' && (
-        <div style={{ position: 'fixed', top: 0, right: 0, background: 'black', color: 'white', padding: '10px', zIndex: 9999 }}>
-          showAddMusicDialog: {showAddMusicDialog.toString()}<br/>
-          showMusicForm: {showMusicForm.toString()}<br/>
-          addingAlbum: {addingAlbum.toString()}
-        </div>
-      )}
-
+     
       {/* Modal backdrop */}
       {(showDeleteModal.show || showMarkOwnedModal.show || loadingDetails || showAddMusicDialog || showMusicForm || addingAlbum) && (
         <div className="modal-backdrop show"></div>

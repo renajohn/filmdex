@@ -638,7 +638,8 @@ function AppContent() {
   };
 
   const handleAlbumAdded = (message) => {
-    handleShowAlert(message, 'success');
+    // Don't show success messages for wish list additions
+    // Only show errors if needed
   };
 
   const handleSearchFromAlbumDetail = (criteria) => {
@@ -676,7 +677,10 @@ function AppContent() {
   };
 
   const handleMovieAdded = (message, type) => {
-    handleShowAlert(message, type);
+    // Don't show success messages when on wish list page
+    if (location.pathname !== '/wishlist' || type !== 'success') {
+      handleShowAlert(message, type);
+    }
     
     // Refresh the appropriate list based on current page
     setTimeout(() => {
