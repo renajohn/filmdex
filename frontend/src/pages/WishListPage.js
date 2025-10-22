@@ -893,11 +893,11 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
                         <td>
                           <div className="album-poster">
                             <img 
-                              src={album.cover || '/placeholder-album.png'} 
+                              src={musicService.getImageUrl(album.cover) || musicService.getImageUrl('/placeholder-album.png')} 
                               alt={album.title}
                               className="music-thumbnail-table"
                               onError={(e) => {
-                                e.target.src = '/placeholder-album.png';
+                                e.target.src = musicService.getImageUrl('/placeholder-album.png');
                               }}
                             />
                           </div>
