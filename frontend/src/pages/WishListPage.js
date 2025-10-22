@@ -99,10 +99,13 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
             );
           });
         }),
-        musicService.searchAlbums(searchText).catch(() => {
-          // Fallback to simple search if advanced search fails
+        // For albums, we need to search only within wish list albums
+        Promise.resolve().then(() => {
           const searchLower = searchText.toLowerCase().trim();
           return allAlbums.filter(album => {
+            // Only include wish list albums
+            if (album.titleStatus !== 'wish') return false;
+            
             const artistString = Array.isArray(album.artist) ? album.artist.join(', ') : album.artist;
             const genresString = Array.isArray(album.genres) ? album.genres.join(', ') : album.genres;
             return (

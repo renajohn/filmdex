@@ -220,16 +220,21 @@ function AppContent() {
       }
     }
     
-    // Debounce autocomplete suggestions by 300ms
-    autocompleteTimeoutRef.current = setTimeout(async () => {
-      const options = await getAutocompleteOptions(value);
-      setAutocompleteOptions(options);
-      setShowAutocomplete(options.length > 0);
-      setAutocompleteIndex(-1);
-    }, 300);
+    // Debounce autocomplete suggestions by 300ms (skip for wish list)
+    if (location.pathname !== '/wishlist') {
+      autocompleteTimeoutRef.current = setTimeout(async () => {
+        const options = await getAutocompleteOptions(value);
+        setAutocompleteOptions(options);
+        setShowAutocomplete(options.length > 0);
+        setAutocompleteIndex(-1);
+      }, 300);
+    }
   };
 
   const handleSearchKeyDown = (e) => {
+    // Skip autocomplete handling on wish list page
+    if (location.pathname === '/wishlist') return;
+    
     if (!showAutocomplete || autocompleteOptions.length === 0) return;
     
     if (e.key === 'Tab') {
@@ -874,7 +879,7 @@ function AppContent() {
                     <BsX />
                   </button>
                 )}
-                {location.pathname !== '/musicdex' && (
+                {location.pathname !== '/musicdex' && location.pathname !== '/wishlist' && (
                   <button 
                     ref={filterButtonRef}
                     className={`search-filter-button ${showFilterDropdown ? 'active' : ''}`}
@@ -891,7 +896,7 @@ function AppContent() {
                     <BsChevronDown className={`chevron-icon ${showFilterDropdown ? 'rotated' : ''}`} />
                   </button>
                 )}
-                {showAutocomplete && autocompleteOptions.length > 0 && (
+                {showAutocomplete && autocompleteOptions.length > 0 && location.pathname !== '/wishlist' && (
                   <div className="search-autocomplete-dropdown">
                     {autocompleteOptions.slice(0, 50).map((option, index) => (
                       <div
@@ -918,7 +923,7 @@ function AppContent() {
                     ))}
                   </div>
                 )}
-                {showFilterDropdown && (
+                {showFilterDropdown && location.pathname !== '/wishlist' && (
                   <div className="search-filter-dropdown" ref={filterDropdownRef}>
                     <div className="filter-section">
                       <div className="filter-section-title">Age Groups</div>
