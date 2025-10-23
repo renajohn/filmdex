@@ -56,11 +56,7 @@ const MusicThumbnail = ({ cd, onClick, onEdit, onDelete, disableMenu = false }) 
         <p className="music-thumbnail-artist" title={getArtistDisplay()}>
           {getArtistDisplay()}
         </p>
-        {cd.releaseYear && (
-          <p className="music-thumbnail-year">
-            {cd.releaseYear}
-          </p>
-        )}
+        {/* Year removed from thumbnail view per Apple Music aesthetic */}
       </div>
 
       {!disableMenu && (
