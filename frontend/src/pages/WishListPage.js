@@ -28,6 +28,7 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
   const [showAddMusicDialog, setShowAddMusicDialog] = useState(false);
   const [showMusicForm, setShowMusicForm] = useState(false);
   const [addingAlbum, setAddingAlbum] = useState(false);
+  const [addError, setAddError] = useState('');
   const [markOwnedForm, setMarkOwnedForm] = useState({ 
     title: '', 
     format: 'Blu-ray 4K', 
@@ -247,7 +248,7 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
 
   const handleReviewMetadata = async (release, allReleasesInGroup) => {
     console.log('handleReviewMetadata called with:', { 
-      release: release ? release.title : 'null', 
+      release: release ? (release.title || release.id) : 'null', 
       allReleasesInGroup: allReleasesInGroup ? allReleasesInGroup.length : 'undefined' 
     });
     
@@ -259,7 +260,22 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
       return;
     }
     
-    // For wish list, add the album directly without review
+    // Check if this is an album object (from the new workflow) or a release object (from the old workflow)
+    if (release.id && !release.musicbrainzReleaseId) {
+      // This is an album object from the new workflow - open detail view
+      console.log('Opening detail view for album:', release.title);
+      setShowAddMusicDialog(false);
+      
+      // Refresh the albums list to include the new album
+      loadWishListItems();
+      
+      if (onAlbumAdded) {
+        onAlbumAdded(release.id);
+      }
+      return;
+    }
+    
+    // Old workflow - add the album directly without review
     try {
       console.log('Adding album directly to wish list:', release.title);
       setAddingAlbum(true);
@@ -970,7 +986,6 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
         <MusicDetailCard
           cd={selectedAlbumDetails}
           onClose={handleCloseDetails}
-          onEdit={() => { /* Implement edit logic if needed */ }}
           onDelete={() => handleDeleteItemFromDetails(selectedAlbumDetails.id, 'album')}
           onSearch={onSearch}
           onMarkOwned={() => handleMarkOwnedClick(selectedAlbumDetails, 'album', { stopPropagation: () => {} })}
@@ -1157,6 +1172,24 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
           onAddCdFromMusicBrainz={handleAddCdFromMusicBrainz}
           onAddCdByBarcode={handleAddCdByBarcode}
           onReviewMetadata={handleReviewMetadata}
+          defaultTitleStatus="wish"
+          onAlbumAdded={() => {
+            // Immediately refresh wishlist when album is added
+            loadWishListItems();
+            setAddingAlbum(false);
+            setAddError('');
+            if (onAlbumAdded) onAlbumAdded();
+          }}
+          onAddStart={() => {
+            setShowAddMusicDialog(false); // close dialog instantly
+            setAddingAlbum(true);
+            setAddError('');
+          }}
+          onAddError={(err) => {
+            setAddingAlbum(false);
+            setAddError(err?.message || 'Failed to add album');
+            if (onShowAlert) onShowAlert('Failed to add album: ' + (err?.message || ''), 'danger');
+          }}
         />
       )}
 
@@ -1175,6 +1208,12 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
           <div className="loading-message">
             Adding album to your wish list...
           </div>
+        </div>
+      )}
+
+      {addError && (
+        <div className="error-message">
+          {addError}
         </div>
       )}
 

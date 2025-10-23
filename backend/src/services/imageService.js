@@ -4,6 +4,7 @@ const axios = require('axios');
 const sharp = require('sharp');
 const configManager = require('../config');
 const logger = require('../logger');
+const musicbrainzService = require('./musicbrainzService');
 
 const ImageService = {
   BASE_URL: 'https://image.tmdb.org/t/p',
@@ -86,27 +87,42 @@ const ImageService = {
     if (!imageUrl) return null;
     
     try {
-      const response = await axios.get(imageUrl, { responseType: 'stream' });
+      console.log(`ImageService: Downloading from ${imageUrl}`);
       
-      const localPath = path.join(ImageService.getLocalImagesDir(), type, filename);
-      const writer = fs.createWriteStream(localPath);
+      // Ensure directory exists
+      const targetDir = path.join(ImageService.getLocalImagesDir(), type);
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
       
-      response.data.pipe(writer);
+      const filePath = path.join(targetDir, filename);
       
-      return new Promise((resolve, reject) => {
-        writer.on('finish', () => {
-          logger.debug(`Downloaded ${type} image from URL: ${filename}`);
-          const localPath = `/api/images/${type}/${filename}`;
-          logger.debug(`Returning local path: ${localPath}`);
-          resolve(localPath);
-        });
-        writer.on('error', (error) => {
-          console.error(`Error writing ${type} image ${filename}:`, error);
-          reject(error);
-        });
+      // Check if file already exists
+      if (fs.existsSync(filePath)) {
+        console.log(`ImageService: File already exists: ${filename}`);
+        return `/api/images/${type}/${filename}`;
+      }
+      
+      // Simple download with basic timeout
+      const response = await axios.get(imageUrl, {
+        responseType: 'arraybuffer',
+        timeout: 15000, // 15 seconds - shorter than MusicBrainz timeout
+        headers: {
+          'User-Agent': musicbrainzService.userAgent,
+          'Accept': 'image/*'
+        }
       });
+      
+      console.log(`ImageService: Response status: ${response.status}, content-type: ${response.headers['content-type']}`);
+      
+      // Write file directly from buffer
+      fs.writeFileSync(filePath, response.data);
+      console.log(`ImageService: Successfully downloaded ${type} image: ${filename}`);
+      
+      return `/api/images/${type}/${filename}`;
+      
     } catch (error) {
-      console.error(`Failed to download image from URL ${imageUrl}:`, error.message);
+      console.error(`ImageService: Failed to download image from URL ${imageUrl}:`, error.message);
       return null;
     }
   },

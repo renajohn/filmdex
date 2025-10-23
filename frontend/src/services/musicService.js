@@ -235,7 +235,9 @@ class MusicService {
         body: JSON.stringify(additionalData),
       });
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
+        throw new Error(errorMessage);
       }
       return await response.json();
     } catch (error) {
@@ -305,7 +307,8 @@ class MusicService {
     try {
       const baseUrl = await this.getBaseUrl();
       const formData = new FormData();
-      formData.append('backCover', file);
+      // Backend middleware expects the field name 'cover' for both endpoints
+      formData.append('cover', file);
 
       const response = await fetch(`${baseUrl}/music/albums/${albumId}/upload-back-cover`, {
         method: 'POST',

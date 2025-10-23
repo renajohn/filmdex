@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Tabs, Tab, Form, Alert, Table, Badge } from 'react-bootstrap';
 import { BsX, BsSearch, BsUpcScan, BsPlus, BsPencil, BsChevronDown, BsChevronRight } from 'react-icons/bs';
 import musicService from '../services/musicService';
+import AlbumMetadataForm from './AlbumMetadataForm';
 import './AddMusicDialog.css';
 
-const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCdByBarcode, onReviewMetadata }) => {
+const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCdByBarcode, onReviewMetadata, defaultTitleStatus, onAlbumAdded: onAlbumAddedFromParent, onAddStart, onAddError }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchArtist, setSearchArtist] = useState('');
   const [searchBy, setSearchBy] = useState('title'); // 'title', 'catalog', 'barcode'
@@ -17,6 +18,11 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
   const [loadingMessage, setLoadingMessage] = useState('');
   const [error, setError] = useState('');
   const searchInputRef = useRef(null);
+  
+  // New state for metadata form
+  const [showMetadataForm, setShowMetadataForm] = useState(false);
+  const [selectedRelease, setSelectedRelease] = useState(null);
+  const [selectedReleaseGroup, setSelectedReleaseGroup] = useState([]);
 
   // Auto-focus search input when dialog opens
   useEffect(() => {
@@ -66,8 +72,12 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
       
       // Use the first available cover art from any release in the group
       if (!group.cover && release.coverArt) {
-        group.cover = release.coverArt;
-        console.log(`Added cover art for ${group.title}: ${release.coverArt}`);
+        // Extract the front cover URL from the coverArt object
+        const frontCoverUrl = release.coverArt.front || release.coverArt.url;
+        if (frontCoverUrl) {
+          group.cover = frontCoverUrl;
+          console.log(`Added cover art for ${group.title}: ${frontCoverUrl}`);
+        }
       }
     });
     
@@ -154,13 +164,12 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
 
   const handleSelectRelease = async (release, allReleasesInGroup = null) => {
     try {
-      // Close the dialog and open metadata review
-      onHide();
+      // Set the selected release and group for the metadata form
+      setSelectedRelease(release);
+      setSelectedReleaseGroup(allReleasesInGroup || []);
       
-      // Pass the release and all related releases to parent for metadata review
-      if (onReviewMetadata) {
-        await onReviewMetadata(release, allReleasesInGroup);
-      }
+      // Show the metadata form instead of calling onReviewMetadata
+      setShowMetadataForm(true);
     } catch (err) {
       console.error('Error in handleSelectRelease:', err);
       setError('Failed to load release details: ' + err.message);
@@ -179,6 +188,7 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
 
   const handleManualEntry = () => {
     console.log('Manual entry button clicked');
+    // For manual entry, we still use the old workflow (MusicForm)
     onHide();
     // Open form with empty data for manual entry
     if (onReviewMetadata) {
@@ -198,7 +208,29 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
     setGroupedResults([]);
     setExpandedGroups(new Set());
     setError('');
+    setShowMetadataForm(false);
+    setSelectedRelease(null);
+    setSelectedReleaseGroup([]);
     onHide();
+  };
+
+  const handleMetadataFormClose = () => {
+    setShowMetadataForm(false);
+    setSelectedRelease(null);
+    setSelectedReleaseGroup([]);
+  };
+
+  const handleAlbumAdded = (album) => {
+    // Close the metadata form and the main dialog
+    setShowMetadataForm(false);
+    setSelectedRelease(null);
+    setSelectedReleaseGroup([]);
+    onHide();
+    
+    // Album has been added successfully - no need to open edit dialog
+    if (onAlbumAddedFromParent) {
+      onAlbumAddedFromParent(album);
+    }
   };
 
   const handleKeyPress = (e, action) => {
@@ -209,7 +241,8 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
   };
 
   return (
-    <Modal show={show} onHide={handleClose} size="lg" centered style={{ zIndex: 10100 }} className="add-music-dialog">
+    <>
+      <Modal show={show} onHide={handleClose} size="lg" centered style={{ zIndex: 10100 }} className="add-music-dialog">
       <Modal.Header closeButton className="add-music-dialog-header">
         <Modal.Title>Add New Album</Modal.Title>
       </Modal.Header>
@@ -472,6 +505,19 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
         </div>
       </Modal.Body>
     </Modal>
+
+    {/* Album Metadata Form */}
+    <AlbumMetadataForm
+      show={showMetadataForm}
+      onHide={handleMetadataFormClose}
+      release={selectedRelease}
+      allReleasesInGroup={selectedReleaseGroup}
+      onAlbumAdded={handleAlbumAdded}
+      defaultTitleStatus={defaultTitleStatus}
+      onAddStart={onAddStart}
+      onAddError={onAddError}
+    />
+    </>
   );
 };
 

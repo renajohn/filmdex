@@ -25,19 +25,19 @@ const musicbrainzService = {
       // Fetch cover art for each release
       const releasesWithCovers = await Promise.all(
         releases.map(async (release) => {
-          try {
-            const coverArt = await this.getCoverArt(release.id);
+        try {
+          const coverArt = await this.getCoverArt(release.id);
             return {
-              ...release,
-              coverArt: coverArt
+            ...release,
+            coverArt: coverArt
             };
-          } catch (error) {
+        } catch (error) {
             console.warn(`Failed to fetch cover art for release ${release.id}:`, error.message);
             return {
-              ...release,
-              coverArt: null
+            ...release,
+            coverArt: null
             };
-          }
+        }
         })
       );
 
@@ -97,13 +97,13 @@ const musicbrainzService = {
       // Fetch cover art for each release
       const releasesWithCovers = await Promise.all(
         releases.map(async (release) => {
-          try {
-            const coverArt = await this.getCoverArt(release.id);
+        try {
+          const coverArt = await this.getCoverArt(release.id);
             return { ...release, coverArt: coverArt };
-          } catch (error) {
+        } catch (error) {
             console.warn(`Failed to fetch cover art for release ${release.id}:`, error.message);
             return { ...release, coverArt: null };
-          }
+        }
         })
       );
 
@@ -139,13 +139,13 @@ const musicbrainzService = {
       // Fetch cover art for each release
       const releasesWithCovers = await Promise.all(
         releases.map(async (release) => {
-          try {
-            const coverArt = await this.getCoverArt(release.id);
+        try {
+          const coverArt = await this.getCoverArt(release.id);
             return { ...release, coverArt: coverArt };
-          } catch (error) {
+        } catch (error) {
             console.warn(`Failed to fetch cover art for release ${release.id}:`, error.message);
             return { ...release, coverArt: null };
-          }
+        }
         })
       );
 
@@ -392,7 +392,10 @@ const musicbrainzService = {
       discs: discs,
       discCount: release.media?.length || 1,
       editionNotes: release.disambiguation || null,
-      coverArt: release.coverArt?.front?.url || release.coverArt?.back?.url || null,
+      coverArt: {
+        front: release.coverArt?.front?.url || null,
+        back: release.coverArt?.back?.url || null
+      },
       producer: producer,
       engineer: engineer,
       recordingLocation: recordingLocation,

@@ -67,7 +67,6 @@ const CoverModal = ({ isOpen, onClose, coverUrl, title, artist, coverType }) => 
         src={coverUrl}
         alt={`${title} ${coverType} cover`}
         style={imageStyle}
-        onClick={(e) => e.stopPropagation()}
       />
       <div style={titleStyle}>
         {artist && Array.isArray(artist) ? artist.join(', ') : artist} - {title}

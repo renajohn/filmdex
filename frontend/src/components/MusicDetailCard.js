@@ -599,10 +599,12 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
       </Modal.Body>
       
       <Modal.Footer>
-        <Button variant="outline-primary" onClick={onEdit}>
-          <BsPencil className="me-1" />
-          Edit
-        </Button>
+        {onEdit && (
+          <Button variant="outline-primary" onClick={onEdit}>
+            <BsPencil className="me-1" />
+            Edit
+          </Button>
+        )}
         <Button 
           variant="outline-danger" 
           onClick={handleDelete}

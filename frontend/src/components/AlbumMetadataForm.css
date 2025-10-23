@@ -1,0 +1,335 @@
+/* AlbumMetadataForm.css - Matching AddMusicDialog colors exactly */
+
+.readonly-field {
+  background: rgba(68, 68, 68, 0.6) !important;
+  border: 1px solid rgba(68, 68, 68, 0.6) !important;
+  color: #f3f4f6 !important;
+}
+
+.dark-card {
+  background: rgba(42, 42, 42, 0.8) !important;
+  border: 1px solid rgba(68, 68, 68, 0.6) !important;
+  border-radius: 8px;
+}
+
+.dark-card-header {
+  background: transparent;
+  border-bottom: none;
+  padding: 0;
+}
+
+.dark-card-header h5 {
+  color: #f7fafc !important;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+}
+
+.dark-card-body {
+  background: rgba(42, 42, 42, 0.8) !important;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.cover-selection {
+  margin-bottom: 1rem;
+}
+
+.cover-type-section {
+  margin-bottom: 2rem;
+}
+
+.cover-type-section:last-child {
+  margin-bottom: 0;
+}
+
+.cover-thumbnails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.cover-thumbnail {
+  position: relative;
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 4px;
+  transition: all 0.2s ease;
+  background: rgba(42, 42, 42, 0.8);
+}
+
+.cover-thumbnail:hover {
+  border-color: rgba(251, 191, 36, 0.6);
+  transform: scale(1.05);
+}
+
+.cover-thumbnail.selected {
+  border-color: rgba(251, 191, 36, 0.8);
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.25);
+}
+
+.cover-image {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+}
+
+.cover-clickable {
+  cursor: zoom-in;
+  transition: transform 0.2s ease;
+}
+
+.cover-clickable:hover {
+  transform: scale(1.05);
+}
+
+.selected-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: #fbbf24;
+  color: #1a202c;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.cover-info {
+  text-align: center;
+  margin-top: 4px;
+}
+
+.cover-info small {
+  display: block;
+  font-size: 10px;
+  color: #ffffff !important;
+}
+
+.cover-dimensions {
+  font-weight: 500;
+  color: #ffffff !important;
+  margin-top: 2px;
+}
+
+.custom-cover-upload {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(42, 42, 42, 0.8);
+}
+
+.upload-area {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.upload-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.upload-button {
+  min-width: 120px;
+  background: rgba(251, 191, 36, 0.2) !important;
+  border: 1px solid rgba(251, 191, 36, 0.4) !important;
+  color: #fbbf24 !important;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.upload-button:hover:not(:disabled) {
+  background: rgba(251, 191, 36, 0.3) !important;
+  border-color: rgba(251, 191, 36, 0.6) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
+.custom-cover-previews {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.custom-cover-preview {
+  position: relative;
+  display: inline-block;
+}
+
+.custom-cover-preview .cover-image {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+}
+
+.custom-cover-preview .selected-indicator {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background-color: #fbbf24;
+  color: #1a202c;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Form controls - exact match to AddMusicDialog */
+.form-control {
+  background: rgba(68, 68, 68, 0.6) !important;
+  border: 1px solid rgba(68, 68, 68, 0.6) !important;
+  color: #f3f4f6 !important;
+}
+
+.form-control:focus {
+  background: rgba(68, 68, 68, 0.8) !important;
+  border-color: rgba(251, 191, 36, 0.6) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.15) !important;
+}
+
+.form-control::placeholder {
+  color: #9ca3af !important;
+}
+
+.form-select {
+  background: rgba(68, 68, 68, 0.6) !important;
+  border: 1px solid rgba(68, 68, 68, 0.6) !important;
+  color: #f3f4f6 !important;
+}
+
+.form-select:focus {
+  background: rgba(68, 68, 68, 0.8) !important;
+  border-color: rgba(251, 191, 36, 0.6) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.15) !important;
+}
+
+/* Modal - exact match to AddMusicDialog */
+.modal-content {
+  background: rgba(42, 42, 42, 0.95);
+  border: 1px solid rgba(68, 68, 68, 0.6);
+}
+
+.modal-header {
+  background: rgba(42, 42, 42, 0.95);
+  border-bottom: 1px solid rgba(68, 68, 68, 0.6);
+}
+
+.modal-header .btn-close {
+  filter: brightness(0) invert(1);
+  opacity: 0.8;
+}
+
+.modal-header .btn-close:hover {
+  opacity: 1;
+}
+
+.modal-footer {
+  background: rgba(42, 42, 42, 0.95);
+  border-top: 1px solid rgba(68, 68, 68, 0.6);
+}
+
+/* Button styling - exact match to AddMusicDialog */
+.btn-primary {
+  background: rgba(251, 191, 36, 0.2) !important;
+  border: 1px solid rgba(251, 191, 36, 0.4) !important;
+  color: #fbbf24 !important;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: rgba(251, 191, 36, 0.3) !important;
+  border-color: rgba(251, 191, 36, 0.6) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: rgba(68, 68, 68, 0.6) !important;
+  border: 1px solid rgba(68, 68, 68, 0.6) !important;
+  color: #d1d5db !important;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(68, 68, 68, 0.8) !important;
+  border-color: rgba(68, 68, 68, 0.8) !important;
+  color: #f3f4f6 !important;
+}
+
+/* Text colors - exact match */
+.text-light {
+  color: #f7fafc !important;
+}
+
+.text-muted {
+  color: #9ca3af !important;
+}
+
+/* Form labels */
+.form-label {
+  color: #d1d5db !important;
+  font-weight: 500;
+}
+
+/* Override Bootstrap card styling */
+.card.dark-card {
+  background: rgba(42, 42, 42, 0.8) !important;
+  border: 1px solid rgba(68, 68, 68, 0.6) !important;
+}
+
+.card.dark-card .card-body {
+  background: rgba(42, 42, 42, 0.8) !important;
+}
+
+/* Override Bootstrap thumbnail styling */
+.cover-image.img-thumbnail {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+.custom-cover-preview .cover-image.img-thumbnail {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .cover-thumbnails {
+    justify-content: center;
+  }
+  
+  .upload-buttons {
+    flex-direction: column;
+  }
+  
+  .upload-button {
+    width: 100%;
+  }
+  
+  .custom-cover-previews {
+    justify-content: center;
+  }
+}

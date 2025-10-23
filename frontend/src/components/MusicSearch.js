@@ -39,6 +39,8 @@ const MusicSearch = forwardRef(({
   const [cdCount, setCdCount] = useState({ filtered: 0, total: 0 });
   const [showAddForm, setShowAddForm] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [addingAlbum, setAddingAlbum] = useState(false);
+  const [addError, setAddError] = useState('');
   const [editingCd, setEditingCd] = useState(null);
   const [reviewingRelease, setReviewingRelease] = useState(null);
   const [selectedCdDetails, setSelectedCdDetails] = useState(null);
@@ -91,19 +93,22 @@ const MusicSearch = forwardRef(({
   const loadCds = async () => {
     try {
       const data = await musicService.getAlbumsByStatus('owned');
-      setAllCds(data);
+      // Apply default sorting to loaded data
+      const sortedInitial = sortCds(data, sortBy);
+      setAllCds(sortedInitial);
       
       // Respect current search criteria when reloading
       const currentSearchText = searchCriteria?.searchText || '';
       if (currentSearchText.trim()) {
         // Re-apply search filter
         const localResults = await musicService.searchAlbums(currentSearchText);
-        setFilteredCds(localResults);
-        setCdCount({ filtered: localResults.length, total: data.length });
+        const sortedResults = sortCds(localResults, sortBy);
+        setFilteredCds(sortedResults);
+        setCdCount({ filtered: sortedResults.length, total: sortedInitial.length });
       } else {
         // No search - show all albums
-        setFilteredCds(data);
-        setCdCount({ filtered: data.length, total: data.length });
+        setFilteredCds(sortedInitial);
+        setCdCount({ filtered: sortedInitial.length, total: sortedInitial.length });
       }
     } catch (error) {
       console.error('Error loading albums:', error);
@@ -115,16 +120,18 @@ const MusicSearch = forwardRef(({
 
   const performSearch = async (query) => {
     if (!query.trim()) {
-      setFilteredCds(allCds);
-      setCdCount({ filtered: allCds.length, total: allCds.length });
+      const sortedAll = sortCds(allCds, sortBy);
+      setFilteredCds(sortedAll);
+      setCdCount({ filtered: sortedAll.length, total: allCds.length });
       return;
     }
 
     try {
       // Search local albums
       const localResults = await musicService.searchAlbums(query);
-      setFilteredCds(localResults);
-      setCdCount({ filtered: localResults.length, total: allCds.length });
+      const sortedResults = sortCds(localResults, sortBy);
+      setFilteredCds(sortedResults);
+      setCdCount({ filtered: sortedResults.length, total: allCds.length });
     } catch (error) {
       console.error('Error searching:', error);
       if (onShowAlert) {
@@ -321,6 +328,26 @@ const MusicSearch = forwardRef(({
         return;
       }
       
+      // Check if this is an album object (from the new workflow) or a release object (from the old workflow)
+      if (release.id && !release.musicbrainzReleaseId) {
+        // This is an album object from the new workflow - open detail view
+        console.log('Opening detail view for album:', release.title);
+        
+        // Refresh the albums list to include the new album
+        await loadCds();
+        
+        // Find the album in the updated list and show its details
+        const updatedCds = await musicService.getAlbumsByStatus('owned');
+        const addedAlbum = updatedCds.find(cd => cd.id === release.id);
+        
+        if (addedAlbum) {
+          setSelectedCdDetails(addedAlbum);
+        }
+        
+        return;
+      }
+      
+      // Old workflow - continue with existing logic
       // Extract all available cover art options from the group
       let availableCovers = [];
       if (allReleasesInGroup && allReleasesInGroup.length > 0) {
@@ -685,6 +712,25 @@ const MusicSearch = forwardRef(({
         onAddCdFromMusicBrainz={onAddCdFromMusicBrainz}
         onAddCdByBarcode={onAddCdByBarcode}
         onReviewMetadata={handleReviewMetadata}
+        onAddStart={() => {
+          // Close dialog instantly and show overlay
+          setShowAddDialog(false);
+          setAddingAlbum(true);
+          setAddError('');
+        }}
+        onAlbumAdded={async () => {
+          try {
+            await loadCds();
+          } finally {
+            setAddingAlbum(false);
+            setAddError('');
+          }
+        }}
+        onAddError={(err) => {
+          setAddingAlbum(false);
+          setAddError(err?.message || 'Failed to add album');
+          if (onShowAlert) onShowAlert('Failed to add album: ' + (err?.message || ''), 'danger');
+        }}
       />
 
       {showAddForm && (
@@ -731,12 +777,27 @@ const MusicSearch = forwardRef(({
           cd={selectedCdDetails}
           onClose={() => setSelectedCdDetails(null)}
           onEdit={() => handleEditCd(selectedCdDetails)}
-          onDelete={() => {
-            onDeleteCd(selectedCdDetails.id);
+          onDelete={async () => {
+            await onDeleteCd(selectedCdDetails.id);
             setSelectedCdDetails(null);
           }}
           onSearch={updateSearchViaUrl}
         />
+      )}
+
+      {addingAlbum && (
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+          <div className="loading-message">
+            Adding album to your collection...
+          </div>
+        </div>
+      )}
+
+      {addError && (
+        <div className="error-message">
+          {addError}
+        </div>
       )}
     </div>
   );

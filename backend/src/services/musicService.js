@@ -95,7 +95,29 @@ class MusicService {
   async addAlbum(albumData) {
     try {
       // Create the album
-      const album = await Album.create(albumData);
+      let album = await Album.create(albumData);
+      
+      // Ensure covers are persisted even if model mapping missed them
+      const needsFrontPersist = albumData.cover && (!album.cover || album.cover.trim() === '');
+      const needsBackPersist = albumData.backCover && (!album.backCover || album.backCover.trim() === '');
+      if (needsFrontPersist) {
+        try {
+          await Album.updateFrontCover(album.id, albumData.cover);
+        } catch (e) {
+          console.warn(`Failed to persist front cover for album ${album.id}:`, e.message);
+        }
+      }
+      if (needsBackPersist) {
+        try {
+          await Album.updateBackCover(album.id, albumData.backCover);
+        } catch (e) {
+          console.warn(`Failed to persist back cover for album ${album.id}:`, e.message);
+        }
+      }
+      if (needsFrontPersist || needsBackPersist) {
+        // Refresh album to include updated cover fields
+        album = await Album.findById(album.id);
+      }
       
       // Add tracks if provided
       if (albumData.discs && albumData.discs.length > 0) {
@@ -281,62 +303,58 @@ class MusicService {
       let coverPath = null;
       let backCoverPath = null;
       
-      if (coverArt) {
-        // Handle front cover
-        if (coverArt.front && coverArt.front.url) {
-          try {
-            console.log('Downloading front cover from:', coverArt.front.url);
-            const filename = `album_${releaseId}_front_${Date.now()}.jpg`;
-            coverPath = await imageService.downloadImageFromUrl(coverArt.front.url, 'cd', filename);
-            console.log('Cover downloaded to:', coverPath);
-            
-            // Resize the downloaded cover to max 1200x1200
-            if (coverPath) {
-              try {
-                const path = require('path');
-                const downloadedFilename = coverPath.split('/').pop();
-                const fullPath = path.join(imageService.getLocalImagesDir(), 'cd', downloadedFilename);
-                
-                await imageService.resizeImage(fullPath, fullPath, 1200, 1200);
-              } catch (resizeError) {
-                console.warn('Failed to resize front cover art:', resizeError.message);
-              }
+      // Helper to download and resize a cover
+      const downloadAndResizeCover = async (url, type) => {
+        if (!url) return null;
+        try {
+          const filename = `album_${releaseId}_${type}_${Date.now()}.jpg`;
+          const pathUrl = await imageService.downloadImageFromUrl(url, 'cd', filename);
+          if (pathUrl) {
+            try {
+              const path = require('path');
+              const downloadedFilename = pathUrl.split('/').pop();
+              const fullPath = path.join(imageService.getLocalImagesDir(), 'cd', downloadedFilename);
+              await imageService.resizeImage(fullPath, fullPath, 1200, 1200);
+            } catch (resizeError) {
+              console.warn(`Failed to resize ${type} cover art:`, resizeError.message);
             }
-          } catch (coverError) {
-            console.warn('Failed to download front cover art:', coverError.message);
           }
+          return pathUrl;
+        } catch (error) {
+          console.warn(`Failed to download ${type} cover art from url ${url}:`, error.message);
+          return null;
         }
-        
-        // Handle back cover
-        if (coverArt.back && coverArt.back.url) {
-          try {
-            const filename = `album_${releaseId}_back_${Date.now()}.jpg`;
-            backCoverPath = await imageService.downloadImageFromUrl(coverArt.back.url, 'cd', filename);
-            
-            // Resize the downloaded back cover to max 1200x1200
-            if (backCoverPath) {
-              try {
-                const path = require('path');
-                const downloadedFilename = backCoverPath.split('/').pop();
-                const fullPath = path.join(imageService.getLocalImagesDir(), 'cd', downloadedFilename);
-                
-                await imageService.resizeImage(fullPath, fullPath, 1200, 1200);
-              } catch (resizeError) {
-                console.warn('Failed to resize back cover art:', resizeError.message);
-              }
-            }
-          } catch (coverError) {
-            console.warn('Failed to download back cover art:', coverError.message);
-          }
-        }
+      };
+      
+      // Prefer user-selected cover URLs from the frontend if provided
+      const selectedFrontUrl = additionalData?.coverArtData?.frontCoverUrl || null;
+      const selectedBackUrl = additionalData?.coverArtData?.backCoverUrl || null;
+
+      // Download selected covers if provided
+      if (selectedFrontUrl) {
+        console.log('Using user-selected front cover:', selectedFrontUrl);
+        coverPath = await downloadAndResizeCover(selectedFrontUrl, 'front');
+      }
+      if (selectedBackUrl) {
+        console.log('Using user-selected back cover:', selectedBackUrl);
+        backCoverPath = await downloadAndResizeCover(selectedBackUrl, 'back');
+      }
+
+      // Fallback to MusicBrainz covers only if not provided or download failed
+      if (!coverPath && coverArt?.front?.url) {
+        coverPath = await downloadAndResizeCover(coverArt.front.url, 'front');
+      }
+      if (!backCoverPath && coverArt?.back?.url) {
+        backCoverPath = await downloadAndResizeCover(coverArt.back.url, 'back');
       }
 
       // Prepare album data
       const albumData = {
         ...formattedData,
         ...additionalData,
-        cover: coverPath, // Use the downloaded local path, not the external URL (overrides any cover in additionalData)
-        backCover: backCoverPath // Use the downloaded local path for back cover
+        // Respect user-selected covers if provided; use whatever was successfully downloaded
+        cover: coverPath,
+        backCover: backCoverPath
       };
       
       console.log('Final album data cover:', albumData.cover);
