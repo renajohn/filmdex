@@ -1,3 +1,13 @@
+.cover-image.loading {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.12) 37%, rgba(255,255,255,0.04) 63%);
+  background-size: 400% 100%;
+  animation: coverShimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes coverShimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
 /* AlbumMetadataForm.css - Matching AddMusicDialog colors exactly */
 
 .readonly-field {

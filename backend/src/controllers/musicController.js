@@ -185,6 +185,21 @@ const musicController = {
     }
   },
 
+  // Get cover art metadata for a specific MusicBrainz release (front/back URLs + thumbnails)
+  getCoverArt: async (req, res) => {
+    try {
+      const { releaseId } = req.params;
+      if (!releaseId) {
+        return res.status(400).json({ error: 'releaseId is required' });
+      }
+      const coverArt = await musicbrainzService.getCoverArt(releaseId);
+      res.json(coverArt || {});
+    } catch (error) {
+      console.error('Error getting cover art:', error);
+      res.status(500).json({ error: 'Failed to get cover art' });
+    }
+  },
+
   // Get MusicBrainz release details
   getMusicBrainzReleaseDetails: async (req, res) => {
     try {

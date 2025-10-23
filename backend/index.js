@@ -188,6 +188,7 @@ app.post('/api/music/albums/:id/upload-cover', musicController.coverUploadMiddle
 app.post('/api/music/albums/:id/upload-back-cover', musicController.coverUploadMiddleware, musicController.uploadCustomBackCover);
 app.get('/api/music/autocomplete', musicController.getAutocompleteSuggestions);
 app.get('/api/music/search', musicController.searchMusicBrainz);
+app.get('/api/music/coverart/:releaseId', musicController.getCoverArt);
 app.get('/api/music/search/catalog', musicController.searchByCatalogNumber);
 app.get('/api/music/search/barcode', musicController.searchByBarcode);
 app.get('/api/music/release/:releaseId', musicController.getMusicBrainzReleaseDetails);

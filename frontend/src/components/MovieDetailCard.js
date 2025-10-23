@@ -73,7 +73,9 @@ const SortableCollectionMember = ({ movie, collectionName, onMovieClick, getPost
 const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert, onRefresh, onMovieClick, onSearch, loading = false }) => {
   const [showTrailer, setShowTrailer] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const deleteBtnRef = useRef(null);
   const [cast, setCast] = useState([]);
   const [crew, setCrew] = useState([]);
   
@@ -920,11 +922,14 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
 
   const handleDelete = async () => {
     if (!onDelete) return;
-    
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
     setDeleting(true);
     try {
       await onDelete(movieDetails.id);
-      setShowDeleteConfirm(false);
+      setConfirmDelete(false);
     } catch (error) {
       console.error('Error deleting movie:', error);
       if (onShowAlert) {
@@ -1127,6 +1132,18 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       }
     };
   };
+
+  // Reset confirm state when clicking outside delete button (hook not conditional; handler is)
+  useEffect(() => {
+    const handleDocClick = (e) => {
+      if (confirmDelete && deleteBtnRef.current && !deleteBtnRef.current.contains(e.target)) {
+        setConfirmDelete(false);
+      }
+    };
+    document.addEventListener('click', handleDocClick, true);
+    return () => document.removeEventListener('click', handleDocClick, true);
+  }, [confirmDelete]);
+
 
   // Skeleton loading state
   if (loading) {
@@ -1637,11 +1654,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                     
                     {onDelete && (
                       <button 
-                        className="action-btn delete-movie"
-                        onClick={() => setShowDeleteConfirm(true)}
+                        ref={deleteBtnRef}
+                        className={`action-btn ${confirmDelete ? 'delete-movie-confirm' : 'delete-movie'}`}
+                        onClick={handleDelete}
+                        disabled={deleting}
                       >
                         <BsTrash className="action-icon" />
-                        Delete Movie
+                        {confirmDelete ? 'Are you sure?' : 'Delete Movie'}
                       </button>
                     )}
                   </div>

@@ -28,6 +28,8 @@ const AlbumMetadataForm = ({
   const [modalCoverData, setModalCoverData] = useState(null);
   const [imageDimensions, setImageDimensions] = useState({});
   const [sortedCovers, setSortedCovers] = useState([]);
+  const [releaseCoverMap, setReleaseCoverMap] = useState({}); // { releaseId: { front: {display, full, sizes}, back: {...} } }
+  const [coversLoading, setCoversLoading] = useState(false);
   const [formData, setFormData] = useState({
     ownership: {
       condition: '',
@@ -38,97 +40,45 @@ const AlbumMetadataForm = ({
   });
   const [loading, setLoading] = useState(false);
 
-  // Extract available cover art options from all releases in the group
+  // Extract available cover art options from fetched cover map (fallback to any embedded)
   const availableCovers = React.useMemo(() => {
     console.log('AlbumMetadataForm - Processing covers:', {
       release: release?.title,
-      releaseCoverArt: release?.coverArt,
-      allReleasesInGroup: allReleasesInGroup?.length,
-      groupCovers: allReleasesInGroup?.map(r => ({ title: r.title, coverArt: r.coverArt }))
+      allReleasesInGroup: allReleasesInGroup?.length
     });
     
     const covers = [];
     
-    // First, add covers from all releases in the group
-    if (allReleasesInGroup && allReleasesInGroup.length > 0) {
-      allReleasesInGroup.forEach(r => {
-        console.log('Processing release:', r.title, 'coverArt:', r.coverArt);
-        
-        // Handle both old format (string) and new format (object)
-        if (typeof r.coverArt === 'string' && r.coverArt) {
-          // Old format - single cover art URL
-          covers.push({
-            url: r.coverArt,
-            type: 'front',
-            release: r,
-            country: r.country,
-            year: r.releaseYear,
-            catalogNumber: r.catalogNumber
-          });
-        } else if (r.coverArt && typeof r.coverArt === 'object') {
-          // New format - object with front/back
-          if (r.coverArt.front) {
-            covers.push({
-              url: r.coverArt.front,
-              type: 'front',
-              release: r,
-              country: r.country,
-              year: r.releaseYear,
-              catalogNumber: r.catalogNumber
-            });
-          }
-          if (r.coverArt.back) {
-            covers.push({
-              url: r.coverArt.back,
-              type: 'back',
-              release: r,
-              country: r.country,
-              year: r.releaseYear,
-              catalogNumber: r.catalogNumber
-            });
-          }
-        }
-      });
-    }
-    
-    // If no covers from group, try the selected release
-    if (covers.length === 0 && release) {
-      console.log('No covers from group, trying selected release:', release.title, 'coverArt:', release.coverArt);
-      
-      if (typeof release.coverArt === 'string' && release.coverArt) {
-        // Old format - single cover art URL
+    // Prefer fetched cover art map
+    const group = Array.isArray(allReleasesInGroup) && allReleasesInGroup.length > 0 ? allReleasesInGroup : (release ? [release] : []);
+    group.forEach(r => {
+      const releaseId = r?.musicbrainzReleaseId || r?.id;
+      const meta = releaseId ? releaseCoverMap[releaseId] : null;
+      if (meta?.front) {
         covers.push({
-          url: release.coverArt,
+          url: meta.front.display,
+          fullUrl: meta.front.full,
+          sizes: meta.front.sizes,
           type: 'front',
-          release,
-          country: release.country,
-          year: release.releaseYear,
-          catalogNumber: release.catalogNumber
+          release: r,
+          country: r.country,
+          year: r.releaseYear,
+          catalogNumber: r.catalogNumber
         });
-      } else if (release.coverArt && typeof release.coverArt === 'object') {
-        // New format - object with front/back
-        if (release.coverArt.front) {
-          covers.push({
-            url: release.coverArt.front,
-            type: 'front',
-            release,
-            country: release.country,
-            year: release.releaseYear,
-            catalogNumber: release.catalogNumber
-          });
-        }
-        if (release.coverArt.back) {
-          covers.push({
-            url: release.coverArt.back,
-            type: 'back',
-            release,
-            country: release.country,
-            year: release.releaseYear,
-            catalogNumber: release.catalogNumber
-          });
-        }
       }
-    }
+      if (meta?.back) {
+        covers.push({
+          url: meta.back.display,
+          fullUrl: meta.back.full,
+          sizes: meta.back.sizes,
+          type: 'back',
+          release: r,
+          country: r.country,
+          year: r.releaseYear,
+          catalogNumber: r.catalogNumber
+        });
+      }
+    });
 
     // Remove duplicates based on URL
     const uniqueCovers = covers.filter((cover, index, self) => 
@@ -137,7 +87,51 @@ const AlbumMetadataForm = ({
 
     console.log('AlbumMetadataForm - Final covers:', uniqueCovers.length, uniqueCovers);
     return uniqueCovers;
-  }, [allReleasesInGroup, release]);
+  }, [allReleasesInGroup, release, releaseCoverMap]);
+
+  // Lazily fetch cover art for the selected release and up to 8 in the group
+  useEffect(() => {
+    const fetchCovers = async () => {
+      try {
+        setCoversLoading(true);
+        const candidates = [];
+        if (release?.musicbrainzReleaseId) candidates.push(release.musicbrainzReleaseId);
+        if (Array.isArray(allReleasesInGroup)) {
+          allReleasesInGroup.forEach(r => {
+            const id = r?.musicbrainzReleaseId || r?.id;
+            if (id) candidates.push(id);
+          });
+        }
+        const uniqueIds = Array.from(new Set(candidates));
+        const missing = uniqueIds.filter(id => !(id in releaseCoverMap));
+        if (missing.length === 0) return;
+        const results = await Promise.allSettled(missing.map(id => musicService.getCoverArt(id)));
+        const nextMap = { ...releaseCoverMap };
+        results.forEach((res, idx) => {
+          const id = missing[idx];
+          if (res.status === 'fulfilled' && res.value) {
+            const frontMeta = res.value?.front;
+            const backMeta = res.value?.back;
+            const front = frontMeta ? {
+              display: frontMeta.thumbnails?.['500'] || frontMeta.thumbnails?.['250'] || frontMeta.url || null,
+              full: frontMeta.thumbnails?.['1200'] || frontMeta.url || null,
+              sizes: Object.keys(frontMeta.thumbnails || {})
+            } : null;
+            const back = backMeta ? {
+              display: backMeta.thumbnails?.['500'] || backMeta.thumbnails?.['250'] || backMeta.url || null,
+              full: backMeta.thumbnails?.['1200'] || backMeta.url || null,
+              sizes: Object.keys(backMeta.thumbnails || {})
+            } : null;
+            if (front || back) nextMap[id] = { front, back };
+          }
+        });
+        setReleaseCoverMap(nextMap);
+      } finally {
+        setCoversLoading(false);
+      }
+    };
+    fetchCovers();
+  }, [release, allReleasesInGroup]);
 
   // Sort covers by size after dimensions are loaded
   useEffect(() => {
@@ -203,9 +197,10 @@ const AlbumMetadataForm = ({
     const loadAllDimensions = async () => {
       const dimensions = {};
       for (const cover of availableCovers) {
-        if (!imageDimensions[cover.url]) {
-          const dims = await loadImageDimensions(cover.url);
-          dimensions[cover.url] = dims;
+        const key = cover.fullUrl || cover.url;
+        if (!imageDimensions[key]) {
+          const dims = await loadImageDimensions(key);
+          dimensions[key] = dims;
         }
       }
       if (Object.keys(dimensions).length > 0) {
@@ -250,7 +245,7 @@ const AlbumMetadataForm = ({
 
   const handleCoverClick = (cover, coverType) => {
     setModalCoverData({
-      url: cover.url,
+      url: cover.fullUrl || cover.url,
       title: release.title,
       artist: release.artist,
       coverType: coverType
@@ -335,7 +330,7 @@ const AlbumMetadataForm = ({
       } else if (selectedFrontCoverIndex >= 0 && sortedCovers[selectedFrontCoverIndex]) {
         // Handle selected front cover art from available options
         const selectedCover = sortedCovers[selectedFrontCoverIndex];
-        coverArtData.frontCoverUrl = selectedCover.url;
+        coverArtData.frontCoverUrl = selectedCover.fullUrl || selectedCover.url;
       }
 
       // Handle back cover art
@@ -347,7 +342,7 @@ const AlbumMetadataForm = ({
       } else if (selectedBackCoverIndex >= 0 && sortedCovers[selectedBackCoverIndex]) {
         // Handle selected back cover art from available options
         const selectedCover = sortedCovers[selectedBackCoverIndex];
-        coverArtData.backCoverUrl = selectedCover.url;
+        coverArtData.backCoverUrl = selectedCover.fullUrl || selectedCover.url;
       }
 
       console.log('AlbumMetadataForm: Cover art data:', coverArtData);
@@ -517,6 +512,9 @@ const AlbumMetadataForm = ({
               <h5 className="text-light">Cover Art</h5>
             </Card.Header>
             <Card.Body className="dark-card-body">
+              {coversLoading && (
+                <div className="text-muted mb-3">Loading cover thumbnails…</div>
+              )}
               {sortedCovers.length > 0 && (
                 <div className="cover-selection mb-4">
                   {/* Front Cover Selection */}
@@ -524,7 +522,8 @@ const AlbumMetadataForm = ({
                     <Form.Label className="text-light">Select Front Cover:</Form.Label>
                     <div className="cover-thumbnails">
                       {sortedCovers.filter(cover => cover.type === 'front').map((cover, index) => {
-                        const originalIndex = sortedCovers.findIndex(c => c.url === cover.url);
+                        const keyUrl = cover.fullUrl || cover.url;
+                        const originalIndex = sortedCovers.findIndex(c => (c.fullUrl || c.url) === keyUrl);
                         return (
                           <div 
                             key={originalIndex}
@@ -532,14 +531,15 @@ const AlbumMetadataForm = ({
                             onClick={() => handleFrontCoverSelect(originalIndex)}
                           >
                             <Image 
-                              src={cover.url} 
+                              src={cover.fullUrl || cover.url} 
                               alt={`Front cover ${index + 1}`}
                               thumbnail
-                              className="cover-image cover-clickable"
+                              className="cover-image cover-clickable loading"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleCoverClick(cover, 'Front');
                               }}
+                              onLoad={(e) => { e.target.classList.remove('loading'); }}
                             />
                             {selectedFrontCoverIndex === originalIndex && (
                               <div className="selected-indicator">
@@ -550,12 +550,15 @@ const AlbumMetadataForm = ({
                               <small className="text-light">Front</small>
                               <small className="text-muted">{cover.country} {cover.year}</small>
                               {cover.catalogNumber && <small className="text-muted">{cover.catalogNumber}</small>}
-                              <small className="text-muted cover-dimensions">
-                                {formatImageSize(
-                                  imageDimensions[cover.url]?.width || 0,
-                                  imageDimensions[cover.url]?.height || 0
-                                )}
-                              </small>
+                              <div className="text-muted">
+                                <small className="cover-dimensions me-2">
+                                  {formatImageSize(
+                                    imageDimensions[keyUrl]?.width || 0,
+                                    imageDimensions[keyUrl]?.height || 0
+                                  )}
+                                </small>
+                                
+                              </div>
                             </div>
                           </div>
                         );
@@ -568,7 +571,8 @@ const AlbumMetadataForm = ({
                     <Form.Label className="text-light">Select Back Cover:</Form.Label>
                     <div className="cover-thumbnails">
                       {sortedCovers.filter(cover => cover.type === 'back').map((cover, index) => {
-                        const originalIndex = sortedCovers.findIndex(c => c.url === cover.url);
+                        const keyUrl = cover.fullUrl || cover.url;
+                        const originalIndex = sortedCovers.findIndex(c => (c.fullUrl || c.url) === keyUrl);
                         return (
                           <div 
                             key={originalIndex}
@@ -576,14 +580,15 @@ const AlbumMetadataForm = ({
                             onClick={() => handleBackCoverSelect(originalIndex)}
                           >
                             <Image 
-                              src={cover.url} 
+                              src={cover.fullUrl || cover.url} 
                               alt={`Back cover ${index + 1}`}
                               thumbnail
-                              className="cover-image cover-clickable"
+                              className="cover-image cover-clickable loading"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleCoverClick(cover, 'Back');
                               }}
+                              onLoad={(e) => { e.target.classList.remove('loading'); }}
                             />
                             {selectedBackCoverIndex === originalIndex && (
                               <div className="selected-indicator">
@@ -594,12 +599,15 @@ const AlbumMetadataForm = ({
                               <small className="text-light">Back</small>
                               <small className="text-muted">{cover.country} {cover.year}</small>
                               {cover.catalogNumber && <small className="text-muted">{cover.catalogNumber}</small>}
-                              <small className="text-muted cover-dimensions">
-                                {formatImageSize(
-                                  imageDimensions[cover.url]?.width || 0,
-                                  imageDimensions[cover.url]?.height || 0
-                                )}
-                              </small>
+                              <div className="text-muted">
+                                <small className="cover-dimensions me-2">
+                                  {formatImageSize(
+                                    imageDimensions[keyUrl]?.width || 0,
+                                    imageDimensions[keyUrl]?.height || 0
+                                  )}
+                                </small>
+                                
+                              </div>
                             </div>
                           </div>
                         );

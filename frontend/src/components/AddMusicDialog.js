@@ -5,6 +5,59 @@ import musicService from '../services/musicService';
 import AlbumMetadataForm from './AlbumMetadataForm';
 import './AddMusicDialog.css';
 
+// Lazy cover component: fetch one front cover per group after render
+const LazyGroupCover = ({ releases, title }) => {
+  const [url, setUrl] = useState(null);
+  const loadedRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (loadedRef.current || !releases || releases.length === 0) return;
+      loadedRef.current = true;
+      // Try up to 5 releases in the group to find any cover (prefer front, fallback to back)
+      const maxToTry = Math.min(5, releases.length);
+      for (let i = 0; i < maxToTry; i++) {
+        const rel = releases[i];
+        const releaseId = rel?.musicbrainzReleaseId || rel?.id;
+        if (!releaseId) continue;
+        const meta = await musicService.getCoverArt(releaseId);
+        if (cancelled) return;
+        const front = meta?.front;
+        const back = meta?.back;
+        const candidate =
+          (front?.thumbnails?.['500'] || front?.thumbnails?.['250'] || front?.url) ||
+          (back?.thumbnails?.['500'] || back?.thumbnails?.['250'] || back?.url) ||
+          null;
+        if (candidate) {
+          setUrl(candidate);
+          break;
+        }
+      }
+    };
+    // Slight delay to prioritize UI thread
+    const t = setTimeout(load, 50);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [releases]);
+
+  if (!url) {
+    return (
+      <div className="group-cover group-cover-placeholder">
+        <BsSearch size={32} />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={url}
+      alt={`${title} cover`}
+      className="group-cover"
+      loading="lazy"
+      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+    />
+  );
+};
+
 const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCdByBarcode, onReviewMetadata, defaultTitleStatus, onAlbumAdded: onAlbumAddedFromParent, onAddStart, onAddError }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchArtist, setSearchArtist] = useState('');
@@ -69,16 +122,6 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
       
       const group = groups.get(key);
       group.releases.push(release);
-      
-      // Use the first available cover art from any release in the group
-      if (!group.cover && release.coverArt) {
-        // Extract the front cover URL from the coverArt object
-        const frontCoverUrl = release.coverArt.front || release.coverArt.url;
-        if (frontCoverUrl) {
-          group.cover = frontCoverUrl;
-          console.log(`Added cover art for ${group.title}: ${frontCoverUrl}`);
-        }
-      }
     });
     
     // Convert to array and sort: CD format first, then by artist, title
@@ -136,9 +179,9 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
         results = await musicService.searchByBarcode(trimmedValue);
       } else {
         // Title search
-        const query = trimmedArtist 
+        const query = trimmedQuery && trimmedArtist
           ? `${trimmedQuery} AND artist:${trimmedArtist}`
-          : trimmedQuery;
+          : trimmedQuery || `artist:${trimmedArtist}`;
         
         results = await musicService.searchMusicBrainz(query);
       }
@@ -380,24 +423,7 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
                         onClick={hasMultipleVersions ? () => toggleGroup(groupIndex) : undefined}
                         style={{ cursor: hasMultipleVersions ? 'pointer' : 'default' }}
                       >
-                        {group.cover ? (
-                          <img 
-                            src={group.cover} 
-                            alt={`${group.title} cover`}
-                            className="group-cover"
-                            onError={(e) => {
-                              console.log(`Failed to load cover for ${group.title}: ${group.cover}`);
-                              e.target.style.display = 'none';
-                            }}
-                            onLoad={() => {
-                              console.log(`Successfully loaded cover for ${group.title}: ${group.cover}`);
-                            }}
-                          />
-                        ) : (
-                          <div className="group-cover group-cover-placeholder">
-                            <BsSearch size={32} />
-                          </div>
-                        )}
+                        <LazyGroupCover releases={group.releases} title={group.title} />
                         
                         <div className="group-info">
                           <div className="group-title">{group.title}</div>

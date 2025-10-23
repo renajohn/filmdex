@@ -182,6 +182,20 @@ class MusicService {
     }
   }
 
+  async getCoverArt(releaseId) {
+    try {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/coverart/${encodeURIComponent(releaseId)}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting cover art:', error);
+      return null;
+    }
+  }
+
   async searchByCatalogNumber(catalogNumber) {
     try {
       const baseUrl = await this.getBaseUrl();

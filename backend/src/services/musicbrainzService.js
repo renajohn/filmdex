@@ -21,27 +21,10 @@ const musicbrainzService = {
       });
 
       const releases = response.data.releases || [];
-      
-      // Fetch cover art for each release
-      const releasesWithCovers = await Promise.all(
-        releases.map(async (release) => {
-        try {
-          const coverArt = await this.getCoverArt(release.id);
-            return {
-            ...release,
-            coverArt: coverArt
-            };
-        } catch (error) {
-            console.warn(`Failed to fetch cover art for release ${release.id}:`, error.message);
-            return {
-            ...release,
-            coverArt: null
-            };
-        }
-        })
-      );
 
-      return releasesWithCovers;
+      // Do not fetch cover art here to keep search fast.
+      // The frontend can request cover art lazily per selected release/group.
+      return releases;
     } catch (error) {
       console.error('MusicBrainz search error:', error.message);
       if (error.code === 'ECONNABORTED') {

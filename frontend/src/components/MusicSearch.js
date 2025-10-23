@@ -46,6 +46,7 @@ const MusicSearch = forwardRef(({
   const [selectedCdDetails, setSelectedCdDetails] = useState(null);
   const [, setLoadingDetails] = useState(false);
   const [cdDetailsBeforeEdit, setCdDetailsBeforeEdit] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState({ show: false, albumId: null });
   const previousSearchTextRef = useRef('');
   const navigate = useNavigate();
   const location = useLocation();
@@ -526,7 +527,7 @@ const MusicSearch = forwardRef(({
               cd={cd}
               onClick={() => handleCdClick(cd.id)}
               onEdit={() => handleEditCd(cd)}
-              onDelete={() => onDeleteCd(cd.id)}
+              onDelete={() => setShowDeleteModal({ show: true, albumId: cd.id })}
             />
           ))}
         </div>
@@ -565,7 +566,7 @@ const MusicSearch = forwardRef(({
                       cd={cd}
                       onClick={() => handleCdClick(cd.id)}
                       onEdit={() => handleEditCd(cd)}
-                      onDelete={() => onDeleteCd(cd.id)}
+                      onDelete={() => setShowDeleteModal({ show: true, albumId: cd.id })}
                     />
                   ))}
                 </div>
@@ -778,8 +779,13 @@ const MusicSearch = forwardRef(({
           onClose={() => setSelectedCdDetails(null)}
           onEdit={() => handleEditCd(selectedCdDetails)}
           onDelete={async () => {
-            await onDeleteCd(selectedCdDetails.id);
-            setSelectedCdDetails(null);
+            try {
+              await onDeleteCd(selectedCdDetails.id);
+              setSelectedCdDetails(null);
+              await loadCds();
+            } catch (e) {
+              if (onShowAlert) onShowAlert('Failed to delete album: ' + (e?.message || ''), 'danger');
+            }
           }}
           onSearch={updateSearchViaUrl}
         />
@@ -798,6 +804,54 @@ const MusicSearch = forwardRef(({
         <div className="error-message">
           {addError}
         </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal.show && (
+        <div className="modal show" style={{ display: 'block', zIndex: 10210 }} tabIndex="-1">
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Delete Album</h5>
+              </div>
+              <div className="modal-body">
+                <p>Are you sure you want to remove this album from your collection?</p>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => setShowDeleteModal({ show: false, albumId: null })}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-danger" 
+                  onClick={async () => {
+                    const id = showDeleteModal.albumId;
+                    try {
+                      await onDeleteCd(id);
+                      // If detail for this album is open, close it
+                      if (selectedCdDetails && selectedCdDetails.id === id) {
+                        setSelectedCdDetails(null);
+                      }
+                      await loadCds();
+                    } finally {
+                      setShowDeleteModal({ show: false, albumId: null });
+                    }
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {(showDeleteModal.show) && (
+        <div className="modal-backdrop show" style={{ zIndex: 10200 }}></div>
       )}
     </div>
   );

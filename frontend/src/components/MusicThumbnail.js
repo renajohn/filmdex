@@ -12,10 +12,8 @@ const MusicThumbnail = ({ cd, onClick, onEdit, onDelete, disableMenu = false }) 
 
   const handleDeleteClick = (e) => {
     e.stopPropagation();
-    // Show confirmation before deleting
-    if (window.confirm(`Are you sure you want to delete "${cd.title}"? This action cannot be undone.`)) {
-      onDelete();
-    }
+    // Let parent control confirmation modal
+    onDelete();
   };
 
   const getArtistDisplay = () => {

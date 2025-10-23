@@ -267,13 +267,8 @@ class MusicService {
   async searchMusicBrainz(query) {
     try {
       const releases = await musicbrainzService.searchRelease(query);
-      const formatted = releases.map(release => {
-        return musicbrainzService.formatReleaseData(release);
-      });
-      
-      const releasesWithCover = formatted.filter(r => r.coverArt?.url).length;
-      console.log(`Searched MusicBrainz: ${formatted.length} releases, ${releasesWithCover} with cover art`);
-      
+      const formatted = releases.map(release => musicbrainzService.formatReleaseData(release));
+      console.log(`Searched MusicBrainz (fast mode): ${formatted.length} releases`);
       return formatted;
     } catch (error) {
       console.error('Error searching MusicBrainz:', error);
@@ -331,21 +326,40 @@ class MusicService {
       const selectedBackUrl = additionalData?.coverArtData?.backCoverUrl || null;
 
       // Download selected covers if provided
-      if (selectedFrontUrl) {
-        console.log('Using user-selected front cover:', selectedFrontUrl);
-        coverPath = await downloadAndResizeCover(selectedFrontUrl, 'front');
-      }
-      if (selectedBackUrl) {
-        console.log('Using user-selected back cover:', selectedBackUrl);
-        backCoverPath = await downloadAndResizeCover(selectedBackUrl, 'back');
+      if (selectedFrontUrl && selectedBackUrl) {
+        console.log('Using user-selected front/back covers (parallel download)');
+        const [front, back] = await Promise.all([
+          downloadAndResizeCover(selectedFrontUrl, 'front'),
+          downloadAndResizeCover(selectedBackUrl, 'back')
+        ]);
+        coverPath = front;
+        backCoverPath = back;
+      } else {
+        if (selectedFrontUrl) {
+          console.log('Using user-selected front cover:', selectedFrontUrl);
+          coverPath = await downloadAndResizeCover(selectedFrontUrl, 'front');
+        }
+        if (selectedBackUrl) {
+          console.log('Using user-selected back cover:', selectedBackUrl);
+          backCoverPath = await downloadAndResizeCover(selectedBackUrl, 'back');
+        }
       }
 
       // Fallback to MusicBrainz covers only if not provided or download failed
-      if (!coverPath && coverArt?.front?.url) {
-        coverPath = await downloadAndResizeCover(coverArt.front.url, 'front');
-      }
-      if (!backCoverPath && coverArt?.back?.url) {
-        backCoverPath = await downloadAndResizeCover(coverArt.back.url, 'back');
+      if (!coverPath && !backCoverPath && coverArt?.front?.url && coverArt?.back?.url) {
+        const [front, back] = await Promise.all([
+          downloadAndResizeCover(coverArt.front.url, 'front'),
+          downloadAndResizeCover(coverArt.back.url, 'back')
+        ]);
+        coverPath = front;
+        backCoverPath = back;
+      } else {
+        if (!coverPath && coverArt?.front?.url) {
+          coverPath = await downloadAndResizeCover(coverArt.front.url, 'front');
+        }
+        if (!backCoverPath && coverArt?.back?.url) {
+          backCoverPath = await downloadAndResizeCover(coverArt.back.url, 'back');
+        }
       }
 
       // Prepare album data

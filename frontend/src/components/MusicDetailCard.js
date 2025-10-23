@@ -8,11 +8,15 @@ import './MusicDetailCard.css';
 const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [coverModalData, setCoverModalData] = useState({ coverUrl: '', title: '', artist: '', coverType: '' });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const deleteBtnRef = React.useRef(null);
 
   const handleDelete = () => {
-    if (window.confirm(`Are you sure you want to delete "${cd.title}"? This action cannot be undone.`)) {
-      onDelete();
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
     }
+    onDelete();
   };
 
   const getArtistDisplay = () => {
@@ -89,10 +93,28 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
     setShowCoverModal(false);
   };
 
+  // Reset confirm state when dialog closes
+  const handleClose = () => {
+    setConfirmDelete(false);
+    onClose();
+  };
+
+  // Reset confirm state when clicking anywhere outside the delete button
+  React.useEffect(() => {
+    if (!confirmDelete) return;
+    const handleDocClick = (e) => {
+      if (deleteBtnRef.current && !deleteBtnRef.current.contains(e.target)) {
+        setConfirmDelete(false);
+      }
+    };
+    document.addEventListener('click', handleDocClick, true);
+    return () => document.removeEventListener('click', handleDocClick, true);
+  }, [confirmDelete]);
+
   return (
     <Modal 
       show={true} 
-      onHide={onClose} 
+      onHide={handleClose} 
       size="md" 
       centered 
       style={{ zIndex: 10100 }}
@@ -606,11 +628,12 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
           </Button>
         )}
         <Button 
-          variant="outline-danger" 
+          ref={deleteBtnRef}
+          variant={confirmDelete ? 'danger' : 'outline-danger'} 
           onClick={handleDelete}
         >
           <BsTrash className="me-1" />
-          Delete
+          {confirmDelete ? 'Are you sure?' : 'Delete'}
         </Button>
       </Modal.Footer>
       
