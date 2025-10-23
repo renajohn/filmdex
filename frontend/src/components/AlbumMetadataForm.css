@@ -16,6 +16,63 @@
   color: #f3f4f6 !important;
 }
 
+/* Compact read-only chips for album info */
+.readonly-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #3a4150;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  min-height: 40px;
+}
+.readonly-chip .chip-label {
+  color: #9aa3b2;
+  font-size: 0.85rem;
+}
+.readonly-chip .chip-value {
+  color: #e2e8f0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ultra compact inline album info */
+.album-info-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.album-info-main {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.album-title {
+  color: #f7fafc;
+  font-weight: 700;
+}
+.album-sep {
+  color: #9ca3af;
+}
+.album-artist {
+  color: #e2e8f0;
+  font-weight: 500;
+}
+.album-info-meta {
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.album-info-meta .dot {
+  color: #5f6878;
+}
+
 .dark-card {
   background: rgba(42, 42, 42, 0.8) !important;
   border: 1px solid rgba(68, 68, 68, 0.6) !important;

@@ -434,78 +434,25 @@ const AlbumMetadataForm = ({
   return (
     <Modal show={show} onHide={handleClose} size="lg" centered>
       <Modal.Header closeButton>
-        <Modal.Title>Add Album Metadata</Modal.Title>
+        <div className="album-info-inline">
+                <div className="album-info-main">
+                  <span className="album-title">{release.title || '-'}</span>
+                  <span className="album-sep">—</span>
+                  <span className="album-artist">{Array.isArray(release.artist) ? release.artist.join(', ') : release.artist || '-'}</span>
+                </div>
+                <div className="album-info-meta">
+                  <span>{release.format || '-'}</span>
+                  <span className="dot">•</span>
+                  <span>{release.country || '-'}</span>
+                  <span className="dot">•</span>
+                  <span>{release.releaseYear || '-'}</span>
+                </div>
+              </div>
       </Modal.Header>
       <Modal.Body>
         <Form onSubmit={handleSubmit}>
-          {/* Album Info Display (Read-only) */}
-          <Card className="mb-4 dark-card">
-            <Card.Header className="dark-card-header">
-              <h5 className="text-light">Album Information</h5>
-            </Card.Header>
-            <Card.Body className="dark-card-body">
-              <Row>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label><strong>Title</strong></Form.Label>
-                    <Form.Control 
-                      type="text" 
-                      value={release.title || ''} 
-                      readOnly 
-                      className="readonly-field"
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label><strong>Artist</strong></Form.Label>
-                    <Form.Control 
-                      type="text" 
-                      value={Array.isArray(release.artist) ? release.artist.join(', ') : release.artist || ''} 
-                      readOnly 
-                      className="readonly-field"
-                    />
-                  </Form.Group>
-                </Col>
-              </Row>
-              <Row>
-                <Col md={4}>
-                  <Form.Group className="mb-3">
-                    <Form.Label><strong>Format</strong></Form.Label>
-                    <Form.Control 
-                      type="text" 
-                      value={release.format || ''} 
-                      readOnly 
-                      className="readonly-field"
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={4}>
-                  <Form.Group className="mb-3">
-                    <Form.Label><strong>Country</strong></Form.Label>
-                    <Form.Control 
-                      type="text" 
-                      value={release.country || ''} 
-                      readOnly 
-                      className="readonly-field"
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={4}>
-                  <Form.Group className="mb-3">
-                    <Form.Label><strong>Year</strong></Form.Label>
-                    <Form.Control 
-                      type="text" 
-                      value={release.releaseYear || ''} 
-                      readOnly 
-                      className="readonly-field"
-                    />
-                  </Form.Group>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
-
+          {/* Album Info Display (super compact, inline) */}
+         
           {/* Cover Art Selection */}
           <Card className="mb-4 dark-card">
             <Card.Header className="dark-card-header">

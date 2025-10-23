@@ -266,7 +266,10 @@ class MusicService {
 
   async searchMusicBrainz(query) {
     try {
-      const releases = await musicbrainzService.searchRelease(query);
+      // Bump limit for artist-only searches to return many releases across albums
+      const isArtistOnlyQuery = typeof query === 'string' && query.trim().toLowerCase().startsWith('artist:') && !query.includes(' AND ');
+      const limit = isArtistOnlyQuery ? 400 : 10;
+      const releases = await musicbrainzService.searchRelease(query, limit);
       const formatted = releases.map(release => musicbrainzService.formatReleaseData(release));
       console.log(`Searched MusicBrainz (fast mode): ${formatted.length} releases`);
       return formatted;

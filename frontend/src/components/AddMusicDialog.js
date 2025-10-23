@@ -157,8 +157,9 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
     const trimmedArtist = searchArtist.trim();
     const trimmedValue = searchValue.trim();
     
-    if (searchBy === 'title' && !trimmedQuery) {
-      setError('Please enter an album title');
+    // Allow searching by album title OR artist (artist-only search supported)
+    if (searchBy === 'title' && !trimmedQuery && !trimmedArtist) {
+      setError('Please enter an album title or artist');
       return;
     }
     
@@ -178,10 +179,10 @@ const AddMusicDialog = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCd
       } else if (searchBy === 'barcode') {
         results = await musicService.searchByBarcode(trimmedValue);
       } else {
-        // Title search
+        // Title/Artist search
         const query = trimmedQuery && trimmedArtist
           ? `${trimmedQuery} AND artist:${trimmedArtist}`
-          : trimmedQuery || `artist:${trimmedArtist}`;
+          : (trimmedQuery || (trimmedArtist ? `artist:${trimmedArtist}` : ''));
         
         results = await musicService.searchMusicBrainz(query);
       }
