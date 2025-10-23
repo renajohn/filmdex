@@ -373,6 +373,17 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     }
   }, [showBoxSetDropdown]);
   
+  // Reset confirm state when clicking outside delete button (place before early returns)
+  useEffect(() => {
+    const handleDocClick = (e) => {
+      if (confirmDelete && deleteBtnRef.current && !deleteBtnRef.current.contains(e.target)) {
+        setConfirmDelete(false);
+      }
+    };
+    document.addEventListener('click', handleDocClick, true);
+    return () => document.removeEventListener('click', handleDocClick, true);
+  }, [confirmDelete]);
+  
   if (!movieDetails && !loading) return null;
 
   // Use local data for display, fallback to original movieDetails
@@ -1133,16 +1144,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     };
   };
 
-  // Reset confirm state when clicking outside delete button (hook not conditional; handler is)
-  useEffect(() => {
-    const handleDocClick = (e) => {
-      if (confirmDelete && deleteBtnRef.current && !deleteBtnRef.current.contains(e.target)) {
-        setConfirmDelete(false);
-      }
-    };
-    document.addEventListener('click', handleDocClick, true);
-    return () => document.removeEventListener('click', handleDocClick, true);
-  }, [confirmDelete]);
+  
 
 
   // Skeleton loading state
