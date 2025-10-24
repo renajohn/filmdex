@@ -191,21 +191,22 @@ class MusicService {
       const isMac = /Mac/.test(platform) && !isIOS;
       const isHassApp = /HomeAssistant/i.test(ua) || (window.location.pathname || '').includes('/api/hassio_ingress/');
 
-      const buildSchemeCandidates = (u) => {
+      const normalizeToUniversal = (u) => {
         try {
-          // Normalize
-          const universal = u;
-          // itms-apps scheme often forces app open on iOS
-          const itmsApps = u.replace(/^https?:\/\//i, 'itms-apps://');
-          // music scheme (fallback)
-          const musicScheme = u.replace(/^https?:\/\/music\.apple\.com/i, 'music://music.apple.com');
-          // As last resort, plain app open
-          const musicApp = 'music://';
-          return [itmsApps, musicScheme, universal, musicApp];
+          const parsed = new URL(u);
+          if (parsed.hostname.includes('itunes.apple.com')) {
+            parsed.hostname = 'music.apple.com';
+            return parsed.toString();
+          }
+          return u;
         } catch {
-          return [u];
+          return u;
         }
       };
+
+      // Best single URL for both macOS and iPhone is the universal link on music.apple.com
+      // It should deep-link to the Music app without opening the App Store when the app is installed.
+      const universalUrl = normalizeToUniversal(url);
 
       const trySchemesWithFallback = (schemes) => {
         let idx = 0;
@@ -223,14 +224,13 @@ class MusicService {
       };
 
       if (isHassApp || isIOS || isMac) {
-        // Prefer aggressive scheme attempts in HA app and on Apple platforms
-        const candidates = buildSchemeCandidates(url);
-        trySchemesWithFallback(candidates);
+        // Prefer single universal link navigation to trigger native app without App Store bounce
+        window.location.href = universalUrl;
         return;
       }
 
       // Desktop/mac browsers: new tab is fine; macOS usually hands off to Music if configured
-      window.open(url, '_blank', 'noopener');
+      window.open(universalUrl, '_blank', 'noopener');
     } catch (_) {
       window.open(url, '_blank', 'noopener');
     }

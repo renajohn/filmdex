@@ -403,6 +403,24 @@ class MusicService {
         }
       }
 
+      // Normalize result to universal Apple Music URL (avoid itunes.apple.com)
+      const normalizeToMusicHost = (u) => {
+        try {
+          const parsed = new URL(u);
+          if (parsed.hostname.includes('itunes.apple.com')) {
+            parsed.hostname = 'music.apple.com';
+            return parsed.toString();
+          }
+          return u;
+        } catch {
+          return u;
+        }
+      };
+
+      if (result) {
+        result = normalizeToMusicHost(result);
+      }
+
       // Fallback to Apple Music search URL
       const fallbackTerm = `${artistText} ${titleText}`.trim();
       const fallback = `https://music.apple.com/search?term=${encodeURIComponent(fallbackTerm)}`;
