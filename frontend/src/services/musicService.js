@@ -223,14 +223,14 @@ class MusicService {
         tryNext();
       };
 
-      // macOS: navigate in the same window to avoid blank tabs
-      if (isMac) {
+      // macOS (regular browser): navigate in the same window to avoid blank tabs
+      if (isMac && !isHassApp) {
         window.location.href = universalUrl;
         return;
       }
 
       // iOS and HA mobile: try deep-link schemes in sequence to wake app and select album
-      if (isHassApp || isIOS) {
+      if (isIOS && !isHassApp) {
         const hostless = universalUrl.replace(/^https?:\/\//i, '');
         const candidates = [
           `music://${hostless}`,
@@ -245,6 +245,26 @@ class MusicService {
           setTimeout(tryNext, 600);
         };
         tryNext();
+        return;
+      }
+
+      // HA ingress (macOS or iOS): avoid ingress rewriting by opening an external absolute link via a temporary anchor
+      if (isHassApp) {
+        try {
+          // Try to foreground app quickly on iOS
+          if (isIOS) {
+            try { window.location.assign('music://'); } catch (_) {}
+          }
+          const a = document.createElement('a');
+          a.href = universalUrl;
+          a.target = '_blank';
+          a.rel = 'noreferrer noopener';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } catch (_) {
+          window.open(universalUrl, '_blank', 'noopener');
+        }
         return;
       }
 

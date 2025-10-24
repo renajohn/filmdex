@@ -83,9 +83,11 @@ const MusicThumbnail = ({ cd, onClick, onEdit, onDelete, disableMenu = false }) 
                 onClick={async () => {
                   try {
                     setOpeningApple(true);
-                    // Try immediate open if URL cached
-                    if (cd?.urls?.appleMusic) {
-                      musicService.openAppleMusic(cd.urls.appleMusic);
+                    // Try immediate open if URL cached and is an Apple Music link
+                    const cached = cd?.urls?.appleMusic;
+                    const isAppleLink = typeof cached === 'string' && /https?:\/\/(music|itunes)\.apple\.com\//.test(cached);
+                    if (isAppleLink) {
+                      musicService.openAppleMusic(cached);
                       setOpeningApple(false);
                       return;
                     }

@@ -641,7 +641,9 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
           onClick={() => {
             try {
               setOpeningApple(true);
-              const urlToOpen = appleUrl || cd?.urls?.appleMusic || null;
+              const cached = cd?.urls?.appleMusic;
+              const isAppleLink = typeof cached === 'string' && /https?:\/\/(music|itunes)\.apple\.com\//.test(cached);
+              const urlToOpen = appleUrl || (isAppleLink ? cached : null);
               if (urlToOpen) {
                 musicService.openAppleMusic(urlToOpen);
                 setOpeningApple(false);
