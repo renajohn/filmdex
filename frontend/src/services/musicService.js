@@ -191,10 +191,41 @@ class MusicService {
       const isMac = /Mac/.test(platform) && !isIOS;
       const isHassApp = /HomeAssistant/i.test(ua) || (window.location.pathname || '').includes('/api/hassio_ingress/');
 
-      // In mobile app/webviews (like Home Assistant app), opening a new window is often blocked.
-      // Use same-window navigation to allow iOS Universal Links to hand off to the Music app.
-      if (isHassApp || isIOS) {
-        window.location.assign(url);
+      const buildSchemeCandidates = (u) => {
+        try {
+          // Normalize
+          const universal = u;
+          // itms-apps scheme often forces app open on iOS
+          const itmsApps = u.replace(/^https?:\/\//i, 'itms-apps://');
+          // music scheme (fallback)
+          const musicScheme = u.replace(/^https?:\/\/music\.apple\.com/i, 'music://music.apple.com');
+          // As last resort, plain app open
+          const musicApp = 'music://';
+          return [itmsApps, musicScheme, universal, musicApp];
+        } catch {
+          return [u];
+        }
+      };
+
+      const trySchemesWithFallback = (schemes) => {
+        let idx = 0;
+        const tryNext = () => {
+          if (idx >= schemes.length) return;
+          const target = schemes[idx++];
+          // Use same-window navigation to maximize chance of handoff in webviews
+          window.location.href = target;
+          // Schedule fallback if still in the page after a short delay
+          setTimeout(() => {
+            tryNext();
+          }, 700);
+        };
+        tryNext();
+      };
+
+      if (isHassApp || isIOS || isMac) {
+        // Prefer aggressive scheme attempts in HA app and on Apple platforms
+        const candidates = buildSchemeCandidates(url);
+        trySchemesWithFallback(candidates);
         return;
       }
 
