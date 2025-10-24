@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dropdown } from 'react-bootstrap';
-import { BsMusicNote, BsThreeDots } from 'react-icons/bs';
+import { BsMusicNote, BsThreeDots, BsApple, BsPencil, BsTrash } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import './MusicThumbnail.css';
 
 const MusicThumbnail = ({ cd, onClick, onEdit, onDelete, disableMenu = false }) => {
+  const [openingApple, setOpeningApple] = useState(false);
   const handleEditClick = (e) => {
     e.stopPropagation();
     onEdit();
@@ -47,6 +48,13 @@ const MusicThumbnail = ({ cd, onClick, onEdit, onDelete, disableMenu = false }) 
         >
           <BsMusicNote size={32} />
         </div>
+        {openingApple && (
+          <div className="thumbnail-opening-overlay">
+            <div className="spinner-border text-light spinner-border-sm" role="status">
+              <span className="visually-hidden">Opening...</span>
+            </div>
+          </div>
+        )}
       </div>
       
       <div className="music-thumbnail-info">
@@ -71,11 +79,27 @@ const MusicThumbnail = ({ cd, onClick, onEdit, onDelete, disableMenu = false }) 
             </Dropdown.Toggle>
             
             <Dropdown.Menu>
+              <Dropdown.Item
+                onClick={async () => {
+                  try {
+                    setOpeningApple(true);
+                    const { url } = await musicService.getAppleMusicUrl(cd.id);
+                    musicService.openAppleMusic(url);
+                  } catch (e) {
+                    // Silently fail or consider toast via parent in future
+                    console.error('Failed to open Apple Music:', e);
+                  } finally {
+                    setOpeningApple(false);
+                  }
+                }}
+              >
+                <BsApple className="me-2" /> Open in Apple Music
+              </Dropdown.Item>
               <Dropdown.Item onClick={handleEditClick}>
-                Edit
+                <BsPencil className="me-2" /> Edit
               </Dropdown.Item>
               <Dropdown.Item onClick={handleDeleteClick} className="text-danger">
-                Delete
+                <BsTrash className="me-2" /> Delete
               </Dropdown.Item>
             </Dropdown.Menu>
           </Dropdown>

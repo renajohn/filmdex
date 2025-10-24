@@ -280,6 +280,18 @@ const musicController = {
     }
   },
 
+  // Get or resolve Apple Music URL for an album
+  getAppleMusicUrl: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await musicService.getAppleMusicUrl(id);
+      res.json(result);
+    } catch (error) {
+      console.error('Error getting Apple Music URL:', error);
+      res.status(500).json({ error: 'Failed to resolve Apple Music URL' });
+    }
+  },
+
   // Get autocomplete suggestions
   getAutocompleteSuggestions: async (req, res) => {
     try {

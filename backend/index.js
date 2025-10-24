@@ -195,6 +195,7 @@ app.get('/api/music/release/:releaseId', musicController.getMusicBrainzReleaseDe
 app.post('/api/music/release/:releaseId', musicController.addAlbumFromMusicBrainz);
 app.post('/api/music/barcode/:barcode', musicController.addAlbumByBarcode);
 app.post('/api/music/migrate/resize-covers', musicController.resizeAllAlbumCovers);
+app.get('/api/music/albums/:id/apple-music', musicController.getAppleMusicUrl);
 
 // Configuration endpoint for frontend
 app.get('/api/config', (req, res) => {

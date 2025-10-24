@@ -511,6 +511,31 @@ const Album = {
     });
   },
 
+  updateUrls: (id, newUrls) => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const now = new Date().toISOString();
+
+      // First fetch existing urls to merge
+      db.get('SELECT urls FROM albums WHERE id = ?', [id], (err, row) => {
+        if (err) {
+          return reject(err);
+        }
+        const existingUrls = row && row.urls ? JSON.parse(row.urls) : {};
+        const merged = { ...existingUrls, ...newUrls };
+
+        const sql = 'UPDATE albums SET urls = ?, updated_at = ? WHERE id = ?';
+        db.run(sql, [JSON.stringify(merged), now, id], function(updateErr) {
+          if (updateErr) {
+            reject(updateErr);
+          } else {
+            resolve({ id, urls: merged, updated_at: now });
+          }
+        });
+      });
+    });
+  },
+
   delete: (id) => {
     return new Promise(async (resolve, reject) => {
       const db = getDatabase();

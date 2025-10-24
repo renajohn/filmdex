@@ -46,7 +46,7 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
     releaseGroupFirstReleaseDate: null,
     releaseGroupType: null,
     releaseGroupSecondaryTypes: [],
-    urls: null,
+    urls: {},
     isrcCodes: [],
     titleStatus: 'owned'
   });
@@ -128,7 +128,7 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
         releaseGroupFirstReleaseDate: cd.releaseGroupFirstReleaseDate || null,
         releaseGroupType: cd.releaseGroupType || null,
         releaseGroupSecondaryTypes: cd.releaseGroupSecondaryTypes || [],
-        urls: cd.urls || null,
+        urls: cd.urls || {},
         isrcCodes: cd.isrcCodes || [],
         titleStatus: cd.titleStatus || 'owned'
       });
@@ -741,6 +741,26 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
                 <Form.Control.Feedback type="invalid">
                   {errors.artist}
                 </Form.Control.Feedback>
+              </Form.Group>
+            </Col>
+          </Row>
+
+          <Row>
+            <Col md={12}>
+              <Form.Group className="mb-3">
+                <Form.Label>Apple Music URL</Form.Label>
+                <Form.Control
+                  type="url"
+                  value={formData.urls?.appleMusic || ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData(prev => ({
+                      ...prev,
+                      urls: { ...(prev.urls || {}), appleMusic: value }
+                    }));
+                  }}
+                  placeholder="https://music.apple.com/..."
+                />
               </Form.Group>
             </Col>
           </Row>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, Button, Row, Col, Badge } from 'react-bootstrap';
-import { BsPencil, BsTrash, BsMusicNote, BsCalendar, BsFlag, BsDisc } from 'react-icons/bs';
+import { BsPencil, BsTrash, BsMusicNote, BsCalendar, BsFlag, BsDisc, BsApple } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
 import './MusicDetailCard.css';
@@ -10,6 +10,7 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
   const [coverModalData, setCoverModalData] = useState({ coverUrl: '', title: '', artist: '', coverType: '' });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const deleteBtnRef = React.useRef(null);
+  const [openingApple, setOpeningApple] = useState(false);
 
   const handleDelete = () => {
     if (!confirmDelete) {
@@ -621,6 +622,33 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
       </Modal.Body>
       
       <Modal.Footer>
+        <Button 
+          variant="primary" 
+          disabled={openingApple}
+          onClick={async () => {
+            try {
+              setOpeningApple(true);
+              const { url } = await musicService.getAppleMusicUrl(cd.id);
+              musicService.openAppleMusic(url);
+            } catch (e) {
+              console.error('Failed to open Apple Music:', e);
+            } finally {
+              setOpeningApple(false);
+            }
+          }}
+        >
+          {openingApple ? (
+            <>
+              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              Opening Apple Music...
+            </>
+          ) : (
+            <>
+              <BsApple className="me-1" />
+              Open in Apple Music
+            </>
+          )}
+        </Button>
         {onEdit && (
           <Button variant="outline-primary" onClick={onEdit}>
             <BsPencil className="me-1" />

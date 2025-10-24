@@ -168,6 +168,39 @@ class MusicService {
     }
   }
 
+  async getAppleMusicUrl(albumId) {
+    try {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/albums/${albumId}/apple-music`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json(); // { url, cached }
+    } catch (error) {
+      console.error('Error getting Apple Music URL:', error);
+      throw error;
+    }
+  }
+
+  // Try to open native Apple Music app on macOS when possible, fallback to web
+  openAppleMusic(url) {
+    try {
+      const isMac = navigator.platform.toUpperCase().includes('MAC');
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      // On iOS/macOS, Apple Music universal links often deep-link to the app automatically.
+      // For macOS, we can also try to nudge via itms-apps scheme if the link is a collectionViewUrl
+      if (isIOS || isMac) {
+        // Open universal link first; system will handle native app
+        window.open(url, '_blank', 'noopener');
+        return;
+      }
+      // Other platforms: open web player
+      window.open(url, '_blank', 'noopener');
+    } catch (_) {
+      window.open(url, '_blank', 'noopener');
+    }
+  }
+
   async searchMusicBrainz(query) {
     try {
       const baseUrl = await this.getBaseUrl();
