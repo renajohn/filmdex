@@ -185,16 +185,20 @@ class MusicService {
   // Try to open native Apple Music app on macOS when possible, fallback to web
   openAppleMusic(url) {
     try {
-      const isMac = navigator.platform.toUpperCase().includes('MAC');
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      // On iOS/macOS, Apple Music universal links often deep-link to the app automatically.
-      // For macOS, we can also try to nudge via itms-apps scheme if the link is a collectionViewUrl
-      if (isIOS || isMac) {
-        // Open universal link first; system will handle native app
-        window.open(url, '_blank', 'noopener');
+      const ua = navigator.userAgent || '';
+      const platform = navigator.platform || '';
+      const isIOS = /iPad|iPhone|iPod/.test(ua) || (/Mac/.test(platform) && 'ontouchend' in document);
+      const isMac = /Mac/.test(platform) && !isIOS;
+      const isHassApp = /HomeAssistant/i.test(ua) || (window.location.pathname || '').includes('/api/hassio_ingress/');
+
+      // In mobile app/webviews (like Home Assistant app), opening a new window is often blocked.
+      // Use same-window navigation to allow iOS Universal Links to hand off to the Music app.
+      if (isHassApp || isIOS) {
+        window.location.assign(url);
         return;
       }
-      // Other platforms: open web player
+
+      // Desktop/mac browsers: new tab is fine; macOS usually hands off to Music if configured
       window.open(url, '_blank', 'noopener');
     } catch (_) {
       window.open(url, '_blank', 'noopener');
