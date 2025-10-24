@@ -83,10 +83,16 @@ const MusicThumbnail = ({ cd, onClick, onEdit, onDelete, disableMenu = false }) 
                 onClick={async () => {
                   try {
                     setOpeningApple(true);
+                    // Try immediate open if URL cached
+                    if (cd?.urls?.appleMusic) {
+                      musicService.openAppleMusic(cd.urls.appleMusic);
+                      setOpeningApple(false);
+                      return;
+                    }
+                    // Otherwise fetch asynchronously, then open
                     const { url } = await musicService.getAppleMusicUrl(cd.id);
                     musicService.openAppleMusic(url);
                   } catch (e) {
-                    // Silently fail or consider toast via parent in future
                     console.error('Failed to open Apple Music:', e);
                   } finally {
                     setOpeningApple(false);

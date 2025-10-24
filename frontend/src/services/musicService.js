@@ -223,14 +223,34 @@ class MusicService {
         tryNext();
       };
 
-      if (isHassApp || isIOS || isMac) {
-        // Prefer single universal link navigation to trigger native app without App Store bounce
+      // macOS: navigate in the same window to avoid blank tabs
+      if (isMac) {
         window.location.href = universalUrl;
         return;
       }
 
-      // Desktop/mac browsers: new tab is fine; macOS usually hands off to Music if configured
+      // iOS and HA mobile: try deep-link schemes in sequence to wake app and select album
+      if (isHassApp || isIOS) {
+        const hostless = universalUrl.replace(/^https?:\/\//i, '');
+        const candidates = [
+          `music://${hostless}`,
+          universalUrl,
+          `itms-apps://${hostless}`
+        ];
+        let idx = 0;
+        const tryNext = () => {
+          if (idx >= candidates.length) return;
+          const target = candidates[idx++];
+          try { window.location.assign(target); } catch (_) {}
+          setTimeout(tryNext, 600);
+        };
+        tryNext();
+        return;
+      }
+
+      // Others: open universal link in new tab
       window.open(universalUrl, '_blank', 'noopener');
+      
     } catch (_) {
       window.open(url, '_blank', 'noopener');
     }

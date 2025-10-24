@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, Button, Row, Col, Badge } from 'react-bootstrap';
 import { BsPencil, BsTrash, BsMusicNote, BsCalendar, BsFlag, BsDisc, BsApple } from 'react-icons/bs';
 import musicService from '../services/musicService';
@@ -11,6 +11,19 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const deleteBtnRef = React.useRef(null);
   const [openingApple, setOpeningApple] = useState(false);
+  const [appleUrl, setAppleUrl] = useState(null);
+
+  // Prefetch Apple Music URL when detail opens to preserve user gesture at click time
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await musicService.getAppleMusicUrl(cd.id);
+        if (!cancelled) setAppleUrl(result?.url || null);
+      } catch (_) {}
+    })();
+    return () => { cancelled = true; };
+  }, [cd?.id]);
 
   const handleDelete = () => {
     if (!confirmDelete) {
@@ -625,14 +638,21 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
         <Button 
           variant="primary" 
           disabled={openingApple}
-          onClick={async () => {
+          onClick={() => {
             try {
               setOpeningApple(true);
-              const { url } = await musicService.getAppleMusicUrl(cd.id);
-              musicService.openAppleMusic(url);
+              const urlToOpen = appleUrl || cd?.urls?.appleMusic || null;
+              if (urlToOpen) {
+                musicService.openAppleMusic(urlToOpen);
+                setOpeningApple(false);
+              } else {
+                // Fallback: fire async fetch but don't await to keep gesture; open when ready
+                musicService.getAppleMusicUrl(cd.id)
+                  .then(({ url }) => musicService.openAppleMusic(url))
+                  .finally(() => setOpeningApple(false));
+              }
             } catch (e) {
               console.error('Failed to open Apple Music:', e);
-            } finally {
               setOpeningApple(false);
             }
           }}
