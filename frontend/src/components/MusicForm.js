@@ -749,18 +749,34 @@ const MusicForm = ({ cd = null, onSave, onCancel }) => {
             <Col md={12}>
               <Form.Group className="mb-3">
                 <Form.Label>Apple Music URL</Form.Label>
-                <Form.Control
-                  type="url"
-                  value={formData.urls?.appleMusic || ''}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setFormData(prev => ({
-                      ...prev,
-                      urls: { ...(prev.urls || {}), appleMusic: value }
-                    }));
-                  }}
-                  placeholder="https://music.apple.com/..."
-                />
+                <div className="d-flex gap-2">
+                  <Form.Control
+                    type="url"
+                    value={formData.urls?.appleMusic || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFormData(prev => ({
+                        ...prev,
+                        urls: { ...(prev.urls || {}), appleMusic: value }
+                      }));
+                    }}
+                    placeholder="https://music.apple.com/..."
+                  />
+                  {formData.urls?.appleMusic && (
+                    <Button
+                      variant="outline-secondary"
+                      onClick={() => {
+                        setFormData(prev => ({
+                          ...prev,
+                          urls: { ...(prev.urls || {}), appleMusic: null }
+                        }));
+                      }}
+                      title="Clear"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
               </Form.Group>
             </Col>
           </Row>

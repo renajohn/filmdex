@@ -13,17 +13,12 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
   const [openingApple, setOpeningApple] = useState(false);
   const [appleUrl, setAppleUrl] = useState(null);
 
-  // Prefetch Apple Music URL when detail opens to preserve user gesture at click time
+  // Only initialize from an already-cached Apple link; do not resolve automatically on open
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const result = await musicService.getAppleMusicUrl(cd.id);
-        if (!cancelled) setAppleUrl(result?.url || null);
-      } catch (_) {}
-    })();
-    return () => { cancelled = true; };
-  }, [cd?.id]);
+    const cached = cd?.urls?.appleMusic;
+    const isAppleLink = typeof cached === 'string' && /https?:\/\/(music|itunes)\.apple\.com\//.test(cached);
+    setAppleUrl(isAppleLink ? cached : null);
+  }, [cd?.id, cd?.urls?.appleMusic]);
 
   const handleDelete = () => {
     if (!confirmDelete) {

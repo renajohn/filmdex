@@ -247,7 +247,15 @@ class MusicService {
       const wantTitle = norm(titleText);
 
       // Countries to try (start local, then common stores)
-      const countries = ['CH', 'US', 'GB', 'DE', 'FR'];
+      // Try several storefronts (UPC/EAN can be region-specific)
+      const countries = ['CH', 'US', 'GB', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE', 'PT'];
+
+      // Compute expected track count to improve matching (optional)
+      let expectedTrackCount = null;
+      try {
+        const tracksForCount = await Track.findByCdId(albumId);
+        expectedTrackCount = Array.isArray(tracksForCount) ? tracksForCount.length : null;
+      } catch (_) {}
 
       logger.info(`[AppleMusic] Resolving URL for album ${albumId}: title="${titleText}", artist="${artistText}", barcode=${album.barcode || '-'} isrcs_in_album=${Array.isArray(album.isrcCodes) ? album.isrcCodes.length : 0}`);
 
@@ -274,7 +282,7 @@ class MusicService {
         }
       }
 
-      // 2) Try ISRC-based lookup (from album or tracks)
+      // 2) Try ISRC-based lookup (from album or tracks) → choose majority collectionId
       let isrcList = Array.isArray(album.isrcCodes) ? album.isrcCodes.filter(Boolean) : [];
       if (!isrcList || isrcList.length === 0) {
         try {
@@ -283,7 +291,8 @@ class MusicService {
         } catch (_) {}
       }
       if (isrcList && isrcList.length > 0) {
-        for (const isrc of isrcList) {
+        const collectionVotes = new Map(); // collectionId -> {count, exampleUrl}
+        for (const isrc of isrcList.slice(0, 8)) { // cap lookups
           for (const country of countries) {
             try {
               const resp = await axios.get('https://itunes.apple.com/lookup', {
@@ -292,17 +301,36 @@ class MusicService {
               });
               const items = resp.data?.results || [];
               logger.debug(`[AppleMusic] ISRC lookup isrc=${isrc} country=${country} results=${items.length}`);
-              // Prefer items that include collectionViewUrl (album)
-              const withCollection = items.find(it => it.collectionViewUrl);
-              if (withCollection && withCollection.collectionViewUrl) {
-                const url = withCollection.collectionViewUrl;
-                logger.info(`[AppleMusic] ISRC match for album ${albumId} isrc=${isrc} country=${country}: ${url}`);
-                try { await Album.updateUrls(albumId, { appleMusic: url }); } catch (_) {}
-                return { url, cached: true };
-              }
+              items.forEach(it => {
+                if (it.collectionId && (it.collectionViewUrl || it.trackViewUrl)) {
+                  const prev = collectionVotes.get(it.collectionId) || { count: 0, url: it.collectionViewUrl };
+                  collectionVotes.set(it.collectionId, { count: prev.count + 1, url: prev.url || it.collectionViewUrl });
+                }
+              });
             } catch (_) {
               // try next
             }
+          }
+        }
+        if (collectionVotes.size > 0) {
+          const majority = Array.from(collectionVotes.entries()).sort((a, b) => b[1].count - a[1].count)[0];
+          const collectionId = majority[0];
+          logger.info(`[AppleMusic] ISRC majority collectionId=${collectionId} votes=${majority[1].count}`);
+          // Lookup album by collectionId to get stable collectionViewUrl
+          for (const country of countries) {
+            try {
+              const resp = await axios.get('https://itunes.apple.com/lookup', {
+                params: { id: collectionId, entity: 'album', country },
+                timeout: 8000
+              });
+              const item = (resp.data?.results || []).find(r => r.collectionViewUrl);
+              if (item && item.collectionViewUrl) {
+                const url = item.collectionViewUrl;
+                logger.info(`[AppleMusic] Resolved album by collectionId in ${country}: ${url}`);
+                try { await Album.updateUrls(albumId, { appleMusic: url }); } catch (_) {}
+                return { url, cached: true };
+              }
+            } catch (_) {}
           }
         }
       }
@@ -340,12 +368,18 @@ class MusicService {
         if (typeof it.trackCount === 'number') {
           if (it.trackCount >= 6) score += 1;
           if (it.trackCount <= 2 && !titleSaysSingle) score -= 1;
+          if (expectedTrackCount && Math.abs(it.trackCount - expectedTrackCount) <= 2) score += 2;
         }
         // Year proximity
         if (album.releaseYear && it.releaseDate) {
           const y = new Date(it.releaseDate).getFullYear();
           if (Math.abs(y - album.releaseYear) <= 1) score += 1;
         }
+        // Heuristic: if our title suggests a compilation/best-of, favor candidates that include 'best'/'greatest hits'
+        const wantBest = /\b(best|greatest)\b/.test(wantTitle);
+        const hasBest = /\b(best|greatest)\b/.test(t);
+        if (wantBest && hasBest) score += 2;
+        if (wantBest && !hasBest) score -= 1;
         return score;
       };
 

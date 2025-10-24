@@ -124,6 +124,26 @@ const Album = {
       const db = getDatabase();
       const now = new Date().toISOString();
       
+      const sanitizeUrls = (urls) => {
+        try {
+          const obj = urls && typeof urls === 'object' ? urls : {};
+          const cleaned = {};
+          for (const [k, v] of Object.entries(obj)) {
+            if (v === null) {
+              // null means "explicitly delete this key" — so skip it
+              continue;
+            }
+            if (typeof v === 'string' && v.trim() === '') {
+              // empty string means "no change" — skip it
+              continue;
+            }
+            // Otherwise keep the value
+            cleaned[k] = v;
+          }
+          return cleaned;
+        } catch (_) { return {}; }
+      };
+
       const cd = {
         artist: JSON.stringify(cdData.artist || []),
         title: cdData.title,
@@ -158,7 +178,7 @@ const Album = {
         engineer: JSON.stringify(cdData.engineer || []),
         recording_location: cdData.recordingLocation || null,
         language: cdData.language || null,
-        urls: JSON.stringify(cdData.urls || {}),
+        urls: JSON.stringify(sanitizeUrls(cdData.urls || {})),
         isrc_codes: JSON.stringify(cdData.isrcCodes || []),
         annotation: cdData.annotation || null,
         title_status: cdData.titleStatus || 'owned',
@@ -416,6 +436,26 @@ const Album = {
       const db = getDatabase();
       const now = new Date().toISOString();
       
+      const sanitizeUrls = (urls) => {
+        try {
+          const obj = urls && typeof urls === 'object' ? urls : {};
+          const cleaned = {};
+          for (const [k, v] of Object.entries(obj)) {
+            if (v === null) {
+              // null means "explicitly delete this key" — so skip it
+              continue;
+            }
+            if (typeof v === 'string' && v.trim() === '') {
+              // empty string means "no change" — skip it
+              continue;
+            }
+            // Otherwise keep the value
+            cleaned[k] = v;
+          }
+          return cleaned;
+        } catch (_) { return {}; }
+      };
+
       const sql = `
         UPDATE albums SET
           artist = ?, title = ?, release_year = ?, labels = ?, catalog_number = ?,
@@ -457,7 +497,7 @@ const Album = {
         JSON.stringify(cdData.engineer || []),
         cdData.recordingLocation || null,
         cdData.language || null,
-        JSON.stringify(cdData.urls || {}),
+        JSON.stringify(sanitizeUrls(cdData.urls || {})),
         JSON.stringify(cdData.isrcCodes || []),
         cdData.annotation || null,
         cdData.titleStatus || 'owned',
