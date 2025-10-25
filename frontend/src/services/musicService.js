@@ -525,6 +525,24 @@ class MusicService {
     }
     return await response.json();
   }
+
+  // Export albums as CSV
+  async exportAlbumsCSV(columns = null) {
+    const baseUrl = await this.getBaseUrl();
+    const params = new URLSearchParams();
+    if (columns && columns.length > 0) {
+      params.append('columns', columns.join(','));
+    }
+    
+    const queryString = params.toString();
+    const endpoint = queryString ? `${baseUrl}/music/albums/export/csv?${queryString}` : `${baseUrl}/music/albums/export/csv`;
+    
+    const response = await fetch(endpoint);
+    if (!response.ok) {
+      throw new Error('Failed to export albums');
+    }
+    return await response.blob();
+  }
 }
 
 const musicServiceInstance = new MusicService();

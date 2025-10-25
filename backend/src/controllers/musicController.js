@@ -727,6 +727,142 @@ const musicController = {
       console.error(`Error filling ${req.body.type || 'back'} covers:`, error);
       res.status(500).json({ error: `Failed to fill ${req.body.type || 'back'} covers` });
     }
+  },
+
+  // Export albums as CSV
+  exportCSV: async (req, res) => {
+    try {
+      const albums = await musicService.getAllAlbums();
+      
+      // Get selected columns from query parameter
+      const selectedColumns = req.query.columns ? req.query.columns.split(',') : [
+        'artist', 'title', 'release_year', 'labels', 'catalog_number', 'barcode',
+        'country', 'edition_notes', 'genres', 'tags', 'rating', 'total_duration',
+        'format', 'packaging', 'status', 'release_events', 'recording_quality',
+        'musicbrainz_release_id', 'musicbrainz_release_group_id', 'release_group_first_release_date',
+        'release_group_type', 'release_group_secondary_types', 'ownership_condition',
+        'ownership_notes', 'ownership_purchased_at', 'ownership_price_chf', 'producer',
+        'engineer', 'recording_location', 'language', 'apple_music_url', 'urls', 'isrc_codes', 
+        'annotation', 'title_status'
+      ];
+      
+      // Validate columns - only allow meaningful columns (excluding ID, cover, back_cover)
+      const allowedColumns = [
+        'artist', 'title', 'release_year', 'labels', 'catalog_number', 'barcode',
+        'country', 'edition_notes', 'genres', 'tags', 'rating', 'total_duration',
+        'format', 'packaging', 'status', 'release_events', 'recording_quality',
+        'musicbrainz_release_id', 'musicbrainz_release_group_id', 'release_group_first_release_date',
+        'release_group_type', 'release_group_secondary_types', 'ownership_condition',
+        'ownership_notes', 'ownership_purchased_at', 'ownership_price_chf', 'producer',
+        'engineer', 'recording_location', 'language', 'apple_music_url', 'urls', 'isrc_codes', 
+        'annotation', 'title_status'
+      ];
+      
+      const validColumns = selectedColumns.filter(col => allowedColumns.includes(col));
+      
+      if (validColumns.length === 0) {
+        return res.status(400).json({ error: 'No valid columns selected for export' });
+      }
+      
+      // Create CSV header
+      const csvHeader = validColumns.map(col => {
+        // Convert snake_case to Title Case for headers
+        return col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      }).join(',') + '\n';
+      
+      // Helper function to convert JSON arrays to comma-separated strings
+      const formatArrayValue = (value) => {
+        if (Array.isArray(value)) {
+          return value.join(', ');
+        }
+        return value;
+      };
+      
+      // Helper function to format release events (array of objects with date/country)
+      const formatReleaseEvents = (events) => {
+        if (Array.isArray(events) && events.length > 0) {
+          return events.map(event => {
+            if (typeof event === 'object') {
+              const parts = [];
+              if (event.date) parts.push(event.date);
+              if (event.country) parts.push(`(${event.country})`);
+              return parts.join(' ');
+            }
+            return event;
+          }).join('; ');
+        }
+        return events;
+      };
+      
+      // Helper function to format URLs object (excluding Apple Music since it has its own column)
+      const formatUrlsValue = (urls) => {
+        if (urls && typeof urls === 'object' && !Array.isArray(urls)) {
+          return Object.entries(urls)
+            .filter(([key]) => key !== 'appleMusic') // Exclude Apple Music URL
+            .map(([key, val]) => `${key}: ${val}`)
+            .join(', ');
+        }
+        return urls;
+      };
+      
+      // Create CSV rows
+      const csvRows = albums.map(album => {
+        return validColumns.map(col => {
+          let value;
+          
+          // Handle ownership fields
+          if (col.startsWith('ownership_')) {
+            const ownershipField = col.replace('ownership_', '');
+            value = album.ownership?.[ownershipField === 'purchased_at' ? 'purchasedAt' : 
+                                       ownershipField === 'price_chf' ? 'priceChf' : 
+                                       ownershipField];
+          } else if (col === 'apple_music_url') {
+            // Handle Apple Music URL separately
+            value = album.urls?.appleMusic || '';
+          } else {
+            // Convert snake_case to camelCase for album object access
+            const camelCaseCol = col.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+            value = album[camelCaseCol];
+          }
+          
+          // Handle special cases - convert arrays to comma-separated strings
+          if (col === 'artist' || col === 'labels' || col === 'genres' || col === 'tags' || 
+              col === 'release_group_secondary_types' || 
+              col === 'producer' || col === 'engineer' || col === 'isrc_codes') {
+            value = formatArrayValue(value);
+          }
+          
+          // Handle release events (array of objects)
+          if (col === 'release_events') {
+            value = formatReleaseEvents(value);
+          }
+          
+          // Handle URLs object
+          if (col === 'urls') {
+            value = formatUrlsValue(value);
+          }
+          
+          if (value === null || value === undefined) {
+            value = '';
+          }
+          
+          // Escape quotes and wrap in quotes if contains comma, quote, or newline
+          const stringValue = String(value);
+          if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+            return `"${stringValue.replace(/"/g, '""')}"`;
+          }
+          return stringValue;
+        }).join(',');
+      }).join('\n');
+      
+      const csvContent = csvHeader + csvRows;
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="albums.csv"');
+      res.send(csvContent);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
   }
 };
 

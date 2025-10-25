@@ -178,6 +178,7 @@ app.get('/api/music/albums', musicController.getAllAlbums);
 app.get('/api/music/albums/search', musicController.searchAlbums);
 app.get('/api/music/albums/missing-covers', musicController.getAlbumsMissingCovers);
 app.get('/api/music/albums/status/:status', musicController.getAlbumsByStatus);
+app.get('/api/music/albums/export/csv', musicController.exportCSV);
 app.post('/api/music/albums', musicController.addAlbum);
 app.post('/api/music/albums/fill-covers', musicController.fillCovers);
 app.get('/api/music/albums/:id', musicController.getAlbumById);

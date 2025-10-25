@@ -8,6 +8,7 @@ import MusicDexPage from './pages/MusicDexPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import CogDropdown from './components/CogDropdown';
 import CsvExportDialog from './components/CsvExportDialog';
+import AlbumCsvExportDialog from './components/AlbumCsvExportDialog';
 import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
 import musicService from './services/musicService';
@@ -31,6 +32,7 @@ function AppContent() {
   const [showAddMovieDialog, setShowAddMovieDialog] = useState(false);
   const [addMovieMode, setAddMovieMode] = useState('collection');
   const [showCsvExportDialog, setShowCsvExportDialog] = useState(false);
+  const [showAlbumCsvExportDialog, setShowAlbumCsvExportDialog] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState('success');
   const [showAlert, setShowAlert] = useState(false);
@@ -600,6 +602,28 @@ function AppContent() {
     }
   };
 
+  const handleExportAlbumsCSV = () => {
+    setShowAlbumCsvExportDialog(true);
+  };
+
+  const handleAlbumCsvExport = async (columns) => {
+    try {
+      const blob = await musicService.exportAlbumsCSV(columns);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'albums.csv';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      handleShowAlert('CSV exported successfully', 'success');
+    } catch (error) {
+      console.error('CSV export error:', error);
+      handleShowAlert('Failed to export CSV: ' + error.message, 'danger');
+    }
+  };
+
   const handleWishList = () => {
     navigate('/wishlist');
   };
@@ -837,6 +861,7 @@ function AppContent() {
                 onAddCD={handleAddCD}
                 onResizeCovers={handleResizeCovers}
                 onFillCovers={handleFillCovers}
+                onExportAlbumsCSV={handleExportAlbumsCSV}
                 currentPage={location.pathname === '/musicdex' ? 'musicdex' : 'filmdex'}
               />
             </div>
@@ -1119,6 +1144,12 @@ function AppContent() {
         isOpen={showCsvExportDialog}
         onClose={() => setShowCsvExportDialog(false)}
         onExport={handleCsvExport}
+      />
+
+      <AlbumCsvExportDialog 
+        isOpen={showAlbumCsvExportDialog}
+        onClose={() => setShowAlbumCsvExportDialog(false)}
+        onExport={handleAlbumCsvExport}
       />
 
       {/* Scroll to Top FAB - Mobile Only */}

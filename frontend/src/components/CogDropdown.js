@@ -10,6 +10,7 @@ const CogDropdown = ({
   onAddCD,
   onResizeCovers,
   onFillCovers,
+  onExportAlbumsCSV,
   currentPage = 'dexvault'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -85,19 +86,29 @@ const CogDropdown = ({
             <>
               <button 
                 className="cog-menu-item"
+                onClick={() => handleMenuClick(onExportAlbumsCSV)}
+              >
+                <BsDownload className="menu-icon" />
+                CSV Export
+              </button>
+              
+              <div className="cog-menu-separator" />
+              
+              <button 
+                className="cog-menu-item"
                 onClick={() => handleMenuClick(onResizeCovers)}
               >
                 <BsArrowsAngleContract className="menu-icon" />
                 Resize covers
               </button>
               
-        <button 
-          className="cog-menu-item"
-          onClick={() => handleMenuClick(onFillCovers)}
-        >
-          <BsImage className="menu-icon" />
-          Fill covers
-</button>
+              <button 
+                className="cog-menu-item"
+                onClick={() => handleMenuClick(onFillCovers)}
+              >
+                <BsImage className="menu-icon" />
+                Fill covers
+              </button>
             </>
           ) : (
             // DexVault menu - all options
