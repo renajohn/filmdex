@@ -15,8 +15,15 @@ import './AnalyticsPage.css';
 // ===============================
 const COLORS = {
   format: ['#FFD700', '#DC143C', '#8B0000', '#FF8C00', '#B87333'],
-  genre: ['#FFD700', '#FFCC00', '#FFB700', '#FFA500', '#FF8C00', '#FF7B00', '#FF6347', '#F94449', '#DC143C', '#C41E3A', '#8B0000', '#7B1113'],
-  decade: ['#8B4513', '#A0522D', '#B87333', '#CD853F', '#D2691E', '#FF8C00', '#FFA500', '#FFB700', '#FFD700'],
+  genre: [
+    '#FFD700', '#FFCC00', '#FFB700', '#FFA500', '#FF8C00', 
+    '#FF7B00', '#FF6347', '#F94449', '#DC143C', '#C41E3A', 
+    '#8B0000', '#7B1113', '#B87333', '#CD853F', '#D4AF37'
+  ],
+  decade: [
+    '#8B4513', '#A0522D', '#B87333', '#CD853F', '#D2691E', 
+    '#FF8C00', '#FFA500', '#FFB700', '#FFD700', '#F0E68C'
+  ],
   rating: ['#DC143C', '#FF4500', '#FF8C00', '#FFD700', '#9ACD32', '#32CD32', '#228B22'],
   age: ['#32CD32', '#9ACD32', '#FFD700', '#FFA500', '#FF8C00', '#FF6347', '#DC143C', '#8B0000'],
   mediaType: { movie: '#FFD700', tvShow: '#DC143C' },
@@ -25,28 +32,58 @@ const COLORS = {
   areaCrimson: '#DC143C',
   barCopper: '#B87333',
   barBurgundy: '#8B0000',
-  music: ['#FFD700', '#FF8C00', '#DC143C', '#B87333', '#8B0000', '#FF6347', '#C41E3A', '#7B1113', '#FFB700', '#FFA500', '#FF7B00', '#FF4500'],
+  music: [
+    '#FFD700', '#FF8C00', '#DC143C', '#B87333', '#8B0000', 
+    '#FF6347', '#C41E3A', '#7B1113', '#FFB700', '#FFA500', 
+    '#FF7B00', '#FF4500', '#D4AF37', '#CD853F'
+  ],
   musicCharts: {
     // Sophisticated palettes organized by analytics type
     distribution: {
       // Time-based analytics - warm, chronological feel
-      decades: ['#B87333', '#CD853F', '#D2691E', '#FF8C00'],
-      quality: ['#8B4513', '#A0522D', '#B87333', '#CD853F'],
+      decades: [
+        '#8B4513', '#A0522D', '#B87333', '#CD853F', '#D2691E', 
+        '#FF8C00', '#FFA500', '#FFB700', '#FFD700', '#F0E68C'
+      ],
+      quality: ['#32CD32', '#9ACD32', '#FFD700', '#FFA500', '#FF8C00', '#FF6347', '#DC143C', '#8B0000'],
       
       // Content analytics - rich, content-focused colors
-      genres: ['#8B0000', '#A0522D', '#B87333', '#CD853F', '#D2691E', '#FF8C00', '#FFA500', '#FFB700', '#FFD700', '#F0E68C'],
-      artists: ['#8B0000', '#A0522D', '#B87333', '#CD853F', '#D2691E', '#FF8C00', '#FFA500', '#FFB700', '#FFD700', '#F0E68C'],
-      labels: ['#8B0000', '#A0522D', '#B87333', '#CD853F', '#D2691E', '#FF8C00', '#FFA500', '#FFB700']
+      genres: [
+        '#FFD700', '#FFA500', '#FF8C00', '#DC143C', '#B87333', 
+        '#8B4513', '#FF6347', '#CD853F', '#D2691E', '#C41E3A', 
+        '#A0522D', '#8B0000', '#D4AF37', '#F4A460'
+      ],
+      artists: [
+        '#FFD700', '#FFA500', '#FF8C00', '#DC143C', '#B87333', 
+        '#8B4513', '#FF6347', '#CD853F', '#D2691E', '#C41E3A', 
+        '#A0522D', '#8B0000', '#D4AF37', '#F4A460'
+      ],
+      labels: [
+        '#FFD700', '#FFA500', '#FF8C00', '#DC143C', '#B87333', 
+        '#8B4513', '#FF6347', '#CD853F', '#D2691E', '#C41E3A'
+      ]
     },
     
     lists: {
       // Performance metrics - sophisticated, achievement-focused
-      longestAlbums: ['#8B4513', '#A0522D', '#B87333', '#CD853F', '#D2691E', '#FF8C00', '#FFA500', '#FFB700'],
+      longestAlbums: [
+        '#FFD700', '#FFA500', '#FF8C00', '#DC143C', '#B87333', 
+        '#CD853F', '#D2691E', '#C41E3A', '#A0522D', '#8B0000'
+      ],
       
       // Relationship analytics - subtle, connection-focused
-      collaborations: ['#8B0000', '#A0522D', '#B87333', '#CD853F', '#D2691E', '#FF8C00', '#FFA500', '#FFB700'],
-      crossovers: ['#8B0000', '#A0522D', '#B87333', '#CD853F', '#D2691E', '#FF8C00', '#FFA500', '#FFB700'],
-      sharedTracks: ['#8B4513', '#A0522D', '#B87333', '#CD853F', '#D2691E', '#FF8C00', '#FFA500', '#FFB700']
+      collaborations: [
+        '#FFD700', '#FFA500', '#FF8C00', '#DC143C', '#B87333', 
+        '#CD853F', '#D2691E', '#FF6347', '#C41E3A', '#A0522D'
+      ],
+      crossovers: [
+        '#FFD700', '#FFA500', '#FF8C00', '#DC143C', '#B87333', 
+        '#8B4513', '#FF6347', '#CD853F', '#D2691E', '#C41E3A'
+      ],
+      sharedTracks: [
+        '#FFD700', '#FFA500', '#FF8C00', '#DC143C', '#B87333', 
+        '#8B4513', '#CD853F', '#D2691E', '#FF6347', '#C41E3A'
+      ]
     }
   },
 };
