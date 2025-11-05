@@ -243,7 +243,7 @@ const bookController = {
     }
   },
 
-  // Search external book APIs (Babelio, Google Books, OpenLibrary)
+  // Search external book APIs (Google Books, OpenLibrary)
   searchExternalBooks: async (req, res) => {
     try {
       const { q, isbn, author, title, limit, language } = req.query;
