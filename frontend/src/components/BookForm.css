@@ -1,0 +1,47 @@
+.book-form-modal .cover-upload-area {
+  width: 100%;
+  min-height: 300px;
+  border: 2px dashed #dee2e6;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  background-color: #f8f9fa;
+}
+
+.cover-upload-area:hover {
+  border-color: #007bff;
+  background-color: #e7f3ff;
+}
+
+.cover-upload-area.dragging {
+  border-color: #007bff;
+  background-color: #e7f3ff;
+}
+
+.cover-preview {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 4px;
+}
+
+.cover-placeholder {
+  text-align: center;
+  color: #999;
+  padding: 20px;
+}
+
+.cover-placeholder p {
+  margin-top: 10px;
+  font-size: 0.9rem;
+}
+
+.upload-progress {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+  color: #666;
+}
+
+

@@ -1,0 +1,2261 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { Modal, Form, Button, Row, Col, Alert } from 'react-bootstrap';
+import { BsX, BsUpload, BsBook, BsCloudDownload } from 'react-icons/bs';
+import bookService from '../services/bookService';
+import CoverModal from './CoverModal';
+import './BookForm.css';
+
+const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline = false }) => {
+  const fileInputRef = useRef(null);
+  const ownerInputRef = useRef(null);
+  const ownerDropdownRef = useRef(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [coverPreview, setCoverPreview] = useState(null);
+  const [selectedCoverIndex, setSelectedCoverIndex] = useState(0);
+  const [selectedEditionIndex, setSelectedEditionIndex] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState(null);
+  const [uploadMessageType, setUploadMessageType] = useState('success');
+  const [imageDimensions, setImageDimensions] = useState({});
+  const [showCoverModal, setShowCoverModal] = useState(false);
+  const [coverModalData, setCoverModalData] = useState({ coverUrl: '', title: '', author: '' });
+  const [ownerSuggestions, setOwnerSuggestions] = useState([]);
+  const [showOwnerSuggestions, setShowOwnerSuggestions] = useState(false);
+  const [highlightedOwnerIndex, setHighlightedOwnerIndex] = useState(-1);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [formData, setFormData] = useState({
+    title: '',
+    subtitle: '',
+    authors: [],
+    artists: [],
+    isbn: '',
+    isbn13: '',
+    publisher: '',
+    publishedYear: '',
+    language: '',
+    format: 'physical',
+    filetype: '',
+    drm: '',
+    narrator: '',
+    runtime: '',
+    series: '',
+    seriesNumber: '',
+    genres: [],
+    tags: [],
+    rating: '',
+    cover: null,
+    owner: '',
+    borrowed: false,
+    borrowedDate: '',
+    returnedDate: '',
+    borrowedNotes: '',
+    pageCount: '',
+    description: '',
+    urls: {},
+    annotation: '',
+    titleStatus: 'owned'
+  });
+  const [loading, setLoading] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [selectedMetadataSource, setSelectedMetadataSource] = useState({
+    description: 'auto',
+    series: 'auto'
+  });
+
+  // Collect all available covers from the book group and enriched sources
+  const availableCovers = React.useMemo(() => {
+    const covers = [];
+    
+    // First, add covers from availableCovers array (from enrichment)
+    if (book && book.availableCovers && Array.isArray(book.availableCovers)) {
+      book.availableCovers.forEach(cover => {
+        covers.push({
+          url: cover.url,
+          source: cover.source || 'Unknown',
+          type: cover.type || 'front',
+          language: book.language,
+          publisher: book.publisher,
+          year: book.publishedYear,
+          isbn: book.isbn13 || book.isbn
+        });
+      });
+    }
+    
+    // Then add covers from the book group (different editions)
+    const booksToCheck = availableBooks && availableBooks.length > 0 ? availableBooks : (book ? [book] : []);
+    
+    booksToCheck.forEach(b => {
+      // Add availableCovers from each book in group
+      if (b.availableCovers && Array.isArray(b.availableCovers)) {
+        b.availableCovers.forEach(cover => {
+          if (!covers.some(c => c.url === cover.url)) {
+            covers.push({
+              url: cover.url,
+              source: cover.source || 'Unknown',
+              type: cover.type || 'front',
+              language: b.language,
+              publisher: b.publisher,
+              year: b.publishedYear,
+              isbn: b.isbn13 || b.isbn
+            });
+          }
+        });
+      }
+      
+      // Add main coverUrl if not already in covers
+      if (b.coverUrl && !covers.some(c => c.url === b.coverUrl)) {
+        covers.push({
+          url: b.coverUrl,
+          source: 'Search Result',
+          type: 'front',
+          language: b.language,
+          publisher: b.publisher,
+          year: b.publishedYear,
+          isbn: b.isbn13 || b.isbn
+        });
+      }
+    });
+    
+    // Remove duplicates by URL
+    const uniqueCovers = covers.filter((cover, index, self) => 
+      index === self.findIndex(c => c.url === cover.url)
+    );
+    
+    return uniqueCovers;
+  }, [book, availableBooks]);
+
+  // Helper function to get available metadata sources
+  const getAvailableSources = (field) => {
+    if (!book?._metadataSources) return [];
+    const sources = [];
+    if (book._metadataSources.googleBooks?.[field]) {
+      sources.push({ key: 'googleBooks', label: 'Google Books', value: book._metadataSources.googleBooks[field] });
+    }
+    if (book._metadataSources.openLibrary?.[field]) {
+      sources.push({ key: 'openLibrary', label: 'OpenLibrary', value: book._metadataSources.openLibrary[field] });
+    }
+    if (book._metadataSources.original?.[field]) {
+      sources.push({ key: 'original', label: 'Original', value: book._metadataSources.original[field] });
+    }
+    return sources;
+  };
+
+  // Helper function to get current value based on selected source
+  const getMetadataValue = (field, selectedSource) => {
+    if (!book?._metadataSources) {
+      // Fallback to book field if no metadata sources
+      return book?.[field] || '';
+    }
+    if (selectedSource === 'auto') {
+      // Use the default merged value
+      return book[field] || '';
+    }
+    return book._metadataSources[selectedSource]?.[field] || '';
+  };
+
+  // Track the previous book ID to only reset metadata source when book actually changes
+  const prevBookIdRef = useRef(null);
+  const userSelectedSourceRef = useRef(false); // Track if user has manually selected a source
+  const isEnrichingRef = useRef(false); // Track if we're currently enriching to prevent useEffect from resetting formData
+  
+  useEffect(() => {
+    if (book) {
+      // Skip initialization if we're currently enriching (let handleFetchFromSources handle the update)
+      if (isEnrichingRef.current) {
+        return;
+      }
+      
+      // Check if this is a different book (by ID) - only reset metadata source on book change
+      const currentBookId = book.id || book.isbn || book.isbn13 || book.title;
+      const isNewBook = prevBookIdRef.current !== null && prevBookIdRef.current !== currentBookId;
+      
+      // If it's a new book, reset the user selection flag
+      if (isNewBook) {
+        userSelectedSourceRef.current = false;
+      }
+      
+      // Check if enriched data is available
+      const hasEnrichedData = book._metadataSources && (
+        book._metadataSources.googleBooks || book._metadataSources.openLibrary
+      );
+      
+      // Only reset metadata source if this is a new book with enriched data AND user hasn't selected a source
+      // For the first book load, initialize to 'auto'
+      if ((isNewBook || prevBookIdRef.current === null) && hasEnrichedData && !userSelectedSourceRef.current) {
+        setSelectedMetadataSource({
+          description: 'auto',
+          series: 'auto'
+        });
+      }
+      
+      // Update the ref to track the current book
+      prevBookIdRef.current = currentBookId;
+      
+      // Get description based on selected source (default to 'auto' if not set yet)
+      const descriptionSource = selectedMetadataSource.description || 'auto';
+      const initialDescription = getMetadataValue('description', descriptionSource);
+      
+      // If this is a new book (no ID) with a series number, try to update the title
+      let suggestedTitle = book.title || '';
+      if (!book.id && book.seriesNumber && book.title) {
+        // Try to find and replace volume numbers in the title
+        // Patterns: T01, T1, Vol. 1, Volume 1, #1, etc.
+        const volumePatterns = [
+          /\bT0*(\d+)\b/i,  // T01, T1, T02, etc.
+          /\bVol\.?\s*0*(\d+)\b/i,  // Vol. 1, Vol 1, etc.
+          /\bVolume\s*0*(\d+)\b/i,  // Volume 1, etc.
+          /\b#0*(\d+)\b/i,  // #1, #01, etc.
+          /\b(\d+)\s*$/i  // Trailing number like "Book 1"
+        ];
+        
+        for (const pattern of volumePatterns) {
+          const match = book.title.match(pattern);
+          if (match) {
+            const oldNumber = match[1] || match[0];
+            const newNumber = String(book.seriesNumber).padStart(oldNumber.length, '0');
+            suggestedTitle = book.title.replace(pattern, (m) => {
+              // Preserve the format (T, Vol., etc.) but update the number
+              if (pattern === /\bT0*(\d+)\b/i) {
+                return m.replace(/\d+/, newNumber);
+              } else if (pattern === /\bVol\.?\s*0*(\d+)\b/i) {
+                return m.replace(/\d+/, newNumber);
+              } else if (pattern === /\bVolume\s*0*(\d+)\b/i) {
+                return m.replace(/\d+/, newNumber);
+              } else if (pattern === /\b#0*(\d+)\b/i) {
+                return m.replace(/\d+/, newNumber);
+              } else {
+                return m.replace(/\d+/, newNumber);
+              }
+            });
+            break;
+          }
+        }
+        
+        // If no pattern matched but we have a series number, append it
+        if (suggestedTitle === book.title && book.seriesNumber) {
+          // Check if title already ends with series number
+          const endsWithNumber = /\d+\s*$/.test(book.title.trim());
+          if (!endsWithNumber) {
+            suggestedTitle = `${book.title} T${String(book.seriesNumber).padStart(2, '0')}`;
+          }
+        }
+      }
+      
+      setFormData({
+        title: suggestedTitle,
+        subtitle: book.subtitle || '',
+        authors: Array.isArray(book.authors) ? book.authors : (book.authors ? [book.authors] : []),
+        artists: Array.isArray(book.artists) ? book.artists : (book.artists ? [book.artists] : []),
+        isbn: book.isbn || '',
+        isbn13: book.isbn13 || '',
+        publisher: book.publisher || '',
+        publishedYear: book.publishedYear || '',
+        language: book.language || '',
+        format: book.format || 'physical',
+        filetype: book.filetype || '',
+        drm: book.drm || '',
+        narrator: book.narrator || '',
+        runtime: book.runtime || '',
+        series: book.series || '',
+        seriesNumber: book.seriesNumber || '',
+        genres: Array.isArray(book.genres) ? book.genres : (book.genres ? [book.genres] : []),
+        tags: Array.isArray(book.tags) ? book.tags : (book.tags ? [book.tags] : []),
+        rating: book.rating || '',
+        cover: book.cover || null,
+        owner: book.owner || '',
+        borrowed: book.borrowed || false,
+        borrowedDate: book.borrowedDate || '',
+        returnedDate: book.returnedDate || '',
+        borrowedNotes: book.borrowedNotes || '',
+        pageCount: book.pageCount || '',
+        description: initialDescription || '',
+        urls: book.urls || {},
+        annotation: book.annotation || '',
+        titleStatus: book.titleStatus || 'owned',
+        coverUrl: book.coverUrl || null
+      });
+      
+      // Set initial cover preview
+      if (book.cover) {
+        setCoverPreview(book.cover);
+      } else if (book.coverUrl) {
+        setCoverPreview(book.coverUrl);
+        // Find index in available covers
+        const coverIndex = availableCovers.findIndex(c => c.url === book.coverUrl);
+        if (coverIndex >= 0) {
+          setSelectedCoverIndex(coverIndex);
+        } else {
+          // If coverUrl not in availableCovers, set it as the first available cover
+          if (availableCovers.length > 0) {
+            setSelectedCoverIndex(0);
+            setCoverPreview(availableCovers[0].url);
+          }
+        }
+      } else if (availableCovers.length > 0) {
+        // Use first available cover if no coverUrl set
+        setSelectedCoverIndex(0);
+        setCoverPreview(availableCovers[0].url);
+        setFormData(prev => ({ ...prev, coverUrl: availableCovers[0].url }));
+      }
+      
+      // Find initial edition index if multiple editions available
+      if (availableBooks && availableBooks.length > 1) {
+        const editionIndex = availableBooks.findIndex(b => 
+          b.isbn13 === book.isbn13 || b.isbn === book.isbn
+        );
+        if (editionIndex >= 0) {
+          setSelectedEditionIndex(editionIndex);
+        }
+      }
+    }
+  }, [book, availableBooks, availableCovers]);
+  
+  // Update description when metadata source changes
+  useEffect(() => {
+    if (book && book._metadataSources && selectedMetadataSource.description) {
+      let newDescription;
+      if (selectedMetadataSource.description === 'auto') {
+        newDescription = book.description || '';
+      } else {
+        newDescription = book._metadataSources[selectedMetadataSource.description]?.description || '';
+      }
+      // Only update if we have a valid description source selected
+      if (selectedMetadataSource.description === 'auto' || book._metadataSources[selectedMetadataSource.description]) {
+        setFormData(prev => {
+          // Always update to ensure the description matches the selected source
+          return { ...prev, description: newDescription };
+        });
+      }
+    }
+  }, [selectedMetadataSource.description, book?._metadataSources]);
+  
+  // Handle edition selection
+  const handleEditionChange = (index) => {
+    if (!availableBooks || index < 0 || index >= availableBooks.length) return;
+    
+    const selectedEdition = availableBooks[index];
+    setSelectedEditionIndex(index);
+    
+    // Update form data with selected edition
+    setFormData(prev => ({
+      ...prev,
+      isbn: selectedEdition.isbn || prev.isbn,
+      isbn13: selectedEdition.isbn13 || prev.isbn13,
+      publisher: selectedEdition.publisher || prev.publisher,
+      publishedYear: selectedEdition.publishedYear || prev.publishedYear,
+      language: selectedEdition.language || prev.language,
+      pageCount: selectedEdition.pageCount || prev.pageCount,
+      coverUrl: selectedEdition.coverUrl || prev.coverUrl
+    }));
+    
+    // Update cover preview
+    if (selectedEdition.coverUrl) {
+      setCoverPreview(selectedEdition.coverUrl);
+      const coverIndex = availableCovers.findIndex(c => c.url === selectedEdition.coverUrl);
+      if (coverIndex >= 0) {
+        setSelectedCoverIndex(coverIndex);
+      }
+    }
+  };
+  
+  // Handle cover selection
+  const handleCoverSelect = (coverIndex) => {
+    if (coverIndex < 0 || coverIndex >= availableCovers.length) return;
+    
+    const selectedCover = availableCovers[coverIndex];
+    setSelectedCoverIndex(coverIndex);
+    setCoverPreview(selectedCover.url);
+    setFormData(prev => ({
+      ...prev,
+      coverUrl: selectedCover.url
+    }));
+  };
+  
+  const getLanguageDisplay = (lang) => {
+    if (!lang) return 'Unknown';
+    const langMap = {
+      'en': 'English',
+      'eng': 'English',
+      'fr': 'French',
+      'fre': 'French',
+      'fra': 'French',
+      'es': 'Spanish',
+      'de': 'German',
+      'it': 'Italian',
+      'pt': 'Portuguese',
+      'ru': 'Russian',
+      'ja': 'Japanese',
+      'ko': 'Korean',
+      'zh': 'Chinese'
+    };
+    return langMap[lang.toLowerCase()] || lang.toUpperCase();
+  };
+
+  const formatImageSize = (width, height) => {
+    if (!width || !height) return '';
+    return `${width}×${height}`;
+  };
+
+  const handleImageLoad = (url, e) => {
+    if (e.target.naturalWidth && e.target.naturalHeight) {
+      setImageDimensions(prev => ({
+        ...prev,
+        [url]: {
+          width: e.target.naturalWidth,
+          height: e.target.naturalHeight
+        }
+      }));
+    }
+  };
+
+  const handleCoverClick = (coverUrl, coverType = 'Cover') => {
+    if (coverUrl) {
+      const title = formData.title || book?.title || '';
+      const author = Array.isArray(formData.authors) 
+        ? formData.authors.join(', ') 
+        : (formData.authors || (book?.authors ? (Array.isArray(book.authors) ? book.authors.join(', ') : book.authors) : ''));
+      
+      setCoverModalData({
+        coverUrl: coverUrl,
+        title: title,
+        author: author,
+        coverType: coverType
+      });
+      setShowCoverModal(true);
+    }
+  };
+
+  const handleCloseCoverModal = () => {
+    setShowCoverModal(false);
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    if (errors[field]) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: null
+      }));
+    }
+
+    // Fetch owner suggestions when typing in owner field (always fetch to show look-ahead)
+    if (field === 'owner') {
+      fetchOwnerSuggestions(value);
+    }
+  };
+
+  const fetchOwnerSuggestions = async (query = '') => {
+    try {
+      // Fetch all owners if query is empty, otherwise search
+      const searchQuery = query ? query.trim() : '';
+      const suggestions = await bookService.getAutocompleteSuggestions('owner', searchQuery);
+      
+      // Extract owner values from suggestions, filter out null/empty values
+      let owners = suggestions
+        .map(item => {
+          // Handle both {owner: "value"} and direct string values
+          const ownerValue = item.owner || item;
+          return ownerValue;
+        })
+        .filter(owner => owner && typeof owner === 'string' && owner.trim())
+        .filter((owner, index, self) => self.indexOf(owner) === index); // Remove duplicates
+
+      // If there's a query, prioritize starts-with matches, then contains matches
+      if (searchQuery) {
+        const queryLower = searchQuery.toLowerCase();
+        owners.sort((a, b) => {
+          const aLower = a.toLowerCase();
+          const bLower = b.toLowerCase();
+          const aStartsWith = aLower.startsWith(queryLower);
+          const bStartsWith = bLower.startsWith(queryLower);
+          
+          // Prioritize starts-with matches
+          if (aStartsWith && !bStartsWith) return -1;
+          if (!aStartsWith && bStartsWith) return 1;
+          
+          // If both start with query or neither does, sort alphabetically
+          return aLower.localeCompare(bLower);
+        });
+      } else {
+        // Sort alphabetically when showing all owners
+        owners.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+      }
+
+      setOwnerSuggestions(owners);
+      setShowOwnerSuggestions(owners.length > 0);
+      setHighlightedOwnerIndex(-1);
+    } catch (error) {
+      console.error('Error fetching owner suggestions:', error);
+      setOwnerSuggestions([]);
+      setShowOwnerSuggestions(false);
+    }
+  };
+
+  const handleOwnerSuggestionClick = (owner) => {
+    handleInputChange('owner', owner);
+    setShowOwnerSuggestions(false);
+    setHighlightedOwnerIndex(-1);
+  };
+
+  const handleOwnerKeyDown = (e) => {
+    if (!showOwnerSuggestions || ownerSuggestions.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setHighlightedOwnerIndex(prev => 
+          prev < ownerSuggestions.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setHighlightedOwnerIndex(prev => prev > 0 ? prev - 1 : -1);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (highlightedOwnerIndex >= 0 && highlightedOwnerIndex < ownerSuggestions.length) {
+          handleOwnerSuggestionClick(ownerSuggestions[highlightedOwnerIndex]);
+        }
+        break;
+      case 'Escape':
+        setShowOwnerSuggestions(false);
+        setHighlightedOwnerIndex(-1);
+        break;
+    }
+  };
+
+  const handleOwnerBlur = () => {
+    // Delay hiding suggestions to allow clicks on suggestions
+    setTimeout(() => {
+      setShowOwnerSuggestions(false);
+      setHighlightedOwnerIndex(-1);
+    }, 150);
+  };
+
+  const updateDropdownPosition = () => {
+    if (ownerInputRef.current) {
+      const rect = ownerInputRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom,
+        left: rect.left,
+        width: rect.width
+      });
+    }
+  };
+
+  const handleOwnerFocus = async () => {
+    // Always fetch suggestions on focus to show all existing owners
+    updateDropdownPosition();
+    await fetchOwnerSuggestions(formData.owner || '');
+  };
+
+  useEffect(() => {
+    if (showOwnerSuggestions && ownerSuggestions.length > 0) {
+      updateDropdownPosition();
+      const handleResize = () => updateDropdownPosition();
+      const handleScroll = () => updateDropdownPosition();
+      window.addEventListener('resize', handleResize);
+      window.addEventListener('scroll', handleScroll, true);
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        window.removeEventListener('scroll', handleScroll, true);
+      };
+    }
+  }, [showOwnerSuggestions, ownerSuggestions.length]);
+
+  const handleArrayInputChange = (field, value) => {
+    // Store the raw string value while typing to allow trailing commas
+    // This allows users to type "genre1, genre2, " without the comma disappearing
+    setFormData(prev => ({
+      ...prev,
+      [field]: value // Store as string while typing
+    }));
+    
+    if (errors[field]) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: null
+      }));
+    }
+  };
+
+  const handleArrayInputBlur = (field, value) => {
+    // Process the comma-separated values when user finishes typing (on blur)
+    const array = value.split(',').map(item => item.trim()).filter(item => item);
+    setFormData(prev => ({
+      ...prev,
+      [field]: array // Convert to array when done typing
+    }));
+  };
+
+  const handleAuthorsInputChange = (value) => {
+    setFormData(prev => ({
+      ...prev,
+      authors: [value]
+    }));
+  };
+
+  const handleAuthorsInputBlur = (value) => {
+    if (value.includes(',')) {
+      const array = value.split(',').map(item => item.trim()).filter(item => item);
+      handleInputChange('authors', array);
+    } else {
+      handleInputChange('authors', value.trim() ? [value.trim()] : []);
+    }
+  };
+
+  const handleArtistsInputChange = (value) => {
+    setFormData(prev => ({
+      ...prev,
+      artists: [value]
+    }));
+  };
+
+  const handleArtistsInputBlur = (value) => {
+    if (value.includes(',')) {
+      const array = value.split(',').map(item => item.trim()).filter(item => item);
+      handleInputChange('artists', array);
+    } else {
+      handleInputChange('artists', value.trim() ? [value.trim()] : []);
+    }
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setUploadMessage('Please select an image file');
+      setUploadMessageType('danger');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadMessage('File size must be less than 10MB');
+      setUploadMessageType('danger');
+      return;
+    }
+
+    setUploadingCover(true);
+    setUploadMessage(null);
+
+    try {
+      if (!book?.id) {
+        setUploadMessage('Please save the book first before uploading a cover');
+        setUploadMessageType('danger');
+        setUploadingCover(false);
+        return;
+      }
+
+      const result = await bookService.uploadCover(book.id, file);
+      setCoverPreview(result.coverPath);
+      handleInputChange('cover', result.coverPath);
+      setUploadMessage('Cover uploaded successfully');
+      setUploadMessageType('success');
+    } catch (error) {
+      setUploadMessage('Failed to upload cover: ' + error.message);
+      setUploadMessageType('danger');
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const fakeEvent = { target: { files: [file] } };
+      handleFileChange(fakeEvent);
+    }
+  };
+
+  // Helper function to normalize array fields
+  const normalizeArrayField = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) {
+      return value
+        .map(item => typeof item === 'string' ? item.trim() : String(item).trim())
+        .filter(item => item);
+    }
+    if (typeof value === 'string') {
+      return value.split(',').map(item => item.trim()).filter(item => item);
+    }
+    return [];
+  };
+
+  const handleFetchFromSources = async () => {
+    if (!book || !book.id) {
+      return; // Only available when editing existing book
+    }
+
+    setEnriching(true);
+    isEnrichingRef.current = true; // Prevent useEffect from resetting formData
+    setUploadMessage(null);
+    setErrors({});
+
+    try {
+      // Prepare book data for enrichment (use current form data, fallback to book)
+      const bookDataForEnrichment = {
+        ...book,
+        title: formData.title || book.title,
+        isbn: formData.isbn || book.isbn,
+        isbn13: formData.isbn13 || book.isbn13,
+        authors: formData.authors || book.authors
+      };
+
+      // Fetch enriched data from sources
+      const enrichedBook = await bookService.enrichBook(bookDataForEnrichment);
+
+      // First, update the book object with enriched data so useEffect can use it
+      // This ensures the form gets the updated data when useEffect runs
+      if (enrichedBook) {
+        // Update book object with enriched data
+        Object.assign(book, {
+          description: enrichedBook.description || book.description,
+          authors: enrichedBook.authors || book.authors,
+          publisher: enrichedBook.publisher || book.publisher,
+          publishedYear: enrichedBook.publishedYear || book.publishedYear,
+          pageCount: enrichedBook.pageCount || book.pageCount,
+          series: enrichedBook.series || book.series,
+          seriesNumber: enrichedBook.seriesNumber || book.seriesNumber,
+          genres: enrichedBook.genres || book.genres,
+          tags: enrichedBook.tags || book.tags,
+          urls: { ...book.urls, ...enrichedBook.urls },
+          coverUrl: enrichedBook.coverUrl || book.coverUrl,
+          _metadataSources: enrichedBook._metadataSources || book._metadataSources,
+          availableCovers: enrichedBook.availableCovers || book.availableCovers
+        });
+        
+        console.log('[BookForm] Updated book object with enriched data:', {
+          description: book.description ? `${book.description.substring(0, 50)}...` : 'null',
+          descriptionLength: book.description?.length || 0,
+          authors: book.authors,
+          publisher: book.publisher,
+          coverUrl: book.coverUrl
+        });
+      }
+
+      // Update form data with enriched information
+      // Force update all fields that were enriched, regardless of current values
+      setFormData(prev => {
+        const updated = {
+          ...prev,
+          // Update description - always use enriched if available and longer, or if current is empty
+          description: (enrichedBook.description && enrichedBook.description.trim() && 
+            (!prev.description || !prev.description.trim() || enrichedBook.description.length > prev.description.length)) 
+            ? enrichedBook.description 
+            : (prev.description || ''),
+          // Update authors - use enriched if current is empty
+          authors: (prev.authors && Array.isArray(prev.authors) && prev.authors.length > 0) 
+            ? prev.authors 
+            : (enrichedBook.authors && Array.isArray(enrichedBook.authors) && enrichedBook.authors.length > 0 ? enrichedBook.authors : []),
+          // Update publisher - use enriched if current is empty
+          publisher: (prev.publisher && prev.publisher.trim()) || enrichedBook.publisher || '',
+          // Update published year - use enriched if current is empty
+          publishedYear: prev.publishedYear || enrichedBook.publishedYear || '',
+          // Update page count - use enriched if current is empty
+          pageCount: prev.pageCount || enrichedBook.pageCount || '',
+          // Update series - use enriched if current is empty
+          series: (prev.series && prev.series.trim()) || enrichedBook.series || '',
+          // Update series number - use enriched if current is empty
+          seriesNumber: prev.seriesNumber || enrichedBook.seriesNumber || '',
+          // Update genres - merge if both exist, otherwise use whichever is available
+          genres: (prev.genres && prev.genres.length > 0) 
+            ? prev.genres 
+            : (enrichedBook.genres && Array.isArray(enrichedBook.genres) && enrichedBook.genres.length > 0 ? enrichedBook.genres : []),
+          // Update tags - merge if both exist, otherwise use whichever is available
+          tags: (prev.tags && prev.tags.length > 0) 
+            ? prev.tags 
+            : (enrichedBook.tags && Array.isArray(enrichedBook.tags) && enrichedBook.tags.length > 0 ? enrichedBook.tags : []),
+          // Update URLs - merge
+          urls: { ...prev.urls, ...enrichedBook.urls },
+          // Update cover URL - prefer enriched if available
+          coverUrl: enrichedBook.coverUrl || prev.coverUrl || null
+        };
+        
+        console.log('[BookForm] Updated formData after enrichment:', {
+          description: updated.description ? `${updated.description.substring(0, 50)}...` : 'null/empty',
+          descriptionLength: updated.description?.length || 0,
+          prevDescriptionLength: prev.description?.length || 0,
+          enrichedDescriptionLength: enrichedBook.description?.length || 0,
+          authors: updated.authors,
+          publisher: updated.publisher,
+          coverUrl: updated.coverUrl
+        });
+        
+        return updated;
+      });
+
+      // Update the book object reference to include enriched metadata sources
+      // This allows the metadata source selector to work
+      if (enrichedBook._metadataSources) {
+        Object.assign(book, { _metadataSources: enrichedBook._metadataSources });
+      }
+
+      // Update available covers if enriched book has them
+      if (enrichedBook.availableCovers && enrichedBook.availableCovers.length > 0) {
+        Object.assign(book, { availableCovers: enrichedBook.availableCovers });
+        
+        // Update cover preview if we got a new cover (always update if we have a new cover URL)
+        if (enrichedBook.coverUrl) {
+          // Check if this is a different cover than what we currently have
+          const currentCoverUrl = formData.coverUrl || coverPreview;
+          if (!currentCoverUrl || currentCoverUrl !== enrichedBook.coverUrl) {
+            console.log('[BookForm] Updating cover preview:', enrichedBook.coverUrl);
+            setCoverPreview(enrichedBook.coverUrl);
+            const coverIndex = enrichedBook.availableCovers.findIndex(c => c.url === enrichedBook.coverUrl);
+            if (coverIndex >= 0) {
+              setSelectedCoverIndex(coverIndex);
+            } else {
+              // If not found in availableCovers, set to first available
+              setSelectedCoverIndex(0);
+            }
+          }
+        }
+      }
+
+      setUploadMessage('Book metadata fetched successfully from sources!');
+      setUploadMessageType('success');
+    } catch (error) {
+      console.error('Error fetching from sources:', error);
+      setUploadMessage('Failed to fetch metadata from sources: ' + (error.message || 'Unknown error'));
+      setUploadMessageType('danger');
+    } finally {
+      setEnriching(false);
+      isEnrichingRef.current = false; // Allow useEffect to run again
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.title.trim()) {
+      setErrors({ title: 'Title is required' });
+      return;
+    }
+
+    setLoading(true);
+    setErrors({});
+
+    try {
+      // Normalize array fields before submitting
+      const normalizedTags = normalizeArrayField(formData.tags);
+      const normalizedGenres = normalizeArrayField(formData.genres);
+      const normalizedAuthors = normalizeArrayField(formData.authors);
+      const normalizedArtists = normalizeArrayField(formData.artists);
+
+      const bookData = {
+        ...formData,
+        tags: normalizedTags,
+        genres: normalizedGenres,
+        authors: normalizedAuthors,
+        artists: normalizedArtists,
+        publishedYear: formData.publishedYear ? parseInt(formData.publishedYear) : null,
+        seriesNumber: formData.seriesNumber ? parseInt(formData.seriesNumber) : null,
+        rating: formData.rating ? parseFloat(formData.rating) : null,
+        pageCount: formData.pageCount ? parseInt(formData.pageCount) : null,
+        runtime: formData.runtime ? parseInt(formData.runtime) : null,
+        borrowed: formData.borrowed === true || formData.borrowed === 'true',
+        coverUrl: formData.coverUrl || null
+      };
+
+      await onSave(bookData);
+    } catch (error) {
+      console.error('Error saving book:', error);
+      setErrors({ submit: error.message || 'Failed to save book' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formContent = (
+    <Form onSubmit={handleSubmit}>
+      {!inline && (
+        <Modal.Header closeButton>
+          <div className="d-flex align-items-center justify-content-between w-100 me-3">
+            <Modal.Title className="mb-0">
+              <BsBook className="me-2" />
+              {book?.id ? 'Edit Book' : 'Add New Book'}
+            </Modal.Title>
+            {book?.id && (
+              <Button
+                variant="outline-warning"
+                size="sm"
+                onClick={handleFetchFromSources}
+                disabled={enriching || loading}
+                style={{ 
+                  borderColor: '#fbbf24', 
+                  color: '#fbbf24',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                {enriching ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    Fetching...
+                  </>
+                ) : (
+                  <>
+                    <BsCloudDownload />
+                    Fetch from Sources
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </Modal.Header>
+      )}
+      
+      {inline && book?.id && (
+        <div className="mb-3 d-flex justify-content-end">
+          <Button
+            variant="outline-warning"
+            size="sm"
+            onClick={handleFetchFromSources}
+            disabled={enriching || loading}
+            style={{ 
+              borderColor: '#fbbf24', 
+              color: '#fbbf24',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            {enriching ? (
+              <>
+                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                Fetching...
+              </>
+            ) : (
+              <>
+                <BsCloudDownload />
+                Fetch from Sources
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+      
+      {inline ? (
+        <div className="book-form-inline-body">
+          {errors.submit && (
+            <Alert variant="danger" className="mb-3">
+              {errors.submit}
+            </Alert>
+          )}
+
+          {uploadMessage && (
+            <Alert variant={uploadMessageType} className="mb-3">
+              {uploadMessage}
+            </Alert>
+          )}
+
+          <Row>
+            <Col md={8}>
+              <Form.Group className="mb-3">
+                <Form.Label>Title *</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange('title', e.target.value)}
+                  placeholder="Enter book title"
+                  isInvalid={!!errors.title}
+                  required
+                />
+                <Form.Control.Feedback type="invalid">
+                  {errors.title}
+                </Form.Control.Feedback>
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Subtitle</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.subtitle}
+                  onChange={(e) => handleInputChange('subtitle', e.target.value)}
+                  placeholder="Enter subtitle"
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Author(s)</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={Array.isArray(formData.authors) ? formData.authors.join(', ') : formData.authors}
+                  onChange={(e) => handleAuthorsInputChange(e.target.value)}
+                  onBlur={(e) => handleAuthorsInputBlur(e.target.value)}
+                  placeholder="Enter authors (comma-separated)"
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Artist(s) / Illustrator(s)</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={Array.isArray(formData.artists) ? formData.artists.join(', ') : formData.artists}
+                  onChange={(e) => handleArtistsInputChange(e.target.value)}
+                  onBlur={(e) => handleArtistsInputBlur(e.target.value)}
+                  placeholder="Enter artists/illustrators (comma-separated, e.g., for comics)"
+                />
+              </Form.Group>
+
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>ISBN-10</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={formData.isbn}
+                      onChange={(e) => handleInputChange('isbn', e.target.value)}
+                      placeholder="Enter ISBN-10"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>ISBN-13</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={formData.isbn13}
+                      onChange={(e) => handleInputChange('isbn13', e.target.value)}
+                      placeholder="Enter ISBN-13"
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Publisher</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={formData.publisher}
+                      onChange={(e) => handleInputChange('publisher', e.target.value)}
+                      placeholder="Enter publisher"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Published Year</Form.Label>
+                    <Form.Control
+                      type="number"
+                      value={formData.publishedYear}
+                      onChange={(e) => handleInputChange('publishedYear', e.target.value)}
+                      placeholder="e.g., 2020"
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Language</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={formData.language}
+                      onChange={(e) => handleInputChange('language', e.target.value)}
+                      placeholder="e.g., en, fr, de"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Format</Form.Label>
+                    <Form.Select
+                      value={formData.format}
+                      onChange={(e) => handleInputChange('format', e.target.value)}
+                    >
+                      <option value="physical">Physical</option>
+                      <option value="ebook">E-book</option>
+                      <option value="audiobook">Audiobook</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              {formData.format === 'ebook' && (
+                <>
+                  <Row>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>File Type</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={formData.filetype}
+                          onChange={(e) => handleInputChange('filetype', e.target.value)}
+                          placeholder="e.g., EPUB, PDF"
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>DRM</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={formData.drm}
+                          onChange={(e) => handleInputChange('drm', e.target.value)}
+                          placeholder="e.g., None, Adobe DRM"
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                </>
+              )}
+
+              {formData.format === 'audiobook' && (
+                <>
+                  <Row>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Narrator</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={formData.narrator}
+                          onChange={(e) => handleInputChange('narrator', e.target.value)}
+                          placeholder="Enter narrator name"
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Runtime (minutes)</Form.Label>
+                        <Form.Control
+                          type="number"
+                          value={formData.runtime}
+                          onChange={(e) => handleInputChange('runtime', e.target.value)}
+                          placeholder="e.g., 720"
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                </>
+              )}
+
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <Form.Label className="mb-0">Series</Form.Label>
+                      {book?._metadataSources && (book._metadataSources.googleBooks?.series || book._metadataSources.openLibrary?.series) && (
+                        <div className="d-flex align-items-center gap-2">
+                          <Form.Select
+                            size="sm"
+                            style={{ width: 'auto', minWidth: '120px' }}
+                            value={selectedMetadataSource.series}
+                            onChange={(e) => {
+                              const source = e.target.value;
+                              setSelectedMetadataSource(prev => ({ ...prev, series: source }));
+                              const newValue = getMetadataValue('series', source);
+                              handleInputChange('series', newValue);
+                            }}
+                          >
+                            <option value="auto">Auto</option>
+                            {getAvailableSources('series').map(source => (
+                              <option key={source.key} value={source.key}>{source.label}</option>
+                            ))}
+                          </Form.Select>
+                        </div>
+                      )}
+                    </div>
+                    <Form.Control
+                      type="text"
+                      value={formData.series}
+                      onChange={(e) => handleInputChange('series', e.target.value)}
+                      placeholder="Enter series name"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Series Number</Form.Label>
+                    <Form.Control
+                      type="number"
+                      value={formData.seriesNumber}
+                      onChange={(e) => handleInputChange('seriesNumber', e.target.value)}
+                      placeholder="e.g., 1"
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Form.Group className="mb-3">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <Form.Label className="mb-0">Genres</Form.Label>
+                  {book?._metadataSources && (book._metadataSources.googleBooks?.genres || book._metadataSources.openLibrary?.genres) && (
+                    <small style={{ color: '#fbbf24' }}>
+                      ✓ Aggregated from {[book._metadataSources.googleBooks?.genres, book._metadataSources.openLibrary?.genres].filter(g => g).length} source(s)
+                    </small>
+                  )}
+                </div>
+                <Form.Control
+                  type="text"
+                  value={Array.isArray(formData.genres) ? formData.genres.join(', ') : (formData.genres || '')}
+                  onChange={(e) => handleArrayInputChange('genres', e.target.value)}
+                  onBlur={(e) => handleArrayInputBlur('genres', e.target.value)}
+                  placeholder="Enter genres (comma-separated)"
+                />
+                {book?._metadataSources && Array.isArray(formData.genres) && formData.genres.length > 0 && (
+                  <Form.Text className="text-muted">
+                    Combined from all sources ({formData.genres.length} genre{formData.genres.length !== 1 ? 's' : ''})
+                  </Form.Text>
+                )}
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Tags</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={Array.isArray(formData.tags) ? formData.tags.join(', ') : (formData.tags || '')}
+                  onChange={(e) => handleArrayInputChange('tags', e.target.value)}
+                  onBlur={(e) => handleArrayInputBlur('tags', e.target.value)}
+                  placeholder="Enter tags (comma-separated)"
+                />
+              </Form.Group>
+
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Rating</Form.Label>
+                    <Form.Control
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="5"
+                      value={formData.rating}
+                      onChange={(e) => handleInputChange('rating', e.target.value)}
+                      placeholder="0-5"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Page Count</Form.Label>
+                    <Form.Control
+                      type="number"
+                      value={formData.pageCount}
+                      onChange={(e) => handleInputChange('pageCount', e.target.value)}
+                      placeholder="e.g., 350"
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Owner</Form.Label>
+                <div style={{ position: 'relative' }}>
+                  <Form.Control
+                    ref={ownerInputRef}
+                    type="text"
+                    value={formData.owner}
+                    onChange={(e) => {
+                      handleInputChange('owner', e.target.value);
+                      updateDropdownPosition();
+                    }}
+                    onKeyDown={handleOwnerKeyDown}
+                    onBlur={handleOwnerBlur}
+                    onFocus={handleOwnerFocus}
+                    placeholder="Enter owner name"
+                  />
+                </div>
+              </Form.Group>
+              
+              {showOwnerSuggestions && ownerSuggestions.length > 0 && dropdownPosition.width > 0 && createPortal(
+                <div 
+                  ref={ownerDropdownRef}
+                  className="autocomplete-suggestions"
+                  style={{
+                    position: 'fixed',
+                    top: `${dropdownPosition.top}px`,
+                    left: `${dropdownPosition.left}px`,
+                    width: `${dropdownPosition.width}px`,
+                    zIndex: 99999,
+                    backgroundColor: '#212529',
+                    border: '1px solid #495057',
+                    borderRadius: '0.25rem',
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    marginTop: '2px',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.5)'
+                  }}
+                >
+                  {ownerSuggestions.map((owner, index) => (
+                    <div
+                      key={index}
+                      className={`autocomplete-suggestion ${
+                        index === highlightedOwnerIndex ? 'highlighted' : ''
+                      }`}
+                      onClick={() => handleOwnerSuggestionClick(owner)}
+                      style={{
+                        padding: '0.5rem',
+                        cursor: 'pointer',
+                        backgroundColor: index === highlightedOwnerIndex ? '#495057' : 'transparent',
+                        color: '#f8f9fa',
+                        transition: 'background-color 0.15s ease'
+                      }}
+                      onMouseEnter={() => setHighlightedOwnerIndex(index)}
+                    >
+                      {owner}
+                    </div>
+                  ))}
+                </div>,
+                document.body
+              )}
+
+              <Form.Group className="mb-3">
+                <Form.Check
+                  type="checkbox"
+                  label="Borrowed"
+                  checked={formData.borrowed}
+                  onChange={(e) => handleInputChange('borrowed', e.target.checked)}
+                />
+              </Form.Group>
+
+              {formData.borrowed && (
+                <>
+                  <Row>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Borrowed Date</Form.Label>
+                        <Form.Control
+                          type="date"
+                          value={formData.borrowedDate}
+                          onChange={(e) => handleInputChange('borrowedDate', e.target.value)}
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Returned Date</Form.Label>
+                        <Form.Control
+                          type="date"
+                          value={formData.returnedDate}
+                          onChange={(e) => handleInputChange('returnedDate', e.target.value)}
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Borrowing Notes</Form.Label>
+                    <Form.Control
+                      as="textarea"
+                      rows={2}
+                      value={formData.borrowedNotes}
+                      onChange={(e) => handleInputChange('borrowedNotes', e.target.value)}
+                      placeholder="Enter borrowing notes"
+                    />
+                  </Form.Group>
+                </>
+              )}
+
+              <Form.Group className="mb-3">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <Form.Label className="mb-0">Description</Form.Label>
+                  {book?._metadataSources && (book._metadataSources.googleBooks || book._metadataSources.openLibrary) && (
+                    <div className="d-flex align-items-center gap-2">
+                      <small className="text-muted">Source:</small>
+                      <Form.Select
+                        size="sm"
+                        style={{ width: 'auto', minWidth: '150px' }}
+                        value={selectedMetadataSource.description}
+                        onChange={(e) => {
+                          const source = e.target.value;
+                          userSelectedSourceRef.current = true; // Mark that user has selected a source
+                          setSelectedMetadataSource(prev => ({ ...prev, description: source }));
+                          // The useEffect will handle updating the formData.description
+                        }}
+                      >
+                        <option value="auto">Auto (Longest)</option>
+                        {getAvailableSources('description').map(source => (
+                          <option key={source.key} value={source.key}>{source.label}</option>
+                        ))}
+                      </Form.Select>
+                      <small style={{ color: '#fbbf24' }}>
+                        ✓ Enriched
+                      </small>
+                    </div>
+                  )}
+                </div>
+                <Form.Control
+                  as="textarea"
+                  rows={4}
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Enter book description"
+                />
+                {book?._metadataSources && getAvailableSources('description').length > 0 && (
+                  <Form.Text className="text-muted">
+                    {getAvailableSources('description').length} source(s) available
+                  </Form.Text>
+                )}
+              </Form.Group>
+
+            </Col>
+
+            <Col md={4}>
+              <Form.Group className="mb-3">
+                <Form.Label>Cover Image</Form.Label>
+                
+                {/* Cover Selection - Show when multiple covers available */}
+                {availableCovers.length > 1 && !book?.id && (
+                  <div className="mb-3">
+                    <Form.Label style={{ fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.6)' }}>
+                      Select Cover ({availableCovers.length} available)
+                    </Form.Label>
+                    <div style={{ 
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+                      gap: '10px',
+                      padding: '10px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '6px',
+                      maxWidth: '100%'
+                    }}>
+                      {availableCovers.map((cover, index) => (
+                        <div
+                          key={index}
+                          onClick={() => {
+                            setSelectedCoverIndex(index);
+                            setCoverPreview(cover.url);
+                            setFormData(prev => ({ ...prev, coverUrl: cover.url }));
+                          }}
+                          style={{
+                            position: 'relative',
+                            cursor: 'pointer',
+                            border: selectedCoverIndex === index 
+                              ? '3px solid rgba(251, 191, 36, 0.9)' 
+                              : '2px solid rgba(255, 255, 255, 0.15)',
+                            borderRadius: '6px',
+                            overflow: 'hidden',
+                            width: '100%',
+                            aspectRatio: '2/3',
+                            backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                            transition: 'all 0.2s ease',
+                            boxShadow: selectedCoverIndex === index 
+                              ? '0 0 0 1px rgba(251, 191, 36, 0.4)' 
+                              : 'none'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (selectedCoverIndex !== index) {
+                              e.currentTarget.style.borderColor = 'rgba(251, 191, 36, 0.5)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (selectedCoverIndex !== index) {
+                              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                            }
+                          }}
+                        >
+                          <img 
+                            src={cover.url} 
+                            alt={`Cover ${index + 1}`}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              cursor: 'pointer'
+                            }}
+                            onLoad={(e) => handleImageLoad(cover.url, e)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCoverClick(cover.url, cover.type === 'back' ? 'Back Cover' : 'Front Cover');
+                            }}
+                          />
+                          {selectedCoverIndex === index && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '4px',
+                              right: '4px',
+                              backgroundColor: 'rgba(251, 191, 36, 0.95)',
+                              borderRadius: '50%',
+                              width: '24px',
+                              height: '24px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#1a202c',
+                              fontSize: '14px',
+                              fontWeight: 'bold'
+                            }}>
+                              ✓
+                            </div>
+                          )}
+                          <div style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                            color: 'rgba(255, 255, 255, 0.85)',
+                            fontSize: '9px',
+                            padding: '3px 4px',
+                            textAlign: 'center',
+                            borderRadius: '0 0 4px 4px',
+                            lineHeight: '1.1'
+                          }}>
+                            <div style={{ fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {cover.source} {cover.type === 'back' ? '(Back)' : ''}
+                            </div>
+                            {imageDimensions[cover.url] && (
+                              <div style={{ fontSize: '8px', opacity: 0.8, marginTop: '1px' }}>
+                                {formatImageSize(imageDimensions[cover.url].width, imageDimensions[cover.url].height)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div
+                  className={`cover-upload-area ${isDragging ? 'dragging' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => book?.id && fileInputRef.current?.click()}
+                  style={{ cursor: book?.id ? 'pointer' : 'not-allowed', opacity: book?.id ? 1 : 0.5 }}
+                >
+                  {coverPreview ? (
+                    <img 
+                      src={coverPreview.startsWith('http') ? coverPreview : bookService.getImageUrl(coverPreview)} 
+                      alt="Cover preview" 
+                      className="cover-preview"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {
+                        const coverUrl = coverPreview.startsWith('http') ? coverPreview : bookService.getImageUrl(coverPreview);
+                        handleCoverClick(coverUrl, 'Cover');
+                      }}
+                      onLoad={(e) => {
+                        const coverUrl = coverPreview.startsWith('http') ? coverPreview : bookService.getImageUrl(coverPreview);
+                        handleImageLoad(coverUrl, e);
+                      }}
+                    />
+                  ) : (
+                    <div className="cover-placeholder">
+                      <BsUpload size={48} />
+                      <p>{book?.id ? 'Click or drag to upload cover' : 'Save book first to upload cover'}</p>
+                    </div>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                  disabled={!book?.id || uploadingCover}
+                />
+                {uploadingCover && (
+                  <div className="upload-progress">
+                    <div className="spinner-border spinner-border-sm" role="status">
+                      <span className="visually-hidden">Uploading...</span>
+                    </div>
+                    <span className="ms-2">Uploading...</span>
+                  </div>
+                )}
+              </Form.Group>
+            </Col>
+          </Row>
+        </div>
+      ) : (
+        <Modal.Body>
+          {errors.submit && (
+            <Alert variant="danger" className="mb-3">
+              {errors.submit}
+            </Alert>
+          )}
+
+          {uploadMessage && (
+            <Alert variant={uploadMessageType} className="mb-3">
+              {uploadMessage}
+            </Alert>
+          )}
+
+          <Row>
+            <Col md={8}>
+              <Form.Group className="mb-3">
+                <Form.Label>Title *</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange('title', e.target.value)}
+                  placeholder="Enter book title"
+                  isInvalid={!!errors.title}
+                  required
+                />
+                <Form.Control.Feedback type="invalid">
+                  {errors.title}
+                </Form.Control.Feedback>
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Subtitle</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.subtitle}
+                  onChange={(e) => handleInputChange('subtitle', e.target.value)}
+                  placeholder="Enter subtitle"
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Author(s)</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={Array.isArray(formData.authors) ? formData.authors.join(', ') : formData.authors}
+                  onChange={(e) => handleAuthorsInputChange(e.target.value)}
+                  onBlur={(e) => handleAuthorsInputBlur(e.target.value)}
+                  placeholder="Enter authors (comma-separated)"
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Artist(s) / Illustrator(s)</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={Array.isArray(formData.artists) ? formData.artists.join(', ') : formData.artists}
+                  onChange={(e) => handleArtistsInputChange(e.target.value)}
+                  onBlur={(e) => handleArtistsInputBlur(e.target.value)}
+                  placeholder="Enter artists/illustrators (comma-separated, e.g., for comics)"
+                />
+              </Form.Group>
+
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>ISBN-10</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={formData.isbn}
+                      onChange={(e) => handleInputChange('isbn', e.target.value)}
+                      placeholder="Enter ISBN-10"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>ISBN-13</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={formData.isbn13}
+                      onChange={(e) => handleInputChange('isbn13', e.target.value)}
+                      placeholder="Enter ISBN-13"
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Publisher</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={formData.publisher}
+                      onChange={(e) => handleInputChange('publisher', e.target.value)}
+                      placeholder="Enter publisher"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Published Year</Form.Label>
+                    <Form.Control
+                      type="number"
+                      value={formData.publishedYear}
+                      onChange={(e) => handleInputChange('publishedYear', e.target.value)}
+                      placeholder="e.g., 2020"
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Language</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={formData.language}
+                      onChange={(e) => handleInputChange('language', e.target.value)}
+                      placeholder="e.g., en, fr, de"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Format</Form.Label>
+                    <Form.Select
+                      value={formData.format}
+                      onChange={(e) => handleInputChange('format', e.target.value)}
+                    >
+                      <option value="physical">Physical</option>
+                      <option value="ebook">E-book</option>
+                      <option value="audiobook">Audiobook</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              {formData.format === 'ebook' && (
+                <>
+                  <Row>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>File Type</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={formData.filetype}
+                          onChange={(e) => handleInputChange('filetype', e.target.value)}
+                          placeholder="e.g., EPUB, PDF"
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>DRM</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={formData.drm}
+                          onChange={(e) => handleInputChange('drm', e.target.value)}
+                          placeholder="e.g., None, Adobe DRM"
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                </>
+              )}
+
+              {formData.format === 'audiobook' && (
+                <>
+                  <Row>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Narrator</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={formData.narrator}
+                          onChange={(e) => handleInputChange('narrator', e.target.value)}
+                          placeholder="Enter narrator name"
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Runtime (minutes)</Form.Label>
+                        <Form.Control
+                          type="number"
+                          value={formData.runtime}
+                          onChange={(e) => handleInputChange('runtime', e.target.value)}
+                          placeholder="e.g., 720"
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                </>
+              )}
+
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <Form.Label className="mb-0">Series</Form.Label>
+                      {book?._metadataSources && (book._metadataSources.googleBooks?.series || book._metadataSources.openLibrary?.series) && (
+                        <div className="d-flex align-items-center gap-2">
+                          <Form.Select
+                            size="sm"
+                            style={{ width: 'auto', minWidth: '120px' }}
+                            value={selectedMetadataSource.series}
+                            onChange={(e) => {
+                              const source = e.target.value;
+                              setSelectedMetadataSource(prev => ({ ...prev, series: source }));
+                              const newValue = getMetadataValue('series', source);
+                              handleInputChange('series', newValue);
+                            }}
+                          >
+                            <option value="auto">Auto</option>
+                            {getAvailableSources('series').map(source => (
+                              <option key={source.key} value={source.key}>{source.label}</option>
+                            ))}
+                          </Form.Select>
+                        </div>
+                      )}
+                    </div>
+                    <Form.Control
+                      type="text"
+                      value={formData.series}
+                      onChange={(e) => handleInputChange('series', e.target.value)}
+                      placeholder="Enter series name"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Series Number</Form.Label>
+                    <Form.Control
+                      type="number"
+                      value={formData.seriesNumber}
+                      onChange={(e) => handleInputChange('seriesNumber', e.target.value)}
+                      placeholder="e.g., 1"
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Form.Group className="mb-3">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <Form.Label className="mb-0">Genres</Form.Label>
+                  {book?._metadataSources && (book._metadataSources.googleBooks?.genres || book._metadataSources.openLibrary?.genres) && (
+                    <small style={{ color: '#fbbf24' }}>
+                      ✓ Aggregated from {[book._metadataSources.googleBooks?.genres, book._metadataSources.openLibrary?.genres].filter(g => g).length} source(s)
+                    </small>
+                  )}
+                </div>
+                <Form.Control
+                  type="text"
+                  value={Array.isArray(formData.genres) ? formData.genres.join(', ') : (formData.genres || '')}
+                  onChange={(e) => handleArrayInputChange('genres', e.target.value)}
+                  onBlur={(e) => handleArrayInputBlur('genres', e.target.value)}
+                  placeholder="Enter genres (comma-separated)"
+                />
+                {book?._metadataSources && Array.isArray(formData.genres) && formData.genres.length > 0 && (
+                  <Form.Text className="text-muted">
+                    Combined from all sources ({formData.genres.length} genre{formData.genres.length !== 1 ? 's' : ''})
+                  </Form.Text>
+                )}
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Tags</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={Array.isArray(formData.tags) ? formData.tags.join(', ') : (formData.tags || '')}
+                  onChange={(e) => handleArrayInputChange('tags', e.target.value)}
+                  onBlur={(e) => handleArrayInputBlur('tags', e.target.value)}
+                  placeholder="Enter tags (comma-separated)"
+                />
+              </Form.Group>
+
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Rating</Form.Label>
+                    <Form.Control
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="5"
+                      value={formData.rating}
+                      onChange={(e) => handleInputChange('rating', e.target.value)}
+                      placeholder="0-5"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Page Count</Form.Label>
+                    <Form.Control
+                      type="number"
+                      value={formData.pageCount}
+                      onChange={(e) => handleInputChange('pageCount', e.target.value)}
+                      placeholder="e.g., 350"
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Owner</Form.Label>
+                <div style={{ position: 'relative' }}>
+                  <Form.Control
+                    ref={ownerInputRef}
+                    type="text"
+                    value={formData.owner}
+                    onChange={(e) => {
+                      handleInputChange('owner', e.target.value);
+                      updateDropdownPosition();
+                    }}
+                    onKeyDown={handleOwnerKeyDown}
+                    onBlur={handleOwnerBlur}
+                    onFocus={handleOwnerFocus}
+                    placeholder="Enter owner name"
+                  />
+                </div>
+              </Form.Group>
+              
+              {showOwnerSuggestions && ownerSuggestions.length > 0 && dropdownPosition.width > 0 && createPortal(
+                <div 
+                  ref={ownerDropdownRef}
+                  className="autocomplete-suggestions"
+                  style={{
+                    position: 'fixed',
+                    top: `${dropdownPosition.top}px`,
+                    left: `${dropdownPosition.left}px`,
+                    width: `${dropdownPosition.width}px`,
+                    zIndex: 99999,
+                    backgroundColor: '#212529',
+                    border: '1px solid #495057',
+                    borderRadius: '0.25rem',
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    marginTop: '2px',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.5)'
+                  }}
+                >
+                  {ownerSuggestions.map((owner, index) => (
+                    <div
+                      key={index}
+                      className={`autocomplete-suggestion ${
+                        index === highlightedOwnerIndex ? 'highlighted' : ''
+                      }`}
+                      onClick={() => handleOwnerSuggestionClick(owner)}
+                      style={{
+                        padding: '0.5rem',
+                        cursor: 'pointer',
+                        backgroundColor: index === highlightedOwnerIndex ? '#495057' : 'transparent',
+                        color: '#f8f9fa',
+                        transition: 'background-color 0.15s ease'
+                      }}
+                      onMouseEnter={() => setHighlightedOwnerIndex(index)}
+                    >
+                      {owner}
+                    </div>
+                  ))}
+                </div>,
+                document.body
+              )}
+
+              <Form.Group className="mb-3">
+                <Form.Check
+                  type="checkbox"
+                  label="Borrowed"
+                  checked={formData.borrowed}
+                  onChange={(e) => handleInputChange('borrowed', e.target.checked)}
+                />
+              </Form.Group>
+
+              {formData.borrowed && (
+                <>
+                  <Row>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Borrowed Date</Form.Label>
+                        <Form.Control
+                          type="date"
+                          value={formData.borrowedDate}
+                          onChange={(e) => handleInputChange('borrowedDate', e.target.value)}
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Returned Date</Form.Label>
+                        <Form.Control
+                          type="date"
+                          value={formData.returnedDate}
+                          onChange={(e) => handleInputChange('returnedDate', e.target.value)}
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Borrowing Notes</Form.Label>
+                    <Form.Control
+                      as="textarea"
+                      rows={2}
+                      value={formData.borrowedNotes}
+                      onChange={(e) => handleInputChange('borrowedNotes', e.target.value)}
+                      placeholder="Enter borrowing notes"
+                    />
+                  </Form.Group>
+                </>
+              )}
+
+              <Form.Group className="mb-3">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <Form.Label className="mb-0">Description</Form.Label>
+                  {book?._metadataSources && (book._metadataSources.googleBooks || book._metadataSources.openLibrary) && (
+                    <div className="d-flex align-items-center gap-2">
+                      <small className="text-muted">Source:</small>
+                      <Form.Select
+                        size="sm"
+                        style={{ width: 'auto', minWidth: '150px' }}
+                        value={selectedMetadataSource.description}
+                        onChange={(e) => {
+                          const source = e.target.value;
+                          userSelectedSourceRef.current = true; // Mark that user has selected a source
+                          setSelectedMetadataSource(prev => ({ ...prev, description: source }));
+                          // The useEffect will handle updating the formData.description
+                        }}
+                      >
+                        <option value="auto">Auto (Longest)</option>
+                        {getAvailableSources('description').map(source => (
+                          <option key={source.key} value={source.key}>{source.label}</option>
+                        ))}
+                      </Form.Select>
+                      <small style={{ color: '#fbbf24' }}>
+                        ✓ Enriched
+                      </small>
+                    </div>
+                  )}
+                </div>
+                <Form.Control
+                  as="textarea"
+                  rows={4}
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Enter book description"
+                />
+                {book?._metadataSources && getAvailableSources('description').length > 0 && (
+                  <Form.Text className="text-muted">
+                    {getAvailableSources('description').length} source(s) available
+                  </Form.Text>
+                )}
+              </Form.Group>
+
+            </Col>
+
+            <Col md={4}>
+              <Form.Group className="mb-3">
+                <Form.Label>Cover Image</Form.Label>
+                
+                {/* Cover Selection - Show when multiple covers available */}
+                {availableCovers.length > 1 && !book?.id && (
+                  <div className="mb-3">
+                    <Form.Label style={{ fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.6)' }}>
+                      Select Cover ({availableCovers.length} available)
+                    </Form.Label>
+                    <div style={{ 
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+                      gap: '10px',
+                      padding: '10px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '6px',
+                      maxWidth: '100%'
+                    }}>
+                      {availableCovers.map((cover, index) => (
+                        <div
+                          key={index}
+                          onClick={() => {
+                            setSelectedCoverIndex(index);
+                            setCoverPreview(cover.url);
+                            setFormData(prev => ({ ...prev, coverUrl: cover.url }));
+                          }}
+                          style={{
+                            position: 'relative',
+                            cursor: 'pointer',
+                            border: selectedCoverIndex === index 
+                              ? '3px solid rgba(251, 191, 36, 0.9)' 
+                              : '2px solid rgba(255, 255, 255, 0.15)',
+                            borderRadius: '6px',
+                            overflow: 'hidden',
+                            width: '100%',
+                            aspectRatio: '2/3',
+                            backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                            transition: 'all 0.2s ease',
+                            boxShadow: selectedCoverIndex === index 
+                              ? '0 0 0 1px rgba(251, 191, 36, 0.4)' 
+                              : 'none'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (selectedCoverIndex !== index) {
+                              e.currentTarget.style.borderColor = 'rgba(251, 191, 36, 0.5)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (selectedCoverIndex !== index) {
+                              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                            }
+                          }}
+                        >
+                          <img 
+                            src={cover.url} 
+                            alt={`Cover ${index + 1}`}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              cursor: 'pointer'
+                            }}
+                            onLoad={(e) => handleImageLoad(cover.url, e)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCoverClick(cover.url, cover.type === 'back' ? 'Back Cover' : 'Front Cover');
+                            }}
+                          />
+                          {selectedCoverIndex === index && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '4px',
+                              right: '4px',
+                              backgroundColor: 'rgba(251, 191, 36, 0.95)',
+                              borderRadius: '50%',
+                              width: '24px',
+                              height: '24px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#1a202c',
+                              fontSize: '14px',
+                              fontWeight: 'bold'
+                            }}>
+                              ✓
+                            </div>
+                          )}
+                          <div style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                            color: 'rgba(255, 255, 255, 0.85)',
+                            fontSize: '9px',
+                            padding: '3px 4px',
+                            textAlign: 'center',
+                            borderRadius: '0 0 4px 4px',
+                            lineHeight: '1.1'
+                          }}>
+                            <div style={{ fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {cover.source} {cover.type === 'back' ? '(Back)' : ''}
+                            </div>
+                            {imageDimensions[cover.url] && (
+                              <div style={{ fontSize: '8px', opacity: 0.8, marginTop: '1px' }}>
+                                {formatImageSize(imageDimensions[cover.url].width, imageDimensions[cover.url].height)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div
+                  className={`cover-upload-area ${isDragging ? 'dragging' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => book?.id && fileInputRef.current?.click()}
+                  style={{ cursor: book?.id ? 'pointer' : 'not-allowed', opacity: book?.id ? 1 : 0.5 }}
+                >
+                  {coverPreview ? (
+                    <img 
+                      src={coverPreview.startsWith('http') ? coverPreview : bookService.getImageUrl(coverPreview)} 
+                      alt="Cover preview" 
+                      className="cover-preview"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {
+                        const coverUrl = coverPreview.startsWith('http') ? coverPreview : bookService.getImageUrl(coverPreview);
+                        handleCoverClick(coverUrl, 'Cover');
+                      }}
+                      onLoad={(e) => {
+                        const coverUrl = coverPreview.startsWith('http') ? coverPreview : bookService.getImageUrl(coverPreview);
+                        handleImageLoad(coverUrl, e);
+                      }}
+                    />
+                  ) : (
+                    <div className="cover-placeholder">
+                      <BsUpload size={48} />
+                      <p>{book?.id ? 'Click or drag to upload cover' : 'Save book first to upload cover'}</p>
+                    </div>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                  disabled={!book?.id || uploadingCover}
+                />
+                {uploadingCover && (
+                  <div className="upload-progress">
+                    <div className="spinner-border spinner-border-sm" role="status">
+                      <span className="visually-hidden">Uploading...</span>
+                    </div>
+                    <span className="ms-2">Uploading...</span>
+                  </div>
+                )}
+              </Form.Group>
+            </Col>
+          </Row>
+        </Modal.Body>
+      )}
+        
+      {!inline && (
+        <Modal.Footer>
+          <Button variant="secondary" onClick={onCancel} disabled={loading}>
+            Cancel
+          </Button>
+          <Button variant="warning" type="submit" disabled={loading} style={{ backgroundColor: '#fbbf24', borderColor: '#fbbf24', color: '#1a202c' }}>
+            {loading ? 'Saving...' : (book?.id ? 'Update Book' : 'Create Book')}
+          </Button>
+        </Modal.Footer>
+      )}
+      </Form>
+  );
+
+  if (inline) {
+    return (
+      <>
+        {formContent}
+        <CoverModal
+          isOpen={showCoverModal}
+          onClose={handleCloseCoverModal}
+          coverUrl={coverModalData.coverUrl}
+          title={coverModalData.title}
+          artist={coverModalData.author}
+          coverType={coverModalData.coverType || 'Cover'}
+        />
+      </>
+    );
+  }
+
+  return (
+    <Modal 
+      show={true} 
+      onHide={onCancel} 
+      size="lg" 
+      centered 
+      style={{ zIndex: 10100 }}
+      className="book-form-modal"
+    >
+      {formContent}
+      
+      <CoverModal
+        isOpen={showCoverModal}
+        onClose={handleCloseCoverModal}
+        coverUrl={coverModalData.coverUrl}
+        title={coverModalData.title}
+        artist={coverModalData.author}
+        coverType={coverModalData.coverType || 'Cover'}
+      />
+    </Modal>
+  );
+};
+
+export default BookForm;
+

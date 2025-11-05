@@ -1,0 +1,49 @@
+.comments-list-group {
+  background-color: transparent;
+  border: none;
+}
+
+.comment-list-item {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-left: 3px solid #6ba3ff !important;
+  border-radius: 0.25rem !important;
+  margin-bottom: 0.5rem;
+  padding: 0.75rem !important;
+}
+
+.comment-list-item:last-child {
+  margin-bottom: 0;
+}
+
+.comment-name {
+  color: #f8f9fa;
+  font-weight: 600;
+}
+
+.comment-date {
+  color: #b0b0b0;
+  font-size: 0.875rem;
+}
+
+.comment-text {
+  color: #e0e0e0;
+  white-space: pre-wrap;
+  margin-top: 0.5rem;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.comment-actions .btn-link {
+  text-decoration: none;
+  padding: 0.25rem;
+  min-width: auto;
+}
+
+.comment-actions .btn-link:hover {
+  opacity: 0.8;
+}
+

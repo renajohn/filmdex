@@ -1,0 +1,716 @@
+/* Book Detail Modal specific styling - match MusicDetailCard width */
+.book-detail-modal {
+  overflow: hidden !important;
+}
+
+/* Prevent backdrop from scrolling */
+.book-detail-modal + .modal-backdrop,
+.modal-backdrop.show {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 10099 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+  pointer-events: auto !important;
+}
+
+.book-detail-modal .modal-dialog {
+  margin: 0.5rem auto;
+  max-width: 800px; /* Match MusicDetailCard width */
+  width: 100%;
+  z-index: 10100;
+  position: relative;
+  max-height: 90vh !important;
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  box-sizing: border-box;
+  /* Prevent horizontal overflow */
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.book-detail-modal .modal-content {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  position: relative;
+  height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  /* Prevent horizontal overflow at the modal level */
+  min-width: 0;
+}
+
+.book-detail-modal .modal-body.book-detail-modal-body {
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  padding: 1rem;
+  /* Ensure fixed height on all screen sizes for scrolling */
+  max-height: calc(90vh - 120px) !important; /* Account for header and footer */
+  height: calc(90vh - 120px) !important;
+  /* Force height on large screens too */
+  min-height: 400px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  /* Prevent horizontal overflow */
+  min-width: 0;
+}
+
+.book-detail-modal .modal-body.book-detail-modal-body .book-detail-slider {
+  height: 100% !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: visible;
+  position: relative;
+  display: flex;
+  width: 300%;
+  max-width: 300%;
+  box-sizing: border-box;
+}
+
+/* Sliding view animation */
+.book-detail-slider {
+  display: flex;
+  width: 300%;
+  transition: transform 0.3s ease-in-out;
+  will-change: transform;
+  height: 100%;
+  position: relative;
+}
+
+/* Default position: show detail view (middle) */
+.book-detail-slider {
+  transform: translateX(-33.33%);
+}
+
+/* Edit view position: slide right to show edit (left side) */
+.book-detail-slider.slided-right {
+  transform: translateX(0%);
+}
+
+/* Volumes view position: slide left to show volumes (right side) */
+.book-detail-slider.slided-left {
+  transform: translateX(-66.66%);
+}
+
+.book-detail-view,
+.book-volumes-view,
+.book-edit-view {
+  width: 33.33%;
+  max-width: 33.33%;
+  flex-shrink: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-in-out;
+  overflow-y: hidden;
+  overflow-x: hidden;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.book-edit-view {
+  left: 0;
+}
+
+.book-detail-view {
+  left: 33.33%;
+}
+
+.book-volumes-view {
+  left: 66.66%;
+}
+
+.book-detail-view.active,
+.book-volumes-view.active,
+.book-edit-view.active {
+  opacity: 1;
+  pointer-events: auto;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  max-height: 100% !important;
+  height: 100% !important;
+  padding-right: 0.5rem; /* Add padding for scrollbar */
+  box-sizing: border-box;
+  /* Ensure scrolling works on all screen sizes */
+  min-height: 0;
+  flex: 1 1 auto;
+  /* Force scrolling by ensuring content can overflow */
+  display: block;
+  /* Ensure height constraint is applied */
+  overflow: auto !important;
+  /* Critical: ensure this view never exceeds the modal body width */
+  /* When active, it should be constrained to 33.33% of slider (which equals 100% of modal body) */
+  width: 33.33% !important;
+  max-width: 33.33% !important;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  /* Ensure all child elements respect width constraints */
+  min-width: 0;
+  /* Prevent any horizontal overflow */
+  overflow-x: hidden !important;
+}
+
+/* Additional constraint: ensure active view content never exceeds parent */
+.book-detail-modal-body .book-detail-view.active > *,
+.book-detail-modal-body .book-volumes-view.active > *,
+.book-detail-modal-body .book-edit-view.active > * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* BookForm inline styling when used in edit view */
+.book-edit-form-container {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.book-form-inline-body {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* Ensure scrolling works on all screen sizes - desktop */
+@media (min-width: 769px) {
+  .book-detail-modal .modal-dialog {
+    max-height: 90vh !important;
+    height: auto !important;
+  }
+  
+  .book-detail-modal .modal-content {
+    max-height: 90vh !important;
+    height: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  .book-detail-modal .modal-body.book-detail-modal-body {
+    max-height: calc(90vh - 120px) !important;
+    height: calc(90vh - 120px) !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+  
+  .book-detail-modal .modal-body.book-detail-modal-body .book-detail-slider {
+    height: 100% !important;
+    max-height: 100% !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+  }
+  
+  .book-detail-view.active,
+  .book-volumes-view.active,
+  .book-edit-view.active {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    max-height: 100% !important;
+    height: 100% !important;
+    display: block !important;
+    /* Ensure it never exceeds parent width - 33.33% of slider = 100% of modal body */
+    width: 33.33% !important;
+    max-width: 33.33% !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .book-detail-modal .modal-dialog {
+    margin: 0 !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    width: 100vw !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+  }
+  
+  .book-detail-modal .modal-content {
+    max-height: 100vh !important;
+    overflow-y: auto;
+    overflow-x: hidden !important;
+    border-radius: 0 !important; /* Remove rounded corners on mobile */
+    height: 100vh !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    box-sizing: border-box;
+  }
+  
+  .book-detail-modal .modal-body {
+    padding: 1rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden !important;
+  }
+  
+  .book-detail-modal .modal-header {
+    padding: 1rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .book-detail-modal .modal-footer {
+    padding: 1rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  /* Ensure modal backdrop covers full screen */
+  .book-detail-modal + .modal-backdrop {
+    width: 100vw !important;
+    height: 100vh !important;
+  }
+  
+  /* Override Bootstrap modal-lg class on small screens */
+  .book-detail-modal.modal-lg .modal-dialog {
+    max-width: 100vw !important;
+    width: 100vw !important;
+  }
+  
+  /* Force full screen positioning */
+  .book-detail-modal .modal-dialog.modal-dialog-centered {
+    margin: 0 !important;
+    transform: none !important;
+  }
+  
+  /* Ensure all content respects width on mobile */
+  .book-detail-modal .row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  .book-detail-modal .col-md-3,
+  .book-detail-modal .col-md-9 {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+.book-detail-modal .book-cover-container {
+  margin-bottom: 1rem;
+}
+
+.book-detail-modal .book-cover-container > div[style*="position: relative"] {
+  overflow: hidden !important;
+  border-radius: 4px;
+}
+
+.book-cover-image {
+  width: 100%;
+  max-width: 200px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.book-cover-clickable {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.book-cover-clickable:hover {
+  transform: scale(1.05);
+}
+
+.book-cover-placeholder {
+  width: 100%;
+  max-width: 200px;
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+  color: #999;
+}
+
+.book-details {
+  padding-left: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  min-width: 0; /* Allow flex items to shrink below content size */
+}
+
+/* Ensure Bootstrap rows and columns respect width constraints */
+.book-detail-modal .row {
+  margin-left: 0;
+  margin-right: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.book-detail-modal .col-md-3,
+.book-detail-modal .col-md-9 {
+  padding-left: 8px;
+  padding-right: 8px;
+  min-width: 0; /* Allow columns to shrink */
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Book title styling - match music detail modal title */
+.book-detail-modal .modal-title {
+  color: #f8f9fa !important;
+  font-weight: 600 !important;
+}
+
+.book-author {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  color: #e2e8f0; /* Match album artist color */
+  font-weight: 500;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+.book-author strong {
+  color: #f8f9fa; /* White/light for labels */
+}
+
+.book-author-section,
+.book-artist-section {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  color: #e2e8f0; /* Match album artist color */
+  font-weight: 500;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+.book-author-section strong,
+.book-artist-section strong {
+  color: #f8f9fa; /* White/light for labels */
+}
+
+.clickable-author {
+  cursor: pointer;
+  color: #6ba3ff; /* Lighter blue for dark backgrounds */
+  text-decoration: underline;
+}
+
+.clickable-author:hover {
+  color: #8bb5ff; /* Even lighter on hover */
+}
+
+.clickable-series {
+  cursor: pointer;
+  color: #6ba3ff; /* Lighter blue for dark backgrounds */
+}
+
+.clickable-series:hover {
+  text-decoration: underline;
+  color: #8bb5ff; /* Even lighter on hover */
+}
+
+.metadata-section {
+  margin-bottom: 1rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.metadata-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.metadata-icon {
+  margin-right: 0.5rem;
+  color: #f8f9fa; /* White/light for icons */
+}
+
+.metadata-label {
+  font-weight: 600;
+  margin-right: 0.5rem;
+  color: #f8f9fa; /* White/light for labels */
+}
+
+.metadata-value {
+  color: #e0e0e0; /* Light gray for dark backgrounds */
+}
+
+.subtitle {
+  margin-bottom: 1rem;
+  color: #e2e8f0; /* Match album artist color */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.subtitle strong {
+  color: #f7fafc; /* Match album title color */
+  font-weight: 700;
+}
+
+.series-section {
+  margin-bottom: 1rem;
+  color: #e0e0e0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.series-section strong {
+  color: #f8f9fa; /* White/light for labels */
+}
+
+.publisher {
+  margin-bottom: 1rem;
+  color: #e0e0e0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.publisher strong {
+  color: #f8f9fa; /* White/light for labels */
+}
+
+.tags-section {
+  margin-bottom: 1rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.tags-label {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #f8f9fa; /* White/light for labels */
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  max-width: 100%;
+  overflow-x: hidden;
+  word-wrap: break-word;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.tags-container .badge {
+  max-width: 100%;
+  word-wrap: break-word;
+  white-space: normal;
+  overflow-wrap: break-word;
+  box-sizing: border-box;
+  /* Ensure badges wrap properly */
+  hyphens: auto;
+  word-break: break-word;
+}
+
+.clickable-badge {
+  cursor: pointer;
+}
+
+.description-section {
+  margin-bottom: 1rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.description-section strong {
+  color: #f8f9fa; /* White/light for section headers */
+}
+
+.description-text {
+  margin-top: 0.5rem;
+  color: #e0e0e0; /* Light gray for readability */
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  width: 100%;
+  /* Ensure long words break */
+  hyphens: auto;
+}
+
+.info-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1); /* Light border for dark theme */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.info-section h4 {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+  color: #f8f9fa; /* White/light for headings */
+}
+
+.info-item {
+  margin-bottom: 0.5rem;
+  color: #e0e0e0; /* Light gray for readability */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+.info-item strong {
+  color: #f8f9fa; /* White/light for labels */
+}
+
+.external-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.annotation-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1); /* Light border for dark theme */
+}
+
+.annotation-section strong {
+  color: #f8f9fa; /* White/light for labels */
+}
+
+.annotation-text {
+  margin-top: 0.5rem;
+  color: #e0e0e0; /* Light gray for readability */
+  white-space: pre-wrap;
+}
+
+.comments-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.comments-section strong {
+  color: #f8f9fa;
+}
+
+.comments-list {
+  margin-top: 0.5rem;
+}
+
+.comment-item {
+  padding: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 0.25rem;
+  border-left: 3px solid #6ba3ff;
+}
+
+.comment-name {
+  color: #f8f9fa;
+  font-weight: 600;
+}
+
+.comment-date {
+  color: #b0b0b0;
+  font-size: 0.875rem;
+}
+
+.comment-text {
+  color: #e0e0e0;
+  white-space: pre-wrap;
+  margin-top: 0.5rem;
+}
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.comment-actions .btn-link {
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  line-height: 1;
+}
+
+.comment-actions .btn-link:hover {
+  opacity: 0.8;
+}
+
+/* Borrowed ribbon for detail view - reuse thumbnail ribbon styles */
+.book-cover-container .book-thumbnail-borrowed-ribbon {
+  position: absolute;
+  top: 23px;
+  right: -49px;
+  background: linear-gradient(to bottom right, #bb0000, #941919);
+  color: white;
+  padding: 6px 48px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  transform: rotate(45deg);
+  transform-origin: center;
+  z-index: 5;
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  min-width: 135px;
+  text-align: center;
+  line-height: 1.3;
+}
+

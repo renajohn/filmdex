@@ -44,6 +44,8 @@ const initDatabase = async () => {
           const MovieCollection = require('./models/movieCollection');
           const Album = require('./models/album');
           const Track = require('./models/track');
+          const Book = require('./models/book');
+          const BookComment = require('./models/bookComment');
           
           // Create all tables with their final schema
           await Movie.createTable();
@@ -55,6 +57,8 @@ const initDatabase = async () => {
           await MovieCollection.createTable();
           await Album.createTable();
           await Track.createTable();
+          await Book.createTable();
+          await BookComment.createTable();
           
           // Initialize system collections
           try {

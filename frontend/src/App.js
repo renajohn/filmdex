@@ -5,6 +5,7 @@ import AddMovieDialog from './components/AddMovieDialog';
 import ImportPage from './pages/ImportPage';
 import WishListPage from './pages/WishListPage';
 import MusicDexPage from './pages/MusicDexPage';
+import BookDexPage from './pages/BookDexPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import CogDropdown from './components/CogDropdown';
 import CsvExportDialog from './components/CsvExportDialog';
@@ -12,7 +13,8 @@ import AlbumCsvExportDialog from './components/AlbumCsvExportDialog';
 import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
 import musicService from './services/musicService';
-import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsMusicNote, BsArrowLeft, BsBarChart, BsFilm } from 'react-icons/bs';
+import bookService from './services/bookService';
+import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsMusicNote, BsArrowLeft, BsBarChart, BsFilm, BsBook } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
@@ -21,6 +23,7 @@ function AppContent() {
   const movieSearchRef = useRef(null);
   const wishListRef = useRef(null);
   const musicDexRef = useRef(null);
+  const bookDexRef = useRef(null);
   const searchInputRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -52,11 +55,11 @@ function AppContent() {
   // Check if we're on the thumbnail view (filmdex path)
   const isThumbnailView = location.pathname === '/filmdex';
   
-  // Check if we should show the search bar (filmdex, musicdex, wishlist)
-  const showSearchBar = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/wishlist';
+  // Check if we should show the search bar (filmdex, musicdex, bookdex, wishlist)
+  const showSearchBar = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/bookdex' || location.pathname === '/wishlist';
   
   // Check if we should show the navigation pills (all main sections)
-  const showNavigationPills = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/wishlist' || location.pathname === '/analytics';
+  const showNavigationPills = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/bookdex' || location.pathname === '/wishlist' || location.pathname === '/analytics';
   
   // Get the page title based on current route
   const getPageTitle = () => {
@@ -65,6 +68,8 @@ function AppContent() {
         return 'DexVault';
       case '/musicdex':
         return 'MusicDex';
+      case '/bookdex':
+        return 'BookDex';
       case '/filmdex/import':
         return 'DexVault - CSV Import';
       case '/wishlist':
@@ -78,19 +83,21 @@ function AppContent() {
 
 
   const getAutocompleteOptions = async (text) => {
-    // Different keywords for MusicDex vs DexVault
+    // Different keywords for MusicDex, BookDex vs DexVault
     const keywords = location.pathname === '/musicdex' 
       ? ['title:', 'artist:', 'genre:', 'track:']
-      : [
-          'actor:', 'director:', 'title:', 'collection:', 'box_set:', 'genre:', 'format:', 
-          'original_language:', 'media_type:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=',
-          'imdb_rating:', 'imdb_rating:>', 'imdb_rating:<', 'imdb_rating:>=', 'imdb_rating:<=',
-          'tmdb_rating:', 'tmdb_rating:>', 'tmdb_rating:<', 'tmdb_rating:>=', 'tmdb_rating:<=',
-          'rotten_tomato_rating:', 'rotten_tomato_rating:>', 'rotten_tomato_rating:<', 'rotten_tomato_rating:>=', 'rotten_tomato_rating:<=',
-          'recommended_age:', 'recommended_age:>', 'recommended_age:<', 'recommended_age:>=', 'recommended_age:<=',
-          'price:', 'price:>', 'price:<', 'price:>=', 'price:<=',
-          'has_comments:true', 'has_comments:false'
-        ];
+      : location.pathname === '/bookdex'
+        ? ['title:', 'author:', 'artist:', 'isbn:', 'series:', 'owner:', 'format:', 'language:', 'genre:', 'tag:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=', 'rating:', 'rating:>', 'rating:<', 'rating:>=', 'rating:<=']
+        : [
+            'actor:', 'director:', 'title:', 'collection:', 'box_set:', 'genre:', 'format:', 
+            'original_language:', 'media_type:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=',
+            'imdb_rating:', 'imdb_rating:>', 'imdb_rating:<', 'imdb_rating:>=', 'imdb_rating:<=',
+            'tmdb_rating:', 'tmdb_rating:>', 'tmdb_rating:<', 'tmdb_rating:>=', 'tmdb_rating:<=',
+            'rotten_tomato_rating:', 'rotten_tomato_rating:>', 'rotten_tomato_rating:<', 'rotten_tomato_rating:>=', 'rotten_tomato_rating:<=',
+            'recommended_age:', 'recommended_age:>', 'recommended_age:<', 'recommended_age:>=', 'recommended_age:<=',
+            'price:', 'price:>', 'price:<', 'price:>=', 'price:<=',
+            'has_comments:true', 'has_comments:false'
+          ];
     
     // If text is empty, return all keywords (for the 5-second delay feature)
     if (text.trim() === '') {
@@ -112,7 +119,9 @@ function AppContent() {
     // Check if we're inside a filter value (after a keyword)
     const filterMatch = location.pathname === '/musicdex'
       ? currentWord.match(/^(title|artist|genre|mood|track):(.*)$/)
-      : currentWord.match(/^(actor|director|title|collection|box_set|genre|format|original_language|media_type|imdb_rating|tmdb_rating|rotten_tomato_rating):(.*)$/);
+      : location.pathname === '/bookdex'
+        ? currentWord.match(/^(title|author|artist|isbn|series|owner|format|language|genre|tag|year|rating):(.*)$/)
+        : currentWord.match(/^(actor|director|title|collection|box_set|genre|format|original_language|media_type|imdb_rating|tmdb_rating|rotten_tomato_rating):(.*)$/);
     
     if (filterMatch) {
       const [, filterType, filterValue] = filterMatch;
@@ -129,7 +138,9 @@ function AppContent() {
       try {
         const response = location.pathname === '/musicdex'
           ? await musicService.getAutocompleteSuggestions(filterType, filterValue)
-          : await apiService.getAutocompleteSuggestions(filterType, filterValue);
+          : location.pathname === '/bookdex'
+            ? await bookService.getAutocompleteSuggestions(filterType, filterValue)
+            : await apiService.getAutocompleteSuggestions(filterType, filterValue);
         
         // Extract values from response (backend now returns {field: value} format)
         let values = response.map(item => item[filterType]).filter(value => value && value !== 'undefined');
@@ -147,8 +158,9 @@ function AppContent() {
           }, {});
         }
         
-        // For actors, artists, genres, and moods - we get JSON arrays, so parse them to extract individual names
-        if (filterType === 'actor' || filterType === 'artist' || filterType === 'genre' || filterType === 'mood') {
+        // For actors, artists, genres, moods, authors, and tags - we get JSON arrays, so parse them to extract individual names
+        if (filterType === 'actor' || filterType === 'artist' || filterType === 'genre' || filterType === 'mood' || filterType === 'author' || filterType === 'tag') {
+          // Note: 'artist' here could be MusicDex artist or BookDex artist - handled by backend
           values = values.map(cast => {
             if (typeof cast === 'string') {
               try {
@@ -166,6 +178,12 @@ function AppContent() {
           values = values.filter(item => 
             item && typeof item === 'string' && item.toLowerCase().includes(searchTerm)
           );
+        }
+        
+        // Handle numeric filters for books (year, rating)
+        if (location.pathname === '/bookdex' && (filterType === 'year' || filterType === 'rating')) {
+          // For numeric filters, don't show autocomplete suggestions
+          return [];
         }
         
         // Remove duplicates and limit to 20
@@ -416,7 +434,14 @@ function AppContent() {
         'genre': '(Genre)',
         'format': '(Format)',
         'original_language': '(Language)',
-        'media_type': '(Media Type)'
+        'media_type': '(Media Type)',
+        'author': '(Author)',
+        'artist': '(Artist/Illustrator)',
+        'isbn': '(ISBN)',
+        'series': '(Series)',
+        'owner': '(Owner)',
+        'language': '(Language)',
+        'tag': '(Tag)'
       };
       return hintMap[option.filterType] || '';
     } else {
@@ -426,7 +451,30 @@ function AppContent() {
             'artist:': 'Search by artist name',
             'genre:': 'Search by genre'
           }
-        : {
+        : location.pathname === '/bookdex'
+          ? {
+              'title:': 'Search by book title',
+              'author:': 'Search by author name',
+              'artist:': 'Search by artist/illustrator name',
+              'isbn:': 'Search by ISBN',
+              'series:': 'Search by series name',
+              'owner:': 'Search by owner',
+              'format:': 'Search by format',
+              'language:': 'Search by language',
+              'genre:': 'Search by genre',
+              'tag:': 'Search by tag',
+              'year:': 'Exact year match',
+              'year:>': 'Year greater than',
+              'year:<': 'Year less than',
+              'year:>=': 'Year greater or equal',
+              'year:<=': 'Year less or equal',
+              'rating:': 'Exact rating match',
+              'rating:>': 'Rating greater than',
+              'rating:<': 'Rating less than',
+              'rating:>=': 'Rating greater or equal',
+              'rating:<=': 'Rating less or equal'
+            }
+          : {
             'actor:': 'Search by actor name',
             'director:': 'Search by director name',
             'title:': 'Search by movie title',
@@ -578,6 +626,35 @@ function AppContent() {
 
   const handleMusicDex = () => {
     navigate('/musicdex');
+  };
+
+  const handleBookDex = () => {
+    navigate('/bookdex');
+  };
+
+  const handleAddBook = () => {
+    // Trigger the Add Book dialog in BookDexPage
+    if (bookDexRef.current && bookDexRef.current.openAddDialog) {
+      bookDexRef.current.openAddDialog();
+    }
+  };
+
+  const handleExportBooksCSV = async () => {
+    try {
+      const blob = await bookService.exportBooksCSV();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'books.csv';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      handleShowAlert('CSV exported successfully', 'success');
+    } catch (error) {
+      console.error('CSV export error:', error);
+      handleShowAlert('Failed to export CSV: ' + error.message, 'danger');
+    }
   };
 
   const handleAddCD = () => {
@@ -831,6 +908,13 @@ function AppContent() {
                   <BsMusicNote className="segment-icon" />
                 </button>
                 <button 
+                  className={`segment ${location.pathname === '/bookdex' ? 'active' : ''}`}
+                  onClick={handleBookDex}
+                  data-tooltip="BookDex - My precious books"
+                >
+                  <BsBook className="segment-icon" />
+                </button>
+                <button 
                   className={`segment ${location.pathname === '/wishlist' ? 'active' : ''}`}
                   onClick={handleWishList}
                   data-tooltip="Wish List - My precious to come"
@@ -862,7 +946,9 @@ function AppContent() {
                 onResizeCovers={handleResizeCovers}
                 onFillCovers={handleFillCovers}
                 onExportAlbumsCSV={handleExportAlbumsCSV}
-                currentPage={location.pathname === '/musicdex' ? 'musicdex' : 'filmdex'}
+                onAddBook={handleAddBook}
+                onExportBooksCSV={handleExportBooksCSV}
+                currentPage={location.pathname === '/musicdex' ? 'musicdex' : location.pathname === '/bookdex' ? 'bookdex' : 'filmdex'}
               />
             </div>
           </div>
@@ -889,9 +975,11 @@ function AppContent() {
                   placeholder={
                     location.pathname === '/musicdex' 
                       ? 'Search MusicDex by title, artist...' 
-                      : location.pathname === '/wishlist' 
-                        ? 'Search wish list by title, director...' 
-                        : 'Search FilmDex by title, director...'
+                      : location.pathname === '/bookdex'
+                        ? 'Search BookDex by title, author...'
+                        : location.pathname === '/wishlist' 
+                          ? 'Search wish list by title, director...' 
+                          : 'Search FilmDex by title, director...'
                   }
                   className="search-input-large"
                   autoComplete="off"
@@ -908,7 +996,7 @@ function AppContent() {
                     <BsX />
                   </button>
                 )}
-                {location.pathname !== '/musicdex' && location.pathname !== '/wishlist' && (
+                {location.pathname !== '/musicdex' && location.pathname !== '/bookdex' && location.pathname !== '/wishlist' && (
                   <button 
                     ref={filterButtonRef}
                     className={`search-filter-button ${showFilterDropdown ? 'active' : ''}`}
@@ -952,7 +1040,7 @@ function AppContent() {
                     ))}
                   </div>
                 )}
-                {showFilterDropdown && location.pathname !== '/wishlist' && (
+                {showFilterDropdown && location.pathname !== '/bookdex' && location.pathname !== '/wishlist' && (
                   <div className="search-filter-dropdown" ref={filterDropdownRef}>
                     <div className="filter-section">
                       <div className="filter-section-title">Age Groups</div>
@@ -1114,6 +1202,7 @@ function AppContent() {
           />
           <Route path="/filmdex/import" element={<ImportPage />} />
           <Route path="/musicdex" element={<MusicDexPage ref={musicDexRef} searchCriteria={searchCriteria} />} />
+          <Route path="/bookdex" element={<BookDexPage ref={bookDexRef} searchCriteria={searchCriteria} />} />
           <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onAddAlbum={handleWishListAddAlbum} onMovieMovedToCollection={handleMovieMovedToCollection} onAlbumMovedToCollection={handleAlbumMovedToCollection} onShowAlert={handleShowAlert} onMovieAdded={handleMovieAdded} onAlbumAdded={handleAlbumAdded} onSearch={handleSearchFromMovieDetail} />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
         </Routes>

@@ -11,6 +11,8 @@ const CogDropdown = ({
   onResizeCovers,
   onFillCovers,
   onExportAlbumsCSV,
+  onAddBook,
+  onExportBooksCSV,
   currentPage = 'dexvault'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -108,6 +110,17 @@ const CogDropdown = ({
               >
                 <BsImage className="menu-icon" />
                 Fill covers
+              </button>
+            </>
+          ) : currentPage === 'bookdex' ? (
+            // BookDex menu
+            <>
+              <button 
+                className="cog-menu-item"
+                onClick={() => handleMenuClick(onExportBooksCSV)}
+              >
+                <BsDownload className="menu-icon" />
+                CSV Export
               </button>
             </>
           ) : (

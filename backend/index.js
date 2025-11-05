@@ -11,6 +11,8 @@ const { importController, uploadMiddleware } = require('./src/controllers/import
 const analyticsController = require('./src/controllers/analyticsController');
 const musicController = require('./src/controllers/musicController');
 const musicService = require('./src/services/musicService');
+const bookController = require('./src/controllers/bookController');
+const bookService = require('./src/services/bookService');
 const Movie = require('./src/models/movie');
 const MovieImport = require('./src/models/movieImport');
 const MovieCast = require('./src/models/movieCast');
@@ -60,6 +62,8 @@ const startServer = async () => {
     
     // Initialize music tables
     await musicService.initializeTables();
+    
+    // Note: Book tables are initialized in database.js during initDatabase()
     
     logger.info('Database initialized successfully');
     logger.info(`Using database: ${configManager.getDatabasePath()}`);
@@ -197,6 +201,34 @@ app.post('/api/music/release/:releaseId', musicController.addAlbumFromMusicBrain
 app.post('/api/music/barcode/:barcode', musicController.addAlbumByBarcode);
 app.post('/api/music/migrate/resize-covers', musicController.resizeAllAlbumCovers);
 app.get('/api/music/albums/:id/apple-music', musicController.getAppleMusicUrl);
+
+// Book routes
+app.get('/api/books', bookController.getAllBooks);
+app.get('/api/books/search', bookController.searchBooks);
+app.get('/api/books/search/external', bookController.searchExternalBooks);
+app.get('/api/books/search/series', bookController.searchSeriesVolumes);
+app.get('/api/books/series', bookController.getBooksBySeries);
+app.get('/api/books/status/:status', bookController.getBooksByStatus);
+app.get('/api/books/export/csv', bookController.exportCSV);
+app.get('/api/books/autocomplete', bookController.getAutocompleteSuggestions); // Must come before /:id route
+app.post('/api/books', bookController.addBook);
+app.post('/api/books/batch', bookController.addBooksBatch);
+app.post('/api/books/enrich', bookController.enrichBook);
+
+// Book comment routes - Must come before /:id route
+const bookCommentController = require('./src/controllers/bookCommentController');
+app.get('/api/books/comments/autocomplete/names', bookCommentController.getCommentNameSuggestions);
+app.get('/api/books/comments/:id', bookCommentController.getCommentById);
+app.post('/api/books/comments', bookCommentController.createComment);
+app.put('/api/books/comments/:id', bookCommentController.updateComment);
+app.delete('/api/books/comments/:id', bookCommentController.deleteComment);
+app.get('/api/books/:bookId/comments', bookCommentController.getCommentsByBookId); // Must come after /comments/:id
+
+app.get('/api/books/:id', bookController.getBookById);
+app.put('/api/books/:id', bookController.updateBook);
+app.put('/api/books/:id/status', bookController.updateBookStatus);
+app.delete('/api/books/:id', bookController.deleteBook);
+app.post('/api/books/:id/upload-cover', bookController.coverUploadMiddleware, bookController.uploadCustomCover);
 
 // Configuration endpoint for frontend
 app.get('/api/config', (req, res) => {
