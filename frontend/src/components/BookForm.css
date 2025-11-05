@@ -1,23 +1,23 @@
 .book-form-modal .cover-upload-area {
   width: 100%;
   min-height: 300px;
-  border: 2px dashed #dee2e6;
+  border: 2px dashed rgba(255, 255, 255, 0.3);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  background-color: #f8f9fa;
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .cover-upload-area:hover {
-  border-color: #007bff;
-  background-color: #e7f3ff;
+  border-color: rgba(251, 191, 36, 0.6);
+  background-color: rgba(251, 191, 36, 0.1);
 }
 
 .cover-upload-area.dragging {
-  border-color: #007bff;
-  background-color: #e7f3ff;
+  border-color: rgba(251, 191, 36, 0.8);
+  background-color: rgba(251, 191, 36, 0.15);
 }
 
 .cover-preview {
@@ -28,20 +28,27 @@
 
 .cover-placeholder {
   text-align: center;
-  color: #999;
+  color: rgba(255, 255, 255, 0.7);
   padding: 20px;
 }
 
 .cover-placeholder p {
   margin-top: 10px;
   font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.cover-placeholder small,
+.cover-placeholder .text-muted,
+.cover-upload-area .text-muted {
+  color: rgba(255, 255, 255, 0.5) !important;
 }
 
 .upload-progress {
   display: flex;
   align-items: center;
   margin-top: 10px;
-  color: #666;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 

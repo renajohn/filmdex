@@ -782,7 +782,10 @@ const BookSearch = forwardRef(({
           onUpdateBook={onUpdateBook}
           onBookUpdated={async (bookId) => {
             try {
+              console.log('BookSearch: Refreshing book data for ID:', bookId);
               const updatedBook = await bookService.getBookById(bookId);
+              console.log('BookSearch: Updated book data:', updatedBook);
+              console.log('BookSearch: ebookFile value:', updatedBook?.ebookFile);
               setSelectedBookDetails(updatedBook);
             } catch (err) {
               console.error('Failed to reload book details after update:', err);

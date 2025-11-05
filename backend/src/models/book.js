@@ -38,6 +38,7 @@ const Book = {
             description TEXT,
             urls TEXT,
             annotation TEXT,
+            ebook_file TEXT,
             title_status TEXT DEFAULT 'owned' CHECK(title_status IN ('owned', 'wish')),
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -59,6 +60,7 @@ const Book = {
             }
             
             const hasArtistsColumn = columns.some(col => col.name === 'artists');
+            const hasEbookFileColumn = columns.some(col => col.name === 'ebook_file');
             
             // If artists column doesn't exist, add it
             if (!hasArtistsColumn) {
@@ -69,10 +71,27 @@ const Book = {
                   return reject(alterErr);
                 }
                 console.log('Added artists column successfully');
-                createIndexes();
+                checkEbookFileColumn();
               });
             } else {
-              createIndexes();
+              checkEbookFileColumn();
+            }
+            
+            function checkEbookFileColumn() {
+              // If ebook_file column doesn't exist, add it
+              if (!hasEbookFileColumn) {
+                console.log('Adding missing ebook_file column to books table...');
+                db.run(`ALTER TABLE books ADD COLUMN ebook_file TEXT`, (alterErr) => {
+                  if (alterErr) {
+                    console.error('Error adding ebook_file column:', alterErr);
+                    return reject(alterErr);
+                  }
+                  console.log('Added ebook_file column successfully');
+                  createIndexes();
+                });
+              } else {
+                createIndexes();
+              }
             }
           });
           
@@ -496,7 +515,7 @@ const Book = {
   },
 
   update: (id, bookData) => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const db = getDatabase();
       const now = new Date().toISOString();
       
@@ -517,6 +536,14 @@ const Book = {
         } catch (_) { return {}; }
       };
 
+      // Get existing book to preserve ebook_file if not provided
+      let existingBook = null;
+      try {
+        existingBook = await Book.findById(id);
+      } catch (err) {
+        console.warn('Could not fetch existing book to preserve ebook_file:', err.message);
+      }
+
       const sql = `
         UPDATE books SET
           isbn = ?, isbn13 = ?, title = ?, subtitle = ?, authors = ?, artists = ?, publisher = ?,
@@ -524,9 +551,16 @@ const Book = {
           narrator = ?, runtime = ?, series = ?, series_number = ?, genres = ?,
           tags = ?, rating = ?, cover = ?, owner = ?, borrowed = ?, borrowed_date = ?,
           returned_date = ?, borrowed_notes = ?, page_count = ?, description = ?,
-          urls = ?, annotation = ?, title_status = ?, updated_at = ?
+          urls = ?, annotation = ?, ebook_file = ?, title_status = ?, updated_at = ?
         WHERE id = ?
       `;
+
+      // Preserve ebook_file if not provided in bookData (undefined means preserve, null means clear)
+      const ebookFile = bookData.ebookFile !== undefined 
+        ? (bookData.ebookFile || null)
+        : (existingBook?.ebookFile || existingBook?.ebook_file || null);
+
+      console.log(`Book.update - book ${id}: ebookFile in bookData: ${bookData.ebookFile}, preserving: ${ebookFile}`);
 
       const params = [
         bookData.isbn || null,
@@ -558,6 +592,7 @@ const Book = {
         bookData.description || null,
         JSON.stringify(sanitizeUrls(bookData.urls || {})),
         bookData.annotation || null,
+        ebookFile,
         bookData.titleStatus || 'owned',
         now,
         id
@@ -587,6 +622,30 @@ const Book = {
           reject(err);
         } else {
           resolve({ id, cover: coverPath, updated_at: now });
+        }
+      });
+    });
+  },
+
+  updateEbookFile: (id, ebookFilePath) => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const now = new Date().toISOString();
+      
+      const sql = 'UPDATE books SET ebook_file = ?, updated_at = ? WHERE id = ?';
+      
+      console.log(`Updating ebook_file for book ${id} with filename: ${ebookFilePath}`);
+      
+      db.run(sql, [ebookFilePath, now, id], function(err) {
+        if (err) {
+          console.error(`Error updating ebook_file for book ${id}:`, err);
+          reject(err);
+        } else {
+          console.log(`Successfully updated ebook_file for book ${id}. Changes: ${this.changes}`);
+          if (this.changes === 0) {
+            console.warn(`Warning: No rows updated for book ${id}. Book may not exist.`);
+          }
+          resolve({ id, ebook_file: ebookFilePath, updated_at: now, changes: this.changes });
         }
       });
     });
@@ -687,6 +746,7 @@ const Book = {
       description: row.description,
       urls: JSON.parse(row.urls || '{}'),
       annotation: row.annotation,
+      ebookFile: row.ebook_file,
       titleStatus: row.title_status,
       createdAt: row.created_at,
       updatedAt: row.updated_at

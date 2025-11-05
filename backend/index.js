@@ -60,6 +60,18 @@ const startServer = async () => {
     // Initialize services with configuration
     await imageService.init();
     
+    // Initialize ebooks directory
+    try {
+      const ebooksDir = configManager.getEbooksPath();
+      if (!fs.existsSync(ebooksDir)) {
+        fs.mkdirSync(ebooksDir, { recursive: true });
+        logger.info(`Created ebooks directory: ${ebooksDir}`);
+      }
+    } catch (error) {
+      logger.warn('Failed to initialize ebooks directory:', error.message);
+      // Don't block initialization if ebooks directory creation fails
+    }
+    
     // Initialize music tables
     await musicService.initializeTables();
     
@@ -68,6 +80,7 @@ const startServer = async () => {
     logger.info('Database initialized successfully');
     logger.info(`Using database: ${configManager.getDatabasePath()}`);
     logger.info(`Using images directory: ${configManager.getImagesPath()}`);
+    logger.info(`Using ebooks directory: ${configManager.getEbooksPath()}`);
   } catch (error) {
     logger.error('Failed to initialize database:', error);
     process.exit(1);
@@ -229,6 +242,10 @@ app.put('/api/books/:id', bookController.updateBook);
 app.put('/api/books/:id/status', bookController.updateBookStatus);
 app.delete('/api/books/:id', bookController.deleteBook);
 app.post('/api/books/:id/upload-cover', bookController.coverUploadMiddleware, bookController.uploadCustomCover);
+app.post('/api/books/:id/upload-ebook', bookController.ebookUploadMiddleware, bookController.uploadEbook);
+app.get('/api/books/:id/ebook/info', bookController.getEbookInfo);
+app.get('/api/books/:id/ebook/download', bookController.downloadEbook);
+app.delete('/api/books/:id/ebook', bookController.deleteEbook);
 
 // Configuration endpoint for frontend
 app.get('/api/config', (req, res) => {

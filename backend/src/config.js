@@ -111,6 +111,11 @@ class ConfigManager {
     return path.join(this.getDataPath(), 'images');
   }
 
+  // Get ebooks directory path
+  getEbooksPath() {
+    return path.join(this.getDataPath(), 'ebooks');
+  }
+
   // Get API keys
   // Environment variables take precedence over options.json values
   getApiKeys() {

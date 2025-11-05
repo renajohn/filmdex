@@ -615,6 +615,12 @@
   color: #f8f9fa; /* White/light for labels */
 }
 
+/* Ebook info metadata - ensure good contrast */
+.info-section .ebook-info-meta {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-size: 0.875rem;
+}
+
 .external-links {
   display: flex;
   flex-wrap: wrap;

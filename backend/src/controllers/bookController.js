@@ -3,8 +3,18 @@ const path = require('path');
 const fs = require('fs');
 const bookService = require('../services/bookService');
 const imageService = require('../services/imageService');
+const configManager = require('../config');
 const Book = require('../models/book');
 const logger = require('../logger');
+
+// Helper function to format file size
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+};
 
 // Configure multer for cover uploads
 const storage = multer.diskStorage({
@@ -36,6 +46,60 @@ const coverUpload = multer({
       cb(null, true);
     } else {
       cb(new Error('Only JPEG, PNG, and WebP images are allowed'), false);
+    }
+  }
+});
+
+// Configure multer for ebook uploads
+const ebookStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    let ebookDir;
+    try {
+      ebookDir = configManager.getEbooksPath();
+    } catch (error) {
+      // Fallback to default if config not loaded
+      ebookDir = path.join(__dirname, '..', '..', 'data', 'ebooks');
+    }
+    // Ensure directory exists
+    if (!fs.existsSync(ebookDir)) {
+      fs.mkdirSync(ebookDir, { recursive: true });
+    }
+    cb(null, ebookDir);
+  },
+  filename: (req, file, cb) => {
+    const bookId = req.params.id;
+    const timestamp = Date.now();
+    const ext = path.extname(file.originalname).toLowerCase() || path.extname(file.originalname);
+    let originalName = path.basename(file.originalname, ext);
+    // Remove quotes (straight, curly, or smart quotes) from start and end before sanitizing
+    originalName = originalName.replace(/^[""'']+|[""'']+$/g, '').trim();
+    // Sanitize filename - replace any remaining special characters with underscores
+    const sanitizedName = originalName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    cb(null, `book_${bookId}_${timestamp}_${sanitizedName}${ext}`);
+  }
+});
+
+const ebookUpload = multer({
+  storage: ebookStorage,
+  limits: {
+    fileSize: 100 * 1024 * 1024 // 100MB max for ebooks
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept common ebook formats
+    const allowedTypes = [
+      'application/epub+zip',
+      'application/x-mobipocket-ebook',
+      'application/pdf',
+      'application/x-fictionbook+xml',
+      'text/plain'
+    ];
+    const allowedExtensions = ['.epub', '.mobi', '.azw', '.pdf', '.fb2', '.txt'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    
+    if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only EPUB, MOBI, AZW, PDF, FB2, and TXT files are allowed'), false);
     }
   }
 });
@@ -329,6 +393,229 @@ const bookController = {
 
   // Middleware for cover upload
   coverUploadMiddleware: coverUpload.single('cover'),
+
+  // Upload ebook file for a book
+  uploadEbook: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const bookId = parseInt(id, 10);
+      
+      if (isNaN(bookId)) {
+        logger.error(`Invalid book ID: ${id}`);
+        return res.status(400).json({ error: 'Invalid book ID' });
+      }
+      
+      if (!req.file) {
+        logger.warn(`No file uploaded for book ${bookId}`);
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const file = req.file;
+      logger.info(`Uploading ebook for book ${bookId}: ${file.filename}`);
+
+      // Verify book exists first
+      try {
+        const existingBook = await Book.findById(bookId);
+        if (!existingBook) {
+          logger.error(`Book ${bookId} not found`);
+          return res.status(404).json({ error: 'Book not found' });
+        }
+        logger.info(`Book ${bookId} found, current ebook_file: ${existingBook.ebookFile || 'none'}`);
+      } catch (checkError) {
+        logger.error(`Error checking book ${bookId}:`, checkError);
+        return res.status(500).json({ error: 'Failed to verify book exists' });
+      }
+
+      // Update only the ebook_file field
+      try {
+        const result = await Book.updateEbookFile(bookId, file.filename);
+        logger.info(`Successfully updated ebook_file for book ${bookId}: ${file.filename}`, result);
+        
+        if (result.changes === 0) {
+          logger.warn(`Warning: No rows were updated for book ${bookId}`);
+        }
+      } catch (dbError) {
+        logger.error(`Database error updating ebook_file for book ${bookId}:`, dbError);
+        logger.error(`Database error stack:`, dbError.stack);
+        throw dbError;
+      }
+
+      // Verify the update by fetching the book
+      try {
+        const updatedBook = await Book.findById(bookId);
+        logger.info(`Verified update - book ${bookId} ebook_file:`, updatedBook?.ebookFile || updatedBook?.ebook_file);
+        
+        if (!updatedBook?.ebookFile && !updatedBook?.ebook_file) {
+          logger.error(`Update verification failed - ebook_file is still empty for book ${bookId}`);
+        }
+      } catch (verifyError) {
+        logger.warn(`Could not verify ebook_file update for book ${bookId}:`, verifyError.message);
+      }
+
+      res.json({
+        success: true,
+        filename: file.filename,
+        originalName: req.file.originalname,
+        size: file.size,
+        mimetype: file.mimetype
+      });
+    } catch (error) {
+      logger.error('Error uploading ebook:', error);
+      logger.error('Error stack:', error.stack);
+      res.status(500).json({ error: 'Failed to upload ebook: ' + error.message });
+    }
+  },
+
+  // Get ebook file info
+  getEbookInfo: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const bookId = parseInt(id, 10);
+      
+      if (isNaN(bookId)) {
+        return res.status(400).json({ error: 'Invalid book ID' });
+      }
+      
+      const book = await Book.findById(bookId);
+      if (!book) {
+        return res.status(404).json({ error: 'Book not found' });
+      }
+
+      if (!book.ebookFile) {
+        return res.status(404).json({ error: 'No ebook file found for this book' });
+      }
+
+      let ebookDir;
+      try {
+        ebookDir = configManager.getEbooksPath();
+      } catch (error) {
+        ebookDir = path.join(__dirname, '..', '..', 'data', 'ebooks');
+      }
+      const filePath = path.join(ebookDir, book.ebookFile);
+
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'Ebook file not found on server' });
+      }
+
+      const stats = fs.statSync(filePath);
+      const ext = path.extname(book.ebookFile).toLowerCase();
+      const formatMap = {
+        '.epub': 'EPUB',
+        '.mobi': 'MOBI',
+        '.azw': 'AZW',
+        '.pdf': 'PDF',
+        '.fb2': 'FB2',
+        '.txt': 'TXT'
+      };
+      const format = formatMap[ext] || ext.toUpperCase().replace('.', '');
+      // Extract original filename: format is book_{id}_{timestamp}_{originalName}
+      // Split by underscore and take everything after index 3 (book, id, timestamp)
+      const parts = book.ebookFile.split('_');
+      let originalFilename = parts.slice(3).join('_') || book.ebookFile;
+      // Remove any quotes (straight, curly, or smart quotes) from start and end
+      originalFilename = originalFilename.replace(/^[""'']+|[""'']+$/g, '').trim();
+
+      res.json({
+        filename: book.ebookFile,
+        originalName: originalFilename,
+        format: format,
+        size: stats.size,
+        sizeFormatted: formatFileSize(stats.size)
+      });
+    } catch (error) {
+      logger.error('Error getting ebook info:', error);
+      res.status(500).json({ error: 'Failed to get ebook info' });
+    }
+  },
+
+  // Download ebook file
+  downloadEbook: async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Get book to find ebook filename
+      const book = await Book.findById(id);
+      if (!book) {
+        return res.status(404).json({ error: 'Book not found' });
+      }
+
+      if (!book.ebookFile) {
+        return res.status(404).json({ error: 'No ebook file found for this book' });
+      }
+
+      let ebookDir;
+      try {
+        ebookDir = configManager.getEbooksPath();
+      } catch (error) {
+        // Fallback to default if config not loaded
+        ebookDir = path.join(__dirname, '..', '..', 'data', 'ebooks');
+      }
+      const filePath = path.join(ebookDir, book.ebookFile);
+
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'Ebook file not found on server' });
+      }
+
+      // Get original filename if available, otherwise use stored filename
+      let originalFilename = book.ebookFile.split('_').slice(3).join('_') || book.ebookFile;
+      // Remove any quotes (straight, curly, or smart quotes) from start and end
+      originalFilename = originalFilename.replace(/^[""'']+|[""'']+$/g, '').trim();
+      
+      // Set headers for file download
+      res.setHeader('Content-Disposition', `attachment; filename="${originalFilename}"`);
+      res.setHeader('Content-Type', 'application/octet-stream');
+
+      // Stream the file
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.pipe(res);
+    } catch (error) {
+      logger.error('Error downloading ebook:', error);
+      res.status(500).json({ error: 'Failed to download ebook' });
+    }
+  },
+
+  // Delete ebook file
+  deleteEbook: async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Get book to find ebook filename
+      const book = await Book.findById(id);
+      if (!book) {
+        return res.status(404).json({ error: 'Book not found' });
+      }
+
+      if (!book.ebookFile) {
+        return res.status(404).json({ error: 'No ebook file found for this book' });
+      }
+
+      let ebookDir;
+      try {
+        ebookDir = configManager.getEbooksPath();
+      } catch (error) {
+        // Fallback to default if config not loaded
+        ebookDir = path.join(__dirname, '..', '..', 'data', 'ebooks');
+      }
+      const filePath = path.join(ebookDir, book.ebookFile);
+
+      // Delete file if exists
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        logger.info(`Deleted ebook file: ${filePath}`);
+      }
+
+      // Update database to remove ebook_file
+      await Book.updateEbookFile(id, null);
+
+      res.json({ success: true, message: 'Ebook deleted successfully' });
+    } catch (error) {
+      logger.error('Error deleting ebook:', error);
+      res.status(500).json({ error: 'Failed to delete ebook' });
+    }
+  },
+
+  // Middleware for ebook upload
+  ebookUploadMiddleware: ebookUpload.single('ebook'),
 
   // Export books to CSV
   exportCSV: async (req, res) => {

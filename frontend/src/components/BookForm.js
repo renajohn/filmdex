@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Modal, Form, Button, Row, Col, Alert } from 'react-bootstrap';
-import { BsX, BsUpload, BsBook, BsCloudDownload } from 'react-icons/bs';
+import { BsX, BsUpload, BsBook, BsCloudDownload, BsFileEarmark, BsTrash } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import CoverModal from './CoverModal';
 import './BookForm.css';
 
-const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline = false }) => {
+const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline = false, onBookUpdated = null }) => {
   const fileInputRef = useRef(null);
+  const ebookInputRef = useRef(null);
   const ownerInputRef = useRef(null);
   const ownerDropdownRef = useRef(null);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingEbook, setUploadingEbook] = useState(false);
+  const [confirmDeleteEbook, setConfirmDeleteEbook] = useState(false);
   const [coverPreview, setCoverPreview] = useState(null);
   const [selectedCoverIndex, setSelectedCoverIndex] = useState(0);
   const [selectedEditionIndex, setSelectedEditionIndex] = useState(0);
@@ -274,7 +277,8 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
         urls: book.urls || {},
         annotation: book.annotation || '',
         titleStatus: book.titleStatus || 'owned',
-        coverUrl: book.coverUrl || null
+        coverUrl: book.coverUrl || null,
+        ebookFile: book.ebookFile || null
       });
       
       // Set initial cover preview
@@ -330,6 +334,11 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
       }
     }
   }, [selectedMetadataSource.description, book?._metadataSources]);
+
+  // Reset confirmDeleteEbook when book changes
+  useEffect(() => {
+    setConfirmDeleteEbook(false);
+  }, [book?.ebookFile]);
   
   // Handle edition selection
   const handleEditionChange = (index) => {
@@ -686,6 +695,79 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
     }
   };
 
+  const handleEbookFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Check file type
+    const allowedExtensions = ['.epub', '.mobi', '.azw', '.pdf', '.fb2', '.txt'];
+    const ext = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    if (!allowedExtensions.includes(ext)) {
+      setUploadMessage('Please select an ebook file (EPUB, MOBI, AZW, PDF, FB2, or TXT)');
+      setUploadMessageType('danger');
+      return;
+    }
+
+    if (file.size > 100 * 1024 * 1024) {
+      setUploadMessage('File size must be less than 100MB');
+      setUploadMessageType('danger');
+      return;
+    }
+
+    setUploadingEbook(true);
+    setUploadMessage(null);
+
+    try {
+      if (!book?.id) {
+        setUploadMessage('Please save the book first before uploading an ebook');
+        setUploadMessageType('danger');
+        setUploadingEbook(false);
+        return;
+      }
+
+      const result = await bookService.uploadEbook(book.id, file);
+      console.log('Ebook upload result:', result);
+      // Update formData to reflect the uploaded ebook
+      handleInputChange('ebookFile', result.filename);
+      // Also update the book prop if possible (for inline editing)
+      if (book) {
+        book.ebookFile = result.filename;
+        console.log('Updated book.ebookFile to:', book.ebookFile);
+      }
+      // Refresh book data if callback is available
+      if (onBookUpdated) {
+        try {
+          console.log('Calling onBookUpdated for book:', book.id);
+          await onBookUpdated(book.id);
+          console.log('Book data refreshed successfully');
+        } catch (err) {
+          console.error('Failed to refresh book data after ebook upload:', err);
+        }
+      } else {
+        console.warn('onBookUpdated callback not available');
+      }
+      setUploadMessage('Ebook uploaded successfully');
+      setUploadMessageType('success');
+    } catch (error) {
+      setUploadMessage('Failed to upload ebook: ' + error.message);
+      setUploadMessageType('danger');
+    } finally {
+      setUploadingEbook(false);
+    }
+  };
+
+  const handleEbookDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const fakeEvent = { target: { files: [file] } };
+      handleEbookFileChange(fakeEvent);
+    }
+  };
+
   // Helper function to normalize array fields
   const normalizeArrayField = (value) => {
     if (!value) return [];
@@ -873,8 +955,11 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
         pageCount: formData.pageCount ? parseInt(formData.pageCount) : null,
         runtime: formData.runtime ? parseInt(formData.runtime) : null,
         borrowed: formData.borrowed === true || formData.borrowed === 'true',
-        coverUrl: formData.coverUrl || null
+        coverUrl: formData.coverUrl || null,
+        ebookFile: formData.ebookFile || null
       };
+      
+      console.log('BookForm handleSubmit - bookData.ebookFile:', bookData.ebookFile);
 
       await onSave(bookData);
     } catch (error) {
@@ -886,7 +971,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
   };
 
   const formContent = (
-    <Form onSubmit={handleSubmit}>
+      <Form onSubmit={handleSubmit}>
       {!inline && (
         <Modal.Header closeButton>
           <div className="d-flex align-items-center justify-content-between w-100 me-3">
@@ -1410,6 +1495,85 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                   </Form.Text>
                 )}
               </Form.Group>
+
+              {book?.id && (
+                <Form.Group className="mb-3">
+                  <Form.Label>Ebook File</Form.Label>
+                  {book.ebookFile ? (
+                    <div className="mb-3">
+                      <Alert variant="info" className="mb-2">
+                        <BsFileEarmark className="me-2" />
+                        Ebook file uploaded: {book.ebookFile.split('_').slice(3).join('_') || book.ebookFile}
+                      </Alert>
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={async () => {
+                          if (!confirmDeleteEbook) {
+                            setConfirmDeleteEbook(true);
+                            return;
+                          }
+                          try {
+                            await bookService.deleteEbook(book.id);
+                            // Refresh book data
+                            if (onBookUpdated) {
+                              await onBookUpdated(book.id);
+                            }
+                            // Clear formData ebookFile
+                            handleInputChange('ebookFile', null);
+                            // Also update the book prop if possible
+                            if (book) {
+                              book.ebookFile = null;
+                            }
+                            setConfirmDeleteEbook(false);
+                          } catch (error) {
+                            console.error('Error deleting ebook:', error);
+                            alert('Failed to delete ebook: ' + error.message);
+                            setConfirmDeleteEbook(false);
+                          }
+                        }}
+                      >
+                        <BsTrash className="me-1" />
+                        {confirmDeleteEbook ? 'Are you sure?' : 'Delete Ebook'}
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div
+                        className={`cover-upload-area ${isDragging ? 'dragging' : ''}`}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleEbookDrop}
+                        onClick={() => ebookInputRef.current?.click()}
+                        style={{ cursor: 'pointer', minHeight: '100px' }}
+                      >
+                        {uploadingEbook ? (
+                          <div className="upload-progress">
+                            <div className="spinner-border spinner-border-sm" role="status">
+                              <span className="visually-hidden">Uploading...</span>
+                            </div>
+                            <span className="ms-2">Uploading ebook...</span>
+                          </div>
+                        ) : (
+                          <div className="cover-placeholder">
+                            <BsUpload size={48} />
+                            <p>Click or drag to upload ebook file</p>
+                            <small className="text-muted">EPUB, MOBI, AZW, PDF, FB2, TXT (max 100MB)</small>
+                          </div>
+                        )}
+                      </div>
+                      <input
+                        ref={ebookInputRef}
+                        type="file"
+                        accept=".epub,.mobi,.azw,.pdf,.fb2,.txt,application/epub+zip,application/x-mobipocket-ebook,application/pdf,application/x-fictionbook+xml,text/plain"
+                        onChange={handleEbookFileChange}
+                        style={{ display: 'none' }}
+                        disabled={uploadingEbook}
+                      />
+                    </>
+                  )}
+                </Form.Group>
+              )}
 
             </Col>
 
@@ -2034,6 +2198,85 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                   </Form.Text>
                 )}
               </Form.Group>
+
+              {book?.id && (
+                <Form.Group className="mb-3">
+                  <Form.Label>Ebook File</Form.Label>
+                  {book.ebookFile ? (
+                    <div className="mb-3">
+                      <Alert variant="info" className="mb-2">
+                        <BsFileEarmark className="me-2" />
+                        Ebook file uploaded: {book.ebookFile.split('_').slice(3).join('_') || book.ebookFile}
+                      </Alert>
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={async () => {
+                          if (!confirmDeleteEbook) {
+                            setConfirmDeleteEbook(true);
+                            return;
+                          }
+                          try {
+                            await bookService.deleteEbook(book.id);
+                            // Refresh book data
+                            if (onBookUpdated) {
+                              await onBookUpdated(book.id);
+                            }
+                            // Clear formData ebookFile
+                            handleInputChange('ebookFile', null);
+                            // Also update the book prop if possible
+                            if (book) {
+                              book.ebookFile = null;
+                            }
+                            setConfirmDeleteEbook(false);
+                          } catch (error) {
+                            console.error('Error deleting ebook:', error);
+                            alert('Failed to delete ebook: ' + error.message);
+                            setConfirmDeleteEbook(false);
+                          }
+                        }}
+                      >
+                        <BsTrash className="me-1" />
+                        {confirmDeleteEbook ? 'Are you sure?' : 'Delete Ebook'}
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div
+                        className={`cover-upload-area ${isDragging ? 'dragging' : ''}`}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleEbookDrop}
+                        onClick={() => ebookInputRef.current?.click()}
+                        style={{ cursor: 'pointer', minHeight: '100px' }}
+                      >
+                        {uploadingEbook ? (
+                          <div className="upload-progress">
+                            <div className="spinner-border spinner-border-sm" role="status">
+                              <span className="visually-hidden">Uploading...</span>
+                            </div>
+                            <span className="ms-2">Uploading ebook...</span>
+                          </div>
+                        ) : (
+                          <div className="cover-placeholder">
+                            <BsUpload size={48} />
+                            <p>Click or drag to upload ebook file</p>
+                            <small className="text-muted">EPUB, MOBI, AZW, PDF, FB2, TXT (max 100MB)</small>
+                          </div>
+                        )}
+                      </div>
+                      <input
+                        ref={ebookInputRef}
+                        type="file"
+                        accept=".epub,.mobi,.azw,.pdf,.fb2,.txt,application/epub+zip,application/x-mobipocket-ebook,application/pdf,application/x-fictionbook+xml,text/plain"
+                        onChange={handleEbookFileChange}
+                        style={{ display: 'none' }}
+                        disabled={uploadingEbook}
+                      />
+                    </>
+                  )}
+                </Form.Group>
+              )}
 
             </Col>
 

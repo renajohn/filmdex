@@ -1,5 +1,6 @@
 const Book = require('../models/book');
 const imageService = require('./imageService');
+const configManager = require('../config');
 const axios = require('axios');
 const logger = require('../logger');
 const cheerio = require('cheerio');
@@ -327,6 +328,33 @@ class BookService {
 
   async deleteBook(id) {
     try {
+      // Get book first to check for ebook file
+      const book = await Book.findById(id);
+      
+      // Delete ebook file if it exists
+      if (book && book.ebookFile) {
+        const path = require('path');
+        const fs = require('fs');
+        let ebookDir;
+        try {
+          ebookDir = configManager.getEbooksPath();
+        } catch (error) {
+          // Fallback to default if config not loaded
+          ebookDir = path.join(__dirname, '..', '..', 'data', 'ebooks');
+        }
+        const filePath = path.join(ebookDir, book.ebookFile);
+        
+        if (fs.existsSync(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+            console.log(`Deleted ebook file: ${filePath}`);
+          } catch (fileError) {
+            console.warn('Failed to delete ebook file:', fileError.message);
+            // Continue with book deletion even if file deletion fails
+          }
+        }
+      }
+      
       const result = await Book.delete(id);
       return result;
     } catch (error) {

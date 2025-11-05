@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Row, Col, Badge, Form, Alert } from 'react-bootstrap';
-import { BsPencil, BsTrash, BsBook, BsCalendar, BsTag, BsTranslate, BsFileEarmark, BsStar, BsPerson, BsHouse, BsChatSquareText, BsPlus, BsX, BsCheck, BsArrowLeft } from 'react-icons/bs';
+import { BsPencil, BsTrash, BsBook, BsCalendar, BsTag, BsTranslate, BsFileEarmark, BsStar, BsPerson, BsHouse, BsChatSquareText, BsPlus, BsX, BsCheck, BsArrowLeft, BsDownload } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import bookCommentService from '../services/bookCommentService';
 import CoverModal from './CoverModal';
@@ -12,6 +12,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [coverModalData, setCoverModalData] = useState({ coverUrl: '', title: '', author: '' });
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDeleteEbook, setConfirmDeleteEbook] = useState(false);
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [showCommentModal, setShowCommentModal] = useState(false);
@@ -51,6 +52,35 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
       loadVolumes();
     }
   }, [view, book?.series]);
+
+  useEffect(() => {
+    console.log('BookDetailCard: book prop changed, ebookFile:', book?.ebookFile, 'view:', view, 'full book:', book);
+  }, [book, view]);
+
+  const [ebookInfo, setEbookInfo] = useState(null);
+  const [loadingEbookInfo, setLoadingEbookInfo] = useState(false);
+
+  useEffect(() => {
+    const loadEbookInfo = async () => {
+      console.log('loadEbookInfo - book?.ebookFile:', book?.ebookFile, 'view:', view, 'book?.id:', book?.id);
+      if (book?.ebookFile && book.ebookFile.trim() && view === 'detail') {
+        setLoadingEbookInfo(true);
+        try {
+          const info = await bookService.getEbookInfo(book.id);
+          console.log('Ebook info loaded:', info);
+          setEbookInfo(info);
+        } catch (error) {
+          console.error('Failed to load ebook info:', error);
+          setEbookInfo(null);
+        } finally {
+          setLoadingEbookInfo(false);
+        }
+      } else {
+        setEbookInfo(null);
+      }
+    };
+    loadEbookInfo();
+  }, [book?.ebookFile, book?.id, view]);
 
   const loadComments = async () => {
     if (!book?.id) return;
@@ -1021,6 +1051,75 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                     </div>
                   )}
                   
+                  {book.annotation && (
+                    <div className="annotation-section">
+                      <strong>Annotation:</strong>
+                      <p className="annotation-text">{book.annotation}</p>
+                    </div>
+                  )}
+                  
+                  {view === 'detail' && book?.ebookFile && book.ebookFile.trim() ? (
+                    <div className="info-section">
+                      <h4>Ebook File</h4>
+                      {loadingEbookInfo ? (
+                        <div className="d-flex align-items-center gap-2">
+                          <div className="spinner-border spinner-border-sm" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
+                          <span>Loading ebook info...</span>
+                        </div>
+                      ) : ebookInfo ? (
+                        <div>
+                          <div className="d-flex align-items-center gap-2 mb-2">
+                            <BsFileEarmark className="me-2" />
+                            <div className="flex-grow-1">
+                              <div><strong>{ebookInfo.originalName}</strong></div>
+                              <small className="ebook-info-meta">
+                                Format: {ebookInfo.format} • Size: {ebookInfo.sizeFormatted}
+                              </small>
+                            </div>
+                            <Button
+                              variant="outline-light"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  await bookService.downloadEbook(book.id);
+                                } catch (error) {
+                                  console.error('Error downloading ebook:', error);
+                                  alert('Failed to download ebook: ' + error.message);
+                                }
+                              }}
+                            >
+                              <BsDownload className="me-1" />
+                              Download
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="d-flex align-items-center gap-2">
+                          <BsFileEarmark className="me-2" />
+                          <span>{book.ebookFile.split('_').slice(3).join('_') || book.ebookFile}</span>
+                          <Button
+                            variant="outline-light"
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                await bookService.downloadEbook(book.id);
+                              } catch (error) {
+                                console.error('Error downloading ebook:', error);
+                                alert('Failed to download ebook: ' + error.message);
+                              }
+                            }}
+                            className="ms-2"
+                          >
+                            <BsDownload className="me-1" />
+                            Download
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                  
                   <div className="comments-section">
                     <div className="d-flex align-items-center justify-content-between mb-2">
                       <div className="d-flex align-items-center">
@@ -1407,6 +1506,152 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                   <p className="annotation-text">{book.annotation}</p>
                 </div>
               )}
+              
+              {view === 'detail' && book?.ebookFile && book.ebookFile.trim() ? (
+                <div className="info-section">
+                  <h4>Ebook File</h4>
+                  {loadingEbookInfo ? (
+                    <div className="d-flex align-items-center gap-2">
+                      <div className="spinner-border spinner-border-sm" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
+                      <span>Loading ebook info...</span>
+                    </div>
+                  ) : ebookInfo ? (
+                    <div>
+                      <div className="d-flex align-items-center gap-2 mb-2">
+                        <BsFileEarmark className="me-2" />
+                        <div className="flex-grow-1">
+                          <div><strong>{ebookInfo.originalName}</strong></div>
+                          <small className="ebook-info-meta">
+                            Format: {ebookInfo.format} • Size: {ebookInfo.sizeFormatted}
+                          </small>
+                        </div>
+                        <Button
+                          variant="outline-light"
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              await bookService.downloadEbook(book.id);
+                            } catch (error) {
+                              console.error('Error downloading ebook:', error);
+                              alert('Failed to download ebook: ' + error.message);
+                            }
+                          }}
+                        >
+                          <BsDownload className="me-1" />
+                          Download
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="d-flex align-items-center gap-2">
+                      <BsFileEarmark className="me-2" />
+                      <span>{book.ebookFile.split('_').slice(3).join('_') || book.ebookFile}</span>
+                      <Button
+                        variant="outline-light"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            await bookService.downloadEbook(book.id);
+                          } catch (error) {
+                            console.error('Error downloading ebook:', error);
+                            alert('Failed to download ebook: ' + error.message);
+                          }
+                        }}
+                        className="ms-2"
+                      >
+                        <BsDownload className="me-1" />
+                        Download
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+              
+              <div className="comments-section">
+                <div className="d-flex align-items-center justify-content-between mb-2">
+                  <div className="d-flex align-items-center">
+                    <BsChatSquareText className="me-2" />
+                    <strong>Reviews {comments.length > 0 && `(${comments.length})`}</strong>
+                  </div>
+                  <Button 
+                    variant="outline-primary" 
+                    size="sm" 
+                    onClick={handleAddComment}
+                  >
+                    <BsPlus className="me-1" />Add Review
+                  </Button>
+                </div>
+                {loadingComments ? (
+                  <p className="text-muted">Loading reviews...</p>
+                ) : comments.length === 0 ? (
+                  <p className="text-muted">No reviews yet. Be the first to add one!</p>
+                ) : (
+                  <div className="comments-list">
+                    {comments.map((comment) => (
+                      <div key={comment.id} className="comment-item mb-3">
+                        <div className="d-flex justify-content-between align-items-start mb-1">
+                          <div>
+                            <strong className="comment-name">{comment.name}</strong>
+                            {comment.date && (
+                              <span className="comment-date ms-2 text-muted">
+                                {formatDate(comment.date)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="comment-actions">
+                            {deletingCommentId === comment.id ? (
+                              <>
+                                <Button 
+                                  variant="link" 
+                                  size="sm" 
+                                  className="text-danger p-0 me-2"
+                                  onClick={() => handleDeleteComment(comment.id)}
+                                  title="Confirm deletion"
+                                >
+                                  Confirm deletion
+                                </Button>
+                                <Button 
+                                  variant="link" 
+                                  size="sm" 
+                                  className="text-secondary p-0"
+                                  onClick={handleCancelDelete}
+                                  title="Cancel"
+                                >
+                                  <BsX />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button 
+                                  variant="link" 
+                                  size="sm" 
+                                  className="text-primary p-0 me-2"
+                                  onClick={() => handleEditComment(comment)}
+                                  title="Edit review"
+                                >
+                                  <BsPencil />
+                                </Button>
+                                <Button 
+                                  variant="link" 
+                                  size="sm" 
+                                  className="text-danger p-0"
+                                  onClick={() => handleDeleteComment(comment.id)}
+                                  title="Delete review"
+                                >
+                                  <BsTrash />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <p className="comment-text mb-0">{comment.comment}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
             </div>
@@ -1560,6 +1805,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                     onSave={handleEditSave}
                     onCancel={handleEditCancel}
                     inline={true}
+                    onBookUpdated={onBookUpdated}
                   />
                 )}
               </div>

@@ -285,6 +285,103 @@ class BookService {
     }
   }
 
+  async uploadEbook(bookId, file) {
+    try {
+      const baseUrl = await this.getBaseUrl();
+      const formData = new FormData();
+      formData.append('ebook', file);
+
+      const response = await fetch(`${baseUrl}/books/${bookId}/upload-ebook`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to upload ebook' }));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error uploading ebook:', error);
+      throw error;
+    }
+  }
+
+  async getEbookInfo(bookId) {
+    try {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/books/${bookId}/ebook/info`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting ebook info:', error);
+      throw error;
+    }
+  }
+
+  async downloadEbook(bookId) {
+    try {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/books/${bookId}/ebook/download`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `book_${bookId}.epub`;
+      if (contentDisposition) {
+        // Try to match quoted filename first: filename="something"
+        let filenameMatch = contentDisposition.match(/filename="([^"]+)"/i);
+        if (!filenameMatch) {
+          // Fallback to unquoted: filename=something
+          filenameMatch = contentDisposition.match(/filename=([^;]+)/i);
+        }
+        if (filenameMatch) {
+          filename = filenameMatch[1].trim();
+        }
+      }
+      
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading ebook:', error);
+      throw error;
+    }
+  }
+
+  async deleteEbook(bookId) {
+    try {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/books/${bookId}/ebook`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to delete ebook' }));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error deleting ebook:', error);
+      throw error;
+    }
+  }
+
   async uploadCover(bookId, file) {
     try {
       const baseUrl = await this.getBaseUrl();
