@@ -807,7 +807,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                   <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '4px' }}>
                     {book.borrowed && (
                       <div className="book-thumbnail-borrowed-ribbon">
-                        BORROWED
+                        Read & Gone
                       </div>
                     )}
                     <img 

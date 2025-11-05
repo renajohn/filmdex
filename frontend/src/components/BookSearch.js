@@ -24,7 +24,8 @@ const BookSearch = forwardRef(({
   onShowAlert,
   onOpenAddDialog,
   refreshTrigger,
-  searchCriteria 
+  searchCriteria,
+  defaultTitleStatus
 }, ref) => {
   const [allBooks, setAllBooks] = useState([]);
   const [filteredBooks, setFilteredBooks] = useState([]);
@@ -728,9 +729,14 @@ const BookSearch = forwardRef(({
           setTemplateBook(null); // Clear template when dialog closes
         }}
         onAddBook={onAddBook}
+        defaultTitleStatus={defaultTitleStatus}
         onAddBooksBatch={async (books) => {
           try {
-            const result = await bookService.addBooksBatch(books);
+            // Ensure titleStatus is set for batch additions if defaultTitleStatus is provided
+            const booksWithStatus = defaultTitleStatus 
+              ? books.map(book => ({ ...book, titleStatus: defaultTitleStatus }))
+              : books;
+            const result = await bookService.addBooksBatch(booksWithStatus);
             if (result.errors && result.errors.length > 0) {
               const errorMsg = result.errors.map(e => `${e.book}: ${e.error}`).join(', ');
               throw new Error(errorMsg);

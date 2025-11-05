@@ -31,6 +31,12 @@
   background-color: rgba(50, 50, 50, 0.95);
   border-color: rgba(255, 255, 255, 0.2);
   color: rgba(255, 255, 255, 0.9);
+  height: 38px;
+  padding: 6px 12px;
+  font-size: 0.95rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .add-book-dialog .form-control:focus,
@@ -39,10 +45,20 @@
   border-color: #fbbf24;
   color: rgba(255, 255, 255, 0.9);
   box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.25);
+  outline: none;
 }
 
 .add-book-dialog .form-control::placeholder {
   color: rgba(255, 255, 255, 0.5);
+}
+
+.add-book-dialog .form-select {
+  cursor: pointer;
+}
+
+.add-book-dialog .form-select option {
+  background-color: rgba(50, 50, 50, 0.95);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .add-book-dialog .search-section {
@@ -89,10 +105,71 @@
 
 .search-input {
   border-radius: 8px;
+  min-width: 0;
 }
 
-.search-btn {
+.language-select {
   border-radius: 8px;
+  min-width: 0;
+}
+
+.add-book-dialog .search-btn {
+  border-radius: 8px;
+  background-color: #fbbf24 !important;
+  border-color: #fbbf24 !important;
+  color: #1a202c !important;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-book-dialog .search-btn:hover {
+  background-color: #f59e0b !important;
+  border-color: #f59e0b !important;
+  color: #1a202c !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(251, 191, 36, 0.3);
+}
+
+.add-book-dialog .search-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(251, 191, 36, 0.2);
+}
+
+.add-book-dialog .search-btn:disabled {
+  background-color: rgba(251, 191, 36, 0.5) !important;
+  border-color: rgba(251, 191, 36, 0.5) !important;
+  color: rgba(26, 32, 44, 0.6) !important;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Responsive adjustments for search form */
+@media (max-width: 768px) {
+  .add-book-dialog .form-control,
+  .add-book-dialog .form-select {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  .search-tabs {
+    gap: 4px;
+  }
+  
+  .search-tab {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Ensure columns don't overflow */
+.add-book-dialog .row > [class*="col-"] {
+  min-width: 0;
+  padding-left: calc(var(--bs-gutter-x) * 0.5);
+  padding-right: calc(var(--bs-gutter-x) * 0.5);
 }
 
 .search-results {

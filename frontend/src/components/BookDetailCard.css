@@ -781,8 +781,8 @@
 /* Borrowed ribbon for detail view - reuse thumbnail ribbon styles */
 .book-cover-container .book-thumbnail-borrowed-ribbon {
   position: absolute;
-  top: 23px;
-  right: -49px;
+  top: 26px;
+  right: -54px;
   background: linear-gradient(to bottom right, #bb0000, #941919);
   color: white;
   padding: 6px 48px;

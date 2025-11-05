@@ -31,7 +31,7 @@ const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false })
       <div className="book-thumbnail-cover">
         {book.borrowed && (
           <div className="book-thumbnail-borrowed-ribbon">
-            BORROWED
+            Read & Gone
           </div>
         )}
         {getCoverImage() ? (

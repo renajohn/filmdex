@@ -371,6 +371,24 @@ label {
   background: #d97706;
 }
 
+.add-book-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.add-book-btn:hover {
+  background: #059669;
+}
+
 .copy-clipboard-btn {
   background: #3a3a3a;
   color: #ccc;
@@ -559,6 +577,48 @@ label {
   border-radius: 4px;
 }
 
+/* Book-specific poster styling */
+.book-poster {
+  width: 50px;
+  height: 75px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.book-thumbnail-table {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.book-title-cell {
+  min-width: 200px;
+}
+
+.book-title-cell strong {
+  color: #fff;
+  font-size: 1rem;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.book-series {
+  font-size: 0.85rem;
+  color: #ccc;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.author-cell {
+  min-width: 180px;
+  color: #ccc;
+  font-size: 0.9rem;
+}
+
 .movie-title-cell {
   min-width: 200px;
 }
@@ -643,7 +703,8 @@ label {
   }
   
   .add-movie-btn,
-  .add-album-btn {
+  .add-album-btn,
+  .add-book-btn {
     width: 100%;
     justify-content: center;
   }
@@ -663,6 +724,11 @@ label {
     height: 40px;
     overflow: hidden;
     border-radius: 4px;
+  }
+  
+  .book-poster {
+    width: 35px;
+    height: 52px;
   }
   
   .movie-title-cell {

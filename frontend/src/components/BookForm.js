@@ -6,7 +6,7 @@ import bookService from '../services/bookService';
 import CoverModal from './CoverModal';
 import './BookForm.css';
 
-const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline = false, onBookUpdated = null }) => {
+const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline = false, onBookUpdated = null, defaultTitleStatus }) => {
   const fileInputRef = useRef(null);
   const ebookInputRef = useRef(null);
   const ownerInputRef = useRef(null);
@@ -276,7 +276,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
         description: initialDescription || '',
         urls: book.urls || {},
         annotation: book.annotation || '',
-        titleStatus: book.titleStatus || 'owned',
+        titleStatus: book.titleStatus || defaultTitleStatus || 'owned',
         coverUrl: book.coverUrl || null,
         ebookFile: book.ebookFile || null
       });

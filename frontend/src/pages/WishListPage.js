@@ -1,27 +1,34 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BsTrash, BsCurrencyDollar, BsClipboard, BsMusicNote, BsFilm } from 'react-icons/bs';
+import { BsTrash, BsCurrencyDollar, BsClipboard, BsMusicNote, BsFilm, BsBook } from 'react-icons/bs';
 import apiService from '../services/api';
 import musicService from '../services/musicService';
+import bookService from '../services/bookService';
 import MovieThumbnail from '../components/MovieThumbnail';
 import MovieDetailCard from '../components/MovieDetailCard';
 import MusicDetailCard from '../components/MusicDetailCard';
+import BookThumbnail from '../components/BookThumbnail';
+import BookDetailCard from '../components/BookDetailCard';
 import AddMusicDialog from '../components/AddMusicDialog';
+import AddBookDialog from '../components/AddBookDialog';
 import MusicForm from '../components/MusicForm';
 import CircularProgressBar from '../components/CircularProgressBar';
 import './WishListPage.css';
 
-const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMovieMovedToCollection, onAlbumMovedToCollection, onShowAlert, onMovieAdded, onAlbumAdded, onSearch }, ref) => {
+const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onAddBook, onMovieMovedToCollection, onAlbumMovedToCollection, onBookMovedToCollection, onShowAlert, onMovieAdded, onAlbumAdded, onBookAdded, onSearch }, ref) => {
   const navigate = useNavigate();
   const [allMovies, setAllMovies] = useState([]);
   const [movies, setMovies] = useState([]);
   const [allAlbums, setAllAlbums] = useState([]);
   const [albums, setAlbums] = useState([]);
+  const [allBooks, setAllBooks] = useState([]);
+  const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
   const [selectedMovieDetails, setSelectedMovieDetails] = useState(null);
   const [selectedAlbumDetails, setSelectedAlbumDetails] = useState(null);
+  const [selectedBookDetails, setSelectedBookDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState({ show: false, itemId: null, itemType: null });
   const [showMarkOwnedModal, setShowMarkOwnedModal] = useState({ show: false, item: null, itemType: null });
@@ -29,6 +36,9 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
   const [showMusicForm, setShowMusicForm] = useState(false);
   const [addingAlbum, setAddingAlbum] = useState(false);
   const [addError, setAddError] = useState('');
+  const [showAddBookDialog, setShowAddBookDialog] = useState(false);
+  const [addingBook, setAddingBook] = useState(false);
+  const [addBookError, setAddBookError] = useState('');
   const [markOwnedForm, setMarkOwnedForm] = useState({ 
     title: '', 
     format: 'Blu-ray 4K', 
@@ -51,16 +61,19 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
       setLoading(true);
       setError('');
       
-      // Load both movies and albums in parallel
-      const [wishListMovies, wishListAlbums] = await Promise.all([
+      // Load movies, albums, and books in parallel
+      const [wishListMovies, wishListAlbums, wishListBooks] = await Promise.all([
         apiService.getMoviesByStatus('wish'),
-        musicService.getAlbumsByStatus('wish')
+        musicService.getAlbumsByStatus('wish'),
+        bookService.getBooksByStatus('wish')
       ]);
       
       setAllMovies(wishListMovies);
       setMovies(wishListMovies);
       setAllAlbums(wishListAlbums);
       setAlbums(wishListAlbums);
+      setAllBooks(wishListBooks);
+      setBooks(wishListBooks);
     } catch (err) {
       setError('Failed to load wish list: ' + err.message);
     } finally {
@@ -74,16 +87,17 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
     if (!searchText || searchText.trim() === '') {
       setMovies(allMovies);
       setAlbums(allAlbums);
+      setBooks(allBooks);
     } else {
-      // Use the same advanced search logic for both movies and albums
+      // Use the same advanced search logic for movies, albums, and books
       performAdvancedSearch(searchText);
     }
-  }, [searchCriteria, allMovies, allAlbums]);
+  }, [searchCriteria, allMovies, allAlbums, allBooks]);
 
   const performAdvancedSearch = async (searchText) => {
     try {
-      // Search both movies and albums in parallel
-      const [movieResults, albumResults] = await Promise.all([
+      // Search movies, albums, and books in parallel
+      const [movieResults, albumResults, bookResults] = await Promise.all([
         apiService.searchMovies({ 
           searchText, 
           title_status: 'wish' 
@@ -116,11 +130,31 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
               (album.barcode && album.barcode.toLowerCase().includes(searchLower))
             );
           });
+        }),
+        // For books, search within wish list books
+        Promise.resolve().then(() => {
+          const searchLower = searchText.toLowerCase().trim();
+          return allBooks.filter(book => {
+            // Only include wish list books
+            if (book.titleStatus !== 'wish') return false;
+            
+            const authorsString = Array.isArray(book.authors) ? book.authors.join(', ') : book.authors;
+            const genresString = Array.isArray(book.genres) ? book.genres.join(', ') : book.genres;
+            return (
+              (book.title && book.title.toLowerCase().includes(searchLower)) ||
+              (authorsString && authorsString.toLowerCase().includes(searchLower)) ||
+              (genresString && genresString.toLowerCase().includes(searchLower)) ||
+              (book.isbn && book.isbn.toLowerCase().includes(searchLower)) ||
+              (book.isbn13 && book.isbn13.toLowerCase().includes(searchLower)) ||
+              (book.series && book.series.toLowerCase().includes(searchLower))
+            );
+          });
         })
       ]);
       
       setMovies(movieResults);
       setAlbums(albumResults);
+      setBooks(bookResults);
     } catch (error) {
       console.error('Advanced search failed:', error);
       // Fallback to simple search
@@ -144,6 +178,18 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
           (album.barcode && album.barcode.toLowerCase().includes(searchLower))
         );
       }));
+      setBooks(allBooks.filter(book => {
+        const authorsString = Array.isArray(book.authors) ? book.authors.join(', ') : book.authors;
+        const genresString = Array.isArray(book.genres) ? book.genres.join(', ') : book.genres;
+        return (
+          (book.title && book.title.toLowerCase().includes(searchLower)) ||
+          (authorsString && authorsString.toLowerCase().includes(searchLower)) ||
+          (genresString && genresString.toLowerCase().includes(searchLower)) ||
+          (book.isbn && book.isbn.toLowerCase().includes(searchLower)) ||
+          (book.isbn13 && book.isbn13.toLowerCase().includes(searchLower)) ||
+          (book.series && book.series.toLowerCase().includes(searchLower))
+        );
+      }));
     }
   };
 
@@ -158,6 +204,10 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
         await musicService.deleteAlbum(itemId);
         setAllAlbums(allAlbums.filter(album => album.id !== itemId));
         setAlbums(albums.filter(album => album.id !== itemId));
+      } else if (itemType === 'book') {
+        await bookService.deleteBook(itemId);
+        setAllBooks(allBooks.filter(book => book.id !== itemId));
+        setBooks(books.filter(book => book.id !== itemId));
       }
     } catch (err) {
       setError(`Failed to delete ${itemType}: ` + err.message);
@@ -177,6 +227,38 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
 
   const handleAddAlbum = () => {
     setShowAddMusicDialog(true);
+  };
+
+  const handleAddBook = () => {
+    setShowAddBookDialog(true);
+  };
+
+  const handleAddBookDialogClose = () => {
+    setShowAddBookDialog(false);
+  };
+
+  const handleAddBookToWishlist = async (bookData) => {
+    try {
+      // Set the book status to 'wish' for wish list, preserving all other data
+      const bookDataWithStatus = { ...bookData, titleStatus: 'wish' };
+      const newBook = await bookService.addBook(bookDataWithStatus);
+      
+      // Refresh the books list
+      loadWishListItems();
+      setShowAddBookDialog(false);
+      
+      if (onBookAdded) {
+        onBookAdded(newBook.id);
+      }
+      
+      return newBook;
+    } catch (error) {
+      console.error('Error adding book:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to add book: ' + error.message, 'danger');
+      }
+      throw error;
+    }
   };
 
   const handleAddMusicDialogClose = () => {
@@ -341,10 +423,17 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
         const movieDetails = await apiService.getMovieDetails(itemId);
         setSelectedMovieDetails(movieDetails);
         setSelectedAlbumDetails(null);
+        setSelectedBookDetails(null);
       } else if (itemType === 'album') {
         const albumDetails = await musicService.getAlbumById(itemId);
         setSelectedAlbumDetails(albumDetails);
         setSelectedMovieDetails(null);
+        setSelectedBookDetails(null);
+      } else if (itemType === 'book') {
+        const bookDetails = await bookService.getBookById(itemId);
+        setSelectedBookDetails(bookDetails);
+        setSelectedMovieDetails(null);
+        setSelectedAlbumDetails(null);
       }
     } catch (error) {
       console.error(`Failed to load ${itemType} details:`, error);
@@ -357,14 +446,16 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
   const handleCloseDetails = () => {
     setSelectedMovieDetails(null);
     setSelectedAlbumDetails(null);
+    setSelectedBookDetails(null);
   };
 
   // Refresh function for detail card that updates thumbnails without affecting dialog
   const handleRefreshForDetailCard = async () => {
     try {
-      const [wishListMovies, wishListAlbums] = await Promise.all([
+      const [wishListMovies, wishListAlbums, wishListBooks] = await Promise.all([
         apiService.getMoviesByStatus('wish'),
-        musicService.getAlbumsByStatus('wish')
+        musicService.getAlbumsByStatus('wish'),
+        bookService.getBooksByStatus('wish')
       ]);
       
       // Update the lists to refresh thumbnails
@@ -372,6 +463,8 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
       setMovies(wishListMovies);
       setAllAlbums(wishListAlbums);
       setAlbums(wishListAlbums);
+      setAllBooks(wishListBooks);
+      setBooks(wishListBooks);
       
       // If there's a selected item, update its data in the list without changing selected details
       if (selectedMovieDetails) {
@@ -393,6 +486,16 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
           }));
         }
       }
+      
+      if (selectedBookDetails) {
+        const updatedBook = wishListBooks.find(book => book.id === selectedBookDetails.id);
+        if (updatedBook) {
+          setSelectedBookDetails(prev => ({
+            ...prev,
+            ...updatedBook
+          }));
+        }
+      }
     } catch (err) {
       console.error('Failed to refresh wish list:', err);
     }
@@ -405,9 +508,15 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
 
   const handleMarkOwnedClick = (item, itemType, e) => {
     e.stopPropagation();
+    let defaultFormat = 'CD';
+    if (itemType === 'movie') {
+      defaultFormat = item.format || 'Blu-ray 4K';
+    } else if (itemType === 'book') {
+      defaultFormat = item.format || 'Hardcover';
+    }
     setMarkOwnedForm({
       title: item.title,
-      format: itemType === 'movie' ? (item.format || 'Blu-ray 4K') : (item.format || 'CD'),
+      format: defaultFormat,
       price: ''
     });
     setShowMarkOwnedModal({ show: true, item, itemType });
@@ -468,11 +577,30 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
           if (onAlbumMovedToCollection) {
             onAlbumMovedToCollection(item);
           }
+        } else if (itemType === 'book') {
+          const bookData = {
+            ...item,
+            titleStatus: 'owned',
+            format: markOwnedForm.format || item.format || 'Hardcover',
+            price: markOwnedForm.price ? parseFloat(markOwnedForm.price) : item.price
+          };
+          
+          await bookService.updateBook(item.id, bookData);
+          
+          // Remove from wish list
+          setAllBooks(allBooks.filter(b => b.id !== item.id));
+          setBooks(books.filter(b => b.id !== item.id));
+          
+          // Notify parent component to refresh collection
+          if (onBookMovedToCollection) {
+            onBookMovedToCollection(item);
+          }
         }
         
         // Show success message
         setError(''); // Clear any previous errors
-        console.log(`${itemType === 'movie' ? 'Movie' : 'Album'} "${markOwnedForm.title}" successfully moved to collection!`);
+        const itemTypeName = itemType === 'movie' ? 'Movie' : itemType === 'album' ? 'Album' : 'Book';
+        console.log(`${itemTypeName} "${markOwnedForm.title}" successfully moved to collection!`);
         
         setShowMarkOwnedModal({ show: false, item: null, itemType: null });
         setMarkOwnedForm({ 
@@ -490,7 +618,7 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
   };
 
   const handleCopyToClipboard = async () => {
-    if (allMovies.length === 0 && allAlbums.length === 0) return;
+    if (allMovies.length === 0 && allAlbums.length === 0 && allBooks.length === 0) return;
     
     // Create markdown list from all items (not filtered)
     let markdown = 'wishlist:\n';
@@ -508,6 +636,14 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
       const format = album.format || 'CD';
       const artistString = Array.isArray(album.artist) ? album.artist.join(', ') : album.artist;
       markdown += ` - 🎵 ${album.title} by ${artistString} (${year}) in ${format}\n`;
+    });
+    
+    // Add books
+    allBooks.forEach(book => {
+      const year = book.publishedYear || 'Unknown';
+      const format = book.format || 'Hardcover';
+      const authorsString = Array.isArray(book.authors) ? book.authors.join(', ') : book.authors;
+      markdown += ` - 📚 ${book.title} by ${authorsString || 'Unknown'} (${year}) in ${format}\n`;
     });
     
     try {
@@ -594,6 +730,11 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
         setAllAlbums(allAlbums.filter(album => album.id !== itemId));
         setAlbums(albums.filter(album => album.id !== itemId));
         setSelectedAlbumDetails(null);
+      } else if (itemType === 'book') {
+        await bookService.deleteBook(itemId);
+        setAllBooks(allBooks.filter(book => book.id !== itemId));
+        setBooks(books.filter(book => book.id !== itemId));
+        setSelectedBookDetails(null);
       }
     } catch (err) {
       setError(`Failed to delete ${itemType}: ` + err.message);
@@ -670,8 +811,8 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
 
   const searchText = searchCriteria?.searchText || '';
   const hasSearchText = searchText && searchText.trim() !== '';
-  const totalItems = movies.length + albums.length;
-  const totalAllItems = allMovies.length + allAlbums.length;
+  const totalItems = movies.length + albums.length + books.length;
+  const totalAllItems = allMovies.length + allAlbums.length + allBooks.length;
 
   return (
     <div className="wishlist-page">
@@ -711,6 +852,14 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
               <BsMusicNote className="me-2" />
               Add Album
             </button>
+            <button 
+              className="add-book-btn"
+              onClick={handleAddBook}
+              title="Add Book to Wish List"
+            >
+              <BsBook className="me-2" />
+              Add Book
+            </button>
           </div>
         </div>
       </div>
@@ -724,7 +873,7 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
       {totalAllItems === 0 ? (
         <div className="empty-wishlist">
           <h3>Your wish list is empty</h3>
-          <p>Add movies and albums you'd like to acquire to your collection.</p>
+          <p>Add movies, albums, and books you'd like to acquire to your collection.</p>
           <div className="add-buttons">
             <button 
               className="add-movie-btn"
@@ -739,6 +888,13 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
             >
               <BsMusicNote className="me-2" />
               Add Your First Album
+            </button>
+            <button 
+              className="add-book-btn"
+              onClick={handleAddBook}
+            >
+              <BsBook className="me-2" />
+              Add Your First Book
             </button>
           </div>
         </div>
@@ -965,6 +1121,97 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
               </div>
             </div>
           )}
+
+          {/* Books Section */}
+          {books.length > 0 && (
+            <div className="wishlist-section">
+              <h2 className="wish-list-section-title">
+                <BsBook className="me-2" />
+                Books ({books.length})
+              </h2>
+              <div className="table-responsive">
+                <table className="table table-dark table-striped table-hover">
+                  <thead className="thead-dark">
+                    <tr>
+                      <th scope="col">Cover</th>
+                      <th scope="col">Title</th>
+                      <th scope="col">Author</th>
+                      <th scope="col">Year</th>
+                      <th scope="col">Format</th>
+                      <th scope="col">Added Date</th>
+                      <th scope="col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {books.map((book) => (
+                      <tr 
+                        key={`book-${book.id}`} 
+                        className="clickable-row"
+                        onClick={() => handleItemClick(book.id, 'book')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <td>
+                          <div className="book-poster">
+                            <img 
+                              src={bookService.getImageUrl(book.cover) || bookService.getImageUrl('/placeholder-book.png')} 
+                              alt={book.title}
+                              className="book-thumbnail-table"
+                              onError={(e) => {
+                                e.target.src = bookService.getImageUrl('/placeholder-book.png');
+                              }}
+                            />
+                          </div>
+                        </td>
+                        <td>
+                          <div className="book-title-cell">
+                            <strong>{book.title}</strong>
+                            {book.series && (
+                              <div className="book-series">{book.series}{book.seriesNumber ? ` #${book.seriesNumber}` : ''}</div>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="author-cell">
+                            {Array.isArray(book.authors) ? book.authors.join(', ') : book.authors || 'Unknown'}
+                          </div>
+                        </td>
+                        <td>{book.publishedYear || 'Unknown'}</td>
+                        <td>{book.format || 'Hardcover'}</td>
+                        <td>{formatDate(book.createdAt)}</td>
+                        <td>
+                          <div className="actions-cell">
+                            <button 
+                              type="button" 
+                              className="action-button delete"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(book.id, 'book', e);
+                              }}
+                              disabled={deletingId === book.id}
+                              title="Delete book"
+                            >
+                              <BsTrash />
+                            </button>
+                            <button 
+                              type="button" 
+                              className="action-button mark-owned"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkOwnedClick(book, 'book', e);
+                              }}
+                              title="Mark as owned"
+                            >
+                              <BsCurrencyDollar />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -994,6 +1241,20 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
         />
       )}
 
+      {(selectedBookDetails && !loadingDetails) && (
+        <BookDetailCard
+          book={selectedBookDetails}
+          onClose={handleCloseDetails}
+          onDelete={() => handleDeleteItemFromDetails(selectedBookDetails.id, 'book')}
+          onUpdateBook={async (id, bookData) => {
+            await bookService.updateBook(id, bookData);
+            handleRefreshForDetailCard();
+          }}
+          onBookUpdated={handleRefreshForDetailCard}
+          onSearch={onSearch}
+        />
+      )}
+
       {/* Loading indicator for detail cards */}
       {loadingDetails && (
         <div className="modal show" style={{ display: 'block' }} tabIndex="-1">
@@ -1016,7 +1277,7 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
           <div className="modal-dialog">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">Delete {showDeleteModal.itemType === 'movie' ? 'Movie' : 'Album'}</h5>
+                <h5 className="modal-title">Delete {showDeleteModal.itemType === 'movie' ? 'Movie' : showDeleteModal.itemType === 'album' ? 'Album' : 'Book'}</h5>
               </div>
               <div className="modal-body">
                 <p>Are you sure you want to remove this {showDeleteModal.itemType} from your wish list?</p>
@@ -1078,12 +1339,20 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
                         <option value="DVD">DVD</option>
                         <option value="Digital">Digital</option>
                       </>
-                    ) : (
+                    ) : showMarkOwnedModal.itemType === 'album' ? (
                       <>
                         <option value="CD">CD</option>
                         <option value="Vinyl">Vinyl</option>
                         <option value="Digital">Digital</option>
                         <option value="Cassette">Cassette</option>
+                        <option value="Other">Other</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="Hardcover">Hardcover</option>
+                        <option value="Paperback">Paperback</option>
+                        <option value="Ebook">Ebook</option>
+                        <option value="Audiobook">Audiobook</option>
                         <option value="Other">Other</option>
                       </>
                     )}
@@ -1193,6 +1462,33 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
         />
       )}
 
+      {/* Add Book Dialog */}
+      {showAddBookDialog && (
+        <AddBookDialog
+          show={showAddBookDialog}
+          onHide={handleAddBookDialogClose}
+          onAddBook={handleAddBookToWishlist}
+          defaultTitleStatus="wish"
+          onBookAdded={() => {
+            // Immediately refresh wishlist when book is added
+            loadWishListItems();
+            setAddingBook(false);
+            setAddBookError('');
+            if (onBookAdded) onBookAdded();
+          }}
+          onAddStart={() => {
+            setShowAddBookDialog(false); // close dialog instantly
+            setAddingBook(true);
+            setAddBookError('');
+          }}
+          onAddError={(err) => {
+            setAddingBook(false);
+            setAddBookError(err?.message || 'Failed to add book');
+            if (onShowAlert) onShowAlert('Failed to add book: ' + (err?.message || ''), 'danger');
+          }}
+        />
+      )}
+
       {/* Music Form for Manual Entry */}
       {showMusicForm && (
         <MusicForm
@@ -1211,15 +1507,31 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onMov
         </div>
       )}
 
+      {/* Loading indicator for book addition */}
+      {addingBook && (
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+          <div className="loading-message">
+            Adding book to your wish list...
+          </div>
+        </div>
+      )}
+
       {addError && (
         <div className="error-message">
           {addError}
         </div>
       )}
 
+      {addBookError && (
+        <div className="error-message">
+          {addBookError}
+        </div>
+      )}
+
      
       {/* Modal backdrop */}
-      {(showDeleteModal.show || showMarkOwnedModal.show || loadingDetails || showAddMusicDialog || showMusicForm || addingAlbum) && (
+      {(showDeleteModal.show || showMarkOwnedModal.show || loadingDetails || showAddMusicDialog || showMusicForm || addingAlbum || showAddBookDialog || addingBook) && (
         <div className="modal-backdrop show"></div>
       )}
 

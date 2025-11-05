@@ -25,6 +25,10 @@ const BookDexPage = forwardRef(({ searchCriteria }, ref) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
+  // Check if we're in wishlist mode
+  const urlParams = new URLSearchParams(location.search);
+  const isWishlistMode = urlParams.get('mode') === 'wishlist';
+
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     openAddDialog: () => {
@@ -110,6 +114,7 @@ const BookDexPage = forwardRef(({ searchCriteria }, ref) => {
         onOpenAddDialog={handleOpenAddDialog}
         refreshTrigger={books.length}
         searchCriteria={searchCriteria}
+        defaultTitleStatus={isWishlistMode ? 'wish' : undefined}
       />
 
       {/* Alert */}

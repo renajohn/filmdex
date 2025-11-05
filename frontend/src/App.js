@@ -731,6 +731,26 @@ function AppContent() {
     }, 100);
   };
 
+  const handleWishListAddBook = (mode) => {
+    // Navigate to bookdex and open add dialog
+    navigate('/bookdex');
+    setTimeout(() => {
+      if (bookDexRef.current && bookDexRef.current.openAddDialog) {
+        bookDexRef.current.openAddDialog();
+      }
+    }, 100);
+  };
+
+  const handleBookMovedToCollection = (book) => {
+    // Refresh book dex if it's open
+    // Note: BookDexPage doesn't have a refreshBooks method yet, but this is ready for future use
+  };
+
+  const handleBookAdded = (message) => {
+    // Don't show success messages for wish list additions
+    // Only show errors if needed
+  };
+
   const handleAlbumMovedToCollection = (album) => {
     // Refresh music dex if it's open
     if (musicDexRef.current && musicDexRef.current.refreshAlbums) {
@@ -1203,7 +1223,7 @@ function AppContent() {
           <Route path="/filmdex/import" element={<ImportPage />} />
           <Route path="/musicdex" element={<MusicDexPage ref={musicDexRef} searchCriteria={searchCriteria} />} />
           <Route path="/bookdex" element={<BookDexPage ref={bookDexRef} searchCriteria={searchCriteria} />} />
-          <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onAddAlbum={handleWishListAddAlbum} onMovieMovedToCollection={handleMovieMovedToCollection} onAlbumMovedToCollection={handleAlbumMovedToCollection} onShowAlert={handleShowAlert} onMovieAdded={handleMovieAdded} onAlbumAdded={handleAlbumAdded} onSearch={handleSearchFromMovieDetail} />} />
+          <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onAddAlbum={handleWishListAddAlbum} onAddBook={handleWishListAddBook} onMovieMovedToCollection={handleMovieMovedToCollection} onAlbumMovedToCollection={handleAlbumMovedToCollection} onBookMovedToCollection={handleBookMovedToCollection} onShowAlert={handleShowAlert} onMovieAdded={handleMovieAdded} onAlbumAdded={handleAlbumAdded} onBookAdded={handleBookAdded} onSearch={handleSearchFromMovieDetail} />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
         </Routes>
       </main>

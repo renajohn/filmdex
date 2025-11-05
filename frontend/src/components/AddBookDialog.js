@@ -6,7 +6,7 @@ import BookForm from './BookForm';
 import VolumeSelector from './VolumeSelector';
 import './AddBookDialog.css';
 
-const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAddError, templateBook, onAddBooksBatch }) => {
+const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAddError, templateBook, onAddBooksBatch, defaultTitleStatus }) => {
   const [searchTab, setSearchTab] = useState('isbn'); // 'isbn' or 'title'
   const [searchQuery, setSearchQuery] = useState('');
   const [searchIsbn, setSearchIsbn] = useState('');
@@ -20,7 +20,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   const [showMetadataForm, setShowMetadataForm] = useState(false);
   const [selectedBook, setSelectedBook] = useState(null);
   const [selectedBookGroup, setSelectedBookGroup] = useState(null);
-  const [searchLanguage, setSearchLanguage] = useState('fr'); // Français par défaut
+  const [searchLanguage, setSearchLanguage] = useState('any'); // Default to any language for better results
   const [enriching, setEnriching] = useState(false);
   const [enrichingBookIndex, setEnrichingBookIndex] = useState(null); // Track which book is being enriched
   const [showVolumeSelector, setShowVolumeSelector] = useState(false);
@@ -183,7 +183,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     try {
       // Build search filters
       const filters = {
-        language: searchLanguage
+        language: searchLanguage === 'any' ? undefined : searchLanguage // Don't pass 'any', let backend handle it
       };
       
       let query = '';
@@ -194,6 +194,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
         query = ''; // ISBN search doesn't need a general query
       } else {
         // Title/Author search mode
+        // Pass title and author as separate filters for better API handling
         if (trimmedTitle) {
           filters.title = trimmedTitle;
         }
@@ -201,8 +202,10 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
           filters.author = trimmedAuthor;
         }
         
-        // Build query from title/author
+        // Build query from title/author - prefer title if available
+        // The backend will use filters.title and filters.author for structured searches
         if (trimmedTitle && trimmedAuthor) {
+          // Both provided - combine for general query, but filters will be used for structured search
           query = `${trimmedTitle} ${trimmedAuthor}`;
         } else if (trimmedTitle) {
           query = trimmedTitle;
@@ -218,6 +221,17 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       const grouped = groupSearchResults(results);
       setGroupedResults(grouped);
       
+      // Provide feedback when no results found
+      if (results.length === 0) {
+        const searchTerms = [];
+        if (trimmedTitle) searchTerms.push(`title "${trimmedTitle}"`);
+        if (trimmedAuthor) searchTerms.push(`author "${trimmedAuthor}"`);
+        const searchDesc = searchTerms.length > 0 ? searchTerms.join(' and ') : 'your search';
+        setError(`No books found for ${searchDesc}. Try different search terms or check your spelling.`);
+      } else {
+        setError(''); // Clear any previous errors
+      }
+      
       // Expand all groups initially if there are few results
       if (grouped.length <= 3) {
         setExpandedGroups(new Set(grouped.map((_, idx) => idx)));
@@ -225,7 +239,11 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
         setExpandedGroups(new Set());
       }
     } catch (err) {
-      setError('Search failed: ' + err.message);
+      console.error('Search error:', err);
+      const errorMessage = err.message || 'Unknown error occurred';
+      setError(`Search failed: ${errorMessage}. Please try again or use ISBN search for more reliable results.`);
+      setSearchResults([]);
+      setGroupedResults([]);
     } finally {
       setSearching(false);
     }
@@ -291,7 +309,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     setShowMetadataForm(false);
     setSelectedBook(null);
     setSelectedBookGroup(null);
-    setSearchLanguage('fr'); // Reset to default
+    setSearchLanguage('any'); // Reset to default
     setShowVolumeSelector(false);
     onHide();
   };
@@ -389,10 +407,15 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       <BookForm
         book={selectedBook}
         availableBooks={selectedBookGroup}
+        defaultTitleStatus={defaultTitleStatus}
         onSave={async (bookData) => {
           if (onAddStart) onAddStart();
           try {
-            const createdBook = await onAddBook(bookData);
+            // Ensure titleStatus is set if defaultTitleStatus is provided
+            const bookDataWithStatus = defaultTitleStatus 
+              ? { ...bookData, titleStatus: defaultTitleStatus }
+              : bookData;
+            const createdBook = await onAddBook(bookDataWithStatus);
             handleBookAdded(createdBook);
             return createdBook;
           } catch (err) {
@@ -438,7 +461,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
           
           {/* ISBN Search Tab */}
           {searchTab === 'isbn' && (
-            <div className="row g-2 mb-3">
+            <div className="row g-3 mb-3">
               <div className="col-12 col-md-10">
                 <Form.Control
                   ref={isbnInputRef}
@@ -471,8 +494,8 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
           
           {/* Title/Author Search Tab */}
           {searchTab === 'title' && (
-            <div className="row g-2 mb-3">
-              <div className="col-12 col-md-4">
+            <div className="row g-3 mb-3">
+              <div className="col-12 col-md-3">
                 <Form.Control
                   ref={titleInputRef}
                   type="text"
@@ -483,7 +506,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                   className="search-input"
                 />
               </div>
-              <div className="col-12 col-md-3">
+              <div className="col-12 col-md-4">
                 <Form.Control
                   type="text"
                   placeholder="Author (optional)"
@@ -524,14 +547,22 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
             </div>
           )}
 
-          {error && (
-            <Alert variant="danger" className="mb-3">
+          {/* Show message when searching */}
+          {searching && (
+            <div className="text-center mb-3" style={{ color: '#fbbf24' }}>
+              <div className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
+              Searching for books...
+            </div>
+          )}
+
+          {error && !searching && (
+            <Alert variant={groupedResults.length === 0 && searchResults.length === 0 ? "warning" : "danger"} className="mb-3">
               {error}
             </Alert>
           )}
 
           {/* Grouped Search Results */}
-          {groupedResults.length > 0 && (
+          {!searching && groupedResults.length > 0 && (
             <div className="grouped-search-results">
               <div className="results-header mb-3">
                 <h6 className="results-title">
