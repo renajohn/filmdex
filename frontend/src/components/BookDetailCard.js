@@ -719,7 +719,22 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
           </Modal.Title>
         </Modal.Header>
         
-        <Modal.Body className="book-detail-modal-body" style={{ maxHeight: 'calc(90vh - 120px)', overflow: 'hidden' }}>
+        <Modal.Body className="book-detail-modal-body" style={{ maxHeight: 'calc(90vh - 120px)', overflow: 'hidden', position: 'relative' }}>
+          {enrichingVolumes && (
+            <div className="enrichment-overlay">
+              <div className="enrichment-loading-indicator">
+                <div className="spinner-border text-warning mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+                <div className="text-center">
+                  <strong>Enriching volumes...</strong>
+                  <div className="mt-2">
+                    {enrichmentProgress.current} / {enrichmentProgress.total}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <div className={`book-detail-slider ${
             view === 'edit' ? 'slided-right' : 
             view === 'volumes' ? 'slided-left' : 
@@ -1658,6 +1673,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
 
             {/* Volumes View */}
             <div className={`book-volumes-view ${view === 'volumes' ? 'active' : ''}`}>
+
               {loadingVolumes && (
                 <div className="text-center py-5">
                   <div className="spinner-border text-warning mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
@@ -1712,13 +1728,6 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                         disabled={enrichingVolumes}
                       />
                     </div>
-                  )}
-
-                  {enrichingVolumes && (
-                    <Alert variant="info" className="mb-3">
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Enriching volumes... ({enrichmentProgress.current}/{enrichmentProgress.total})
-                    </Alert>
                   )}
 
                   <div className="volumes-grid-container">

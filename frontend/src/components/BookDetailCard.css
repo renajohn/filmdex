@@ -140,6 +140,44 @@
   left: 66.66%;
 }
 
+.enrichment-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all;
+  backdrop-filter: blur(2px);
+}
+
+.enrichment-loading-indicator {
+  background-color: rgba(26, 32, 44, 0.95);
+  border: 2px solid rgba(251, 191, 36, 0.5);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  color: #f8f9fa;
+  min-width: 250px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.enrichment-loading-indicator strong {
+  color: #fbbf24;
+  font-size: 1.1rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.enrichment-loading-indicator .mt-2 {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1rem;
+}
+
 .book-detail-view.active,
 .book-volumes-view.active,
 .book-edit-view.active {
@@ -670,8 +708,12 @@
 }
 
 .comment-date {
-  color: #b0b0b0;
+  color: rgba(255, 255, 255, 0.6) !important;
   font-size: 0.875rem;
+}
+
+.comment-date.text-muted {
+  color: rgba(255, 255, 255, 0.6) !important;
 }
 
 .comment-text {
