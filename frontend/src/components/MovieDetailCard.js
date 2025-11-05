@@ -529,32 +529,15 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       return backdropPath;
     }
     
-    // Detect if we're in Home Assistant ingress mode
-    const pathname = window.location.pathname;
-    if (pathname.includes('/api/hassio_ingress/')) {
-      const match = pathname.match(/\/api\/hassio_ingress\/[^/]+/);
-      if (match) {
-        const ingressPath = match[0];
-        // If path starts with /api/images/, prepend ingress path
-        if (backdropPath.startsWith('/api/images/')) {
-          return `${ingressPath}${backdropPath}`;
-        }
-        // If path starts with /images/, convert to /api/images/ and prepend ingress
-        if (backdropPath.startsWith('/images/')) {
-          return `${ingressPath}/api${backdropPath}`;
-        }
-        // Otherwise, assume it needs /api/images/ prefix
-        return `${ingressPath}/api/images/${backdropPath}`;
-      }
-    }
-    
-    // Normal mode - just return the path as-is if it starts with /api/images/
-    if (backdropPath.startsWith('/api/images/') || backdropPath.startsWith('/images/')) {
-      return backdropPath;
+    // If it's already a local path, return as is with ingress support
+    if (backdropPath.startsWith('/images/') || backdropPath.startsWith('/api/images/')) {
+      const baseUrl = apiService.getImageBaseUrl();
+      return `${baseUrl}${backdropPath}`;
     }
     
     // Default: prepend /api/images/
-    return `/api/images/${backdropPath}`;
+    const baseUrl = apiService.getImageBaseUrl();
+    return `${baseUrl}/api/images/${backdropPath}`;
   };
 
   const getProfileUrl = (profilePath) => {
@@ -565,32 +548,15 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       return profilePath;
     }
     
-    // Detect if we're in Home Assistant ingress mode
-    const pathname = window.location.pathname;
-    if (pathname.includes('/api/hassio_ingress/')) {
-      const match = pathname.match(/\/api\/hassio_ingress\/[^/]+/);
-      if (match) {
-        const ingressPath = match[0];
-        // If path starts with /api/images/, prepend ingress path
-        if (profilePath.startsWith('/api/images/')) {
-          return `${ingressPath}${profilePath}`;
-        }
-        // If path starts with /images/, convert to /api/images/ and prepend ingress
-        if (profilePath.startsWith('/images/')) {
-          return `${ingressPath}/api${profilePath}`;
-        }
-        // Otherwise, assume it needs /api/images/ prefix
-        return `${ingressPath}/api/images/${profilePath}`;
-      }
-    }
-    
-    // Normal mode - just return the path as-is if it starts with /api/images/
-    if (profilePath.startsWith('/api/images/') || profilePath.startsWith('/images/')) {
-      return profilePath;
+    // If it's already a local path, return as is with ingress support
+    if (profilePath.startsWith('/images/') || profilePath.startsWith('/api/images/')) {
+      const baseUrl = apiService.getImageBaseUrl();
+      return `${baseUrl}${profilePath}`;
     }
     
     // Default: prepend /api/images/
-    return `/api/images/${profilePath}`;
+    const baseUrl = apiService.getImageBaseUrl();
+    return `${baseUrl}/api/images/${profilePath}`;
   };
 
   const getTrailerUrl = (trailerKey, trailerSite) => {

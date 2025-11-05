@@ -347,6 +347,62 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
     return bookService.getImageUrl(book.cover);
   };
 
+  const formatBookMetadata = () => {
+    const parts = [];
+    
+    // Language
+    let langName = null;
+    if (book.language) {
+      const langMap = {
+        'fr': 'French',
+        'en': 'English',
+        'de': 'German',
+        'es': 'Spanish',
+        'it': 'Italian',
+        'pt': 'Portuguese',
+        'ru': 'Russian',
+        'ja': 'Japanese',
+        'zh': 'Chinese',
+        'ko': 'Korean'
+      };
+      langName = langMap[book.language.toLowerCase()] || book.language.toUpperCase();
+    }
+    
+    // Format
+    const format = book.format || null;
+    
+    // Pages
+    const pages = book.pageCount || null;
+    
+    // Build the sentence naturally
+    let sentence = '';
+    
+    if (pages && (langName || format)) {
+      // "88-page French physical book" or "88-page physical book" or "88-page French book"
+      const pageDesc = `${pages}-page`;
+      const descParts = [];
+      if (langName) descParts.push(langName);
+      if (format) descParts.push(format);
+      descParts.push('book');
+      sentence = `${pageDesc} ${descParts.join(' ')}`;
+    } else if (langName || format) {
+      // "French physical book" or "physical book" or "French book"
+      const descParts = [];
+      if (langName) descParts.push(langName);
+      if (format) descParts.push(format);
+      descParts.push('book');
+      sentence = descParts.join(' ');
+      if (pages) {
+        sentence += ` (${pages} page${pages !== 1 ? 's' : ''})`;
+      }
+    } else if (pages) {
+      // Just pages: "88-page book"
+      sentence = `${pages}-page book`;
+    }
+    
+    return sentence ? sentence.charAt(0).toUpperCase() + sentence.slice(1) : '';
+  };
+
   const handleSearch = (searchType, value) => {
     if (onSearch) {
       let predicate = '';
@@ -358,6 +414,8 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
         predicate = `genre:"${value}"`;
       } else if (searchType === 'series') {
         predicate = `series:"${value}"`;
+      } else if (searchType === 'owner') {
+        predicate = `owner:"${value}"`;
       } else {
         predicate = value;
       }
@@ -713,7 +771,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
             ) : (
               <>
                 <BsBook className="me-2" />
-                {book.title}
+                {book.title}{book.subtitle ? ` – ${book.subtitle}` : ''}
               </>
             )}
           </Modal.Title>
@@ -769,11 +827,61 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                   >
                     <BsBook size={64} />
                   </div>
+                  
+                  {(book.language || book.format || book.pageCount || book.publishedYear) && (
+                    <div className="book-metadata-summary">
+                      {formatBookMetadata() && (
+                        <div className="metadata-summary-line">
+                          {formatBookMetadata()}.
+                        </div>
+                      )}
+                      {book.publishedYear && (
+                        <div className="metadata-summary-line">
+                          Published in {book.publishedYear}.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {book.rating && (
+                    <div className="book-rating-section">
+                      <BsStar className="me-2" style={{ color: '#fbbf24' }} />
+                      <strong>Rating:</strong> {book.rating}/5
+                    </div>
+                  )}
+                  
+                  {book.owner && (
+                    <div className="book-owner-section">
+                      <BsPerson className="me-2" style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
+                      <strong>Owner:</strong>{' '}
+                      <span 
+                        className="clickable-author"
+                        onClick={() => handleSearch('owner', book.owner)}
+                      >
+                        {book.owner}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </Col>
               
               <Col md={9}>
                 <div className="book-details">
+                  {book.series && (
+                    <div className="series-section">
+                      <div>
+                        <strong>Series:</strong>{' '}
+                        <span 
+                          className="clickable-series"
+                          onClick={() => handleSearch('series', book.series)}
+                        >
+                          {book.series}
+                          {book.seriesNumber && ` #${book.seriesNumber}`}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
                   {Array.isArray(book.authors) && book.authors.length > 1 ? (
                     <div className="book-author-section">
                       <strong>Authors:</strong>{' '}
@@ -817,110 +925,102 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                       </p>
                     )
                   )}
-                
-                  <div className="metadata-section">
-                    <Row>
-                      {book.publishedYear && (
-                        <Col xs={6} md={4}>
-                          <div className="metadata-item">
-                            <BsCalendar className="metadata-icon" />
-                            <span className="metadata-label">Year:</span>
-                            <span className="metadata-value">{book.publishedYear}</span>
-                          </div>
-                        </Col>
-                      )}
-                      
-                      {book.format && (
-                        <Col xs={6} md={4}>
-                          <div className="metadata-item">
-                            <BsFileEarmark className="metadata-icon" />
-                            <span className="metadata-label">Format:</span>
-                            <span className="metadata-value">{book.format}</span>
-                          </div>
-                        </Col>
-                      )}
-                      
-                      {book.language && (
-                        <Col xs={6} md={4}>
-                          <div className="metadata-item">
-                            <BsTranslate className="metadata-icon" />
-                            <span className="metadata-label">Language:</span>
-                            <span className="metadata-value">{book.language}</span>
-                          </div>
-                        </Col>
-                      )}
-                      
-                      {book.pageCount && (
-                        <Col xs={6} md={4}>
-                          <div className="metadata-item">
-                            <BsFileEarmark className="metadata-icon" />
-                            <span className="metadata-label">Pages:</span>
-                            <span className="metadata-value">{book.pageCount}</span>
-                          </div>
-                        </Col>
-                      )}
-                      
-                      {book.rating && (
-                        <Col xs={6} md={4}>
-                          <div className="metadata-item">
-                            <BsStar className="metadata-icon" />
-                            <span className="metadata-label">Rating:</span>
-                            <span className="metadata-value">{book.rating}/5</span>
-                          </div>
-                        </Col>
-                      )}
-                      
-                      {book.owner && (
-                        <Col xs={6} md={4}>
-                          <div className="metadata-item">
-                            <BsPerson className="metadata-icon" />
-                            <span className="metadata-label">Owner:</span>
-                            <span className="metadata-value">{book.owner}</span>
-                          </div>
-                        </Col>
-                      )}
-                    </Row>
-                  </div>
-                  
-                  {book.subtitle && (
-                    <div className="subtitle">
-                      <strong>Subtitle:</strong> {book.subtitle}
-                    </div>
-                  )}
-                  
-                  {book.series && (
-                    <div className="series-section">
-                      <div className="d-flex align-items-center justify-content-between">
-                        <div>
-                          <strong>Series:</strong>{' '}
-                          <span 
-                            className="clickable-series"
-                            onClick={() => handleSearch('series', book.series)}
-                          >
-                            {book.series}
-                            {book.seriesNumber && ` #${book.seriesNumber}`}
-                          </span>
-                        </div>
-                        {book.series && (
-                          <Button
-                            variant="outline-warning"
-                            size="sm"
-                            onClick={handleShowVolumes}
-                            style={{ backgroundColor: 'rgba(251, 191, 36, 0.1)', borderColor: '#fbbf24', color: '#fbbf24' }}
-                          >
-                            <BsPlus className="me-1" />
-                            Add Next Volume
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  )}
                   
                   {book.publisher && (
                     <div className="publisher">
                       <strong>Publisher:</strong> {book.publisher}
+                          </div>
+                  )}
+                  
+                  {book.description && (
+                    <div className="description-section">
+                      <p className="description-text">{book.description}</p>
                     </div>
                   )}
+                  
+                  <div className="comments-section">
+                    <div className="d-flex align-items-center justify-content-between mb-2">
+                      <div className="d-flex align-items-center">
+                        <BsChatSquareText className="me-2" />
+                        <strong>Reviews {comments.length > 0 && `(${comments.length})`}</strong>
+                          </div>
+                      <Button 
+                        variant="outline-primary" 
+                        size="sm" 
+                        onClick={handleAddComment}
+                      >
+                        <BsPlus className="me-1" />Add Review
+                      </Button>
+                          </div>
+                    {loadingComments ? (
+                      <p className="comments-empty-message">Loading reviews...</p>
+                    ) : comments.length === 0 ? (
+                      <p className="comments-empty-message">No reviews yet. Be the first to add one!</p>
+                    ) : (
+                      <div className="comments-list">
+                        {comments.map((comment) => (
+                          <div key={comment.id} className="comment-item mb-3">
+                            <div className="d-flex justify-content-between align-items-start mb-1">
+                              <div>
+                                <strong className="comment-name">{comment.name}</strong>
+                                {comment.date && (
+                                  <span className="comment-date ms-2 text-muted">
+                                    {formatDate(comment.date)}
+                                  </span>
+                                )}
+                          </div>
+                              <div className="comment-actions">
+                                {deletingCommentId === comment.id ? (
+                                  <>
+                                    <Button 
+                                      variant="link" 
+                                      size="sm" 
+                                      className="text-danger p-0 me-2"
+                                      onClick={() => handleDeleteComment(comment.id)}
+                                      title="Confirm deletion"
+                                    >
+                                      Confirm deletion
+                                    </Button>
+                                    <Button
+                                      variant="link"
+                                      size="sm"
+                                      className="text-secondary p-0"
+                                      onClick={() => setDeletingCommentId(null)}
+                                      title="Cancel"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button
+                                      variant="link"
+                                      size="sm"
+                                      className="text-primary p-0 me-2"
+                                      onClick={() => handleEditComment(comment)}
+                                      title="Edit review"
+                                    >
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      variant="link"
+                                      size="sm"
+                                      className="text-danger p-0"
+                                      onClick={() => handleDeleteComment(comment.id)}
+                                      title="Delete review"
+                                    >
+                                      Delete
+                                    </Button>
+                                  </>
+                                )}
+                  </div>
+                            </div>
+                            <p className="comment-text mb-0">{comment.comment}</p>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                  </div>
                   
                   {book.genres && Array.isArray(book.genres) && book.genres.length > 0 && (
                     <div className="tags-section">
@@ -950,13 +1050,6 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                           </Badge>
                         ))}
                       </div>
-                    </div>
-                  )}
-                  
-                  {book.description && (
-                    <div className="description-section">
-                      <strong>Description:</strong>
-                      <p className="description-text">{book.description}</p>
                     </div>
                   )}
                   
@@ -1134,90 +1227,6 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                       )}
                     </div>
                   ) : null}
-                  
-                  <div className="comments-section">
-                    <div className="d-flex align-items-center justify-content-between mb-2">
-                      <div className="d-flex align-items-center">
-                        <BsChatSquareText className="me-2" />
-                        <strong>Reviews {comments.length > 0 && `(${comments.length})`}</strong>
-                      </div>
-                      <Button 
-                        variant="outline-primary" 
-                        size="sm" 
-                        onClick={handleAddComment}
-                      >
-                        <BsPlus className="me-1" />Add Review
-                      </Button>
-                    </div>
-                    {loadingComments ? (
-                      <p className="text-muted">Loading reviews...</p>
-                    ) : comments.length === 0 ? (
-                      <p className="text-muted">No reviews yet. Be the first to add one!</p>
-                    ) : (
-                      <div className="comments-list">
-                        {comments.map((comment) => (
-                          <div key={comment.id} className="comment-item mb-3">
-                            <div className="d-flex justify-content-between align-items-start mb-1">
-                              <div>
-                                <strong className="comment-name">{comment.name}</strong>
-                                {comment.date && (
-                                  <span className="comment-date ms-2 text-muted">
-                                    {formatDate(comment.date)}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="comment-actions">
-                                {deletingCommentId === comment.id ? (
-                                  <>
-                                    <Button 
-                                      variant="link" 
-                                      size="sm" 
-                                      className="text-danger p-0 me-2"
-                                      onClick={() => handleDeleteComment(comment.id)}
-                                      title="Confirm deletion"
-                                    >
-                                      Confirm deletion
-                                    </Button>
-                                    <Button 
-                                      variant="link" 
-                                      size="sm" 
-                                      className="text-secondary p-0"
-                                      onClick={handleCancelDelete}
-                                      title="Cancel"
-                                    >
-                                      <BsX />
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Button 
-                                      variant="link" 
-                                      size="sm" 
-                                      className="text-primary p-0 me-2"
-                                      onClick={() => handleEditComment(comment)}
-                                      title="Edit review"
-                                    >
-                                      <BsPencil />
-                                    </Button>
-                                    <Button 
-                                      variant="link" 
-                                      size="sm" 
-                                      className="text-danger p-0"
-                                      onClick={() => handleDeleteComment(comment.id)}
-                                      title="Delete review"
-                                    >
-                                      <BsTrash />
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                            <p className="comment-text mb-0">{comment.comment}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </div>
               </Col>
             </Row>
@@ -1267,100 +1276,52 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                 )
               )}
             
-              <div className="metadata-section">
-                <Row>
+              {(book.language || book.format || book.pageCount || book.publishedYear) && (
+                <div className="book-metadata-summary">
+                  {formatBookMetadata() && (
+                    <div className="metadata-summary-line">
+                      {formatBookMetadata()}.
+                    </div>
+                  )}
                   {book.publishedYear && (
-                    <Col xs={6} md={4}>
-                      <div className="metadata-item">
-                        <BsCalendar className="metadata-icon" />
-                        <span className="metadata-label">Year:</span>
-                        <span className="metadata-value">{book.publishedYear}</span>
+                    <div className="metadata-summary-line">
+                      Published in {book.publishedYear}.
                       </div>
-                    </Col>
                   )}
-                  
-                  {book.format && (
-                    <Col xs={6} md={4}>
-                      <div className="metadata-item">
-                        <BsFileEarmark className="metadata-icon" />
-                        <span className="metadata-label">Format:</span>
-                        <span className="metadata-value">{book.format}</span>
-                      </div>
-                    </Col>
-                  )}
-                  
-                  {book.language && (
-                    <Col xs={6} md={4}>
-                      <div className="metadata-item">
-                        <BsTranslate className="metadata-icon" />
-                        <span className="metadata-label">Language:</span>
-                        <span className="metadata-value">{book.language}</span>
-                      </div>
-                    </Col>
-                  )}
-                  
-                  {book.pageCount && (
-                    <Col xs={6} md={4}>
-                      <div className="metadata-item">
-                        <BsFileEarmark className="metadata-icon" />
-                        <span className="metadata-label">Pages:</span>
-                        <span className="metadata-value">{book.pageCount}</span>
-                      </div>
-                    </Col>
-                  )}
-                  
-                  {book.rating && (
-                    <Col xs={6} md={4}>
-                      <div className="metadata-item">
-                        <BsStar className="metadata-icon" />
-                        <span className="metadata-label">Rating:</span>
-                        <span className="metadata-value">{book.rating}/5</span>
-                      </div>
-                    </Col>
-                  )}
-                  
-                  {book.owner && (
-                    <Col xs={6} md={4}>
-                      <div className="metadata-item">
-                        <BsPerson className="metadata-icon" />
-                        <span className="metadata-label">Owner:</span>
-                        <span className="metadata-value">{book.owner}</span>
-                      </div>
-                    </Col>
-                  )}
-                </Row>
-              </div>
+                </div>
+              )}
               
-              {book.subtitle && (
-                <div className="subtitle">
-                  <strong>Subtitle:</strong> {book.subtitle}
+              {book.rating && (
+                <div className="book-rating-section">
+                  <BsStar className="me-2" style={{ color: '#fbbf24' }} />
+                  <strong>Rating:</strong> {book.rating}/5
+                </div>
+              )}
+              
+              {book.owner && (
+                <div className="book-owner-section">
+                  <BsPerson className="me-2" style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
+                  <strong>Owner:</strong>{' '}
+                  <span 
+                    className="clickable-author"
+                    onClick={() => handleSearch('owner', book.owner)}
+                  >
+                    {book.owner}
+                  </span>
                 </div>
               )}
               
               {book.series && (
                 <div className="series-section">
-                  <div className="d-flex align-items-center justify-content-between">
-                    <div>
-                      <strong>Series:</strong>{' '}
-                      <span 
-                        className="clickable-series"
-                        onClick={() => handleSearch('series', book.series)}
-                      >
-                        {book.series}
-                        {book.seriesNumber && ` #${book.seriesNumber}`}
-                      </span>
-                    </div>
-                    {book.series && (
-                      <Button
-                        variant="outline-warning"
-                        size="sm"
-                        onClick={handleShowVolumes}
-                        style={{ backgroundColor: 'rgba(251, 191, 36, 0.1)', borderColor: '#fbbf24', color: '#fbbf24' }}
-                      >
-                        <BsPlus className="me-1" />
-                        Add Next Volume
-                      </Button>
-                    )}
+                  <div>
+                    <strong>Series:</strong>{' '}
+                    <span 
+                      className="clickable-series"
+                      onClick={() => handleSearch('series', book.series)}
+                    >
+                      {book.series}
+                      {book.seriesNumber && ` #${book.seriesNumber}`}
+                    </span>
                   </div>
                 </div>
               )}
@@ -1370,6 +1331,96 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                   <strong>Publisher:</strong> {book.publisher}
                 </div>
               )}
+              
+              {book.description && (
+                <div className="description-section">
+                  <p className="description-text">{book.description}</p>
+                </div>
+              )}
+              
+              <div className="comments-section">
+                <div className="d-flex align-items-center justify-content-between mb-2">
+                  <div className="d-flex align-items-center">
+                    <BsChatSquareText className="me-2" />
+                    <strong>Reviews {comments.length > 0 && `(${comments.length})`}</strong>
+                  </div>
+                  <Button 
+                    variant="outline-primary" 
+                    size="sm" 
+                    onClick={handleAddComment}
+                  >
+                    <BsPlus className="me-1" />Add Review
+                  </Button>
+                </div>
+                {loadingComments ? (
+                  <p className="comments-empty-message">Loading reviews...</p>
+                ) : comments.length === 0 ? (
+                  <p className="comments-empty-message">No reviews yet. Be the first to add one!</p>
+                ) : (
+                  <div className="comments-list">
+                    {comments.map((comment) => (
+                      <div key={comment.id} className="comment-item mb-3">
+                        <div className="d-flex justify-content-between align-items-start mb-1">
+                          <div>
+                            <strong className="comment-name">{comment.name}</strong>
+                            {comment.date && (
+                              <span className="comment-date ms-2 text-muted">
+                                {formatDate(comment.date)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="comment-actions">
+                            {deletingCommentId === comment.id ? (
+                              <>
+                                <Button 
+                                  variant="link" 
+                                  size="sm" 
+                                  className="text-danger p-0 me-2"
+                                  onClick={() => handleDeleteComment(comment.id)}
+                                  title="Confirm deletion"
+                                >
+                                  Confirm deletion
+                                </Button>
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="text-secondary p-0"
+                                  onClick={() => setDeletingCommentId(null)}
+                                  title="Cancel"
+                                >
+                                  Cancel
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="text-primary p-0 me-2"
+                                  onClick={() => handleEditComment(comment)}
+                                  title="Edit review"
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="text-danger p-0"
+                                  onClick={() => handleDeleteComment(comment.id)}
+                                  title="Delete review"
+                                >
+                                  Delete
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <p className="comment-text mb-0">{comment.comment}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               
               {book.genres && book.genres.length > 0 && (
                 <div className="tags-section">
@@ -1599,9 +1650,9 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                   </Button>
                 </div>
                 {loadingComments ? (
-                  <p className="text-muted">Loading reviews...</p>
+                  <p className="comments-empty-message">Loading reviews...</p>
                 ) : comments.length === 0 ? (
-                  <p className="text-muted">No reviews yet. Be the first to add one!</p>
+                  <p className="comments-empty-message">No reviews yet. Be the first to add one!</p>
                 ) : (
                   <div className="comments-list">
                     {comments.map((comment) => (
@@ -1876,24 +1927,42 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
             </>
           ) : (
             <>
-              <Button 
-                variant="outline-secondary" 
-                onClick={handleShowEdit}
-              >
-                <BsPencil className="me-2" />
-                Edit
-              </Button>
-              <Button 
-                ref={deleteBtnRef}
-                variant={confirmDelete ? "danger" : "outline-danger"} 
-                onClick={handleDelete}
-              >
-                <BsTrash className="me-2" />
-                {confirmDelete ? 'Confirm Delete' : 'Delete'}
-              </Button>
-              <Button variant="secondary" onClick={handleClose}>
-                Close
-              </Button>
+              <div className="d-flex justify-content-between w-100">
+                <div>
+                  {book.series && (
+                    <Button 
+                      variant="outline-warning" 
+                      onClick={handleShowVolumes}
+                      style={{ backgroundColor: 'rgba(251, 191, 36, 0.1)', borderColor: '#fbbf24', color: '#fbbf24' }}
+                    >
+                      <BsPlus className="me-2" />
+                      Add Next Volume
+                    </Button>
+                  )}
+                </div>
+                <div>
+                  <Button 
+                    variant="outline-secondary" 
+                    onClick={handleShowEdit}
+                    className="me-2"
+                  >
+                    <BsPencil className="me-2" />
+                    Edit
+                  </Button>
+                  <Button 
+                    ref={deleteBtnRef}
+                    variant={confirmDelete ? "danger" : "outline-danger"} 
+                    onClick={handleDelete}
+                    className="me-2"
+                  >
+                    <BsTrash className="me-2" />
+                    {confirmDelete ? 'Confirm Delete' : 'Delete'}
+                  </Button>
+                  <Button variant="secondary" onClick={handleClose}>
+                    Close
+                  </Button>
+                </div>
+              </div>
             </>
           )}
         </Modal.Footer>

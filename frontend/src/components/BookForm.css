@@ -51,4 +51,22 @@
   color: rgba(255, 255, 255, 0.8);
 }
 
+/* Fix "Fetch from Sources" button hover state */
+.btn-outline-warning {
+  transition: all 0.2s ease;
+}
+
+.btn-outline-warning:hover:not(:disabled) {
+  background-color: rgba(251, 191, 36, 0.15) !important;
+  border-color: rgba(251, 191, 36, 0.8) !important;
+  color: #fbbf24 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.2);
+}
+
+.btn-outline-warning:active:not(:disabled) {
+  background-color: rgba(251, 191, 36, 0.25) !important;
+  transform: translateY(0);
+}
+
 

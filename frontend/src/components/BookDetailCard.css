@@ -437,33 +437,37 @@
 }
 
 .book-author {
-  font-size: 1.1rem;
-  margin-bottom: 1rem;
-  color: #e2e8f0; /* Match album artist color */
+  font-size: 1.2rem;
+  margin-bottom: 0.75rem;
+  color: #e2e8f0;
   font-weight: 500;
   word-wrap: break-word;
   overflow-wrap: break-word;
   max-width: 100%;
+  line-height: 1.6;
 }
 
 .book-author strong {
-  color: #f8f9fa; /* White/light for labels */
+  color: #f8f9fa;
+  font-weight: 600;
 }
 
 .book-author-section,
 .book-artist-section {
-  font-size: 1.1rem;
-  margin-bottom: 1rem;
-  color: #e2e8f0; /* Match album artist color */
+  font-size: 1.2rem;
+  margin-bottom: 0.75rem;
+  color: #e2e8f0;
   font-weight: 500;
   word-wrap: break-word;
   overflow-wrap: break-word;
   max-width: 100%;
+  line-height: 1.6;
 }
 
 .book-author-section strong,
 .book-artist-section strong {
-  color: #f8f9fa; /* White/light for labels */
+  color: #f8f9fa;
+  font-weight: 600;
 }
 
 .clickable-author {
@@ -486,53 +490,67 @@
   color: #8bb5ff; /* Even lighter on hover */
 }
 
-.metadata-section {
-  margin-bottom: 1rem;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  overflow-x: hidden;
+.book-metadata-summary {
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 
-.metadata-item {
+.metadata-summary-line {
+  margin-bottom: 0.25rem;
+}
+
+.metadata-summary-line:last-child {
+  margin-bottom: 0;
+}
+
+.book-rating-section,
+.book-owner-section {
+  margin-bottom: 0.75rem;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.95rem;
   display: flex;
   align-items: center;
-  margin-bottom: 0.5rem;
 }
 
-.metadata-icon {
-  margin-right: 0.5rem;
-  color: #f8f9fa; /* White/light for icons */
-}
-
-.metadata-label {
+.book-rating-section strong,
+.book-owner-section strong {
+  color: rgba(255, 255, 255, 0.9);
   font-weight: 600;
   margin-right: 0.5rem;
-  color: #f8f9fa; /* White/light for labels */
 }
 
-.metadata-value {
-  color: #e0e0e0; /* Light gray for dark backgrounds */
+.book-secondary-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .subtitle {
-  margin-bottom: 1rem;
-  color: #e2e8f0; /* Match album artist color */
+  margin-bottom: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  font-style: italic;
+  padding-left: 0.75rem;
+  border-left: 2px solid rgba(251, 191, 36, 0.4);
 }
 
 .subtitle strong {
-  color: #f7fafc; /* Match album title color */
-  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+  font-style: normal;
 }
 
 .series-section {
-  margin-bottom: 1rem;
-  color: #e0e0e0;
+  margin-bottom: 0.75rem;
+  color: rgba(255, 255, 255, 0.75);
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -541,12 +559,13 @@
 }
 
 .series-section strong {
-  color: #f8f9fa; /* White/light for labels */
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
 }
 
 .publisher {
   margin-bottom: 1rem;
-  color: #e0e0e0;
+  color: rgba(255, 255, 255, 0.75);
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -555,11 +574,12 @@
 }
 
 .publisher strong {
-  color: #f8f9fa; /* White/light for labels */
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
 }
 
 .tags-section {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -568,8 +588,10 @@
 
 .tags-label {
   font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: #f8f9fa; /* White/light for labels */
+  margin-bottom: 0.75rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+  letter-spacing: 0.3px;
 }
 
 .tags-container {
@@ -599,7 +621,7 @@
 }
 
 .description-section {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -607,12 +629,18 @@
 }
 
 .description-section strong {
-  color: #f8f9fa; /* White/light for section headers */
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0.3px;
+  display: block;
+  margin-bottom: 0.5rem;
 }
 
 .description-text {
-  margin-top: 0.5rem;
-  color: #e0e0e0; /* Light gray for readability */
+  margin-top: 0;
+  margin-bottom: 0;
+  color: rgba(255, 255, 255, 0.8);
   white-space: pre-wrap;
   word-wrap: break-word;
   word-break: break-word;
@@ -621,14 +649,15 @@
   overflow-x: hidden;
   box-sizing: border-box;
   width: 100%;
+  line-height: 1.7;
   /* Ensure long words break */
   hyphens: auto;
 }
 
 .info-section {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1); /* Light border for dark theme */
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -636,9 +665,13 @@
 }
 
 .info-section h4 {
-  font-size: 1rem;
+  font-size: 0.85rem;
   margin-bottom: 0.75rem;
-  color: #f8f9fa; /* White/light for headings */
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  opacity: 0.8;
 }
 
 .info-item {
@@ -689,6 +722,13 @@
 
 .comments-section strong {
   color: #f8f9fa;
+}
+
+.comments-empty-message {
+  color: rgba(255, 255, 255, 0.6) !important;
+  font-style: italic;
+  padding: 0.75rem 0;
+  text-align: center;
 }
 
 .comments-list {
