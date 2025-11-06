@@ -11,10 +11,12 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
   const ebookInputRef = useRef(null);
   const ownerInputRef = useRef(null);
   const ownerDropdownRef = useRef(null);
+  const dragCounterRef = useRef(0);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingEbook, setUploadingEbook] = useState(false);
   const [confirmDeleteEbook, setConfirmDeleteEbook] = useState(false);
   const [coverPreview, setCoverPreview] = useState(null);
+  const [coverPreviewKey, setCoverPreviewKey] = useState(0);
   const [selectedCoverIndex, setSelectedCoverIndex] = useState(0);
   const [selectedEditionIndex, setSelectedEditionIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -758,9 +760,22 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
 
       const result = await bookService.uploadCover(book.id, file);
       setCoverPreview(result.coverPath);
+      setCoverPreviewKey(prev => prev + 1); // Force image reload
       handleInputChange('cover', result.coverPath);
+      // Mark that user has selected a cover so useEffect doesn't override it
+      userSelectedCoverRef.current = true;
       setUploadMessage('Cover uploaded successfully');
       setUploadMessageType('success');
+      
+      // Refresh the book data if onBookUpdated callback is provided
+      if (onBookUpdated) {
+        try {
+          await onBookUpdated(book.id);
+        } catch (error) {
+          console.error('Error refreshing book data after cover upload:', error);
+          // Don't show error to user - cover upload was successful
+        }
+      }
     } catch (error) {
       setUploadMessage('Failed to upload cover: ' + error.message);
       setUploadMessageType('danger');
@@ -771,18 +786,43 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    setIsDragging(true);
+    e.stopPropagation();
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
   };
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
     setIsDragging(false);
     
-    const file = e.dataTransfer.files[0];
+    if (!book?.id) {
+      setUploadMessage('Please save the book first before uploading a cover');
+      setUploadMessageType('danger');
+      return;
+    }
+    
+    const file = e.dataTransfer.files?.[0];
     if (file) {
       const fakeEvent = { target: { files: [file] } };
       handleFileChange(fakeEvent);
@@ -1801,7 +1841,15 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                               cursor: 'pointer',
                               display: 'block'
                             }}
-                            onLoad={(e) => handleImageLoad(cover.url, e)}
+                            onError={(e) => {
+                              // Hide the image if it fails to load
+                              e.target.style.display = 'none';
+                            }}
+                            onLoad={(e) => {
+                              // Ensure image is visible when it loads successfully
+                              e.target.style.display = 'block';
+                              handleImageLoad(cover.url, e);
+                            }}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleCoverClick(cover.url, cover.type === 'back' ? 'Back Cover' : 'Front Cover');
@@ -1857,23 +1905,42 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 <div
                   className={`cover-upload-area ${isDragging ? 'dragging' : ''}`}
                   onDragOver={handleDragOver}
+                  onDragEnter={handleDragEnter}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                   onClick={() => book?.id && fileInputRef.current?.click()}
-                  style={{ cursor: book?.id ? 'pointer' : 'not-allowed', opacity: book?.id ? 1 : 0.5 }}
+                  style={{ 
+                    cursor: isDragging ? 'copy' : (book?.id ? 'pointer' : 'not-allowed'), 
+                    opacity: book?.id ? 1 : 0.5,
+                    pointerEvents: 'auto',
+                    position: 'relative'
+                  }}
                 >
                   {coverPreview ? (
                     <img 
-                      key={coverPreview} 
+                      key={`${coverPreview}-${coverPreviewKey}`} 
                       src={coverPreview.startsWith('http') ? coverPreview : bookService.getImageUrl(coverPreview)} 
                       alt="Cover preview" 
                       className="cover-preview"
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
+                      style={{ cursor: inline ? 'default' : 'pointer', pointerEvents: inline ? 'none' : 'auto' }}
+                      onClick={inline ? undefined : (e) => {
+                        e.stopPropagation();
                         const coverUrl = coverPreview.startsWith('http') ? coverPreview : bookService.getImageUrl(coverPreview);
                         handleCoverClick(coverUrl, 'Cover');
                       }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        // Don't stop propagation - let parent handle it too
+                      }}
+                      draggable={false}
+                      onError={(e) => {
+                        // Hide the image if it fails to load
+                        e.target.style.display = 'none';
+                        // Don't try to access nextSibling as it may not exist in this structure
+                      }}
                       onLoad={(e) => {
+                        // Ensure image is visible when it loads successfully
+                        e.target.style.display = '';
                         const coverUrl = coverPreview.startsWith('http') ? coverPreview : bookService.getImageUrl(coverPreview);
                         handleImageLoad(coverUrl, e);
                       }}
@@ -2515,7 +2582,15 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                               cursor: 'pointer',
                               display: 'block'
                             }}
-                            onLoad={(e) => handleImageLoad(cover.url, e)}
+                            onError={(e) => {
+                              // Hide the image if it fails to load
+                              e.target.style.display = 'none';
+                            }}
+                            onLoad={(e) => {
+                              // Ensure image is visible when it loads successfully
+                              e.target.style.display = 'block';
+                              handleImageLoad(cover.url, e);
+                            }}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleCoverClick(cover.url, cover.type === 'back' ? 'Back Cover' : 'Front Cover');
@@ -2571,23 +2646,42 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 <div
                   className={`cover-upload-area ${isDragging ? 'dragging' : ''}`}
                   onDragOver={handleDragOver}
+                  onDragEnter={handleDragEnter}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                   onClick={() => book?.id && fileInputRef.current?.click()}
-                  style={{ cursor: book?.id ? 'pointer' : 'not-allowed', opacity: book?.id ? 1 : 0.5 }}
+                  style={{ 
+                    cursor: isDragging ? 'copy' : (book?.id ? 'pointer' : 'not-allowed'), 
+                    opacity: book?.id ? 1 : 0.5,
+                    pointerEvents: 'auto',
+                    position: 'relative'
+                  }}
                 >
                   {coverPreview ? (
                     <img 
-                      key={coverPreview} 
+                      key={`${coverPreview}-${coverPreviewKey}`} 
                       src={coverPreview.startsWith('http') ? coverPreview : bookService.getImageUrl(coverPreview)} 
                       alt="Cover preview" 
                       className="cover-preview"
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
+                      style={{ cursor: inline ? 'default' : 'pointer', pointerEvents: inline ? 'none' : 'auto' }}
+                      onClick={inline ? undefined : (e) => {
+                        e.stopPropagation();
                         const coverUrl = coverPreview.startsWith('http') ? coverPreview : bookService.getImageUrl(coverPreview);
                         handleCoverClick(coverUrl, 'Cover');
                       }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        // Don't stop propagation - let parent handle it too
+                      }}
+                      draggable={false}
+                      onError={(e) => {
+                        // Hide the image if it fails to load
+                        e.target.style.display = 'none';
+                        // Don't try to access nextSibling as it may not exist in this structure
+                      }}
                       onLoad={(e) => {
+                        // Ensure image is visible when it loads successfully
+                        e.target.style.display = '';
                         const coverUrl = coverPreview.startsWith('http') ? coverPreview : bookService.getImageUrl(coverPreview);
                         handleImageLoad(coverUrl, e);
                       }}

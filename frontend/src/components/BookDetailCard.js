@@ -47,6 +47,12 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
     }
   }, [book?.id]);
 
+  // Force re-render when book cover changes (e.g., after upload)
+  useEffect(() => {
+    // This effect ensures the component re-renders when book.cover changes
+    // The key on the img element will force it to reload the image
+  }, [book?.cover]);
+
   useEffect(() => {
     if (view === 'volumes' && book?.series) {
       loadVolumes();
@@ -811,13 +817,16 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                       </div>
                     )}
                     <img 
+                      key={`book-cover-${book.id}-${book.cover || 'no-cover'}`}
                       src={getCoverImage()} 
                       alt={`${book.title} cover`}
                       className="book-cover-image book-cover-clickable"
                       onClick={() => handleCoverClick(getCoverImage(), 'Front Cover')}
                       onError={(e) => {
                         e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
+                        if (e.target.nextSibling) {
+                          e.target.nextSibling.style.display = 'flex';
+                        }
                       }}
                     />
                   </div>

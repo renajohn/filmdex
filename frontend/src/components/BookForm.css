@@ -1,29 +1,79 @@
-.book-form-modal .cover-upload-area {
+.book-form-modal .cover-upload-area,
+.cover-upload-area {
   width: 100%;
   min-height: 300px;
-  border: 2px dashed rgba(255, 255, 255, 0.3);
+  border: 3px dashed rgba(251, 191, 36, 0.5);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
-  background-color: rgba(255, 255, 255, 0.05);
+  transition: all 0.2s ease;
+  background-color: rgba(255, 255, 255, 0.03);
+  position: relative;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.cover-upload-area::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border: 3px dashed rgba(251, 191, 36, 0.3);
+  border-radius: 8px;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.2s ease;
 }
 
 .cover-upload-area:hover {
-  border-color: rgba(251, 191, 36, 0.6);
+  border-color: rgba(251, 191, 36, 0.7);
   background-color: rgba(251, 191, 36, 0.1);
+  transform: scale(1.01);
+}
+
+.cover-upload-area:hover::before {
+  opacity: 0.5;
 }
 
 .cover-upload-area.dragging {
+  border-color: rgba(251, 191, 36, 1);
+  background-color: rgba(251, 191, 36, 0.2);
+  transform: scale(1.02);
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
+}
+
+.cover-upload-area.dragging::before {
+  opacity: 0;
   border-color: rgba(251, 191, 36, 0.8);
-  background-color: rgba(251, 191, 36, 0.15);
 }
 
 .cover-preview {
   max-width: 100%;
   max-height: 400px;
   border-radius: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+.cover-upload-area.dragging::after {
+  content: 'Drop image here';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(251, 191, 36, 0.95);
+  color: #1a202c;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1.1rem;
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
 }
 
 .cover-placeholder {
