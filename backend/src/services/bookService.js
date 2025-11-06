@@ -203,11 +203,21 @@ class BookService {
       }
 
       // Download and save cover if URL provided
+      // Use the highest quality cover available from availableCovers if present
+      let coverUrlToUse = bookData.coverUrl;
+      if (bookData.availableCovers && Array.isArray(bookData.availableCovers) && bookData.availableCovers.length > 0) {
+        const largestCover = this.selectLargestCover(bookData.availableCovers);
+        if (largestCover) {
+          coverUrlToUse = largestCover;
+          logger.info(`[AddBook] Selected highest quality cover from ${bookData.availableCovers.length} available covers`);
+        }
+      }
+      
       let coverPath = bookData.cover;
-      if (bookData.coverUrl && !coverPath) {
+      if (coverUrlToUse && !coverPath) {
         try {
           const filename = `book_${Date.now()}.jpg`;
-          coverPath = await imageService.downloadImageFromUrl(bookData.coverUrl, 'book', filename);
+          coverPath = await imageService.downloadImageFromUrl(coverUrlToUse, 'book', filename);
           if (coverPath) {
             try {
               const path = require('path');
@@ -284,11 +294,21 @@ class BookService {
   async updateBook(id, bookData) {
     try {
       // Download and save cover if URL provided
+      // Use the highest quality cover available from availableCovers if present
+      let coverUrlToUse = bookData.coverUrl;
+      if (bookData.availableCovers && Array.isArray(bookData.availableCovers) && bookData.availableCovers.length > 0) {
+        const largestCover = this.selectLargestCover(bookData.availableCovers);
+        if (largestCover) {
+          coverUrlToUse = largestCover;
+          logger.info(`[UpdateBook] Selected highest quality cover from ${bookData.availableCovers.length} available covers`);
+        }
+      }
+      
       let coverPath = bookData.cover;
-      if (bookData.coverUrl && !coverPath) {
+      if (coverUrlToUse && !coverPath) {
         try {
           const filename = `book_${id}_${Date.now()}.jpg`;
-          coverPath = await imageService.downloadImageFromUrl(bookData.coverUrl, 'book', filename);
+          coverPath = await imageService.downloadImageFromUrl(coverUrlToUse, 'book', filename);
           if (coverPath) {
             try {
               const path = require('path');
@@ -934,9 +954,15 @@ class BookService {
     if (coversToCheck.length === 0) return null;
     
     // Sort by size priority (largest first)
+    // Use explicit priority field if available, otherwise infer from URL
     const sortedCovers = coversToCheck.sort((a, b) => {
-      const priorityA = this.getCoverSizePriority(a.url);
-      const priorityB = this.getCoverSizePriority(b.url);
+      // Prefer explicit priority field if available
+      const priorityA = (a.priority !== undefined && a.priority !== null) 
+        ? a.priority 
+        : this.getCoverSizePriority(a.url);
+      const priorityB = (b.priority !== undefined && b.priority !== null) 
+        ? b.priority 
+        : this.getCoverSizePriority(b.url);
       return priorityB - priorityA; // Descending order
     });
     
