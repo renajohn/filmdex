@@ -944,82 +944,196 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                         <BsChatSquareText className="me-2" />
                         <strong>Reviews {comments.length > 0 && `(${comments.length})`}</strong>
                           </div>
-                      <Button 
-                        variant="outline-primary" 
-                        size="sm" 
-                        onClick={handleAddComment}
-                      >
-                        <BsPlus className="me-1" />Add Review
-                      </Button>
+                      {!showCommentModal && (
+                        <Button 
+                          variant="outline-primary" 
+                          size="sm" 
+                          onClick={handleAddComment}
+                        >
+                          <BsPlus className="me-1" />Add Review
+                        </Button>
+                      )}
                           </div>
-                    {loadingComments ? (
-                      <p className="comments-empty-message">Loading reviews...</p>
-                    ) : comments.length === 0 ? (
-                      <p className="comments-empty-message">No reviews yet. Be the first to add one!</p>
-                    ) : (
-                      <div className="comments-list">
-                        {comments.map((comment) => (
-                          <div key={comment.id} className="comment-item mb-3">
-                            <div className="d-flex justify-content-between align-items-start mb-1">
-                              <div>
-                                <strong className="comment-name">{comment.name}</strong>
-                                {comment.date && (
-                                  <span className="comment-date ms-2 text-muted">
-                                    {formatDate(comment.date)}
-                                  </span>
-                                )}
+                    
+                    {/* Inline Comment Form */}
+                    {showCommentModal && (
+                      <div className="comment-form-inline mb-3 p-3" style={{ 
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255, 255, 255, 0.1)'
+                      }}>
+                        {commentErrors.submit && (
+                          <div className="alert alert-danger mb-3">{commentErrors.submit}</div>
+                        )}
+                        <Form>
+                          <Form.Group className="mb-3" style={{ position: 'relative', zIndex: 1000 }}>
+                            <Form.Label>Name <span className="text-danger">*</span></Form.Label>
+                            <Form.Control
+                              ref={nameInputRef}
+                              type="text"
+                              value={commentFormData.name}
+                              onChange={(e) => handleCommentInputChange('name', e.target.value)}
+                              onKeyDown={handleNameKeyDown}
+                              onBlur={handleNameBlur}
+                              onFocus={handleNameFocus}
+                              placeholder="Enter your name"
+                              isInvalid={!!commentErrors.name}
+                              autoComplete="off"
+                            />
+                            {commentErrors.name && (
+                              <Form.Control.Feedback type="invalid">
+                                {commentErrors.name}
+                              </Form.Control.Feedback>
+                            )}
+                            {showNameSuggestions && nameSuggestions.length > 0 && (
+                              <div
+                                ref={nameDropdownRef}
+                                className="autocomplete-dropdown"
+                                style={{
+                                  position: 'absolute',
+                                  top: '100%',
+                                  left: 0,
+                                  right: 0,
+                                  zIndex: 1001,
+                                  backgroundColor: '#212529',
+                                  border: '1px solid #495057',
+                                  borderRadius: '0.25rem',
+                                  marginTop: '0.25rem',
+                                  maxHeight: '200px',
+                                  overflowY: 'auto',
+                                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                                }}
+                              >
+                                {nameSuggestions.map((name, index) => (
+                                  <div
+                                    key={index}
+                                    onClick={() => handleNameSuggestionClick(name)}
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    style={{
+                                      padding: '0.5rem 0.75rem',
+                                      cursor: 'pointer',
+                                      backgroundColor: highlightedNameIndex === index ? '#495057' : 'transparent',
+                                      color: '#f8f9fa'
+                                    }}
+                                    onMouseEnter={() => setHighlightedNameIndex(index)}
+                                  >
+                                    {name}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </Form.Group>
+                          <Form.Group className="mb-3">
+                            <Form.Label>Review <span className="text-danger">*</span></Form.Label>
+                            <Form.Control
+                              as="textarea"
+                              rows={6}
+                              value={commentFormData.comment}
+                              onChange={(e) => handleCommentInputChange('comment', e.target.value)}
+                              placeholder="Enter your review here..."
+                              isInvalid={!!commentErrors.comment}
+                              style={{ 
+                                overflowY: 'auto',
+                                resize: 'vertical',
+                                minHeight: '120px',
+                                maxHeight: '400px'
+                              }}
+                            />
+                            {commentErrors.comment && (
+                              <Form.Control.Feedback type="invalid">
+                                {commentErrors.comment}
+                              </Form.Control.Feedback>
+                            )}
+                          </Form.Group>
+                          <div className="d-flex justify-content-end gap-2">
+                            <Button variant="link" size="sm" onClick={handleCloseCommentModal} disabled={loadingComments} className="text-secondary">
+                              Cancel
+                            </Button>
+                            <Button 
+                              variant="primary" 
+                              size="sm"
+                              onClick={handleSaveComment}
+                              disabled={loadingComments}
+                            >
+                              {loadingComments ? 'Saving...' : (editingComment ? 'Update' : 'Save')}
+                            </Button>
                           </div>
-                              <div className="comment-actions">
-                                {deletingCommentId === comment.id ? (
-                                  <>
-                                    <Button 
-                                      variant="link" 
-                                      size="sm" 
-                                      className="text-danger p-0 me-2"
-                                      onClick={() => handleDeleteComment(comment.id)}
-                                      title="Confirm deletion"
-                                    >
-                                      Confirm deletion
-                                    </Button>
-                                    <Button
-                                      variant="link"
-                                      size="sm"
-                                      className="text-secondary p-0"
-                                      onClick={() => setDeletingCommentId(null)}
-                                      title="Cancel"
-                                    >
-                                      Cancel
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Button
-                                      variant="link"
-                                      size="sm"
-                                      className="text-primary p-0 me-2"
-                                      onClick={() => handleEditComment(comment)}
-                                      title="Edit review"
-                                    >
-                                      Edit
-                                    </Button>
-                                    <Button
-                                      variant="link"
-                                      size="sm"
-                                      className="text-danger p-0"
-                                      onClick={() => handleDeleteComment(comment.id)}
-                                      title="Delete review"
-                                    >
-                                      Delete
-                                    </Button>
-                                  </>
-                                )}
-                  </div>
-                            </div>
-                            <p className="comment-text mb-0">{comment.comment}</p>
+                        </Form>
+                      </div>
+                    )}
+                    
+                    {!showCommentModal && (
+                      <>
+                        {loadingComments ? (
+                          <p className="comments-empty-message">Loading reviews...</p>
+                        ) : comments.length === 0 ? (
+                          <p className="comments-empty-message">No reviews yet. Be the first to add one!</p>
+                        ) : (
+                          <div className="comments-list">
+                            {comments.map((comment) => (
+                              <div key={comment.id} className="comment-item mb-3">
+                                <div className="d-flex justify-content-between align-items-start mb-1">
+                                  <div>
+                                    <strong className="comment-name">{comment.name}</strong>
+                                    {comment.date && (
+                                      <span className="comment-date ms-2 text-muted">
+                                        {formatDate(comment.date)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="comment-actions">
+                                    {deletingCommentId === comment.id ? (
+                                      <>
+                                        <Button 
+                                          variant="link" 
+                                          size="sm" 
+                                          className="text-danger p-0 me-2"
+                                          onClick={() => handleDeleteComment(comment.id)}
+                                          title="Confirm deletion"
+                                        >
+                                          Confirm deletion
+                                        </Button>
+                                        <Button
+                                          variant="link"
+                                          size="sm"
+                                          className="text-secondary p-0"
+                                          onClick={() => setDeletingCommentId(null)}
+                                          title="Cancel"
+                                        >
+                                          Cancel
+                                        </Button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Button
+                                          variant="link"
+                                          size="sm"
+                                          className="text-primary p-0 me-2"
+                                          onClick={() => handleEditComment(comment)}
+                                          title="Edit review"
+                                        >
+                                          Edit
+                                        </Button>
+                                        <Button
+                                          variant="link"
+                                          size="sm"
+                                          className="text-danger p-0"
+                                          onClick={() => handleDeleteComment(comment.id)}
+                                          title="Delete review"
+                                        >
+                                          Delete
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                                <p className="comment-text mb-0">{comment.comment}</p>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                    </div>
-                  )}
+                        )}
+                      </>
+                    )}
                   </div>
                   
                   {book.genres && Array.isArray(book.genres) && book.genres.length > 0 && (
@@ -1344,81 +1458,205 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                     <BsChatSquareText className="me-2" />
                     <strong>Reviews {comments.length > 0 && `(${comments.length})`}</strong>
                   </div>
-                  <Button 
-                    variant="outline-primary" 
-                    size="sm" 
-                    onClick={handleAddComment}
-                  >
-                    <BsPlus className="me-1" />Add Review
-                  </Button>
+                  {!showCommentModal && (
+                    <Button 
+                      variant="outline-primary" 
+                      size="sm" 
+                      onClick={handleAddComment}
+                    >
+                      <BsPlus className="me-1" />Add Review
+                    </Button>
+                  )}
                 </div>
-                {loadingComments ? (
-                  <p className="comments-empty-message">Loading reviews...</p>
-                ) : comments.length === 0 ? (
-                  <p className="comments-empty-message">No reviews yet. Be the first to add one!</p>
-                ) : (
-                  <div className="comments-list">
-                    {comments.map((comment) => (
-                      <div key={comment.id} className="comment-item mb-3">
-                        <div className="d-flex justify-content-between align-items-start mb-1">
-                          <div>
-                            <strong className="comment-name">{comment.name}</strong>
-                            {comment.date && (
-                              <span className="comment-date ms-2 text-muted">
-                                {formatDate(comment.date)}
-                              </span>
-                            )}
+                
+                {/* Inline Comment Form */}
+                {showCommentModal && (
+                  <div className="comment-form-inline mb-3 p-3" style={{ 
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                  }}>
+                    <div className="d-flex align-items-center justify-content-between mb-3">
+                      <strong>{editingComment ? 'Edit Review' : 'Add Review'}</strong>
+                      <Button 
+                        variant="link" 
+                        size="sm" 
+                        className="text-secondary p-0"
+                        onClick={handleCloseCommentModal}
+                      >
+                        <BsX size={20} />
+                      </Button>
+                    </div>
+                    {commentErrors.submit && (
+                      <div className="alert alert-danger mb-3">{commentErrors.submit}</div>
+                    )}
+                    <Form>
+                      <Form.Group className="mb-3" style={{ position: 'relative', zIndex: 1000 }}>
+                        <Form.Label>Name <span className="text-danger">*</span></Form.Label>
+                        <Form.Control
+                          ref={nameInputRef}
+                          type="text"
+                          value={commentFormData.name}
+                          onChange={(e) => handleCommentInputChange('name', e.target.value)}
+                          onKeyDown={handleNameKeyDown}
+                          onBlur={handleNameBlur}
+                          onFocus={handleNameFocus}
+                          placeholder="Enter your name"
+                          isInvalid={!!commentErrors.name}
+                          autoComplete="off"
+                        />
+                        {commentErrors.name && (
+                          <Form.Control.Feedback type="invalid">
+                            {commentErrors.name}
+                          </Form.Control.Feedback>
+                        )}
+                        {showNameSuggestions && nameSuggestions.length > 0 && (
+                          <div
+                            ref={nameDropdownRef}
+                            className="autocomplete-dropdown"
+                            style={{
+                              position: 'absolute',
+                              top: '100%',
+                              left: 0,
+                              right: 0,
+                              zIndex: 1001,
+                              backgroundColor: '#212529',
+                              border: '1px solid #495057',
+                              borderRadius: '0.25rem',
+                              marginTop: '0.25rem',
+                              maxHeight: '200px',
+                              overflowY: 'auto',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                            }}
+                          >
+                            {nameSuggestions.map((name, index) => (
+                              <div
+                                key={index}
+                                onClick={() => handleNameSuggestionClick(name)}
+                                onMouseDown={(e) => e.preventDefault()}
+                                style={{
+                                  padding: '0.5rem 0.75rem',
+                                  cursor: 'pointer',
+                                  backgroundColor: highlightedNameIndex === index ? '#495057' : 'transparent',
+                                  color: '#f8f9fa'
+                                }}
+                                onMouseEnter={() => setHighlightedNameIndex(index)}
+                              >
+                                {name}
+                              </div>
+                            ))}
                           </div>
-                          <div className="comment-actions">
-                            {deletingCommentId === comment.id ? (
-                              <>
-                                <Button 
-                                  variant="link" 
-                                  size="sm" 
-                                  className="text-danger p-0 me-2"
-                                  onClick={() => handleDeleteComment(comment.id)}
-                                  title="Confirm deletion"
-                                >
-                                  Confirm deletion
-                                </Button>
-                                <Button
-                                  variant="link"
-                                  size="sm"
-                                  className="text-secondary p-0"
-                                  onClick={() => setDeletingCommentId(null)}
-                                  title="Cancel"
-                                >
-                                  Cancel
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <Button
-                                  variant="link"
-                                  size="sm"
-                                  className="text-primary p-0 me-2"
-                                  onClick={() => handleEditComment(comment)}
-                                  title="Edit review"
-                                >
-                                  Edit
-                                </Button>
-                                <Button
-                                  variant="link"
-                                  size="sm"
-                                  className="text-danger p-0"
-                                  onClick={() => handleDeleteComment(comment.id)}
-                                  title="Delete review"
-                                >
-                                  Delete
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <p className="comment-text mb-0">{comment.comment}</p>
+                        )}
+                      </Form.Group>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Review <span className="text-danger">*</span></Form.Label>
+                        <Form.Control
+                          as="textarea"
+                          rows={6}
+                          value={commentFormData.comment}
+                          onChange={(e) => handleCommentInputChange('comment', e.target.value)}
+                          placeholder="Enter your review here..."
+                          isInvalid={!!commentErrors.comment}
+                          style={{ 
+                            overflowY: 'auto',
+                            resize: 'vertical',
+                            minHeight: '120px',
+                            maxHeight: '400px'
+                          }}
+                        />
+                        {commentErrors.comment && (
+                          <Form.Control.Feedback type="invalid">
+                            {commentErrors.comment}
+                          </Form.Control.Feedback>
+                        )}
+                      </Form.Group>
+                      <div className="d-flex justify-content-end gap-2">
+                        <Button variant="secondary" onClick={handleCloseCommentModal} disabled={loadingComments}>
+                          Cancel
+                        </Button>
+                        <Button 
+                          variant="primary" 
+                          onClick={handleSaveComment}
+                          disabled={loadingComments}
+                        >
+                          {loadingComments ? 'Saving...' : (editingComment ? 'Update' : 'Save')}
+                        </Button>
                       </div>
-                    ))}
+                    </Form>
                   </div>
+                )}
+                
+                {!showCommentModal && (
+                  <>
+                    {loadingComments ? (
+                      <p className="comments-empty-message">Loading reviews...</p>
+                    ) : comments.length === 0 ? (
+                      <p className="comments-empty-message">No reviews yet. Be the first to add one!</p>
+                    ) : (
+                      <div className="comments-list">
+                        {comments.map((comment) => (
+                          <div key={comment.id} className="comment-item mb-3">
+                            <div className="d-flex justify-content-between align-items-start mb-1">
+                              <div>
+                                <strong className="comment-name">{comment.name}</strong>
+                                {comment.date && (
+                                  <span className="comment-date ms-2 text-muted">
+                                    {formatDate(comment.date)}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="comment-actions">
+                                {deletingCommentId === comment.id ? (
+                                  <>
+                                    <Button 
+                                      variant="link" 
+                                      size="sm" 
+                                      className="text-danger p-0 me-2"
+                                      onClick={() => handleDeleteComment(comment.id)}
+                                      title="Confirm deletion"
+                                    >
+                                      Confirm deletion
+                                    </Button>
+                                    <Button
+                                      variant="link"
+                                      size="sm"
+                                      className="text-secondary p-0"
+                                      onClick={() => setDeletingCommentId(null)}
+                                      title="Cancel"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button
+                                      variant="link"
+                                      size="sm"
+                                      className="text-primary p-0 me-2"
+                                      onClick={() => handleEditComment(comment)}
+                                      title="Edit review"
+                                    >
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      variant="link"
+                                      size="sm"
+                                      className="text-danger p-0"
+                                      onClick={() => handleDeleteComment(comment.id)}
+                                      title="Delete review"
+                                    >
+                                      Delete
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <p className="comment-text mb-0">{comment.comment}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
               
@@ -1968,106 +2206,6 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
         </Modal.Footer>
       </Modal>
 
-      {/* Review Modal */}
-      <Modal show={showCommentModal} onHide={handleCloseCommentModal} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {editingComment ? 'Edit Review' : 'Add Review'}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {commentErrors.submit && (
-            <div className="alert alert-danger mb-3">{commentErrors.submit}</div>
-          )}
-          <Form>
-            <Form.Group className="mb-3" style={{ position: 'relative', zIndex: 100000, isolation: 'isolate' }}>
-              <Form.Label>Name <span className="text-danger">*</span></Form.Label>
-              <Form.Control
-                ref={nameInputRef}
-                type="text"
-                value={commentFormData.name}
-                onChange={(e) => handleCommentInputChange('name', e.target.value)}
-                onKeyDown={handleNameKeyDown}
-                onBlur={handleNameBlur}
-                onFocus={handleNameFocus}
-                placeholder="Enter your name"
-                isInvalid={!!commentErrors.name}
-                autoComplete="off"
-              />
-              {commentErrors.name && (
-                <Form.Control.Feedback type="invalid">
-                  {commentErrors.name}
-                </Form.Control.Feedback>
-              )}
-              {showNameSuggestions && nameSuggestions.length > 0 && (
-                <div
-                  ref={nameDropdownRef}
-                  className="autocomplete-dropdown"
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    zIndex: 100001,
-                    backgroundColor: '#212529',
-                    border: '1px solid #495057',
-                    borderRadius: '0.25rem',
-                    marginTop: '0.25rem',
-                    maxHeight: '200px',
-                    overflowY: 'auto',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-                  }}
-                >
-                  {nameSuggestions.map((name, index) => (
-                    <div
-                      key={index}
-                      onClick={() => handleNameSuggestionClick(name)}
-                      onMouseDown={(e) => e.preventDefault()}
-                      style={{
-                        padding: '0.5rem 0.75rem',
-                        cursor: 'pointer',
-                        backgroundColor: highlightedNameIndex === index ? '#495057' : 'transparent',
-                        color: '#f8f9fa'
-                      }}
-                      onMouseEnter={() => setHighlightedNameIndex(index)}
-                    >
-                      {name}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Review <span className="text-danger">*</span></Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={4}
-                value={commentFormData.comment}
-                onChange={(e) => handleCommentInputChange('comment', e.target.value)}
-                placeholder="Enter your review here..."
-                isInvalid={!!commentErrors.comment}
-              />
-              {commentErrors.comment && (
-                <Form.Control.Feedback type="invalid">
-                  {commentErrors.comment}
-                </Form.Control.Feedback>
-              )}
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseCommentModal}>
-            Cancel
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleSaveComment}
-            disabled={loadingComments}
-          >
-            {loadingComments ? 'Saving...' : (editingComment ? 'Update' : 'Save')}
-          </Button>
-        </Modal.Footer>
-      </Modal>
       
       <CoverModal
         isOpen={showCoverModal}
