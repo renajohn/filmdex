@@ -293,20 +293,69 @@ class BookService {
 
   async updateBook(id, bookData) {
     try {
+      // Get existing book to check current cover
+      const existingBook = await Book.findById(id);
+      const existingCoverUrl = existingBook?.coverUrl || null;
+      const existingCoverPath = existingBook?.cover || null;
+      
+      // Check if existing cover is a custom uploaded cover (stored in /custom/ directory)
+      const isCustomCover = existingCoverPath && existingCoverPath.includes('/custom/');
+      
       // Download and save cover if URL provided
-      // Use the highest quality cover available from availableCovers if present
+      // IMPORTANT: Always respect user's explicit selection if they provided a coverUrl
+      // Only use selectLargestCover if no explicit selection was made
       let coverUrlToUse = bookData.coverUrl;
-      if (bookData.availableCovers && Array.isArray(bookData.availableCovers) && bookData.availableCovers.length > 0) {
+      
+      // If user explicitly selected a cover URL, always use it (don't override with selectLargestCover)
+      if (coverUrlToUse) {
+        logger.info(`[UpdateBook] Using user-selected cover URL: ${coverUrlToUse}`);
+        // Check if it exists in availableCovers for logging purposes
+        if (bookData.availableCovers && Array.isArray(bookData.availableCovers) && bookData.availableCovers.length > 0) {
+          const selectedCover = bookData.availableCovers.find(c => c.url === coverUrlToUse);
+          if (selectedCover) {
+            logger.info(`[UpdateBook] User-selected cover found in availableCovers`);
+          } else {
+            logger.info(`[UpdateBook] User-selected cover not in availableCovers, but using it anyway (user's explicit choice)`);
+          }
+        }
+      } else if (bookData.availableCovers && Array.isArray(bookData.availableCovers) && bookData.availableCovers.length > 0) {
+        // No explicit selection, use largest cover as fallback
         const largestCover = this.selectLargestCover(bookData.availableCovers);
         if (largestCover) {
           coverUrlToUse = largestCover;
-          logger.info(`[UpdateBook] Selected highest quality cover from ${bookData.availableCovers.length} available covers`);
+          logger.info(`[UpdateBook] No explicit selection, using largest cover from ${bookData.availableCovers.length} available covers: ${coverUrlToUse}`);
         }
       }
       
       let coverPath = bookData.cover;
-      if (coverUrlToUse && !coverPath) {
+      
+      // Determine if we need to download a new cover
+      // IMPORTANT: Preserve custom covers unless user explicitly selects a different cover
+      // Download new cover if:
+      // 1. A coverUrl is provided AND
+      // 2. Either there's no existing cover, OR the new coverUrl is different from the existing one
+      // 3. AND the existing cover is NOT a custom cover (unless user explicitly changed it)
+      // Note: We compare URLs, not paths, since the path is the local saved file
+      
+      logger.info(`[UpdateBook] Cover update check - coverUrlToUse: ${coverUrlToUse}, existingCoverUrl: ${existingCoverUrl}, existingCoverPath: ${existingCoverPath}, isCustomCover: ${isCustomCover}`);
+      
+      // Check if the cover URL has changed
+      // If existingCoverUrl is null/undefined, we consider it changed if coverUrlToUse is provided
+      const coverUrlChanged = coverUrlToUse && 
+        (!existingCoverUrl || coverUrlToUse !== existingCoverUrl);
+      
+      // Download new cover if:
+      // 1. User provided a coverUrl AND
+      // 2. The URL has changed AND
+      // 3. Either it's not a custom cover, OR it is custom but user explicitly selected a different one (coverUrlChanged handles this)
+      // For custom covers: if coverUrlChanged is true, it means user selected a different cover, so we should download
+      const shouldDownload = coverUrlToUse && coverUrlChanged;
+      
+      logger.info(`[UpdateBook] Cover decision - coverUrlChanged: ${coverUrlChanged}, shouldDownload: ${shouldDownload}, isCustomCover: ${isCustomCover}`);
+      
+      if (shouldDownload) {
         try {
+          logger.info(`[UpdateBook] Downloading new cover: ${coverUrlToUse}`);
           const filename = `book_${id}_${Date.now()}.jpg`;
           coverPath = await imageService.downloadImageFromUrl(coverUrlToUse, 'book', filename);
           if (coverPath) {
@@ -315,20 +364,40 @@ class BookService {
               const downloadedFilename = coverPath.split('/').pop();
               const fullPath = path.join(imageService.getLocalImagesDir(), 'book', downloadedFilename);
               await imageService.resizeImage(fullPath, fullPath, 1200, 1200);
+              logger.info(`[UpdateBook] Successfully downloaded and resized new cover: ${coverPath}`);
             } catch (resizeError) {
-              console.warn('Failed to resize cover:', resizeError.message);
+              logger.warn(`[UpdateBook] Failed to resize cover: ${resizeError.message}`);
             }
+          } else {
+            logger.warn(`[UpdateBook] Download returned no cover path`);
           }
         } catch (error) {
-          console.warn('Failed to download cover:', error.message);
+          logger.warn(`[UpdateBook] Failed to download cover: ${error.message}`);
+          // If download fails, keep existing cover
+          coverPath = existingCoverPath;
+        }
+      } else {
+        // Keep existing cover
+        coverPath = existingCoverPath;
+        if (isCustomCover) {
+          logger.info(`[UpdateBook] Preserving custom cover: ${existingCoverPath}`);
+        } else if (!coverUrlToUse) {
+          logger.info(`[UpdateBook] No cover URL provided, keeping existing cover: ${existingCoverPath}`);
+        } else {
+          logger.info(`[UpdateBook] Cover URL unchanged, keeping existing cover: ${existingCoverPath}`);
         }
       }
 
       // Normalize array fields to ensure they're arrays
       const normalizedData = {
         ...bookData,
-        cover: coverPath || bookData.cover
+        cover: coverPath || bookData.cover,
+        // Always update coverUrl if it was provided, so we can track the source URL
+        coverUrl: coverUrlToUse || bookData.coverUrl || null
       };
+      
+      // Log what we're about to save
+      logger.info(`[UpdateBook] Saving cover - path: ${normalizedData.cover}, url: ${normalizedData.coverUrl}`);
       
       // Only normalize array fields if they're provided
       if (bookData.tags !== undefined) normalizedData.tags = normalizeArrayField(bookData.tags);

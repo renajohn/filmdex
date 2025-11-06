@@ -772,9 +772,9 @@ const BookSearch = forwardRef(({
       {editingBook && (
         <BookForm
           book={editingBook}
-          onSave={(bookData) => {
-            onUpdateBook(editingBook.id, bookData);
-            handleFormSave();
+          onSave={async (bookData) => {
+            await onUpdateBook(editingBook.id, bookData);
+            await handleFormSave();
           }}
           onCancel={handleFormCancel}
         />
@@ -789,6 +789,9 @@ const BookSearch = forwardRef(({
           onBookUpdated={async (bookId) => {
             try {
               console.log('BookSearch: Refreshing book data for ID:', bookId);
+              // Refresh the book list to show updated covers
+              await loadBooks();
+              // Also update the detail card if it's open
               const updatedBook = await bookService.getBookById(bookId);
               console.log('BookSearch: Updated book data:', updatedBook);
               console.log('BookSearch: ebookFile value:', updatedBook?.ebookFile);

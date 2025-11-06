@@ -66,22 +66,77 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
     description: 'auto',
     series: 'auto'
   });
+  // Track availableCovers separately to ensure React re-renders when it changes
+  const [localAvailableCovers, setLocalAvailableCovers] = useState(null);
 
   // Collect all available covers from the book group and enriched sources
   const availableCovers = React.useMemo(() => {
     const covers = [];
+    let currentCoverUrl = null;
     
-    // First, add covers from availableCovers array (from enrichment)
-    if (book && book.availableCovers && Array.isArray(book.availableCovers)) {
-      book.availableCovers.forEach(cover => {
+    // First, add the current cover (if it exists) as the very first item
+    // This ensures the user's current cover is always visible and selectable
+    if (book) {
+      // Check for saved cover image path first (for existing books)
+      if (book.cover) {
+        currentCoverUrl = book.cover.startsWith('http') ? book.cover : bookService.getImageUrl(book.cover);
+        const isCustomCover = book.cover.includes('/custom/');
         covers.push({
-          url: cover.url,
-          source: cover.source || 'Unknown',
-          type: cover.type || 'front',
+          url: currentCoverUrl,
+          source: isCustomCover ? 'Custom Upload' : 'Current',
+          type: 'front',
           language: book.language,
           publisher: book.publisher,
           year: book.publishedYear,
-          isbn: book.isbn13 || book.isbn
+          isbn: book.isbn13 || book.isbn,
+          isCurrent: true,
+          isCustom: isCustomCover
+        });
+      } 
+      // If no saved cover but we have a coverUrl, add it as current
+      else if (book.coverUrl) {
+        currentCoverUrl = book.coverUrl;
+        covers.push({
+          url: currentCoverUrl,
+          source: 'Current',
+          type: 'front',
+          language: book.language,
+          publisher: book.publisher,
+          year: book.publishedYear,
+          isbn: book.isbn13 || book.isbn,
+          isCurrent: true
+        });
+      }
+    }
+    
+    // Then, use localAvailableCovers if set (from fetch operation), otherwise use book.availableCovers
+    const coversToProcess = localAvailableCovers || (book && book.availableCovers) || [];
+    
+    // Add covers from availableCovers array (from enrichment)
+    if (Array.isArray(coversToProcess) && coversToProcess.length > 0) {
+      coversToProcess.forEach(cover => {
+        // Skip if it's the same as the current cover we already added
+        const coverUrl = cover.url;
+        if (currentCoverUrl && coverUrl === currentCoverUrl) {
+          return; // Skip duplicate of current cover
+        }
+        
+        // Filter out covers that are too small (< 100px wide) if we have dimensions
+        if (imageDimensions[coverUrl]) {
+          const width = imageDimensions[coverUrl].width;
+          if (width < 100) {
+            return; // Skip this cover
+          }
+        }
+        
+        covers.push({
+          url: coverUrl,
+          source: cover.source || 'Unknown',
+          type: cover.type || 'front',
+          language: book?.language,
+          publisher: book?.publisher,
+          year: book?.publishedYear,
+          isbn: book?.isbn13 || book?.isbn
         });
       });
     }
@@ -119,15 +174,45 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
           isbn: b.isbn13 || b.isbn
         });
       }
+      
+      // Also add the saved cover image path if it exists (for existing books) - but skip if already added as current
+      if (b.cover && !b.coverUrl) {
+        const coverUrlToAdd = b.cover.startsWith('http') ? b.cover : bookService.getImageUrl(b.cover);
+        if (!covers.some(c => c.url === coverUrlToAdd)) {
+          const isCustomCover = b.cover.includes('/custom/');
+          covers.push({
+            url: coverUrlToAdd,
+            source: isCustomCover ? 'Custom Upload' : 'Current',
+            type: 'front',
+            language: b.language,
+            publisher: b.publisher,
+            year: b.publishedYear,
+            isbn: b.isbn13 || b.isbn,
+            isCustom: isCustomCover
+          });
+        }
+      }
     });
     
-    // Remove duplicates by URL
+    // Remove duplicates by URL (but keep the first occurrence, which should be the current cover)
     const uniqueCovers = covers.filter((cover, index, self) => 
       index === self.findIndex(c => c.url === cover.url)
     );
     
-    return uniqueCovers;
-  }, [book, availableBooks]);
+    // Filter out covers that are too small (< 100px wide)
+    // This uses imageDimensions if available, otherwise allows the cover through
+    // BUT: Always keep the current cover (first one) even if it's small
+    const filteredCovers = uniqueCovers.filter((cover, index) => {
+      // Always keep the first cover (current cover)
+      if (index === 0 && cover.isCurrent) return true;
+      
+      const dims = imageDimensions[cover.url];
+      if (!dims) return true; // Include if we haven't loaded dimensions yet
+      return dims.width >= 100; // Only include if >= 100px wide
+    });
+    
+    return filteredCovers.length > 0 ? filteredCovers : uniqueCovers;
+  }, [book, availableBooks, localAvailableCovers, imageDimensions]);
 
   // Helper function to get available metadata sources
   const getAvailableSources = (field) => {
@@ -162,6 +247,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
   const prevBookIdRef = useRef(null);
   const userSelectedSourceRef = useRef(false); // Track if user has manually selected a source
   const isEnrichingRef = useRef(false); // Track if we're currently enriching to prevent useEffect from resetting formData
+  const userSelectedCoverRef = useRef(false); // Track if user has manually selected a cover
   
   useEffect(() => {
     if (book) {
@@ -174,9 +260,11 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
       const currentBookId = book.id || book.isbn || book.isbn13 || book.title;
       const isNewBook = prevBookIdRef.current !== null && prevBookIdRef.current !== currentBookId;
       
-      // If it's a new book, reset the user selection flag
+      // If it's a new book, reset the user selection flags and local available covers
       if (isNewBook) {
         userSelectedSourceRef.current = false;
+        userSelectedCoverRef.current = false; // Reset cover selection flag when switching books
+        setLocalAvailableCovers(null); // Reset local covers when switching books
       }
       
       // Check if enriched data is available
@@ -246,6 +334,9 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
         }
       }
       
+      // Preserve user's cover selection if they've already selected one
+      const preserveCoverUrl = userSelectedCoverRef.current ? formData.coverUrl : (book.coverUrl || null);
+      
       setFormData({
         title: suggestedTitle,
         subtitle: book.subtitle || '',
@@ -277,31 +368,33 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
         urls: book.urls || {},
         annotation: book.annotation || '',
         titleStatus: book.titleStatus || defaultTitleStatus || 'owned',
-        coverUrl: book.coverUrl || null,
+        coverUrl: preserveCoverUrl,
         ebookFile: book.ebookFile || null
       });
       
-      // Set initial cover preview
-      if (book.cover) {
-        setCoverPreview(book.cover);
-      } else if (book.coverUrl) {
-        setCoverPreview(book.coverUrl);
-        // Find index in available covers
-        const coverIndex = availableCovers.findIndex(c => c.url === book.coverUrl);
-        if (coverIndex >= 0) {
-          setSelectedCoverIndex(coverIndex);
-        } else {
-          // If coverUrl not in availableCovers, set it as the first available cover
-          if (availableCovers.length > 0) {
-            setSelectedCoverIndex(0);
-            setCoverPreview(availableCovers[0].url);
+      // Set initial cover preview only if user hasn't manually selected one
+      if (!userSelectedCoverRef.current) {
+        if (book.cover) {
+          setCoverPreview(book.cover);
+        } else if (book.coverUrl) {
+          setCoverPreview(book.coverUrl);
+          // Find index in available covers
+          const coverIndex = availableCovers.findIndex(c => c.url === book.coverUrl);
+          if (coverIndex >= 0) {
+            setSelectedCoverIndex(coverIndex);
+          } else {
+            // If coverUrl not in availableCovers, set it as the first available cover
+            if (availableCovers.length > 0) {
+              setSelectedCoverIndex(0);
+              setCoverPreview(availableCovers[0].url);
+            }
           }
+        } else if (availableCovers.length > 0) {
+          // Use first available cover if no coverUrl set
+          setSelectedCoverIndex(0);
+          setCoverPreview(availableCovers[0].url);
+          setFormData(prev => ({ ...prev, coverUrl: availableCovers[0].url }));
         }
-      } else if (availableCovers.length > 0) {
-        // Use first available cover if no coverUrl set
-        setSelectedCoverIndex(0);
-        setCoverPreview(availableCovers[0].url);
-        setFormData(prev => ({ ...prev, coverUrl: availableCovers[0].url }));
       }
       
       // Find initial edition index if multiple editions available
@@ -374,6 +467,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
     if (coverIndex < 0 || coverIndex >= availableCovers.length) return;
     
     const selectedCover = availableCovers[coverIndex];
+    userSelectedCoverRef.current = true; // Mark that user has manually selected a cover
     setSelectedCoverIndex(coverIndex);
     setCoverPreview(selectedCover.url);
     setFormData(prev => ({
@@ -891,26 +985,74 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
         Object.assign(book, { _metadataSources: enrichedBook._metadataSources });
       }
 
+      // Check if current cover is a custom uploaded cover (stored in /custom/ directory)
+      const currentCoverPath = book?.cover || null;
+      const isCustomCover = currentCoverPath && currentCoverPath.includes('/custom/');
+      
       // Update available covers if enriched book has them
       if (enrichedBook.availableCovers && enrichedBook.availableCovers.length > 0) {
+        // Update both book object and local state
         Object.assign(book, { availableCovers: enrichedBook.availableCovers });
+        // Update local state to trigger React re-render
+        setLocalAvailableCovers(enrichedBook.availableCovers);
         
-        // Update cover preview if we got a new cover (always update if we have a new cover URL)
-        if (enrichedBook.coverUrl) {
-          // Check if this is a different cover than what we currently have
-          const currentCoverUrl = formData.coverUrl || coverPreview;
-          if (!currentCoverUrl || currentCoverUrl !== enrichedBook.coverUrl) {
-            console.log('[BookForm] Updating cover preview:', enrichedBook.coverUrl);
-            setCoverPreview(enrichedBook.coverUrl);
-            const coverIndex = enrichedBook.availableCovers.findIndex(c => c.url === enrichedBook.coverUrl);
-            if (coverIndex >= 0) {
-              setSelectedCoverIndex(coverIndex);
+        // IMPORTANT: Preserve custom covers - don't automatically change them
+        // Only update cover selection if user hasn't manually selected one AND it's not a custom cover
+        if (!userSelectedCoverRef.current && !isCustomCover) {
+          // Find the current cover URL in the new availableCovers list
+          const currentCoverUrl = formData.coverUrl || coverPreview || book.coverUrl;
+          const currentCoverIndex = enrichedBook.availableCovers.findIndex(c => c.url === currentCoverUrl);
+          
+          // Update cover selection
+          if (currentCoverIndex >= 0) {
+            // Keep current selection if it still exists in the new list
+            setSelectedCoverIndex(currentCoverIndex);
+            setCoverPreview(enrichedBook.availableCovers[currentCoverIndex].url);
+            setFormData(prev => ({ ...prev, coverUrl: enrichedBook.availableCovers[currentCoverIndex].url }));
+          } else if (enrichedBook.coverUrl) {
+            // Use the enriched cover if current one not found
+            const enrichedCoverIndex = enrichedBook.availableCovers.findIndex(c => c.url === enrichedBook.coverUrl);
+            if (enrichedCoverIndex >= 0) {
+              setSelectedCoverIndex(enrichedCoverIndex);
+              setCoverPreview(enrichedBook.coverUrl);
+              setFormData(prev => ({ ...prev, coverUrl: enrichedBook.coverUrl }));
             } else {
-              // If not found in availableCovers, set to first available
+              // Fallback to first available cover
               setSelectedCoverIndex(0);
+              setCoverPreview(enrichedBook.availableCovers[0].url);
+              setFormData(prev => ({ ...prev, coverUrl: enrichedBook.availableCovers[0].url }));
             }
+          } else {
+            // Use first available cover as fallback
+            setSelectedCoverIndex(0);
+            setCoverPreview(enrichedBook.availableCovers[0].url);
+            setFormData(prev => ({ ...prev, coverUrl: enrichedBook.availableCovers[0].url }));
           }
+        } else if (isCustomCover) {
+          // For custom covers, keep the current cover and just update availableCovers for selection
+          // Find the current cover in the availableCovers list (it should be first)
+          const currentCoverUrl = currentCoverPath.startsWith('http') ? currentCoverPath : bookService.getImageUrl(currentCoverPath);
+          const currentCoverIndex = enrichedBook.availableCovers.findIndex(c => c.url === currentCoverUrl);
+          if (currentCoverIndex >= 0) {
+            setSelectedCoverIndex(currentCoverIndex);
+          } else {
+            // If custom cover not in list, it will be added first by availableCovers useMemo
+            setSelectedCoverIndex(0);
+          }
+          // Don't change coverPreview or formData.coverUrl for custom covers
         }
+        
+        console.log('[BookForm] Updated availableCovers:', {
+          count: enrichedBook.availableCovers.length,
+          isCustomCover,
+          userSelectedCover: userSelectedCoverRef.current,
+          currentCoverPath,
+          selectedIndex: selectedCoverIndex
+        });
+      } else if (enrichedBook.coverUrl && !isCustomCover && !userSelectedCoverRef.current) {
+        // If no availableCovers but we have a coverUrl, update it (only if not custom cover)
+        setCoverPreview(enrichedBook.coverUrl);
+        setFormData(prev => ({ ...prev, coverUrl: enrichedBook.coverUrl }));
       }
 
       setUploadMessage('Book metadata fetched successfully from sources!');
@@ -956,10 +1098,19 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
         runtime: formData.runtime ? parseInt(formData.runtime) : null,
         borrowed: formData.borrowed === true || formData.borrowed === 'true',
         coverUrl: formData.coverUrl || null,
-        ebookFile: formData.ebookFile || null
+        ebookFile: formData.ebookFile || null,
+        // Include availableCovers so backend can select highest quality version
+        availableCovers: availableCovers.length > 0 ? availableCovers.map(c => ({ url: c.url, source: c.source, type: c.type })) : undefined
       };
       
-      console.log('BookForm handleSubmit - bookData.ebookFile:', bookData.ebookFile);
+      console.log('BookForm handleSubmit - bookData:', {
+        coverUrl: bookData.coverUrl,
+        cover: bookData.cover,
+        availableCoversCount: bookData.availableCovers?.length || 0,
+        ebookFile: bookData.ebookFile,
+        formDataCoverUrl: formData.coverUrl,
+        userSelectedCover: userSelectedCoverRef.current
+      });
 
       await onSave(bookData);
     } catch (error) {
@@ -1582,24 +1733,32 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 <Form.Label>Cover Image</Form.Label>
                 
                 {/* Cover Selection - Show when multiple covers available */}
-                {availableCovers.length > 1 && !book?.id && (
+                {availableCovers.length > 1 && (
                   <div className="mb-3">
                     <Form.Label style={{ fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.6)' }}>
                       Select Cover ({availableCovers.length} available)
                     </Form.Label>
                     <div style={{ 
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
                       gap: '10px',
                       padding: '10px',
                       backgroundColor: 'rgba(255, 255, 255, 0.03)',
                       borderRadius: '6px',
-                      maxWidth: '100%'
+                      maxWidth: '100%',
+                      // Show 3 rows (6 covers) above the fold, then scroll
+                      maxHeight: '500px',
+                      overflowY: 'auto',
+                      overflowX: 'hidden',
+                      scrollBehavior: 'smooth',
+                      // Ensure grid items don't overlap
+                      alignItems: 'start'
                     }}>
                       {availableCovers.map((cover, index) => (
                         <div
                           key={index}
                           onClick={() => {
+                            userSelectedCoverRef.current = true; // Mark that user has manually selected a cover
                             setSelectedCoverIndex(index);
                             setCoverPreview(cover.url);
                             setFormData(prev => ({ ...prev, coverUrl: cover.url }));
@@ -1613,6 +1772,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                             borderRadius: '6px',
                             overflow: 'hidden',
                             width: '100%',
+                            height: 'auto',
                             aspectRatio: '2/3',
                             backgroundColor: 'rgba(255, 255, 255, 0.03)',
                             transition: 'all 0.2s ease',
@@ -1638,7 +1798,8 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                               width: '100%',
                               height: '100%',
                               objectFit: 'cover',
-                              cursor: 'pointer'
+                              cursor: 'pointer',
+                              display: 'block'
                             }}
                             onLoad={(e) => handleImageLoad(cover.url, e)}
                             onClick={(e) => {
@@ -1703,6 +1864,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 >
                   {coverPreview ? (
                     <img 
+                      key={coverPreview} 
                       src={coverPreview.startsWith('http') ? coverPreview : bookService.getImageUrl(coverPreview)} 
                       alt="Cover preview" 
                       className="cover-preview"
@@ -2285,24 +2447,32 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 <Form.Label>Cover Image</Form.Label>
                 
                 {/* Cover Selection - Show when multiple covers available */}
-                {availableCovers.length > 1 && !book?.id && (
+                {availableCovers.length > 1 && (
                   <div className="mb-3">
                     <Form.Label style={{ fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.6)' }}>
                       Select Cover ({availableCovers.length} available)
                     </Form.Label>
                     <div style={{ 
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
                       gap: '10px',
                       padding: '10px',
                       backgroundColor: 'rgba(255, 255, 255, 0.03)',
                       borderRadius: '6px',
-                      maxWidth: '100%'
+                      maxWidth: '100%',
+                      // Show 3 rows (6 covers) above the fold, then scroll
+                      maxHeight: '500px',
+                      overflowY: 'auto',
+                      overflowX: 'hidden',
+                      scrollBehavior: 'smooth',
+                      // Ensure grid items don't overlap
+                      alignItems: 'start'
                     }}>
                       {availableCovers.map((cover, index) => (
                         <div
                           key={index}
                           onClick={() => {
+                            userSelectedCoverRef.current = true; // Mark that user has manually selected a cover
                             setSelectedCoverIndex(index);
                             setCoverPreview(cover.url);
                             setFormData(prev => ({ ...prev, coverUrl: cover.url }));
@@ -2316,6 +2486,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                             borderRadius: '6px',
                             overflow: 'hidden',
                             width: '100%',
+                            height: 'auto',
                             aspectRatio: '2/3',
                             backgroundColor: 'rgba(255, 255, 255, 0.03)',
                             transition: 'all 0.2s ease',
@@ -2341,7 +2512,8 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                               width: '100%',
                               height: '100%',
                               objectFit: 'cover',
-                              cursor: 'pointer'
+                              cursor: 'pointer',
+                              display: 'block'
                             }}
                             onLoad={(e) => handleImageLoad(cover.url, e)}
                             onClick={(e) => {
@@ -2406,6 +2578,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 >
                   {coverPreview ? (
                     <img 
+                      key={coverPreview} 
                       src={coverPreview.startsWith('http') ? coverPreview : bookService.getImageUrl(coverPreview)} 
                       alt="Cover preview" 
                       className="cover-preview"
