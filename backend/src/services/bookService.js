@@ -47,54 +47,113 @@ function extractSeriesFromTitle(title) {
   
   // Patterns to detect volume numbers in title
   const volumePatterns = [
-    // "Thorgal - Tome 21 - La Couronne d'Ogotaï" format (French comics)
+    // "Les Royaumes de Feu (Tome 2) - La Princesse disparue" format (with parentheses)
     {
-      regex: /^(.+?)\s*-\s*Tome\s+0*(\d+)\s*-/i,
+      regex: /^(.+?)\s*\(\s*Tome\s+0*(\d+)\s*\)(?:\s*-|$)/i,
       extractSeries: (title, match) => {
         const seriesName = match[1].trim();
         const volumeNum = parseInt(match[2], 10);
-        // Extract subtitle after the volume number
-        const subtitleMatch = title.match(/^.+?-\s*Tome\s+\d+\s*-\s*(.+)$/i);
-        return { series: seriesName, seriesNumber: volumeNum };
+        // Only return if we have a meaningful series name (more than 3 chars)
+        if (seriesName.length > 3) {
+          return { series: seriesName, seriesNumber: volumeNum };
+        }
+        return null;
       }
     },
-    // "Series - Tome 21" or "Series Tome 21" format
+    // "Thorgal - Tome 21 - La Couronne d'Ogotaï" format (French comics)
+    // Also handles "Les royaumes de feu - Tome 1 - Le dragon prophétique"
+    // Pattern matches: "Series - Tome N" or "Series - Tome N - Subtitle"
     {
-      regex: /\s+Tome\s+0*(\d+)\s*$/i,
+      regex: /^(.+?)\s*-\s*Tome\s+0*(\d+)(?:\s*-|$)/i,
+      extractSeries: (title, match) => {
+        const seriesName = match[1].trim();
+        const volumeNum = parseInt(match[2], 10);
+        // Only return if we have a meaningful series name (more than 3 chars)
+        if (seriesName.length > 3) {
+          return { series: seriesName, seriesNumber: volumeNum };
+        }
+        return null;
+      }
+    },
+    // "Series - Tome 21" or "Series Tome 21" format (with or without dash)
+    // This pattern works even if there's text after (like a subtitle)
+    {
+      regex: /\s*-\s*Tome\s+0*(\d+)(?:\s*-|$)/i,
       extractSeries: (title, match) => {
         const seriesName = title.substring(0, match.index).trim();
         const volumeNum = parseInt(match[1], 10);
-        return { series: seriesName, seriesNumber: volumeNum };
+        // Only return if we have a meaningful series name (more than 3 chars)
+        if (seriesName.length > 3) {
+          return { series: seriesName, seriesNumber: volumeNum };
+        }
+        return null;
+      }
+    },
+    // "Series (Tome 21)" format (with parentheses, anywhere in title)
+    {
+      regex: /\s*\(\s*Tome\s+0*(\d+)\s*\)(?:\s*-|$)/i,
+      extractSeries: (title, match) => {
+        const seriesName = title.substring(0, match.index).trim();
+        const volumeNum = parseInt(match[1], 10);
+        // Only return if we have a meaningful series name (more than 3 chars)
+        if (seriesName.length > 3) {
+          return { series: seriesName, seriesNumber: volumeNum };
+        }
+        return null;
+      }
+    },
+    // "Series Tome 21" format (without dash, but may have subtitle after)
+    {
+      regex: /\s+Tome\s+0*(\d+)(?:\s*-|$)/i,
+      extractSeries: (title, match) => {
+        const seriesName = title.substring(0, match.index).trim();
+        const volumeNum = parseInt(match[1], 10);
+        // Only return if we have a meaningful series name (more than 3 chars)
+        if (seriesName.length > 3) {
+          return { series: seriesName, seriesNumber: volumeNum };
+        }
+        return null;
       }
     },
     // T01, T1, T02, etc. (most common for French comics)
+    // Updated to handle cases with subtitles: "Series T01 - Subtitle"
     {
-      regex: /\s+T0*(\d+)\s*$/i,
+      regex: /\s+T0*(\d+)(?:\s*-|$)/i,
       extractSeries: (title, match) => {
         const seriesName = title.substring(0, match.index).trim();
         const volumeNum = parseInt(match[1], 10);
-        return { series: seriesName, seriesNumber: volumeNum };
+        // Only return if we have a meaningful series name (more than 3 chars)
+        if (seriesName.length > 3) {
+          return { series: seriesName, seriesNumber: volumeNum };
+        }
+        return null;
       }
     },
     // Vol. 1, Vol 1, Volume 1, etc.
     {
-      regex: /\s+Vol(?:ume)?\.?\s*0*(\d+)\s*$/i,
+      regex: /\s+Vol(?:ume)?\.?\s*0*(\d+)(?:\s*-|$)/i,
       extractSeries: (title, match) => {
         const seriesName = title.substring(0, match.index).trim();
         const volumeNum = parseInt(match[1], 10);
-        return { series: seriesName, seriesNumber: volumeNum };
+        if (seriesName.length > 3) {
+          return { series: seriesName, seriesNumber: volumeNum };
+        }
+        return null;
       }
     },
     // #1, #01, etc.
     {
-      regex: /\s+#0*(\d+)\s*$/i,
+      regex: /\s+#0*(\d+)(?:\s*-|$)/i,
       extractSeries: (title, match) => {
         const seriesName = title.substring(0, match.index).trim();
         const volumeNum = parseInt(match[1], 10);
-        return { series: seriesName, seriesNumber: volumeNum };
+        if (seriesName.length > 3) {
+          return { series: seriesName, seriesNumber: volumeNum };
+        }
+        return null;
       }
     },
-    // Trailing number like "Book 1" or "1"
+    // Trailing number like "Book 1" or "1" (only at the very end)
     {
       regex: /\s+(\d+)\s*$/,
       extractSeries: (title, match) => {
