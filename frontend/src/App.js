@@ -87,7 +87,7 @@ function AppContent() {
     const keywords = location.pathname === '/musicdex' 
       ? ['title:', 'artist:', 'genre:', 'track:']
       : location.pathname === '/bookdex'
-        ? ['title:', 'author:', 'artist:', 'isbn:', 'series:', 'owner:', 'format:', 'language:', 'genre:', 'tag:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=', 'rating:', 'rating:>', 'rating:<', 'rating:>=', 'rating:<=']
+        ? ['title:', 'author:', 'artist:', 'isbn:', 'series:', 'owner:', 'format:', 'language:', 'genre:', 'tag:', 'title_status:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=', 'rating:', 'rating:>', 'rating:<', 'rating:>=', 'rating:<=']
         : [
             'actor:', 'director:', 'title:', 'collection:', 'box_set:', 'genre:', 'format:', 
             'original_language:', 'media_type:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=',
@@ -120,7 +120,7 @@ function AppContent() {
     const filterMatch = location.pathname === '/musicdex'
       ? currentWord.match(/^(title|artist|genre|mood|track):(.*)$/)
       : location.pathname === '/bookdex'
-        ? currentWord.match(/^(title|author|artist|isbn|series|owner|format|language|genre|tag|year|rating):(.*)$/)
+        ? currentWord.match(/^(title|author|artist|isbn|series|owner|format|language|genre|tag|title_status|year|rating):(.*)$/)
         : currentWord.match(/^(actor|director|title|collection|box_set|genre|format|original_language|media_type|imdb_rating|tmdb_rating|rotten_tomato_rating):(.*)$/);
     
     if (filterMatch) {
@@ -180,8 +180,21 @@ function AppContent() {
           );
         }
         
-        // Handle numeric filters for books (year, rating)
-        if (location.pathname === '/bookdex' && (filterType === 'year' || filterType === 'rating')) {
+        // Handle numeric filters for books (year, rating) and title_status
+        if (location.pathname === '/bookdex' && (filterType === 'year' || filterType === 'rating' || filterType === 'title_status')) {
+          // For title_status, show predefined values (excluding 'wish' as it has its own tab)
+          if (filterType === 'title_status') {
+            const statusOptions = ['owned', 'borrowed'];
+            const matches = statusOptions.filter(status => 
+              status.toLowerCase().includes(filterValue.toLowerCase())
+            );
+            return matches.map(status => ({
+              isValue: true,
+              keyword: status,
+              filterType,
+              replaceText: text.substring(0, lastSpaceIndex + 1) + `title_status:${status}`
+            }));
+          }
           // For numeric filters, don't show autocomplete suggestions
           return [];
         }
@@ -463,6 +476,7 @@ function AppContent() {
               'language:': 'Search by language',
               'genre:': 'Search by genre',
               'tag:': 'Search by tag',
+              'title_status:': 'Filter by status (owned, borrowed, wish)',
               'year:': 'Exact year match',
               'year:>': 'Year greater than',
               'year:<': 'Year less than',

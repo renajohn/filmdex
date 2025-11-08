@@ -39,7 +39,8 @@ const Book = {
             urls TEXT,
             annotation TEXT,
             ebook_file TEXT,
-            title_status TEXT DEFAULT 'owned' CHECK(title_status IN ('owned', 'wish')),
+            title_status TEXT DEFAULT 'owned' CHECK(title_status IN ('owned', 'wish', 'borrowed')),
+            read_date DATE,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
           )
@@ -61,6 +62,8 @@ const Book = {
             
             const hasArtistsColumn = columns.some(col => col.name === 'artists');
             const hasEbookFileColumn = columns.some(col => col.name === 'ebook_file');
+            const hasBorrowedColumn = columns.some(col => col.name === 'borrowed');
+            const hasReadDateColumn = columns.some(col => col.name === 'read_date');
             
             // If artists column doesn't exist, add it
             if (!hasArtistsColumn) {
@@ -87,11 +90,138 @@ const Book = {
                     return reject(alterErr);
                   }
                   console.log('Added ebook_file column successfully');
-                  createIndexes();
+                  migrateBorrowedToReadDate();
                 });
               } else {
-                createIndexes();
+                migrateBorrowedToReadDate();
               }
+            }
+            
+            function migrateBorrowedToReadDate() {
+              // Migration: Replace borrowed columns with read_date and update title_status
+              if (hasBorrowedColumn) {
+                // Need to recreate table first (to update CHECK constraint), then migrate data
+                console.log('Starting migration: borrowed -> read_date and title_status...');
+                recreateTableWithoutBorrowed();
+              } else {
+                // No migration needed - just ensure read_date exists and constraint is updated
+                if (!hasReadDateColumn) {
+                  // Add read_date if it doesn't exist
+                  db.run(`ALTER TABLE books ADD COLUMN read_date DATE`, (alterErr) => {
+                    if (alterErr) {
+                      console.error('Error adding read_date column:', alterErr);
+                      return reject(alterErr);
+                    }
+                    console.log('Added read_date column successfully');
+                    updateTitleStatusConstraint();
+                  });
+                } else {
+                  updateTitleStatusConstraint();
+                }
+              }
+            }
+            
+            function recreateTableWithoutBorrowed() {
+              console.log('Recreating table without borrowed columns...');
+              
+              // Create new table with updated schema
+              db.run(`
+                CREATE TABLE books_new (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  isbn TEXT,
+                  isbn13 TEXT,
+                  title TEXT NOT NULL,
+                  subtitle TEXT,
+                  authors TEXT,
+                  artists TEXT,
+                  publisher TEXT,
+                  published_year INTEGER,
+                  language TEXT,
+                  format TEXT,
+                  filetype TEXT,
+                  drm TEXT,
+                  narrator TEXT,
+                  runtime INTEGER,
+                  series TEXT,
+                  series_number INTEGER,
+                  genres TEXT,
+                  tags TEXT,
+                  rating REAL,
+                  cover TEXT,
+                  owner TEXT,
+                  page_count INTEGER,
+                  description TEXT,
+                  urls TEXT,
+                  annotation TEXT,
+                  ebook_file TEXT,
+                  title_status TEXT DEFAULT 'owned' CHECK(title_status IN ('owned', 'wish', 'borrowed')),
+                  read_date DATE,
+                  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+              `, (createErr) => {
+                if (createErr) {
+                  console.error('Error creating new books table:', createErr);
+                  return reject(createErr);
+                }
+                
+                // Copy data (excluding borrowed columns) and migrate title_status/read_date
+                db.run(`
+                  INSERT INTO books_new (
+                    id, isbn, isbn13, title, subtitle, authors, artists, publisher, published_year,
+                    language, format, filetype, drm, narrator, runtime, series, series_number,
+                    genres, tags, rating, cover, owner, page_count, description, urls, annotation,
+                    ebook_file, title_status, read_date, created_at, updated_at
+                  )
+                  SELECT 
+                    id, isbn, isbn13, title, subtitle, authors, artists, publisher, published_year,
+                    language, format, filetype, drm, narrator, runtime, series, series_number,
+                    genres, tags, rating, cover, owner, page_count, description, urls, annotation,
+                    ebook_file,
+                    CASE 
+                      WHEN borrowed = 1 THEN 'borrowed'
+                      ELSE COALESCE(title_status, 'owned')
+                    END as title_status,
+                    CASE
+                      WHEN borrowed_date IS NOT NULL THEN borrowed_date
+                      ELSE NULL
+                    END as read_date,
+                    created_at, updated_at
+                  FROM books
+                `, (copyErr) => {
+                  if (copyErr) {
+                    console.error('Error copying data to new table:', copyErr);
+                    return reject(copyErr);
+                  }
+                  
+                  // Drop old table
+                  db.run(`DROP TABLE books`, (dropErr) => {
+                    if (dropErr) {
+                      console.error('Error dropping old books table:', dropErr);
+                      return reject(dropErr);
+                    }
+                    
+                    // Rename new table
+                    db.run(`ALTER TABLE books_new RENAME TO books`, (renameErr) => {
+                      if (renameErr) {
+                        console.error('Error renaming new books table:', renameErr);
+                        return reject(renameErr);
+                      }
+                      
+                      console.log('Successfully recreated books table without borrowed columns');
+                      updateTitleStatusConstraint();
+                    });
+                  });
+                });
+              });
+            }
+            
+            function updateTitleStatusConstraint() {
+              // Check if title_status constraint needs updating
+              // SQLite doesn't support modifying CHECK constraints directly,
+              // but since we're recreating the table, the constraint should already be updated
+              // Just verify and create indexes
+              createIndexes();
             }
           });
           
@@ -145,6 +275,11 @@ const Book = {
               }),
               new Promise((resolve, reject) => {
                 db.run(`CREATE INDEX IF NOT EXISTS idx_books_title_status ON books(title_status)`, (err) => {
+                  if (err) reject(err); else resolve();
+                });
+              }),
+              new Promise((resolve, reject) => {
+                db.run(`CREATE INDEX IF NOT EXISTS idx_books_read_date ON books(read_date)`, (err) => {
                   if (err) reject(err); else resolve();
                 });
               })
@@ -213,10 +348,7 @@ const Book = {
         rating: bookData.rating || null,
         cover: bookData.cover || null,
         owner: bookData.owner || null,
-        borrowed: bookData.borrowed ? 1 : 0,
-        borrowed_date: bookData.borrowedDate || null,
-        returned_date: bookData.returnedDate || null,
-        borrowed_notes: bookData.borrowedNotes || null,
+        read_date: bookData.readDate || null,
         page_count: bookData.pageCount || null,
         description: bookData.description || null,
         urls: JSON.stringify(sanitizeUrls(bookData.urls || {})),
@@ -230,19 +362,17 @@ const Book = {
         INSERT INTO books (
           isbn, isbn13, title, subtitle, authors, artists, publisher, published_year,
           language, format, filetype, drm, narrator, runtime, series, series_number,
-          genres, tags, rating, cover, owner, borrowed, borrowed_date, returned_date,
-          borrowed_notes, page_count, description, urls, annotation, title_status,
+          genres, tags, rating, cover, owner, read_date, page_count, description, urls, annotation, ebook_file, title_status,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const params = [
         book.isbn, book.isbn13, book.title, book.subtitle, book.authors, book.artists, book.publisher,
         book.published_year, book.language, book.format, book.filetype, book.drm,
         book.narrator, book.runtime, book.series, book.series_number, book.genres,
-        book.tags, book.rating, book.cover, book.owner, book.borrowed, book.borrowed_date,
-        book.returned_date, book.borrowed_notes, book.page_count, book.description,
-        book.urls, book.annotation, book.title_status, book.created_at, book.updated_at
+        book.tags, book.rating, book.cover, book.owner, book.read_date, book.page_count, book.description,
+        book.urls, book.annotation, bookData.ebookFile || null, book.title_status, book.created_at, book.updated_at
       ];
 
       db.run(sql, params, async function(err) {
@@ -286,9 +416,10 @@ const Book = {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
       // Sort by: author A-Z, then series name, then series number (NULL series goes after, sorted by author)
+      // Return owned and borrowed books (exclude wish)
       const sql = `
         SELECT * FROM books 
-        WHERE (title_status = ? OR title_status IS NULL) 
+        WHERE (title_status IN ('owned', 'borrowed') OR title_status IS NULL) 
         ORDER BY 
           authors ASC,
           CASE WHEN series IS NULL THEN 1 ELSE 0 END,
@@ -297,7 +428,7 @@ const Book = {
           title ASC
       `;
       
-      db.all(sql, ['owned'], (err, rows) => {
+      db.all(sql, [], (err, rows) => {
         if (err) {
           reject(err);
         } else {
@@ -342,9 +473,9 @@ const Book = {
   findBySeriesAndNumber: (series, seriesNumber) => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
-      const sql = 'SELECT * FROM books WHERE series = ? AND series_number = ? AND (title_status = ? OR title_status IS NULL)';
+      const sql = 'SELECT * FROM books WHERE series = ? AND series_number = ? AND (title_status IN (\'owned\', \'borrowed\') OR title_status IS NULL)';
       
-      db.get(sql, [series, seriesNumber, 'owned'], (err, row) => {
+      db.get(sql, [series, seriesNumber], (err, row) => {
         if (err) {
           reject(err);
         } else if (!row) {
@@ -360,9 +491,10 @@ const Book = {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
       // Use case-insensitive comparison for series name
-      const sql = 'SELECT * FROM books WHERE LOWER(TRIM(series)) = LOWER(TRIM(?)) AND (title_status = ? OR title_status IS NULL) ORDER BY series_number';
+      // Return owned and borrowed books (exclude wish)
+      const sql = 'SELECT * FROM books WHERE LOWER(TRIM(series)) = LOWER(TRIM(?)) AND (title_status IN (\'owned\', \'borrowed\') OR title_status IS NULL) ORDER BY series_number';
       
-      db.all(sql, [series, 'owned'], (err, rows) => {
+      db.all(sql, [series], (err, rows) => {
         if (err) {
           reject(err);
         } else {
@@ -392,14 +524,16 @@ const Book = {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
       
-      // Parse filter syntax (e.g., title:"Book Title" author:"Author Name" isbn:"123456" series:"Series Name" owner:"Renault" format:"ebook" language:"en" year:2020 rating:4.5)
+      // Parse filter syntax (e.g., title:"Book Title" author:"Author Name" isbn:"123456" series:"Series Name" owner:"Renault" format:"ebook" language:"en" title_status:owned year:2020 rating:4.5)
       const params = [];
       let whereClauses = [];
+      let titleStatusFilter = null; // Track title_status filter separately to override default
       
-      // Extract filters like title:"value" or author:"value" or artist:"value" or isbn:"value" or series:"value" or owner:"value" or format:"value" or language:"value" or year:2020 or rating:4.5
-      const filterRegex = /(title|author|artist|isbn|series|owner|format|language|genre|tag):"([^"]+)"|(year|rating):(>=|<=|>|<)?(\d+(?:\.\d+)?)/g;
+      // Extract filters like title:"value" or author:"value" or artist:"value" or isbn:"value" or series:"value" or owner:"value" or format:"value" or language:"value" or title_status:owned or year:2020 or rating:4.5
+      const filterRegex = /(title|author|artist|isbn|series|owner|format|language|genre|tag|title_status):"([^"]+)"|(title_status|year|rating):(>=|<=|>|<)?(\S+)/g;
       let match;
       let hasFilters = false;
+      let cleanedQuery = query; // Will be cleaned of title_status filters
       
       while ((match = filterRegex.exec(query)) !== null) {
         hasFilters = true;
@@ -408,6 +542,16 @@ const Book = {
         if (match[1] && match[2]) {
           const field = match[1];
           const value = match[2];
+          
+          // Special handling for title_status
+          if (field === 'title_status') {
+            if (['owned', 'borrowed', 'wish'].includes(value)) {
+              titleStatusFilter = value;
+              // Remove this filter from the query string
+              cleanedQuery = cleanedQuery.replace(match[0], '').trim();
+            }
+            continue;
+          }
           
           const columnMap = {
             'title': 'title',
@@ -432,6 +576,15 @@ const Book = {
               whereClauses.push(`${column} LIKE ?`);
               params.push(`%${value}%`);
             }
+          }
+        }
+        // Handle title_status without quotes (title_status:owned, title_status:borrowed)
+        else if (match[3] === 'title_status' && match[5]) {
+          const value = match[5].trim();
+          if (['owned', 'borrowed', 'wish'].includes(value)) {
+            titleStatusFilter = value;
+            // Remove this filter from the query string
+            cleanedQuery = cleanedQuery.replace(match[0], '').trim();
           }
         }
         // Handle numeric filters (year:2020, year:>=2020, rating:4.5, etc.)
@@ -467,12 +620,23 @@ const Book = {
         }
       }
       
+      // Build title_status filter clause
+      let titleStatusClause = "(title_status IN ('owned', 'borrowed') OR title_status IS NULL)";
+      let titleStatusParams = [];
+      if (titleStatusFilter) {
+        titleStatusClause = "title_status = ?";
+        titleStatusParams = [titleStatusFilter];
+      }
+      
+      // Use cleaned query for general search (without title_status filter)
+      const generalSearchText = cleanedQuery.trim();
+      
       // If no filters found, do a general search
-      if (!hasFilters) {
+      if (!hasFilters && !titleStatusFilter) {
         const sql = `
           SELECT * FROM books 
           WHERE (title LIKE ? OR authors LIKE ? OR artists LIKE ? OR isbn LIKE ? OR isbn13 LIKE ? OR series LIKE ? OR description LIKE ?)
-          AND (title_status = ? OR title_status IS NULL)
+          AND ${titleStatusClause}
           ORDER BY 
             CASE 
               WHEN language IN ('en', 'eng', 'fr', 'fre', 'fra') THEN 1
@@ -482,7 +646,7 @@ const Book = {
         `;
         const searchTerm = `%${query}%`;
         
-        db.all(sql, [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, 'owned'], (err, rows) => {
+        db.all(sql, [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm], (err, rows) => {
           if (err) {
             reject(err);
           } else {
@@ -491,10 +655,29 @@ const Book = {
         });
       } else {
         // Build filtered query
+        // If we have filters but no general search text, we still need a WHERE clause
+        let searchClause = '';
+        let searchParams = [];
+        
+        if (generalSearchText && generalSearchText.length > 0) {
+          // We have search text (after removing title_status filter)
+          searchClause = '(title LIKE ? OR authors LIKE ? OR artists LIKE ? OR isbn LIKE ? OR isbn13 LIKE ? OR series LIKE ? OR description LIKE ?)';
+          const searchTerm = `%${generalSearchText}%`;
+          searchParams = [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm];
+        }
+        
+        const whereParts = [];
+        if (searchClause) {
+          whereParts.push(searchClause);
+        }
+        if (whereClauses.length > 0) {
+          whereParts.push(...whereClauses);
+        }
+        whereParts.push(titleStatusClause);
+        
         const sql = `
           SELECT * FROM books 
-          WHERE ${whereClauses.join(' AND ')}
-          AND (title_status = ? OR title_status IS NULL)
+          WHERE ${whereParts.join(' AND ')}
           ORDER BY 
             CASE 
               WHEN language IN ('en', 'eng', 'fr', 'fre', 'fra') THEN 1
@@ -503,7 +686,7 @@ const Book = {
             title
         `;
         
-        db.all(sql, [...params, 'owned'], (err, rows) => {
+        db.all(sql, [...searchParams, ...params, ...titleStatusParams], (err, rows) => {
           if (err) {
             reject(err);
           } else {
@@ -549,8 +732,7 @@ const Book = {
           isbn = ?, isbn13 = ?, title = ?, subtitle = ?, authors = ?, artists = ?, publisher = ?,
           published_year = ?, language = ?, format = ?, filetype = ?, drm = ?,
           narrator = ?, runtime = ?, series = ?, series_number = ?, genres = ?,
-          tags = ?, rating = ?, cover = ?, owner = ?, borrowed = ?, borrowed_date = ?,
-          returned_date = ?, borrowed_notes = ?, page_count = ?, description = ?,
+          tags = ?, rating = ?, cover = ?, owner = ?, read_date = ?, page_count = ?, description = ?,
           urls = ?, annotation = ?, ebook_file = ?, title_status = ?, updated_at = ?
         WHERE id = ?
       `;
@@ -584,10 +766,7 @@ const Book = {
         bookData.rating || null,
         bookData.cover || null,
         bookData.owner || null,
-        bookData.borrowed ? 1 : 0,
-        bookData.borrowedDate || null,
-        bookData.returnedDate || null,
-        bookData.borrowedNotes || null,
+        bookData.readDate || null,
         bookData.pageCount || null,
         bookData.description || null,
         JSON.stringify(sanitizeUrls(bookData.urls || {})),
@@ -738,10 +917,7 @@ const Book = {
       rating: row.rating,
       cover: row.cover,
       owner: row.owner,
-      borrowed: row.borrowed === 1,
-      borrowedDate: row.borrowed_date,
-      returnedDate: row.returned_date,
-      borrowedNotes: row.borrowed_notes,
+      readDate: row.read_date,
       pageCount: row.page_count,
       description: row.description,
       urls: JSON.parse(row.urls || '{}'),

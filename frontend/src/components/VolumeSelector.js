@@ -64,7 +64,7 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
             if (v.seriesNumber < nextVolumeNumber) return false;
             const existingBook = existingMap.get(v.seriesNumber);
             // Only exclude if it exists and is not borrowed
-            if (existingBook && !existingBook.borrowed) return false;
+            if (existingBook && existingBook.titleStatus !== 'borrowed') return false;
             return true;
           })
           .map(v => v.seriesNumber);
@@ -99,7 +99,7 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
       .filter(v => {
         const existingBook = existingBooks.get(v.seriesNumber);
         // Include if not existing, or if existing but borrowed
-        return !existingBook || existingBook.borrowed;
+        return !existingBook || existingBook.titleStatus === 'borrowed';
       })
       .map(v => v.seriesNumber)
       .filter(n => n != null);
@@ -125,7 +125,7 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
         if (!selectedVolumes.has(v.seriesNumber)) return false;
         const existingBook = existingBooks.get(v.seriesNumber);
         // Only add if not existing, or if existing but borrowed
-        return !existingBook || existingBook.borrowed;
+        return !existingBook || existingBook.titleStatus === 'borrowed';
       });
       setEnrichmentProgress({ current: 0, total: volumesToAdd.length });
 
@@ -144,17 +144,8 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
             if (templateBook.owner !== undefined) {
               enriched.owner = templateBook.owner || null;
             }
-            if (templateBook.borrowed !== undefined) {
-              enriched.borrowed = templateBook.borrowed;
-            }
-            if (templateBook.borrowedDate) {
-              enriched.borrowedDate = templateBook.borrowedDate;
-            }
-            if (templateBook.returnedDate) {
-              enriched.returnedDate = templateBook.returnedDate;
-            }
-            if (templateBook.borrowedNotes) {
-              enriched.borrowedNotes = templateBook.borrowedNotes;
+            if (templateBook.readDate) {
+              enriched.readDate = templateBook.readDate;
             }
             console.log(`[VolumeSelector] Copied owner info to volume ${enriched.seriesNumber}:`, {
               owner: enriched.owner,
@@ -297,8 +288,8 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
                 const isSelected = selectedVolumes.has(volume.seriesNumber);
                 const coverUrl = getCoverImage(volume);
                 const existingBook = existingBooks.get(volume.seriesNumber);
-                const isAlreadyInCollection = existingBook && !existingBook.borrowed;
-                const isBorrowed = existingBook && existingBook.borrowed;
+                const isAlreadyInCollection = existingBook && existingBook.titleStatus !== 'borrowed';
+                const isBorrowed = existingBook && existingBook.titleStatus === 'borrowed';
                 const isDisabled = isAlreadyInCollection;
                 
                 return (

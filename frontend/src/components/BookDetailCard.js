@@ -484,7 +484,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
           .filter(v => {
             if (v.seriesNumber < nextVolumeNumber) return false;
             const existingBook = existingMap.get(v.seriesNumber);
-            return !existingBook || existingBook.borrowed;
+            return !existingBook || existingBook.titleStatus === 'borrowed';
           })
           .map(v => v.seriesNumber);
         setSelectedVolumes(new Set(toSelect));
@@ -498,7 +498,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
 
   const toggleVolume = (seriesNumber) => {
     const existingBook = existingBooks.get(seriesNumber);
-    if (existingBook && !existingBook.borrowed) {
+    if (existingBook && existingBook.titleStatus !== 'borrowed') {
       return;
     }
     
@@ -555,17 +555,8 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
             if (book.owner !== undefined) {
               enriched.owner = book.owner || null;
             }
-            if (book.borrowed !== undefined) {
-              enriched.borrowed = book.borrowed;
-            }
-            if (book.borrowedDate) {
-              enriched.borrowedDate = book.borrowedDate;
-            }
-            if (book.returnedDate) {
-              enriched.returnedDate = book.returnedDate;
-            }
-            if (book.borrowedNotes) {
-              enriched.borrowedNotes = book.borrowedNotes;
+            if (book.readDate) {
+              enriched.readDate = book.readDate;
             }
           }
           
@@ -1234,31 +1225,15 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                     </div>
                   )}
                   
-                  {book.borrowed && (
+                  {book.readDate && (
                     <div className="info-section">
-                      <h4>Borrowing Information</h4>
+                      <h4>Reading Information</h4>
                       <Row>
-                        {book.borrowedDate && (
-                          <Col md={6}>
-                            <div className="info-item">
-                              <strong>Borrowed Date:</strong> {book.borrowedDate}
-                            </div>
-                          </Col>
-                        )}
-                        {book.returnedDate && (
-                          <Col md={6}>
-                            <div className="info-item">
-                              <strong>Returned Date:</strong> {book.returnedDate}
-                            </div>
-                          </Col>
-                        )}
-                        {book.borrowedNotes && (
-                          <Col md={12}>
-                            <div className="info-item">
-                              <strong>Notes:</strong> {book.borrowedNotes}
-                            </div>
-                          </Col>
-                        )}
+                        <Col md={6}>
+                          <div className="info-item">
+                            <strong>Read Date:</strong> {book.readDate}
+                          </div>
+                        </Col>
                       </Row>
                     </div>
                   )}
@@ -2034,8 +2009,8 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                         const isSelected = selectedVolumes.has(volume.seriesNumber);
                         const coverUrl = getVolumeCoverImage(volume);
                         const existingBook = existingBooks.get(volume.seriesNumber);
-                        const isAlreadyInCollection = existingBook && !existingBook.borrowed;
-                        const isBorrowed = existingBook && existingBook.borrowed;
+                        const isAlreadyInCollection = existingBook && existingBook.titleStatus !== 'borrowed';
+                        const isBorrowed = existingBook && existingBook.titleStatus === 'borrowed';
                         const isDisabled = isAlreadyInCollection;
                         
                         return (

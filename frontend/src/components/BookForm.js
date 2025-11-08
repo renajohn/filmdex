@@ -51,10 +51,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
     rating: '',
     cover: null,
     owner: '',
-    borrowed: false,
-    borrowedDate: '',
-    returnedDate: '',
-    borrowedNotes: '',
+    readDate: '',
     pageCount: '',
     description: '',
     urls: {},
@@ -296,31 +293,21 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
         // Try to find and replace volume numbers in the title
         // Patterns: T01, T1, Vol. 1, Volume 1, #1, etc.
         const volumePatterns = [
-          /\bT0*(\d+)\b/i,  // T01, T1, T02, etc.
-          /\bVol\.?\s*0*(\d+)\b/i,  // Vol. 1, Vol 1, etc.
-          /\bVolume\s*0*(\d+)\b/i,  // Volume 1, etc.
-          /\b#0*(\d+)\b/i,  // #1, #01, etc.
-          /\b(\d+)\s*$/i  // Trailing number like "Book 1"
+          { regex: /\bT0*(\d+)\b/i, type: 'T' },  // T01, T1, T02, etc.
+          { regex: /\bVol\.?\s*0*(\d+)\b/i, type: 'Vol' },  // Vol. 1, Vol 1, etc.
+          { regex: /\bVolume\s*0*(\d+)\b/i, type: 'Volume' },  // Volume 1, etc.
+          { regex: /\b#0*(\d+)\b/i, type: '#' },  // #1, #01, etc.
+          { regex: /\b(\d+)\s*$/i, type: 'trailing' }  // Trailing number like "Book 1"
         ];
         
-        for (const pattern of volumePatterns) {
-          const match = book.title.match(pattern);
+        for (const patternObj of volumePatterns) {
+          const match = book.title.match(patternObj.regex);
           if (match) {
             const oldNumber = match[1] || match[0];
             const newNumber = String(book.seriesNumber).padStart(oldNumber.length, '0');
-            suggestedTitle = book.title.replace(pattern, (m) => {
+            suggestedTitle = book.title.replace(patternObj.regex, (m) => {
               // Preserve the format (T, Vol., etc.) but update the number
-              if (pattern === /\bT0*(\d+)\b/i) {
-                return m.replace(/\d+/, newNumber);
-              } else if (pattern === /\bVol\.?\s*0*(\d+)\b/i) {
-                return m.replace(/\d+/, newNumber);
-              } else if (pattern === /\bVolume\s*0*(\d+)\b/i) {
-                return m.replace(/\d+/, newNumber);
-              } else if (pattern === /\b#0*(\d+)\b/i) {
-                return m.replace(/\d+/, newNumber);
-              } else {
-                return m.replace(/\d+/, newNumber);
-              }
+              return m.replace(/\d+/, newNumber);
             });
             break;
           }
@@ -361,10 +348,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
         rating: book.rating || '',
         cover: book.cover || null,
         owner: book.owner || '',
-        borrowed: book.borrowed || false,
-        borrowedDate: book.borrowedDate || '',
-        returnedDate: book.returnedDate || '',
-        borrowedNotes: book.borrowedNotes || '',
+        readDate: book.readDate || '',
         pageCount: book.pageCount || '',
         description: initialDescription || '',
         urls: book.urls || {},
@@ -1136,7 +1120,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
         rating: formData.rating ? parseFloat(formData.rating) : null,
         pageCount: formData.pageCount ? parseInt(formData.pageCount) : null,
         runtime: formData.runtime ? parseInt(formData.runtime) : null,
-        borrowed: formData.borrowed === true || formData.borrowed === 'true',
+        readDate: formData.readDate || null,
         coverUrl: formData.coverUrl || null,
         ebookFile: formData.ebookFile || null,
         // Include availableCovers so backend can select highest quality version
@@ -1599,51 +1583,35 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 document.body
               )}
 
-              <Form.Group className="mb-3">
-                <Form.Check
-                  type="checkbox"
-                  label="Borrowed"
-                  checked={formData.borrowed}
-                  onChange={(e) => handleInputChange('borrowed', e.target.checked)}
-                />
-              </Form.Group>
-
-              {formData.borrowed && (
-                <>
-                  <Row>
-                    <Col md={6}>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Borrowed Date</Form.Label>
-                        <Form.Control
-                          type="date"
-                          value={formData.borrowedDate}
-                          onChange={(e) => handleInputChange('borrowedDate', e.target.value)}
-                        />
-                      </Form.Group>
-                    </Col>
-                    <Col md={6}>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Returned Date</Form.Label>
-                        <Form.Control
-                          type="date"
-                          value={formData.returnedDate}
-                          onChange={(e) => handleInputChange('returnedDate', e.target.value)}
-                        />
-                      </Form.Group>
-                    </Col>
-                  </Row>
+              <Row>
+                <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label>Borrowing Notes</Form.Label>
-                    <Form.Control
-                      as="textarea"
-                      rows={2}
-                      value={formData.borrowedNotes}
-                      onChange={(e) => handleInputChange('borrowedNotes', e.target.value)}
-                      placeholder="Enter borrowing notes"
-                    />
+                    <Form.Label>Title Status</Form.Label>
+                    <Form.Select
+                      value={formData.titleStatus}
+                      onChange={(e) => handleInputChange('titleStatus', e.target.value)}
+                    >
+                      <option value="owned">Owned</option>
+                      <option value="borrowed">Borrowed</option>
+                      <option value="wish">Wish</option>
+                    </Form.Select>
                   </Form.Group>
-                </>
-              )}
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Read Date</Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={formData.readDate}
+                      onChange={(e) => handleInputChange('readDate', e.target.value)}
+                      placeholder="Date when you finished reading this book"
+                    />
+                    <Form.Text className="text-muted">
+                      Leave empty if you haven't read this book yet
+                    </Form.Text>
+                  </Form.Group>
+                </Col>
+              </Row>
 
               <Form.Group className="mb-3">
                 <div className="d-flex justify-content-between align-items-center mb-2">
@@ -2340,51 +2308,35 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 document.body
               )}
 
-              <Form.Group className="mb-3">
-                <Form.Check
-                  type="checkbox"
-                  label="Borrowed"
-                  checked={formData.borrowed}
-                  onChange={(e) => handleInputChange('borrowed', e.target.checked)}
-                />
-              </Form.Group>
-
-              {formData.borrowed && (
-                <>
-                  <Row>
-                    <Col md={6}>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Borrowed Date</Form.Label>
-                        <Form.Control
-                          type="date"
-                          value={formData.borrowedDate}
-                          onChange={(e) => handleInputChange('borrowedDate', e.target.value)}
-                        />
-                      </Form.Group>
-                    </Col>
-                    <Col md={6}>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Returned Date</Form.Label>
-                        <Form.Control
-                          type="date"
-                          value={formData.returnedDate}
-                          onChange={(e) => handleInputChange('returnedDate', e.target.value)}
-                        />
-                      </Form.Group>
-                    </Col>
-                  </Row>
+              <Row>
+                <Col md={6}>
                   <Form.Group className="mb-3">
-                    <Form.Label>Borrowing Notes</Form.Label>
-                    <Form.Control
-                      as="textarea"
-                      rows={2}
-                      value={formData.borrowedNotes}
-                      onChange={(e) => handleInputChange('borrowedNotes', e.target.value)}
-                      placeholder="Enter borrowing notes"
-                    />
+                    <Form.Label>Title Status</Form.Label>
+                    <Form.Select
+                      value={formData.titleStatus}
+                      onChange={(e) => handleInputChange('titleStatus', e.target.value)}
+                    >
+                      <option value="owned">Owned</option>
+                      <option value="borrowed">Borrowed</option>
+                      <option value="wish">Wish</option>
+                    </Form.Select>
                   </Form.Group>
-                </>
-              )}
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Read Date</Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={formData.readDate}
+                      onChange={(e) => handleInputChange('readDate', e.target.value)}
+                      placeholder="Date when you finished reading this book"
+                    />
+                    <Form.Text className="text-muted">
+                      Leave empty if you haven't read this book yet
+                    </Form.Text>
+                  </Form.Group>
+                </Col>
+              </Row>
 
               <Form.Group className="mb-3">
                 <div className="d-flex justify-content-between align-items-center mb-2">

@@ -29,9 +29,9 @@ const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false })
   return (
     <div className="book-thumbnail" onClick={onClick}>
       <div className="book-thumbnail-cover">
-        {book.borrowed && (
+        {book.titleStatus === 'borrowed' && (
           <div className="book-thumbnail-borrowed-ribbon">
-            Read & Gone
+            Borrowed
           </div>
         )}
         {getCoverImage() ? (

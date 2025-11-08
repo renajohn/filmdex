@@ -47,7 +47,8 @@ const BookDexPage = forwardRef(({ searchCriteria }, ref) => {
   const loadBooks = async () => {
     try {
       setLoading(true);
-      const data = await bookService.getBooksByStatus('owned');
+      // getAllBooks() now returns both 'owned' and 'borrowed' books (excludes 'wish')
+      const data = await bookService.getAllBooks();
       setBooks(data);
     } catch (error) {
       console.error('Error loading books:', error);

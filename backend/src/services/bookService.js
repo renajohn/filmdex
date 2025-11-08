@@ -2426,10 +2426,7 @@ class BookService {
       coverUrl: coverUrl,
       availableCovers: availableCovers.length > 0 ? availableCovers : undefined,
       owner: null,
-      borrowed: false,
-      borrowedDate: null,
-      returnedDate: null,
-      borrowedNotes: null,
+      readDate: null,
       pageCount: pageCount,
       description: description,
       urls: Object.keys(urls).length > 0 ? urls : null
@@ -3081,9 +3078,18 @@ class BookService {
    * Get autocomplete suggestions for a given field
    */
   async getAutocompleteSuggestions(field, value) {
-    const allowedFields = ['title', 'author', 'series', 'publisher', 'genre', 'tag', 'owner'];
+    const allowedFields = ['title', 'author', 'series', 'publisher', 'genre', 'tag', 'owner', 'title_status'];
     if (!allowedFields.includes(field)) {
       throw new Error(`Invalid field: ${field}`);
+    }
+    
+    // title_status has fixed values, return them directly (excluding 'wish' as it has its own tab)
+    if (field === 'title_status') {
+      const statusOptions = ['owned', 'borrowed'];
+      const matches = statusOptions.filter(status => 
+        status.toLowerCase().includes((value || '').toLowerCase())
+      );
+      return matches.map(status => ({ title_status: status }));
     }
     
     try {

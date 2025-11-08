@@ -116,12 +116,12 @@ const bookController = {
     }
   },
 
-  // Get books by status (owned or wish)
+  // Get books by status (owned, borrowed, or wish)
   getBooksByStatus: async (req, res) => {
     try {
       const { status } = req.params;
-      if (!['owned', 'wish'].includes(status)) {
-        return res.status(400).json({ error: 'Status must be "owned" or "wish"' });
+      if (!['owned', 'borrowed', 'wish'].includes(status)) {
+        return res.status(400).json({ error: 'Status must be "owned", "borrowed", or "wish"' });
       }
       
       const books = await bookService.getBooksByStatus(status);
@@ -138,8 +138,8 @@ const bookController = {
       const { id } = req.params;
       const { status } = req.body;
       
-      if (!['owned', 'wish'].includes(status)) {
-        return res.status(400).json({ error: 'Status must be "owned" or "wish"' });
+      if (!['owned', 'borrowed', 'wish'].includes(status)) {
+        return res.status(400).json({ error: 'Status must be "owned", "borrowed", or "wish"' });
       }
       
       const result = await bookService.updateBookStatus(id, status);
@@ -626,7 +626,7 @@ const bookController = {
       const headers = [
         'Title', 'Authors', 'ISBN', 'ISBN-13', 'Publisher', 'Published Year',
         'Language', 'Format', 'Series', 'Series Number', 'Genres', 'Rating',
-        'Owner', 'Borrowed', 'Borrowed Date', 'Returned Date', 'Page Count',
+        'Owner', 'Title Status', 'Read Date', 'Page Count',
         'Narrator', 'Runtime', 'Filetype', 'DRM', 'Created At'
       ];
       
@@ -644,9 +644,8 @@ const bookController = {
         Array.isArray(book.genres) ? book.genres.join('; ') : '',
         book.rating || '',
         book.owner || '',
-        book.borrowed ? 'Yes' : 'No',
-        book.borrowedDate || '',
-        book.returnedDate || '',
+        book.titleStatus || 'owned',
+        book.readDate || '',
         book.pageCount || '',
         book.narrator || '',
         book.runtime || '',

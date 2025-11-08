@@ -36,13 +36,7 @@ const BookSearch = forwardRef(({
   const [expandedGroups, setExpandedGroups] = useState(new Set());
   const [expandAllGroups, setExpandAllGroups] = useState(false);
   const [bookCount, setBookCount] = useState({ filtered: 0, total: 0 });
-  const [filterLoading, setFilterLoading] = useState(false);
   
-  // Load showBorrowedBooks from localStorage, default to true
-  const [showBorrowedBooks, setShowBorrowedBooks] = useState(() => {
-    const saved = localStorage.getItem('bookShowBorrowedBooks');
-    return saved !== null ? saved === 'true' : true;
-  });
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addingBook, setAddingBook] = useState(false);
   const [addError, setAddError] = useState('');
@@ -75,11 +69,6 @@ const BookSearch = forwardRef(({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
 
-  // Save showBorrowedBooks to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('bookShowBorrowedBooks', showBorrowedBooks.toString());
-  }, [showBorrowedBooks]);
-
   useEffect(() => {
     const currentSearchText = searchCriteria?.searchText || '';
     
@@ -89,35 +78,25 @@ const BookSearch = forwardRef(({
       if (currentSearchText.trim()) {
         performSearch(currentSearchText);
       } else {
-        const filteredAll = filterBorrowedBooks(allBooks);
-        setFilteredBooks(filteredAll);
-        setBookCount({ filtered: filteredAll.length, total: allBooks.length });
+        const sortedAll = sortBooks(allBooks, sortBy);
+        setFilteredBooks(sortedAll);
+        setBookCount({ filtered: sortedAll.length, total: allBooks.length });
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchCriteria?.searchText, allBooks, showBorrowedBooks]);
-
-  const filterBorrowedBooks = useCallback((books, shouldShowBorrowed = null) => {
-    // Use passed parameter if provided, otherwise use state
-    const showBorrowed = shouldShowBorrowed !== null ? shouldShowBorrowed : showBorrowedBooks;
-    if (showBorrowed) {
-      return books;
-    }
-    return books.filter(book => !book.borrowed);
-  }, [showBorrowedBooks]);
+  }, [searchCriteria?.searchText, allBooks]);
 
   const loadBooks = async () => {
     try {
-      const data = await bookService.getBooksByStatus('owned');
-      const filteredData = filterBorrowedBooks(data);
-      const sortedInitial = sortBooks(filteredData, sortBy);
+      // getAllBooks() now returns both 'owned' and 'borrowed' books (excludes 'wish')
+      const data = await bookService.getAllBooks();
+      const sortedInitial = sortBooks(data, sortBy);
       setAllBooks(data); // Keep all books for total count
       
       const currentSearchText = searchCriteria?.searchText || '';
       if (currentSearchText.trim()) {
         const localResults = await bookService.searchBooks(currentSearchText);
-        const filteredResults = filterBorrowedBooks(localResults);
-        const sortedResults = sortBooks(filteredResults, sortBy);
+        const sortedResults = sortBooks(localResults, sortBy);
         setFilteredBooks(sortedResults);
         setBookCount({ filtered: sortedResults.length, total: data.length });
       } else {
@@ -134,8 +113,7 @@ const BookSearch = forwardRef(({
 
   const performSearch = async (query) => {
     if (!query.trim()) {
-      const filteredAll = filterBorrowedBooks(allBooks);
-      const sortedAll = sortBooks(filteredAll, sortBy);
+      const sortedAll = sortBooks(allBooks, sortBy);
       setFilteredBooks(sortedAll);
       setBookCount({ filtered: sortedAll.length, total: allBooks.length });
       return;
@@ -143,8 +121,7 @@ const BookSearch = forwardRef(({
 
     try {
       const localResults = await bookService.searchBooks(query);
-      const filteredResults = filterBorrowedBooks(localResults);
-      const sortedResults = sortBooks(filteredResults, sortBy);
+      const sortedResults = sortBooks(localResults, sortBy);
       setFilteredBooks(sortedResults);
       setBookCount({ filtered: sortedResults.length, total: allBooks.length });
     } catch (error) {
@@ -281,37 +258,6 @@ const BookSearch = forwardRef(({
       setBookCount({ filtered: sortedBooks.length, total: allBooks.length });
     } finally {
       setSortLoading(false);
-    }
-  };
-
-  const handleShowBorrowedToggle = async (e) => {
-    const newValue = e.target.checked;
-    setFilterLoading(true);
-    
-    // Add a small delay to show loading state
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    try {
-      // Use the new value directly instead of waiting for state update
-      const currentSearchText = searchCriteria?.searchText || '';
-      if (currentSearchText.trim()) {
-        // For search, we need to filter the search results
-        const localResults = await bookService.searchBooks(currentSearchText);
-        const filteredResults = filterBorrowedBooks(localResults, newValue);
-        const sortedResults = sortBooks(filteredResults, sortBy);
-        setFilteredBooks(sortedResults);
-        setBookCount({ filtered: sortedResults.length, total: allBooks.length });
-      } else {
-        const filteredAll = filterBorrowedBooks(allBooks, newValue);
-        const sortedAll = sortBooks(filteredAll, sortBy);
-        setFilteredBooks(sortedAll);
-        setBookCount({ filtered: sortedAll.length, total: allBooks.length });
-      }
-      
-      // Update state after filtering is done
-      setShowBorrowedBooks(newValue);
-    } finally {
-      setFilterLoading(false);
     }
   };
 
@@ -684,25 +630,6 @@ const BookSearch = forwardRef(({
                 {expandAllGroups ? 'Collapse All' : 'Expand All'}
               </button>
             )}
-
-            <Form.Check
-              type="switch"
-              id="show-borrowed-books-toggle"
-              label={
-                filterLoading ? (
-                  <>
-                    <span className="filter-loading-spinner"></span>
-                    Filtering...
-                  </>
-                ) : (
-                  "Show borrowed books"
-                )
-              }
-              checked={showBorrowedBooks}
-              onChange={handleShowBorrowedToggle}
-              disabled={filterLoading}
-              className={`show-borrowed-toggle ${filterLoading ? 'filter-loading' : ''}`}
-            />
 
             <button 
               className="add-item-btn"
