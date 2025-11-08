@@ -802,3 +802,30 @@
   line-height: 1.3;
 }
 
+/* Wishlist ribbon for detail view cover */
+.book-cover-container .book-thumbnail-wishlist-ribbon {
+  position: absolute;
+  top: 22px;
+  right: -46px;
+  background: linear-gradient(to bottom right, #10b981, #059669);
+  color: white;
+  padding: 6px 48px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  transform: rotate(45deg);
+  transform-origin: center;
+  z-index: 5;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  min-width: 135px;
+  text-align: center;
+  line-height: 1.3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+

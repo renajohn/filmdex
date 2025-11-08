@@ -807,6 +807,16 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                         Read & Gone
                       </div>
                     )}
+                    {book.titleStatus === 'borrowed' && !book.borrowed && (
+                      <div className="book-thumbnail-borrowed-ribbon">
+                        Borrowed
+                      </div>
+                    )}
+                    {book.titleStatus === 'wish' && (
+                      <div className="book-thumbnail-wishlist-ribbon">
+                        Wishlist
+                      </div>
+                    )}
                     <img 
                       key={`book-cover-${book.id}-${book.cover || 'no-cover'}`}
                       src={getCoverImage()} 
