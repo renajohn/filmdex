@@ -50,6 +50,7 @@ function AppContent() {
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [collections, setCollections] = useState([]);
   const [boxSets, setBoxSets] = useState([]);
+  const [owners, setOwners] = useState([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // Check if we're on the thumbnail view (filmdex path)
@@ -315,24 +316,40 @@ function AppContent() {
   // Fetch collections and box sets for filter dropdown
   const fetchFilterData = async () => {
     try {
-      // Fetch all collections (both user collections and box sets)
-      const collectionsData = await apiService.getAllCollections();
-      
-      // Separate user collections from box sets
-      const userCollections = collectionsData
-        .filter(c => c.type === 'user')
-        .map(c => c.name)
-        .sort();
-      
-      const boxSetCollections = collectionsData
-        .filter(c => c.type === 'box_set')
-        .map(c => c.name)
-        .sort();
-      
-      setCollections(userCollections);
-      setBoxSets(boxSetCollections);
+      if (location.pathname === '/bookdex') {
+        // Fetch owners for BookDex
+        try {
+          const ownersData = await bookService.getAutocompleteSuggestions('owner', '');
+          const ownerNames = ownersData
+            .map(item => item.owner || item)
+            .filter(owner => owner && typeof owner === 'string' && owner.trim())
+            .filter((owner, index, self) => self.indexOf(owner) === index) // Remove duplicates
+            .sort();
+          setOwners(ownerNames);
+        } catch (error) {
+          console.error('Failed to fetch owners:', error);
+          setOwners([]);
+        }
+      } else {
+        // Fetch all collections (both user collections and box sets) for FilmDex
+        const collectionsData = await apiService.getAllCollections();
+        
+        // Separate user collections from box sets
+        const userCollections = collectionsData
+          .filter(c => c.type === 'user')
+          .map(c => c.name)
+          .sort();
+        
+        const boxSetCollections = collectionsData
+          .filter(c => c.type === 'box_set')
+          .map(c => c.name)
+          .sort();
+        
+        setCollections(userCollections);
+        setBoxSets(boxSetCollections);
+      }
     } catch (error) {
-      console.error('Failed to fetch collections:', error);
+      console.error('Failed to fetch filter data:', error);
     }
   };
 
@@ -396,6 +413,15 @@ function AppContent() {
         break;
       case 'comments':
         predicate = 'has_comments:true';
+        break;
+      case 'owner':
+        predicate = `owner:"${filterValue}"`;
+        break;
+      case 'title_status':
+        predicate = `title_status:${filterValue}`;
+        break;
+      case 'has_ebook':
+        predicate = 'has_ebook:true';
         break;
       default:
         return;
@@ -1030,7 +1056,7 @@ function AppContent() {
                     <BsX />
                   </button>
                 )}
-                {location.pathname !== '/musicdex' && location.pathname !== '/bookdex' && location.pathname !== '/wishlist' && (
+                {location.pathname !== '/musicdex' && location.pathname !== '/wishlist' && (
                   <button 
                     ref={filterButtonRef}
                     className={`search-filter-button ${showFilterDropdown ? 'active' : ''}`}
@@ -1074,136 +1100,233 @@ function AppContent() {
                     ))}
                   </div>
                 )}
-                {showFilterDropdown && location.pathname !== '/bookdex' && location.pathname !== '/wishlist' && (
+                {showFilterDropdown && location.pathname !== '/wishlist' && (
                   <div className="search-filter-dropdown" ref={filterDropdownRef}>
-                    <div className="filter-section">
-                      <div className="filter-section-title">Age Groups</div>
-                      <button 
-                        className="filter-option"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleFilterSelection('age_group', 'All Ages (0-3)');
-                        }}
-                      >
-                        All Ages (0-3)
-                      </button>
-                      <button 
-                        className="filter-option"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleFilterSelection('age_group', 'Children (4-9)');
-                        }}
-                      >
-                        Children (4-9)
-                      </button>
-                      <button 
-                        className="filter-option"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleFilterSelection('age_group', 'Pre-teens (10-14)');
-                        }}
-                      >
-                        Pre-teens (10-14)
-                      </button>
-                      <button 
-                        className="filter-option"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleFilterSelection('age_group', 'Teens & Adults (15+)');
-                        }}
-                      >
-                        Teens & Adults (15+)
-                      </button>
-                    </div>
-                    
-                    <div className="filter-section">
-                      <div className="filter-section-title">Formats</div>
-                      <button 
-                        className="filter-option"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleFilterSelection('format', 'Blu-ray 4K');
-                        }}
-                      >
-                        Blu-ray 4K
-                      </button>
-                      <button 
-                        className="filter-option"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleFilterSelection('format', 'Blu-ray');
-                        }}
-                      >
-                        Blu-ray
-                      </button>
-                      <button 
-                        className="filter-option"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleFilterSelection('format', 'DVD');
-                        }}
-                      >
-                        DVD
-                      </button>
-                    </div>
-                    
-                    <div className="filter-section">
-                      <div className="filter-section-title">Special</div>
-                      <button 
-                        className="filter-option"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleFilterSelection('comments', '');
-                        }}
-                      >
-                        Has Comments
-                      </button>
-                    </div>
-                    
-                    {collections.length > 0 && (
-                      <div className="filter-section">
-                        <div className="filter-section-title">Collections</div>
-                        {collections.map(collection => (
+                    {location.pathname === '/bookdex' ? (
+                      <>
+                        <div className="filter-section">
+                          <div className="filter-section-title">Formats</div>
                           <button 
-                            key={collection}
                             className="filter-option"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              handleFilterSelection('collection', collection);
+                              handleFilterSelection('format', 'physical');
                             }}
                           >
-                            {collection}
+                            Physical
                           </button>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {boxSets.length > 0 && (
-                      <div className="filter-section">
-                        <div className="filter-section-title">Box Sets</div>
-                        {boxSets.map(boxSet => (
                           <button 
-                            key={boxSet}
                             className="filter-option"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              handleFilterSelection('box_set', boxSet);
+                              handleFilterSelection('format', 'ebook');
                             }}
                           >
-                            {boxSet}
+                            E-book
                           </button>
-                        ))}
-                      </div>
+                          <button 
+                            className="filter-option"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleFilterSelection('format', 'audiobook');
+                            }}
+                          >
+                            Audiobook
+                          </button>
+                        </div>
+                        
+                        <div className="filter-section">
+                          <div className="filter-section-title">Title Status</div>
+                          <button 
+                            className="filter-option"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleFilterSelection('title_status', 'owned');
+                            }}
+                          >
+                            Owned
+                          </button>
+                          <button 
+                            className="filter-option"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleFilterSelection('title_status', 'borrowed');
+                            }}
+                          >
+                            Borrowed
+                          </button>
+                        </div>
+                        
+                        <div className="filter-section">
+                          <div className="filter-section-title">Special</div>
+                          <button 
+                            className="filter-option"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleFilterSelection('has_ebook', '');
+                            }}
+                          >
+                            Has E-book File
+                          </button>
+                        </div>
+                        
+                        {owners.length > 0 && (
+                          <div className="filter-section">
+                            <div className="filter-section-title">Owners</div>
+                            {owners.map(owner => (
+                              <button 
+                                key={owner}
+                                className="filter-option"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleFilterSelection('owner', owner);
+                                }}
+                              >
+                                {owner}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="filter-section">
+                          <div className="filter-section-title">Age Groups</div>
+                          <button 
+                            className="filter-option"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleFilterSelection('age_group', 'All Ages (0-3)');
+                            }}
+                          >
+                            All Ages (0-3)
+                          </button>
+                          <button 
+                            className="filter-option"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleFilterSelection('age_group', 'Children (4-9)');
+                            }}
+                          >
+                            Children (4-9)
+                          </button>
+                          <button 
+                            className="filter-option"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleFilterSelection('age_group', 'Pre-teens (10-14)');
+                            }}
+                          >
+                            Pre-teens (10-14)
+                          </button>
+                          <button 
+                            className="filter-option"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleFilterSelection('age_group', 'Teens & Adults (15+)');
+                            }}
+                          >
+                            Teens & Adults (15+)
+                          </button>
+                        </div>
+                        
+                        <div className="filter-section">
+                          <div className="filter-section-title">Formats</div>
+                          <button 
+                            className="filter-option"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleFilterSelection('format', 'Blu-ray 4K');
+                            }}
+                          >
+                            Blu-ray 4K
+                          </button>
+                          <button 
+                            className="filter-option"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleFilterSelection('format', 'Blu-ray');
+                            }}
+                          >
+                            Blu-ray
+                          </button>
+                          <button 
+                            className="filter-option"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleFilterSelection('format', 'DVD');
+                            }}
+                          >
+                            DVD
+                          </button>
+                        </div>
+                        
+                        <div className="filter-section">
+                          <div className="filter-section-title">Special</div>
+                          <button 
+                            className="filter-option"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleFilterSelection('comments', '');
+                            }}
+                          >
+                            Has Comments
+                          </button>
+                        </div>
+                        
+                        {collections.length > 0 && (
+                          <div className="filter-section">
+                            <div className="filter-section-title">Collections</div>
+                            {collections.map(collection => (
+                              <button 
+                                key={collection}
+                                className="filter-option"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleFilterSelection('collection', collection);
+                                }}
+                              >
+                                {collection}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {boxSets.length > 0 && (
+                          <div className="filter-section">
+                            <div className="filter-section-title">Box Sets</div>
+                            {boxSets.map(boxSet => (
+                              <button 
+                                key={boxSet}
+                                className="filter-option"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleFilterSelection('box_set', boxSet);
+                                }}
+                              >
+                                {boxSet}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}

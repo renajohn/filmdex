@@ -529,8 +529,8 @@ const Book = {
       let whereClauses = [];
       let titleStatusFilter = null; // Track title_status filter separately to override default
       
-      // Extract filters like title:"value" or author:"value" or artist:"value" or isbn:"value" or series:"value" or owner:"value" or format:"value" or language:"value" or title_status:owned or year:2020 or rating:4.5
-      const filterRegex = /(title|author|artist|isbn|series|owner|format|language|genre|tag|title_status):"([^"]+)"|(title_status|year|rating):(>=|<=|>|<)?(\S+)/g;
+      // Extract filters like title:"value" or author:"value" or artist:"value" or isbn:"value" or series:"value" or owner:"value" or format:"value" or language:"value" or title_status:owned or year:2020 or rating:4.5 or has_ebook:true
+      const filterRegex = /(title|author|artist|isbn|series|owner|format|language|genre|tag|title_status):"([^"]+)"|(title_status|year|rating|has_ebook):(>=|<=|>|<)?(\S+)/g;
       let match;
       let hasFilters = false;
       let cleanedQuery = query; // Will be cleaned of title_status filters
@@ -572,10 +572,16 @@ const Book = {
               // For JSON arrays, search within the JSON string
               whereClauses.push(`${column} LIKE ?`);
               params.push(`%${value}%`);
+            } else if (column === 'owner') {
+              // For owner, use case-insensitive exact match
+              whereClauses.push(`LOWER(${column}) = LOWER(?)`);
+              params.push(value);
             } else {
               whereClauses.push(`${column} LIKE ?`);
               params.push(`%${value}%`);
             }
+            // Remove this filter from the query string
+            cleanedQuery = cleanedQuery.replace(match[0], '').trim();
           }
         }
         // Handle title_status without quotes (title_status:owned, title_status:borrowed)
@@ -586,6 +592,17 @@ const Book = {
             // Remove this filter from the query string
             cleanedQuery = cleanedQuery.replace(match[0], '').trim();
           }
+        }
+        // Handle has_ebook filter (has_ebook:true)
+        else if (match[3] === 'has_ebook' && match[5]) {
+          const value = match[5].trim().toLowerCase();
+          if (value === 'true') {
+            whereClauses.push('ebook_file IS NOT NULL AND ebook_file != ""');
+          } else if (value === 'false') {
+            whereClauses.push('(ebook_file IS NULL OR ebook_file = "")');
+          }
+          // Remove this filter from the query string
+          cleanedQuery = cleanedQuery.replace(match[0], '').trim();
         }
         // Handle numeric filters (year:2020, year:>=2020, rating:4.5, etc.)
         else if ((match[3] === 'year' || match[3] === 'rating') && match[5]) {
