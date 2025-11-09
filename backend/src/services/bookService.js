@@ -1518,14 +1518,114 @@ class BookService {
             }
           }
           
-          // If not found via volume ID, try ISBN
-          if (!googleBook && (bookData.isbn || bookData.isbn13)) {
+          // Prioritize title/author search as main criteria (as requested by user)
+          // This ensures we get richer metadata by considering more books
+          let googleBookByTitle = null;
+          if (!googleBook && bookData.title) {
+            try {
+              // Build more flexible search queries
+              const searchQueries = [];
+              
+              // Clean up title for better matching
+              let cleanTitle = bookData.title.trim();
+              // Extract main title (remove subtitle after second dash or colon)
+              const titleParts = cleanTitle.split(/[-–—]/);
+              const mainTitle = titleParts[0].trim();
+              
+              // Add queries with author if available (title + author is main criteria)
+              if (bookData.authors && Array.isArray(bookData.authors) && bookData.authors.length > 0) {
+                const author = bookData.authors[0].trim();
+                // Try with intitle and inauthor for better precision
+                searchQueries.push(`intitle:"${mainTitle}" inauthor:"${author}"`);
+                searchQueries.push(`"${mainTitle}" "${author}"`);
+                searchQueries.push(`${mainTitle} ${author}`);
+              }
+              
+              // Also try without author and with full title
+              searchQueries.push(`intitle:"${cleanTitle}"`);
+              searchQueries.push(`"${mainTitle}"`);
+              searchQueries.push(cleanTitle);
+              searchQueries.push(mainTitle);
+              
+              logger.info(`[Enrichment] Searching Google Books by title/author (main criteria) with ${searchQueries.length} query variants`);
+              
+              for (const searchQuery of searchQueries) {
+                try {
+                  const googleResults = await this.searchGoogleBooks(searchQuery, 10);
+                  if (googleResults && googleResults.length > 0) {
+                    // Try to match by title with more flexible matching
+                    const normalizeTitle = (title) => {
+                      if (!title) return '';
+                      return title.toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[^\w\s]/g, ' ') // Replace punctuation with spaces
+                        .replace(/\s+/g, ' ') // Normalize whitespace
+                        .trim();
+                    };
+                    
+                    const bookTitleNormalized = normalizeTitle(bookData.title);
+                    const bookMainTitleNormalized = normalizeTitle(mainTitle);
+                    const bookTitleWords = bookMainTitleNormalized.split(/\s+/).filter(w => w.length > 2); // Words longer than 2 chars
+                    
+                    for (const result of googleResults) {
+                      const resultTitleNormalized = normalizeTitle(result.title);
+                      
+                      // Exact match
+                      if (resultTitleNormalized === bookTitleNormalized || 
+                          resultTitleNormalized === bookMainTitleNormalized) {
+                        googleBookByTitle = result;
+                        logger.info(`[Enrichment] ✓ Found Google Books exact match by title/author for "${bookData.title}"`);
+                        break;
+                      }
+                      
+                      // Check if all significant words from book title are in result title
+                      if (bookTitleWords.length > 0) {
+                        const resultTitleWords = resultTitleNormalized.split(/\s+/);
+                        const allWordsMatch = bookTitleWords.every(word => 
+                          resultTitleWords.some(rw => rw.includes(word) || word.includes(rw))
+                        );
+                        
+                        if (allWordsMatch) {
+                          googleBookByTitle = result;
+                          logger.info(`[Enrichment] ✓ Found Google Books match by title words for "${bookData.title}" -> "${result.title}"`);
+                          break;
+                        }
+                      }
+                      
+                      // Partial match (one title contains the other)
+                      if (resultTitleNormalized.includes(bookMainTitleNormalized) ||
+                          bookMainTitleNormalized.includes(resultTitleNormalized) ||
+                          resultTitleNormalized.includes(bookTitleNormalized) ||
+                          bookTitleNormalized.includes(resultTitleNormalized)) {
+                        googleBookByTitle = result;
+                        logger.info(`[Enrichment] ✓ Found Google Books partial match by title for "${bookData.title}" -> "${result.title}"`);
+                        break;
+                      }
+                    }
+                    
+                    if (googleBookByTitle) break; // Found a match, stop trying other queries
+                  }
+                } catch (queryError) {
+                  logger.warn(`[Enrichment] Google Books query "${searchQuery}" failed: ${queryError.message}`);
+                  continue; // Try next query variant
+                }
+              }
+            } catch (error) {
+              logger.warn(`[Enrichment] Google Books title/author search failed: ${error.message}`);
+            }
+          }
+          
+          // Also try ISBN search (as secondary/verification method)
+          // Compare results and use the one with more metadata
+          let googleBookByIsbn = null;
+          if (bookData.isbn || bookData.isbn13) {
             try {
               const isbnToSearch = bookData.isbn13 || bookData.isbn;
-              logger.info(`[Enrichment] Searching Google Books by ISBN: ${isbnToSearch}`);
+              logger.info(`[Enrichment] Searching Google Books by ISBN (secondary): ${isbnToSearch}`);
               const googleResults = await this.searchGoogleBooksByIsbn(isbnToSearch);
               if (googleResults && googleResults.length > 0) {
-                googleBook = googleResults[0];
+                googleBookByIsbn = googleResults[0];
                 logger.info(`[Enrichment] ✓ Found Google Books book by ISBN`);
               }
             } catch (error) {
@@ -1533,33 +1633,26 @@ class BookService {
             }
           }
           
-          // If still not found, try by title
-          if (!googleBook && bookData.title) {
-            try {
-              let searchQuery = bookData.title;
-              if (bookData.authors && Array.isArray(bookData.authors) && bookData.authors.length > 0) {
-                searchQuery += ` ${bookData.authors[0]}`;
-              }
-              const googleResults = await this.searchGoogleBooks(searchQuery, 5);
-              if (googleResults && googleResults.length > 0) {
-                const normalizeTitle = (title) => {
-                  if (!title) return '';
-                  return title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-                };
-                const bookTitleNormalized = normalizeTitle(bookData.title);
-                for (const result of googleResults) {
-                  const resultTitleNormalized = normalizeTitle(result.title);
-                  if (resultTitleNormalized === bookTitleNormalized || 
-                      resultTitleNormalized.includes(bookTitleNormalized) ||
-                      bookTitleNormalized.includes(resultTitleNormalized)) {
-                    googleBook = result;
-                    break;
-                  }
-                }
-              }
-            } catch (error) {
-              // Ignore
+          // Choose the best result: prefer title/author match, but use ISBN if it has significantly more metadata
+          if (googleBookByTitle && googleBookByIsbn) {
+            // Compare metadata richness
+            const titleMetadataScore = this._calculateMetadataScore(googleBookByTitle);
+            const isbnMetadataScore = this._calculateMetadataScore(googleBookByIsbn);
+            
+            logger.info(`[Enrichment] Comparing results - Title/Author score: ${titleMetadataScore}, ISBN score: ${isbnMetadataScore}`);
+            
+            // Use ISBN result only if it has significantly more metadata (20% more)
+            if (isbnMetadataScore > titleMetadataScore * 1.2) {
+              googleBook = googleBookByIsbn;
+              logger.info(`[Enrichment] Using ISBN result (has more metadata)`);
+            } else {
+              googleBook = googleBookByTitle;
+              logger.info(`[Enrichment] Using title/author result (main criteria)`);
             }
+          } else if (googleBookByTitle) {
+            googleBook = googleBookByTitle;
+          } else if (googleBookByIsbn) {
+            googleBook = googleBookByIsbn;
           }
           
           // Store pure Google Books data
@@ -3099,6 +3192,58 @@ class BookService {
       console.error('Error getting autocomplete suggestions:', error);
       throw error;
     }
+  }
+
+  /**
+   * Calculate a metadata richness score for a book
+   * Higher score = more metadata available
+   */
+  _calculateMetadataScore(book) {
+    if (!book) return 0;
+    
+    let score = 0;
+    
+    // Description: weight by length (longer descriptions are better)
+    if (book.description) {
+      score += Math.min(book.description.length / 100, 50); // Max 50 points for description
+    }
+    
+    // Authors: 10 points if present
+    if (book.authors && Array.isArray(book.authors) && book.authors.length > 0) {
+      score += 10;
+    }
+    
+    // Publisher: 10 points
+    if (book.publisher) {
+      score += 10;
+    }
+    
+    // Published year: 10 points
+    if (book.publishedYear) {
+      score += 10;
+    }
+    
+    // Page count: 10 points
+    if (book.pageCount) {
+      score += 10;
+    }
+    
+    // Genres: 5 points per genre, max 20 points
+    if (book.genres && Array.isArray(book.genres)) {
+      score += Math.min(book.genres.length * 5, 20);
+    }
+    
+    // Cover: 5 points
+    if (book.coverUrl) {
+      score += 5;
+    }
+    
+    // Series info: 5 points
+    if (book.series) {
+      score += 5;
+    }
+    
+    return score;
   }
 }
 
