@@ -114,6 +114,27 @@
   --bs-popover-bg: #1a1a1a;
 }
 
+@media (max-width: 768px) {
+  .series-expansion-popover {
+    min-width: unset !important;
+    max-width: calc(100vw - 20px) !important;
+    width: calc(100vw - 20px) !important;
+  }
+  
+  .series-expansion-popover .popover-header {
+    padding: 10px 12px;
+  }
+  
+  .series-expansion-popover .popover-body {
+    padding: 12px;
+  }
+  
+  .series-expansion-books {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+  }
+}
+
 .series-expansion-popover .popover-arrow::before {
   border-bottom-color: #1a1a1a !important;
   border-top-color: transparent !important;
