@@ -1256,6 +1256,53 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 />
               </Form.Group>
 
+              <Row className="g-2">
+                <Col md={6} className="ps-0">
+                  <Form.Group className="mb-3">
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <Form.Label className="mb-0">Series</Form.Label>
+                      {book?._metadataSources && (book._metadataSources.googleBooks?.series || book._metadataSources.openLibrary?.series) && (
+                        <div className="d-flex align-items-center gap-2">
+                          <Form.Select
+                            size="sm"
+                            style={{ width: 'auto', minWidth: '120px' }}
+                            value={selectedMetadataSource.series}
+                            onChange={(e) => {
+                              const source = e.target.value;
+                              setSelectedMetadataSource(prev => ({ ...prev, series: source }));
+                              const newValue = getMetadataValue('series', source);
+                              handleInputChange('series', newValue);
+                            }}
+                          >
+                            <option value="auto">Auto</option>
+                            {getAvailableSources('series').map(source => (
+                              <option key={source.key} value={source.key}>{source.label}</option>
+                            ))}
+                          </Form.Select>
+                        </div>
+                      )}
+                    </div>
+                    <Form.Control
+                      type="text"
+                      value={formData.series}
+                      onChange={(e) => handleInputChange('series', e.target.value)}
+                      placeholder="Enter series name"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6} className="pe-0">
+                  <Form.Group className="mb-3">
+                    <Form.Label>Series Number</Form.Label>
+                    <Form.Control
+                      type="number"
+                      value={formData.seriesNumber}
+                      onChange={(e) => handleInputChange('seriesNumber', e.target.value)}
+                      placeholder="e.g., 1"
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
               <Form.Group className="mb-3">
                 <Form.Label>Author(s)</Form.Label>
                 <Form.Control
@@ -1412,53 +1459,6 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                   </Row>
                 </>
               )}
-
-              <Row>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <Form.Label className="mb-0">Series</Form.Label>
-                      {book?._metadataSources && (book._metadataSources.googleBooks?.series || book._metadataSources.openLibrary?.series) && (
-                        <div className="d-flex align-items-center gap-2">
-                          <Form.Select
-                            size="sm"
-                            style={{ width: 'auto', minWidth: '120px' }}
-                            value={selectedMetadataSource.series}
-                            onChange={(e) => {
-                              const source = e.target.value;
-                              setSelectedMetadataSource(prev => ({ ...prev, series: source }));
-                              const newValue = getMetadataValue('series', source);
-                              handleInputChange('series', newValue);
-                            }}
-                          >
-                            <option value="auto">Auto</option>
-                            {getAvailableSources('series').map(source => (
-                              <option key={source.key} value={source.key}>{source.label}</option>
-                            ))}
-                          </Form.Select>
-                        </div>
-                      )}
-                    </div>
-                    <Form.Control
-                      type="text"
-                      value={formData.series}
-                      onChange={(e) => handleInputChange('series', e.target.value)}
-                      placeholder="Enter series name"
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Series Number</Form.Label>
-                    <Form.Control
-                      type="number"
-                      value={formData.seriesNumber}
-                      onChange={(e) => handleInputChange('seriesNumber', e.target.value)}
-                      placeholder="e.g., 1"
-                    />
-                  </Form.Group>
-                </Col>
-              </Row>
 
               <Form.Group className="mb-3">
                 <div className="d-flex justify-content-between align-items-center mb-2">
@@ -1981,6 +1981,53 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 />
               </Form.Group>
 
+              <Row className="g-2">
+                <Col md={6} className="ps-0">
+                  <Form.Group className="mb-3">
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <Form.Label className="mb-0">Series</Form.Label>
+                      {book?._metadataSources && (book._metadataSources.googleBooks?.series || book._metadataSources.openLibrary?.series) && (
+                        <div className="d-flex align-items-center gap-2">
+                          <Form.Select
+                            size="sm"
+                            style={{ width: 'auto', minWidth: '120px' }}
+                            value={selectedMetadataSource.series}
+                            onChange={(e) => {
+                              const source = e.target.value;
+                              setSelectedMetadataSource(prev => ({ ...prev, series: source }));
+                              const newValue = getMetadataValue('series', source);
+                              handleInputChange('series', newValue);
+                            }}
+                          >
+                            <option value="auto">Auto</option>
+                            {getAvailableSources('series').map(source => (
+                              <option key={source.key} value={source.key}>{source.label}</option>
+                            ))}
+                          </Form.Select>
+                        </div>
+                      )}
+                    </div>
+                    <Form.Control
+                      type="text"
+                      value={formData.series}
+                      onChange={(e) => handleInputChange('series', e.target.value)}
+                      placeholder="Enter series name"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6} className="pe-0">
+                  <Form.Group className="mb-3">
+                    <Form.Label>Series Number</Form.Label>
+                    <Form.Control
+                      type="number"
+                      value={formData.seriesNumber}
+                      onChange={(e) => handleInputChange('seriesNumber', e.target.value)}
+                      placeholder="e.g., 1"
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
               <Form.Group className="mb-3">
                 <Form.Label>Author(s)</Form.Label>
                 <Form.Control
@@ -2137,53 +2184,6 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                   </Row>
                 </>
               )}
-
-              <Row>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <Form.Label className="mb-0">Series</Form.Label>
-                      {book?._metadataSources && (book._metadataSources.googleBooks?.series || book._metadataSources.openLibrary?.series) && (
-                        <div className="d-flex align-items-center gap-2">
-                          <Form.Select
-                            size="sm"
-                            style={{ width: 'auto', minWidth: '120px' }}
-                            value={selectedMetadataSource.series}
-                            onChange={(e) => {
-                              const source = e.target.value;
-                              setSelectedMetadataSource(prev => ({ ...prev, series: source }));
-                              const newValue = getMetadataValue('series', source);
-                              handleInputChange('series', newValue);
-                            }}
-                          >
-                            <option value="auto">Auto</option>
-                            {getAvailableSources('series').map(source => (
-                              <option key={source.key} value={source.key}>{source.label}</option>
-                            ))}
-                          </Form.Select>
-                        </div>
-                      )}
-                    </div>
-                    <Form.Control
-                      type="text"
-                      value={formData.series}
-                      onChange={(e) => handleInputChange('series', e.target.value)}
-                      placeholder="Enter series name"
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Series Number</Form.Label>
-                    <Form.Control
-                      type="number"
-                      value={formData.seriesNumber}
-                      onChange={(e) => handleInputChange('seriesNumber', e.target.value)}
-                      placeholder="e.g., 1"
-                    />
-                  </Form.Group>
-                </Col>
-              </Row>
 
               <Form.Group className="mb-3">
                 <div className="d-flex justify-content-between align-items-center mb-2">
