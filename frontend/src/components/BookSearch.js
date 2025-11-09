@@ -6,6 +6,7 @@ import BookForm from './BookForm';
 import BookThumbnail from './BookThumbnail';
 import BookDetailCard from './BookDetailCard';
 import AddBookDialog from './AddBookDialog';
+import SeriesStack from './SeriesStack';
 import { 
   BsSortDown, 
   BsChevronDown, 
@@ -36,6 +37,8 @@ const BookSearch = forwardRef(({
   const [expandedGroups, setExpandedGroups] = useState(new Set());
   const [expandAllGroups, setExpandAllGroups] = useState(false);
   const [bookCount, setBookCount] = useState({ filtered: 0, total: 0 });
+  const [expandedSeries, setExpandedSeries] = useState(null);
+  const [stackEnabled, setStackEnabled] = useState(true);
   
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addingBook, setAddingBook] = useState(false);
@@ -427,6 +430,25 @@ const BookSearch = forwardRef(({
     }
   };
 
+  const groupBooksBySeries = useCallback((booksToGroup) => {
+    const seriesMap = new Map();
+    const standaloneBooks = [];
+
+    booksToGroup.forEach(book => {
+      if (book.series && book.series.trim()) {
+        const seriesName = book.series.trim();
+        if (!seriesMap.has(seriesName)) {
+          seriesMap.set(seriesName, []);
+        }
+        seriesMap.get(seriesName).push(book);
+      } else {
+        standaloneBooks.push(book);
+      }
+    });
+
+    return { seriesMap, standaloneBooks };
+  }, []);
+
   const renderBookGrid = () => {
     if (loading) {
       return (
@@ -473,17 +495,77 @@ const BookSearch = forwardRef(({
     }
 
     if (groupBy === 'none') {
+      const { seriesMap, standaloneBooks } = groupBooksBySeries(filteredBooks);
+      const sortedSeries = Array.from(seriesMap.entries()).sort((a, b) => {
+        // Sort series by name (removing articles for sorting)
+        const nameA = removeArticlesForSorting(a[0]);
+        const nameB = removeArticlesForSorting(b[0]);
+        return nameA.localeCompare(nameB);
+      });
+
+      const items = [];
+      
+      sortedSeries.forEach(([seriesName, books]) => {
+        // Use SeriesStack for series with multiple books, regular thumbnail for single book
+        // Only use stack if stackEnabled is true
+        if (books.length > 1 && stackEnabled) {
+          const isExpanded = expandedSeries === seriesName;
+          const sortedBooks = isExpanded ? [...books].sort((a, b) => {
+            const numA = a.seriesNumber != null ? Number(a.seriesNumber) : 999999;
+            const numB = b.seriesNumber != null ? Number(b.seriesNumber) : 999999;
+            if (isNaN(numA) && isNaN(numB)) return a.title.localeCompare(b.title);
+            if (isNaN(numA)) return 1;
+            if (isNaN(numB)) return -1;
+            return numA - numB;
+          }) : null;
+          
+          items.push(
+            <SeriesStack
+              key={`series-${seriesName}`}
+              seriesName={seriesName}
+              books={books}
+              isExpanded={isExpanded}
+              sortedBooks={sortedBooks}
+              onToggleExpanded={() => {
+                setExpandedSeries(isExpanded ? null : seriesName);
+              }}
+              onBookClick={(book) => handleBookClick(book.id)}
+              onEdit={(book) => handleEditBook(book)}
+              onDelete={(book) => setShowDeleteModal({ show: true, bookId: book.id })}
+              onClose={() => setExpandedSeries(null)}
+            />
+          );
+        } else {
+          // Single book in series or stack disabled, show as regular thumbnails
+          books.forEach((book) => {
+            items.push(
+              <BookThumbnail
+                key={book.id}
+                book={book}
+                onClick={() => handleBookClick(book.id)}
+                onEdit={() => handleEditBook(book)}
+                onDelete={() => setShowDeleteModal({ show: true, bookId: book.id })}
+              />
+            );
+          });
+        }
+      });
+      
+      standaloneBooks.forEach((book) => {
+        items.push(
+          <BookThumbnail
+            key={book.id}
+            book={book}
+            onClick={() => handleBookClick(book.id)}
+            onEdit={() => handleEditBook(book)}
+            onDelete={() => setShowDeleteModal({ show: true, bookId: book.id })}
+          />
+        );
+      });
+
       return (
         <div className={`book-grid ${sortLoading ? 'sort-loading' : ''}`}>
-          {filteredBooks.map((book) => (
-            <BookThumbnail
-              key={book.id}
-              book={book}
-              onClick={() => handleBookClick(book.id)}
-              onEdit={() => handleEditBook(book)}
-              onDelete={() => setShowDeleteModal({ show: true, bookId: book.id })}
-            />
-          ))}
+          {items}
         </div>
       );
     }
@@ -621,6 +703,20 @@ const BookSearch = forwardRef(({
                 ))}
               </Dropdown.Menu>
             </Dropdown>
+
+            {groupBy === 'none' && (
+              <div className="stack-toggle-container">
+                <span className="stack-toggle-label">Stack</span>
+                <label className="stack-toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={stackEnabled}
+                    onChange={(e) => setStackEnabled(e.target.checked)}
+                  />
+                  <span className="stack-toggle-slider"></span>
+                </label>
+              </div>
+            )}
 
             {groupBy !== 'none' && (
               <button 

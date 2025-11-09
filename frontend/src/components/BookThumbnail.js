@@ -4,7 +4,7 @@ import { BsBook, BsThreeDots, BsPencil, BsTrash } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import './BookThumbnail.css';
 
-const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false }) => {
+const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false, hideInfo = false }) => {
   const handleEditClick = (e) => {
     e.stopPropagation();
     onEdit();
@@ -53,14 +53,16 @@ const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false })
         </div>
       </div>
       
-      <div className="book-thumbnail-info">
-        <h6 className="book-thumbnail-title" title={book.title}>
-          {book.title}
-        </h6>
-        <p className="book-thumbnail-author" title={getAuthorDisplay()}>
-          {getAuthorDisplay()}
-        </p>
-      </div>
+      {!hideInfo && (
+        <div className="book-thumbnail-info">
+          <h6 className="book-thumbnail-title" title={book.title}>
+            {book.title}
+          </h6>
+          <p className="book-thumbnail-author" title={getAuthorDisplay()}>
+            {getAuthorDisplay()}
+          </p>
+        </div>
+      )}
 
       {!disableMenu && (
         <div className="book-thumbnail-menu" onClick={(e) => e.stopPropagation()}>

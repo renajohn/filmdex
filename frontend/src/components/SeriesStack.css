@@ -1,0 +1,192 @@
+.series-stack {
+  position: relative;
+  cursor: pointer;
+  margin-bottom: 20px;
+  width: 100%;
+  overflow: visible; /* Permettre aux livres de s'éventailler au survol */
+}
+
+.series-stack-container {
+  position: relative;
+  width: 100%;
+  /* Même hauteur qu'un BookThumbnail : couverture (150% padding-top) + margin-bottom (8px) */
+  padding-top: 150%; /* Même ratio que book-thumbnail-cover */
+  margin-bottom: 8px; /* Même margin que book-thumbnail-cover */
+}
+
+.series-stack-item {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  width: 100%;
+  position: absolute;
+  /* Alignement en haut, puis descente de 2% de la taille originale (150% * 2% = 3%) */
+  top: 53%;
+  left: 50%;
+  transform-origin: center center;
+  height: 100%;
+  transform: translate(-50%, -50%);
+}
+
+/* Animation au survol : rotation passe de 4° à 6° pour les livres 2 et 3, et -1° pour le premier */
+.series-stack:not(.expanded):hover .series-stack-item:nth-child(1) {
+  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) rotate(-1deg) !important;
+}
+
+.series-stack:not(.expanded):hover .series-stack-item:nth-child(2) {
+  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) rotate(6deg) !important;
+}
+
+.series-stack:not(.expanded):hover .series-stack-item:nth-child(3) {
+  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) rotate(-6deg) !important;
+}
+
+/* Les livres dans le stack doivent occuper toute la hauteur du container */
+.series-stack-item > .book-thumbnail {
+  position: relative;
+  width: 92%; /* Réduit de 8% */
+  height: 92%; /* Réduit de 8% */
+  margin-bottom: 0;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.series-stack-item > .book-thumbnail > .book-thumbnail-cover {
+  margin-bottom: 0;
+}
+
+.series-stack-item > .book-thumbnail > .book-thumbnail-info {
+  display: none; /* Les infos sont cachées dans le stack */
+}
+
+/* Cacher le menu circulaire sur les stacks */
+.series-stack .book-thumbnail-menu {
+  display: none !important;
+}
+
+.series-stack-label {
+  position: relative;
+  text-align: center;
+  pointer-events: none;
+  z-index: 100;
+  margin-top: 0;
+}
+
+.series-stack-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #eaeaea;
+  display: block;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 4px;
+}
+
+.series-stack-count {
+  font-size: 0.82rem;
+  color: #a3a3a3;
+  display: block;
+}
+
+/* .series-stack.expanded - Le stack reste visible, pas de changement de grid-column */
+
+/* Ensure book thumbnails in stack don't have hover transform when stacked */
+.series-stack:not(.expanded) .book-thumbnail:hover {
+  transform: none;
+}
+
+.series-stack:not(.expanded) .book-thumbnail-cover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Add depth effect to stacked books */
+.series-stack-item:not(:first-child) .book-thumbnail-cover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Series Expansion Popover Styles */
+.series-expansion-popover {
+  max-width: 95vw;
+  width: auto;
+  min-width: 800px;
+  border: none !important;
+  --bs-popover-header-bg: # !important;
+  --bs-popover-bg: #1a1a1a;
+}
+
+.series-expansion-popover .popover-arrow::before {
+  border-bottom-color: #1a1a1a !important;
+  border-top-color: transparent !important;
+}
+
+.series-expansion-popover .popover-arrow::after {
+  border-bottom-color: #1a1a1a !important;
+  border-top-color: transparent !important;
+}
+
+.series-expansion-popover .popover-header {
+  background-color: #1a1a1a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: none !important;
+  padding: 12px 16px;
+}
+
+.series-expansion-popover .popover-body {
+  background-color: #1a1a1a;
+  padding: 16px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.series-expansion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.series-expansion-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #eaeaea;
+  margin: 0;
+}
+
+.series-expansion-count {
+  font-size: 0.85rem;
+  color: #a3a3a3;
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.series-expansion-books {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.series-expansion-book-item {
+  width: 100%;
+  animation: spreadOut 0.3s ease-out forwards;
+  opacity: 0;
+  transform: scale(0.95) translateY(10px);
+}
+
+.series-expansion-book-item .book-thumbnail {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+@keyframes spreadOut {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
