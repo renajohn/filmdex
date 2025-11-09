@@ -505,10 +505,14 @@ const BookSearch = forwardRef(({
 
       const items = [];
       
+      // Check if there's an active filter
+      const hasActiveFilter = searchCriteria?.searchText?.trim() || (defaultTitleStatus && defaultTitleStatus !== 'all');
+      const shouldUseStack = stackEnabled && !hasActiveFilter;
+
       sortedSeries.forEach(([seriesName, books]) => {
         // Use SeriesStack for series with multiple books, regular thumbnail for single book
-        // Only use stack if stackEnabled is true
-        if (books.length > 1 && stackEnabled) {
+        // Only use stack if stackEnabled is true and no filter is active
+        if (books.length > 1 && shouldUseStack) {
           const isExpanded = expandedSeries === seriesName;
           const sortedBooks = isExpanded ? [...books].sort((a, b) => {
             const numA = a.seriesNumber != null ? Number(a.seriesNumber) : 999999;

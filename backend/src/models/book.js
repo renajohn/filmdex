@@ -529,8 +529,8 @@ const Book = {
       let whereClauses = [];
       let titleStatusFilter = null; // Track title_status filter separately to override default
       
-      // Extract filters like title:"value" or author:"value" or artist:"value" or isbn:"value" or series:"value" or owner:"value" or format:"value" or language:"value" or title_status:owned or year:2020 or rating:4.5 or has_ebook:true
-      const filterRegex = /(title|author|artist|isbn|series|owner|format|language|genre|tag|title_status):"([^"]+)"|(title_status|year|rating|has_ebook):(>=|<=|>|<)?(\S+)/g;
+      // Extract filters like title:"value" or author:"value" or artist:"value" or isbn:"value" or series:"value" or owner:"value" or format:"value" or language:"value" or subtitle:"value" or title_status:owned or year:2020 or rating:4.5 or has_ebook:true
+      const filterRegex = /(title|author|artist|isbn|series|owner|format|language|genre|tag|subtitle|title_status):"([^"]+)"|(title_status|year|rating|has_ebook):(>=|<=|>|<)?(\S+)/g;
       let match;
       let hasFilters = false;
       let cleanedQuery = query; // Will be cleaned of title_status filters
@@ -555,6 +555,7 @@ const Book = {
           
           const columnMap = {
             'title': 'title',
+            'subtitle': 'subtitle',
             'author': 'authors',
             'artist': 'artists',
             'isbn': 'isbn',
@@ -652,7 +653,7 @@ const Book = {
       if (!hasFilters && !titleStatusFilter) {
         const sql = `
           SELECT * FROM books 
-          WHERE (title LIKE ? OR authors LIKE ? OR artists LIKE ? OR isbn LIKE ? OR isbn13 LIKE ? OR series LIKE ? OR description LIKE ?)
+          WHERE (title LIKE ? OR subtitle LIKE ? OR authors LIKE ? OR artists LIKE ? OR isbn LIKE ? OR isbn13 LIKE ? OR series LIKE ? OR description LIKE ?)
           AND ${titleStatusClause}
           ORDER BY 
             CASE 
@@ -663,7 +664,7 @@ const Book = {
         `;
         const searchTerm = `%${query}%`;
         
-        db.all(sql, [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm], (err, rows) => {
+        db.all(sql, [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm], (err, rows) => {
           if (err) {
             reject(err);
           } else {
@@ -678,9 +679,9 @@ const Book = {
         
         if (generalSearchText && generalSearchText.length > 0) {
           // We have search text (after removing title_status filter)
-          searchClause = '(title LIKE ? OR authors LIKE ? OR artists LIKE ? OR isbn LIKE ? OR isbn13 LIKE ? OR series LIKE ? OR description LIKE ?)';
+          searchClause = '(title LIKE ? OR subtitle LIKE ? OR authors LIKE ? OR artists LIKE ? OR isbn LIKE ? OR isbn13 LIKE ? OR series LIKE ? OR description LIKE ?)';
           const searchTerm = `%${generalSearchText}%`;
-          searchParams = [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm];
+          searchParams = [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm];
         }
         
         const whereParts = [];
