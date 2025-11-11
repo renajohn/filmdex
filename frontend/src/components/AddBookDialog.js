@@ -364,6 +364,8 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     
     // Only convert to ISBN-13 if we have 10+ digits (complete ISBN)
     // Don't add prefix automatically when typing character by character
+    // Special case: if we have 12 digits starting with 78, it's likely a scanned ISBN without prefix
+    // Take the last 10 digits and add the appropriate prefix
     if (digitsOnly.length >= 10 && digitsOnly.length < 13 && !digitsOnly.startsWith('978') && !digitsOnly.startsWith('979')) {
       const last10Digits = digitsOnly.substring(digitsOnly.length - 10);
       processedDigits = prefix + last10Digits;
@@ -462,6 +464,9 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     const digitsOnly = inputValue.replace(/\D/g, '');
     const previousDigitsOnly = previousValue.replace(/\D/g, '');
     
+    // Detect if a large amount of text was inserted (likely from iOS scan)
+    const largeInsertion = digitsOnly.length - previousDigitsOnly.length > 5;
+    
     // Check if user is deleting (backspace/delete)
     const isDeleting = digitsOnly.length < previousDigitsOnly.length;
     const lengthDecreased = inputValue.length < previousValue.length;
@@ -477,6 +482,22 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       setSearchIsbn(formatted);
       
       // Set cursor position at the end (after the last character)
+      setTimeout(() => {
+        if (isbnInputRef.current) {
+          const newCursorPos = formatted.length;
+          isbnInputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        }
+      }, 0);
+      return;
+    }
+    
+    // For large insertions (iOS scan), process the digits directly without progressive formatting
+    if (largeInsertion && digitsOnly.length >= 10) {
+      // Format the complete ISBN
+      const formatted = formatIsbnProgressive(digitsOnly);
+      setSearchIsbn(formatted);
+      
+      // Set cursor at the end
       setTimeout(() => {
         if (isbnInputRef.current) {
           const newCursorPos = formatted.length;
@@ -524,6 +545,31 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     if (digitsOnly.length > 0) {
       const formatted = formatIsbnProgressive(digitsOnly);
       setSearchIsbn(formatted);
+    }
+  };
+
+  // Handle paste/scan events from iOS
+  const handleIsbnPaste = (e) => {
+    e.preventDefault();
+    
+    // Get pasted text
+    const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+    
+    // Extract only digits
+    const digitsOnly = pastedText.replace(/\D/g, '');
+    
+    if (digitsOnly.length > 0) {
+      // Format the complete ISBN
+      const formatted = formatIsbnProgressive(digitsOnly);
+      setSearchIsbn(formatted);
+      
+      // Set cursor at the end
+      setTimeout(() => {
+        if (isbnInputRef.current) {
+          const newCursorPos = formatted.length;
+          isbnInputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        }
+      }, 0);
     }
   };
 
@@ -659,6 +705,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                   value={searchIsbn}
                   onChange={handleIsbnChange}
                   onBlur={handleIsbnBlur}
+                  onPaste={handleIsbnPaste}
                   onKeyPress={handleKeyPress}
                   className="search-input"
                   inputMode="numeric"
