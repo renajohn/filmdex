@@ -443,3 +443,213 @@
   color: rgba(255, 255, 255, 0.95) !important;
 }
 
+/* Mobile responsive styles for editions table */
+@media (max-width: 768px) {
+  /* Modal adjustments for mobile */
+  .add-book-dialog .modal-dialog {
+    margin: 0 !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+  }
+
+  /* Override Bootstrap modal-lg class on small screens */
+  .add-book-dialog.modal-lg .modal-dialog {
+    max-width: 100vw !important;
+    width: 100vw !important;
+  }
+
+  /* Force full screen positioning */
+  .add-book-dialog .modal-dialog.modal-dialog-centered {
+    margin: 0 !important;
+    transform: none !important;
+  }
+
+  .add-book-dialog .modal-content {
+    max-height: 100vh !important;
+    height: 100vh !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    border-radius: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+  }
+
+  .add-book-dialog .modal-header {
+    flex-shrink: 0;
+    padding: 1rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .add-book-dialog .modal-body {
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    padding: 1rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    position: relative;
+  }
+
+  /* Ensure modal backdrop covers full screen */
+  .add-book-dialog + .modal-backdrop {
+    width: 100vw !important;
+    height: 100vh !important;
+  }
+
+  /* Ensure all content respects width on mobile */
+  .add-book-dialog .row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .add-book-dialog .row > [class*="col-"] {
+    min-width: 0;
+    padding-left: calc(var(--bs-gutter-x) * 0.5);
+    padding-right: calc(var(--bs-gutter-x) * 0.5);
+  }
+
+  .editions-table-container {
+    padding: 1px 0px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+    position: relative;
+  }
+
+  .editions-table {
+    min-width: 800px; /* Ensure table has minimum width for readability */
+    width: 100%;
+  }
+
+  .editions-table thead th {
+    padding: 8px 6px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .editions-table tbody td {
+    padding: 10px 6px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  .edition-cover-thumbnail {
+    width: 30px;
+    height: 45px;
+  }
+
+  .edition-cover-placeholder {
+    width: 30px;
+    height: 45px;
+  }
+
+  .edition-cover-placeholder svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Make the first column (Cover) sticky on the left so it's always visible */
+  .editions-table tbody td:first-child {
+    position: sticky;
+    left: 0;
+    background-color: rgba(42, 42, 42, 0.98);
+    z-index: 10;
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.3);
+    padding-left: 12px;
+  }
+
+  .editions-table thead th:first-child {
+    position: sticky;
+    left: 0;
+    background-color: rgba(50, 50, 50, 0.98);
+    z-index: 10;
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.3);
+    padding-left: 12px;
+  }
+
+  /* Make the last column (button) sticky so it's always visible */
+  .editions-table tbody td:last-child {
+    position: sticky;
+    right: 0;
+    background-color: rgba(42, 42, 42, 0.98);
+    z-index: 10;
+    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.3);
+    padding-right: 12px;
+  }
+
+  .editions-table thead th:last-child {
+    position: sticky;
+    right: 0;
+    background-color: rgba(50, 50, 50, 0.98);
+    z-index: 10;
+    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.3);
+    padding-right: 12px;
+  }
+
+  .select-book-btn {
+    min-width: 100px !important;
+    font-size: 0.75rem;
+    padding: 6px 10px;
+    white-space: nowrap;
+    display: inline-block;
+  }
+
+  /* Adjust group header for mobile */
+  .group-header-content {
+    padding: 12px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .group-cover {
+    width: 50px;
+    height: 75px;
+  }
+
+  .group-info {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .group-title {
+    font-size: 0.9rem;
+  }
+
+  .group-authors {
+    font-size: 0.85rem;
+  }
+
+  .select-book-btn-header {
+    width: 100%;
+    margin-top: 8px;
+    font-size: 0.85rem;
+  }
+
+  /* Ensure table container doesn't cause horizontal scroll on parent */
+  .result-group {
+    overflow: visible;
+  }
+
+  .group-header-card {
+    overflow: visible;
+  }
+
+  /* Ensure grouped results container allows horizontal scroll for table */
+  .grouped-search-results {
+    overflow-x: visible;
+  }
+}
+
