@@ -8,6 +8,32 @@ import BookForm from './BookForm';
 import './BookDetailCard.css';
 import './VolumeSelector.css';
 
+// Format ISBN for display with dashes
+const formatIsbnDisplay = (isbn) => {
+  if (!isbn) return '';
+  
+  // Remove all non-digit characters
+  const digitsOnly = isbn.toString().replace(/\D/g, '');
+  
+  // If it's an ISBN-13 starting with 978 or 979, format as prefix-X-XXX-XXXXX-X
+  if (digitsOnly.length === 13 && (digitsOnly.startsWith('978') || digitsOnly.startsWith('979'))) {
+    return `${digitsOnly.substring(0, 3)}-${digitsOnly.substring(3, 4)}-${digitsOnly.substring(4, 7)}-${digitsOnly.substring(7, 12)}-${digitsOnly.substring(12, 13)}`;
+  }
+  
+  // If it's an ISBN-13 not starting with 978 or 979, format as XXX-X-XXX-XXXXX-X
+  if (digitsOnly.length === 13) {
+    return `${digitsOnly.substring(0, 3)}-${digitsOnly.substring(3, 4)}-${digitsOnly.substring(4, 7)}-${digitsOnly.substring(7, 12)}-${digitsOnly.substring(12, 13)}`;
+  }
+  
+  // If it's an ISBN-10, format as X-XXX-XXXXX-X
+  if (digitsOnly.length === 10) {
+    return `${digitsOnly.substring(0, 1)}-${digitsOnly.substring(1, 4)}-${digitsOnly.substring(4, 9)}-${digitsOnly.substring(9, 10)}`;
+  }
+  
+  // For other cases, return as-is
+  return isbn;
+};
+
 const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, onDelete, onSearch, onAddNextVolume, onAddBooksBatch, onAddStart, onBookAdded, onAddError }) => {
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [coverModalData, setCoverModalData] = useState({ coverUrl: '', title: '', author: '' });
@@ -1184,14 +1210,14 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                         {book.isbn && (
                           <Col md={6}>
                             <div className="info-item">
-                              <strong>ISBN-10:</strong> {book.isbn}
-                            </div>
-                          </Col>
-                        )}
-                        {book.isbn13 && (
-                          <Col md={6}>
-                            <div className="info-item">
-                              <strong>ISBN-13:</strong> {book.isbn13}
+                              <strong>ISBN-10:</strong> {formatIsbnDisplay(book.isbn)}
+                        </div>
+                      </Col>
+                    )}
+                    {book.isbn13 && (
+                      <Col md={6}>
+                        <div className="info-item">
+                          <strong>ISBN-13:</strong> {formatIsbnDisplay(book.isbn13)}
                             </div>
                           </Col>
                         )}
@@ -1699,14 +1725,14 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                     {book.isbn && (
                       <Col md={6}>
                         <div className="info-item">
-                          <strong>ISBN-10:</strong> {book.isbn}
+                          <strong>ISBN-10:</strong> {formatIsbnDisplay(book.isbn)}
                         </div>
                       </Col>
                     )}
                     {book.isbn13 && (
                       <Col md={6}>
                         <div className="info-item">
-                          <strong>ISBN-13:</strong> {book.isbn13}
+                          <strong>ISBN-13:</strong> {formatIsbnDisplay(book.isbn13)}
                         </div>
                       </Col>
                     )}

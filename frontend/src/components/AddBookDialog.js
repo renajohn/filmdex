@@ -160,13 +160,14 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   };
 
   const handleSearch = async () => {
-    const trimmedIsbn = searchIsbn.trim();
+    // Remove all non-digit characters from ISBN for search
+    const cleanedIsbn = searchIsbn.replace(/\D/g, '').trim();
     const trimmedTitle = searchTitle.trim();
     const trimmedAuthor = searchAuthor.trim();
     
     // Check if any search field is filled based on current tab
     if (searchTab === 'isbn') {
-      if (!trimmedIsbn) {
+      if (!cleanedIsbn) {
         setError('Please enter an ISBN');
         return;
       }
@@ -189,8 +190,8 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       let query = '';
       
       if (searchTab === 'isbn') {
-        // ISBN search mode
-        filters.isbn = trimmedIsbn;
+        // ISBN search mode - send only digits to backend
+        filters.isbn = cleanedIsbn;
         query = ''; // ISBN search doesn't need a general query
       } else {
         // Title/Author search mode
@@ -338,6 +339,194 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     }
   };
 
+  // Format ISBN progressively as user types: 978-X-XXX-XXXXX-X or 979-X-XXX-XXXXX-X
+  const formatIsbnProgressive = (digits) => {
+    // Remove all non-digit characters
+    const digitsOnly = digits.replace(/\D/g, '');
+    
+    // If empty, return empty
+    if (digitsOnly.length === 0) {
+      return '';
+    }
+    
+    // Determine prefix: 979 or 978
+    // If starts with 79 or 9 (but not 978), use 979; otherwise use 978
+    let prefix = '978';
+    let processedDigits = digitsOnly;
+    
+    // Check if we should use 979 prefix
+    // Priority: if starts with 79, use 979; if starts with 9 (but not 79 or 978), use 979
+    if (digitsOnly.startsWith('79')) {
+      prefix = '979';
+    } else if (digitsOnly.startsWith('9') && !digitsOnly.startsWith('978')) {
+      prefix = '979';
+    }
+    
+    // Only convert to ISBN-13 if we have 10+ digits (complete ISBN)
+    // Don't add prefix automatically when typing character by character
+    if (digitsOnly.length >= 10 && digitsOnly.length < 13 && !digitsOnly.startsWith('978') && !digitsOnly.startsWith('979')) {
+      const last10Digits = digitsOnly.substring(digitsOnly.length - 10);
+      processedDigits = prefix + last10Digits;
+    } else if (digitsOnly.length > 13) {
+      processedDigits = digitsOnly.substring(digitsOnly.length - 13);
+    }
+    
+    // Limit to 13 digits
+    const limitedDigits = processedDigits.substring(0, 13);
+    
+    // Progressive formatting for ISBN-13 starting with 978 or 979
+    if (limitedDigits.startsWith('978') || limitedDigits.startsWith('979')) {
+      const isbnPrefix = limitedDigits.substring(0, 3); // 978 or 979
+      let formatted = isbnPrefix;
+      
+      // After prefix (978 or 979), add dash
+      if (limitedDigits.length >= 3) {
+        formatted += '-';
+        
+        // Add first digit after prefix- (position 3)
+        if (limitedDigits.length >= 4) {
+          formatted += limitedDigits.substring(3, 4);
+          
+          // After prefix-X, add dash
+          if (limitedDigits.length >= 4) {
+            formatted += '-';
+            
+            // Add next 3 digits (positions 4-6) for section XXX
+            if (limitedDigits.length >= 5) {
+              const section2 = limitedDigits.substring(4, Math.min(7, limitedDigits.length));
+              formatted += section2;
+              
+              // After prefix-X-XXX (when section XXX is complete or partially filled), add dash
+              if (limitedDigits.length >= 7) {
+                formatted += '-';
+                
+                // Add next 5 digits (positions 7-11) for section XXXXX
+                if (limitedDigits.length >= 8) {
+                  const section3 = limitedDigits.substring(7, Math.min(12, limitedDigits.length));
+                  formatted += section3;
+                  
+                  // After prefix-X-XXX-XXXXX (when section XXXXX is complete), add dash
+                  if (limitedDigits.length >= 12) {
+                    formatted += '-';
+                    
+                    // Add last digit (position 12)
+                    if (limitedDigits.length >= 13) {
+                      formatted += limitedDigits.substring(12, 13);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      return formatted;
+    }
+    
+    // Progressive formatting for ISBN-10
+    if (limitedDigits.length <= 10 && limitedDigits.length > 0) {
+      let formatted = limitedDigits.substring(0, 1);
+      
+      if (limitedDigits.length > 1) {
+        formatted += '-';
+        formatted += limitedDigits.substring(1, Math.min(4, limitedDigits.length));
+        
+        if (limitedDigits.length > 4) {
+          formatted += '-';
+          formatted += limitedDigits.substring(4, Math.min(9, limitedDigits.length));
+          
+          if (limitedDigits.length > 9) {
+            formatted += '-';
+            formatted += limitedDigits.substring(9, 10);
+          }
+        }
+      }
+      
+      return formatted;
+    }
+    
+    // For other cases, return digits as-is
+    return limitedDigits;
+  };
+
+  // Filter ISBN input and format progressively as user types
+  const handleIsbnChange = (e) => {
+    const inputValue = e.target.value;
+    const previousValue = searchIsbn;
+    
+    // Get cursor position before processing
+    const cursorPosition = e.target.selectionStart;
+    
+    // Extract only digits from both current and previous values
+    const digitsOnly = inputValue.replace(/\D/g, '');
+    const previousDigitsOnly = previousValue.replace(/\D/g, '');
+    
+    // Check if user is deleting (backspace/delete)
+    const isDeleting = digitsOnly.length < previousDigitsOnly.length;
+    const lengthDecreased = inputValue.length < previousValue.length;
+    
+    // If length decreased but number of digits stayed the same, a dash was deleted
+    const dashWasDeleted = lengthDecreased && digitsOnly.length === previousDigitsOnly.length;
+    
+    // If a dash was deleted, also remove the last digit
+    if (dashWasDeleted && previousDigitsOnly.length > 0) {
+      // Remove the last digit (the one that was before the dash in the formatted string)
+      const newDigits = previousDigitsOnly.substring(0, previousDigitsOnly.length - 1);
+      const formatted = formatIsbnProgressive(newDigits);
+      setSearchIsbn(formatted);
+      
+      // Set cursor position at the end (after the last character)
+      setTimeout(() => {
+        if (isbnInputRef.current) {
+          const newCursorPos = formatted.length;
+          isbnInputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        }
+      }, 0);
+      return;
+    }
+    
+    // Format progressively
+    const formatted = formatIsbnProgressive(digitsOnly);
+    setSearchIsbn(formatted);
+    
+    // Try to maintain cursor position after formatting
+    if (isDeleting && isbnInputRef.current) {
+      setTimeout(() => {
+        if (isbnInputRef.current) {
+          // Calculate new cursor position
+          // Count digits before cursor in original input
+          const digitsBeforeCursor = inputValue.substring(0, cursorPosition).replace(/\D/g, '').length;
+          // Find position in formatted string after same number of digits
+          let newPos = 0;
+          let digitCount = 0;
+          for (let i = 0; i < formatted.length && digitCount < digitsBeforeCursor; i++) {
+            if (/\d/.test(formatted[i])) {
+              digitCount++;
+            }
+            newPos = i + 1;
+          }
+          // Ensure cursor is not placed before a dash
+          if (newPos < formatted.length && formatted[newPos] === '-') {
+            newPos++;
+          }
+          isbnInputRef.current.setSelectionRange(newPos, newPos);
+        }
+      }, 0);
+    }
+  };
+
+  // Format ISBN when field loses focus (ensure complete formatting)
+  const handleIsbnBlur = (e) => {
+    const inputValue = e.target.value;
+    const digitsOnly = inputValue.replace(/\D/g, '');
+    
+    if (digitsOnly.length > 0) {
+      const formatted = formatIsbnProgressive(digitsOnly);
+      setSearchIsbn(formatted);
+    }
+  };
+
   const toggleGroup = (groupIndex) => {
     const newExpanded = new Set(expandedGroups);
     if (newExpanded.has(groupIndex)) {
@@ -468,9 +657,11 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                   type="text"
                   placeholder="Enter ISBN (10 or 13 digits)"
                   value={searchIsbn}
-                  onChange={(e) => setSearchIsbn(e.target.value)}
+                  onChange={handleIsbnChange}
+                  onBlur={handleIsbnBlur}
                   onKeyPress={handleKeyPress}
                   className="search-input"
+                  inputMode="numeric"
                 />
               </div>
               <div className="col-12 col-md-2">
