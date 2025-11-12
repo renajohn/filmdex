@@ -843,26 +843,30 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                         Wishlist
                       </div>
                     )}
-                    <img 
-                      key={`book-cover-${book.id}-${book.cover || 'no-cover'}`}
-                      src={getCoverImage()} 
-                      alt={`${book.title} cover`}
-                      className="book-cover-image book-cover-clickable"
-                      onClick={() => handleCoverClick(getCoverImage(), 'Front Cover')}
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        if (e.target.nextSibling) {
-                          e.target.nextSibling.style.display = 'flex';
-                        }
-                      }}
-                    />
+                    {getCoverImage() ? (
+                      <img 
+                        key={`book-cover-${book.id}-${book.cover || 'no-cover'}`}
+                        src={getCoverImage()} 
+                        alt={`${book.title} cover`}
+                        className="book-cover-image book-cover-clickable"
+                        onClick={() => handleCoverClick(getCoverImage(), 'Front Cover')}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          if (e.target.nextSibling) {
+                            e.target.nextSibling.style.display = 'flex';
+                          }
+                        }}
+                      />
+                    ) : null}
                   </div>
-                  <div 
-                    className="book-cover-placeholder"
-                    style={{ display: getCoverImage() ? 'none' : 'flex' }}
-                  >
-                    <BsBook size={64} />
-                  </div>
+                  {!getCoverImage() && (
+                    <div 
+                      className="book-cover-placeholder"
+                      style={{ display: 'flex', position: 'relative' }}
+                    >
+                      <BsBook size={64} />
+                    </div>
+                  )}
                   
                   {(book.language || book.format || book.pageCount || book.publishedYear) && (
                     <div className="book-metadata-summary">

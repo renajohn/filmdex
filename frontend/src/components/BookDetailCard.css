@@ -431,6 +431,8 @@
 
 .book-detail-modal .book-cover-container {
   margin-bottom: 1rem;
+  position: relative;
+  overflow: visible !important;
 }
 
 /* Desktop spacing between cover and text - use Bootstrap grid properly */
@@ -476,10 +478,83 @@
 .book-cover-clickable {
   cursor: pointer;
   transition: transform 0.2s;
+  position: relative;
+  z-index: 1;
 }
 
 .book-cover-clickable:hover {
   transform: scale(1.05);
+  z-index: 1;
+}
+
+/* Cover menu dropdown */
+.book-cover-menu {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1000 !important;
+  opacity: 1 !important;
+  transition: opacity 0.2s ease-in-out;
+  pointer-events: auto;
+  display: block !important;
+}
+
+.book-cover-dropdown-toggle {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border-radius: 999px !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  color: #111 !important;
+}
+
+.book-cover-dropdown-toggle:hover,
+.book-cover-dropdown-toggle:focus,
+.book-cover-dropdown-toggle:active {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.25) !important;
+  color: #000 !important;
+}
+
+.book-cover-dropdown-toggle::after {
+  display: none !important;
+}
+
+.book-cover-menu .dropdown-menu {
+  min-width: 160px;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 6px 0;
+  background: rgba(22, 22, 22, 0.98);
+  color: #f2f2f2;
+  backdrop-filter: blur(8px);
+}
+
+.book-cover-menu .dropdown-item {
+  font-size: 0.95rem;
+  padding: 12px 14px;
+  color: #f0f0f0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  display: flex;
+  align-items: center;
+}
+
+.book-cover-menu .dropdown-item:hover,
+.book-cover-menu .dropdown-item:focus {
+  background-color: #333;
+  color: #ffffff;
+}
+
+.book-cover-menu .dropdown-item .me-2 {
+  margin-right: 0.5rem;
 }
 
 .book-cover-placeholder {
@@ -492,6 +567,7 @@
   background-color: #f0f0f0;
   border-radius: 4px;
   color: #999;
+  position: relative;
 }
 
 .book-details {
@@ -875,53 +951,55 @@
 /* Borrowed ribbon for detail view - reuse thumbnail ribbon styles */
 .book-cover-container .book-thumbnail-borrowed-ribbon {
   position: absolute;
-  top: 26px;
-  right: -54px;
+  top: 20px;
+  right: -40px;
   background: linear-gradient(to bottom right, #bb0000, #941919);
   color: white;
-  padding: 6px 56px;
+  padding: 6px 50px;
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.8px;
   text-transform: uppercase;
   transform: rotate(45deg);
   transform-origin: center;
-  z-index: 5;
+  z-index: 100 !important;
   box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
   white-space: nowrap;
   border: 1px solid rgba(255, 255, 255, 0.2);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  min-width: 150px;
+  min-width: 140px;
   text-align: center;
   line-height: 1.3;
   box-sizing: border-box;
+  pointer-events: none;
 }
 
 /* Wishlist ribbon for detail view cover */
 .book-cover-container .book-thumbnail-wishlist-ribbon {
   position: absolute;
-  top: 22px;
-  right: -46px;
+  top: 20px;
+  right: -40px;
   background: linear-gradient(to bottom right, #10b981, #059669);
   color: white;
-  padding: 6px 56px;
+  padding: 6px 50px;
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.8px;
   text-transform: uppercase;
   transform: rotate(45deg);
   transform-origin: center;
-  z-index: 5;
+  z-index: 100 !important;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
   white-space: nowrap;
   border: 1px solid rgba(255, 255, 255, 0.2);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  min-width: 150px;
+  min-width: 140px;
   text-align: center;
   line-height: 1.3;
   display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
+  pointer-events: none;
 }
 
