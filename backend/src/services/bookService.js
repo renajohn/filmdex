@@ -1031,35 +1031,44 @@ class BookService {
   getCoverSizePriority(url) {
     if (!url) return 0;
     
-    // OpenLibrary covers: -L.jpg = 3, -M.jpg = 2, -S.jpg = 1, default = 0
+    // OpenLibrary covers: original (no suffix) = 5, -L.jpg = 4, -M.jpg = 3, -S.jpg = 2, default = 2
     if (url.includes('covers.openlibrary.org')) {
-      if (url.includes('-L.jpg')) return 3;
-      if (url.includes('-M.jpg')) return 2;
-      if (url.includes('-S.jpg')) return 1;
+      // Check for original size (no size suffix, just .jpg)
+      const coverIdMatch = url.match(/\/b\/id\/(\d+)\.jpg$/);
+      if (coverIdMatch && !url.includes('-L.jpg') && !url.includes('-M.jpg') && !url.includes('-S.jpg')) {
+        return 5; // Original/highest resolution
+      }
+      if (url.includes('-L.jpg')) return 4; // Large
+      if (url.includes('-M.jpg')) return 3; // Medium
+      if (url.includes('-S.jpg')) return 2; // Small
       return 2; // Default OpenLibrary cover (usually medium)
     }
     
     // Google Books: check URL parameters or path
     if (url.includes('books.google.com') || url.includes('googleapis.com')) {
-      // Google Books API imageLinks: large > medium > small > thumbnail
-      // The URL structure varies, but larger images typically have higher resolution indicators
+      // Google Books API imageLinks: extra-large (enhanced) > large > medium > small > thumbnail
+      // Check for enhanced URLs with high resolution parameters
       if (url.includes('zoom=10') || (url.includes('&w=') && url.includes('&h='))) {
         // Try to extract dimensions if available
         const wMatch = url.match(/[&?]w=(\d+)/);
         const hMatch = url.match(/[&?]h=(\d+)/);
         if (wMatch && hMatch) {
           const area = parseInt(wMatch[1]) * parseInt(hMatch[1]);
-          if (area > 500000) return 4; // Very large (> 700x700)
-          if (area > 200000) return 3; // Large (> 450x450)
-          if (area > 50000) return 2;  // Medium (> 220x220)
-          return 1; // Small
+          if (area > 1000000) return 6; // Extra large (> 1000x1000)
+          if (area > 500000) return 5; // Very large (> 700x700)
+          if (area > 200000) return 4; // Large (> 450x450)
+          if (area > 50000) return 3;  // Medium (> 220x220)
+          return 2; // Small
         }
+        // If zoom=10 is present, it's likely enhanced
+        if (url.includes('zoom=10')) return 5;
       }
       // Fallback: check for size indicators in URL
-      if (url.includes('large') || url.includes('L.jpg')) return 3;
-      if (url.includes('medium') || url.includes('M.jpg')) return 2;
-      if (url.includes('small') || url.includes('S.jpg')) return 1;
-      return 2; // Default Google Books (usually medium)
+      if (url.includes('extra-large') || (url.includes('w=1280') || url.includes('h=1920'))) return 5;
+      if (url.includes('large') || url.includes('L.jpg')) return 4;
+      if (url.includes('medium') || url.includes('M.jpg')) return 3;
+      if (url.includes('small') || url.includes('S.jpg')) return 2;
+      return 3; // Default Google Books (usually medium/large)
     }
     
     // Other sources: assume medium priority
@@ -2381,6 +2390,52 @@ class BookService {
         }
       });
       
+      // Try to generate higher resolution versions from the large image
+      // Google Books URLs can be modified to get better quality
+      if (volumeInfo.imageLinks.large) {
+        let largeUrl = volumeInfo.imageLinks.large;
+        if (largeUrl && largeUrl.startsWith('http://')) {
+          largeUrl = largeUrl.replace('http://', 'https://');
+        }
+        
+        // Try to enhance the URL for better quality
+        // Method 1: Modify zoom parameter if present
+        if (largeUrl.includes('zoom=')) {
+          const enhancedUrl1 = largeUrl.replace(/zoom=\d+/, 'zoom=10');
+          if (enhancedUrl1 !== largeUrl) {
+            availableCovers.push({
+              source: 'Google Books',
+              url: enhancedUrl1,
+              type: 'front',
+              size: 'extra-large',
+              priority: 5
+            });
+          }
+        }
+        
+        // Method 2: Add or modify w and h parameters for higher resolution
+        // Google Books images can be scaled up by modifying dimensions
+        if (largeUrl.includes('books.google.com') || largeUrl.includes('googleapis.com')) {
+          // Try to get a very high resolution version
+          // Remove existing w and h parameters and add larger ones
+          let enhancedUrl2 = largeUrl;
+          enhancedUrl2 = enhancedUrl2.replace(/[&?]w=\d+/g, '');
+          enhancedUrl2 = enhancedUrl2.replace(/[&?]h=\d+/g, '');
+          const separator = enhancedUrl2.includes('?') ? '&' : '?';
+          enhancedUrl2 = `${enhancedUrl2}${separator}w=1280&h=1920`;
+          
+          if (enhancedUrl2 !== largeUrl) {
+            availableCovers.push({
+              source: 'Google Books',
+              url: enhancedUrl2,
+              type: 'front',
+              size: 'extra-large',
+              priority: 5
+            });
+          }
+        }
+      }
+      
       // Fallback: use largest available if coverUrl not set
       if (!coverUrl && availableCovers.length > 0) {
         const sortedCovers = availableCovers.sort((a, b) => b.priority - a.priority);
@@ -3063,34 +3118,60 @@ class BookService {
     // Collect all available covers (front and back)
     const availableCovers = [];
     
-    // Edition covers - add all available sizes (L, M, S)
+    // Helper function to add all OpenLibrary cover sizes for a given coverId
+    const addOpenLibraryCovers = (coverId, coverType, priority = 0) => {
+      if (!coverId) return;
+      
+      // OpenLibrary supports multiple sizes:
+      // -L.jpg (Large, ~600px) - priority 4
+      // -M.jpg (Medium, ~350px) - priority 3
+      // -S.jpg (Small, ~150px) - priority 2
+      // We can also try to get higher resolution by using the cover ID directly
+      // Some covers may have higher resolution versions available
+      
+      const sizes = [
+        { suffix: '-L.jpg', size: 'large', priority: 4 + priority },
+        { suffix: '-M.jpg', size: 'medium', priority: 3 + priority },
+        { suffix: '-S.jpg', size: 'small', priority: 2 + priority }
+      ];
+      
+      sizes.forEach(({ suffix, size, priority: sizePriority }) => {
+        const url = `https://covers.openlibrary.org/b/id/${coverId}${suffix}`;
+        // Avoid duplicates by URL
+        if (!availableCovers.some(c => c.url === url)) {
+          availableCovers.push({
+            source: 'OpenLibrary',
+            url: url,
+            type: coverType,
+            coverId: coverId,
+            size: size,
+            priority: sizePriority
+          });
+        }
+      });
+      
+      // Try to get even higher resolution by using the cover ID with different formats
+      // Some OpenLibrary covers may have higher resolution versions
+      // Try without suffix first (original size if available)
+      const originalUrl = `https://covers.openlibrary.org/b/id/${coverId}.jpg`;
+      if (!availableCovers.some(c => c.url === originalUrl)) {
+        availableCovers.push({
+          source: 'OpenLibrary',
+          url: originalUrl,
+          type: coverType,
+          coverId: coverId,
+          size: 'original',
+          priority: 5 + priority
+        });
+      }
+    };
+    
+    // Edition covers - add all available sizes
     if (doc.covers && Array.isArray(doc.covers)) {
       doc.covers.forEach((coverId, index) => {
         if (coverId) {
           const coverType = index === 0 ? 'front' : 'back';
-          // Add large size (highest priority)
-          availableCovers.push({
-            source: 'OpenLibrary',
-            url: `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`,
-            type: coverType,
-            coverId: coverId,
-            size: 'large'
-          });
-          // Also add medium and small for fallback
-          availableCovers.push({
-            source: 'OpenLibrary',
-            url: `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`,
-            type: coverType,
-            coverId: coverId,
-            size: 'medium'
-          });
-          availableCovers.push({
-            source: 'OpenLibrary',
-            url: `https://covers.openlibrary.org/b/id/${coverId}-S.jpg`,
-            type: coverType,
-            coverId: coverId,
-            size: 'small'
-          });
+          addOpenLibraryCovers(coverId, coverType);
         }
       });
     }
@@ -3100,31 +3181,9 @@ class BookService {
       workData.covers.forEach((coverId, index) => {
         if (coverId) {
           const coverType = index === 0 ? 'front' : 'back';
-          // Avoid duplicates by coverId
+          // Avoid duplicates by coverId (only check if we haven't added this coverId yet)
           if (!availableCovers.some(c => c.coverId === coverId && c.size === 'large')) {
-            // Add large size (highest priority)
-            availableCovers.push({
-              source: 'OpenLibrary',
-              url: `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`,
-              type: coverType,
-              coverId: coverId,
-              size: 'large'
-            });
-            // Also add medium and small for fallback
-            availableCovers.push({
-              source: 'OpenLibrary',
-              url: `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`,
-              type: coverType,
-              coverId: coverId,
-              size: 'medium'
-            });
-            availableCovers.push({
-              source: 'OpenLibrary',
-              url: `https://covers.openlibrary.org/b/id/${coverId}-S.jpg`,
-              type: coverType,
-              coverId: coverId,
-              size: 'small'
-            });
+            addOpenLibraryCovers(coverId, coverType);
           }
         }
       });
