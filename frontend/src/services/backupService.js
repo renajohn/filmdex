@@ -70,42 +70,23 @@ class BackupService {
     const url = `${baseUrl}/backup/download/${encodeURIComponent(filename)}`;
     
     try {
-      // Check if we're in ingress mode - if so, use direct link approach
-      const pathname = window.location.pathname;
-      const isIngressMode = pathname.includes('/api/hassio_ingress/');
+      console.log('Downloading backup from URL:', url);
       
-      if (isIngressMode) {
-        // In ingress mode, use a direct link approach
-        // Extract ingress path if available
-        let ingressPath = '';
-        if (pathname.includes('/api/hassio_ingress/')) {
-          const match = pathname.match(/\/api\/hassio_ingress\/[^/]+/);
-          if (match) {
-            ingressPath = match[0];
-          }
+      // Always use fetch() to get the file as a blob
+      // This works in both normal and ingress mode
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/zip, application/octet-stream, */*'
         }
-        
-        // Use full URL with ingress path
-        const fullUrl = ingressPath ? `${ingressPath}${url}` : url;
-        
-        // Create a temporary link and trigger download
-        const link = document.createElement('a');
-        link.href = fullUrl;
-        link.download = filename;
-        link.target = '_blank'; // Open in new tab as fallback
-        document.body.appendChild(link);
-        link.click();
-        
-        // Cleanup after a short delay
-        setTimeout(() => {
-          document.body.removeChild(link);
-        }, 100);
-        
-        return;
-      }
+      });
       
-      // Normal mode: Fetch the file as a blob
-      const response = await fetch(url);
+      console.log('Response status:', response.status);
+      console.log('Response headers:', {
+        'Content-Type': response.headers.get('Content-Type'),
+        'Content-Disposition': response.headers.get('Content-Disposition'),
+        'Content-Length': response.headers.get('Content-Length')
+      });
       
       if (!response.ok) {
         // Try to parse error as JSON, fallback to status text
@@ -114,14 +95,70 @@ class BackupService {
           const error = await response.json();
           errorMessage = error.error || errorMessage;
         } catch (e) {
-          // Not JSON, use status text
-          errorMessage = response.statusText || errorMessage;
+          // Not JSON, try to get text
+          try {
+            const text = await response.text();
+            if (text) {
+              errorMessage = text.substring(0, 200); // Limit error message length
+            }
+          } catch (e2) {
+            // Use status text
+            errorMessage = response.statusText || errorMessage;
+          }
         }
         throw new Error(errorMessage);
       }
       
+      // Check if we got HTML or JSON instead of a file (common in ingress mode if route is wrong)
+      const contentType = response.headers.get('Content-Type');
+      if (contentType) {
+        if (contentType.includes('text/html')) {
+          // Try to read the HTML to see what error we got
+          const text = await response.text();
+          console.error('Received HTML instead of file:', text.substring(0, 500));
+          throw new Error('Received HTML instead of file. The download URL may be incorrect.');
+        }
+        if (contentType.includes('application/json')) {
+          // Try to read the JSON error
+          const text = await response.text();
+          console.error('Received JSON instead of file:', text.substring(0, 500));
+          try {
+            const error = JSON.parse(text);
+            throw new Error(error.error || 'Server returned an error instead of the file');
+          } catch (e) {
+            throw new Error('Received JSON response instead of file. The download URL may be incorrect.');
+          }
+        }
+      }
+      
       // Get the blob
       const blob = await response.blob();
+      
+      console.log('Blob size:', blob.size, 'bytes');
+      console.log('Blob type:', blob.type);
+      
+      // Verify blob is not empty
+      if (blob.size === 0) {
+        throw new Error('Downloaded file is empty');
+      }
+      
+      // Additional check: if blob type suggests it's not a zip file
+      if (blob.type && blob.type !== 'application/zip' && blob.type !== 'application/octet-stream' && !blob.type.includes('zip')) {
+        // If it's a small file and not a zip, it might be an error message
+        if (blob.size < 10000) { // Less than 10KB
+          try {
+            const text = await blob.text();
+            console.error('Received non-zip file (small size):', text.substring(0, 500));
+            throw new Error('Received non-zip file. The server may have returned an error.');
+          } catch (e) {
+            // If we can't read as text, it might be binary but wrong type
+            if (e.message.includes('non-zip')) {
+              throw e;
+            }
+            // Otherwise continue - might be a valid binary file
+          }
+        }
+      }
       
       // Get filename from Content-Disposition header or use provided filename
       const contentDisposition = response.headers.get('Content-Disposition');

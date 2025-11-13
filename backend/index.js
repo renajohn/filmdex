@@ -341,7 +341,6 @@ if (frontendPath) {
     // Note: In ingress mode, static files are served by Home Assistant's ingress proxy
     // We still need to serve them locally for development/testing
     app.use('/static', express.static(path.join(frontendPath, 'static')));
-    app.use('/', express.static(frontendPath, { index: false }));
     
     // Function to rewrite HTML content for ingress paths
     const rewriteHtmlForIngress = (htmlContent, req) => {
@@ -386,7 +385,17 @@ if (frontendPath) {
     });
     
     // Handle all other routes for React Router (catch-all)
-    app.use('/', (req, res) => {
+    // But exclude API routes, images, static files, and health check
+    app.use((req, res, next) => {
+      // Skip catch-all for API routes, images, static files, and health check
+      if (req.path.startsWith('/api/') || 
+          req.path.startsWith('/images/') || 
+          req.path.startsWith('/static/') ||
+          req.path === '/health') {
+        return next(); // Let Express continue to 404 handler if route not found
+      }
+      
+      // For all other routes, serve the React app
       const htmlPath = path.join(frontendPath, 'index.html');
       let htmlContent = fs.readFileSync(htmlPath, 'utf8');
       
