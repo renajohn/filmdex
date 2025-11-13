@@ -70,7 +70,41 @@ class BackupService {
     const url = `${baseUrl}/backup/download/${encodeURIComponent(filename)}`;
     
     try {
-      // Fetch the file as a blob
+      // Check if we're in ingress mode - if so, use direct link approach
+      const pathname = window.location.pathname;
+      const isIngressMode = pathname.includes('/api/hassio_ingress/');
+      
+      if (isIngressMode) {
+        // In ingress mode, use a direct link approach
+        // Extract ingress path if available
+        let ingressPath = '';
+        if (pathname.includes('/api/hassio_ingress/')) {
+          const match = pathname.match(/\/api\/hassio_ingress\/[^/]+/);
+          if (match) {
+            ingressPath = match[0];
+          }
+        }
+        
+        // Use full URL with ingress path
+        const fullUrl = ingressPath ? `${ingressPath}${url}` : url;
+        
+        // Create a temporary link and trigger download
+        const link = document.createElement('a');
+        link.href = fullUrl;
+        link.download = filename;
+        link.target = '_blank'; // Open in new tab as fallback
+        document.body.appendChild(link);
+        link.click();
+        
+        // Cleanup after a short delay
+        setTimeout(() => {
+          document.body.removeChild(link);
+        }, 100);
+        
+        return;
+      }
+      
+      // Normal mode: Fetch the file as a blob
       const response = await fetch(url);
       
       if (!response.ok) {
