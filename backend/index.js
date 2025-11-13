@@ -185,6 +185,7 @@ app.get('/api/import/:id/suggestions', importController.getMovieSuggestions);
 // Analytics routes
 app.get('/api/analytics', analyticsController.getAnalytics);
 app.get('/api/analytics/music', analyticsController.getMusicAnalytics);
+app.get('/api/analytics/books', analyticsController.getBookAnalytics);
 
 // Cache management routes
 app.post('/api/cache/invalidate', analyticsController.invalidateCache);

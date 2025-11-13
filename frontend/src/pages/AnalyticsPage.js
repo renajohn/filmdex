@@ -7,7 +7,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import apiService from '../services/api';
-import { BsFilm, BsClock, BsCurrencyDollar, BsCalendar, BsMusicNote, BsVinyl, BsPeople, BsGraphUp } from 'react-icons/bs';
+import { BsFilm, BsClock, BsCurrencyDollar, BsCalendar, BsMusicNote, BsVinyl, BsPeople, BsGraphUp, BsBook } from 'react-icons/bs';
 import './AnalyticsPage.css';
 
 // ===============================
@@ -92,6 +92,7 @@ const AnalyticsPage = () => {
   const navigate = useNavigate();
   const [analytics, setAnalytics] = useState(null);
   const [musicAnalytics, setMusicAnalytics] = useState(null);
+  const [bookAnalytics, setBookAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('filmdex');
@@ -103,6 +104,9 @@ const AnalyticsPage = () => {
   };
   const navigateToMusicDex = (searchQuery) => {
     navigate(`/musicdex?search=${encodeURIComponent(searchQuery)}`);
+  };
+  const navigateToBookDex = (searchQuery) => {
+    navigate(`/bookdex?search=${encodeURIComponent(searchQuery)}`);
   };
 
   // -------- Tabs
@@ -129,14 +133,16 @@ const AnalyticsPage = () => {
     const run = async () => {
       try {
         setLoading(true);
-        const [analyticsResponse, musicAnalyticsResponse] = await Promise.all([
+        const [analyticsResponse, musicAnalyticsResponse, bookAnalyticsResponse] = await Promise.all([
           apiService.getAnalytics(),
           apiService.getMusicAnalytics(),
+          apiService.getBookAnalytics(),
         ]);
         if (analyticsResponse?.success) setAnalytics(analyticsResponse.data);
         else setError('Failed to load analytics');
 
         if (musicAnalyticsResponse?.success) setMusicAnalytics(musicAnalyticsResponse.data);
+        if (bookAnalyticsResponse?.success) setBookAnalytics(bookAnalyticsResponse.data);
       } catch (e) {
         console.error('Error fetching analytics:', e);
         setError('Failed to load analytics');
@@ -1381,6 +1387,525 @@ const AnalyticsPage = () => {
                             <span className="list-rank" style={{ backgroundColor: '#FFD700' }}>C</span>
                             <span className="list-name">Countries</span>
                             <span className="list-value">{musicAnalytics.diversityMetrics.countryDiversity}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                </>
+              )
+            )}
+          </div>
+        </Tab>
+
+        {/* ================= BookDex ================= */}
+        <Tab
+          eventKey="bookdex"
+          title={
+            <span>
+              <BsBook className="me-2" />
+              BookDex Analytics
+            </span>
+          }
+        >
+          <div className={`tab-content ${activeTab === 'bookdex' ? 'active' : ''}`}>
+            {tabLoading && activeTab === 'bookdex' ? (
+              <div className="tab-loading">
+                <div className="spinner-border text-warning" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+                <p className="mt-3">Loading BookDex analytics...</p>
+              </div>
+            ) : (
+              bookAnalytics && (
+                <>
+                {/* ---- Enhanced Key Metrics ---- */}
+                <div className="metrics-grid">
+                  <div className="metric-card metric-purple">
+                    <BsBook className="metric-icon" />
+                    <div className="metric-content">
+                      <div className="metric-value">{bookAnalytics.totalBooks ?? 0}</div>
+                      <div className="metric-label">Total Books</div>
+                    </div>
+                  </div>
+                  <div className="metric-card metric-blue">
+                    <BsClock className="metric-icon" />
+                    <div className="metric-content">
+                      <div className="metric-value">{bookAnalytics.totalPages?.toLocaleString() ?? 0}</div>
+                      <div className="metric-label">Total Pages</div>
+                    </div>
+                  </div>
+                  <div className="metric-card metric-teal">
+                    <BsPeople className="metric-icon" />
+                    <div className="metric-content">
+                      <div className="metric-value">{bookAnalytics.diversityMetrics?.authorDiversity ?? 0}</div>
+                      <div className="metric-label">Unique Authors</div>
+                    </div>
+                  </div>
+                  <div className="metric-card metric-indigo">
+                    <BsGraphUp className="metric-icon" />
+                    <div className="metric-content">
+                      <div className="metric-value">{bookAnalytics.averagePages ?? 0}</div>
+                      <div className="metric-label">Average Pages</div>
+                    </div>
+                  </div>
+                  <div className="metric-card metric-rose">
+                    <BsBook className="metric-icon" />
+                    <div className="metric-content">
+                      <div className="metric-value">{bookAnalytics.readBooks ?? 0}</div>
+                      <div className="metric-label">Books Read ({bookAnalytics.readPercentage ?? 0}%)</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ---- Main Grid ---- */}
+                <div className="dashboard-grid">
+                  <div className="main-column">
+                    {/* Genre Evolution Over Time */}
+                    <div className="chart-card">
+                      <h3 className="chart-title">Genre Evolution Over Time</h3>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <AreaChart data={bookAnalytics.genreEvolution ?? []}>
+                          <defs>
+                            <linearGradient id="colorBookGenre1" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#FFD700" stopOpacity={0.8} />
+                              <stop offset="95%" stopColor="#FFD700" stopOpacity={0.1} />
+                            </linearGradient>
+                            <linearGradient id="colorBookGenre2" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#DC143C" stopOpacity={0.8} />
+                              <stop offset="95%" stopColor="#DC143C" stopOpacity={0.1} />
+                            </linearGradient>
+                            <linearGradient id="colorBookGenre3" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#B87333" stopOpacity={0.8} />
+                              <stop offset="95%" stopColor="#B87333" stopOpacity={0.1} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#3a3a3a" />
+                          <XAxis
+                            dataKey="decade"
+                            stroke="#a0a0a0"
+                            style={{ fontSize: '11px' }}
+                          />
+                          <YAxis stroke="#a0a0a0" style={{ fontSize: '12px' }} />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend />
+                          {bookAnalytics.genreDistribution?.slice(0, 3).map((genre, index) => (
+                            <Area
+                              key={genre.genre}
+                              type="monotone"
+                              dataKey={genre.genre}
+                              stackId="1"
+                              stroke={COLORS.music[index % COLORS.music.length]}
+                              fill={`url(#colorBookGenre${index + 1})`}
+                              strokeWidth={2}
+                            />
+                          ))}
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Books Read Over Time */}
+                    {bookAnalytics.booksReadOverTime && bookAnalytics.booksReadOverTime.length > 0 && (
+                      <div className="chart-card">
+                        <h3 className="chart-title">Books Read Over Time</h3>
+                        <ResponsiveContainer width="100%" height={250}>
+                          <AreaChart data={bookAnalytics.booksReadOverTime}>
+                            <defs>
+                              <linearGradient id="colorBooksRead" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor={COLORS.areaGold} stopOpacity={0.8} />
+                                <stop offset="95%" stopColor={COLORS.areaGold} stopOpacity={0.1} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#3a3a3a" />
+                            <XAxis
+                              dataKey="period"
+                              stroke="#a0a0a0"
+                              style={{ fontSize: '11px' }}
+                              tickFormatter={formatMonthYear}
+                              interval="preserveStartEnd"
+                              minTickGap={50}
+                            />
+                            <YAxis stroke="#a0a0a0" style={{ fontSize: '12px' }} />
+                            <Tooltip content={<CustomTooltip isDate />} />
+                            <Area type="monotone" dataKey="count" stroke={COLORS.areaGold} strokeWidth={3} fillOpacity={1} fill="url(#colorBooksRead)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+
+                    {/* Books by Decade */}
+                    <div className="chart-card">
+                      <h3 className="chart-title">Books by Decade</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={bookAnalytics.decadeDistribution ?? []}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#3a3a3a" />
+                          <XAxis dataKey="decade" stroke="#a0a0a0" style={{ fontSize: '12px' }} />
+                          <YAxis stroke="#a0a0a0" style={{ fontSize: '12px' }} />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Bar dataKey="count" radius={[8, 8, 0, 0]}>
+                            {(bookAnalytics.decadeDistribution ?? []).map((entry, index) => (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={COLORS.musicCharts.distribution.decades[index % COLORS.musicCharts.distribution.decades.length]}
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => {
+                                  const decade = parseInt(entry.decade);
+                                  const startYear = decade;
+                                  const endYear = decade + 9;
+                                  navigateToBookDex(`year:>=${startYear} year:<=${endYear}`);
+                                }}
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Page Count Distribution */}
+                    <div className="chart-card">
+                      <h3 className="chart-title">Page Count Distribution</h3>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={bookAnalytics.pageCountDistribution ?? []}
+                            cx="50%"
+                            cy="45%"
+                            innerRadius={70}
+                            outerRadius={110}
+                            dataKey="count"
+                            nameKey="range"
+                            label={false}
+                          >
+                            {(bookAnalytics.pageCountDistribution ?? []).map((entry, index) => (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={COLORS.music[index % COLORS.music.length]}
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => {
+                                  const range = entry.range;
+                                  if (range === 'Under 200') {
+                                    navigateToBookDex('page_count:<200');
+                                  } else if (range === '200-300') {
+                                    navigateToBookDex('page_count:>=200 page_count:<300');
+                                  } else if (range === '300-400') {
+                                    navigateToBookDex('page_count:>=300 page_count:<400');
+                                  } else if (range === '400-500') {
+                                    navigateToBookDex('page_count:>=400 page_count:<500');
+                                  } else if (range === '500-600') {
+                                    navigateToBookDex('page_count:>=500 page_count:<600');
+                                  } else if (range === 'Over 600') {
+                                    navigateToBookDex('page_count:>=600');
+                                  }
+                                }}
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                          <Legend
+                            verticalAlign="bottom"
+                            height={60}
+                            formatter={(value, entry) => `${value} (${entry.payload.count})`}
+                            wrapperStyle={{ fontSize: '13px', color: '#b0b0b0' }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Genres & Authors */}
+                    <div className="chart-row">
+                      <div className="chart-card">
+                        <h3 className="chart-title">Top Genres</h3>
+                        <ResponsiveContainer width="100%" height={400}>
+                          <BarChart
+                            data={bookAnalytics.genreDistribution?.slice(0, 10) ?? []}
+                            layout="vertical"
+                            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" stroke="#3a3a3a" horizontal vertical={false} />
+                            <XAxis type="number" stroke="#a0a0a0" style={{ fontSize: '12px' }} />
+                            <YAxis type="category" dataKey="genre" stroke="#a0a0a0" style={{ fontSize: '12px' }} width={100} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Bar dataKey="count" radius={[0, 8, 8, 0]}>
+                              {(bookAnalytics.genreDistribution?.slice(0, 10) ?? []).map((entry, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={COLORS.musicCharts.distribution.genres[index % COLORS.musicCharts.distribution.genres.length]}
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={() => navigateToBookDex(`genre:"${entry.genre}"`)}
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      <div className="chart-card">
+                        <h3 className="chart-title">Top Authors</h3>
+                        <ResponsiveContainer width="100%" height={400}>
+                          <BarChart
+                            data={bookAnalytics.authorDistribution?.slice(0, 10) ?? []}
+                            layout="vertical"
+                            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" stroke="#3a3a3a" horizontal vertical={false} />
+                            <XAxis type="number" stroke="#a0a0a0" style={{ fontSize: '12px' }} />
+                            <YAxis type="category" dataKey="author" stroke="#a0a0a0" style={{ fontSize: '12px' }} width={100} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Bar dataKey="count" radius={[0, 8, 8, 0]}>
+                              {(bookAnalytics.authorDistribution?.slice(0, 10) ?? []).map((entry, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={COLORS.musicCharts.distribution.artists[index % COLORS.musicCharts.distribution.artists.length]}
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={() => navigateToBookDex(`author:"${entry.author}"`)}
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Publishers & Formats */}
+                    <div className="chart-row">
+                      <div className="chart-card">
+                        <h3 className="chart-title">Top Publishers</h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <BarChart
+                            data={bookAnalytics.publisherDistribution?.slice(0, 8) ?? []}
+                            layout="vertical"
+                            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" stroke="#3a3a3a" horizontal vertical={false} />
+                            <XAxis type="number" stroke="#a0a0a0" style={{ fontSize: '12px' }} />
+                            <YAxis type="category" dataKey="publisher" stroke="#a0a0a0" style={{ fontSize: '12px' }} width={80} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Bar dataKey="count" radius={[0, 8, 8, 0]}>
+                              {(bookAnalytics.publisherDistribution?.slice(0, 8) ?? []).map((entry, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={COLORS.musicCharts.distribution.labels[index % COLORS.musicCharts.distribution.labels.length]}
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={() => navigateToBookDex(`publisher:"${entry.publisher}"`)}
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      <div className="chart-card">
+                        <h3 className="chart-title">Book Formats</h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <PieChart>
+                            <Pie
+                              data={bookAnalytics.formatDistribution ?? []}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={100}
+                              dataKey="count"
+                              nameKey="format"
+                              label={false}
+                            >
+                              {(bookAnalytics.formatDistribution ?? []).map((entry, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={COLORS.music[index % COLORS.music.length]}
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={() => navigateToBookDex(`format:"${entry.format}"`)}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend
+                              verticalAlign="bottom"
+                              height={36}
+                              formatter={(value, entry) => `${value} (${entry.payload.count})`}
+                              wrapperStyle={{ fontSize: '13px', color: '#b0b0b0' }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Languages & Rating */}
+                    <div className="chart-row">
+                      <div className="chart-card">
+                        <h3 className="chart-title">Languages</h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <BarChart
+                            data={bookAnalytics.languageDistribution?.slice(0, 8) ?? []}
+                            layout="vertical"
+                            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" stroke="#3a3a3a" horizontal vertical={false} />
+                            <XAxis type="number" stroke="#a0a0a0" style={{ fontSize: '12px' }} />
+                            <YAxis type="category" dataKey="language" stroke="#a0a0a0" style={{ fontSize: '12px' }} width={80} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Bar dataKey="count" radius={[0, 8, 8, 0]}>
+                              {(bookAnalytics.languageDistribution?.slice(0, 8) ?? []).map((entry, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={COLORS.genre[index % COLORS.genre.length]}
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={() => navigateToBookDex(`language:"${getLanguageCode(entry.language)}"`)}
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      <div className="chart-card">
+                        <h3 className="chart-title">Rating Distribution</h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <BarChart data={bookAnalytics.ratingDistribution ?? []}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#3a3a3a" />
+                            <XAxis dataKey="rating" stroke="#a0a0a0" style={{ fontSize: '12px' }} />
+                            <YAxis stroke="#a0a0a0" style={{ fontSize: '12px' }} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Bar dataKey="count" radius={[8, 8, 0, 0]}>
+                              {(bookAnalytics.ratingDistribution ?? []).map((entry, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={COLORS.rating[index % COLORS.rating.length]}
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={() => {
+                                    const [min, max] = String(entry.rating).split('-').map(Number);
+                                    navigateToBookDex(`rating:>=${min} rating:<=${max}`);
+                                  }}
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ---- Sidebar ---- */}
+                  <div className="sidebar-column">
+                    {/* Longest Books */}
+                    <div className="list-card">
+                      <h3 className="chart-title">Longest Books</h3>
+                      <div className="custom-list">
+                        {(bookAnalytics.longestBooks ?? []).slice(0, 8).map((book, index) => (
+                          <div
+                            key={index}
+                            className="list-item clickable-item"
+                            onClick={() => navigateToBookDex(`title:"${book.title}"`)}
+                            title={`Click to view ${book.title}`}
+                          >
+                            <span className="list-rank" style={{ backgroundColor: COLORS.musicCharts.lists.longestAlbums[index % COLORS.musicCharts.lists.longestAlbums.length] }}>{index + 1}</span>
+                            <span className="list-name" title={book.title}>
+                              {book.title.length > 20 ? book.title.substring(0, 20) + '...' : book.title}
+                            </span>
+                            <span className="list-value">{book.pages} p.</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Top Collaborations */}
+                    {bookAnalytics.topCollaborations && bookAnalytics.topCollaborations.length > 0 && (
+                      <div className="list-card">
+                        <h3 className="chart-title">Top Collaborations</h3>
+                        <div className="custom-list">
+                          {bookAnalytics.topCollaborations.slice(0, 8).map((collab, index) => (
+                            <div
+                              key={index}
+                              className="list-item clickable-item"
+                              onClick={() => navigateToBookDex(`author:"${collab.collaboration.split(' & ')[0]}" author:"${collab.collaboration.split(' & ')[1]}"`)}
+                              title={`Click to view books by ${collab.collaboration}`}
+                            >
+                              <span className="list-rank" style={{ backgroundColor: COLORS.musicCharts.lists.collaborations[index % COLORS.musicCharts.lists.collaborations.length] }}>{index + 1}</span>
+                              <span className="list-name" title={collab.collaboration}>
+                                {collab.collaboration.length > 25 ? collab.collaboration.substring(0, 25) + '...' : collab.collaboration}
+                              </span>
+                              <span className="list-value">{collab.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Genre Crossovers */}
+                    {bookAnalytics.topGenreCrossovers && bookAnalytics.topGenreCrossovers.length > 0 && (
+                      <div className="list-card">
+                        <h3 className="chart-title">Genre Crossovers</h3>
+                        <div className="custom-list">
+                          {bookAnalytics.topGenreCrossovers.slice(0, 8).map((crossover, index) => (
+                            <div
+                              key={index}
+                              className="list-item clickable-item"
+                              onClick={() => navigateToBookDex(`genre:"${crossover.crossover.split(' + ')[0]}" genre:"${crossover.crossover.split(' + ')[1]}"`)}
+                              title={`Click to view books with ${crossover.crossover}`}
+                            >
+                              <span className="list-rank" style={{ backgroundColor: COLORS.musicCharts.lists.crossovers[index % COLORS.musicCharts.lists.crossovers.length] }}>{index + 1}</span>
+                              <span className="list-name" title={crossover.crossover}>
+                                {crossover.crossover.length > 25 ? crossover.crossover.substring(0, 25) + '...' : crossover.crossover}
+                              </span>
+                              <span className="list-value">{crossover.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Top Series */}
+                    {bookAnalytics.seriesDistribution && bookAnalytics.seriesDistribution.length > 0 && (
+                      <div className="list-card">
+                        <h3 className="chart-title">Top Series</h3>
+                        <div className="custom-list">
+                          {bookAnalytics.seriesDistribution.slice(0, 8).map((series, index) => (
+                            <div
+                              key={index}
+                              className="list-item clickable-item"
+                              onClick={() => navigateToBookDex(`series:"${series.series}"`)}
+                              title={`Click to view books in ${series.series}`}
+                            >
+                              <span className="list-rank" style={{ backgroundColor: COLORS.musicCharts.lists.sharedTracks[index % COLORS.musicCharts.lists.sharedTracks.length] }}>{index + 1}</span>
+                              <span className="list-name" title={series.series}>
+                                {series.series.length > 25 ? series.series.substring(0, 25) + '...' : series.series}
+                              </span>
+                              <span className="list-value">{series.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Diversity Metrics */}
+                    {bookAnalytics.diversityMetrics && (
+                      <div className="list-card">
+                        <h3 className="chart-title">Collection Diversity</h3>
+                        <div className="custom-list">
+                          <div className="list-item">
+                            <span className="list-rank" style={{ backgroundColor: '#B87333' }}>A</span>
+                            <span className="list-name">Authors</span>
+                            <span className="list-value">{bookAnalytics.diversityMetrics.authorDiversity}</span>
+                          </div>
+                          <div className="list-item">
+                            <span className="list-rank" style={{ backgroundColor: '#DC143C' }}>G</span>
+                            <span className="list-name">Genres</span>
+                            <span className="list-value">{bookAnalytics.diversityMetrics.genreDiversity}</span>
+                          </div>
+                          <div className="list-item">
+                            <span className="list-rank" style={{ backgroundColor: '#FF6347' }}>P</span>
+                            <span className="list-name">Publishers</span>
+                            <span className="list-value">{bookAnalytics.diversityMetrics.publisherDiversity}</span>
+                          </div>
+                          <div className="list-item">
+                            <span className="list-rank" style={{ backgroundColor: '#FFD700' }}>L</span>
+                            <span className="list-name">Languages</span>
+                            <span className="list-value">{bookAnalytics.diversityMetrics.languageDiversity}</span>
+                          </div>
+                          <div className="list-item">
+                            <span className="list-rank" style={{ backgroundColor: '#8B0000' }}>S</span>
+                            <span className="list-name">Series</span>
+                            <span className="list-value">{bookAnalytics.diversityMetrics.seriesDiversity}</span>
                           </div>
                         </div>
                       </div>

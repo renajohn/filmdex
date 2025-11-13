@@ -3,6 +3,7 @@ const MovieCast = require('../models/movieCast');
 const MovieCrew = require('../models/movieCrew');
 const Album = require('../models/album');
 const Track = require('../models/track');
+const Book = require('../models/book');
 const { getDatabase } = require('../database');
 const logger = require('../logger');
 const cacheService = require('../services/cacheService');
@@ -1277,6 +1278,620 @@ const analyticsController = {
       res.json({ success: true, data: analytics });
     } catch (error) {
       logger.error('Error fetching music analytics:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  getBookAnalytics: async (req, res) => {
+    try {
+      // Check cache first
+      const cacheKey = cacheService.generateCacheKey('book-analytics', {});
+      console.log(`📚 BOOKDEX: Checking cache with key: ${cacheKey}`);
+      const cachedAnalytics = await cacheService.get(cacheKey);
+      
+      if (cachedAnalytics) {
+        logger.info('📚 BOOKDEX Analytics served from cache (fast)');
+        return res.json(cachedAnalytics);
+      }
+
+      logger.info('🔄 BOOKDEX Analytics generating fresh data (slow)');
+      const db = getDatabase();
+      const analytics = {};
+
+      // Get all owned books (exclude wish list)
+      const books = await Book.findByStatus('owned');
+      
+      // Debug logging
+      logger.info(`Book Analytics: Found ${books.length} books`);
+      
+      if (books.length === 0) {
+        logger.warn('No books found in database');
+      }
+
+      // Basic stats
+      analytics.totalBooks = books.length;
+      
+      // Calculate total pages
+      const booksWithPages = books.filter(b => b.pageCount && b.pageCount > 0);
+      analytics.totalPages = booksWithPages.reduce((sum, b) => sum + (b.pageCount || 0), 0);
+      analytics.averagePages = booksWithPages.length > 0 
+        ? Math.round(analytics.totalPages / booksWithPages.length) 
+        : 0;
+
+      // Calculate total runtime for audiobooks
+      const audiobooks = books.filter(b => b.format === 'audiobook' && b.runtime && b.runtime > 0);
+      analytics.totalAudiobookRuntime = audiobooks.reduce((sum, b) => sum + (b.runtime || 0), 0);
+      analytics.averageAudiobookRuntime = audiobooks.length > 0 
+        ? Math.round(analytics.totalAudiobookRuntime / audiobooks.length) 
+        : 0;
+
+      // Author distribution with detailed analysis
+      const authorCounts = {};
+      const authorGenres = {};
+      const authorDecades = {};
+      const authorPublishers = {};
+      
+      books.forEach(book => {
+        if (book.authors && Array.isArray(book.authors)) {
+          book.authors.forEach(author => {
+            if (author && typeof author === 'string' && author.trim()) {
+              authorCounts[author] = (authorCounts[author] || 0) + 1;
+              
+              // Track genres for this author
+              if (!authorGenres[author]) authorGenres[author] = {};
+              if (book.genres && Array.isArray(book.genres)) {
+                book.genres.forEach(genre => {
+                  if (genre && genre.trim()) {
+                    authorGenres[author][genre] = (authorGenres[author][genre] || 0) + 1;
+                  }
+                });
+              }
+              
+              // Track decades for this author
+              if (!authorDecades[author]) authorDecades[author] = {};
+              if (book.publishedYear) {
+                const decade = Math.floor(book.publishedYear / 10) * 10;
+                authorDecades[author][decade] = (authorDecades[author][decade] || 0) + 1;
+              }
+              
+              // Track publishers for this author
+              if (!authorPublishers[author]) authorPublishers[author] = {};
+              if (book.publisher && book.publisher.trim()) {
+                authorPublishers[author][book.publisher] = (authorPublishers[author][book.publisher] || 0) + 1;
+              }
+            }
+          });
+        }
+      });
+      
+      analytics.authorDistribution = Object.entries(authorCounts)
+        .map(([author, count]) => {
+          const genres = authorGenres[author] || {};
+          const decades = authorDecades[author] || {};
+          const publishers = authorPublishers[author] || {};
+          
+          const topGenre = Object.entries(genres).sort((a, b) => b[1] - a[1])[0];
+          const topDecade = Object.entries(decades).sort((a, b) => b[1] - a[1])[0];
+          const topPublisher = Object.entries(publishers).sort((a, b) => b[1] - a[1])[0];
+          
+          return {
+            author,
+            count,
+            topGenre: topGenre ? topGenre[0] : 'Unknown',
+            topDecade: topDecade ? `${topDecade[0]}s` : 'Unknown',
+            topPublisher: topPublisher ? topPublisher[0] : 'Unknown',
+            genreCount: Object.keys(genres).length,
+            decadeSpan: Object.keys(decades).length
+          };
+        })
+        .sort((a, b) => b.count - a.count);
+
+      // Genre distribution with evolution over time
+      const genreCounts = {};
+      const genreByDecade = {};
+      const genreByAuthor = {};
+      
+      books.forEach(book => {
+        if (book.genres && Array.isArray(book.genres)) {
+          book.genres.forEach(genre => {
+            if (genre && typeof genre === 'string' && genre.trim()) {
+              genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+              
+              // Track genre by decade
+              if (!genreByDecade[genre]) genreByDecade[genre] = {};
+              if (book.publishedYear) {
+                const decade = Math.floor(book.publishedYear / 10) * 10;
+                genreByDecade[genre][decade] = (genreByDecade[genre][decade] || 0) + 1;
+              }
+              
+              // Track genre by author
+              if (!genreByAuthor[genre]) genreByAuthor[genre] = {};
+              if (book.authors && Array.isArray(book.authors)) {
+                book.authors.forEach(author => {
+                  if (author && author.trim()) {
+                    genreByAuthor[genre][author] = (genreByAuthor[genre][author] || 0) + 1;
+                  }
+                });
+              }
+            }
+          });
+        }
+      });
+      
+      analytics.genreDistribution = Object.entries(genreCounts)
+        .map(([genre, count]) => {
+          const decades = genreByDecade[genre] || {};
+          const authors = genreByAuthor[genre] || {};
+          
+          const topDecade = Object.entries(decades).sort((a, b) => b[1] - a[1])[0];
+          const topAuthor = Object.entries(authors).sort((a, b) => b[1] - a[1])[0];
+          
+          return {
+            genre,
+            count,
+            topDecade: topDecade ? `${topDecade[0]}s` : 'Unknown',
+            topAuthor: topAuthor ? topAuthor[0] : 'Unknown',
+            authorCount: Object.keys(authors).length,
+            decadeSpan: Object.keys(decades).length
+          };
+        })
+        .sort((a, b) => b.count - a.count);
+
+      // Genre evolution over time (last 5 decades)
+      const currentYear = new Date().getFullYear();
+      const decades = [];
+      for (let year = currentYear - 50; year <= currentYear; year += 10) {
+        decades.push(Math.floor(year / 10) * 10);
+      }
+      
+      analytics.genreEvolution = decades.map(decade => {
+        const decadeData = { decade: `${decade}s` };
+        Object.keys(genreByDecade).forEach(genre => {
+          decadeData[genre] = genreByDecade[genre][decade] || 0;
+        });
+        return decadeData;
+      });
+
+      // Year/Decade distribution with trends
+      const yearCounts = {};
+      const decadeCounts = {};
+      const yearGenres = {};
+      const yearAuthors = {};
+      
+      books.forEach(book => {
+        if (book.publishedYear) {
+          yearCounts[book.publishedYear] = (yearCounts[book.publishedYear] || 0) + 1;
+          const decade = Math.floor(book.publishedYear / 10) * 10;
+          decadeCounts[decade] = (decadeCounts[decade] || 0) + 1;
+          
+          // Track genres by year
+          if (!yearGenres[book.publishedYear]) yearGenres[book.publishedYear] = {};
+          if (book.genres && Array.isArray(book.genres)) {
+            book.genres.forEach(genre => {
+              if (genre && genre.trim()) {
+                yearGenres[book.publishedYear][genre] = (yearGenres[book.publishedYear][genre] || 0) + 1;
+              }
+            });
+          }
+          
+          // Track authors by year
+          if (!yearAuthors[book.publishedYear]) yearAuthors[book.publishedYear] = {};
+          if (book.authors && Array.isArray(book.authors)) {
+            book.authors.forEach(author => {
+              if (author && author.trim()) {
+                yearAuthors[book.publishedYear][author] = (yearAuthors[book.publishedYear][author] || 0) + 1;
+              }
+            });
+          }
+        }
+      });
+      
+      analytics.yearDistribution = Object.entries(yearCounts)
+        .map(([year, count]) => ({ 
+          year: parseInt(year), 
+          count,
+          topGenre: Object.entries(yearGenres[year] || {}).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Unknown',
+          topAuthor: Object.entries(yearAuthors[year] || {}).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Unknown'
+        }))
+        .sort((a, b) => a.year - b.year);
+      
+      analytics.decadeDistribution = Object.entries(decadeCounts)
+        .map(([decade, count]) => ({ decade: `${decade}s`, count }))
+        .sort((a, b) => a.decade.localeCompare(b.decade));
+
+      // Publisher distribution
+      const publisherCounts = {};
+      const publisherGenres = {};
+      const publisherAuthors = {};
+      
+      books.forEach(book => {
+        if (book.publisher && book.publisher.trim()) {
+          publisherCounts[book.publisher] = (publisherCounts[book.publisher] || 0) + 1;
+          
+          // Track genres for this publisher
+          if (!publisherGenres[book.publisher]) publisherGenres[book.publisher] = {};
+          if (book.genres && Array.isArray(book.genres)) {
+            book.genres.forEach(genre => {
+              if (genre && genre.trim()) {
+                publisherGenres[book.publisher][genre] = (publisherGenres[book.publisher][genre] || 0) + 1;
+              }
+            });
+          }
+          
+          // Track authors for this publisher
+          if (!publisherAuthors[book.publisher]) publisherAuthors[book.publisher] = {};
+          if (book.authors && Array.isArray(book.authors)) {
+            book.authors.forEach(author => {
+              if (author && author.trim()) {
+                publisherAuthors[book.publisher][author] = (publisherAuthors[book.publisher][author] || 0) + 1;
+              }
+            });
+          }
+        }
+      });
+      
+      analytics.publisherDistribution = Object.entries(publisherCounts)
+        .map(([publisher, count]) => {
+          const genres = publisherGenres[publisher] || {};
+          const authors = publisherAuthors[publisher] || {};
+          
+          const topGenre = Object.entries(genres).sort((a, b) => b[1] - a[1])[0];
+          const topAuthor = Object.entries(authors).sort((a, b) => b[1] - a[1])[0];
+          
+          return {
+            publisher,
+            count,
+            topGenre: topGenre ? topGenre[0] : 'Unknown',
+            topAuthor: topAuthor ? topAuthor[0] : 'Unknown',
+            genreCount: Object.keys(genres).length,
+            authorCount: Object.keys(authors).length
+          };
+        })
+        .sort((a, b) => b.count - a.count);
+
+      // Format distribution
+      const formatCounts = {};
+      const formatGenres = {};
+      const formatAuthors = {};
+      
+      books.forEach(book => {
+        if (book.format && book.format.trim()) {
+          formatCounts[book.format] = (formatCounts[book.format] || 0) + 1;
+          
+          // Track genres for this format
+          if (!formatGenres[book.format]) formatGenres[book.format] = {};
+          if (book.genres && Array.isArray(book.genres)) {
+            book.genres.forEach(genre => {
+              if (genre && genre.trim()) {
+                formatGenres[book.format][genre] = (formatGenres[book.format][genre] || 0) + 1;
+              }
+            });
+          }
+          
+          // Track authors for this format
+          if (!formatAuthors[book.format]) formatAuthors[book.format] = {};
+          if (book.authors && Array.isArray(book.authors)) {
+            book.authors.forEach(author => {
+              if (author && author.trim()) {
+                formatAuthors[book.format][author] = (formatAuthors[book.format][author] || 0) + 1;
+              }
+            });
+          }
+        }
+      });
+      
+      analytics.formatDistribution = Object.entries(formatCounts)
+        .map(([format, count]) => {
+          const genres = formatGenres[format] || {};
+          const authors = formatAuthors[format] || {};
+          
+          const topGenre = Object.entries(genres).sort((a, b) => b[1] - a[1])[0];
+          const topAuthor = Object.entries(authors).sort((a, b) => b[1] - a[1])[0];
+          
+          return {
+            format,
+            count,
+            topGenre: topGenre ? topGenre[0] : 'Unknown',
+            topAuthor: topAuthor ? topAuthor[0] : 'Unknown',
+            genreCount: Object.keys(genres).length,
+            authorCount: Object.keys(authors).length
+          };
+        })
+        .sort((a, b) => b.count - a.count);
+
+      // Language distribution
+      const languageCounts = {};
+      const languageNames = {
+        'en': 'English', 'eng': 'English',
+        'fr': 'French', 'fre': 'French', 'fra': 'French',
+        'de': 'German', 'ger': 'German', 'deu': 'German',
+        'es': 'Spanish', 'spa': 'Spanish',
+        'it': 'Italian', 'ita': 'Italian',
+        'ja': 'Japanese', 'jpn': 'Japanese',
+        'ko': 'Korean', 'kor': 'Korean',
+        'zh': 'Chinese', 'chi': 'Chinese', 'zho': 'Chinese',
+        'ru': 'Russian', 'rus': 'Russian',
+        'pt': 'Portuguese', 'por': 'Portuguese',
+        'hi': 'Hindi', 'hin': 'Hindi',
+        'ar': 'Arabic', 'ara': 'Arabic',
+        'sv': 'Swedish', 'swe': 'Swedish',
+        'no': 'Norwegian', 'nor': 'Norwegian',
+        'da': 'Danish', 'dan': 'Danish',
+        'nl': 'Dutch', 'dut': 'Dutch', 'nld': 'Dutch',
+        'pl': 'Polish', 'pol': 'Polish',
+        'tr': 'Turkish', 'tur': 'Turkish',
+        'th': 'Thai', 'tha': 'Thai',
+        'vi': 'Vietnamese', 'vie': 'Vietnamese'
+      };
+
+      books.forEach(book => {
+        if (book.language) {
+          const lang = book.language.toLowerCase();
+          const displayName = languageNames[lang] || lang.toUpperCase();
+          languageCounts[displayName] = (languageCounts[displayName] || 0) + 1;
+        }
+      });
+
+      analytics.languageDistribution = Object.entries(languageCounts)
+        .map(([language, count]) => ({ language, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 15);
+
+      // Series distribution
+      const seriesCounts = {};
+      const seriesAuthors = {};
+      const seriesGenres = {};
+      
+      books.forEach(book => {
+        if (book.series && book.series.trim()) {
+          seriesCounts[book.series] = (seriesCounts[book.series] || 0) + 1;
+          
+          // Track authors for this series
+          if (!seriesAuthors[book.series]) seriesAuthors[book.series] = {};
+          if (book.authors && Array.isArray(book.authors)) {
+            book.authors.forEach(author => {
+              if (author && author.trim()) {
+                seriesAuthors[book.series][author] = (seriesAuthors[book.series][author] || 0) + 1;
+              }
+            });
+          }
+          
+          // Track genres for this series
+          if (!seriesGenres[book.series]) seriesGenres[book.series] = {};
+          if (book.genres && Array.isArray(book.genres)) {
+            book.genres.forEach(genre => {
+              if (genre && genre.trim()) {
+                seriesGenres[book.series][genre] = (seriesGenres[book.series][genre] || 0) + 1;
+              }
+            });
+          }
+        }
+      });
+      
+      analytics.seriesDistribution = Object.entries(seriesCounts)
+        .map(([series, count]) => {
+          const authors = seriesAuthors[series] || {};
+          const genres = seriesGenres[series] || {};
+          
+          const topAuthor = Object.entries(authors).sort((a, b) => b[1] - a[1])[0];
+          const topGenre = Object.entries(genres).sort((a, b) => b[1] - a[1])[0];
+          
+          return {
+            series,
+            count,
+            topAuthor: topAuthor ? topAuthor[0] : 'Unknown',
+            topGenre: topGenre ? topGenre[0] : 'Unknown',
+            authorCount: Object.keys(authors).length,
+            genreCount: Object.keys(genres).length
+          };
+        })
+        .sort((a, b) => b.count - a.count);
+
+      // Page count distribution
+      const pageRanges = {
+        'Under 200': 0,
+        '200-300': 0,
+        '300-400': 0,
+        '400-500': 0,
+        '500-600': 0,
+        'Over 600': 0
+      };
+
+      booksWithPages.forEach(book => {
+        const pages = book.pageCount;
+        if (pages < 200) pageRanges['Under 200']++;
+        else if (pages < 300) pageRanges['200-300']++;
+        else if (pages < 400) pageRanges['300-400']++;
+        else if (pages < 500) pageRanges['400-500']++;
+        else if (pages < 600) pageRanges['500-600']++;
+        else pageRanges['Over 600']++;
+      });
+
+      analytics.pageCountDistribution = Object.entries(pageRanges)
+        .map(([range, count]) => ({ range, count }));
+
+      // Rating distribution
+      const ratingRanges = ['0-2', '2-4', '4-6', '6-7', '7-8', '8-9', '9-10'];
+      const ratingCounts = { '0-2': 0, '2-4': 0, '4-6': 0, '6-7': 0, '7-8': 0, '8-9': 0, '9-10': 0 };
+
+      books.forEach(book => {
+        if (book.rating && book.rating > 0) {
+          const rating = parseFloat(book.rating);
+          if (rating < 2) ratingCounts['0-2']++;
+          else if (rating < 4) ratingCounts['2-4']++;
+          else if (rating < 6) ratingCounts['4-6']++;
+          else if (rating < 7) ratingCounts['6-7']++;
+          else if (rating < 8) ratingCounts['7-8']++;
+          else if (rating < 9) ratingCounts['8-9']++;
+          else ratingCounts['9-10']++;
+        }
+      });
+
+      analytics.ratingDistribution = ratingRanges.map(range => ({
+        rating: range,
+        count: ratingCounts[range]
+      }));
+
+      // Longest books
+      const longestBooks = booksWithPages
+        .sort((a, b) => (b.pageCount || 0) - (a.pageCount || 0))
+        .slice(0, 10)
+        .map(book => ({
+          title: book.title || 'Unknown Title',
+          author: Array.isArray(book.authors) ? book.authors.join(', ') : (book.authors || 'Unknown Author'),
+          pages: book.pageCount,
+          genre: Array.isArray(book.genres) ? book.genres[0] : 'Unknown',
+          year: book.publishedYear || 'Unknown',
+          publisher: book.publisher || 'Unknown'
+        }));
+
+      analytics.longestBooks = longestBooks;
+
+      // Shortest books
+      const shortestBooks = booksWithPages
+        .sort((a, b) => (a.pageCount || 0) - (b.pageCount || 0))
+        .slice(0, 10)
+        .map(book => ({
+          title: book.title || 'Unknown Title',
+          author: Array.isArray(book.authors) ? book.authors.join(', ') : (book.authors || 'Unknown Author'),
+          pages: book.pageCount,
+          genre: Array.isArray(book.genres) ? book.genres[0] : 'Unknown',
+          year: book.publishedYear || 'Unknown',
+          publisher: book.publisher || 'Unknown'
+        }));
+
+      analytics.shortestBooks = shortestBooks;
+
+      // Author collaboration analysis
+      const authorCollaborations = {};
+      books.forEach(book => {
+        if (book.authors && Array.isArray(book.authors) && book.authors.length > 1) {
+          const authors = book.authors.filter(a => a && a.trim());
+          for (let i = 0; i < authors.length; i++) {
+            for (let j = i + 1; j < authors.length; j++) {
+              const pair = [authors[i], authors[j]].sort().join(' & ');
+              authorCollaborations[pair] = (authorCollaborations[pair] || 0) + 1;
+            }
+          }
+        }
+      });
+
+      analytics.topCollaborations = Object.entries(authorCollaborations)
+        .map(([collaboration, count]) => ({ collaboration, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 15);
+
+      // Genre crossover analysis
+      const genreCrossovers = {};
+      books.forEach(book => {
+        if (book.genres && Array.isArray(book.genres) && book.genres.length > 1) {
+          const genres = book.genres.filter(g => g && g.trim());
+          for (let i = 0; i < genres.length; i++) {
+            for (let j = i + 1; j < genres.length; j++) {
+              const pair = [genres[i], genres[j]].sort().join(' + ');
+              genreCrossovers[pair] = (genreCrossovers[pair] || 0) + 1;
+            }
+          }
+        }
+      });
+
+      analytics.topGenreCrossovers = Object.entries(genreCrossovers)
+        .map(([crossover, count]) => ({ crossover, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 15);
+
+      // Collection diversity metrics
+      const uniqueAuthors = new Set();
+      const uniqueGenres = new Set();
+      const uniquePublishers = new Set();
+      const uniqueLanguages = new Set();
+      const uniqueSeries = new Set();
+      
+      books.forEach(book => {
+        if (book.authors && Array.isArray(book.authors)) {
+          book.authors.forEach(author => {
+            if (author && author.trim()) uniqueAuthors.add(author);
+          });
+        }
+        if (book.genres && Array.isArray(book.genres)) {
+          book.genres.forEach(genre => {
+            if (genre && genre.trim()) uniqueGenres.add(genre);
+          });
+        }
+        if (book.publisher && book.publisher.trim()) {
+          uniquePublishers.add(book.publisher);
+        }
+        if (book.language && book.language.trim()) {
+          uniqueLanguages.add(book.language);
+        }
+        if (book.series && book.series.trim()) {
+          uniqueSeries.add(book.series);
+        }
+      });
+
+      analytics.diversityMetrics = {
+        authorDiversity: uniqueAuthors.size,
+        genreDiversity: uniqueGenres.size,
+        publisherDiversity: uniquePublishers.size,
+        languageDiversity: uniqueLanguages.size,
+        seriesDiversity: uniqueSeries.size,
+        averageBooksPerAuthor: books.length > 0 ? Math.round((books.length / uniqueAuthors.size) * 10) / 10 : 0,
+        averageBooksPerGenre: books.length > 0 ? Math.round((books.length / uniqueGenres.size) * 10) / 10 : 0
+      };
+
+      // Reading statistics (books with read_date)
+      const readBooks = books.filter(b => b.readDate);
+      analytics.readBooks = readBooks.length;
+      analytics.readPercentage = books.length > 0 
+        ? Math.round((readBooks.length / books.length) * 100) 
+        : 0;
+
+      // Books read over time
+      const readOverTime = {};
+      readBooks.forEach(book => {
+        if (book.readDate) {
+          const date = new Date(book.readDate);
+          const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          readOverTime[monthYear] = (readOverTime[monthYear] || 0) + 1;
+        }
+      });
+
+      analytics.booksReadOverTime = Object.entries(readOverTime)
+        .map(([date, count]) => ({ period: date, count }))
+        .sort((a, b) => a.period.localeCompare(b.period));
+
+      // Top performing authors by decade
+      const authorsByDecade = {};
+      books.forEach(book => {
+        if (book.publishedYear && book.authors && Array.isArray(book.authors)) {
+          const decade = Math.floor(book.publishedYear / 10) * 10;
+          if (!authorsByDecade[decade]) authorsByDecade[decade] = {};
+          
+          book.authors.forEach(author => {
+            if (author && author.trim()) {
+              authorsByDecade[decade][author] = (authorsByDecade[decade][author] || 0) + 1;
+            }
+          });
+        }
+      });
+
+      analytics.topAuthorsByDecade = Object.entries(authorsByDecade)
+        .map(([decade, authors]) => ({
+          decade: `${decade}s`,
+          authors: Object.entries(authors)
+            .map(([author, count]) => ({ author, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5)
+        }))
+        .sort((a, b) => a.decade.localeCompare(b.decade));
+
+      // Cache the analytics data for 2 hours
+      await cacheService.set(cacheKey, { success: true, data: analytics }, 12000);
+      logger.info('💾 BOOKDEX Analytics cached successfully');
+      
+      res.json({ success: true, data: analytics });
+    } catch (error) {
+      logger.error('Error fetching book analytics:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   },
