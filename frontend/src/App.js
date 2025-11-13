@@ -7,6 +7,7 @@ import WishListPage from './pages/WishListPage';
 import MusicDexPage from './pages/MusicDexPage';
 import BookDexPage from './pages/BookDexPage';
 import AnalyticsPage from './pages/AnalyticsPage';
+import BackupPage from './pages/BackupPage';
 import CogDropdown from './components/CogDropdown';
 import CsvExportDialog from './components/CsvExportDialog';
 import AlbumCsvExportDialog from './components/AlbumCsvExportDialog';
@@ -60,7 +61,7 @@ function AppContent() {
   const showSearchBar = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/bookdex' || location.pathname === '/wishlist';
   
   // Check if we should show the navigation pills (all main sections)
-  const showNavigationPills = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/bookdex' || location.pathname === '/wishlist' || location.pathname === '/analytics';
+  const showNavigationPills = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/bookdex' || location.pathname === '/wishlist' || location.pathname === '/analytics' || location.pathname === '/backup';
   
   // Get the page title based on current route
   const getPageTitle = () => {
@@ -77,6 +78,8 @@ function AppContent() {
         return 'DexVault';
       case '/analytics':
         return 'FilmDex Analytics';
+      case '/backup':
+        return 'Backup Management';
       default:
         return 'DexVault';
     }
@@ -659,6 +662,10 @@ function AppContent() {
     navigate('/analytics');
   };
 
+  const handleBackup = () => {
+    navigate('/backup');
+  };
+
 
   const handleCollection = () => {
     navigate('/filmdex');
@@ -1008,6 +1015,7 @@ function AppContent() {
                 onExportAlbumsCSV={handleExportAlbumsCSV}
                 onAddBook={handleAddBook}
                 onExportBooksCSV={handleExportBooksCSV}
+                onBackup={handleBackup}
                 currentPage={location.pathname === '/musicdex' ? 'musicdex' : location.pathname === '/bookdex' ? 'bookdex' : 'filmdex'}
               />
             </div>
@@ -1362,6 +1370,7 @@ function AppContent() {
           <Route path="/bookdex" element={<BookDexPage ref={bookDexRef} searchCriteria={searchCriteria} />} />
           <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onAddAlbum={handleWishListAddAlbum} onAddBook={handleWishListAddBook} onMovieMovedToCollection={handleMovieMovedToCollection} onAlbumMovedToCollection={handleAlbumMovedToCollection} onBookMovedToCollection={handleBookMovedToCollection} onShowAlert={handleShowAlert} onMovieAdded={handleMovieAdded} onAlbumAdded={handleAlbumAdded} onBookAdded={handleBookAdded} onSearch={handleSearchFromMovieDetail} />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/backup" element={<BackupPage />} />
         </Routes>
       </main>
 

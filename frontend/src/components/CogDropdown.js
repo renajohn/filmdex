@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { BsGear, BsPlus, BsUpload, BsDownload, BsArrowsAngleContract, BsImage } from 'react-icons/bs';
+import { BsGear, BsPlus, BsUpload, BsDownload, BsArrowsAngleContract, BsImage, BsArchive } from 'react-icons/bs';
 import './CogDropdown.css';
 
 const CogDropdown = ({ 
@@ -13,6 +13,7 @@ const CogDropdown = ({
   onExportAlbumsCSV,
   onAddBook,
   onExportBooksCSV,
+  onBackup,
   currentPage = 'dexvault'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -111,6 +112,16 @@ const CogDropdown = ({
                 <BsImage className="menu-icon" />
                 Fill covers
               </button>
+              
+              <div className="cog-menu-separator" />
+              
+              <button 
+                className="cog-menu-item"
+                onClick={() => handleMenuClick(onBackup)}
+              >
+                <BsArchive className="menu-icon" />
+                Backups
+              </button>
             </>
           ) : currentPage === 'bookdex' ? (
             // BookDex menu
@@ -121,6 +132,16 @@ const CogDropdown = ({
               >
                 <BsDownload className="menu-icon" />
                 CSV Export
+              </button>
+              
+              <div className="cog-menu-separator" />
+              
+              <button 
+                className="cog-menu-item"
+                onClick={() => handleMenuClick(onBackup)}
+              >
+                <BsArchive className="menu-icon" />
+                Backups
               </button>
             </>
           ) : (
@@ -139,6 +160,16 @@ const CogDropdown = ({
               >
                 <BsDownload className="menu-icon" />
                 CSV Export
+              </button>
+              
+              <div className="cog-menu-separator" />
+              
+              <button 
+                className="cog-menu-item"
+                onClick={() => handleMenuClick(onBackup)}
+              >
+                <BsArchive className="menu-icon" />
+                Backups
               </button>
             </>
           )}

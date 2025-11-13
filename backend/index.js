@@ -13,6 +13,7 @@ const musicController = require('./src/controllers/musicController');
 const musicService = require('./src/services/musicService');
 const bookController = require('./src/controllers/bookController');
 const bookService = require('./src/services/bookService');
+const backupController = require('./src/controllers/backupController');
 const Movie = require('./src/models/movie');
 const MovieImport = require('./src/models/movieImport');
 const MovieCast = require('./src/models/movieCast');
@@ -259,6 +260,15 @@ app.get('/api/config', (req, res) => {
     res.status(500).json({ error: 'Failed to get configuration' });
   }
 });
+
+// Backup routes
+app.post('/api/backup/create', backupController.createBackup);
+app.get('/api/backup/list', backupController.listBackups);
+app.get('/api/backup/download/:filename', backupController.downloadBackup);
+app.post('/api/backup/restore', backupController.restoreBackup);
+app.post('/api/backup/upload-restore', backupController.uploadMiddleware, backupController.uploadAndRestoreBackup);
+app.delete('/api/backup/:filename', backupController.deleteBackup);
+app.post('/api/backup/cleanup-restore', backupController.cleanupRestoreBackups);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
