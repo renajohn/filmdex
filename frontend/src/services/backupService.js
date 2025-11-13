@@ -70,10 +70,21 @@ class BackupService {
     const url = `${baseUrl}/backup/download/${encodeURIComponent(filename)}`;
     
     try {
+      // Check if we're in ingress mode
+      const pathname = window.location.pathname;
+      const isIngressMode = pathname.includes('/api/hassio_ingress/');
+      
+      if (isIngressMode) {
+        // In ingress mode, use direct navigation for immediate download
+        // This allows the browser to handle streaming and starts download immediately
+        console.log('Using direct download for ingress mode:', url);
+        window.location.href = url;
+        return;
+      }
+      
+      // Normal mode: use fetch() and blob approach
       console.log('Downloading backup from URL:', url);
       
-      // Always use fetch() to get the file as a blob
-      // This works in both normal and ingress mode
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -109,7 +120,7 @@ class BackupService {
         throw new Error(errorMessage);
       }
       
-      // Check if we got HTML or JSON instead of a file (common in ingress mode if route is wrong)
+      // Check if we got HTML or JSON instead of a file
       const contentType = response.headers.get('Content-Type');
       if (contentType) {
         if (contentType.includes('text/html')) {
