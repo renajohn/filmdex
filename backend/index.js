@@ -473,11 +473,17 @@ app.use((req, res) => {
 
 // Start the server
 startServer().then(() => {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     logger.info(`Server is running on port ${PORT}`);
     logger.info(`Frontend available at: http://localhost:${PORT}/app/`);
     logger.info(`API available at: http://localhost:${PORT}/api/`);
   });
+  
+  // Set a longer timeout for large file downloads (30 minutes)
+  // This prevents the server from closing connections during large backup downloads
+  server.timeout = 30 * 60 * 1000; // 30 minutes in milliseconds
+  server.keepAliveTimeout = 30 * 60 * 1000; // 30 minutes
+  server.headersTimeout = 31 * 60 * 1000; // Slightly longer than keepAliveTimeout
 }).catch((error) => {
   logger.error('Failed to start server:', error);
   process.exit(1);

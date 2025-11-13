@@ -100,14 +100,24 @@ const backupController = {
       // Get absolute path
       const absolutePath = path.resolve(backupPath);
       
+      // Get file stats to set Content-Length header
+      const stats = fs.statSync(absolutePath);
+      const fileSize = stats.size;
+      
       // Set headers for file download
       res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+      res.setHeader('Content-Length', fileSize);
+      
+      // Set headers to prevent caching and ensure proper download
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       
       // Stream the file
       const fileStream = fs.createReadStream(absolutePath);
-      fileStream.pipe(res);
       
+      // Handle stream errors
       fileStream.on('error', (error) => {
         logger.error('Error streaming backup file:', error);
         if (!res.headersSent) {
@@ -115,8 +125,22 @@ const backupController = {
             success: false,
             error: 'Failed to stream backup file'
           });
+        } else {
+          // If headers already sent, just end the response
+          res.end();
         }
       });
+      
+      // Handle client disconnect
+      req.on('close', () => {
+        if (!fileStream.destroyed) {
+          fileStream.destroy();
+          logger.info('Client disconnected during backup download');
+        }
+      });
+      
+      // Pipe the stream to response
+      fileStream.pipe(res);
     } catch (error) {
       logger.error('Error downloading backup:', error);
       if (!res.headersSent) {
