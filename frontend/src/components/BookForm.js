@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Modal, Form, Button, Row, Col, Alert } from 'react-bootstrap';
 import { BsX, BsUpload, BsBook, BsCloudDownload, BsFileEarmark, BsTrash } from 'react-icons/bs';
@@ -812,6 +812,102 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
       handleFileChange(fakeEvent);
     }
   };
+
+  const handlePaste = useCallback(async (e) => {
+    // Only handle paste if we're editing an existing book
+    if (!book?.id) {
+      return;
+    }
+
+    // Check if clipboard contains image data
+    const items = e.clipboardData?.items;
+    if (!items) {
+      return;
+    }
+
+    // Find image item in clipboard
+    let imageItem = null;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        imageItem = items[i];
+        break;
+      }
+    }
+
+    if (!imageItem) {
+      return;
+    }
+
+    // Get the image file from clipboard
+    const file = imageItem.getAsFile();
+    if (!file) {
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      return;
+    }
+
+    // Validate file size
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadMessage('Pasted image is too large (max 10MB)');
+      setUploadMessageType('danger');
+      return;
+    }
+
+    // Prevent default paste behavior
+    e.preventDefault();
+
+    // Upload the image using existing handleFileChange function
+    setUploadingCover(true);
+    setUploadMessage(null);
+
+    try {
+      const result = await bookService.uploadCover(book.id, file);
+      setCoverPreview(result.coverPath);
+      setCoverPreviewKey(prev => prev + 1); // Force image reload
+      // Update form data directly
+      setFormData(prev => ({
+        ...prev,
+        cover: result.coverPath
+      }));
+      // Mark that user has selected a cover so useEffect doesn't override it
+      userSelectedCoverRef.current = true;
+      setUploadMessage('Cover uploaded successfully from clipboard');
+      setUploadMessageType('success');
+      
+      // Refresh the book data if onBookUpdated callback is provided
+      if (onBookUpdated) {
+        try {
+          await onBookUpdated(book.id);
+        } catch (error) {
+          console.error('Error refreshing book data after cover upload:', error);
+          // Don't show error to user - cover upload was successful
+        }
+      }
+    } catch (error) {
+      setUploadMessage('Failed to upload cover from clipboard: ' + error.message);
+      setUploadMessageType('danger');
+    } finally {
+      setUploadingCover(false);
+    }
+  }, [book?.id, onBookUpdated]);
+
+  // Add paste event listener to handle image pasting
+  useEffect(() => {
+    // Only attach listener when editing an existing book
+    if (!book?.id) {
+      return;
+    }
+
+    // Attach paste event listener to document
+    document.addEventListener('paste', handlePaste);
+
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, [book?.id, handlePaste]); // Re-attach when book ID or handlePaste changes
 
   const handleEbookFileChange = async (e) => {
     const file = e.target.files[0];
