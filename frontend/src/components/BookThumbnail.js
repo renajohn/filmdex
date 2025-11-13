@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Dropdown } from 'react-bootstrap';
-import { BsBook, BsThreeDots, BsPencil, BsTrash, BsClipboard } from 'react-icons/bs';
+import { BsBook, BsThreeDots, BsPencil, BsTrash, BsClipboard, BsFileEarmark } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import './BookThumbnail.css';
 
@@ -77,6 +77,23 @@ const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false, h
         {book.titleStatus === 'borrowed' && (
           <div className="book-thumbnail-borrowed-ribbon">
             Borrowed
+          </div>
+        )}
+        {book.ebookFile && book.ebookFile.trim() && (
+          <div 
+            className="book-thumbnail-ebook-badge" 
+            title="Télécharger l'e-book"
+            onClick={async (e) => {
+              e.stopPropagation();
+              try {
+                await bookService.downloadEbook(book.id);
+              } catch (error) {
+                console.error('Error downloading ebook:', error);
+                alert('Erreur lors du téléchargement de l\'e-book: ' + error.message);
+              }
+            }}
+          >
+            <BsFileEarmark size={18} />
           </div>
         )}
         {getCoverImage() ? (

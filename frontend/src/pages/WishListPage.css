@@ -595,6 +595,30 @@ label {
   border-radius: 4px;
 }
 
+.book-poster .book-thumbnail-ebook-badge {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 6;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 0 6px rgba(255, 215, 0, 0.2);
+  border: 1.5px solid rgba(255, 215, 0, 0.8);
+  cursor: pointer;
+}
+
+.book-poster .book-thumbnail-ebook-badge svg {
+  opacity: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+}
+
 .book-title-cell {
   min-width: 200px;
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BsTrash, BsCurrencyDollar, BsClipboard, BsMusicNote, BsFilm, BsBook } from 'react-icons/bs';
+import { BsTrash, BsCurrencyDollar, BsClipboard, BsMusicNote, BsFilm, BsBook, BsFileEarmark } from 'react-icons/bs';
 import apiService from '../services/api';
 import musicService from '../services/musicService';
 import bookService from '../services/bookService';
@@ -1151,7 +1151,24 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onAdd
                         style={{ cursor: 'pointer' }}
                       >
                         <td>
-                          <div className="book-poster">
+                          <div className="book-poster" style={{ position: 'relative' }}>
+                            {book.ebookFile && book.ebookFile.trim() && (
+                              <div 
+                                className="book-thumbnail-ebook-badge" 
+                                title="Télécharger l'e-book"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    await bookService.downloadEbook(book.id);
+                                  } catch (error) {
+                                    console.error('Error downloading ebook:', error);
+                                    alert('Erreur lors du téléchargement de l\'e-book: ' + error.message);
+                                  }
+                                }}
+                              >
+                                <BsFileEarmark size={14} />
+                              </div>
+                            )}
                             <img 
                               src={bookService.getImageUrl(book.cover) || bookService.getImageUrl('/placeholder-book.png')} 
                               alt={book.title}
