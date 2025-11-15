@@ -75,10 +75,89 @@ class BackupService {
       const isIngressMode = pathname.includes('/api/hassio_ingress/');
       
       if (isIngressMode) {
-        // In ingress mode, use direct navigation for immediate download
-        // This allows the browser to handle streaming and starts download immediately
-        console.log('Using direct download for ingress mode:', url);
-        window.location.href = url;
+        // In ingress mode, try to get Content-Length first via HEAD request
+        // If available, use link download (browser will show progress bar)
+        // Otherwise, use fetch with ReadableStream for custom progress tracking
+        console.log('Using ingress mode download:', url);
+        
+        try {
+          // Try HEAD request to get Content-Length
+          const headResponse = await fetch(url, { method: 'HEAD' });
+          const contentLength = headResponse.headers.get('Content-Length');
+          
+          if (contentLength && parseInt(contentLength) > 0) {
+            // Content-Length is available, use link download (browser will show progress)
+            console.log('Content-Length available:', contentLength, 'bytes');
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            setTimeout(() => {
+              document.body.removeChild(link);
+            }, 100);
+            return;
+          } else {
+            console.log('Content-Length not available, using fetch with progress tracking');
+            // Fall through to fetch approach below
+          }
+        } catch (headError) {
+          console.warn('HEAD request failed, using fetch approach:', headError);
+          // Fall through to fetch approach below
+        }
+        
+        // If HEAD failed or Content-Length not available, use fetch with ReadableStream
+        // This allows us to track progress even without Content-Length
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/zip, application/octet-stream, */*'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const contentLength = response.headers.get('Content-Length');
+        const totalSize = contentLength ? parseInt(contentLength) : null;
+        
+        // Get the reader for streaming
+        const reader = response.body.getReader();
+        const chunks = [];
+        let receivedLength = 0;
+        
+        // Read the stream
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          chunks.push(value);
+          receivedLength += value.length;
+          
+          // Log progress if we have total size
+          if (totalSize) {
+            const percent = Math.round((receivedLength / totalSize) * 100);
+            console.log(`Download progress: ${percent}% (${receivedLength}/${totalSize} bytes)`);
+          } else {
+            console.log(`Downloaded: ${receivedLength} bytes`);
+          }
+        }
+        
+        // Combine chunks into blob
+        const blob = new Blob(chunks, { type: 'application/zip' });
+        
+        // Trigger download
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+        
         return;
       }
       

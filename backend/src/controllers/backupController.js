@@ -104,6 +104,8 @@ const backupController = {
       const stats = fs.statSync(absolutePath);
       const fileSize = stats.size;
       
+      logger.info(`Downloading backup: ${filename}, size: ${fileSize} bytes (${(fileSize / 1024 / 1024).toFixed(2)} MB)`);
+      
       // Set headers for file download
       res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
@@ -113,6 +115,12 @@ const backupController = {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
+      
+      // Handle HEAD requests (just send headers, no body)
+      if (req.method === 'HEAD') {
+        res.end();
+        return;
+      }
       
       // Stream the file
       const fileStream = fs.createReadStream(absolutePath);

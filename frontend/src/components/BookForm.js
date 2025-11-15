@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Modal, Form, Button, Row, Col, Alert } from 'react-bootstrap';
-import { BsX, BsUpload, BsBook, BsCloudDownload, BsFileEarmark, BsTrash } from 'react-icons/bs';
+import { BsX, BsUpload, BsBook, BsCloudDownload, BsFileEarmark, BsTrash, BsCamera } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import CoverModal from './CoverModal';
+import DocumentScanner from './DocumentScanner';
 import './BookForm.css';
 
 const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline = false, onBookUpdated = null, defaultTitleStatus }) => {
@@ -25,6 +26,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
   const [imageDimensions, setImageDimensions] = useState({});
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [coverModalData, setCoverModalData] = useState({ coverUrl: '', title: '', author: '' });
+  const [showScanner, setShowScanner] = useState(false);
   const [ownerSuggestions, setOwnerSuggestions] = useState([]);
   const [showOwnerSuggestions, setShowOwnerSuggestions] = useState(false);
   const [highlightedOwnerIndex, setHighlightedOwnerIndex] = useState(-1);
@@ -731,6 +733,10 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
       return;
     }
 
+    await uploadCoverFile(file);
+  };
+
+  const uploadCoverFile = async (file) => {
     setUploadingCover(true);
     setUploadMessage(null);
 
@@ -766,6 +772,10 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
     } finally {
       setUploadingCover(false);
     }
+  };
+
+  const handleScanComplete = async (file) => {
+    await uploadCoverFile(file);
   };
 
   const handleDragOver = (e) => {
@@ -2032,6 +2042,19 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                     <span className="ms-2">Uploading...</span>
                   </div>
                 )}
+                {book?.id && (
+                  <div className="mt-2 d-flex gap-2 justify-content-center">
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      onClick={() => setShowScanner(true)}
+                      disabled={uploadingCover}
+                    >
+                      <BsCamera className="me-1" />
+                      Scanner
+                    </Button>
+                  </div>
+                )}
               </Form.Group>
             </Col>
           </Row>
@@ -2757,11 +2780,30 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                     <span className="ms-2">Uploading...</span>
                   </div>
                 )}
+                {book?.id && (
+                  <div className="mt-2 d-flex gap-2 justify-content-center">
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      onClick={() => setShowScanner(true)}
+                      disabled={uploadingCover}
+                    >
+                      <BsCamera className="me-1" />
+                      Scanner
+                    </Button>
+                  </div>
+                )}
               </Form.Group>
             </Col>
           </Row>
         </Modal.Body>
       )}
+        
+      <DocumentScanner
+        show={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScanComplete={handleScanComplete}
+      />
         
       {!inline && (
         <Modal.Footer>
