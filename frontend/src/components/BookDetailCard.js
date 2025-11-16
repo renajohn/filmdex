@@ -2350,20 +2350,21 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
             </>
           ) : (
             <>
-              <div className="d-flex justify-content-between w-100">
-                <div>
+              <div className="book-detail-footer-buttons d-flex justify-content-between w-100">
+                <div className="book-detail-footer-left">
                   {book.series && (
                     <Button 
                       variant="outline-warning" 
                       onClick={handleShowVolumes}
                       style={{ backgroundColor: 'rgba(251, 191, 36, 0.1)', borderColor: '#fbbf24', color: '#fbbf24' }}
+                      className="me-2"
                     >
                       <BsPlus className="me-2" />
                       Add Next Volume
                     </Button>
                   )}
                 </div>
-                <div>
+                <div className="book-detail-footer-right">
                   <Button 
                     variant="outline-secondary" 
                     onClick={handleShowEdit}

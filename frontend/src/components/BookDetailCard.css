@@ -330,6 +330,45 @@
     box-sizing: border-box;
   }
   
+  /* Make footer buttons flow left-to-right on mobile */
+  .book-detail-footer-buttons {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    gap: 0.5rem;
+  }
+  
+  .book-detail-footer-left,
+  .book-detail-footer-right {
+    display: contents; /* Remove wrapper divs from layout, let buttons flow directly */
+  }
+  
+  .book-detail-footer-buttons .btn {
+    flex: 0 0 auto;
+  }
+  
+  /* Make Add Review button smaller on mobile */
+  .comments-section .d-flex.justify-content-between {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .comments-section .btn {
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.75rem !important;
+    line-height: 1.2 !important;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  
+  .comments-section .btn .me-1 {
+    margin-right: 0.25rem !important;
+  }
+  
+  .comments-section strong {
+    font-size: 0.9rem;
+  }
+  
   /* Ensure modal backdrop covers full screen */
   .book-detail-modal + .modal-backdrop {
     width: 100vw !important;
