@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Row, Col, Badge, Form, Alert } from 'react-bootstrap';
-import { BsPencil, BsTrash, BsBook, BsCalendar, BsTag, BsTranslate, BsFileEarmark, BsStar, BsPerson, BsHouse, BsChatSquareText, BsPlus, BsX, BsCheck, BsArrowLeft, BsDownload } from 'react-icons/bs';
+import { BsPencil, BsTrash, BsBook, BsCalendar, BsTag, BsTranslate, BsFileEarmark, BsStar, BsPerson, BsHouse, BsChatSquareText, BsPlus, BsX, BsCheck, BsArrowLeft, BsDownload, BsFiles } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import bookCommentService from '../services/bookCommentService';
 import CoverModal from './CoverModal';
@@ -207,6 +207,52 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
       });
     } catch (e) {
       return dateString;
+    }
+  };
+
+  const handleCopyRef = async (e) => {
+    e.stopPropagation();
+    if (!book) return;
+    try {
+      // Format: <Title> <subtitle> - <Author>
+      const title = book.title || '';
+      const subtitle = book.subtitle ? ` ${book.subtitle}` : '';
+      const author = getAuthorDisplay();
+      const titleLine = `${title}${subtitle} - ${author}`;
+      
+      // Get link: prefer openlibrary, otherwise use first available link
+      let link = '';
+      if (book.urls) {
+        if (book.urls.openlibrary) {
+          link = book.urls.openlibrary;
+        } else {
+          // Get first available link
+          const linkKeys = Object.keys(book.urls);
+          if (linkKeys.length > 0) {
+            link = book.urls[linkKeys[0]];
+          }
+        }
+      }
+      
+      // Combine title and link
+      const textToCopy = link ? `${titleLine}\n\n${link}` : titleLine;
+      
+      // Copy to clipboard
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(textToCopy);
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = textToCopy;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+    } catch (error) {
+      console.error('Failed to copy reference:', error);
     }
   };
 
@@ -918,7 +964,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
         autoFocus={false}
         enforceFocus={false}
       >
-        <Modal.Header closeButton>
+        <Modal.Header closeButton style={{ position: 'relative' }}>
           <Modal.Title>
             {view === 'volumes' ? (
               <>
@@ -936,6 +982,11 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
               <>
                 <BsBook className="me-2" />
                 {book.title}{book.subtitle ? ` – ${book.subtitle}` : ''}
+                <BsFiles 
+                  className="ms-2 book-copy-ref-icon" 
+                  onClick={handleCopyRef}
+                  title="Copy reference"
+                />
               </>
             )}
           </Modal.Title>
@@ -2391,7 +2442,6 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
           )}
         </Modal.Footer>
       </Modal>
-
       
       <CoverModal
         isOpen={showCoverModal}

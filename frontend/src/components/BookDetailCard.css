@@ -643,7 +643,26 @@
 .book-detail-modal .modal-title {
   color: #f8f9fa !important;
   font-weight: 600 !important;
+  display: flex;
+  align-items: center;
 }
+
+/* Copy reference icon - subtle styling */
+.book-copy-ref-icon {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.book-copy-ref-icon:hover {
+  color: rgba(255, 255, 255, 0.9);
+  opacity: 1;
+  transform: scale(1.1);
+}
+
 
 .book-author {
   font-size: 1.2rem;
