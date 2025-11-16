@@ -653,6 +653,11 @@
     flex: 0 0 auto;
   }
   
+  /* Hide tooltips on mobile */
+  .segmented-control .segment[data-tooltip]:hover::after,
+  .segmented-control .segment[data-tooltip]:hover::before {
+    display: none;
+  }
   
   .import-modal {
     min-width: 90vw;
