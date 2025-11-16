@@ -62,6 +62,11 @@
   display: none !important;
 }
 
+/* Cacher le badge de série sur les stacks (mais le garder dans le popover) */
+.series-stack-item .book-thumbnail-series-badge {
+  display: none !important;
+}
+
 .series-stack-label {
   position: relative;
   text-align: center;

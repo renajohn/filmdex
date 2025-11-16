@@ -79,6 +79,11 @@ const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false, h
             Borrowed
           </div>
         )}
+        {book.seriesNumber && (
+          <div className="book-thumbnail-series-badge">
+            #{book.seriesNumber}
+          </div>
+        )}
         {book.ebookFile && book.ebookFile.trim() && (
           <div 
             className="book-thumbnail-ebook-badge" 
