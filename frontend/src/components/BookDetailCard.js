@@ -771,29 +771,48 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
       document.addEventListener('wheel', preventScroll, { passive: false });
       
       return () => {
-        // Restore body scroll when modal closes
+        // Restore scroll position immediately before restoring body styles to prevent visible scroll
+        const scrollPosition = scrollPositionRef.current;
+        
+        // Remove event listeners first
+        document.removeEventListener('touchmove', preventScroll);
+        document.removeEventListener('wheel', preventScroll);
+        
+        // Temporarily disable scroll behavior to prevent animation
+        const originalScrollBehavior = document.documentElement.style.scrollBehavior;
+        document.documentElement.style.scrollBehavior = 'auto';
+        document.body.style.scrollBehavior = 'auto';
+        
+        // Set scroll position BEFORE restoring body styles to prevent jump
+        if (scrollPosition !== undefined && scrollPosition !== null) {
+          // Temporarily restore position to allow scroll setting
+          document.body.style.position = 'relative';
+          document.body.style.top = '0';
+          
+          // Set scroll position immediately (synchronously) - use scrollTo with 0 delay
+          window.scrollTo(0, scrollPosition);
+          document.documentElement.scrollTop = scrollPosition;
+          document.body.scrollTop = scrollPosition;
+          
+          // Force a synchronous reflow to ensure scroll position is set before next frame
+          void document.body.offsetHeight;
+        }
+        
+        // Now restore all body styles
         document.body.style.overflow = originalBodyOverflow;
         document.body.style.position = originalBodyPosition;
         document.body.style.top = originalBodyTop;
         document.body.style.width = originalBodyWidth;
         document.documentElement.style.overflow = originalHtmlOverflow;
         
-        // Always restore scroll position when modal closes, regardless of view state
-        // Use requestAnimationFrame to ensure DOM has updated, then restore scroll
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            window.scrollTo({
-              top: scrollPositionRef.current,
-              behavior: 'auto'
-            });
-            // Clear the saved scroll position from sessionStorage
-            sessionStorage.removeItem('bookDetailScrollPosition');
-          });
-        });
+        // Restore scroll behavior after a brief moment
+        setTimeout(() => {
+          document.documentElement.style.scrollBehavior = originalScrollBehavior;
+          document.body.style.scrollBehavior = originalScrollBehavior || '';
+        }, 0);
         
-        // Remove event listeners
-        document.removeEventListener('touchmove', preventScroll);
-        document.removeEventListener('wheel', preventScroll);
+        // Clear the saved scroll position from sessionStorage
+        sessionStorage.removeItem('bookDetailScrollPosition');
       };
     }
   }, [book]);
