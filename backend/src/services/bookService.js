@@ -183,6 +183,27 @@ function extractSeriesFromTitle(title) {
 }
 
 class BookService {
+  constructor() {
+    this.apiCache = new Map();
+    this.cacheTTL = 24 * 60 * 60 * 1000; // 24 hours
+  }
+
+  _getCacheKey(source, identifier) {
+    return `${source}:${identifier}`;
+  }
+
+  _getCached(key) {
+    const cached = this.apiCache.get(key);
+    if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
+      return cached.data;
+    }
+    return null;
+  }
+
+  _setCache(key, data) {
+    this.apiCache.set(key, { data, timestamp: Date.now() });
+  }
+
   async initializeTables() {
     try {
       await Book.createTable();
@@ -1491,22 +1512,17 @@ class BookService {
       const isFromGoogleBooks = bookData.urls?.googleBooks || bookData.urls?.googleBooksInfo;
       const isFromOpenLibrary = bookData.urls?.openlibrary || bookData._openLibraryData;
       
-      // Enrich with Google Books (always enrich to get complete metadata)
-      let googleBooksData = null;
-      let pureGoogleBook = null; // Store pure Google Books data before merging
-      
-      // Only skip if we have complete Google Books data AND metadata is already present
-      // Check if we have URLs but incomplete metadata - if so, still enrich using the volume ID
-      const hasCompleteGoogleData = isFromGoogleBooks && 
-        bookData.description && 
-        bookData.description.length > 50 && // Description should be substantial
-        bookData.authors && 
-        Array.isArray(bookData.authors) && 
-        bookData.authors.length > 0 &&
-        bookData.publisher &&
-        bookData.pageCount;
-      
-      if (!hasCompleteGoogleData) {
+      // Helper function to perform Google Books enrichment
+      const performGoogleBooksEnrichment = async () => {
+        let googleBooksData = null;
+        let pureGoogleBook = null; // Store pure Google Books data before merging
+        let googleMetadata = null;
+        
+        // Work on a copy of bookData to avoid modifying the original
+        const localEnriched = { ...bookData };
+        
+        // This function is only called when enrichment is needed
+        // (hasCompleteGoogleData check is done outside)
         try {
           // First, fetch the pure Google Books data before merging
           let googleBook = null;
@@ -1556,36 +1572,36 @@ class BookService {
               searchQueries.push(cleanTitle);
               searchQueries.push(mainTitle);
               
-              logger.info(`[Enrichment] Searching Google Books by title/author (main criteria) with ${searchQueries.length} query variants`);
+              logger.info(`[Enrichment] Searching Google Books by title/author (main criteria) with ${searchQueries.length} query variants (parallel)`);
               
-              for (const searchQuery of searchQueries) {
+              // Prepare normalization function
+              const normalizeTitle = (title) => {
+                if (!title) return '';
+                return title.toLowerCase()
+                  .normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g, '')
+                  .replace(/[^\w\s]/g, ' ') // Replace punctuation with spaces
+                  .replace(/\s+/g, ' ') // Normalize whitespace
+                  .trim();
+              };
+              
+              const bookTitleNormalized = normalizeTitle(bookData.title);
+              const bookMainTitleNormalized = normalizeTitle(mainTitle);
+              const bookTitleWords = bookMainTitleNormalized.split(/\s+/).filter(w => w.length > 2); // Words longer than 2 chars
+              
+              // Execute all search queries in parallel
+              const searchPromises = searchQueries.map(async (searchQuery) => {
                 try {
                   const googleResults = await this.searchGoogleBooks(searchQuery, 10);
                   if (googleResults && googleResults.length > 0) {
                     // Try to match by title with more flexible matching
-                    const normalizeTitle = (title) => {
-                      if (!title) return '';
-                      return title.toLowerCase()
-                        .normalize('NFD')
-                        .replace(/[\u0300-\u036f]/g, '')
-                        .replace(/[^\w\s]/g, ' ') // Replace punctuation with spaces
-                        .replace(/\s+/g, ' ') // Normalize whitespace
-                        .trim();
-                    };
-                    
-                    const bookTitleNormalized = normalizeTitle(bookData.title);
-                    const bookMainTitleNormalized = normalizeTitle(mainTitle);
-                    const bookTitleWords = bookMainTitleNormalized.split(/\s+/).filter(w => w.length > 2); // Words longer than 2 chars
-                    
                     for (const result of googleResults) {
                       const resultTitleNormalized = normalizeTitle(result.title);
                       
                       // Exact match
                       if (resultTitleNormalized === bookTitleNormalized || 
                           resultTitleNormalized === bookMainTitleNormalized) {
-                        googleBookByTitle = result;
-                        logger.info(`[Enrichment] ✓ Found Google Books exact match by title/author for "${bookData.title}"`);
-                        break;
+                        return { result, matchType: 'exact', query: searchQuery };
                       }
                       
                       // Check if all significant words from book title are in result title
@@ -1596,9 +1612,7 @@ class BookService {
                         );
                         
                         if (allWordsMatch) {
-                          googleBookByTitle = result;
-                          logger.info(`[Enrichment] ✓ Found Google Books match by title words for "${bookData.title}" -> "${result.title}"`);
-                          break;
+                          return { result, matchType: 'words', query: searchQuery };
                         }
                       }
                       
@@ -1607,18 +1621,43 @@ class BookService {
                           bookMainTitleNormalized.includes(resultTitleNormalized) ||
                           resultTitleNormalized.includes(bookTitleNormalized) ||
                           bookTitleNormalized.includes(resultTitleNormalized)) {
-                        googleBookByTitle = result;
-                        logger.info(`[Enrichment] ✓ Found Google Books partial match by title for "${bookData.title}" -> "${result.title}"`);
-                        break;
+                        return { result, matchType: 'partial', query: searchQuery };
                       }
                     }
-                    
-                    if (googleBookByTitle) break; // Found a match, stop trying other queries
                   }
+                  return null;
                 } catch (queryError) {
                   logger.warn(`[Enrichment] Google Books query "${searchQuery}" failed: ${queryError.message}`);
-                  continue; // Try next query variant
+                  return null;
                 }
+              });
+              
+              // Wait for all queries to complete and find the best match
+              const searchResults = await Promise.allSettled(searchPromises);
+              
+              // Process results and find the best match (prioritize exact > words > partial)
+              let bestMatch = null;
+              let bestMatchType = null;
+              
+              for (const result of searchResults) {
+                if (result.status === 'fulfilled' && result.value) {
+                  const { result: matchedBook, matchType, query } = result.value;
+                  if (!bestMatch || 
+                      (matchType === 'exact' && bestMatchType !== 'exact') ||
+                      (matchType === 'words' && bestMatchType === 'partial')) {
+                    bestMatch = matchedBook;
+                    bestMatchType = matchType;
+                    logger.info(`[Enrichment] ✓ Found Google Books ${matchType} match by title/author for "${bookData.title}" (query: "${query}")`);
+                    // Continue checking other results to find the best match, but we'll use the first exact match if found
+                    if (matchType === 'exact') {
+                      break; // Exact match found, no need to check further
+                    }
+                  }
+                }
+              }
+              
+              if (bestMatch) {
+                googleBookByTitle = bestMatch;
               }
             } catch (error) {
               logger.warn(`[Enrichment] Google Books title/author search failed: ${error.message}`);
@@ -1675,34 +1714,34 @@ class BookService {
             
             // Description: update if missing or if Google Books has a longer/better description
             if (googleBook.description) {
-              const currentDescLength = (enriched.description || '').length;
+              const currentDescLength = (localEnriched.description || '').length;
               const googleDescLength = googleBook.description.length;
-              if (!enriched.description || googleDescLength > currentDescLength * 1.2) {
-                enriched.description = googleBook.description;
+              if (!localEnriched.description || googleDescLength > currentDescLength * 1.2) {
+                localEnriched.description = googleBook.description;
                 enrichedFields.push(`description (${googleDescLength} chars)`);
               }
             }
             
             // Authors: update if missing or if Google Books has authors and current doesn't
             if (googleBook.authors && Array.isArray(googleBook.authors) && googleBook.authors.length > 0) {
-              const currentAuthors = enriched.authors || [];
+              const currentAuthors = localEnriched.authors || [];
               const hasCurrentAuthors = Array.isArray(currentAuthors) && currentAuthors.length > 0;
               if (!hasCurrentAuthors) {
-                enriched.authors = googleBook.authors;
+                localEnriched.authors = googleBook.authors;
                 enrichedFields.push(`authors (${googleBook.authors.join(', ')})`);
               }
             }
             
-            if (!enriched.pageCount && googleBook.pageCount) {
-              enriched.pageCount = googleBook.pageCount;
+            if (!localEnriched.pageCount && googleBook.pageCount) {
+              localEnriched.pageCount = googleBook.pageCount;
               enrichedFields.push(`pageCount (${googleBook.pageCount})`);
             }
-            if (!enriched.publisher && googleBook.publisher) {
-              enriched.publisher = googleBook.publisher;
+            if (!localEnriched.publisher && googleBook.publisher) {
+              localEnriched.publisher = googleBook.publisher;
               enrichedFields.push(`publisher (${googleBook.publisher})`);
             }
-            if (!enriched.publishedYear && googleBook.publishedYear) {
-              enriched.publishedYear = googleBook.publishedYear;
+            if (!localEnriched.publishedYear && googleBook.publishedYear) {
+              localEnriched.publishedYear = googleBook.publishedYear;
               enrichedFields.push(`publishedYear (${googleBook.publishedYear})`);
             }
             
@@ -1715,7 +1754,7 @@ class BookService {
               googleBook.genres.forEach(g => allGenres.add(g));
             }
             if (allGenres.size > 0) {
-              enriched.genres = Array.from(allGenres);
+              localEnriched.genres = Array.from(allGenres);
               if (allGenres.size > (bookData.genres?.length || 0)) {
                 enrichedFields.push(`genres`);
               }
@@ -1723,28 +1762,28 @@ class BookService {
             
             // Add Google Books cover if not already present
             if (googleBook.coverUrl) {
-              if (!enriched.availableCovers) {
-                enriched.availableCovers = [];
+              if (!localEnriched.availableCovers) {
+                localEnriched.availableCovers = [];
               }
-              if (!enriched.availableCovers.some(c => c.url === googleBook.coverUrl)) {
-                enriched.availableCovers.push({
+              if (!localEnriched.availableCovers.some(c => c.url === googleBook.coverUrl)) {
+                localEnriched.availableCovers.push({
                   source: 'Google Books',
                   url: googleBook.coverUrl,
                   type: 'front'
                 });
               }
-              if (!enriched.coverUrl) {
-                enriched.coverUrl = googleBook.coverUrl;
+              if (!localEnriched.coverUrl) {
+                localEnriched.coverUrl = googleBook.coverUrl;
                 enrichedFields.push('coverUrl');
               }
             }
             
             // Merge URLs
-            if (!enriched.urls) {
-              enriched.urls = {};
+            if (!localEnriched.urls) {
+              localEnriched.urls = {};
             }
             if (googleBook.urls) {
-              enriched.urls = { ...enriched.urls, ...googleBook.urls };
+              localEnriched.urls = { ...localEnriched.urls, ...googleBook.urls };
               enrichedFields.push('urls');
             }
             
@@ -1752,7 +1791,7 @@ class BookService {
               logger.info(`[Enrichment] Successfully enriched "${bookData.title}" with Google Books fields: ${enrichedFields.join(', ')}`);
             }
             
-            googleBooksData = enriched; // Use the enriched data we just created
+            googleBooksData = localEnriched; // Use the enriched data we just created
           } else {
             // If we didn't find googleBook directly, fall back to enrichWithGoogleBooks
             googleBooksData = await this.enrichWithGoogleBooks({ ...bookData });
@@ -1760,7 +1799,7 @@ class BookService {
           
           // Store Google Books metadata separately - use pure source data (from formatGoogleBook)
           // This ensures we store what Google Books actually returned, not what was merged
-          enriched._metadataSources.googleBooks = {
+          googleMetadata = {
             description: pureGoogleBook?.description || googleBooksData.description || null,
             series: pureGoogleBook?.series || googleBooksData.series || null,
             seriesNumber: pureGoogleBook?.seriesNumber || googleBooksData.seriesNumber || null,
@@ -1773,98 +1812,22 @@ class BookService {
             authors: pureGoogleBook?.authors || googleBooksData.authors || null
           };
           
-          logger.info(`[Enrichment] Stored Google Books metadata: description=${!!enriched._metadataSources.googleBooks.description}, authors=${JSON.stringify(enriched._metadataSources.googleBooks.authors)}, publisher=${enriched._metadataSources.googleBooks.publisher}, pageCount=${enriched._metadataSources.googleBooks.pageCount}`);
-          
-          // Merge data from googleBooksData into enriched (if we used enrichWithGoogleBooks fallback)
-          if (!pureGoogleBook && googleBooksData) {
-            // Merge covers
-            if (googleBooksData.availableCovers) {
-              if (!enriched.availableCovers) enriched.availableCovers = [];
-              googleBooksData.availableCovers.forEach(cover => {
-                if (!enriched.availableCovers.some(c => c.url === cover.url)) {
-                  enriched.availableCovers.push(cover);
-                }
-              });
-            }
-            // Merge URLs
-            if (googleBooksData.urls) {
-              if (!enriched.urls) enriched.urls = {};
-              enriched.urls = { ...enriched.urls, ...googleBooksData.urls };
-            }
-            // Merge other fields
-            if (googleBooksData.description && !enriched.description) {
-              enriched.description = googleBooksData.description;
-            }
-            if (googleBooksData.authors && (!enriched.authors || enriched.authors.length === 0)) {
-              enriched.authors = googleBooksData.authors;
-            }
-            if (googleBooksData.publisher && !enriched.publisher) {
-              enriched.publisher = googleBooksData.publisher;
-            }
-            if (googleBooksData.pageCount && !enriched.pageCount) {
-              enriched.pageCount = googleBooksData.pageCount;
-            }
-            if (googleBooksData.publishedYear && !enriched.publishedYear) {
-              enriched.publishedYear = googleBooksData.publishedYear;
-            }
-          }
+          logger.info(`[Enrichment] Stored Google Books metadata: description=${!!googleMetadata.description}, authors=${JSON.stringify(googleMetadata.authors)}, publisher=${googleMetadata.publisher}, pageCount=${googleMetadata.pageCount}`);
         } catch (error) {
           logger.warn(`[Enrichment] Google Books enrichment failed: ${error.message}`);
         }
-      } else {
-        logger.info(`[Enrichment] Book already has complete Google Books data, storing existing data`);
-        enriched._metadataSources.googleBooks = {
-          description: bookData.description || null,
-          series: bookData.series || null,
-          seriesNumber: bookData.seriesNumber || null,
-          genres: bookData.genres || null,
-          tags: bookData.tags || null,
-          publisher: bookData.publisher || null,
-          publishedYear: bookData.publishedYear || null,
-          pageCount: bookData.pageCount || null,
-          rating: bookData.rating || null,
-          authors: bookData.authors || null
-        };
-      }
+        
+        return { googleBooksData, pureGoogleBook, googleMetadata };
+      };
       
-      // Also update enriched object with Google Books data if we got it
-      if (googleBooksData && googleBooksData !== bookData) {
-        logger.info(`[Enrichment] Merging Google Books data into enriched object`);
-        // Merge Google Books data into enriched object
-        if (googleBooksData.description && (!enriched.description || googleBooksData.description.length > enriched.description.length)) {
-          enriched.description = googleBooksData.description;
-          logger.info(`[Enrichment] ✓ Updated description (${googleBooksData.description.length} chars)`);
-        }
-        if (googleBooksData.authors && Array.isArray(googleBooksData.authors) && googleBooksData.authors.length > 0) {
-          const currentAuthors = enriched.authors || [];
-          if (!Array.isArray(currentAuthors) || currentAuthors.length === 0) {
-            enriched.authors = googleBooksData.authors;
-            logger.info(`[Enrichment] ✓ Updated authors: ${googleBooksData.authors.join(', ')}`);
-          }
-        }
-        if (googleBooksData.publisher && !enriched.publisher) {
-          enriched.publisher = googleBooksData.publisher;
-          logger.info(`[Enrichment] ✓ Updated publisher: ${googleBooksData.publisher}`);
-        }
-        if (googleBooksData.publishedYear && !enriched.publishedYear) {
-          enriched.publishedYear = googleBooksData.publishedYear;
-          logger.info(`[Enrichment] ✓ Updated publishedYear: ${googleBooksData.publishedYear}`);
-        }
-        if (googleBooksData.pageCount && !enriched.pageCount) {
-          enriched.pageCount = googleBooksData.pageCount;
-          logger.info(`[Enrichment] ✓ Updated pageCount: ${googleBooksData.pageCount}`);
-        }
-        if (googleBooksData.genres && Array.isArray(googleBooksData.genres)) {
-          const allGenres = new Set(enriched.genres || []);
-          googleBooksData.genres.forEach(g => allGenres.add(g));
-          enriched.genres = Array.from(allGenres);
-        }
-      }
-      
-      // Enrich with OpenLibrary (always enrich, as it adds valuable data like series, back covers, etc.)
-      try {
-        // First, fetch the pure OpenLibrary data before merging
+      // Helper function to perform OpenLibrary enrichment
+      const performOpenLibraryEnrichment = async () => {
+        let openLibraryData = null;
         let pureOlBook = null;
+        let olMetadata = null;
+        
+        try {
+        // First, fetch the pure OpenLibrary data before merging
         const isbn13 = bookData.isbn13 || null;
         const isbn10 = bookData.isbn || (isbn13 && isbn13.length === 13 ? isbn13.slice(3, 13) : null);
         
@@ -1961,9 +1924,9 @@ class BookService {
         }
         
         // Now enrich with the merged data
-        const openLibraryData = await this.enrichWithOpenLibrary({ ...bookData });
+        openLibraryData = await this.enrichWithOpenLibrary({ ...bookData });
         // Store OpenLibrary metadata separately - use pure source data
-        enriched._metadataSources.openLibrary = {
+        olMetadata = {
           description: pureOlBook?.description || openLibraryData.description || null,
           series: pureOlBook?.series || openLibraryData.series || null,
           seriesNumber: pureOlBook?.seriesNumber || openLibraryData.seriesNumber || null,
@@ -1974,6 +1937,106 @@ class BookService {
           pageCount: pureOlBook?.pageCount || openLibraryData.pageCount || null,
           rating: pureOlBook?.rating || openLibraryData.rating || null
         };
+        } catch (error) {
+          logger.warn(`[Enrichment] OpenLibrary enrichment failed: ${error.message}`);
+        }
+        
+        return { openLibraryData, pureOlBook, olMetadata };
+      };
+      
+      // Run Google Books and OpenLibrary enrichment in parallel
+      const hasCompleteGoogleData = isFromGoogleBooks && 
+        bookData.description && 
+        bookData.description.length > 50 && // Description should be substantial
+        bookData.authors && 
+        Array.isArray(bookData.authors) && 
+        bookData.authors.length > 0 &&
+        bookData.publisher &&
+        bookData.pageCount;
+      
+      const [googleResult, openLibraryResult] = await Promise.allSettled([
+        hasCompleteGoogleData ? Promise.resolve({ googleBooksData: null, pureGoogleBook: null, googleMetadata: null }) : performGoogleBooksEnrichment(),
+        performOpenLibraryEnrichment()
+      ]);
+      
+      // Process Google Books results
+      let googleBooksData = null;
+      let pureGoogleBook = null;
+      let googleMetadata = null;
+      
+      if (googleResult.status === 'fulfilled') {
+        ({ googleBooksData, pureGoogleBook, googleMetadata } = googleResult.value);
+      } else {
+        logger.warn(`[Enrichment] Google Books enrichment promise rejected: ${googleResult.reason?.message}`);
+      }
+      
+      if (hasCompleteGoogleData) {
+        logger.info(`[Enrichment] Book already has complete Google Books data, storing existing data`);
+        googleMetadata = {
+          description: bookData.description || null,
+          series: bookData.series || null,
+          seriesNumber: bookData.seriesNumber || null,
+          genres: bookData.genres || null,
+          tags: bookData.tags || null,
+          publisher: bookData.publisher || null,
+          publishedYear: bookData.publishedYear || null,
+          pageCount: bookData.pageCount || null,
+          rating: bookData.rating || null,
+          authors: bookData.authors || null
+        };
+      }
+      
+      // Process OpenLibrary results
+      let openLibraryData = null;
+      let pureOlBook = null;
+      let olMetadata = null;
+      
+      if (openLibraryResult.status === 'fulfilled') {
+        ({ openLibraryData, pureOlBook, olMetadata } = openLibraryResult.value);
+      } else {
+        logger.warn(`[Enrichment] OpenLibrary enrichment promise rejected: ${openLibraryResult.reason?.message}`);
+      }
+      
+      // Store metadata sources
+      enriched._metadataSources.googleBooks = googleMetadata;
+      enriched._metadataSources.openLibrary = olMetadata;
+      
+      // Merge Google Books data into enriched object
+      if (googleBooksData && googleBooksData !== bookData) {
+        logger.info(`[Enrichment] Merging Google Books data into enriched object`);
+        // Merge Google Books data into enriched object
+        if (googleBooksData.description && (!enriched.description || googleBooksData.description.length > enriched.description.length)) {
+          enriched.description = googleBooksData.description;
+          logger.info(`[Enrichment] ✓ Updated description (${googleBooksData.description.length} chars)`);
+        }
+        if (googleBooksData.authors && Array.isArray(googleBooksData.authors) && googleBooksData.authors.length > 0) {
+          const currentAuthors = enriched.authors || [];
+          if (!Array.isArray(currentAuthors) || currentAuthors.length === 0) {
+            enriched.authors = googleBooksData.authors;
+            logger.info(`[Enrichment] ✓ Updated authors: ${googleBooksData.authors.join(', ')}`);
+          }
+        }
+        if (googleBooksData.publisher && !enriched.publisher) {
+          enriched.publisher = googleBooksData.publisher;
+          logger.info(`[Enrichment] ✓ Updated publisher: ${googleBooksData.publisher}`);
+        }
+        if (googleBooksData.publishedYear && !enriched.publishedYear) {
+          enriched.publishedYear = googleBooksData.publishedYear;
+          logger.info(`[Enrichment] ✓ Updated publishedYear: ${googleBooksData.publishedYear}`);
+        }
+        if (googleBooksData.pageCount && !enriched.pageCount) {
+          enriched.pageCount = googleBooksData.pageCount;
+          logger.info(`[Enrichment] ✓ Updated pageCount: ${googleBooksData.pageCount}`);
+        }
+        if (googleBooksData.genres && Array.isArray(googleBooksData.genres)) {
+          const allGenres = new Set(enriched.genres || []);
+          googleBooksData.genres.forEach(g => allGenres.add(g));
+          enriched.genres = Array.from(allGenres);
+        }
+      }
+      
+      // Merge OpenLibrary data
+      if (openLibraryData) {
         // Merge covers
         if (openLibraryData.availableCovers) {
           if (!enriched.availableCovers) enriched.availableCovers = [];
@@ -1988,8 +2051,6 @@ class BookService {
           if (!enriched.urls) enriched.urls = {};
           enriched.urls = { ...enriched.urls, ...openLibraryData.urls };
         }
-      } catch (error) {
-        logger.warn(`[Enrichment] OpenLibrary enrichment failed: ${error.message}`);
       }
       
       // Set default values (prefer OpenLibrary for series, Google Books for description if longer)

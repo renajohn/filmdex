@@ -129,57 +129,84 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
       });
       setEnrichmentProgress({ current: 0, total: volumesToAdd.length });
 
-      // Enrich all selected volumes
+      // Enrich volumes in parallel with concurrency limit
+      const BATCH_SIZE = 5; // Process 5 volumes at a time
       const enrichedVolumes = [];
-      for (let i = 0; i < volumesToAdd.length; i++) {
-        const volume = volumesToAdd[i];
-        setEnrichmentProgress({ current: i + 1, total: volumesToAdd.length });
+      
+      for (let i = 0; i < volumesToAdd.length; i += BATCH_SIZE) {
+        const batch = volumesToAdd.slice(i, i + BATCH_SIZE);
+        setEnrichmentProgress({ current: i, total: volumesToAdd.length });
         
-        try {
-          const enriched = await bookService.enrichBook(volume);
-          
-          // Copy owner information from template book if checkbox is checked
-          if (copyOwnerInfo && templateBook) {
-            // Copy owner - preserve null/undefined, but convert empty string to null
-            if (templateBook.owner !== undefined) {
-              enriched.owner = templateBook.owner || null;
+        const batchResults = await Promise.allSettled(
+          batch.map(async (volume) => {
+            try {
+              const enriched = await bookService.enrichBook(volume);
+              
+              // Copy owner information from template book if checkbox is checked
+              if (copyOwnerInfo && templateBook) {
+                // Copy owner - preserve null/undefined, but convert empty string to null
+                if (templateBook.owner !== undefined) {
+                  enriched.owner = templateBook.owner || null;
+                }
+                if (templateBook.readDate) {
+                  enriched.readDate = templateBook.readDate;
+                }
+                console.log(`[VolumeSelector] Copied owner info to volume ${enriched.seriesNumber}:`, {
+                  owner: enriched.owner,
+                  borrowed: enriched.borrowed,
+                  templateOwner: templateBook.owner
+                });
+              }
+              
+              return { success: true, data: enriched };
+            } catch (err) {
+              console.warn(`Failed to enrich volume ${volume.seriesNumber}:`, err);
+              // Still add the volume even if enrichment fails
+              const volumeWithOwner = { ...volume };
+              // Copy owner information even if enrichment fails
+              if (copyOwnerInfo && templateBook) {
+                // Copy owner - preserve null/undefined, but convert empty string to null
+                if (templateBook.owner !== undefined) {
+                  volumeWithOwner.owner = templateBook.owner || null;
+                }
+                if (templateBook.borrowed !== undefined) {
+                  volumeWithOwner.borrowed = templateBook.borrowed;
+                }
+                if (templateBook.borrowedDate) {
+                  volumeWithOwner.borrowedDate = templateBook.borrowedDate;
+                }
+                if (templateBook.returnedDate) {
+                  volumeWithOwner.returnedDate = templateBook.returnedDate;
+                }
+                if (templateBook.borrowedNotes) {
+                  volumeWithOwner.borrowedNotes = templateBook.borrowedNotes;
+                }
+              }
+              return { success: false, data: volumeWithOwner };
             }
-            if (templateBook.readDate) {
-              enriched.readDate = templateBook.readDate;
+          })
+        );
+        
+        // Process batch results
+        batchResults.forEach((result) => {
+          if (result.status === 'fulfilled') {
+            enrichedVolumes.push(result.value.data);
+          } else {
+            // If the promise itself was rejected, use the original volume
+            const volumeIndex = enrichedVolumes.length;
+            if (volumeIndex < volumesToAdd.length) {
+              const volumeWithOwner = { ...volumesToAdd[volumeIndex] };
+              if (copyOwnerInfo && templateBook) {
+                if (templateBook.owner !== undefined) {
+                  volumeWithOwner.owner = templateBook.owner || null;
+                }
+              }
+              enrichedVolumes.push(volumeWithOwner);
             }
-            console.log(`[VolumeSelector] Copied owner info to volume ${enriched.seriesNumber}:`, {
-              owner: enriched.owner,
-              borrowed: enriched.borrowed,
-              templateOwner: templateBook.owner
-            });
           }
-          
-          enrichedVolumes.push(enriched);
-        } catch (err) {
-          console.warn(`Failed to enrich volume ${volume.seriesNumber}:`, err);
-          // Still add the volume even if enrichment fails
-          const volumeWithOwner = { ...volume };
-          // Copy owner information even if enrichment fails
-          if (copyOwnerInfo && templateBook) {
-            // Copy owner - preserve null/undefined, but convert empty string to null
-            if (templateBook.owner !== undefined) {
-              volumeWithOwner.owner = templateBook.owner || null;
-            }
-            if (templateBook.borrowed !== undefined) {
-              volumeWithOwner.borrowed = templateBook.borrowed;
-            }
-            if (templateBook.borrowedDate) {
-              volumeWithOwner.borrowedDate = templateBook.borrowedDate;
-            }
-            if (templateBook.returnedDate) {
-              volumeWithOwner.returnedDate = templateBook.returnedDate;
-            }
-            if (templateBook.borrowedNotes) {
-              volumeWithOwner.borrowedNotes = templateBook.borrowedNotes;
-            }
-          }
-          enrichedVolumes.push(volumeWithOwner);
-        }
+        });
+        
+        setEnrichmentProgress({ current: Math.min(i + BATCH_SIZE, volumesToAdd.length), total: volumesToAdd.length });
       }
 
       // Call the callback with enriched volumes

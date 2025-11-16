@@ -569,46 +569,74 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
       });
       setEnrichmentProgress({ current: 0, total: volumesToAdd.length });
 
+      // Enrich volumes in parallel with concurrency limit
+      const BATCH_SIZE = 5; // Process 5 volumes at a time
       const enrichedVolumes = [];
-      for (let i = 0; i < volumesToAdd.length; i++) {
-        const volume = volumesToAdd[i];
-        setEnrichmentProgress({ current: i + 1, total: volumesToAdd.length });
+      
+      for (let i = 0; i < volumesToAdd.length; i += BATCH_SIZE) {
+        const batch = volumesToAdd.slice(i, i + BATCH_SIZE);
+        setEnrichmentProgress({ current: i, total: volumesToAdd.length });
         
-        try {
-          const enriched = await bookService.enrichBook(volume);
-          
-          if (copyOwnerInfo && book) {
-            if (book.owner !== undefined) {
-              enriched.owner = book.owner || null;
+        const batchResults = await Promise.allSettled(
+          batch.map(async (volume) => {
+            try {
+              const enriched = await bookService.enrichBook(volume);
+              
+              if (copyOwnerInfo && book) {
+                if (book.owner !== undefined) {
+                  enriched.owner = book.owner || null;
+                }
+                if (book.readDate) {
+                  enriched.readDate = book.readDate;
+                }
+              }
+              
+              return { success: true, data: enriched };
+            } catch (err) {
+              console.warn(`Failed to enrich volume ${volume.seriesNumber}:`, err);
+              const volumeWithOwner = { ...volume };
+              if (copyOwnerInfo && book) {
+                if (book.owner !== undefined) {
+                  volumeWithOwner.owner = book.owner || null;
+                }
+                if (book.borrowed !== undefined) {
+                  volumeWithOwner.borrowed = book.borrowed;
+                }
+                if (book.borrowedDate) {
+                  volumeWithOwner.borrowedDate = book.borrowedDate;
+                }
+                if (book.returnedDate) {
+                  volumeWithOwner.returnedDate = book.returnedDate;
+                }
+                if (book.borrowedNotes) {
+                  volumeWithOwner.borrowedNotes = book.borrowedNotes;
+                }
+              }
+              return { success: false, data: volumeWithOwner };
             }
-            if (book.readDate) {
-              enriched.readDate = book.readDate;
+          })
+        );
+        
+        // Process batch results
+        batchResults.forEach((result) => {
+          if (result.status === 'fulfilled') {
+            enrichedVolumes.push(result.value.data);
+          } else {
+            // If the promise itself was rejected, use the original volume
+            const volumeIndex = enrichedVolumes.length;
+            if (volumeIndex < volumesToAdd.length) {
+              const volumeWithOwner = { ...volumesToAdd[volumeIndex] };
+              if (copyOwnerInfo && book) {
+                if (book.owner !== undefined) {
+                  volumeWithOwner.owner = book.owner || null;
+                }
+              }
+              enrichedVolumes.push(volumeWithOwner);
             }
           }
-          
-          enrichedVolumes.push(enriched);
-        } catch (err) {
-          console.warn(`Failed to enrich volume ${volume.seriesNumber}:`, err);
-          const volumeWithOwner = { ...volume };
-          if (copyOwnerInfo && book) {
-            if (book.owner !== undefined) {
-              volumeWithOwner.owner = book.owner || null;
-            }
-            if (book.borrowed !== undefined) {
-              volumeWithOwner.borrowed = book.borrowed;
-            }
-            if (book.borrowedDate) {
-              volumeWithOwner.borrowedDate = book.borrowedDate;
-            }
-            if (book.returnedDate) {
-              volumeWithOwner.returnedDate = book.returnedDate;
-            }
-            if (book.borrowedNotes) {
-              volumeWithOwner.borrowedNotes = book.borrowedNotes;
-            }
-          }
-          enrichedVolumes.push(volumeWithOwner);
-        }
+        });
+        
+        setEnrichmentProgress({ current: Math.min(i + BATCH_SIZE, volumesToAdd.length), total: volumesToAdd.length });
       }
 
       if (onAddBooksBatch) {
