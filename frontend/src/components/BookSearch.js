@@ -900,6 +900,7 @@ const BookSearch = forwardRef(({
             }
           }}
           onSearch={updateSearchViaUrl}
+          onBookClick={handleBookClick}
           onAddBooksBatch={async (books) => {
             try {
               // Save expanded series state before reloading

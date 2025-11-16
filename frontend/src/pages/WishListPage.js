@@ -449,6 +449,21 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onAdd
     setSelectedBookDetails(null);
   };
 
+  const handleBookClick = async (bookId) => {
+    try {
+      setLoadingDetails(true);
+      const bookDetails = await bookService.getBookById(bookId);
+      setSelectedBookDetails(bookDetails);
+      setSelectedMovieDetails(null);
+      setSelectedAlbumDetails(null);
+    } catch (error) {
+      console.error('Failed to load book details:', error);
+      setError('Failed to load book details: ' + error.message);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
   // Refresh function for detail card that updates thumbnails without affecting dialog
   const handleRefreshForDetailCard = async () => {
     try {
@@ -1269,6 +1284,7 @@ const WishListPage = forwardRef(({ searchCriteria, onAddMovie, onAddAlbum, onAdd
           }}
           onBookUpdated={handleRefreshForDetailCard}
           onSearch={onSearch}
+          onBookClick={handleBookClick}
         />
       )}
 

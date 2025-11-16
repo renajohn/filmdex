@@ -34,7 +34,48 @@ const formatIsbnDisplay = (isbn) => {
   return isbn;
 };
 
-const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, onDelete, onSearch, onAddNextVolume, onAddBooksBatch, onAddStart, onBookAdded, onAddError }) => {
+// Series Book Item Component (similar to SortableCollectionMember but without drag-and-drop)
+const SeriesBookItem = ({ bookItem, onBookClick, getCoverUrl, currentBookId }) => {
+  return (
+    <div 
+      className={`series-book-item ${bookItem.id === currentBookId ? 'current' : ''}`}
+      onClick={() => onBookClick(bookItem.id)}
+    >
+      <div className="series-book-container">
+        {bookItem.cover ? (
+          <>
+            <img 
+              src={getCoverUrl(bookItem.cover)} 
+              alt={bookItem.title}
+              className="series-book-image"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                if (e.target.nextSibling) {
+                  e.target.nextSibling.style.display = 'flex';
+                }
+              }}
+            />
+            <div className="series-book-placeholder" style={{ display: 'none' }}>
+              <BsBook size={32} />
+            </div>
+          </>
+        ) : (
+          <div className="series-book-placeholder">
+            <BsBook size={32} />
+          </div>
+        )}
+        <div className="series-book-overlay">
+          <div className="series-book-title">{bookItem.title}</div>
+          {bookItem.seriesNumber && (
+            <div className="series-book-number">#{bookItem.seriesNumber}</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, onDelete, onSearch, onAddNextVolume, onAddBooksBatch, onAddStart, onBookAdded, onAddError, onBookClick }) => {
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [coverModalData, setCoverModalData] = useState({ coverUrl: '', title: '', author: '' });
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -66,6 +107,8 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
   const [copyOwnerInfo, setCopyOwnerInfo] = useState(true);
   const [updatingBook, setUpdatingBook] = useState(false);
   const scrollPositionRef = useRef(0);
+  const [seriesMembers, setSeriesMembers] = useState([]);
+  const [loadingSeriesMembers, setLoadingSeriesMembers] = useState(false);
 
   useEffect(() => {
     if (book && book.id) {
@@ -113,6 +156,31 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
     };
     loadEbookInfo();
   }, [book?.ebookFile, book?.id, view]);
+
+  // Load series members when book has a series
+  useEffect(() => {
+    const loadSeriesMembers = async () => {
+      if (!book?.series || !book?.id || view !== 'detail') {
+        setSeriesMembers([]);
+        return;
+      }
+
+      setLoadingSeriesMembers(true);
+      try {
+        const books = await bookService.getBooksBySeries(book.series);
+        // Filter out the current book and only show owned/borrowed books
+        const members = books.filter(b => b.id !== book.id);
+        setSeriesMembers(members);
+      } catch (error) {
+        console.error('Error loading series members:', error);
+        setSeriesMembers([]);
+      } finally {
+        setLoadingSeriesMembers(false);
+      }
+    };
+
+    loadSeriesMembers();
+  }, [book?.series, book?.id, view]);
 
   const loadComments = async () => {
     if (!book?.id) return;
@@ -377,6 +445,16 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
 
   const getCoverImage = () => {
     return bookService.getImageUrl(book.cover);
+  };
+
+  const getCoverUrl = (coverPath) => {
+    return bookService.getImageUrl(coverPath);
+  };
+
+  const handleBookClick = (bookId) => {
+    if (onBookClick) {
+      onBookClick(bookId);
+    }
   };
 
   const formatBookMetadata = () => {
@@ -1428,6 +1506,26 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                       )}
                     </div>
                   ) : null}
+
+                  {/* Series Members Navigation - at the bottom */}
+                  {book.series && seriesMembers.length > 0 && (
+                    <div className="book-detail-series-section">
+                      <h3>
+                        "{book.series}" series
+                      </h3>
+                      <div className="series-books-horizontal">
+                        {seriesMembers.map((member) => (
+                          <SeriesBookItem
+                            key={member.id}
+                            bookItem={member}
+                            onBookClick={handleBookClick}
+                            getCoverUrl={getCoverUrl}
+                            currentBookId={book.id}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </Col>
             </Row>
