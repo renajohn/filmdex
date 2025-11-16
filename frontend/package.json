@@ -35,9 +35,7 @@
     ],
     "globals": {
       "$": "readonly",
-      "jQuery": "readonly",
-      "cv": "readonly",
-      "jscanify": "readonly"
+      "jQuery": "readonly"
     }
   },
   "browserslist": {

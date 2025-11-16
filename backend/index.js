@@ -264,7 +264,6 @@ app.get('/api/config', (req, res) => {
 // Backup routes
 app.post('/api/backup/create', backupController.createBackup);
 app.get('/api/backup/list', backupController.listBackups);
-app.head('/api/backup/download/:filename', backupController.downloadBackup);
 app.get('/api/backup/download/:filename', backupController.downloadBackup);
 app.post('/api/backup/restore', backupController.restoreBackup);
 app.post('/api/backup/upload-restore', backupController.uploadMiddleware, backupController.uploadAndRestoreBackup);
