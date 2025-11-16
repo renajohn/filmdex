@@ -109,7 +109,19 @@ const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpan
           target={containerRef.current}
           placement="bottom"
           rootClose
-          onHide={onClose}
+          onHide={(e) => {
+            // Prevent closing if a modal is open (check for modal backdrop or modal element)
+            const modalBackdrop = document.querySelector('.modal-backdrop');
+            const modal = document.querySelector('.modal.show, .book-detail-modal');
+            if (modalBackdrop || modal) {
+              // Don't close the popover if a modal is open
+              // The state will be restored by the parent component
+              return;
+            }
+            if (onClose) {
+              onClose(e);
+            }
+          }}
         >
           <Popover id="series-expansion-popover" className="series-expansion-popover">
             <Popover.Header>

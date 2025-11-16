@@ -37,8 +37,25 @@ const BookSearch = forwardRef(({
   const [expandedGroups, setExpandedGroups] = useState(new Set());
   const [expandAllGroups, setExpandAllGroups] = useState(false);
   const [bookCount, setBookCount] = useState({ filtered: 0, total: 0 });
-  const [expandedSeries, setExpandedSeries] = useState(null);
+  const [expandedSeries, setExpandedSeries] = useState(() => {
+    // Restore expanded series from sessionStorage on mount
+    const saved = sessionStorage.getItem('bookSearchExpandedSeries');
+    return saved || null;
+  });
+  const expandedSeriesRef = useRef(null);
   const [stackEnabled, setStackEnabled] = useState(true);
+  
+  // Initialize and keep ref in sync with state
+  useEffect(() => {
+    if (expandedSeriesRef.current === null) {
+      // Initialize ref on first render
+      expandedSeriesRef.current = expandedSeries;
+    } else {
+      // Keep ref in sync with state
+      expandedSeriesRef.current = expandedSeries;
+    }
+  }, [expandedSeries]);
+  
   
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addingBook, setAddingBook] = useState(false);
@@ -421,8 +438,12 @@ const BookSearch = forwardRef(({
 
   const handleBookClick = async (bookId) => {
     try {
+      // Save scroll position before opening modal to ensure it's preserved
+      const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
       const details = await bookService.getBookById(bookId);
       setSelectedBookDetails(details);
+      // Store scroll position in sessionStorage as backup
+      sessionStorage.setItem('bookDetailScrollPosition', scrollPosition.toString());
     } catch (err) {
       if (onShowAlert) {
         onShowAlert('Failed to load book details: ' + err.message, 'danger');
@@ -531,12 +552,22 @@ const BookSearch = forwardRef(({
               isExpanded={isExpanded}
               sortedBooks={sortedBooks}
               onToggleExpanded={() => {
-                setExpandedSeries(isExpanded ? null : seriesName);
+                const newExpanded = isExpanded ? null : seriesName;
+                setExpandedSeries(newExpanded);
+                // Save to sessionStorage to preserve across reloads
+                if (newExpanded) {
+                  sessionStorage.setItem('bookSearchExpandedSeries', newExpanded);
+                } else {
+                  sessionStorage.removeItem('bookSearchExpandedSeries');
+                }
               }}
               onBookClick={(book) => handleBookClick(book.id)}
               onEdit={(book) => handleEditBook(book)}
               onDelete={(book) => setShowDeleteModal({ show: true, bookId: book.id })}
-              onClose={() => setExpandedSeries(null)}
+              onClose={() => {
+                setExpandedSeries(null);
+                sessionStorage.removeItem('bookSearchExpandedSeries');
+              }}
             />
           );
         } else {
@@ -810,14 +841,36 @@ const BookSearch = forwardRef(({
       {selectedBookDetails && (
         <BookDetailCard
           book={selectedBookDetails}
-          onClose={() => setSelectedBookDetails(null)}
+          onClose={() => {
+            // Save current expanded series before closing (use ref to get latest value)
+            const currentExpanded = expandedSeriesRef.current;
+            if (currentExpanded) {
+              sessionStorage.setItem('bookSearchExpandedSeries', currentExpanded);
+            }
+            // Close modal first
+            setSelectedBookDetails(null);
+            // Immediately restore expanded series state after modal closes
+            // Use a small delay to ensure DOM has updated
+            requestAnimationFrame(() => {
+              if (currentExpanded) {
+                setExpandedSeries(currentExpanded);
+              }
+            });
+          }}
           onEdit={() => handleEditBook(selectedBookDetails)}
           onUpdateBook={onUpdateBook}
           onBookUpdated={async (bookId) => {
             try {
               console.log('BookSearch: Refreshing book data for ID:', bookId);
+              // Save expanded series state before reloading
+              const currentExpanded = expandedSeries;
               // Refresh the book list to show updated covers
               await loadBooks();
+              // Restore expanded series state after reload
+              if (currentExpanded) {
+                setExpandedSeries(currentExpanded);
+                sessionStorage.setItem('bookSearchExpandedSeries', currentExpanded);
+              }
               // Also update the detail card if it's open
               const updatedBook = await bookService.getBookById(bookId);
               console.log('BookSearch: Updated book data:', updatedBook);
@@ -832,9 +885,16 @@ const BookSearch = forwardRef(({
           }}
           onDelete={async () => {
             try {
+              // Save expanded series state before reloading
+              const currentExpanded = expandedSeries;
               await onDeleteBook(selectedBookDetails.id);
               setSelectedBookDetails(null);
               await loadBooks();
+              // Restore expanded series state after reload
+              if (currentExpanded) {
+                setExpandedSeries(currentExpanded);
+                sessionStorage.setItem('bookSearchExpandedSeries', currentExpanded);
+              }
             } catch (e) {
               if (onShowAlert) onShowAlert('Failed to delete book: ' + (e?.message || ''), 'danger');
             }
@@ -842,12 +902,19 @@ const BookSearch = forwardRef(({
           onSearch={updateSearchViaUrl}
           onAddBooksBatch={async (books) => {
             try {
+              // Save expanded series state before reloading
+              const currentExpanded = expandedSeries;
               const result = await bookService.addBooksBatch(books);
               if (result.errors && result.errors.length > 0) {
                 const errorMsg = result.errors.map(e => `${e.book}: ${e.error}`).join(', ');
                 throw new Error(errorMsg);
               }
               await loadBooks();
+              // Restore expanded series state after reload
+              if (currentExpanded) {
+                setExpandedSeries(currentExpanded);
+                sessionStorage.setItem('bookSearchExpandedSeries', currentExpanded);
+              }
               return result.success || [];
             } catch (error) {
               console.error('Error adding books batch:', error);
@@ -860,7 +927,14 @@ const BookSearch = forwardRef(({
           }}
           onBookAdded={async () => {
             try {
+              // Save expanded series state before reloading
+              const currentExpanded = expandedSeries;
               await loadBooks();
+              // Restore expanded series state after reload
+              if (currentExpanded) {
+                setExpandedSeries(currentExpanded);
+                sessionStorage.setItem('bookSearchExpandedSeries', currentExpanded);
+              }
             } finally {
               setAddingBook(false);
               setAddError('');

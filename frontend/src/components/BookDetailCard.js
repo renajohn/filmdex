@@ -733,13 +733,16 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
   useEffect(() => {
     if (book) {
       // Save current scroll position before locking
-      scrollPositionRef.current = window.pageYOffset || document.documentElement.scrollTop;
+      // First try to get from sessionStorage (saved before modal opens), otherwise use current position
+      const savedScroll = sessionStorage.getItem('bookDetailScrollPosition');
+      scrollPositionRef.current = savedScroll ? parseInt(savedScroll, 10) : (window.pageYOffset || document.documentElement.scrollTop);
       
       // Store original overflow values
       const originalBodyOverflow = document.body.style.overflow;
       const originalHtmlOverflow = document.documentElement.style.overflow;
       const originalBodyPosition = document.body.style.position;
       const originalBodyTop = document.body.style.top;
+      const originalBodyWidth = document.body.style.width;
       
       // Lock body scroll completely but preserve scroll position
       document.body.style.overflow = 'hidden';
@@ -772,38 +775,51 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
         document.body.style.overflow = originalBodyOverflow;
         document.body.style.position = originalBodyPosition;
         document.body.style.top = originalBodyTop;
-        document.body.style.width = '';
+        document.body.style.width = originalBodyWidth;
         document.documentElement.style.overflow = originalHtmlOverflow;
         
-        // Restore scroll position only if we're not in edit mode
-        // Use setTimeout to ensure modal is fully closed and DOM has updated
-        if (view === 'detail') {
-          setTimeout(() => {
+        // Always restore scroll position when modal closes, regardless of view state
+        // Use requestAnimationFrame to ensure DOM has updated, then restore scroll
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
             window.scrollTo({
               top: scrollPositionRef.current,
               behavior: 'auto'
             });
-          }, 0);
-        }
+            // Clear the saved scroll position from sessionStorage
+            sessionStorage.removeItem('bookDetailScrollPosition');
+          });
+        });
         
         // Remove event listeners
         document.removeEventListener('touchmove', preventScroll);
         document.removeEventListener('wheel', preventScroll);
       };
     }
-  }, [book, view]);
+  }, [book]);
 
   return (
     <>
       <Modal 
         show={true} 
-        onHide={handleClose} 
+        onHide={() => {
+          // Check if a dropdown is open before closing
+          const openDropdown = document.querySelector('.dropdown-menu.show');
+          if (openDropdown) {
+            // Don't close the modal if a dropdown is open
+            return;
+          }
+          handleClose();
+        }} 
         size="md" 
         centered 
         style={{ zIndex: 10100 }}
         className="book-detail-modal"
         backdrop={true}
         keyboard={true}
+        restoreFocus={false}
+        autoFocus={false}
+        enforceFocus={false}
       >
         <Modal.Header closeButton>
           <Modal.Title>
