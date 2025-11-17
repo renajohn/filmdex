@@ -14,7 +14,10 @@ import {
   BsThreeDots,
   BsGrid3X3Gap,
   BsX,
-  BsPlus
+  BsPlus,
+  BsList,
+  BsImage,
+  BsCollectionFill
 } from 'react-icons/bs';
 // Note: We use popcorn emoji directly instead of an icon import
 import './FilmDexPage.css';
@@ -33,6 +36,12 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedMovieDetails, setSelectedMovieDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  
+  // Load view mode from localStorage, default to 'compact'
+  const [viewMode, setViewMode] = useState(() => {
+    const savedViewMode = localStorage.getItem('filmdex-view-mode');
+    return savedViewMode === 'large' ? 'large' : 'compact';
+  });
 
   const getCombinedScore = (movie) => {
     const ratings = [];
@@ -313,7 +322,7 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   };
 
 
-  // Reusable movie card renderer
+  // Reusable movie card renderer (compact view)
   const renderMovieCard = (movie) => {
     return (
       <div key={movie.id} className="movie-card-compact" onClick={() => handleMovieClick(movie.id)}>
@@ -434,6 +443,90 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                 }
                 return null;
               })()}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Large poster view renderer
+  const renderMovieCardLarge = (movie) => {
+    const year = movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year;
+    const combinedScore = getCombinedScore(movie);
+    
+    // Check if movie is in a collection
+    const hasCollection = (movie.has_box_set && movie.box_set_name) || 
+                          (movie.collection_names && movie.collection_names.length > 0);
+    
+    return (
+      <div key={movie.id} className="movie-card-large" onClick={() => handleMovieClick(movie.id)}>
+        <div className="movie-poster-large">
+          <MovieThumbnail 
+            imdbLink={movie.imdb_id ? `https://www.imdb.com/title/${movie.imdb_id}` : movie.imdb_link} 
+            title={movie.title}
+            year={year}
+            className="movie-thumbnail-large"
+            disableZoom={true}
+            posterPath={movie.poster_path}
+            recommendedAge={null}
+          />
+          <div className="poster-overlay-large">
+            {/* Left side badges - vertical stack */}
+            <div className="poster-badges-left">
+              {movie.recommended_age != null && (
+                <span className="age-badge-large">{movie.recommended_age}+</span>
+              )}
+              {combinedScore && (
+                <span className="score-badge-large" style={{ color: getRatingColor(combinedScore, 10) }}>
+                  {combinedScore.toFixed(1)}
+                </span>
+              )}
+              {movie.format && (
+                <span className="format-badge-large">
+                  {movie.format === 'Blu-ray 4K' ? '4K' : 
+                   movie.format === 'Blu-ray' ? 'BR' : 
+                   movie.format === 'DVD' ? 'DVD' : 
+                   movie.format === 'Digital' ? 'DIG' : 
+                   movie.format.substring(0, 3).toUpperCase()}
+                </span>
+              )}
+              {hasCollection && (
+                <span className="collection-badge-large" title={
+                  movie.has_box_set && movie.box_set_name 
+                    ? `${movie.box_set_name} box set` 
+                    : movie.collection_names?.join(', ') || ''
+                }>
+                  <BsCollectionFill size={14} />
+                </span>
+              )}
+            </div>
+            
+            {/* Top right - Watch Next button */}
+            {!searchCriteria?.searchText && (
+              <button 
+                className={`watch-next-badge-large ${watchNextMovies.some(wm => wm.id === movie.id) ? 'active' : ''}`}
+                onClick={(e) => handleWatchNextToggle(e, movie)}
+                title={watchNextMovies.some(wm => wm.id === movie.id) ? "Remove from Watch Next" : "Add to Watch Next"}
+                aria-label="Toggle Watch Next"
+              >
+                <svg 
+                  className="star-icon" 
+                  viewBox="0 0 24 24" 
+                  fill={watchNextMovies.some(wm => wm.id === movie.id) ? "currentColor" : "none"}
+                  stroke="currentColor"
+                >
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+              </button>
+            )}
+            
+            {/* Bottom title overlay - appears on hover */}
+            <div className="poster-title-overlay-large">
+              <h4 className="poster-title-text">{movie.title}</h4>
+              {year && (
+                <span className="poster-year-text">({year})</span>
+              )}
             </div>
           </div>
         </div>
@@ -880,6 +973,30 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
               </button>
             )}
 
+            {/* View Toggle Button */}
+            <div className="view-toggle-container">
+              <button
+                className={`view-toggle-btn ${viewMode === 'compact' ? 'active' : ''}`}
+                onClick={() => {
+                  setViewMode('compact');
+                  localStorage.setItem('filmdex-view-mode', 'compact');
+                }}
+                title="Compact View"
+              >
+                <BsList />
+              </button>
+              <button
+                className={`view-toggle-btn ${viewMode === 'large' ? 'active' : ''}`}
+                onClick={() => {
+                  setViewMode('large');
+                  localStorage.setItem('filmdex-view-mode', 'large');
+                }}
+                title="Large Poster View"
+              >
+                <BsImage />
+              </button>
+            </div>
+
             {/* Add Movie Button */}
             <button 
               className="add-item-btn"
@@ -938,8 +1055,8 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           <>
             {/* Movies Grid - Grouped or Ungrouped */}
             {groupBy === 'none' ? (
-              <div className={`movies-grid ${sortLoading ? 'sort-loading' : ''}`}>
-                {movies && movies.map((movie) => renderMovieCard(movie))}
+              <div className={`movies-grid ${viewMode === 'large' ? 'movies-grid-large' : ''} ${sortLoading ? 'sort-loading' : ''}`}>
+                {movies && movies.map((movie) => viewMode === 'large' ? renderMovieCardLarge(movie) : renderMovieCard(movie))}
               </div>
             ) : (
               <div className={`movies-groups ${sortLoading || groupLoading ? 'sort-loading' : ''}`}>
@@ -984,8 +1101,8 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                         </div>
                         
                         {isExpanded && (
-                          <div className="movies-grid">
-                            {sortedGroupMovies.map((movie) => renderMovieCard(movie))}
+                          <div className={`movies-grid ${viewMode === 'large' ? 'movies-grid-large' : ''}`}>
+                            {sortedGroupMovies.map((movie) => viewMode === 'large' ? renderMovieCardLarge(movie) : renderMovieCard(movie))}
                           </div>
                         )}
                       </div>

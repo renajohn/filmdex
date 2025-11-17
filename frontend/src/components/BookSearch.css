@@ -237,14 +237,14 @@
 .group-header {
   cursor: pointer;
   padding: 12px;
-  background-color: #f8f9fa;
+  background-color: #121212;
   border-radius: 8px;
   margin-bottom: 15px;
   transition: background-color 0.2s;
 }
 
 .group-header:hover {
-  background-color: #e9ecef;
+  background-color: #222222;
 }
 
 .group-title {
