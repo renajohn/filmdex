@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Popover, Overlay } from 'react-bootstrap';
 import BookThumbnail from './BookThumbnail';
 import './SeriesStack.css';
@@ -31,6 +31,41 @@ const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpan
     e?.stopPropagation();
     onDelete(book);
   };
+
+  // Handle clicks outside the popover to close it and cancel the click event
+  useEffect(() => {
+    if (!isExpanded) return;
+
+    const handleDocumentClick = (e) => {
+      // Check if click is outside the popover and the stack container
+      const popoverElement = document.querySelector('#series-expansion-popover');
+      const clickedInsidePopover = popoverElement && popoverElement.contains(e.target);
+      const clickedInsideStack = containerRef.current && containerRef.current.contains(e.target);
+      
+      // Also check if clicking on a modal (don't close in that case)
+      const modalBackdrop = document.querySelector('.modal-backdrop');
+      const modal = document.querySelector('.modal.show, .book-detail-modal');
+      if (modalBackdrop || modal) {
+        return;
+      }
+
+      if (!clickedInsidePopover && !clickedInsideStack) {
+        // Click is outside, close the popover and prevent the event
+        e.preventDefault();
+        e.stopPropagation();
+        if (onClose) {
+          onClose(e);
+        }
+      }
+    };
+
+    // Use capture phase to catch the event early
+    document.addEventListener('click', handleDocumentClick, true);
+
+    return () => {
+      document.removeEventListener('click', handleDocumentClick, true);
+    };
+  }, [isExpanded, onClose]);
 
   // Use provided sortedBooks or sort them
   const displayBooks = sortedBooks || [...books].sort((a, b) => {
@@ -103,6 +138,21 @@ const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpan
         </div>
       </div>
       
+      {/* Dark overlay backdrop when popover is open */}
+      {isExpanded && (
+        <div 
+          className="series-popover-backdrop"
+          onClick={(e) => {
+            // Close popover when clicking on backdrop
+            e.preventDefault();
+            e.stopPropagation();
+            if (onClose) {
+              onClose(e);
+            }
+          }}
+        />
+      )}
+      
       {isExpanded && sortedBooks && containerRef.current && (
         <Overlay
           show={isExpanded}
@@ -123,7 +173,10 @@ const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpan
             }
           }}
         >
-          <Popover id="series-expansion-popover" className="series-expansion-popover">
+          <Popover 
+            id="series-expansion-popover" 
+            className="series-expansion-popover"
+          >
             <Popover.Header>
               <div className="series-expansion-header">
                 <h4 className="series-expansion-title">{seriesName}</h4>
