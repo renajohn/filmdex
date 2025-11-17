@@ -599,7 +599,7 @@ const BookSearch = forwardRef(({
       });
 
       return (
-        <div className={`book-grid ${sortLoading ? 'sort-loading' : ''}`}>
+        <div className={`book-grid ${sortLoading ? 'sort-loading' : ''} ${expandedSeries ? 'has-expanded' : ''}`}>
           {items}
         </div>
       );

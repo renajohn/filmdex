@@ -384,10 +384,18 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     return () => document.removeEventListener('click', handleDocClick, true);
   }, [confirmDelete]);
   
-  if (!movieDetails && !loading) return null;
+  if (!movieDetails && !loading) {
+    console.log('MovieDetailCard: Returning null - no movieDetails and not loading');
+    return null;
+  }
 
   // Use local data for display, fallback to original movieDetails
   const currentData = localMovieData || movieDetails;
+  
+  if (!currentData && !loading) {
+    console.log('MovieDetailCard: No currentData available');
+    return null;
+  }
   
   // Only destructure if we have data (not in loading state)
   const {
@@ -1115,6 +1123,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
 
   // Skeleton loading state
   if (loading) {
+    console.log('MovieDetailCard: Rendering loading skeleton');
     return (
       <>
         <div className="movie-detail-overlay" onClick={onClose}>
@@ -1368,6 +1377,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     }
   };
 
+  console.log('MovieDetailCard: Rendering with movieDetails:', movieDetails ? 'present' : 'null', 'loading:', loading);
+  
   return (
     <>
       <div 

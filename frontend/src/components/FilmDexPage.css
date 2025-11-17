@@ -4,6 +4,11 @@
   margin: 0 auto;
   background: #0f0f0f;
   min-height: 100vh;
+  /* Scroll performance optimizations */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  /* Note: transform: translateZ(0) removed - it creates a new containing block 
+     that breaks position: fixed for the movie detail overlay */
 }
 
 /* Watch Next Banner */
@@ -1452,15 +1457,15 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
   gap: 10px;
-  /* Show subtle pattern during fast scrolling to reduce jarring black areas */
-  background-image: 
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 150px,
-      rgba(251, 191, 36, 0.02) 150px,
-      rgba(251, 191, 36, 0.02) 151px
-    );
+  /* Scroll performance optimizations */
+  contain: layout style paint;
+  transform: translateZ(0);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  /* Optimize background rendering - use simpler solid color instead of repeating gradient */
+  background-color: transparent;
+  /* Note: Removed expensive repeating-linear-gradient for better scroll performance */
+  /* If pattern is needed, consider using a pseudo-element with will-change */
 }
 
 .movie-card-compact {
@@ -1469,7 +1474,6 @@
   border-radius: 8px;
   padding: 0;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-  transition: all 0.2s ease;
   position: relative;
   cursor: pointer;
   display: flex;
@@ -1478,12 +1482,22 @@
   /* Optimize rendering: browser skips rendering off-screen cards */
   content-visibility: auto;
   contain-intrinsic-size: 330px 140px;
+  /* Hardware acceleration for smooth scrolling */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Only apply transitions on hover, not during scroll */
+  transition: none;
+  /* Ensure click events work properly */
+  pointer-events: auto;
 }
 
 .movie-card-compact:hover {
-  transform: translateY(-2px);
+  transform: translateY(-2px) translateZ(0);
   box-shadow: 0 4px 12px rgba(0,0,0,0.4);
   border-color: #555;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  will-change: transform;
 }
 
 /* Compact Card Components */
@@ -1509,14 +1523,20 @@
   gap: 4px;
   z-index: 5;
   opacity: 0;
-  transform: translateY(-4px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(-4px) translateZ(0);
   pointer-events: none;
+  /* Hardware acceleration */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Only apply transitions on hover, not during scroll */
+  transition: none;
 }
 
 .movie-card-compact:hover .poster-info-hover {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) translateZ(0);
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity, transform;
 }
 
 .age-badge-hover,
@@ -1545,6 +1565,10 @@
   height: 100%;
   object-fit: cover;
   border-radius: 0;
+  /* Hardware acceleration for smooth image rendering */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .movie-thumbnail-compact.loading {
@@ -2100,6 +2124,11 @@
 .movies-grid-large {
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 20px;
+  /* Scroll performance optimizations */
+  contain: layout style paint;
+  transform: translateZ(0);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .movie-card-large {
@@ -2108,7 +2137,6 @@
   border-radius: 8px;
   padding: 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   cursor: pointer;
   display: flex;
@@ -2116,12 +2144,22 @@
   overflow: hidden;
   content-visibility: auto;
   contain-intrinsic-size: 180px 270px;
+  /* Hardware acceleration for smooth scrolling */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Only apply transitions on hover, not during scroll */
+  transition: none;
+  /* Ensure click events work properly */
+  pointer-events: auto;
 }
 
 .movie-card-large:hover {
-  transform: translateY(-2px);
+  transform: translateY(-2px) translateZ(0);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   border-color: #555;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
 }
 
 .movie-poster-large {
@@ -2151,11 +2189,17 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Hardware acceleration for smooth image rendering */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Only apply transitions on hover, not during scroll */
+  transition: none;
 }
 
 .movie-card-large:hover .movie-thumbnail-large .thumbnail-image {
-  transform: scale(1.08);
+  transform: scale(1.08) translateZ(0);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .poster-overlay-large {
@@ -2180,14 +2224,20 @@
   gap: 6px;
   align-items: flex-start;
   opacity: 0;
-  transform: translateX(-8px);
-  transition: all 0.3s ease;
+  transform: translateX(-8px) translateZ(0);
   z-index: 5;
+  /* Hardware acceleration */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Only apply transitions on hover, not during scroll */
+  transition: none;
 }
 
 .movie-card-large:hover .poster-badges-left {
   opacity: 1;
-  transform: translateX(0);
+  transform: translateX(0) translateZ(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  will-change: opacity, transform;
 }
 
 .poster-title-overlay-large {
@@ -2202,14 +2252,20 @@
   background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.9) 100%);
   padding: 12px;
   opacity: 0;
-  transform: translateY(8px);
-  transition: all 0.3s ease;
+  transform: translateY(8px) translateZ(0);
   text-align: center;
+  /* Hardware acceleration */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Only apply transitions on hover, not during scroll */
+  transition: none;
 }
 
 .movie-card-large:hover .poster-title-overlay-large {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) translateZ(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  will-change: opacity, transform;
 }
 
 .age-badge-large,

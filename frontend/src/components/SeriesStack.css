@@ -20,7 +20,6 @@
 }
 
 .series-stack-item {
-  transition: transform 0.3s ease, opacity 0.3s ease;
   width: 100%;
   position: absolute;
   /* Alignement en haut, puis descente de 2% de la taille originale (150% * 2% = 3%) */
@@ -28,20 +27,31 @@
   left: 50%;
   transform-origin: center center;
   height: 100%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) translateZ(0);
+  /* Hardware acceleration */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Only apply transitions on hover, not during scroll */
+  transition: none;
+}
+
+/* Apply transitions only when hovering over the stack */
+.series-stack:not(.expanded):hover .series-stack-item {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  will-change: transform;
 }
 
 /* Animation au survol : rotation passe de 4° à 6° pour les livres 2 et 3, et -1° pour le premier */
 .series-stack:not(.expanded):hover .series-stack-item:nth-child(1) {
-  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) rotate(-1deg) !important;
+  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) rotate(-1deg) translateZ(0) !important;
 }
 
 .series-stack:not(.expanded):hover .series-stack-item:nth-child(2) {
-  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) rotate(6deg) !important;
+  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) rotate(6deg) translateZ(0) !important;
 }
 
 .series-stack:not(.expanded):hover .series-stack-item:nth-child(3) {
-  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) rotate(-6deg) !important;
+  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) rotate(-6deg) translateZ(0) !important;
 }
 
 /* Les livres dans le stack doivent occuper toute la hauteur du container */

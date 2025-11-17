@@ -1,5 +1,10 @@
 .book-search {
   padding: 20px;
+  /* Scroll performance optimizations */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  /* Enable hardware acceleration */
+  transform: translateZ(0);
 }
 
 .books-results-header {
@@ -213,16 +218,32 @@
   gap: 20px;
   margin-top: 20px;
   position: relative;
+  /* Scroll performance optimizations */
+  contain: layout style paint;
+  transform: translateZ(0);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
+/* Only apply transitions when not scrolling - use will-change to hint browser */
 .book-grid > *:not(.series-stack.expanded) {
-  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  /* Remove transitions that trigger during scroll - only keep for interactions */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Only hint will-change when actually needed (on hover/expand) */
 }
 
-/* Quand un tas s'étend, les autres éléments restent visibles mais avec une transition douce */
-.book-grid:has(.series-stack.expanded) > *:not(.series-stack.expanded):not(.series-expansion) {
+/* Apply transitions only when a series is expanded (not during normal scroll) */
+.book-grid.has-expanded > *:not(.series-stack.expanded):not(.series-expansion) {
   opacity: 0.6;
   transition: opacity 0.4s ease-out;
+  will-change: opacity;
+}
+
+/* When no series is expanded, remove transitions to avoid scroll jank */
+.book-grid:not(.has-expanded) > *:not(.series-stack.expanded) {
+  transition: none;
 }
 
 /* Les livres dans l'expansion ne doivent pas être dimmed */
@@ -240,11 +261,14 @@
   background-color: #121212;
   border-radius: 8px;
   margin-bottom: 15px;
-  transition: background-color 0.2s;
+  /* Optimize hover transitions */
+  transform: translateZ(0);
+  transition: none;
 }
 
 .group-header:hover {
   background-color: #222222;
+  transition: background-color 0.2s ease;
 }
 
 .group-title {
@@ -256,11 +280,13 @@
 
 .group-chevron {
   margin-right: 8px;
-  transition: transform 0.2s;
+  transform: translateZ(0);
+  transition: none;
 }
 
 .group-chevron.expanded {
-  transform: rotate(180deg);
+  transform: rotate(180deg) translateZ(0);
+  transition: transform 0.2s ease;
 }
 
 .group-count {

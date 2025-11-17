@@ -1,17 +1,30 @@
 /* TMDB-style Movie Detail Card */
 .movie-detail-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
   background-color: rgba(0, 0, 0, 0.8);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
   z-index: 10002;
   padding: 10px;
   overflow: hidden; /* Remove scrollbar from overlay */
+  /* Ensure overlay is visible and clickable */
+  pointer-events: auto;
+  /* Ensure proper centering */
+  box-sizing: border-box;
+  /* Force flexbox centering */
+  flex-direction: row;
+  flex-wrap: nowrap;
+  /* Ensure overlay is always at viewport center, not document center */
+  margin: 0 !important;
+  /* Prevent any transform that might affect positioning */
+  transform: none !important;
 }
 
 .movie-detail-card {
@@ -19,14 +32,27 @@
   border-radius: 16px;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
   max-width: 1000px;
-  width: 100%;
+  width: 90%;
+  min-width: 300px;
   max-height: 95vh;
+  min-height: 200px;
   overflow-y: auto; /* Scrollbar appears inside the card */
   overflow-x: hidden; /* Prevent horizontal overflow */
-  position: relative; /* Positioning context for poster selector and overlay */
+  position: relative; /* Positioning context for poster selector and overlay - needed for absolute children */
   animation: slideIn 0.3s ease-out;
   color: #f8f9fa;
   border: 1px solid #3a3a3a;
+  /* Ensure card is visible and clickable */
+  display: block !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  z-index: 10003;
+  /* Ensure card renders properly */
+  will-change: transform, opacity;
+  /* Ensure card is centered in flex container */
+  flex-shrink: 0;
+  align-self: center;
+  /* Position relative is correct - it provides context for absolute children and doesn't interfere with flexbox */
 }
 
 @keyframes slideIn {
@@ -655,10 +681,22 @@
 @media (max-width: 768px) {
   .movie-detail-overlay {
     padding: 10px;
+    align-items: center; /* Keep centered on mobile */
+    padding-top: 10px;
+    padding-bottom: 10px;
+    width: 100vw;
+    height: 100vh;
   }
   
   .movie-detail-card {
     max-height: 95vh;
+    width: calc(100% - 20px);
+    /* Ensure card is visible on mobile */
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    margin: 0;
+    align-self: center;
   }
   
   .movie-detail-header {

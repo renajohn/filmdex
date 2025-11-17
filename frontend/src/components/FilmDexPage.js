@@ -310,12 +310,18 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const handleMovieClick = async (movieId) => {
     try {
       setLoadingDetails(true);
+      console.log('Loading movie details for ID:', movieId);
       const details = await apiService.getMovieDetails(movieId);
+      console.log('Movie details loaded:', details);
       setSelectedMovieDetails(details);
     } catch (err) {
+      console.error('Error loading movie details:', err);
       if (onShowAlert) {
         onShowAlert('Failed to load movie details: ' + err.message, 'danger');
       }
+      // Reset loading state on error
+      setLoadingDetails(false);
+      setSelectedMovieDetails(null);
     } finally {
       setLoadingDetails(false);
     }

@@ -111,8 +111,9 @@ const MovieThumbnail = ({ imdbLink, title, year, className = '', disableZoom = f
           alt={`${title} poster`}
           onError={handleImageError}
           onLoad={handleImageLoad}
-          onClick={handleThumbnailClick}
-          className={`thumbnail-image ${!disableZoom ? 'clickable' : ''}`}
+          onClick={!disableZoom ? handleThumbnailClick : undefined}
+          className={`thumbnail-image ${!disableZoom ? 'clickable' : 'no-pointer-events'}`}
+          style={disableZoom ? { pointerEvents: 'none' } : undefined}
         />
         {recommendedAge !== null && recommendedAge !== undefined && (
           <AgeDisplay age={recommendedAge} className="age-corner age-small" />
