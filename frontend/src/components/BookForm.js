@@ -6,7 +6,7 @@ import bookService from '../services/bookService';
 import CoverModal from './CoverModal';
 import './BookForm.css';
 
-const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline = false, onBookUpdated = null, defaultTitleStatus }) => {
+const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline = false, onBookUpdated = null, defaultTitleStatus, onShowAlert }) => {
   const fileInputRef = useRef(null);
   const ebookInputRef = useRef(null);
   const ownerInputRef = useRef(null);
@@ -1235,9 +1235,22 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
       await onSave(bookData);
     } catch (error) {
       console.error('Error saving book:', error);
-      setErrors({ submit: error.message || 'Failed to save book' });
-    } finally {
       setLoading(false);
+      // For duplicate book errors, show Bootstrap alert directly
+      const errorMessage = error.message || 'Failed to save book';
+      if (errorMessage.toLowerCase().includes('already exists')) {
+        // Show Bootstrap alert directly if onShowAlert is available
+        if (onShowAlert) {
+          onShowAlert(errorMessage, 'danger');
+        } else {
+          // Fallback: show error in form if onShowAlert is not available
+          setErrors({ submit: errorMessage });
+        }
+        // Don't set error state in form - alert is shown (or will be shown in form as fallback)
+        return;
+      }
+      // For other errors, show in form
+      setErrors({ submit: errorMessage });
     }
   };
 

@@ -6,7 +6,7 @@ import BookForm from './BookForm';
 import VolumeSelector from './VolumeSelector';
 import './AddBookDialog.css';
 
-const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAddError, templateBook, onAddBooksBatch, defaultTitleStatus }) => {
+const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAddError, templateBook, onAddBooksBatch, defaultTitleStatus, onShowAlert }) => {
   const [searchTab, setSearchTab] = useState('isbn'); // 'isbn' or 'title'
   const [searchQuery, setSearchQuery] = useState('');
   const [searchIsbn, setSearchIsbn] = useState('');
@@ -643,6 +643,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
         book={selectedBook}
         availableBooks={selectedBookGroup}
         defaultTitleStatus={defaultTitleStatus}
+        onShowAlert={onShowAlert}
         onSave={async (bookData) => {
           if (onAddStart) onAddStart();
           try {
@@ -654,7 +655,13 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
             handleBookAdded(createdBook);
             return createdBook;
           } catch (err) {
-            if (onAddError) onAddError(err);
+            // Handle error - show in Bootstrap alert via onAddError
+            // IMPORTANT: Call onAddError BEFORE re-throwing so the alert is shown
+            if (onAddError) {
+              onAddError(err);
+            }
+            // Re-throw so BookForm knows the save failed
+            // BookForm will catch this but won't re-throw for duplicate errors
             throw err;
           }
         }}

@@ -788,6 +788,7 @@ const BookSearch = forwardRef(({
         }}
         onAddBook={onAddBook}
         defaultTitleStatus={defaultTitleStatus}
+        onShowAlert={onShowAlert}
         onAddBooksBatch={async (books) => {
           try {
             // Ensure titleStatus is set for batch additions if defaultTitleStatus is provided
@@ -821,8 +822,14 @@ const BookSearch = forwardRef(({
         }}
         onAddError={(err) => {
           setAddingBook(false);
-          setAddError(err?.message || 'Failed to add book');
-          if (onShowAlert) onShowAlert('Failed to add book: ' + (err?.message || ''), 'danger');
+          // Don't set addError - we'll show it in Bootstrap alert instead
+          // Clear any existing error message
+          setAddError('');
+          // Use the error message directly (backend already provides clear messages)
+          const errorMessage = err?.message || 'Failed to add book';
+          if (onShowAlert) {
+            onShowAlert(errorMessage, 'danger');
+          }
         }}
         templateBook={templateBook}
       />
@@ -943,8 +950,14 @@ const BookSearch = forwardRef(({
           }}
           onAddError={(err) => {
             setAddingBook(false);
-            setAddError(err?.message || 'Failed to add book');
-            if (onShowAlert) onShowAlert('Failed to add book: ' + (err?.message || ''), 'danger');
+            // Use the error message directly (backend already provides clear messages)
+            const errorMessage = err?.message || 'Failed to add book';
+            // Don't set addError - we'll show it in Bootstrap alert instead
+            // Clear any existing error message
+            setAddError('');
+            if (onShowAlert) {
+              onShowAlert(errorMessage, 'danger');
+            }
           }}
         />
       )}
@@ -958,11 +971,6 @@ const BookSearch = forwardRef(({
         </div>
       )}
 
-      {addError && (
-        <div className="error-message">
-          {addError}
-        </div>
-      )}
 
       {showDeleteModal.show && (
         <div className="modal show" style={{ display: 'block', zIndex: 10210 }} tabIndex="-1">

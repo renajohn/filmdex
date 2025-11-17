@@ -75,7 +75,13 @@ const BookDexPage = forwardRef(({ searchCriteria }, ref) => {
       return createdBook;
     } catch (error) {
       console.error('Error adding book:', error);
-      showAlertMessage('Failed to add book: ' + error.message, 'danger');
+      // For duplicate book errors, don't show alert here - let onAddError handle it
+      // This ensures consistent error display via Bootstrap alert
+      const errorMessage = error.message || 'Failed to add book';
+      if (!errorMessage.toLowerCase().includes('already exists')) {
+        // Only show alert for non-duplicate errors
+        showAlertMessage('Failed to add book: ' + errorMessage, 'danger');
+      }
       throw error;
     }
   };
@@ -119,14 +125,31 @@ const BookDexPage = forwardRef(({ searchCriteria }, ref) => {
       />
 
       {/* Alert */}
-      {showAlert && (
+      {showAlert && alertMessage && (
         <div className={`alert alert-${alertType} alert-dismissible fade show position-fixed`} 
-             style={{ top: '20px', right: '20px', zIndex: 9999 }}>
+             style={{ 
+               top: '20px', 
+               right: '20px', 
+               zIndex: 99999, 
+               minWidth: '300px', 
+               maxWidth: '500px',
+               backdropFilter: 'blur(10px)',
+               WebkitBackdropFilter: 'blur(10px)',
+               backgroundColor: alertType === 'danger' 
+                 ? 'rgba(239, 68, 68, 0.85)' 
+                 : alertType === 'success'
+                 ? 'rgba(34, 197, 94, 0.85)'
+                 : 'rgba(59, 130, 246, 0.85)'
+             }}>
           {alertMessage}
           <button 
             type="button" 
             className="btn-close" 
-            onClick={() => setShowAlert(false)}
+            onClick={() => {
+              setShowAlert(false);
+              setAlertMessage('');
+            }}
+            aria-label="Close"
           ></button>
         </div>
       )}
