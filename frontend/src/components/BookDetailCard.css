@@ -12,9 +12,7 @@
   z-index: 10099 !important;
   width: 100vw !important;
   height: 100vh !important;
-  background-color: rgba(0, 0, 0, 0.8) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
   overflow: hidden !important;
   overscroll-behavior: none !important;
   touch-action: none !important;

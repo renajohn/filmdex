@@ -18,8 +18,7 @@ import {
   BsPlus,
   BsList,
   BsImage,
-  BsCollectionFill,
-  BsLayersHalf
+  BsCollectionFill
 } from 'react-icons/bs';
 // Note: We use popcorn emoji directly instead of an icon import
 import './FilmDexPage.css';
@@ -839,15 +838,6 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     setExpandedBoxSet(null);
   };
 
-  // Toggle stacking preference
-  const toggleStacking = () => {
-    const newValue = !stackEnabled;
-    setStackEnabled(newValue);
-    localStorage.setItem('filmdex-stack-enabled', newValue.toString());
-    // Close any expanded box set when toggling
-    setExpandedBoxSet(null);
-  };
-
   // Get Watch Next movies for banner (already sorted by API)
   const [watchNextMovies, setWatchNextMovies] = useState([]);
   
@@ -1028,15 +1018,24 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
               </button>
             )}
 
-            {/* Stack Toggle Button - Only show in large view mode */}
-            {viewMode === 'large' && (
-              <button
-                className={`stack-toggle-btn ${stackEnabled ? 'active' : ''}`}
-                onClick={toggleStacking}
-                title={stackEnabled ? "Disable box set stacking" : "Enable box set stacking"}
-              >
-                <BsLayersHalf />
-              </button>
+            {/* Stack Toggle - Only show in large view mode and when no grouping */}
+            {viewMode === 'large' && groupBy === 'none' && (
+              <div className="stack-toggle-container">
+                <span className="stack-toggle-label">Stack</span>
+                <label className="stack-toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={stackEnabled}
+                    onChange={(e) => {
+                      const newValue = e.target.checked;
+                      setStackEnabled(newValue);
+                      localStorage.setItem('filmdex-stack-enabled', newValue.toString());
+                      setExpandedBoxSet(null);
+                    }}
+                  />
+                  <span className="stack-toggle-slider"></span>
+                </label>
+              </div>
             )}
 
             {/* View Toggle Button */}
