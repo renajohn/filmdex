@@ -1,0 +1,372 @@
+.boxset-stack {
+  position: relative;
+  cursor: pointer;
+  width: 100%;
+  overflow: visible; /* Allow movies to fan out on hover */
+  display: flex;
+  flex-direction: column;
+}
+
+.boxset-stack.expanded {
+  z-index: 1065; /* Above backdrop (1060) but below popover (1070) */
+  position: relative;
+}
+
+.boxset-stack-container {
+  position: relative;
+  width: 100%;
+  /* Same height as MovieThumbnail in large view: poster aspect ratio (150%) */
+  padding-top: 150%; /* Same ratio as movie poster */
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+/* Box Set Title Overlay - appears on hover */
+.boxset-title-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.9) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 12px;
+  opacity: 0;
+  transform: translateY(8px) translateZ(0);
+  text-align: center;
+  z-index: 10;
+  /* Hardware acceleration */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Only apply transitions on hover, not during scroll */
+  transition: none;
+  pointer-events: none;
+}
+
+.boxset-stack:not(.expanded):hover .boxset-title-overlay {
+  opacity: 1;
+  transform: translateY(0) translateZ(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  will-change: opacity, transform;
+}
+
+/* Keep title visible when popover is open */
+.boxset-stack.expanded .boxset-title-overlay {
+  opacity: 1;
+  transform: translateY(0) translateZ(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  will-change: opacity, transform;
+}
+
+.boxset-title-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #eaeaea;
+  margin: 0;
+  line-height: 1.3;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.boxset-stack-item {
+  width: 100%;
+  position: absolute;
+  top: 53%;
+  left: 50%;
+  transform-origin: center center;
+  height: 100%;
+  transform: translate(-50%, -50%) translateZ(0);
+  /* Hardware acceleration */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Only apply transitions on hover, not during scroll */
+  transition: none;
+}
+
+/* Apply transitions only when hovering over the stack */
+.boxset-stack:not(.expanded):hover .boxset-stack-item {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  will-change: transform;
+}
+
+/* Animation on hover: rotation changes for fanning effect */
+.boxset-stack:not(.expanded):hover .boxset-stack-item:nth-child(1) {
+  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) rotate(-1deg) translateZ(0) !important;
+}
+
+.boxset-stack:not(.expanded):hover .boxset-stack-item:nth-child(2) {
+  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) rotate(6deg) translateZ(0) !important;
+}
+
+.boxset-stack:not(.expanded):hover .boxset-stack-item:nth-child(3) {
+  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) rotate(-6deg) translateZ(0) !important;
+}
+
+/* Keep fanned state when popover is open */
+.boxset-stack.expanded .boxset-stack-item {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  will-change: transform;
+}
+
+.boxset-stack.expanded .boxset-stack-item:nth-child(1) {
+  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) rotate(-1deg) translateZ(0) !important;
+}
+
+.boxset-stack.expanded .boxset-stack-item:nth-child(2) {
+  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) rotate(6deg) translateZ(0) !important;
+}
+
+.boxset-stack.expanded .boxset-stack-item:nth-child(3) {
+  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) rotate(-6deg) translateZ(0) !important;
+}
+
+/* Movies in the stack should occupy the full height of the container */
+.boxset-stack-item > .movie-thumbnail {
+  position: relative;
+  width: 92%; /* Reduced by 8% */
+  height: 92%; /* Reduced by 8% */
+  margin-bottom: 0;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.boxset-stack-item > .movie-thumbnail .thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+
+/* Ensure movie thumbnails in stack don't have hover transform when stacked */
+.boxset-stack:not(.expanded) .movie-thumbnail:hover {
+  transform: none;
+}
+
+.boxset-stack:not(.expanded) .movie-thumbnail .thumbnail-image {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Add depth effect to stacked movies */
+.boxset-stack-item:not(:first-child) .movie-thumbnail .thumbnail-image {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Box Set Count Badge - subtle pill on first poster */
+.boxset-count-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  z-index: 10;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Dark overlay backdrop when popover is open */
+.boxset-popover-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 1060; /* Bootstrap popover is 1070, so this sits just below it */
+  animation: fadeIn 0.2s ease-in;
+  cursor: pointer;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Box Set Expansion Popover Styles */
+.boxset-expansion-popover {
+  max-width: 95vw;
+  width: auto;
+  min-width: 700px;
+  border: none !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8) !important;
+  --bs-popover-bg: #1a1a1a;
+  z-index: 1070 !important;
+}
+
+.boxset-expansion-popover .popover-arrow::before {
+  display: none !important;
+}
+
+.boxset-expansion-popover .popover-arrow::after {
+  border-bottom-color: #1a1a1a !important;
+  border-top-color: transparent !important;
+  border-width: 0 0.5rem 0.5rem 0.5rem !important;
+}
+
+.boxset-expansion-popover .popover-header {
+  background-color: #1a1a1a;
+  border-bottom: none !important;
+  border-top: none !important;
+  padding: 12px 16px;
+}
+
+.boxset-expansion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.boxset-expansion-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #eaeaea;
+}
+
+.boxset-expansion-count {
+  font-size: 0.85rem;
+  color: #a3a3a3;
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.boxset-expansion-popover .popover-body {
+  background-color: #1a1a1a;
+  padding: 16px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.boxset-expansion-movies {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  width: 100%;
+}
+
+.boxset-expansion-movie-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  animation: spreadOut 0.3s ease-out forwards;
+  opacity: 0;
+  transform: scale(0.95) translateY(10px);
+  cursor: pointer;
+}
+
+@keyframes spreadOut {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.boxset-movie-poster-wrapper {
+  position: relative;
+  width: 100%;
+  transition: transform 0.2s ease;
+}
+
+.boxset-expansion-movie-item:hover .boxset-movie-poster-wrapper {
+  transform: translateY(-4px);
+}
+
+.boxset-expansion-movie-item .movie-thumbnail {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+/* Override hover behavior for popover - show badges on hover */
+.boxset-expansion-movie-item:hover .poster-badges-left {
+  opacity: 1;
+  transform: translateX(0) translateZ(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  will-change: opacity, transform;
+}
+
+.boxset-expansion-movie-item:hover .watch-next-badge-large {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.boxset-movie-info {
+  margin-top: 8px;
+}
+
+.boxset-movie-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #eaeaea;
+  margin: 0 0 4px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.3;
+}
+
+.boxset-movie-year {
+  font-size: 0.75rem;
+  color: #a3a3a3;
+  margin: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .boxset-expansion-movies {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .boxset-expansion-popover {
+    min-width: unset !important;
+    max-width: calc(100vw - 20px) !important;
+    width: calc(100vw - 20px) !important;
+  }
+  
+  .boxset-expansion-popover .popover-header {
+    padding: 10px 12px;
+  }
+  
+  .boxset-expansion-popover .popover-body {
+    padding: 12px;
+  }
+  
+  .boxset-expansion-movies {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .boxset-expansion-movies {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}
+

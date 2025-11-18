@@ -4,7 +4,7 @@ import PosterModal from './PosterModal';
 import AgeDisplay from './AgeDisplay';
 import './MovieThumbnail.css';
 
-const MovieThumbnail = ({ imdbLink, title, year, className = '', disableZoom = false, posterPath = null, recommendedAge = null }) => {
+const MovieThumbnail = ({ imdbLink, title, year, className = '', disableZoom = false, posterPath = null, recommendedAge = null, boxSetCount = null }) => {
   const [thumbnailUrl, setThumbnailUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -117,6 +117,11 @@ const MovieThumbnail = ({ imdbLink, title, year, className = '', disableZoom = f
         />
         {recommendedAge !== null && recommendedAge !== undefined && (
           <AgeDisplay age={recommendedAge} className="age-corner age-small" />
+        )}
+        {boxSetCount !== null && boxSetCount > 1 && (
+          <div className="boxset-count-badge">
+            {boxSetCount}
+          </div>
         )}
       </div>
       

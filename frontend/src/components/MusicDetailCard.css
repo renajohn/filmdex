@@ -15,6 +15,7 @@
 
 .modal-backdrop {
   z-index: 10099 !important;
+  /* backdrop-filter defined globally in App.css */
 }
 
 /* Music Detail Modal specific styling */

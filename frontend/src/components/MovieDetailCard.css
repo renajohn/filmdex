@@ -8,6 +8,8 @@
   width: 100vw !important;
   height: 100vh !important;
   background-color: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
@@ -777,6 +779,8 @@
   right: 0;
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -933,6 +937,8 @@
   right: 0;
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1674,6 +1680,8 @@
   right: 0;
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
   align-items: center;

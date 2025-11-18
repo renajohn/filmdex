@@ -144,15 +144,61 @@ const Movie = {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
       const sql = `
-        SELECT m.*
+        SELECT m.*,
+          MAX(CASE WHEN c.type = 'box_set' THEN mc.collection_order END) as collection_order,
+          GROUP_CONCAT(
+            CASE WHEN c.type = 'box_set' 
+            THEN c.id || ':' || c.name || ':' || c.type 
+            END
+          ) as box_set_collections,
+          GROUP_CONCAT(
+            CASE WHEN c.type = 'user' 
+            THEN c.name 
+            END
+          ) as user_collections
         FROM movies m
+        LEFT JOIN movie_collections mc ON m.id = mc.movie_id
+        LEFT JOIN collections c ON mc.collection_id = c.id
+        GROUP BY m.id
         ORDER BY m.title
       `;
       db.all(sql, (err, rows) => {
         if (err) {
           reject(err);
         } else {
-          resolve(rows);
+          const movies = rows.map(row => {
+            const movie = { ...row };
+            
+            // Parse box set collections info
+            if (movie.box_set_collections && movie.box_set_collections.trim() !== '') {
+              const boxSetData = movie.box_set_collections.split(',')[0].split(':');
+              if (boxSetData.length >= 2) {
+                movie.has_box_set = true;
+                movie.box_set_name = boxSetData[1];
+              } else {
+                movie.has_box_set = false;
+                movie.box_set_name = null;
+              }
+            } else {
+              movie.has_box_set = false;
+              movie.box_set_name = null;
+            }
+            // Remove the raw concatenated string
+            delete movie.box_set_collections;
+            
+            // Parse user collections info
+            if (movie.user_collections && movie.user_collections.trim() !== '') {
+              const collectionNames = movie.user_collections.split(',').filter(name => name && name.trim() !== '');
+              movie.collection_names = collectionNames;
+            } else {
+              movie.collection_names = [];
+            }
+            // Remove the raw concatenated string
+            delete movie.user_collections;
+            
+            return movie;
+          });
+          resolve(movies);
         }
       });
     });
@@ -163,6 +209,7 @@ const Movie = {
       const db = getDatabase();
       let sql = `
         SELECT m.*,
+          MAX(CASE WHEN c.type = 'box_set' THEN mc.collection_order END) as collection_order,
           GROUP_CONCAT(
             CASE WHEN c.type = 'box_set' 
             THEN c.id || ':' || c.name || ':' || c.type 
@@ -1103,6 +1150,7 @@ const Movie = {
       const db = getDatabase();
       const sql = `
         SELECT m.*,
+          MAX(CASE WHEN c.type = 'box_set' THEN mc.collection_order END) as collection_order,
           GROUP_CONCAT(
             CASE WHEN c.type = 'box_set' 
             THEN c.id || ':' || c.name || ':' || c.type 

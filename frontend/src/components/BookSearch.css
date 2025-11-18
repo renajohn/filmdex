@@ -234,17 +234,7 @@
   /* Only hint will-change when actually needed (on hover/expand) */
 }
 
-/* Apply transitions only when a series is expanded (not during normal scroll) */
-.book-grid.has-expanded > *:not(.series-stack.expanded):not(.series-expansion) {
-  opacity: 0.6;
-  transition: opacity 0.4s ease-out;
-  will-change: opacity;
-}
 
-/* When no series is expanded, remove transitions to avoid scroll jank */
-.book-grid:not(.has-expanded) > *:not(.series-stack.expanded) {
-  transition: none;
-}
 
 /* Les livres dans l'expansion ne doivent pas être dimmed */
 .series-expansion-books .book-thumbnail {
@@ -338,6 +328,8 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   flex-direction: column;
   align-items: center;

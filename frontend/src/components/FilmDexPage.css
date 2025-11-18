@@ -2023,6 +2023,8 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -2116,6 +2118,40 @@
 }
 
 .view-toggle-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Stack Toggle Button */
+.stack-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: #2d2d2d;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #aaa;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  margin-right: 8px;
+}
+
+.stack-toggle-btn:hover {
+  background: #3a3a3a;
+  border-color: #555;
+  color: #fff;
+}
+
+.stack-toggle-btn.active {
+  background: #fbbf24;
+  border-color: #fbbf24;
+  color: #1a1a1a;
+}
+
+.stack-toggle-btn svg {
   width: 18px;
   height: 18px;
 }

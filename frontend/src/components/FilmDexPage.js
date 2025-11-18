@@ -3,6 +3,7 @@ import { Dropdown } from 'react-bootstrap';
 import apiService from '../services/api';
 import MovieThumbnail from './MovieThumbnail';
 import MovieDetailCard from './MovieDetailCard';
+import BoxSetStack from './BoxSetStack';
 import { 
   BsFilter, 
   BsSortDown, 
@@ -17,7 +18,8 @@ import {
   BsPlus,
   BsList,
   BsImage,
-  BsCollectionFill
+  BsCollectionFill,
+  BsLayersHalf
 } from 'react-icons/bs';
 // Note: We use popcorn emoji directly instead of an icon import
 import './FilmDexPage.css';
@@ -42,6 +44,15 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     const savedViewMode = localStorage.getItem('filmdex-view-mode');
     return savedViewMode === 'large' ? 'large' : 'compact';
   });
+
+  // Load box set stacking preference from localStorage, default to true
+  const [stackEnabled, setStackEnabled] = useState(() => {
+    const savedStackPref = localStorage.getItem('filmdex-stack-enabled');
+    return savedStackPref === null ? true : savedStackPref === 'true';
+  });
+
+  // Track expanded box set
+  const [expandedBoxSet, setExpandedBoxSet] = useState(null);
 
   const getCombinedScore = (movie) => {
     const ratings = [];
@@ -799,6 +810,44 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     }
   };
 
+  // Group movies by box set for stacking
+  const groupMoviesByBoxSet = (moviesToGroup) => {
+    const boxSetMap = new Map();
+    const standaloneMovies = [];
+
+    moviesToGroup.forEach(movie => {
+      if (movie.has_box_set && movie.box_set_name) {
+        if (!boxSetMap.has(movie.box_set_name)) {
+          boxSetMap.set(movie.box_set_name, []);
+        }
+        boxSetMap.get(movie.box_set_name).push(movie);
+      } else {
+        standaloneMovies.push(movie);
+      }
+    });
+
+    return { boxSetMap, standaloneMovies };
+  };
+
+  // Toggle box set stack expansion
+  const toggleBoxSetExpansion = (boxSetName) => {
+    setExpandedBoxSet(expandedBoxSet === boxSetName ? null : boxSetName);
+  };
+
+  // Close box set expansion
+  const handleCloseBoxSetExpansion = () => {
+    setExpandedBoxSet(null);
+  };
+
+  // Toggle stacking preference
+  const toggleStacking = () => {
+    const newValue = !stackEnabled;
+    setStackEnabled(newValue);
+    localStorage.setItem('filmdex-stack-enabled', newValue.toString());
+    // Close any expanded box set when toggling
+    setExpandedBoxSet(null);
+  };
+
   // Get Watch Next movies for banner (already sorted by API)
   const [watchNextMovies, setWatchNextMovies] = useState([]);
   
@@ -979,6 +1028,17 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
               </button>
             )}
 
+            {/* Stack Toggle Button - Only show in large view mode */}
+            {viewMode === 'large' && (
+              <button
+                className={`stack-toggle-btn ${stackEnabled ? 'active' : ''}`}
+                onClick={toggleStacking}
+                title={stackEnabled ? "Disable box set stacking" : "Enable box set stacking"}
+              >
+                <BsLayersHalf />
+              </button>
+            )}
+
             {/* View Toggle Button */}
             <div className="view-toggle-container">
               <button
@@ -1062,7 +1122,121 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
             {/* Movies Grid - Grouped or Ungrouped */}
             {groupBy === 'none' ? (
               <div className={`movies-grid ${viewMode === 'large' ? 'movies-grid-large' : ''} ${sortLoading ? 'sort-loading' : ''}`}>
-                {movies && movies.map((movie) => viewMode === 'large' ? renderMovieCardLarge(movie) : renderMovieCard(movie))}
+                {(() => {
+                  // Check if box set stacking should be used
+                  const hasActiveFilter = searchCriteria?.searchText?.trim();
+                  const shouldUseStack = stackEnabled && viewMode === 'large' && !hasActiveFilter;
+
+                  if (shouldUseStack) {
+                    // Group movies by box set
+                    const { boxSetMap, standaloneMovies } = groupMoviesByBoxSet(movies);
+                    
+                    // Create a combined list for sorting
+                    const combinedItems = [];
+                    
+                    // Add box sets (represented by their first movie for sorting)
+                    boxSetMap.forEach((boxSetMovies, boxSetName) => {
+                      // Sort movies within box set by collection_order to get the first movie
+                      const sortedMovies = [...boxSetMovies].sort((a, b) => {
+                        const orderA = a.collection_order != null ? Number(a.collection_order) : 999999;
+                        const orderB = b.collection_order != null ? Number(b.collection_order) : 999999;
+                        return orderA - orderB;
+                      });
+                      
+                      combinedItems.push({
+                        type: 'boxset',
+                        boxSetName,
+                        movies: boxSetMovies,
+                        sortedMovies,
+                        representativeMovie: sortedMovies[0], // Use first movie for sorting
+                      });
+                    });
+                    
+                    // Add standalone movies
+                    standaloneMovies.forEach(movie => {
+                      combinedItems.push({
+                        type: 'movie',
+                        movie,
+                      });
+                    });
+                    
+                    // Sort the combined list according to current sortBy
+                    combinedItems.sort((a, b) => {
+                      const movieA = a.type === 'boxset' ? a.representativeMovie : a.movie;
+                      const movieB = b.type === 'boxset' ? b.representativeMovie : b.movie;
+                      
+                      switch (sortBy) {
+                        case 'title':
+                          // For box sets, use box set name; for movies, use title
+                          const titleA = a.type === 'boxset' ? a.boxSetName : movieA.title;
+                          const titleB = b.type === 'boxset' ? b.boxSetName : movieB.title;
+                          return titleA.localeCompare(titleB);
+                        case 'titleReverse':
+                          const titleRevA = a.type === 'boxset' ? a.boxSetName : movieA.title;
+                          const titleRevB = b.type === 'boxset' ? b.boxSetName : movieB.title;
+                          return titleRevB.localeCompare(titleRevA);
+                        case 'lastAddedFirst':
+                          return new Date(movieB.acquired_date || movieB.created_at || movieB.updated_at) - 
+                                 new Date(movieA.acquired_date || movieA.created_at || movieA.updated_at);
+                        case 'lastAddedLast':
+                          return new Date(movieA.acquired_date || movieA.created_at || movieA.updated_at) - 
+                                 new Date(movieB.acquired_date || movieB.created_at || movieB.updated_at);
+                        case 'rating':
+                          const ratingA = getCombinedScore(movieA) || 0;
+                          const ratingB = getCombinedScore(movieB) || 0;
+                          return ratingB - ratingA;
+                        case 'ratingLowest':
+                          const ratingLowestA = getCombinedScore(movieA) || 0;
+                          const ratingLowestB = getCombinedScore(movieB) || 0;
+                          return ratingLowestA - ratingLowestB;
+                        case 'ageAsc':
+                          const ageA = movieA.recommended_age ?? 999;
+                          const ageB = movieB.recommended_age ?? 999;
+                          return ageA - ageB;
+                        case 'ageDesc':
+                          const ageDescA = movieA.recommended_age ?? -1;
+                          const ageDescB = movieB.recommended_age ?? -1;
+                          return ageDescB - ageDescA;
+                        default:
+                          return 0;
+                      }
+                    });
+                    
+                    // Render the sorted combined items
+                    const items = [];
+                    combinedItems.forEach(item => {
+                      if (item.type === 'boxset') {
+                        if (item.movies.length > 1) {
+                          const isExpanded = expandedBoxSet === item.boxSetName;
+                          items.push(
+                            <BoxSetStack
+                              key={`boxset-${item.boxSetName}`}
+                              boxSetName={item.boxSetName}
+                              movies={item.movies}
+                              onMovieClick={handleMovieClick}
+                              isExpanded={isExpanded}
+                              onToggleExpanded={() => toggleBoxSetExpansion(item.boxSetName)}
+                              sortedMovies={item.sortedMovies}
+                              onClose={handleCloseBoxSetExpansion}
+                              watchNextMovies={watchNextMovies}
+                              onWatchNextToggle={handleWatchNextToggle}
+                            />
+                          );
+                        } else {
+                          // Single movie box set, render normally
+                          items.push(renderMovieCardLarge(item.movies[0]));
+                        }
+                      } else {
+                        items.push(renderMovieCardLarge(item.movie));
+                      }
+                    });
+
+                    return items;
+                  } else {
+                    // Normal rendering without stacking
+                    return movies && movies.map((movie) => viewMode === 'large' ? renderMovieCardLarge(movie) : renderMovieCard(movie));
+                  }
+                })()}
               </div>
             ) : (
               <div className={`movies-groups ${sortLoading || groupLoading ? 'sort-loading' : ''}`}>
