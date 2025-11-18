@@ -204,12 +204,19 @@
   min-width: 700px;
   border: none !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8) !important;
+  --bs-popover-header-bg: # !important;
   --bs-popover-bg: #1a1a1a;
   z-index: 1070 !important;
 }
 
+.boxset-expansion-popover .popover-arrow {
+  transform: translateY(-1px);
+}
+
 .boxset-expansion-popover .popover-arrow::before {
-  display: none !important;
+  border-bottom-color: rgba(0, 0, 0, 0.3) !important;
+  border-top-color: transparent !important;
+  border-width: 0 0.6rem 0.6rem 0.6rem !important;
 }
 
 .boxset-expansion-popover .popover-arrow::after {

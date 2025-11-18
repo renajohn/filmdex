@@ -16,8 +16,6 @@ import {
   BsGrid3X3Gap,
   BsX,
   BsPlus,
-  BsList,
-  BsImage,
   BsCollectionFill
 } from 'react-icons/bs';
 // Note: We use popcorn emoji directly instead of an icon import
@@ -37,12 +35,6 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedMovieDetails, setSelectedMovieDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  
-  // Load view mode from localStorage, default to 'compact'
-  const [viewMode, setViewMode] = useState(() => {
-    const savedViewMode = localStorage.getItem('filmdex-view-mode');
-    return savedViewMode === 'large' ? 'large' : 'compact';
-  });
 
   // Load box set stacking preference from localStorage, default to true
   const [stackEnabled, setStackEnabled] = useState(() => {
@@ -337,134 +329,6 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     }
   };
 
-
-  // Reusable movie card renderer (compact view)
-  const renderMovieCard = (movie) => {
-    return (
-      <div key={movie.id} className="movie-card-compact" onClick={() => handleMovieClick(movie.id)}>
-        <div className="movie-poster-compact">
-          <MovieThumbnail 
-            imdbLink={movie.imdb_id ? `https://www.imdb.com/title/${movie.imdb_id}` : movie.imdb_link} 
-            title={movie.title}
-            year={movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year}
-            className="movie-thumbnail-compact"
-            disableZoom={true}
-            posterPath={movie.poster_path}
-            recommendedAge={null}
-          />
-          <div className="poster-info-hover">
-            {movie.recommended_age != null && (
-              <span className="age-badge-hover">{movie.recommended_age}+</span>
-            )}
-            {movie.format && (
-              <span className="format-badge-hover">
-                {movie.format === 'Blu-ray 4K' ? '4K' : 
-                 movie.format === 'Blu-ray' ? 'BR' : 
-                 movie.format === 'DVD' ? 'DVD' : 
-                 movie.format === 'Digital' ? 'DIG' : 
-                 movie.format.substring(0, 3).toUpperCase()}
-              </span>
-            )}
-          </div>
-          {!searchCriteria?.searchText && (
-            <button 
-              className={`watch-next-badge-toggle ${watchNextMovies.some(wm => wm.id === movie.id) ? 'active' : ''}`}
-              onClick={(e) => handleWatchNextToggle(e, movie)}
-              title={watchNextMovies.some(wm => wm.id === movie.id) ? "Remove from Watch Next" : "Add to Watch Next"}
-              aria-label="Toggle Watch Next"
-            >
-              <svg 
-                className="star-icon" 
-                viewBox="0 0 24 24" 
-                fill={watchNextMovies.some(wm => wm.id === movie.id) ? "currentColor" : "none"}
-                stroke="currentColor"
-              >
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </svg>
-            </button>
-          )}
-        </div>
-        
-        <div className="movie-info-compact">
-          <div className="movie-header-compact">
-            <h4 title={`${movie.title} (${movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year || ''})`}>
-              <span className="movie-title-text">{movie.title}</span>
-              {(movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year) && 
-                <span className="movie-year-inline"> ({movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year})</span>
-              }
-            </h4>
-            {(() => {
-              const collectionParts = [];
-              
-              // Priority 1: Box set
-              if (movie.has_box_set && movie.box_set_name) {
-                collectionParts.push(`${movie.box_set_name} box set`);
-              }
-              
-              // Priority 2: User collections
-              if (movie.collection_names && movie.collection_names.length > 0) {
-                const collectionsText = movie.collection_names.map(name => `${name} collection`).join(', ');
-                collectionParts.push(collectionsText);
-              }
-              
-              if (collectionParts.length > 0) {
-                return (
-                  <div className="movie-collection-info" title={`Part of ${collectionParts.join(', ')}`}>
-                    Part of {collectionParts.join(', ')}
-            </div>
-                );
-              }
-              return null;
-            })()}
-          </div>
-          
-          <div className="movie-content-compact">
-            <div className="movie-details-left">
-              {movie.director && (
-                <div className="detail-row">
-                  <span className="detail-label">Directed by</span>
-                  <span className="detail-value">{movie.director}</span>
-                </div>
-              )}
-              
-              {movie.genres && movie.genres.length > 0 && (
-                <div className="detail-row">
-                  <span className="detail-label">Genres</span>
-                  <span className="detail-value">{movie.genres.join(', ')}</span>
-                </div>
-              )}
-            </div>
-            
-            <div className="movie-details-center">
-              {movie.runtime && (
-                <div className="detail-row">
-                  <span className="detail-label">Runtime</span>
-                  <span className="detail-value">{movie.runtime}</span>
-                </div>
-              )}
-            </div>
-            
-            <div className="movie-details-right">
-              {(() => {
-                const combinedScore = getCombinedScore(movie);
-                if (combinedScore) {
-                  return (
-                    <div className="detail-row">
-                      <span className="detail-label">Score</span>
-                      <span className="detail-value score-value" style={{ color: getRatingColor(combinedScore, 10) }}>
-                        {combinedScore.toFixed(1)}/10
-                      </span>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   // Large poster view renderer
   const renderMovieCardLarge = (movie) => {
@@ -1018,8 +882,8 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
               </button>
             )}
 
-            {/* Stack Toggle - Only show in large view mode and when no grouping */}
-            {viewMode === 'large' && groupBy === 'none' && (
+            {/* Stack Toggle - Only show when no grouping */}
+            {groupBy === 'none' && (
               <div className="stack-toggle-container">
                 <span className="stack-toggle-label">Stack</span>
                 <label className="stack-toggle-switch">
@@ -1037,30 +901,6 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                 </label>
               </div>
             )}
-
-            {/* View Toggle Button */}
-            <div className="view-toggle-container">
-              <button
-                className={`view-toggle-btn ${viewMode === 'compact' ? 'active' : ''}`}
-                onClick={() => {
-                  setViewMode('compact');
-                  localStorage.setItem('filmdex-view-mode', 'compact');
-                }}
-                title="Compact View"
-              >
-                <BsList />
-              </button>
-              <button
-                className={`view-toggle-btn ${viewMode === 'large' ? 'active' : ''}`}
-                onClick={() => {
-                  setViewMode('large');
-                  localStorage.setItem('filmdex-view-mode', 'large');
-                }}
-                title="Large Poster View"
-              >
-                <BsImage />
-              </button>
-            </div>
 
             {/* Add Movie Button */}
             <button 
@@ -1120,11 +960,11 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           <>
             {/* Movies Grid - Grouped or Ungrouped */}
             {groupBy === 'none' ? (
-              <div className={`movies-grid ${viewMode === 'large' ? 'movies-grid-large' : ''} ${sortLoading ? 'sort-loading' : ''}`}>
+              <div className={`movies-grid movies-grid-large ${sortLoading ? 'sort-loading' : ''}`}>
                 {(() => {
                   // Check if box set stacking should be used
                   const hasActiveFilter = searchCriteria?.searchText?.trim();
-                  const shouldUseStack = stackEnabled && viewMode === 'large' && !hasActiveFilter;
+                  const shouldUseStack = stackEnabled && !hasActiveFilter;
 
                   if (shouldUseStack) {
                     // Group movies by box set
@@ -1233,7 +1073,7 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                     return items;
                   } else {
                     // Normal rendering without stacking
-                    return movies && movies.map((movie) => viewMode === 'large' ? renderMovieCardLarge(movie) : renderMovieCard(movie));
+                    return movies && movies.map((movie) => renderMovieCardLarge(movie));
                   }
                 })()}
               </div>
@@ -1280,8 +1120,8 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                         </div>
                         
                         {isExpanded && (
-                          <div className={`movies-grid ${viewMode === 'large' ? 'movies-grid-large' : ''}`}>
-                            {sortedGroupMovies.map((movie) => viewMode === 'large' ? renderMovieCardLarge(movie) : renderMovieCard(movie))}
+                          <div className="movies-grid movies-grid-large">
+                            {sortedGroupMovies.map((movie) => renderMovieCardLarge(movie))}
                           </div>
                         )}
                       </div>
