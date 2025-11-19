@@ -11,7 +11,8 @@ import {
   BsChevronDown, 
   BsMusicNote,
   BsGrid3X3Gap,
-  BsPlus
+  BsPlus,
+  BsX
 } from 'react-icons/bs';
 import './MusicSearch.css';
 
@@ -50,6 +51,7 @@ const MusicSearch = forwardRef(({
   const previousSearchTextRef = useRef('');
   const navigate = useNavigate();
   const location = useLocation();
+  const [listenNextAlbums, setListenNextAlbums] = useState([]);
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
@@ -72,6 +74,21 @@ const MusicSearch = forwardRef(({
     loadCds();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
+
+  // Load Listen Next albums
+  const refreshListenNextAlbums = useCallback(async () => {
+    try {
+      const albums = await musicService.getListenNextAlbums();
+      setListenNextAlbums(albums);
+    } catch (error) {
+      console.warn('Failed to load Listen Next albums:', error);
+      setListenNextAlbums([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshListenNextAlbums();
+  }, [refreshTrigger, refreshListenNextAlbums]);
 
   // Handle search from App.js
   useEffect(() => {
@@ -468,6 +485,46 @@ const MusicSearch = forwardRef(({
     }
   };
 
+  const handleListenNextToggle = async (e, album) => {
+    e.stopPropagation(); // Prevent opening album details
+    
+    // Check if album is currently in Listen Next
+    const isCurrentlyInListenNext = listenNextAlbums.some(a => a.id === album.id);
+    const isLastAlbum = isCurrentlyInListenNext && listenNextAlbums.length === 1;
+    
+    // Handle removal animation in background (non-blocking)
+    if (isCurrentlyInListenNext) {
+      const cardElement = e.currentTarget.closest('.listen-next-poster-card');
+      if (cardElement) {
+        cardElement.classList.add('removing');
+      }
+      
+      // If this is the last album, also animate the banner closing
+      if (isLastAlbum) {
+        const bannerElement = document.querySelector('.listen-next-banner');
+        if (bannerElement) {
+          bannerElement.classList.add('closing');
+        }
+      }
+    }
+    
+    // Then make the API call
+    try {
+      await musicService.toggleListenNext(album.id);
+      
+      // Refresh Listen Next albums after successful toggle
+      const updatedListenNextAlbums = await musicService.getListenNextAlbums();
+      setListenNextAlbums(updatedListenNextAlbums);
+      
+    } catch (error) {
+      console.error('Error toggling listen next:', error);
+      
+      if (onShowAlert) {
+        onShowAlert('Failed to update Listen Next status', 'danger');
+      }
+    }
+  };
+
 
   const renderCdGrid = () => {
     if (loading) {
@@ -528,6 +585,8 @@ const MusicSearch = forwardRef(({
               onClick={() => handleCdClick(cd.id)}
               onEdit={() => handleEditCd(cd)}
               onDelete={() => setShowDeleteModal({ show: true, albumId: cd.id })}
+              onListenNextChange={refreshListenNextAlbums}
+              isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
             />
           ))}
         </div>
@@ -567,6 +626,8 @@ const MusicSearch = forwardRef(({
                       onClick={() => handleCdClick(cd.id)}
                       onEdit={() => handleEditCd(cd)}
                       onDelete={() => setShowDeleteModal({ show: true, albumId: cd.id })}
+                      onListenNextChange={refreshListenNextAlbums}
+                      isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
                     />
                   ))}
                 </div>
@@ -601,8 +662,71 @@ const MusicSearch = forwardRef(({
     { value: 'quality', label: 'Group by Quality' }
   ];
 
+  // Helper function to get cover URL
+  const getCoverUrl = (coverPath) => {
+    if (!coverPath) return null;
+    return musicService.getImageUrl(coverPath);
+  };
+
   return (
     <div className="music-search">
+      {/* Listen Next Banner */}
+      {listenNextAlbums.length > 0 && !searchCriteria?.searchText && (
+        <div className="listen-next-banner">
+          <div className="listen-next-banner-header">
+            <div className="banner-title-section">
+              <div className="banner-headphone-icon">🎧</div>
+              <h2>Listen Next</h2>
+              <span className="listen-next-count">{listenNextAlbums.length} {listenNextAlbums.length === 1 ? 'album' : 'albums'}</span>
+            </div>
+          </div>
+          <div className="listen-next-carousel">
+            <div className="carousel-track">
+              {listenNextAlbums.map((album) => (
+                <div 
+                  key={album.id} 
+                  className="listen-next-poster-card"
+                >
+                  <button
+                    className="remove-from-listen-next"
+                    onClick={(e) => handleListenNextToggle(e, album)}
+                    title="Remove from Listen Next"
+                    aria-label="Remove from Listen Next"
+                  >
+                    <BsX size={20} />
+                  </button>
+                  <div 
+                    className="poster-card-image"
+                    onClick={() => handleCdClick(album.id)}
+                  >
+                    {album.cover ? (
+                      <img 
+                        src={getCoverUrl(album.cover)}
+                        alt={album.title}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.parentElement.classList.add('no-cover');
+                        }}
+                      />
+                    ) : (
+                      <div className="poster-card-placeholder">
+                        <BsMusicNote size={40} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="poster-card-info">
+                    <h3 className="poster-card-title" title={album.title}>{album.title}</h3>
+                    <p className="poster-card-artist" title={Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}>
+                      {Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Results Header with Controls */}
       <div className="cds-results">
         <div className="cds-results-header">
@@ -788,6 +912,7 @@ const MusicSearch = forwardRef(({
             }
           }}
           onSearch={updateSearchViaUrl}
+          onListenNextChange={refreshListenNextAlbums}
         />
       )}
 

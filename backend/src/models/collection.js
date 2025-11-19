@@ -198,6 +198,32 @@ const Collection = {
     });
   },
 
+  // Get albums in a collection
+  getAlbums: (collectionId) => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const Album = require('./album');
+      const sql = `
+        SELECT a.*, ac.collection_order
+        FROM albums a
+        JOIN album_collections ac ON a.id = ac.album_id
+        WHERE ac.collection_id = ?
+        ORDER BY 
+          CASE WHEN ac.collection_order IS NOT NULL THEN ac.collection_order ELSE 999999 END,
+          a.release_year ASC,
+          a.title ASC
+      `;
+      
+      db.all(sql, [collectionId], (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve((rows || []).map(Album.formatRow));
+        }
+      });
+    });
+  },
+
   // Get collection count for a movie
   getMovieCollectionCount: (movieId) => {
     return new Promise((resolve, reject) => {
@@ -265,6 +291,20 @@ const Collection = {
           db.run(`
             INSERT OR IGNORE INTO collections (name, type, is_system, created_at, updated_at)
             VALUES ('Watch Next', 'watch_next', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          `, (err) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        });
+        
+        // Create Listen Next system collection if it doesn't exist
+        await new Promise((resolve, reject) => {
+          db.run(`
+            INSERT OR IGNORE INTO collections (name, type, is_system, created_at, updated_at)
+            VALUES ('Listen Next', 'listen_next', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
           `, (err) => {
             if (err) {
               reject(err);

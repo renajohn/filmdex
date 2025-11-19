@@ -216,6 +216,8 @@ app.post('/api/music/release/:releaseId', musicController.addAlbumFromMusicBrain
 app.post('/api/music/barcode/:barcode', musicController.addAlbumByBarcode);
 app.post('/api/music/migrate/resize-covers', musicController.resizeAllAlbumCovers);
 app.get('/api/music/albums/:id/apple-music', musicController.getAppleMusicUrl);
+app.put('/api/music/albums/:id/listen-next', musicController.toggleListenNext);
+app.get('/api/collections/listen-next/albums', musicController.getListenNextAlbums);
 
 // Book routes
 app.get('/api/books', bookController.getAllBooks);

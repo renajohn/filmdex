@@ -3,15 +3,18 @@ import { Modal, Button, Row, Col, Badge } from 'react-bootstrap';
 import { BsPencil, BsTrash, BsMusicNote, BsCalendar, BsFlag, BsDisc, BsApple } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
+import ListenNextToggle from './ListenNextToggle';
 import './MusicDetailCard.css';
 
-const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
+const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch, onListenNextChange }) => {
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [coverModalData, setCoverModalData] = useState({ coverUrl: '', title: '', artist: '', coverType: '' });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const deleteBtnRef = React.useRef(null);
   const [openingApple, setOpeningApple] = useState(false);
   const [appleUrl, setAppleUrl] = useState(null);
+  const [isInListenNext, setIsInListenNext] = useState(false);
+  const [togglingListenNext, setTogglingListenNext] = useState(false);
 
   // Only initialize from an already-cached Apple link; do not resolve automatically on open
   useEffect(() => {
@@ -19,6 +22,22 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
     const isAppleLink = typeof cached === 'string' && /https?:\/\/(music|itunes)\.apple\.com\//.test(cached);
     setAppleUrl(isAppleLink ? cached : null);
   }, [cd?.id, cd?.urls?.appleMusic]);
+
+  // Load Listen Next status
+  useEffect(() => {
+    const loadListenNextStatus = async () => {
+      try {
+        const listenNextAlbums = await musicService.getListenNextAlbums();
+        setIsInListenNext(listenNextAlbums.some(album => album.id === cd.id));
+      } catch (error) {
+        console.error('Error loading Listen Next status:', error);
+      }
+    };
+    
+    if (cd?.id) {
+      loadListenNextStatus();
+    }
+  }, [cd?.id]);
 
   const handleDelete = () => {
     if (!confirmDelete) {
@@ -95,6 +114,24 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
         coverType: coverType
       });
       setShowCoverModal(true);
+    }
+  };
+
+  const handleListenNextToggle = async () => {
+    if (togglingListenNext) return;
+    
+    setTogglingListenNext(true);
+    try {
+      await musicService.toggleListenNext(cd.id);
+      setIsInListenNext(!isInListenNext);
+      // Refresh the listen next banner immediately
+      if (onListenNextChange) {
+        onListenNextChange();
+      }
+    } catch (error) {
+      console.error('Error toggling Listen Next:', error);
+    } finally {
+      setTogglingListenNext(false);
     }
   };
 
@@ -665,6 +702,16 @@ const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch }) => {
               Open in Apple Music
             </>
           )}
+        </Button>
+        <Button 
+          variant={isInListenNext ? "warning" : "outline-warning"}
+          onClick={handleListenNextToggle}
+          disabled={togglingListenNext}
+        >
+          <span style={{ fontSize: '16px', marginRight: '4px' }}>
+            {isInListenNext ? '🎧' : '🎧'}
+          </span>
+          {isInListenNext ? 'Remove from Listen Next' : 'Add to Listen Next'}
         </Button>
         {onEdit && (
           <Button variant="outline-primary" onClick={onEdit}>

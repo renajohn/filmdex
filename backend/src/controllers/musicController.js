@@ -863,6 +863,31 @@ const musicController = {
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
+  },
+
+  // Toggle Listen Next for an album
+  toggleListenNext: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const Album = require('../models/album');
+      const result = await Album.toggleListenNext(id);
+      res.json(result);
+    } catch (error) {
+      logger.error('Error toggling listen_next:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Get Listen Next albums
+  getListenNextAlbums: async (req, res) => {
+    try {
+      const musicCollectionService = require('../services/musicCollectionService');
+      const albums = await musicCollectionService.getListenNextAlbums();
+      res.json(albums);
+    } catch (error) {
+      logger.error('Error getting Listen Next albums:', error);
+      res.status(500).json({ error: error.message });
+    }
   }
 };
 

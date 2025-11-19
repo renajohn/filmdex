@@ -543,6 +543,36 @@ class MusicService {
     }
     return await response.blob();
   }
+
+  async toggleListenNext(albumId) {
+    try {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/music/albums/${albumId}/listen-next`, {
+        method: 'PUT',
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error toggling listen next:', error);
+      throw error;
+    }
+  }
+
+  async getListenNextAlbums() {
+    try {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/collections/listen-next/albums`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching listen next albums:', error);
+      throw error;
+    }
+  }
 }
 
 const musicServiceInstance = new MusicService();

@@ -701,6 +701,54 @@ const Album = {
         }
       });
     });
+  },
+
+  // Toggle Listen Next collection membership
+  toggleListenNext: (id) => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const db = getDatabase();
+        const Collection = require('./collection');
+        const AlbumCollection = require('./albumCollection');
+        
+        // Get the Listen Next system collection
+        const listenNextCollection = await Collection.findByType('listen_next');
+        if (!listenNextCollection) {
+          throw new Error('Listen Next collection not found');
+        }
+        
+        // Check if album is already in Listen Next
+        const existing = await AlbumCollection.findByAlbumAndCollection(id, listenNextCollection.id);
+        
+        if (existing) {
+          // Remove from Listen Next
+          await new Promise((resolve, reject) => {
+            db.run('DELETE FROM album_collections WHERE id = ?', [existing.id], function(err) {
+              if (err) {
+                reject(err);
+              } else {
+                resolve();
+              }
+            });
+          });
+          
+          resolve({ id });
+        } else {
+          // Add to Listen Next at the end
+          const position = await AlbumCollection.getNextOrder(listenNextCollection.id);
+          
+          await AlbumCollection.create({
+            album_id: id,
+            collection_id: listenNextCollection.id,
+            collection_order: position
+          });
+          
+          resolve({ id });
+        }
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 };
 

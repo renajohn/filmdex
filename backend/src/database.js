@@ -44,6 +44,7 @@ const initDatabase = async () => {
           const MovieCollection = require('./models/movieCollection');
           const Album = require('./models/album');
           const Track = require('./models/track');
+          const AlbumCollection = require('./models/albumCollection');
           const Book = require('./models/book');
           const BookComment = require('./models/bookComment');
           
@@ -57,6 +58,7 @@ const initDatabase = async () => {
           await MovieCollection.createTable();
           await Album.createTable();
           await Track.createTable();
+          await AlbumCollection.createTable();
           await Book.createTable();
           await BookComment.createTable();
           

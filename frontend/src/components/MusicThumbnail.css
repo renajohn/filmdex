@@ -181,3 +181,46 @@
   }
 }
 
+/* Listen Next Toggle on Thumbnail */
+.thumbnail-listen-next-toggle {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  z-index: 10;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.6));
+  backdrop-filter: blur(8px);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Show toggle when active (in listen next) */
+.thumbnail-listen-next-toggle .listen-next-toggle.active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.thumbnail-listen-next-toggle:has(.listen-next-toggle.active) {
+  opacity: 1;
+  transform: scale(1);
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(245, 158, 11, 0.3));
+  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.5);
+}
+
+.music-thumbnail:hover .thumbnail-listen-next-toggle {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.thumbnail-listen-next-toggle:hover {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.2));
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
+}
+

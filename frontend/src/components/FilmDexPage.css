@@ -141,8 +141,8 @@
 .carousel-track {
   display: flex;
   gap: 20px;
-  padding: 12px 4px 20px;
-  min-height: 305px;
+  padding: 14px 4px;
+  min-height: 200px;
 }
 
 .watch-next-poster-card {

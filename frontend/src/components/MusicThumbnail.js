@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dropdown } from 'react-bootstrap';
 import { BsMusicNote, BsThreeDots, BsApple, BsPencil, BsTrash } from 'react-icons/bs';
 import musicService from '../services/musicService';
+import ListenNextToggle from './ListenNextToggle';
 import './MusicThumbnail.css';
 
-const MusicThumbnail = ({ cd, onClick, onEdit, onDelete, disableMenu = false }) => {
+const MusicThumbnail = ({ cd, onClick, onEdit, onDelete, disableMenu = false, onListenNextChange, isInListenNext: isInListenNextProp }) => {
   const [openingApple, setOpeningApple] = useState(false);
+  const [togglingListenNext, setTogglingListenNext] = useState(false);
+  
+  // Use prop if provided, otherwise local state (for backwards compatibility)
+  const isInListenNext = isInListenNextProp !== undefined ? isInListenNextProp : false;
   const handleEditClick = (e) => {
     e.stopPropagation();
     onEdit();
@@ -26,6 +31,24 @@ const MusicThumbnail = ({ cd, onClick, onEdit, onDelete, disableMenu = false }) 
 
   const getCoverImage = () => {
     return musicService.getImageUrl(cd.cover);
+  };
+
+  const handleListenNextToggle = async (e) => {
+    e.stopPropagation();
+    if (togglingListenNext) return;
+    
+    setTogglingListenNext(true);
+    try {
+      await musicService.toggleListenNext(cd.id);
+      // Refresh the listen next banner immediately (parent will update isInListenNext prop)
+      if (onListenNextChange) {
+        onListenNextChange();
+      }
+    } catch (error) {
+      console.error('Error toggling Listen Next:', error);
+    } finally {
+      setTogglingListenNext(false);
+    }
   };
 
   return (
@@ -55,6 +78,13 @@ const MusicThumbnail = ({ cd, onClick, onEdit, onDelete, disableMenu = false }) 
             </div>
           </div>
         )}
+        <div className="thumbnail-listen-next-toggle">
+          <ListenNextToggle 
+            isActive={isInListenNext} 
+            onClick={handleListenNextToggle}
+            disabled={togglingListenNext}
+          />
+        </div>
       </div>
       
       <div className="music-thumbnail-info">
