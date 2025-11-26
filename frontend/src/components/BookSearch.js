@@ -1018,6 +1018,7 @@ const BookSearch = forwardRef(({
                   onDelete={() => setShowDeleteModal({ show: true, bookId: book.id })}
                   onBookDroppedForSeries={!book.series ? handleBookDroppedForNewSeries : null}
                   onAddToExistingSeries={handleBookDroppedOnSeries}
+                  onSeriesMerge={handleSeriesMerge}
                 />
               );
             });
@@ -1028,6 +1029,7 @@ const BookSearch = forwardRef(({
               key={item.book.id}
               onBookDroppedForSeries={!item.book.series ? handleBookDroppedForNewSeries : null}
               onAddToExistingSeries={handleBookDroppedOnSeries}
+              onSeriesMerge={handleSeriesMerge}
               book={item.book}
               onClick={() => handleBookClick(item.book.id)}
               onEdit={() => handleEditBook(item.book)}
@@ -1076,6 +1078,7 @@ const BookSearch = forwardRef(({
                       onClick={() => handleBookClick(book.id)}
                       onBookDroppedForSeries={!book.series ? handleBookDroppedForNewSeries : null}
                       onAddToExistingSeries={handleBookDroppedOnSeries}
+                      onSeriesMerge={handleSeriesMerge}
                       onEdit={() => handleEditBook(book)}
                       onDelete={() => setShowDeleteModal({ show: true, bookId: book.id })}
                     />

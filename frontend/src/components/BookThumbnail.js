@@ -4,7 +4,7 @@ import { BsBook, BsThreeDots, BsPencil, BsTrash, BsClipboard, BsFileEarmark, BsB
 import bookService from '../services/bookService';
 import './BookThumbnail.css';
 
-const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false, hideInfo = false, draggable = true, onBookDroppedForSeries = null, onAddToExistingSeries = null, onRemoveFromSeries = null }) => {
+const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false, hideInfo = false, draggable = true, onBookDroppedForSeries = null, onAddToExistingSeries = null, onRemoveFromSeries = null, onSeriesMerge = null }) => {
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleDragStart = (e) => {
@@ -77,7 +77,11 @@ const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false, h
         else if (!book.series && !data.bookData.series && onBookDroppedForSeries) {
           onBookDroppedForSeries(data.bookId, data.bookData, book);
         }
-        // Case 4: Both books have series - do nothing (would need merge UI)
+        // Case 4: Both books have series
+        // → If different series, trigger merge dialog
+        else if (book.series && data.bookData.series && book.series !== data.bookData.series && onSeriesMerge) {
+          onSeriesMerge(data.bookData.series, [data.bookData], book.series, [book]);
+        }
       }
     } catch (error) {
       console.error('Error parsing drop data:', error);
@@ -160,7 +164,8 @@ const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false, h
   // Enable drop handling if we have any drop handler
   // - Standalone books can accept other standalones (to create series) or series/books-with-series
   // - Books with series can accept standalone books (to add them to the series)
-  const canAcceptDrop = onBookDroppedForSeries || onAddToExistingSeries;
+  // - Books with series can accept other books with different series (to merge)
+  const canAcceptDrop = onBookDroppedForSeries || onAddToExistingSeries || onSeriesMerge;
 
   return (
     <div 
