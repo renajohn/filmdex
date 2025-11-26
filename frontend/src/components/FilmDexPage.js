@@ -1,24 +1,14 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from 'react';
-import { Dropdown } from 'react-bootstrap';
 import apiService from '../services/api';
 import MovieThumbnail from './MovieThumbnail';
 import MovieDetailCard from './MovieDetailCard';
 import BoxSetStack from './BoxSetStack';
+import { NextBanner, CollectionHeader, EmptyState } from './shared';
 import { 
-  BsFilter, 
-  BsSortDown, 
   BsChevronDown, 
-  BsCheck, 
-  BsFilm, 
-  BsTv, 
-  BsChatText,
-  BsThreeDots,
-  BsGrid3X3Gap,
-  BsX,
-  BsPlus,
+  BsFilm,
   BsCollectionFill
 } from 'react-icons/bs';
-// Note: We use popcorn emoji directly instead of an icon import
 import './FilmDexPage.css';
 
 const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLoading, onShowAlert, onAddMovie, onSearch }, ref) => {
@@ -737,187 +727,44 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
       {/* Watch Next Banner */}
       {watchNextMovies.length > 0 && !searchCriteria?.searchText && (
-        <div className="watch-next-banner">
-          <div className="watch-next-banner-header">
-            <div className="banner-title-section">
-              <svg 
-                className="banner-star-icon" 
-                viewBox="0 0 24 24" 
-                fill="currentColor"
-              >
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </svg>
-              <h2>Watch Next</h2>
-              <span className="watch-next-count">{watchNextMovies.length} {watchNextMovies.length === 1 ? 'movie' : 'movies'}</span>
-            </div>
-          </div>
-          <div className="watch-next-carousel">
-            <div className="carousel-track">
-              {watchNextMovies.map((movie) => (
-                <div 
-                  key={movie.id} 
-                  className="watch-next-poster-card"
-                >
-                  <button
-                    className="remove-from-watch-next"
-                    onClick={(e) => handleWatchNextToggle(e, movie)}
-                    title="Remove from Watch Next"
-                    aria-label="Remove from Watch Next"
-                  >
-                    <BsX size={20} />
-                  </button>
-                  <div 
-                    className="poster-card-image"
-                    onClick={() => handleMovieClick(movie.id)}
-                  >
-                    {movie.poster_path ? (
-                      <img 
-                        src={getPosterUrl(movie.poster_path)}
-                        alt={movie.title}
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.parentElement.classList.add('no-poster');
-                        }}
-                      />
-                    ) : (
-                      <div className="poster-card-placeholder">
-                        <BsFilm size={40} />
-                      </div>
-                    )}
-                    <div className="poster-card-overlay">
-                      <h3>{movie.title}</h3>
-                      <div className="poster-card-meta">
-                        {movie.release_date && (
-                          <span>{new Date(movie.release_date).getFullYear()}</span>
-                        )}
-                        {movie.format && <span className="format-tag">{movie.format}</span>}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <NextBanner
+          items={watchNextMovies}
+          type="movie"
+          title="Watch Next"
+          onItemClick={handleMovieClick}
+          onRemove={handleWatchNextToggle}
+          getImageUrl={(movie) => getPosterUrl(movie.poster_path)}
+          getTitle={(movie) => movie.title}
+          getYear={(movie) => movie.release_date ? new Date(movie.release_date).getFullYear() : null}
+          getFormat={(movie) => movie.format}
+        />
       )}
 
       <div className="movies-results">
-        <div className="movies-results-header">
-          {/* Dropdowns Container */}
-          <div className="dropdowns-container">
-            {/* Sort Dropdown */}
-            <Dropdown className="sort-dropdown-container">
-              <Dropdown.Toggle 
-                as="button"
-                className={`filter-pill sort-dropdown-button ${loading || sortLoading ? 'filter-pill-loading' : ''}`}
-                disabled={sortLoading}
-              >
-                {sortLoading ? (
-                  <>
-                    <span className="sort-loading-spinner"></span>
-                    Sorting...
-                  </>
-                ) : (
-                  <>
-                    <BsSortDown className="sort-icon" />
-                    Sort: {sortOptions.find(opt => opt.value === sortBy)?.label}
-                    
-                  </>
-                )}
-              </Dropdown.Toggle>
-              
-              <Dropdown.Menu className="sort-dropdown-menu">
-                {sortOptions.map(option => (
-                  <Dropdown.Item
-                    key={option.value}
-                    className={`sort-dropdown-item ${sortBy === option.value ? 'active' : ''}`}
-                    onClick={() => handleSortChange(option.value)}
-                  >
-                    {option.label}
-                  </Dropdown.Item>
-                ))}
-              </Dropdown.Menu>
-            </Dropdown>
-
-            {/* Group Dropdown */}
-            <Dropdown className="group-dropdown-container">
-              <Dropdown.Toggle 
-                as="button"
-                className={`filter-pill group-dropdown-button ${loading || groupLoading ? 'filter-pill-loading' : ''}`}
-                disabled={groupLoading}
-              >
-                {groupLoading ? (
-                  <>
-                    <span className="group-loading-spinner"></span>
-                    Grouping...
-                  </>
-                ) : (
-                  <>
-                    <BsGrid3X3Gap className="group-icon" />
-                    {groupOptions.find(opt => opt.value === groupBy)?.label}
-                  </>
-                )}
-              </Dropdown.Toggle>
-              
-              <Dropdown.Menu className="group-dropdown-menu">
-                {groupOptions.map(option => (
-                  <Dropdown.Item
-                    key={option.value}
-                    className={`group-dropdown-item ${groupBy === option.value ? 'active' : ''}`}
-                    onClick={() => handleGroupChange(option.value)}
-                  >
-                    {option.label}
-                  </Dropdown.Item>
-                ))}
-              </Dropdown.Menu>
-            </Dropdown>
-
-            {/* Collapse All Button - Only show when grouping is enabled */}
-            {groupBy !== 'none' && (
-              <button 
-                className="collapse-all-btn"
-                onClick={toggleAllGroups}
-              >
-                {expandAllGroups ? 'Collapse All' : 'Expand All'}
-              </button>
-            )}
-
-            {/* Stack Toggle - Only show when no grouping */}
-            {groupBy === 'none' && (
-              <div className="stack-toggle-container">
-                <span className="stack-toggle-label">Stack</span>
-                <label className="stack-toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={stackEnabled}
-                    onChange={(e) => {
-                      const newValue = e.target.checked;
-                      setStackEnabled(newValue);
-                      localStorage.setItem('filmdex-stack-enabled', newValue.toString());
-                      setExpandedBoxSet(null);
-                    }}
-                  />
-                  <span className="stack-toggle-slider"></span>
-                </label>
-              </div>
-            )}
-
-            {/* Add Movie Button */}
-            <button 
-              className="add-item-btn"
-              onClick={() => onAddMovie && onAddMovie('collection')}
-              title="Add Movie to Collection"
-            >
-              <BsPlus className="me-1" />
-              Add Movie
-            </button>
-          </div>
-          
-          {/* Movie Count */}
-          <div className="movies-count-display">
-            Showing {filteredMovies.length} of {allMovies.length} movies
-          </div>
-        </div>
+        <CollectionHeader
+          filteredCount={filteredMovies.length}
+          totalCount={allMovies.length}
+          itemLabel="movies"
+          sortBy={sortBy}
+          sortOptions={sortOptions}
+          onSortChange={handleSortChange}
+          sortLoading={sortLoading}
+          groupBy={groupBy}
+          groupOptions={groupOptions}
+          onGroupChange={handleGroupChange}
+          groupLoading={groupLoading}
+          expandAllGroups={expandAllGroups}
+          onToggleAllGroups={toggleAllGroups}
+          stackEnabled={stackEnabled}
+          onStackChange={(newValue) => {
+            setStackEnabled(newValue);
+            localStorage.setItem('filmdex-stack-enabled', newValue.toString());
+            setExpandedBoxSet(null);
+          }}
+          addButtonLabel="Add Movie"
+          onAdd={() => onAddMovie && onAddMovie('collection')}
+          loading={loading}
+        />
         
         {loading ? (
           <div className="loading">Loading movies...</div>
@@ -925,36 +772,29 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           /* Empty State - Check if it's a search or truly empty database */
           searchCriteria?.searchText && searchCriteria.searchText.trim() ? (
             /* Search returned no results */
-            <div className="empty-state">
-              <div className="empty-state-icon">🎬</div>
-              <h3 className="empty-state-title">No Results Found</h3>
-              <p className="empty-state-description">
-                No movies match "{searchCriteria.searchText}"
-              </p>
-              <p className="empty-state-hint">
-                Try different keywords or clear your search
-              </p>
-              <div className="empty-state-collection-info">
-                You have <strong>{allMovies.length}</strong> {allMovies.length === 1 ? 'movie' : 'movies'} in your collection
-              </div>
-            </div>
+            <EmptyState
+              icon="🎬"
+              title="No Results Found"
+              description={`No movies match "${searchCriteria.searchText}"`}
+              hint="Try different keywords or clear your search"
+              collectionInfo={`You have <strong>${allMovies.length}</strong> ${allMovies.length === 1 ? 'movie' : 'movies'} in your collection`}
+            />
           ) : (
             /* Database is empty */
-            <div className="empty-state">
-              <div className="empty-state-icon">🍿</div>
-              <h3 className="empty-state-title">Welcome to FilmDex!</h3>
-              <p className="empty-state-description">
-                Your movie collection is empty. Add your first movie to get started and begin tracking your film library.
-              </p>
-             
-              <button 
-                className="btn btn-primary btn-lg mt-4"
-                onClick={onAddMovie}
-              >
-                <BsFilm className="me-2" />
-                Add Your First Movie
-              </button>
-            </div>
+            <EmptyState
+              icon="🍿"
+              title="Welcome to FilmDex!"
+              description="Your movie collection is empty. Add your first movie to get started and begin tracking your film library."
+              action={
+                <button 
+                  className="btn btn-primary btn-lg mt-4"
+                  onClick={onAddMovie}
+                >
+                  <BsFilm className="me-2" />
+                  Add Your First Movie
+                </button>
+              }
+            />
           )
         ) : (
           <>

@@ -3,7 +3,6 @@ import { Modal, Button, Row, Col, Badge } from 'react-bootstrap';
 import { BsPencil, BsTrash, BsMusicNote, BsCalendar, BsFlag, BsDisc, BsApple } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
-import ListenNextToggle from './ListenNextToggle';
 import './MusicDetailCard.css';
 
 const MusicDetailCard = ({ cd, onClose, onEdit, onDelete, onSearch, onListenNextChange }) => {

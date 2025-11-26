@@ -1,19 +1,12 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from 'react';
-import { Dropdown } from 'react-bootstrap';
 import { useNavigate, useLocation } from 'react-router-dom';
 import musicService from '../services/musicService';
 import MusicForm from './MusicForm';
 import MusicThumbnail from './MusicThumbnail';
 import MusicDetailCard from './MusicDetailCard';
 import AddMusicDialog from './AddMusicDialog';
-import { 
-  BsSortDown, 
-  BsChevronDown, 
-  BsMusicNote,
-  BsGrid3X3Gap,
-  BsPlus,
-  BsX
-} from 'react-icons/bs';
+import { NextBanner, CollectionHeader, EmptyState } from './shared';
+import { BsChevronDown, BsMusicNote } from 'react-icons/bs';
 import './MusicSearch.css';
 
 const MusicSearch = forwardRef(({ 
@@ -541,36 +534,29 @@ const MusicSearch = forwardRef(({
     if (filteredCds.length === 0) {
       return searchCriteria?.searchText && searchCriteria.searchText.trim() ? (
         /* Search returned no results */
-        <div className="empty-state">
-          <div className="empty-state-icon">🎵</div>
-          <h3 className="empty-state-title">No Results Found</h3>
-          <p className="empty-state-description">
-            No albums match "{searchCriteria.searchText}"
-          </p>
-          <p className="empty-state-hint">
-            Try different keywords or clear your search
-          </p>
-          <div className="empty-state-collection-info">
-            You have <strong>{allCds.length}</strong> {allCds.length === 1 ? 'album' : 'albums'} in your collection
-          </div>
-        </div>
+        <EmptyState
+          icon="🎵"
+          title="No Results Found"
+          description={`No albums match "${searchCriteria.searchText}"`}
+          hint="Try different keywords or clear your search"
+          collectionInfo={`You have <strong>${allCds.length}</strong> ${allCds.length === 1 ? 'album' : 'albums'} in your collection`}
+        />
       ) : (
         /* Database is empty */
-        <div className="empty-state">
-          <div className="empty-state-icon">💿</div>
-          <h3 className="empty-state-title">Welcome to MusicDex!</h3>
-          <p className="empty-state-description">
-            Your music collection is empty. Add your first album to get started and begin tracking your music library.
-          </p>
-         
-          <button 
-            className="btn btn-primary btn-lg mt-4"
-            onClick={onOpenAddDialog}
-          >
-            <BsMusicNote className="me-2" />
-            Add Your First Album
-          </button>
-        </div>
+        <EmptyState
+          icon="💿"
+          title="Welcome to MusicDex!"
+          description="Your music collection is empty. Add your first album to get started and begin tracking your music library."
+          action={
+            <button 
+              className="btn btn-primary btn-lg mt-4"
+              onClick={onOpenAddDialog}
+            >
+              <BsMusicNote className="me-2" />
+              Add Your First Album
+            </button>
+          }
+        />
       );
     }
 
@@ -672,158 +658,40 @@ const MusicSearch = forwardRef(({
     <div className="music-search">
       {/* Listen Next Banner */}
       {listenNextAlbums.length > 0 && !searchCriteria?.searchText && (
-        <div className="listen-next-banner">
-          <div className="listen-next-banner-header">
-            <div className="banner-title-section">
-              <div className="banner-headphone-icon">🎧</div>
-              <h2>Listen Next</h2>
-              <span className="listen-next-count">{listenNextAlbums.length} {listenNextAlbums.length === 1 ? 'album' : 'albums'}</span>
-            </div>
-          </div>
-          <div className="listen-next-carousel">
-            <div className="carousel-track">
-              {listenNextAlbums.map((album) => (
-                <div 
-                  key={album.id} 
-                  className="listen-next-poster-card"
-                >
-                  <button
-                    className="remove-from-listen-next"
-                    onClick={(e) => handleListenNextToggle(e, album)}
-                    title="Remove from Listen Next"
-                    aria-label="Remove from Listen Next"
-                  >
-                    <BsX size={20} />
-                  </button>
-                  <div 
-                    className="poster-card-image"
-                    onClick={() => handleCdClick(album.id)}
-                  >
-                    {album.cover ? (
-                      <img 
-                        src={getCoverUrl(album.cover)}
-                        alt={album.title}
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.parentElement.classList.add('no-cover');
-                        }}
-                      />
-                    ) : (
-                      <div className="poster-card-placeholder">
-                        <BsMusicNote size={40} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="poster-card-info">
-                    <h3 className="poster-card-title" title={album.title}>{album.title}</h3>
-                    <p className="poster-card-artist" title={Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}>
-                      {Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <NextBanner
+          items={listenNextAlbums}
+          type="music"
+          title="Listen Next"
+          icon="🎧"
+          onItemClick={handleCdClick}
+          onRemove={handleListenNextToggle}
+          getImageUrl={(album) => getCoverUrl(album.cover)}
+          getTitle={(album) => album.title}
+          getSubtitle={(album) => Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}
+        />
       )}
 
       {/* Results Header with Controls */}
       <div className="cds-results">
-        <div className="cds-results-header">
-          {/* Dropdowns Container */}
-          <div className="dropdowns-container">
-            {/* Sort Dropdown */}
-            <Dropdown className="sort-dropdown-container">
-              <Dropdown.Toggle 
-                as="button"
-                className={`filter-pill sort-dropdown-button ${loading || sortLoading ? 'filter-pill-loading' : ''}`}
-                disabled={sortLoading}
-              >
-                {sortLoading ? (
-                  <>
-                    <span className="sort-loading-spinner"></span>
-                    Sorting...
-                  </>
-                ) : (
-                  <>
-                    <BsSortDown className="sort-icon" />
-                    Sort: {sortOptions.find(opt => opt.value === sortBy)?.label || 'Title A-Z'}
-                  </>
-                )}
-              </Dropdown.Toggle>
-              
-              <Dropdown.Menu className="sort-dropdown-menu">
-                {sortOptions.map(option => (
-                  <Dropdown.Item
-                    key={option.value}
-                    className={`sort-dropdown-item ${sortBy === option.value ? 'active' : ''}`}
-                    onClick={() => handleSortChange(option.value)}
-                  >
-                    {option.label}
-                  </Dropdown.Item>
-                ))}
-              </Dropdown.Menu>
-            </Dropdown>
-
-            {/* Group Dropdown */}
-            <Dropdown className="group-dropdown-container">
-              <Dropdown.Toggle 
-                as="button"
-                className={`filter-pill group-dropdown-button ${loading || groupLoading ? 'filter-pill-loading' : ''}`}
-                disabled={groupLoading}
-              >
-                {groupLoading ? (
-                  <>
-                    <span className="group-loading-spinner"></span>
-                    Grouping...
-                  </>
-                ) : (
-                  <>
-                    <BsGrid3X3Gap className="group-icon" />
-                    {groupOptions.find(opt => opt.value === groupBy)?.label || 'No grouping'}
-                  </>
-                )}
-              </Dropdown.Toggle>
-              
-              <Dropdown.Menu className="group-dropdown-menu">
-                {groupOptions.map(option => (
-                  <Dropdown.Item
-                    key={option.value}
-                    className={`group-dropdown-item ${groupBy === option.value ? 'active' : ''}`}
-                    onClick={() => handleGroupChange(option.value)}
-                  >
-                    {option.label}
-                  </Dropdown.Item>
-                ))}
-              </Dropdown.Menu>
-            </Dropdown>
-
-            {/* Collapse All Button - Only show when grouping is enabled */}
-            {groupBy !== 'none' && (
-              <button 
-                className="collapse-all-btn"
-                onClick={toggleAllGroups}
-              >
-                {expandAllGroups ? 'Collapse All' : 'Expand All'}
-              </button>
-            )}
-
-            {/* Add Album Button */}
-            <button 
-              className="add-item-btn"
-              onClick={() => setShowAddDialog(true)}
-              title="Add Album to Collection"
-            >
-              <BsPlus className="me-1" />
-              Add Album
-            </button>
-          </div>
-          
-          {/* Album Count */}
-          <div className="cds-count-display">
-            Showing {cdCount.filtered} of {cdCount.total} albums
-          </div>
-        </div>
+        <CollectionHeader
+          filteredCount={cdCount.filtered}
+          totalCount={cdCount.total}
+          itemLabel="albums"
+          sortBy={sortBy}
+          sortOptions={sortOptions}
+          onSortChange={handleSortChange}
+          sortLoading={sortLoading}
+          groupBy={groupBy}
+          groupOptions={groupOptions}
+          onGroupChange={handleGroupChange}
+          groupLoading={groupLoading}
+          expandAllGroups={expandAllGroups}
+          onToggleAllGroups={toggleAllGroups}
+          showStackToggle={false}
+          addButtonLabel="Add Album"
+          onAdd={() => setShowAddDialog(true)}
+          loading={loading}
+        />
 
         {/* Album Grid or Grouped Albums */}
         {renderCdGrid()}

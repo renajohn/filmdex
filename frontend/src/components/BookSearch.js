@@ -1,5 +1,4 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from 'react';
-import { Dropdown, Form } from 'react-bootstrap';
 import { useNavigate, useLocation } from 'react-router-dom';
 import bookService from '../services/bookService';
 import BookForm from './BookForm';
@@ -7,13 +6,8 @@ import BookThumbnail from './BookThumbnail';
 import BookDetailCard from './BookDetailCard';
 import AddBookDialog from './AddBookDialog';
 import SeriesStack from './SeriesStack';
-import { 
-  BsSortDown, 
-  BsChevronDown, 
-  BsBook,
-  BsGrid3X3Gap,
-  BsPlus
-} from 'react-icons/bs';
+import { CollectionHeader, EmptyState } from './shared';
+import { BsChevronDown, BsBook } from 'react-icons/bs';
 import './BookSearch.css';
 
 const BookSearch = forwardRef(({ 
@@ -59,7 +53,6 @@ const BookSearch = forwardRef(({
   
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addingBook, setAddingBook] = useState(false);
-  const [addError, setAddError] = useState('');
   const [editingBook, setEditingBook] = useState(null);
   const [selectedBookDetails, setSelectedBookDetails] = useState(null);
   const [bookDetailsBeforeEdit, setBookDetailsBeforeEdit] = useState(null);
@@ -483,119 +476,170 @@ const BookSearch = forwardRef(({
 
     if (filteredBooks.length === 0) {
       return searchCriteria?.searchText && searchCriteria.searchText.trim() ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">📚</div>
-          <h3 className="empty-state-title">No Results Found</h3>
-          <p className="empty-state-description">
-            No books match "{searchCriteria.searchText}"
-          </p>
-          <p className="empty-state-hint">
-            Try different keywords or clear your search
-          </p>
-          <div className="empty-state-collection-info">
-            You have <strong>{allBooks.length}</strong> {allBooks.length === 1 ? 'book' : 'books'} in your collection
-          </div>
-        </div>
+        <EmptyState
+          icon="📚"
+          title="No Results Found"
+          description={`No books match "${searchCriteria.searchText}"`}
+          hint="Try different keywords or clear your search"
+          collectionInfo={`You have <strong>${allBooks.length}</strong> ${allBooks.length === 1 ? 'book' : 'books'} in your collection`}
+        />
       ) : (
-        <div className="empty-state">
-          <div className="empty-state-icon">📖</div>
-          <h3 className="empty-state-title">Welcome to BookDex!</h3>
-          <p className="empty-state-description">
-            Your book collection is empty. Add your first book to get started and begin tracking your library.
-          </p>
-         
-          <button 
-            className="btn btn-primary btn-lg mt-4"
-            onClick={onOpenAddDialog}
-          >
-            <BsBook className="me-2" />
-            Add Your First Book
-          </button>
-        </div>
+        <EmptyState
+          icon="📖"
+          title="Welcome to BookDex!"
+          description="Your book collection is empty. Add your first book to get started and begin tracking your library."
+          action={
+            <button 
+              className="btn btn-primary btn-lg mt-4"
+              onClick={onOpenAddDialog}
+            >
+              <BsBook className="me-2" />
+              Add Your First Book
+            </button>
+          }
+        />
       );
     }
 
     if (groupBy === 'none') {
       const { seriesMap, standaloneBooks } = groupBooksBySeries(filteredBooks);
-      const sortedSeries = Array.from(seriesMap.entries()).sort((a, b) => {
-        // Sort series by name (removing articles for sorting)
-        const nameA = removeArticlesForSorting(a[0]);
-        const nameB = removeArticlesForSorting(b[0]);
-        return nameA.localeCompare(nameB);
-      });
-
-      const items = [];
       
       // Check if there's an active filter
       const hasActiveFilter = searchCriteria?.searchText?.trim() || (defaultTitleStatus && defaultTitleStatus !== 'all');
       const shouldUseStack = stackEnabled && !hasActiveFilter;
 
-      sortedSeries.forEach(([seriesName, books]) => {
-        // Use SeriesStack for series with multiple books, regular thumbnail for single book
-        // Only use stack if stackEnabled is true and no filter is active
-        if (books.length > 1 && shouldUseStack) {
-          const isExpanded = expandedSeries === seriesName;
-          const sortedBooks = isExpanded ? [...books].sort((a, b) => {
-            const numA = a.seriesNumber != null ? Number(a.seriesNumber) : 999999;
-            const numB = b.seriesNumber != null ? Number(b.seriesNumber) : 999999;
-            if (isNaN(numA) && isNaN(numB)) return a.title.localeCompare(b.title);
-            if (isNaN(numA)) return 1;
-            if (isNaN(numB)) return -1;
-            return numA - numB;
-          }) : null;
-          
-          items.push(
-            <SeriesStack
-              key={`series-${seriesName}`}
-              seriesName={seriesName}
-              books={books}
-              isExpanded={isExpanded}
-              sortedBooks={sortedBooks}
-              onToggleExpanded={() => {
-                const newExpanded = isExpanded ? null : seriesName;
-                setExpandedSeries(newExpanded);
-                // Save to sessionStorage to preserve across reloads
-                if (newExpanded) {
-                  sessionStorage.setItem('bookSearchExpandedSeries', newExpanded);
-                } else {
-                  sessionStorage.removeItem('bookSearchExpandedSeries');
-                }
-              }}
-              onBookClick={(book) => handleBookClick(book.id)}
-              onEdit={(book) => handleEditBook(book)}
-              onDelete={(book) => setShowDeleteModal({ show: true, bookId: book.id })}
-              onClose={() => {
-                setExpandedSeries(null);
-                sessionStorage.removeItem('bookSearchExpandedSeries');
-              }}
-            />
-          );
-        } else {
-          // Single book in series or stack disabled, show as regular thumbnails
-          books.forEach((book) => {
-            items.push(
-              <BookThumbnail
-                key={book.id}
-                book={book}
-                onClick={() => handleBookClick(book.id)}
-                onEdit={() => handleEditBook(book)}
-                onDelete={() => setShowDeleteModal({ show: true, bookId: book.id })}
-              />
-            );
-          });
-        }
+      // Create a combined list of items for unified sorting
+      const combinedItems = [];
+      
+      // Add series stacks (represented by their first book for sorting)
+      seriesMap.forEach((books, seriesName) => {
+        // Sort books within series by series number
+        const sortedSeriesBooks = [...books].sort((a, b) => {
+          const numA = a.seriesNumber != null ? Number(a.seriesNumber) : 999999;
+          const numB = b.seriesNumber != null ? Number(b.seriesNumber) : 999999;
+          if (isNaN(numA) && isNaN(numB)) return a.title.localeCompare(b.title);
+          if (isNaN(numA)) return 1;
+          if (isNaN(numB)) return -1;
+          return numA - numB;
+        });
+        
+        combinedItems.push({
+          type: 'series',
+          seriesName,
+          books,
+          sortedBooks: sortedSeriesBooks,
+          representativeBook: sortedSeriesBooks[0], // Use first book for sorting
+        });
       });
       
-      standaloneBooks.forEach((book) => {
-        items.push(
-          <BookThumbnail
-            key={book.id}
-            book={book}
-            onClick={() => handleBookClick(book.id)}
-            onEdit={() => handleEditBook(book)}
-            onDelete={() => setShowDeleteModal({ show: true, bookId: book.id })}
-          />
-        );
+      // Add standalone books
+      standaloneBooks.forEach(book => {
+        combinedItems.push({
+          type: 'book',
+          book,
+        });
+      });
+      
+      // Sort the combined list according to current sortBy option
+      combinedItems.sort((a, b) => {
+        const bookA = a.type === 'series' ? a.representativeBook : a.book;
+        const bookB = b.type === 'series' ? b.representativeBook : b.book;
+        
+        switch (sortBy) {
+          case 'title':
+            // For series, use series name; for books, use title
+            const titleA = a.type === 'series' ? a.seriesName : bookA.title;
+            const titleB = b.type === 'series' ? b.seriesName : bookB.title;
+            return titleA.localeCompare(titleB);
+          case 'titleReverse':
+            const titleRevA = a.type === 'series' ? a.seriesName : bookA.title;
+            const titleRevB = b.type === 'series' ? b.seriesName : bookB.title;
+            return titleRevB.localeCompare(titleRevA);
+          case 'author':
+            const authorA = Array.isArray(bookA.authors) ? bookA.authors.join(', ') : (bookA.authors || '');
+            const authorB = Array.isArray(bookB.authors) ? bookB.authors.join(', ') : (bookB.authors || '');
+            return authorA.localeCompare(authorB);
+          case 'authorReverse':
+            const authorRevA = Array.isArray(bookA.authors) ? bookA.authors.join(', ') : (bookA.authors || '');
+            const authorRevB = Array.isArray(bookB.authors) ? bookB.authors.join(', ') : (bookB.authors || '');
+            return authorRevB.localeCompare(authorRevA);
+          case 'year':
+            return (bookB.publishedYear || 0) - (bookA.publishedYear || 0);
+          case 'yearReverse':
+            return (bookA.publishedYear || 0) - (bookB.publishedYear || 0);
+          case 'lastAdded':
+            return new Date(bookB.createdAt) - new Date(bookA.createdAt);
+          case 'lastAddedReverse':
+            return new Date(bookA.createdAt) - new Date(bookB.createdAt);
+          case 'series':
+          case 'authorSeries':
+          default:
+            // Default: sort by series name (removing articles)
+            const seriesA = a.type === 'series' ? a.seriesName : bookA.title;
+            const seriesB = b.type === 'series' ? b.seriesName : bookB.title;
+            const seriesAForSort = removeArticlesForSorting(seriesA);
+            const seriesBForSort = removeArticlesForSorting(seriesB);
+            return seriesAForSort.localeCompare(seriesBForSort);
+        }
+      });
+
+      // Render the sorted combined items
+      const items = [];
+      combinedItems.forEach(item => {
+        if (item.type === 'series') {
+          if (item.books.length > 1 && shouldUseStack) {
+            const isExpanded = expandedSeries === item.seriesName;
+            
+            items.push(
+              <SeriesStack
+                key={`series-${item.seriesName}`}
+                seriesName={item.seriesName}
+                books={item.books}
+                isExpanded={isExpanded}
+                sortedBooks={item.sortedBooks}
+                onToggleExpanded={() => {
+                  const newExpanded = isExpanded ? null : item.seriesName;
+                  setExpandedSeries(newExpanded);
+                  if (newExpanded) {
+                    sessionStorage.setItem('bookSearchExpandedSeries', newExpanded);
+                  } else {
+                    sessionStorage.removeItem('bookSearchExpandedSeries');
+                  }
+                }}
+                onBookClick={(book) => handleBookClick(book.id)}
+                onEdit={(book) => handleEditBook(book)}
+                onDelete={(book) => setShowDeleteModal({ show: true, bookId: book.id })}
+                onClose={() => {
+                  setExpandedSeries(null);
+                  sessionStorage.removeItem('bookSearchExpandedSeries');
+                }}
+              />
+            );
+          } else {
+            // Single book in series or stack disabled, show as regular thumbnails
+            item.books.forEach((book) => {
+              items.push(
+                <BookThumbnail
+                  key={book.id}
+                  book={book}
+                  onClick={() => handleBookClick(book.id)}
+                  onEdit={() => handleEditBook(book)}
+                  onDelete={() => setShowDeleteModal({ show: true, bookId: book.id })}
+                />
+              );
+            });
+          }
+        } else {
+          items.push(
+            <BookThumbnail
+              key={item.book.id}
+              book={item.book}
+              onClick={() => handleBookClick(item.book.id)}
+              onEdit={() => handleEditBook(item.book)}
+              onDelete={() => setShowDeleteModal({ show: true, bookId: item.book.id })}
+            />
+          );
+        }
       });
 
       return (
@@ -673,109 +717,26 @@ const BookSearch = forwardRef(({
   return (
     <div className="book-search">
       <div className="books-results">
-        <div className="books-results-header">
-          <div className="dropdowns-container">
-            <Dropdown className="sort-dropdown-container">
-              <Dropdown.Toggle 
-                as="button"
-                className={`filter-pill sort-dropdown-button ${loading || sortLoading ? 'filter-pill-loading' : ''}`}
-                disabled={sortLoading}
-              >
-                {sortLoading ? (
-                  <>
-                    <span className="sort-loading-spinner"></span>
-                    Sorting...
-                  </>
-                ) : (
-                  <>
-                    <BsSortDown className="sort-icon" />
-                    Sort: {sortOptions.find(opt => opt.value === sortBy)?.label || 'Title A-Z'}
-                  </>
-                )}
-              </Dropdown.Toggle>
-              
-              <Dropdown.Menu className="sort-dropdown-menu">
-                {sortOptions.map(option => (
-                  <Dropdown.Item
-                    key={option.value}
-                    className={`sort-dropdown-item ${sortBy === option.value ? 'active' : ''}`}
-                    onClick={() => handleSortChange(option.value)}
-                  >
-                    {option.label}
-                  </Dropdown.Item>
-                ))}
-              </Dropdown.Menu>
-            </Dropdown>
-
-            <Dropdown className="group-dropdown-container">
-              <Dropdown.Toggle 
-                as="button"
-                className={`filter-pill group-dropdown-button ${loading || groupLoading ? 'filter-pill-loading' : ''}`}
-                disabled={groupLoading}
-              >
-                {groupLoading ? (
-                  <>
-                    <span className="group-loading-spinner"></span>
-                    Grouping...
-                  </>
-                ) : (
-                  <>
-                    <BsGrid3X3Gap className="group-icon" />
-                    {groupOptions.find(opt => opt.value === groupBy)?.label || 'No grouping'}
-                  </>
-                )}
-              </Dropdown.Toggle>
-              
-              <Dropdown.Menu className="group-dropdown-menu">
-                {groupOptions.map(option => (
-                  <Dropdown.Item
-                    key={option.value}
-                    className={`group-dropdown-item ${groupBy === option.value ? 'active' : ''}`}
-                    onClick={() => handleGroupChange(option.value)}
-                  >
-                    {option.label}
-                  </Dropdown.Item>
-                ))}
-              </Dropdown.Menu>
-            </Dropdown>
-
-            {groupBy === 'none' && (
-              <div className="stack-toggle-container">
-                <span className="stack-toggle-label">Stack</span>
-                <label className="stack-toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={stackEnabled}
-                    onChange={(e) => setStackEnabled(e.target.checked)}
-                  />
-                  <span className="stack-toggle-slider"></span>
-                </label>
-              </div>
-            )}
-
-            {groupBy !== 'none' && (
-              <button 
-                className="collapse-all-btn"
-                onClick={toggleAllGroups}
-              >
-                {expandAllGroups ? 'Collapse All' : 'Expand All'}
-              </button>
-            )}
-
-            <button 
-              className="add-item-btn"
-              onClick={() => setShowAddDialog(true)}
-              title="Add Book to Collection"
-            >
-              <BsPlus className="me-1" />
-              Add Book
-            </button>
-          </div>
-          
-          <div className="books-count-display">
-            Showing {bookCount.filtered} of {bookCount.total} books
-          </div>
-        </div>
+        <CollectionHeader
+          filteredCount={bookCount.filtered}
+          totalCount={bookCount.total}
+          itemLabel="books"
+          sortBy={sortBy}
+          sortOptions={sortOptions}
+          onSortChange={handleSortChange}
+          sortLoading={sortLoading}
+          groupBy={groupBy}
+          groupOptions={groupOptions}
+          onGroupChange={handleGroupChange}
+          groupLoading={groupLoading}
+          expandAllGroups={expandAllGroups}
+          onToggleAllGroups={toggleAllGroups}
+          stackEnabled={stackEnabled}
+          onStackChange={setStackEnabled}
+          addButtonLabel="Add Book"
+          onAdd={() => setShowAddDialog(true)}
+          loading={loading}
+        />
 
         {renderBookGrid()}
       </div>
@@ -809,23 +770,17 @@ const BookSearch = forwardRef(({
         onAddStart={() => {
           setShowAddDialog(false);
           setAddingBook(true);
-          setAddError('');
         }}
         onBookAdded={async () => {
           try {
             await loadBooks();
           } finally {
             setAddingBook(false);
-            setAddError('');
             setTemplateBook(null); // Clear template after book is added
           }
         }}
         onAddError={(err) => {
           setAddingBook(false);
-          // Don't set addError - we'll show it in Bootstrap alert instead
-          // Clear any existing error message
-          setAddError('');
-          // Use the error message directly (backend already provides clear messages)
           const errorMessage = err?.message || 'Failed to add book';
           if (onShowAlert) {
             onShowAlert(errorMessage, 'danger');
@@ -931,7 +886,6 @@ const BookSearch = forwardRef(({
           }}
           onAddStart={() => {
             setAddingBook(true);
-            setAddError('');
           }}
           onBookAdded={async () => {
             try {
@@ -945,16 +899,11 @@ const BookSearch = forwardRef(({
               }
             } finally {
               setAddingBook(false);
-              setAddError('');
             }
           }}
           onAddError={(err) => {
             setAddingBook(false);
-            // Use the error message directly (backend already provides clear messages)
             const errorMessage = err?.message || 'Failed to add book';
-            // Don't set addError - we'll show it in Bootstrap alert instead
-            // Clear any existing error message
-            setAddError('');
             if (onShowAlert) {
               onShowAlert(errorMessage, 'danger');
             }
