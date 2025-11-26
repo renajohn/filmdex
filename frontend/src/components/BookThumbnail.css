@@ -6,11 +6,10 @@
   transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  /* Optimize rendering: browser skips rendering off-screen thumbnails */
-  content-visibility: auto;
-  contain-intrinsic-size: 150px 250px;
   /* Only apply transitions on hover, not during scroll */
   transition: none;
+  /* Allow dropdown menus to overflow */
+  overflow: visible;
 }
 
 .book-thumbnail:hover {
@@ -257,5 +256,24 @@
   border: 1px solid rgba(255, 255, 255, 0.15);
   line-height: 1.2;
   letter-spacing: 0.3px;
+}
+
+/* Ensure dropdown menu escapes overflow containers */
+.book-thumbnail-menu .dropdown-menu {
+  position: fixed !important;
+  z-index: 9999 !important;
+}
+
+/* Drag and drop styling for creating new series */
+.book-thumbnail.drag-over {
+  outline: 3px dashed #10b981;
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+.book-thumbnail.drag-over .book-thumbnail-cover {
+  transform: scale(1.02);
+  transition: transform 0.2s ease;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
 }
 

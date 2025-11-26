@@ -1,10 +1,89 @@
 import React, { useState } from 'react';
 import { Dropdown } from 'react-bootstrap';
-import { BsBook, BsThreeDots, BsPencil, BsTrash, BsClipboard, BsFileEarmark } from 'react-icons/bs';
+import { BsBook, BsThreeDots, BsPencil, BsTrash, BsClipboard, BsFileEarmark, BsBoxArrowRight } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import './BookThumbnail.css';
 
-const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false, hideInfo = false }) => {
+const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false, hideInfo = false, draggable = true, onBookDroppedForSeries = null, onAddToExistingSeries = null, onRemoveFromSeries = null }) => {
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleDragStart = (e) => {
+    if (!draggable) return;
+    e.dataTransfer.setData('application/json', JSON.stringify({
+      type: 'book',
+      bookId: book.id,
+      bookData: book
+    }));
+    e.dataTransfer.effectAllowed = 'move';
+    e.currentTarget.style.opacity = '0.5';
+  };
+
+  const handleDragEnd = (e) => {
+    e.currentTarget.style.opacity = '1';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const types = e.dataTransfer.types;
+    if (types.includes('application/json')) {
+      e.dataTransfer.dropEffect = 'move';
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      
+      // Handle series dropped on this book (only if this book has no series)
+      if (data.type === 'series' && data.seriesName && !book.series && onAddToExistingSeries) {
+        // Add this standalone book to the dropped series
+        onAddToExistingSeries(book.id, book, data.seriesName, data.books);
+        return;
+      }
+      
+      // Handle book dropped on this book
+      if (data.type === 'book' && data.bookId && data.bookId !== book.id) {
+        // Case 1: This book has a series, dragged book has no series
+        // → Add dragged book to this book's series
+        if (book.series && !data.bookData.series && onAddToExistingSeries) {
+          onAddToExistingSeries(data.bookId, data.bookData, book.series, [book]);
+        }
+        // Case 2: This book has no series, dragged book has a series
+        // → Add this book to the dragged book's series
+        else if (!book.series && data.bookData.series && onAddToExistingSeries) {
+          onAddToExistingSeries(book.id, book, data.bookData.series, [data.bookData]);
+        } 
+        // Case 3: Neither book has a series
+        // → Create a new series with both books
+        else if (!book.series && !data.bookData.series && onBookDroppedForSeries) {
+          onBookDroppedForSeries(data.bookId, data.bookData, book);
+        }
+        // Case 4: Both books have series - do nothing (would need merge UI)
+      }
+    } catch (error) {
+      console.error('Error parsing drop data:', error);
+    }
+  };
+
   const handleEditClick = (e) => {
     e.stopPropagation();
     onEdit();
@@ -13,6 +92,13 @@ const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false, h
   const handleDeleteClick = (e) => {
     e.stopPropagation();
     onDelete();
+  };
+
+  const handleRemoveFromSeriesClick = (e) => {
+    e.stopPropagation();
+    if (onRemoveFromSeries) {
+      onRemoveFromSeries();
+    }
   };
 
   const handleCopyRef = async (e) => {
@@ -71,8 +157,23 @@ const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false, h
     return bookService.getImageUrl(book.cover);
   };
 
+  // Enable drop handling if we have any drop handler
+  // - Standalone books can accept other standalones (to create series) or series/books-with-series
+  // - Books with series can accept standalone books (to add them to the series)
+  const canAcceptDrop = onBookDroppedForSeries || onAddToExistingSeries;
+
   return (
-    <div className="book-thumbnail" onClick={onClick}>
+    <div 
+      className={`book-thumbnail ${isDragOver ? 'drag-over' : ''}`}
+      onClick={onClick}
+      draggable={draggable}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragOver={canAcceptDrop ? handleDragOver : undefined}
+      onDragEnter={canAcceptDrop ? handleDragEnter : undefined}
+      onDragLeave={canAcceptDrop ? handleDragLeave : undefined}
+      onDrop={canAcceptDrop ? handleDrop : undefined}
+    >
       <div className="book-thumbnail-cover">
         {book.titleStatus === 'borrowed' && (
           <div className="book-thumbnail-borrowed-ribbon">
@@ -142,13 +243,26 @@ const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false, h
               <BsThreeDots />
             </Dropdown.Toggle>
             
-            <Dropdown.Menu>
+            <Dropdown.Menu 
+              popperConfig={{ 
+                strategy: 'fixed',
+                modifiers: [
+                  { name: 'preventOverflow', options: { boundary: 'viewport' } }
+                ]
+              }}
+              renderOnMount
+            >
               <Dropdown.Item onClick={handleCopyRef}>
                 <BsClipboard className="me-2" /> Copy ref.
               </Dropdown.Item>
               <Dropdown.Item onClick={handleEditClick}>
                 <BsPencil className="me-2" /> Edit
               </Dropdown.Item>
+              {onRemoveFromSeries && (
+                <Dropdown.Item onClick={handleRemoveFromSeriesClick}>
+                  <BsBoxArrowRight className="me-2" /> Remove from series
+                </Dropdown.Item>
+              )}
               <Dropdown.Item onClick={handleDeleteClick} className="text-danger">
                 <BsTrash className="me-2" /> Delete
               </Dropdown.Item>

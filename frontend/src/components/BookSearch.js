@@ -7,6 +7,7 @@ import BookDetailCard from './BookDetailCard';
 import AddBookDialog from './AddBookDialog';
 import SeriesStack from './SeriesStack';
 import { CollectionHeader, EmptyState } from './shared';
+import { Modal, Button, Form } from 'react-bootstrap';
 import { BsChevronDown, BsBook } from 'react-icons/bs';
 import './BookSearch.css';
 
@@ -58,6 +59,15 @@ const BookSearch = forwardRef(({
   const [bookDetailsBeforeEdit, setBookDetailsBeforeEdit] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState({ show: false, bookId: null });
   const [templateBook, setTemplateBook] = useState(null);
+  const [showCreateSeriesModal, setShowCreateSeriesModal] = useState(false);
+  const [createSeriesData, setCreateSeriesData] = useState({ draggedBook: null, targetBook: null, suggestedName: '' });
+  const [seriesNameInput, setSeriesNameInput] = useState('');
+  const [showMergeSeriesModal, setShowMergeSeriesModal] = useState(false);
+  const [mergeSeriesData, setMergeSeriesData] = useState({ 
+    sourceSeries: '', sourceBooks: [], 
+    targetSeries: '', targetBooks: [],
+    selectedName: ''
+  });
   const previousSearchTextRef = useRef('');
   const navigate = useNavigate();
   const location = useLocation();
@@ -429,6 +439,382 @@ const BookSearch = forwardRef(({
     }
   };
 
+  // Extract series number from book title using common patterns
+  const extractSeriesNumberFromTitle = (title) => {
+    if (!title) return null;
+    
+    // Common volume/series number patterns
+    const volumePatterns = [
+      /\bT0*(\d+)\b/i,           // T01, T1, T02, etc.
+      /\bVol\.?\s*0*(\d+)\b/i,   // Vol. 1, Vol 1, etc.
+      /\bVolume\s*0*(\d+)\b/i,   // Volume 1, etc.
+      /\b#0*(\d+)\b/i,           // #1, #01, etc.
+      /\bBook\s*0*(\d+)\b/i,     // Book 1, Book 01, etc.
+      /\bPart\s*0*(\d+)\b/i,     // Part 1, Part 01, etc.
+      /\bTome\s*0*(\d+)\b/i,     // Tome 1, Tome 01, etc.
+      /\b(\d+)\s*$/i             // Trailing number like "Series Name 1"
+    ];
+    
+    for (const pattern of volumePatterns) {
+      const match = title.match(pattern);
+      if (match && match[1]) {
+        const number = parseInt(match[1], 10);
+        if (!isNaN(number) && number > 0) {
+          return number;
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  // Handle book dropped onto a series stack
+  const handleBookDroppedOnSeries = async (bookId, bookData, seriesName, seriesBooks) => {
+    try {
+      // Try to infer series number from the book's title
+      let seriesNumber = extractSeriesNumberFromTitle(bookData.title);
+      
+      // If no series number could be inferred from title, use next number in series
+      if (seriesNumber === null) {
+        // Find the highest series number in the current series
+        const maxSeriesNumber = seriesBooks.reduce((max, book) => {
+          const num = book.seriesNumber != null ? Number(book.seriesNumber) : 0;
+          return isNaN(num) ? max : Math.max(max, num);
+        }, 0);
+        seriesNumber = maxSeriesNumber + 1;
+      }
+      
+      // Update the book with the new series and series number
+      const updatedBook = await onUpdateBook(bookId, {
+        ...bookData,
+        series: seriesName,
+        seriesNumber: seriesNumber
+      });
+      
+      // Save expanded series state
+      const currentExpanded = expandedSeries;
+      
+      // Reload books
+      await loadBooks();
+      
+      // Restore expanded series state
+      if (currentExpanded) {
+        setExpandedSeries(currentExpanded);
+        sessionStorage.setItem('bookSearchExpandedSeries', currentExpanded);
+      }
+      
+      if (onShowAlert) {
+        onShowAlert(`Added "${bookData.title}" to ${seriesName} as #${seriesNumber}`, 'success');
+      }
+      
+      return updatedBook;
+    } catch (error) {
+      console.error('Error adding book to series:', error);
+      if (onShowAlert) {
+        onShowAlert(`Failed to add book to series: ${error.message}`, 'danger');
+      }
+    }
+  };
+
+  // Infer a series name from two books
+  const inferSeriesName = (book1, book2) => {
+    const title1 = book1.title || '';
+    const title2 = book2.title || '';
+    
+    // Remove common volume/number patterns from titles for comparison
+    const cleanTitle = (title) => {
+      return title
+        .replace(/\s*[-–—:]\s*(T|Vol\.?|Volume|Book|Part|Tome|#)\s*\d+\s*$/i, '')
+        .replace(/\s*(T|Vol\.?|Volume|Book|Part|Tome|#)\s*\d+\s*$/i, '')
+        .replace(/\s*\d+\s*$/, '')
+        .trim();
+    };
+    
+    const clean1 = cleanTitle(title1);
+    const clean2 = cleanTitle(title2);
+    
+    // If cleaned titles are the same, use that as series name
+    if (clean1 && clean1.toLowerCase() === clean2.toLowerCase()) {
+      return clean1;
+    }
+    
+    // Try to find common prefix
+    const words1 = clean1.split(/\s+/);
+    const words2 = clean2.split(/\s+/);
+    const commonWords = [];
+    
+    for (let i = 0; i < Math.min(words1.length, words2.length); i++) {
+      if (words1[i].toLowerCase() === words2[i].toLowerCase()) {
+        commonWords.push(words1[i]);
+      } else {
+        break;
+      }
+    }
+    
+    if (commonWords.length >= 2) {
+      return commonWords.join(' ');
+    }
+    
+    // If same author, suggest author name + "Series"
+    const author1 = Array.isArray(book1.authors) ? book1.authors[0] : book1.authors;
+    const author2 = Array.isArray(book2.authors) ? book2.authors[0] : book2.authors;
+    
+    if (author1 && author2 && author1.toLowerCase() === author2.toLowerCase()) {
+      return `${author1} Series`;
+    }
+    
+    // Fallback to the first cleaned title
+    return clean1 || clean2 || 'New Series';
+  };
+
+  // Handle book dropped on another book to create a new series
+  const handleBookDroppedForNewSeries = (draggedBookId, draggedBookData, targetBook) => {
+    // Infer a suggested series name
+    const suggestedName = inferSeriesName(draggedBookData, targetBook);
+    
+    // Set up the modal data
+    setCreateSeriesData({
+      draggedBook: draggedBookData,
+      targetBook: targetBook,
+      suggestedName: suggestedName
+    });
+    setSeriesNameInput(suggestedName);
+    setShowCreateSeriesModal(true);
+  };
+
+  // Confirm series creation
+  const handleConfirmCreateSeries = async () => {
+    const { draggedBook, targetBook } = createSeriesData;
+    const seriesName = seriesNameInput.trim();
+    
+    if (!seriesName) {
+      if (onShowAlert) {
+        onShowAlert('Please enter a series name', 'warning');
+      }
+      return;
+    }
+    
+    try {
+      // Extract series numbers from titles
+      const draggedNumber = extractSeriesNumberFromTitle(draggedBook.title);
+      const targetNumber = extractSeriesNumberFromTitle(targetBook.title);
+      
+      // Determine series numbers
+      let draggedSeriesNumber, targetSeriesNumber;
+      
+      if (draggedNumber !== null && targetNumber !== null) {
+        // Both have numbers, use them
+        draggedSeriesNumber = draggedNumber;
+        targetSeriesNumber = targetNumber;
+      } else if (draggedNumber !== null) {
+        // Only dragged book has number
+        draggedSeriesNumber = draggedNumber;
+        targetSeriesNumber = draggedNumber === 1 ? 2 : 1;
+      } else if (targetNumber !== null) {
+        // Only target book has number
+        targetSeriesNumber = targetNumber;
+        draggedSeriesNumber = targetNumber === 1 ? 2 : 1;
+      } else {
+        // Neither has a number, assign 1 and 2
+        targetSeriesNumber = 1;
+        draggedSeriesNumber = 2;
+      }
+      
+      // Update both books
+      await onUpdateBook(targetBook.id, {
+        ...targetBook,
+        series: seriesName,
+        seriesNumber: targetSeriesNumber
+      });
+      
+      await onUpdateBook(draggedBook.id, {
+        ...draggedBook,
+        series: seriesName,
+        seriesNumber: draggedSeriesNumber
+      });
+      
+      // Close modal and reload
+      setShowCreateSeriesModal(false);
+      setCreateSeriesData({ draggedBook: null, targetBook: null, suggestedName: '' });
+      setSeriesNameInput('');
+      
+      await loadBooks();
+      
+      if (onShowAlert) {
+        onShowAlert(`Created series "${seriesName}" with 2 books`, 'success');
+      }
+    } catch (error) {
+      console.error('Error creating series:', error);
+      if (onShowAlert) {
+        onShowAlert(`Failed to create series: ${error.message}`, 'danger');
+      }
+    }
+  };
+
+  // Cancel series creation
+  const handleCancelCreateSeries = () => {
+    setShowCreateSeriesModal(false);
+    setCreateSeriesData({ draggedBook: null, targetBook: null, suggestedName: '' });
+    setSeriesNameInput('');
+  };
+
+  // Handle series dropped on another series - prompt for merge
+  const handleSeriesMerge = (sourceSeriesName, sourceBooks, targetSeriesName, targetBooks) => {
+    setMergeSeriesData({
+      sourceSeries: sourceSeriesName,
+      sourceBooks: sourceBooks,
+      targetSeries: targetSeriesName,
+      targetBooks: targetBooks,
+      selectedName: targetSeriesName // Default to the target series name
+    });
+    setShowMergeSeriesModal(true);
+  };
+
+  // Confirm series merge
+  const handleConfirmMergeSeries = async () => {
+    const { sourceSeries, sourceBooks, targetSeries, targetBooks, selectedName } = mergeSeriesData;
+    
+    try {
+      // Determine which books need to be updated
+      const booksToUpdate = selectedName === sourceSeries ? targetBooks : sourceBooks;
+      
+      // Get the highest series number from the series we're keeping
+      const keptBooks = selectedName === sourceSeries ? sourceBooks : targetBooks;
+      const maxSeriesNumber = keptBooks.reduce((max, book) => {
+        const num = book.seriesNumber != null ? Number(book.seriesNumber) : 0;
+        return isNaN(num) ? max : Math.max(max, num);
+      }, 0);
+      
+      // Update each book to use the selected series name
+      // Assign new series numbers to avoid conflicts
+      for (let i = 0; i < booksToUpdate.length; i++) {
+        const book = booksToUpdate[i];
+        // Try to keep original series number if it doesn't conflict
+        let newSeriesNumber = book.seriesNumber;
+        
+        // Check if this number conflicts with kept books
+        const conflicts = keptBooks.some(b => b.seriesNumber === newSeriesNumber);
+        if (conflicts || newSeriesNumber == null) {
+          // Assign next available number
+          newSeriesNumber = maxSeriesNumber + i + 1;
+        }
+        
+        await onUpdateBook(book.id, {
+          ...book,
+          series: selectedName,
+          seriesNumber: newSeriesNumber
+        });
+      }
+      
+      // Close modal and reload
+      setShowMergeSeriesModal(false);
+      setMergeSeriesData({ 
+        sourceSeries: '', sourceBooks: [], 
+        targetSeries: '', targetBooks: [],
+        selectedName: ''
+      });
+      
+      await loadBooks();
+      
+      if (onShowAlert) {
+        const totalBooks = sourceBooks.length + targetBooks.length;
+        onShowAlert(`Merged series into "${selectedName}" (${totalBooks} books)`, 'success');
+      }
+    } catch (error) {
+      console.error('Error merging series:', error);
+      if (onShowAlert) {
+        onShowAlert(`Failed to merge series: ${error.message}`, 'danger');
+      }
+    }
+  };
+
+  // Cancel series merge
+  const handleCancelMergeSeries = () => {
+    setShowMergeSeriesModal(false);
+    setMergeSeriesData({ 
+      sourceSeries: '', sourceBooks: [], 
+      targetSeries: '', targetBooks: [],
+      selectedName: ''
+    });
+  };
+
+  // Rename a series
+  const handleSeriesRename = async (oldName, newName, seriesBooks) => {
+    try {
+      // Update all books in the series with the new name
+      for (const book of seriesBooks) {
+        await onUpdateBook(book.id, {
+          ...book,
+          series: newName
+        });
+      }
+      
+      // Save expanded state
+      const currentExpanded = expandedSeries;
+      
+      await loadBooks();
+      
+      // Update expanded series to new name
+      if (currentExpanded === oldName) {
+        setExpandedSeries(newName);
+        sessionStorage.setItem('bookSearchExpandedSeries', newName);
+      }
+      
+      if (onShowAlert) {
+        onShowAlert(`Renamed series to "${newName}"`, 'success');
+      }
+    } catch (error) {
+      console.error('Error renaming series:', error);
+      if (onShowAlert) {
+        onShowAlert(`Failed to rename series: ${error.message}`, 'danger');
+      }
+    }
+  };
+
+  // Remove a book from its series
+  const handleRemoveFromSeries = async (book) => {
+    try {
+      await onUpdateBook(book.id, {
+        ...book,
+        series: null,
+        seriesNumber: null
+      });
+      
+      // Save expanded state
+      const currentExpanded = expandedSeries;
+      
+      await loadBooks();
+      
+      // Restore expanded state if there are still books in the series
+      if (currentExpanded) {
+        setExpandedSeries(currentExpanded);
+        sessionStorage.setItem('bookSearchExpandedSeries', currentExpanded);
+      }
+      
+      if (onShowAlert) {
+        onShowAlert(`Removed "${book.title}" from series`, 'success');
+      }
+    } catch (error) {
+      console.error('Error removing book from series:', error);
+      if (onShowAlert) {
+        onShowAlert(`Failed to remove book from series: ${error.message}`, 'danger');
+      }
+    }
+  };
+
+  // Add books to series - opens the add dialog with template
+  const handleAddBooksToSeries = (seriesName, existingBooks) => {
+    // Find the book with the highest series number to use as template
+    const templateBook = existingBooks.reduce((best, book) => {
+      const num = book.seriesNumber != null ? Number(book.seriesNumber) : 0;
+      const bestNum = best?.seriesNumber != null ? Number(best.seriesNumber) : 0;
+      return num > bestNum ? book : best;
+    }, existingBooks[0]);
+    
+    setTemplateBook(templateBook);
+    setShowAddDialog(true);
+  };
+
   const handleBookClick = async (bookId) => {
     try {
       // Save scroll position before opening modal to ensure it's preserved
@@ -609,6 +995,11 @@ const BookSearch = forwardRef(({
                 onBookClick={(book) => handleBookClick(book.id)}
                 onEdit={(book) => handleEditBook(book)}
                 onDelete={(book) => setShowDeleteModal({ show: true, bookId: book.id })}
+                onBookDropped={handleBookDroppedOnSeries}
+                onSeriesMerge={handleSeriesMerge}
+                onSeriesRename={handleSeriesRename}
+                onRemoveFromSeries={handleRemoveFromSeries}
+                onAddBooksToSeries={handleAddBooksToSeries}
                 onClose={() => {
                   setExpandedSeries(null);
                   sessionStorage.removeItem('bookSearchExpandedSeries');
@@ -625,6 +1016,8 @@ const BookSearch = forwardRef(({
                   onClick={() => handleBookClick(book.id)}
                   onEdit={() => handleEditBook(book)}
                   onDelete={() => setShowDeleteModal({ show: true, bookId: book.id })}
+                  onBookDroppedForSeries={!book.series ? handleBookDroppedForNewSeries : null}
+                  onAddToExistingSeries={handleBookDroppedOnSeries}
                 />
               );
             });
@@ -633,6 +1026,8 @@ const BookSearch = forwardRef(({
           items.push(
             <BookThumbnail
               key={item.book.id}
+              onBookDroppedForSeries={!item.book.series ? handleBookDroppedForNewSeries : null}
+              onAddToExistingSeries={handleBookDroppedOnSeries}
               book={item.book}
               onClick={() => handleBookClick(item.book.id)}
               onEdit={() => handleEditBook(item.book)}
@@ -679,6 +1074,8 @@ const BookSearch = forwardRef(({
                       key={book.id}
                       book={book}
                       onClick={() => handleBookClick(book.id)}
+                      onBookDroppedForSeries={!book.series ? handleBookDroppedForNewSeries : null}
+                      onAddToExistingSeries={handleBookDroppedOnSeries}
                       onEdit={() => handleEditBook(book)}
                       onDelete={() => setShowDeleteModal({ show: true, bookId: book.id })}
                     />
@@ -966,6 +1363,146 @@ const BookSearch = forwardRef(({
       {(showDeleteModal.show) && (
         <div className="modal-backdrop show" style={{ zIndex: 10200 }}></div>
       )}
+
+      {/* Create Series Modal */}
+      <Modal 
+        show={showCreateSeriesModal} 
+        onHide={handleCancelCreateSeries}
+        centered
+        className="create-series-modal"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Create New Series</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="text-muted mb-3">
+            You're about to create a new series with these two books:
+          </p>
+          <div className="create-series-books mb-4">
+            <div className="create-series-book">
+              <strong>{createSeriesData.targetBook?.title}</strong>
+              {createSeriesData.targetBook?.authors && (
+                <div className="text-muted small">
+                  {Array.isArray(createSeriesData.targetBook.authors) 
+                    ? createSeriesData.targetBook.authors.join(', ') 
+                    : createSeriesData.targetBook.authors}
+                </div>
+              )}
+            </div>
+            <div className="create-series-book">
+              <strong>{createSeriesData.draggedBook?.title}</strong>
+              {createSeriesData.draggedBook?.authors && (
+                <div className="text-muted small">
+                  {Array.isArray(createSeriesData.draggedBook.authors) 
+                    ? createSeriesData.draggedBook.authors.join(', ') 
+                    : createSeriesData.draggedBook.authors}
+                </div>
+              )}
+            </div>
+          </div>
+          <Form.Group>
+            <Form.Label>Series Name</Form.Label>
+            <Form.Control
+              type="text"
+              value={seriesNameInput}
+              onChange={(e) => setSeriesNameInput(e.target.value)}
+              placeholder="Enter series name"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleConfirmCreateSeries();
+                }
+              }}
+            />
+            <Form.Text className="text-muted">
+              Series numbers will be inferred from the titles if possible
+            </Form.Text>
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCancelCreateSeries}>
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleConfirmCreateSeries}
+            disabled={!seriesNameInput.trim()}
+          >
+            Create Series
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Merge Series Modal */}
+      <Modal 
+        show={showMergeSeriesModal} 
+        onHide={handleCancelMergeSeries}
+        centered
+        className="create-series-modal"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Merge Series</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="text-muted mb-3">
+            You're about to merge two series. Choose which series name to keep:
+          </p>
+          <div className="merge-series-options mb-4">
+            <div 
+              className={`merge-series-option ${mergeSeriesData.selectedName === mergeSeriesData.targetSeries ? 'selected' : ''}`}
+              onClick={() => setMergeSeriesData(prev => ({ ...prev, selectedName: prev.targetSeries }))}
+            >
+              <Form.Check 
+                type="radio"
+                name="seriesName"
+                id="targetSeries"
+                checked={mergeSeriesData.selectedName === mergeSeriesData.targetSeries}
+                onChange={() => setMergeSeriesData(prev => ({ ...prev, selectedName: prev.targetSeries }))}
+                label={
+                  <div>
+                    <strong>{mergeSeriesData.targetSeries}</strong>
+                    <div className="text-muted small">{mergeSeriesData.targetBooks.length} books</div>
+                  </div>
+                }
+              />
+            </div>
+            <div 
+              className={`merge-series-option ${mergeSeriesData.selectedName === mergeSeriesData.sourceSeries ? 'selected' : ''}`}
+              onClick={() => setMergeSeriesData(prev => ({ ...prev, selectedName: prev.sourceSeries }))}
+            >
+              <Form.Check 
+                type="radio"
+                name="seriesName"
+                id="sourceSeries"
+                checked={mergeSeriesData.selectedName === mergeSeriesData.sourceSeries}
+                onChange={() => setMergeSeriesData(prev => ({ ...prev, selectedName: prev.sourceSeries }))}
+                label={
+                  <div>
+                    <strong>{mergeSeriesData.sourceSeries}</strong>
+                    <div className="text-muted small">{mergeSeriesData.sourceBooks.length} books</div>
+                  </div>
+                }
+              />
+            </div>
+          </div>
+          <p className="text-muted small mb-0">
+            Total: {mergeSeriesData.sourceBooks.length + mergeSeriesData.targetBooks.length} books will be in the merged series
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCancelMergeSeries}>
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleConfirmMergeSeries}
+            disabled={!mergeSeriesData.selectedName}
+          >
+            Merge Series
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 });

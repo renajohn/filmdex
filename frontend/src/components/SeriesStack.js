@@ -1,11 +1,136 @@
-import React, { useRef, useEffect } from 'react';
-import { Popover, Overlay } from 'react-bootstrap';
+import React, { useRef, useEffect, useState } from 'react';
+import { Popover, Overlay, Button } from 'react-bootstrap';
+import { BsPencil, BsCheck, BsX, BsPlus } from 'react-icons/bs';
 import BookThumbnail from './BookThumbnail';
 import './SeriesStack.css';
 
-const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpanded, onToggleExpanded, sortedBooks, onClose }) => {
+const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpanded, onToggleExpanded, sortedBooks, onClose, onBookDropped, onSeriesMerge, onSeriesRename, onRemoveFromSeries, onAddBooksToSeries }) => {
   const targetRef = useRef(null);
   const containerRef = useRef(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState(seriesName);
+  const nameInputRef = useRef(null);
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [isEditingName]);
+
+  // Reset edited name when series name changes
+  useEffect(() => {
+    setEditedName(seriesName);
+  }, [seriesName]);
+
+  const handleStartEditName = (e) => {
+    e.stopPropagation();
+    setIsEditingName(true);
+    setEditedName(seriesName);
+  };
+
+  const handleSaveName = async (e) => {
+    e?.stopPropagation();
+    const newName = editedName.trim();
+    if (newName && newName !== seriesName && onSeriesRename) {
+      await onSeriesRename(seriesName, newName, books);
+    }
+    setIsEditingName(false);
+  };
+
+  const handleCancelEditName = (e) => {
+    e?.stopPropagation();
+    setIsEditingName(false);
+    setEditedName(seriesName);
+  };
+
+  const handleNameKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSaveName(e);
+    } else if (e.key === 'Escape') {
+      handleCancelEditName(e);
+    }
+  };
+
+
+  // Make the stack draggable
+  const handleDragStart = (e) => {
+    // Don't start drag if clicking on menu
+    if (e.target.closest('.book-thumbnail-menu')) {
+      e.preventDefault();
+      return;
+    }
+    
+    e.dataTransfer.setData('application/json', JSON.stringify({
+      type: 'series',
+      seriesName: seriesName,
+      books: books
+    }));
+    e.dataTransfer.effectAllowed = 'move';
+    if (targetRef.current) {
+      targetRef.current.style.opacity = '0.5';
+    }
+  };
+
+  const handleDragEnd = (e) => {
+    if (targetRef.current) {
+      targetRef.current.style.opacity = '1';
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Check if it's a book or series being dragged
+    const types = e.dataTransfer.types;
+    if (types.includes('application/json')) {
+      e.dataTransfer.dropEffect = 'move';
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set to false if we're actually leaving the stack (outer div)
+    if (!targetRef.current?.contains(e.relatedTarget)) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      
+      if (data.type === 'series' && data.seriesName && onSeriesMerge) {
+        // Another series is being dropped on this one - merge them
+        if (data.seriesName !== seriesName) {
+          onSeriesMerge(data.seriesName, data.books, seriesName, books);
+        }
+      } else if (data.type === 'book' && data.bookId && onBookDropped) {
+        // A single book is being dropped
+        const isAlreadyInSeries = books.some(b => b.id === data.bookId);
+        if (!isAlreadyInSeries) {
+          onBookDropped(data.bookId, data.bookData, seriesName, books);
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing drop data:', error);
+    }
+  };
 
   const handleClick = (e) => {
     // Toujours ouvrir le tas, même si on clique sur un livre
@@ -81,11 +206,22 @@ const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpan
     <>
       <div 
         ref={targetRef}
-        className={`series-stack ${isExpanded ? 'expanded' : ''}`} 
-        onClick={handleClick} 
+        className={`series-stack ${isExpanded ? 'expanded' : ''} ${isDragOver ? 'drag-over' : ''}`} 
+        onClick={handleClick}
+        draggable={!isExpanded}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         style={{ position: 'relative' }}
       >
         <div ref={containerRef} className="series-stack-container">
+          {/* Invisible drag handle overlay */}
+          {!isExpanded && (
+            <div className="series-stack-drag-overlay" />
+          )}
           {displayBooks.slice(0, 3).map((book, index) => {
             // Rotation simple pour l'état normal :
             // - Index 0 (dessus) : 0° (parfaitement droit), centré
@@ -117,6 +253,7 @@ const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpan
               >
                 <BookThumbnail
                   book={book}
+                  draggable={false}
                   onClick={(e) => {
                     // Ne pas ouvrir le livre directement, laisser le parent gérer le clic pour ouvrir le tas
                     e.stopPropagation();
@@ -179,7 +316,34 @@ const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpan
           >
             <Popover.Header>
               <div className="series-expansion-header">
-                <h4 className="series-expansion-title">{seriesName}</h4>
+                {isEditingName ? (
+                  <div className="series-name-edit">
+                    <input
+                      ref={nameInputRef}
+                      type="text"
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      onKeyDown={handleNameKeyDown}
+                      className="series-name-input"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <button className="series-name-btn save" onClick={handleSaveName} title="Save">
+                      <BsCheck size={18} />
+                    </button>
+                    <button className="series-name-btn cancel" onClick={handleCancelEditName} title="Cancel">
+                      <BsX size={18} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="series-name-display">
+                    <h4 className="series-expansion-title">{seriesName}</h4>
+                    {onSeriesRename && (
+                      <button className="series-name-btn edit" onClick={handleStartEditName} title="Edit series name">
+                        <BsPencil size={14} />
+                      </button>
+                    )}
+                  </div>
+                )}
                 <span className="series-expansion-count">{sortedBooks.length} books</span>
               </div>
             </Popover.Header>
@@ -198,10 +362,26 @@ const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpan
                       onClick={() => onBookClick(book)}
                       onEdit={() => onEdit(book)}
                       onDelete={() => onDelete(book)}
+                      onRemoveFromSeries={onRemoveFromSeries ? () => onRemoveFromSeries(book) : null}
                     />
                   </div>
                 ))}
               </div>
+              {onAddBooksToSeries && (
+                <div className="series-expansion-footer">
+                  <Button 
+                    variant="outline-success" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddBooksToSeries(seriesName, books);
+                    }}
+                  >
+                    <BsPlus size={18} className="me-1" />
+                    Add Books to Series
+                  </Button>
+                </div>
+              )}
             </Popover.Body>
           </Popover>
         </Overlay>

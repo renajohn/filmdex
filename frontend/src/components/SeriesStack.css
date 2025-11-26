@@ -1,9 +1,50 @@
 .series-stack {
   position: relative;
-  cursor: pointer;
+  cursor: grab;
   margin-bottom: 20px;
   width: 100%;
   overflow: visible; /* Permettre aux livres de s'éventailler au survol */
+}
+
+.series-stack:active {
+  cursor: grabbing;
+}
+
+/* Drag overlay to capture drag events */
+.series-stack-drag-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  cursor: grab;
+  /* Transparent but captures pointer events */
+  background: transparent;
+}
+
+.series-stack-drag-overlay:active {
+  cursor: grabbing;
+}
+
+/* Prevent child elements from blocking the stack's drag */
+.series-stack-container,
+.series-stack-item,
+.series-stack .book-thumbnail,
+.series-stack .book-thumbnail-cover,
+.series-stack .book-thumbnail-image {
+  -webkit-user-drag: none;
+  user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+}
+
+/* Also prevent text selection during drag */
+.series-stack-container,
+.series-stack-item {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .series-stack.expanded {
@@ -188,6 +229,17 @@
   overflow-y: auto;
 }
 
+/* Override content-visibility to allow dropdown menus to overflow */
+.series-expansion-book-item .book-thumbnail {
+  content-visibility: visible;
+  contain: none;
+  overflow: visible;
+}
+
+.series-expansion-book-item .book-thumbnail-cover {
+  overflow: visible;
+}
+
 .series-expansion-header {
   display: flex;
   align-items: center;
@@ -263,5 +315,107 @@
   to {
     opacity: 1;
   }
+}
+
+/* Drag and drop styling */
+.series-stack.drag-over {
+  outline: 3px dashed #10b981;
+  outline-offset: 4px;
+  background-color: rgba(16, 185, 129, 0.1);
+  border-radius: 8px;
+}
+
+.series-stack.drag-over .series-stack-container {
+  transform: scale(1.02);
+  transition: transform 0.2s ease;
+}
+
+/* Series name editing */
+.series-name-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.series-name-display .series-expansion-title {
+  margin: 0;
+}
+
+.series-name-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.series-name-input {
+  flex: 1;
+  background-color: #2a2a2a;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #f0f0f0;
+  padding: 6px 10px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.series-name-input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.series-name-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.series-name-btn.edit {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #a3a3a3;
+}
+
+.series-name-btn.edit:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #f0f0f0;
+}
+
+.series-name-btn.save {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.series-name-btn.save:hover {
+  background-color: rgba(16, 185, 129, 0.3);
+}
+
+.series-name-btn.cancel {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.series-name-btn.cancel:hover {
+  background-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Series expansion footer */
+.series-expansion-footer {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: center;
+}
+
+.series-expansion-footer .btn {
+  display: flex;
+  align-items: center;
 }
 
