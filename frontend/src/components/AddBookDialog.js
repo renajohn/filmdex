@@ -20,12 +20,22 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   const [showMetadataForm, setShowMetadataForm] = useState(false);
   const [selectedBook, setSelectedBook] = useState(null);
   const [selectedBookGroup, setSelectedBookGroup] = useState(null);
-  const [searchLanguage, setSearchLanguage] = useState('any'); // Default to any language for better results
+  // Load language preference from localStorage, default to 'any'
+  const [searchLanguage, setSearchLanguage] = useState(() => {
+    return localStorage.getItem('bookdex-search-language') || 'any';
+  });
   const [enriching, setEnriching] = useState(false);
   const [enrichingBookIndex, setEnrichingBookIndex] = useState(null); // Track which book is being enriched
   const [showVolumeSelector, setShowVolumeSelector] = useState(false);
+  const [quickAdding, setQuickAdding] = useState(false); // Track quick add in progress
   const isbnInputRef = useRef(null);
   const titleInputRef = useRef(null);
+
+  // Save language preference when it changes
+  const handleLanguageChange = (lang) => {
+    setSearchLanguage(lang);
+    localStorage.setItem('bookdex-search-language', lang);
+  };
 
   useEffect(() => {
     if (show) {
@@ -288,6 +298,64 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       setEnriching(false);
       setEnrichingBookIndex(null);
       setShowMetadataForm(true);
+    }
+  };
+
+  // Quick Add - enrich and add book in one step without showing the form
+  const handleQuickAdd = async (book) => {
+    if (quickAdding || enriching) return;
+    
+    setQuickAdding(true);
+    setError('');
+    
+    try {
+      // Enrich the book first
+      let enrichedBook;
+      try {
+        enrichedBook = await bookService.enrichBook(book);
+      } catch (enrichError) {
+        console.warn('Failed to enrich book, using original:', enrichError);
+        enrichedBook = book;
+      }
+      
+      // Prepare book data for saving
+      const bookData = {
+        title: enrichedBook.title || book.title,
+        subtitle: enrichedBook.subtitle || book.subtitle || '',
+        authors: enrichedBook.authors || book.authors || [],
+        isbn: enrichedBook.isbn || book.isbn || '',
+        isbn13: enrichedBook.isbn13 || book.isbn13 || '',
+        publisher: enrichedBook.publisher || book.publisher || '',
+        publishedYear: enrichedBook.publishedYear || book.publishedYear || '',
+        language: enrichedBook.language || book.language || '',
+        format: 'physical',
+        series: enrichedBook.series || book.series || '',
+        seriesNumber: enrichedBook.seriesNumber || book.seriesNumber || '',
+        genres: enrichedBook.genres || book.genres || [],
+        pageCount: enrichedBook.pageCount || book.pageCount || '',
+        description: enrichedBook.description || book.description || '',
+        coverUrl: enrichedBook.coverUrl || book.coverUrl || '',
+        urls: enrichedBook.urls || book.urls || {},
+        titleStatus: defaultTitleStatus || 'owned'
+      };
+      
+      // Add the book
+      if (onAddStart) onAddStart();
+      const createdBook = await onAddBook(bookData);
+      
+      // Close dialog and notify success
+      handleClose();
+      if (onBookAdded) {
+        onBookAdded(createdBook);
+      }
+    } catch (err) {
+      console.error('Quick add failed:', err);
+      setError(`Failed to add book: ${err.message || 'Unknown error'}`);
+      if (onAddError) {
+        onAddError(err);
+      }
+    } finally {
+      setQuickAdding(false);
     }
   };
 
@@ -764,7 +832,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
               <div className="col-12 col-md-3">
                 <Form.Select
                   value={searchLanguage}
-                  onChange={(e) => setSearchLanguage(e.target.value)}
+                  onChange={(e) => handleLanguageChange(e.target.value)}
                   className="language-select"
                 >
                   <option value="any">Any Language</option>
@@ -856,26 +924,51 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                             {isExpanded ? <BsChevronDown size={20} /> : <BsChevronRight size={20} />}
                           </div>
                         ) : (
-                          <Button
-                            size="sm"
-                            variant="warning"
-                            className="select-book-btn-header"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSelectBook(group.books[0], group.books, 0, groupIndex);
-                            }}
-                            disabled={enriching}
-                            style={{ backgroundColor: '#fbbf24', borderColor: '#fbbf24', color: '#1a202c' }}
-                          >
-                            {enriching && enrichingBookIndex === `group-${groupIndex}-book-0` ? (
-                              <>
-                                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                Enriching...
-                              </>
-                            ) : (
-                              'Select & Add'
-                            )}
-                          </Button>
+                          <div className="book-action-buttons">
+                            <Button
+                              size="sm"
+                              variant="success"
+                              className="quick-add-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQuickAdd(group.books[0]);
+                              }}
+                              disabled={quickAdding || enriching}
+                              style={{ backgroundColor: '#22c55e', borderColor: '#16a34a', color: '#fff', marginRight: '8px' }}
+                            >
+                              {quickAdding ? (
+                                <>
+                                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                  Adding...
+                                </>
+                              ) : (
+                                <>
+                                  <BsPlus className="me-1" />
+                                  Quick Add
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline-secondary"
+                              className="select-book-btn-header"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectBook(group.books[0], group.books, 0, groupIndex);
+                              }}
+                              disabled={enriching || quickAdding}
+                              style={{ borderColor: 'rgba(255,255,255,0.3)', color: '#ccc' }}
+                            >
+                              {enriching && enrichingBookIndex === `group-${groupIndex}-book-0` ? (
+                                <>
+                                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                  Loading...
+                                </>
+                              ) : (
+                                'Edit First'
+                              )}
+                            </Button>
+                          </div>
                         )}
                       </div>
                       
@@ -940,31 +1033,42 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                                     </td>
                                     <td>{book.pageCount || '-'}</td>
                                     <td>
-                                      <Button
-                                        size="sm"
-                                        variant="warning"
-                                        className="select-book-btn"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleSelectBook(book, group.books, bookIndex, groupIndex);
-                                        }}
-                                        disabled={enriching}
-                                        style={{ 
-                                          backgroundColor: enriching && enrichingBookIndex === `group-${groupIndex}-book-${bookIndex}` ? 'rgba(251, 191, 36, 0.6)' : '#fbbf24', 
-                                          borderColor: '#fbbf24', 
-                                          color: '#1a202c',
-                                          minWidth: '120px'
-                                        }}
-                                      >
-                                        {enriching && enrichingBookIndex === `group-${groupIndex}-book-${bookIndex}` ? (
-                                          <>
-                                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                            Enriching...
-                                          </>
-                                        ) : (
-                                          'Select & Add'
-                                        )}
-                                      </Button>
+                                      <div className="d-flex gap-1">
+                                        <Button
+                                          size="sm"
+                                          variant="success"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleQuickAdd(book);
+                                          }}
+                                          disabled={quickAdding || enriching}
+                                          style={{ backgroundColor: '#22c55e', borderColor: '#16a34a', color: '#fff' }}
+                                          title="Add immediately with this metadata"
+                                        >
+                                          {quickAdding ? (
+                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                          ) : (
+                                            <BsPlus size={16} />
+                                          )}
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline-secondary"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleSelectBook(book, group.books, bookIndex, groupIndex);
+                                          }}
+                                          disabled={enriching || quickAdding}
+                                          title="Edit metadata before adding"
+                                          style={{ borderColor: 'rgba(255,255,255,0.3)', color: '#ccc' }}
+                                        >
+                                          {enriching && enrichingBookIndex === `group-${groupIndex}-book-${bookIndex}` ? (
+                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                          ) : (
+                                            'Edit'
+                                          )}
+                                        </Button>
+                                      </div>
                                     </td>
                                   </tr>
                                 );

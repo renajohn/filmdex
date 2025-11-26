@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Modal, Form, Button, Row, Col, Alert } from 'react-bootstrap';
-import { BsX, BsUpload, BsBook, BsCloudDownload, BsFileEarmark, BsTrash } from 'react-icons/bs';
+import { BsX, BsUpload, BsBook, BsCloudDownload, BsFileEarmark, BsTrash, BsChevronDown, BsChevronRight } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import CoverModal from './CoverModal';
 import './BookForm.css';
@@ -64,6 +64,10 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
   const [selectedMetadataSource, setSelectedMetadataSource] = useState({
     description: 'auto',
     series: 'auto'
+  });
+  // Show/hide advanced fields - remember preference in localStorage
+  const [showAdvanced, setShowAdvanced] = useState(() => {
+    return localStorage.getItem('bookdex-show-advanced-form') === 'true';
   });
   // Track availableCovers separately to ensure React re-renders when it changes
   const [localAvailableCovers, setLocalAvailableCovers] = useState(null);
@@ -794,7 +798,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
     }
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = async (e) => {
     e.preventDefault();
     e.stopPropagation();
     dragCounterRef.current = 0;
@@ -806,10 +810,93 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
       return;
     }
     
+    // First, try to handle as a file drop
     const file = e.dataTransfer.files?.[0];
-    if (file) {
+    if (file && file.type.startsWith('image/')) {
       const fakeEvent = { target: { files: [file] } };
       handleFileChange(fakeEvent);
+      return;
+    }
+    
+    // If no file, try to get URL from the drop (e.g., dragging image from another browser tab)
+    const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+      // Check if it looks like an image URL
+      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
+      const isImageUrl = imageExtensions.some(ext => url.toLowerCase().includes(ext)) || 
+                         url.includes('/images/') || 
+                         url.includes('covers.openlibrary.org') ||
+                         url.includes('books.google.com');
+      
+      if (isImageUrl || url.match(/\.(jpg|jpeg|png|gif|webp|bmp)/i)) {
+        try {
+          setUploadMessage('Downloading image from URL...');
+          setUploadMessageType('info');
+          
+          // Fetch the image and convert to a blob
+          const response = await fetch(url);
+          if (!response.ok) throw new Error('Failed to fetch image');
+          
+          const blob = await response.blob();
+          if (!blob.type.startsWith('image/')) {
+            throw new Error('URL does not point to an image');
+          }
+          
+          // Create a File object from the blob
+          const fileName = url.split('/').pop()?.split('?')[0] || 'cover.jpg';
+          const imageFile = new File([blob], fileName, { type: blob.type });
+          
+          const fakeEvent = { target: { files: [imageFile] } };
+          handleFileChange(fakeEvent);
+          return;
+        } catch (error) {
+          console.error('Error downloading image from URL:', error);
+          setUploadMessage('Failed to download image from URL. Try right-click > Copy Image, then paste.');
+          setUploadMessageType('danger');
+          return;
+        }
+      }
+    }
+    
+    // Try to extract image URL from HTML (e.g., when dragging an <img> element)
+    const html = e.dataTransfer.getData('text/html');
+    if (html) {
+      const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+      if (imgMatch && imgMatch[1]) {
+        const imgUrl = imgMatch[1];
+        if (imgUrl.startsWith('http://') || imgUrl.startsWith('https://')) {
+          try {
+            setUploadMessage('Downloading image...');
+            setUploadMessageType('info');
+            
+            const response = await fetch(imgUrl);
+            if (!response.ok) throw new Error('Failed to fetch image');
+            
+            const blob = await response.blob();
+            if (!blob.type.startsWith('image/')) {
+              throw new Error('URL does not point to an image');
+            }
+            
+            const fileName = imgUrl.split('/').pop()?.split('?')[0] || 'cover.jpg';
+            const imageFile = new File([blob], fileName, { type: blob.type });
+            
+            const fakeEvent = { target: { files: [imageFile] } };
+            handleFileChange(fakeEvent);
+            return;
+          } catch (error) {
+            console.error('Error downloading image from HTML:', error);
+            setUploadMessage('Failed to download image. Try right-click > Copy Image, then paste.');
+            setUploadMessageType('danger');
+            return;
+          }
+        }
+      }
+    }
+    
+    // If we get here, we couldn't handle the drop
+    if (!file) {
+      setUploadMessage('Could not process dropped content. Try copying the image and pasting instead.');
+      setUploadMessageType('warning');
     }
   };
 
@@ -1424,6 +1511,100 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
               </Form.Group>
 
               <Form.Group className="mb-3">
+                <Form.Label>Belongs to</Form.Label>
+                <div style={{ position: 'relative' }}>
+                  <Form.Control
+                    ref={ownerInputRef}
+                    type="text"
+                    value={formData.owner}
+                    onChange={(e) => {
+                      handleInputChange('owner', e.target.value);
+                      updateDropdownPosition();
+                    }}
+                    onKeyDown={handleOwnerKeyDown}
+                    onBlur={handleOwnerBlur}
+                    onFocus={handleOwnerFocus}
+                    placeholder="Enter owner name"
+                  />
+                </div>
+              </Form.Group>
+              
+              {showOwnerSuggestions && ownerSuggestions.length > 0 && dropdownPosition.width > 0 && createPortal(
+                <div 
+                  ref={ownerDropdownRef}
+                  className="autocomplete-suggestions"
+                  style={{
+                    position: 'fixed',
+                    top: `${dropdownPosition.top}px`,
+                    left: `${dropdownPosition.left}px`,
+                    width: `${dropdownPosition.width}px`,
+                    zIndex: 99999,
+                    backgroundColor: '#212529',
+                    border: '1px solid #495057',
+                    borderRadius: '0.25rem',
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    marginTop: '2px',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.5)'
+                  }}
+                >
+                  {ownerSuggestions.map((owner, index) => (
+                    <div
+                      key={index}
+                      className={`autocomplete-suggestion ${
+                        index === highlightedOwnerIndex ? 'highlighted' : ''
+                      }`}
+                      onClick={() => handleOwnerSuggestionClick(owner)}
+                      style={{
+                        padding: '0.5rem',
+                        cursor: 'pointer',
+                        backgroundColor: index === highlightedOwnerIndex ? '#495057' : 'transparent',
+                        color: '#f8f9fa',
+                        transition: 'background-color 0.15s ease'
+                      }}
+                      onMouseEnter={() => setHighlightedOwnerIndex(index)}
+                    >
+                      {owner}
+                    </div>
+                  ))}
+                </div>,
+                document.body
+              )}
+
+              {/* Advanced Fields Toggle */}
+              <div 
+                className="advanced-toggle"
+                onClick={() => {
+                  const newValue = !showAdvanced;
+                  setShowAdvanced(newValue);
+                  localStorage.setItem('bookdex-show-advanced-form', newValue.toString());
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '12px 0',
+                  cursor: 'pointer',
+                  color: '#fbbf24',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderBottom: showAdvanced ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+                  marginTop: '8px',
+                  marginBottom: showAdvanced ? '12px' : '0'
+                }}
+              >
+                {showAdvanced ? <BsChevronDown size={14} /> : <BsChevronRight size={14} />}
+                <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>
+                  {showAdvanced ? 'Hide' : 'Show'} Additional Fields
+                </span>
+                <span style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.5)', marginLeft: 'auto' }}>
+                  ISBN, Publisher, Genres, Description...
+                </span>
+              </div>
+
+              {/* Advanced Fields Section - Uses CSS display to avoid JSX issues */}
+              <div style={{ display: showAdvanced ? 'block' : 'none' }}>
+
+              <Form.Group className="mb-3">
                 <Form.Label>Artist(s) / Illustrator(s)</Form.Label>
                 <Form.Control
                   type="text"
@@ -1631,67 +1812,6 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 </Col>
               </Row>
 
-              <Form.Group className="mb-3">
-                <Form.Label>Owner</Form.Label>
-                <div style={{ position: 'relative' }}>
-                  <Form.Control
-                    ref={ownerInputRef}
-                    type="text"
-                    value={formData.owner}
-                    onChange={(e) => {
-                      handleInputChange('owner', e.target.value);
-                      updateDropdownPosition();
-                    }}
-                    onKeyDown={handleOwnerKeyDown}
-                    onBlur={handleOwnerBlur}
-                    onFocus={handleOwnerFocus}
-                    placeholder="Enter owner name"
-                  />
-                </div>
-              </Form.Group>
-              
-              {showOwnerSuggestions && ownerSuggestions.length > 0 && dropdownPosition.width > 0 && createPortal(
-                <div 
-                  ref={ownerDropdownRef}
-                  className="autocomplete-suggestions"
-                  style={{
-                    position: 'fixed',
-                    top: `${dropdownPosition.top}px`,
-                    left: `${dropdownPosition.left}px`,
-                    width: `${dropdownPosition.width}px`,
-                    zIndex: 99999,
-                    backgroundColor: '#212529',
-                    border: '1px solid #495057',
-                    borderRadius: '0.25rem',
-                    maxHeight: '200px',
-                    overflowY: 'auto',
-                    marginTop: '2px',
-                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.5)'
-                  }}
-                >
-                  {ownerSuggestions.map((owner, index) => (
-                    <div
-                      key={index}
-                      className={`autocomplete-suggestion ${
-                        index === highlightedOwnerIndex ? 'highlighted' : ''
-                      }`}
-                      onClick={() => handleOwnerSuggestionClick(owner)}
-                      style={{
-                        padding: '0.5rem',
-                        cursor: 'pointer',
-                        backgroundColor: index === highlightedOwnerIndex ? '#495057' : 'transparent',
-                        color: '#f8f9fa',
-                        transition: 'background-color 0.15s ease'
-                      }}
-                      onMouseEnter={() => setHighlightedOwnerIndex(index)}
-                    >
-                      {owner}
-                    </div>
-                  ))}
-                </div>,
-                document.body
-              )}
-
               <Row>
                 <Col md={6}>
                   <Form.Group className="mb-3">
@@ -1843,6 +1963,9 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 </Form.Group>
               )}
 
+
+              </div>
+              {/* End of Advanced Fields Section */}
             </Col>
 
             <Col md={4}>
@@ -2148,6 +2271,101 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 />
               </Form.Group>
 
+
+              <Form.Group className="mb-3">
+                <Form.Label>Belongs to</Form.Label>
+                <div style={{ position: 'relative' }}>
+                  <Form.Control
+                    ref={ownerInputRef}
+                    type="text"
+                    value={formData.owner}
+                    onChange={(e) => {
+                      handleInputChange('owner', e.target.value);
+                      updateDropdownPosition();
+                    }}
+                    onKeyDown={handleOwnerKeyDown}
+                    onBlur={handleOwnerBlur}
+                    onFocus={handleOwnerFocus}
+                    placeholder="Enter owner name"
+                  />
+                </div>
+              </Form.Group>
+              
+              {showOwnerSuggestions && ownerSuggestions.length > 0 && dropdownPosition.width > 0 && createPortal(
+                <div 
+                  ref={ownerDropdownRef}
+                  className="autocomplete-suggestions"
+                  style={{
+                    position: 'fixed',
+                    top: `${dropdownPosition.top}px`,
+                    left: `${dropdownPosition.left}px`,
+                    width: `${dropdownPosition.width}px`,
+                    zIndex: 99999,
+                    backgroundColor: '#212529',
+                    border: '1px solid #495057',
+                    borderRadius: '0.25rem',
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    marginTop: '2px',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.5)'
+                  }}
+                >
+                  {ownerSuggestions.map((owner, index) => (
+                    <div
+                      key={index}
+                      className={`autocomplete-suggestion ${
+                        index === highlightedOwnerIndex ? 'highlighted' : ''
+                      }`}
+                      onClick={() => handleOwnerSuggestionClick(owner)}
+                      style={{
+                        padding: '0.5rem',
+                        cursor: 'pointer',
+                        backgroundColor: index === highlightedOwnerIndex ? '#495057' : 'transparent',
+                        color: '#f8f9fa',
+                        transition: 'background-color 0.15s ease'
+                      }}
+                      onMouseEnter={() => setHighlightedOwnerIndex(index)}
+                    >
+                      {owner}
+                    </div>
+                  ))}
+                </div>,
+                document.body
+              )}
+
+              {/* Advanced Fields Toggle for Modal Form */}
+              <div 
+                className="advanced-toggle"
+                onClick={() => {
+                  const newValue = !showAdvanced;
+                  setShowAdvanced(newValue);
+                  localStorage.setItem('bookdex-show-advanced-form', newValue.toString());
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '12px 0',
+                  cursor: 'pointer',
+                  color: '#fbbf24',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderBottom: showAdvanced ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+                  marginTop: '8px',
+                  marginBottom: showAdvanced ? '12px' : '0'
+                }}
+              >
+                {showAdvanced ? <BsChevronDown size={14} /> : <BsChevronRight size={14} />}
+                <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>
+                  {showAdvanced ? 'Hide' : 'Show'} Additional Fields
+                </span>
+                <span style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.5)', marginLeft: 'auto' }}>
+                  ISBN, Publisher, Genres, Description...
+                </span>
+              </div>
+
+              {/* Advanced Fields Section for Modal Form */}
+              <div style={{ display: showAdvanced ? 'block' : 'none' }}>
+
               <Form.Group className="mb-3">
                 <Form.Label>Artist(s) / Illustrator(s)</Form.Label>
                 <Form.Control
@@ -2356,67 +2574,6 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 </Col>
               </Row>
 
-              <Form.Group className="mb-3">
-                <Form.Label>Owner</Form.Label>
-                <div style={{ position: 'relative' }}>
-                  <Form.Control
-                    ref={ownerInputRef}
-                    type="text"
-                    value={formData.owner}
-                    onChange={(e) => {
-                      handleInputChange('owner', e.target.value);
-                      updateDropdownPosition();
-                    }}
-                    onKeyDown={handleOwnerKeyDown}
-                    onBlur={handleOwnerBlur}
-                    onFocus={handleOwnerFocus}
-                    placeholder="Enter owner name"
-                  />
-                </div>
-              </Form.Group>
-              
-              {showOwnerSuggestions && ownerSuggestions.length > 0 && dropdownPosition.width > 0 && createPortal(
-                <div 
-                  ref={ownerDropdownRef}
-                  className="autocomplete-suggestions"
-                  style={{
-                    position: 'fixed',
-                    top: `${dropdownPosition.top}px`,
-                    left: `${dropdownPosition.left}px`,
-                    width: `${dropdownPosition.width}px`,
-                    zIndex: 99999,
-                    backgroundColor: '#212529',
-                    border: '1px solid #495057',
-                    borderRadius: '0.25rem',
-                    maxHeight: '200px',
-                    overflowY: 'auto',
-                    marginTop: '2px',
-                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.5)'
-                  }}
-                >
-                  {ownerSuggestions.map((owner, index) => (
-                    <div
-                      key={index}
-                      className={`autocomplete-suggestion ${
-                        index === highlightedOwnerIndex ? 'highlighted' : ''
-                      }`}
-                      onClick={() => handleOwnerSuggestionClick(owner)}
-                      style={{
-                        padding: '0.5rem',
-                        cursor: 'pointer',
-                        backgroundColor: index === highlightedOwnerIndex ? '#495057' : 'transparent',
-                        color: '#f8f9fa',
-                        transition: 'background-color 0.15s ease'
-                      }}
-                      onMouseEnter={() => setHighlightedOwnerIndex(index)}
-                    >
-                      {owner}
-                    </div>
-                  ))}
-                </div>,
-                document.body
-              )}
-
               <Row>
                 <Col md={6}>
                   <Form.Group className="mb-3">
@@ -2568,6 +2725,9 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 </Form.Group>
               )}
 
+
+              </div>
+              {/* End of Advanced Fields Section for Modal Form */}
             </Col>
 
             <Col md={4}>
