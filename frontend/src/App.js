@@ -100,7 +100,11 @@ function AppContent() {
             'rotten_tomato_rating:', 'rotten_tomato_rating:>', 'rotten_tomato_rating:<', 'rotten_tomato_rating:>=', 'rotten_tomato_rating:<=',
             'recommended_age:', 'recommended_age:>', 'recommended_age:<', 'recommended_age:>=', 'recommended_age:<=',
             'price:', 'price:>', 'price:<', 'price:>=', 'price:<=',
-            'has_comments:true', 'has_comments:false'
+            'has_comments:true', 'has_comments:false',
+            'watched:true', 'watched:false',
+            'watched:', 'watched:>', 'watched:<', 'watched:>=', 'watched:<=',
+            'last_watched:today', 'last_watched:yesterday', 'last_watched:week', 'last_watched:month', 'last_watched:year',
+            'last_watched:>', 'last_watched:<'
           ];
     
     // If text is empty, return all keywords (for the 5-second delay feature)
@@ -558,7 +562,21 @@ function AppContent() {
             'price:>=': 'Price greater or equal',
             'price:<=': 'Price less or equal',
             'has_comments:true': 'Movies with comments',
-            'has_comments:false': 'Movies without comments'
+            'has_comments:false': 'Movies without comments',
+            'watched:true': 'Movies you have watched',
+            'watched:false': 'Movies you haven\'t watched',
+            'watched:': 'Exact watch count (e.g. watched:2)',
+            'watched:>': 'Watched more than N times (e.g. watched:>1)',
+            'watched:<': 'Watched less than N times',
+            'watched:>=': 'Watched at least N times (e.g. watched:>=2)',
+            'watched:<=': 'Watched at most N times',
+            'last_watched:today': 'Watched today',
+            'last_watched:yesterday': 'Watched yesterday',
+            'last_watched:week': 'Watched in the last 7 days',
+            'last_watched:month': 'Watched in the last 30 days',
+            'last_watched:year': 'Watched in the last year',
+            'last_watched:>': 'Watched after date (e.g. >2024-01-01)',
+            'last_watched:<': 'Watched before date (e.g. <2024-06-01)'
           };
       return hintMap[option.keyword] || '';
     }

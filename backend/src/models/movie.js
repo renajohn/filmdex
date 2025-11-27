@@ -258,7 +258,9 @@ const Movie = {
           rottenTomatoRatings: [],
           ages: [],
           prices: [],
-          hasComments: []
+          hasComments: [],
+          watched: [],
+          lastWatched: []
         };
         
         // Extract actor:"Name" or actor:Name filters (can be multiple)
@@ -465,13 +467,83 @@ const Movie = {
         }
         searchText = searchText.replace(hasCommentsRegex, '').trim();
         
+        // Extract watched: filters (boolean or numeric with operators)
+        // Supports: watched:true, watched:false, watched:yes, watched:no
+        //           watched:1, watched:>1, watched:>=2, watched:<3, watched:<=5
+        const watchedBoolRegex = /watched:(yes|no|true|false)/gi;
+        let watchedBoolMatches;
+        while ((watchedBoolMatches = watchedBoolRegex.exec(searchText)) !== null) {
+          const value = watchedBoolMatches[1].toLowerCase();
+          // true/yes means watch_count > 0, false/no means watch_count = 0
+          if (value === 'yes' || value === 'true') {
+            filters.watched.push({ type: 'boolean', value: true });
+          } else {
+            filters.watched.push({ type: 'boolean', value: false });
+          }
+        }
+        searchText = searchText.replace(watchedBoolRegex, '').trim();
+        
+        // Extract watched: filters with numeric operators
+        const watchedNumRegex = /watched:(>=|<=|>|<|)(\d+)/g;
+        let watchedNumMatches;
+        while ((watchedNumMatches = watchedNumRegex.exec(searchText)) !== null) {
+          const operator = watchedNumMatches[1] || '=';
+          const value = parseInt(watchedNumMatches[2]);
+          filters.watched.push({ type: 'numeric', operator, value });
+        }
+        searchText = searchText.replace(watchedNumRegex, '').trim();
+        
+        // Extract last_watched: filters (relative dates and specific dates)
+        // Supports: today, yesterday, week, month, year, YYYY, YYYY-MM, >YYYY-MM-DD, <YYYY-MM-DD
+        const lastWatchedRegex = /last_watched:(today|yesterday|week|month|year|>?\d{4}(?:-\d{2})?(?:-\d{2})?|<?\d{4}(?:-\d{2})?(?:-\d{2})?)/gi;
+        let lastWatchedMatches;
+        while ((lastWatchedMatches = lastWatchedRegex.exec(searchText)) !== null) {
+          const value = lastWatchedMatches[1].toLowerCase();
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          if (value === 'today') {
+            filters.lastWatched.push({ type: 'date', value: today.toISOString().split('T')[0] });
+          } else if (value === 'yesterday') {
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            filters.lastWatched.push({ type: 'date', value: yesterday.toISOString().split('T')[0] });
+          } else if (value === 'week') {
+            const weekAgo = new Date(today);
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            filters.lastWatched.push({ type: 'after', value: weekAgo.toISOString().split('T')[0] });
+          } else if (value === 'month') {
+            const monthAgo = new Date(today);
+            monthAgo.setDate(monthAgo.getDate() - 30);
+            filters.lastWatched.push({ type: 'after', value: monthAgo.toISOString().split('T')[0] });
+          } else if (value === 'year') {
+            const yearAgo = new Date(today);
+            yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+            filters.lastWatched.push({ type: 'after', value: yearAgo.toISOString().split('T')[0] });
+          } else if (value.startsWith('>')) {
+            filters.lastWatched.push({ type: 'after', value: value.substring(1) });
+          } else if (value.startsWith('<')) {
+            filters.lastWatched.push({ type: 'before', value: value.substring(1) });
+          } else if (value.length === 4) {
+            // Year only: YYYY
+            filters.lastWatched.push({ type: 'year', value: value });
+          } else if (value.length === 7) {
+            // Year-month: YYYY-MM
+            filters.lastWatched.push({ type: 'month', value: value });
+          } else {
+            // Full date: YYYY-MM-DD
+            filters.lastWatched.push({ type: 'date', value: value });
+          }
+        }
+        searchText = searchText.replace(lastWatchedRegex, '').trim();
+        
         // Remove incomplete predicates (predicates without values) from search text
         // This prevents them from being treated as generic search terms
-        const incompletePredicateRegex = /\b(actor|director|title|collection|box_set|genre|format|original_language|media_type|year|imdb_rating|tmdb_rating|rotten_tomato_rating|recommended_age|price|has_comments):\s*$/g;
+        const incompletePredicateRegex = /\b(actor|director|title|collection|box_set|genre|format|original_language|media_type|year|imdb_rating|tmdb_rating|rotten_tomato_rating|recommended_age|price|has_comments|watched|last_watched):\s*$/g;
         searchText = searchText.replace(incompletePredicateRegex, '').trim();
         
         // Also remove predicates with operators but no values (e.g., "imdb_rating:>", "year:<=")
-        const incompleteOperatorPredicateRegex = /\b(year|imdb_rating|tmdb_rating|rotten_tomato_rating|recommended_age|price):(>=|<=|>|<)\s*$/g;
+        const incompleteOperatorPredicateRegex = /\b(year|imdb_rating|tmdb_rating|rotten_tomato_rating|recommended_age|price|watched|last_watched):(>=|<=|>|<)\s*$/g;
         searchText = searchText.replace(incompleteOperatorPredicateRegex, '').trim();
         
         // Apply actor filters (AND logic)
@@ -710,6 +782,77 @@ const Movie = {
           }
         });
         
+        // Apply watched filters (AND logic)
+        filters.watched.forEach(watchedFilter => {
+          if (watchedFilter.type === 'boolean') {
+            if (watchedFilter.value) {
+              // Has been watched: watch_count > 0
+              sql += ` AND COALESCE(m.watch_count, 0) > 0`;
+            } else {
+              // Never watched: watch_count = 0 or null
+              sql += ` AND COALESCE(m.watch_count, 0) = 0`;
+            }
+          } else if (watchedFilter.type === 'numeric') {
+            // Numeric filter with operator
+            const op = watchedFilter.operator;
+            const val = watchedFilter.value;
+            switch (op) {
+              case '>':
+                sql += ` AND COALESCE(m.watch_count, 0) > ?`;
+                params.push(val);
+                break;
+              case '<':
+                sql += ` AND COALESCE(m.watch_count, 0) < ?`;
+                params.push(val);
+                break;
+              case '>=':
+                sql += ` AND COALESCE(m.watch_count, 0) >= ?`;
+                params.push(val);
+                break;
+              case '<=':
+                sql += ` AND COALESCE(m.watch_count, 0) <= ?`;
+                params.push(val);
+                break;
+              case '=':
+              default:
+                sql += ` AND COALESCE(m.watch_count, 0) = ?`;
+                params.push(val);
+                break;
+            }
+          }
+        });
+        
+        // Apply last_watched filters (AND logic)
+        filters.lastWatched.forEach(lwFilter => {
+          switch (lwFilter.type) {
+            case 'date':
+              // Exact date match
+              sql += ` AND m.last_watched = ?`;
+              params.push(lwFilter.value);
+              break;
+            case 'after':
+              // After a specific date
+              sql += ` AND m.last_watched >= ?`;
+              params.push(lwFilter.value);
+              break;
+            case 'before':
+              // Before a specific date
+              sql += ` AND m.last_watched < ?`;
+              params.push(lwFilter.value);
+              break;
+            case 'year':
+              // Within a specific year (YYYY)
+              sql += ` AND strftime('%Y', m.last_watched) = ?`;
+              params.push(lwFilter.value);
+              break;
+            case 'month':
+              // Within a specific month (YYYY-MM)
+              sql += ` AND strftime('%Y-%m', m.last_watched) = ?`;
+              params.push(lwFilter.value);
+              break;
+          }
+        });
+        
         // Apply remaining generic search terms (if any)
         if (searchText.length > 0) {
           sql += ` AND (
@@ -851,10 +994,87 @@ const Movie = {
             media_type: row.media_type,
             recommended_age: row.recommended_age,
             age_processed: row.age_processed,
-            title_status: row.title_status || 'owned'
+            title_status: row.title_status || 'owned',
+            last_watched: row.last_watched,
+            watch_count: row.watch_count || 0
           };
           
           resolve(movie);
+        }
+      });
+    });
+  },
+
+  // Mark a movie as watched (increments watch_count, sets last_watched, and never_seen to false)
+  markAsWatched: (id, date = null) => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const watchDate = date || new Date().toISOString().split('T')[0];
+      
+      const sql = `UPDATE movies SET last_watched = ?, never_seen = 0, watch_count = COALESCE(watch_count, 0) + 1 WHERE id = ?`;
+      
+      db.run(sql, [watchDate, id], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          // Get the updated watch_count
+          db.get(`SELECT watch_count FROM movies WHERE id = ?`, [id], (err, row) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve({ 
+                id: id, 
+                last_watched: watchDate,
+                watch_count: row ? row.watch_count : 1,
+                never_seen: false,
+                changes: this.changes 
+              });
+            }
+          });
+        }
+      });
+    });
+  },
+
+  // Clear the watched date and count (reset watch history)
+  clearWatched: (id) => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      
+      const sql = `UPDATE movies SET last_watched = NULL, watch_count = 0 WHERE id = ?`;
+      
+      db.run(sql, [id], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve({ 
+            id: id, 
+            last_watched: null,
+            watch_count: 0,
+            changes: this.changes 
+          });
+        }
+      });
+    });
+  },
+
+  // Update watch count directly (for manual editing)
+  updateWatchCount: (id, count) => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const watchCount = Math.max(0, parseInt(count) || 0);
+      
+      const sql = `UPDATE movies SET watch_count = ? WHERE id = ?`;
+      
+      db.run(sql, [watchCount, id], function(err) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve({ 
+            id: id, 
+            watch_count: watchCount,
+            changes: this.changes 
+          });
         }
       });
     });

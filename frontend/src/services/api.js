@@ -405,6 +405,35 @@ class ApiService {
     return await response.json();
   }
 
+  // Mark movie as watched (sets last_watched to today)
+  async markMovieAsWatched(movieId, date = null) {
+    const response = await this.makeRequest(`/movies/${movieId}/watched`, {
+      method: 'PUT',
+      body: JSON.stringify({ date }),
+    });
+    
+    return await response.json();
+  }
+
+  // Clear movie watched date and count
+  async clearMovieWatched(movieId) {
+    const response = await this.makeRequest(`/movies/${movieId}/watched`, {
+      method: 'DELETE',
+    });
+    
+    return await response.json();
+  }
+
+  // Update movie watch count directly
+  async updateMovieWatchCount(movieId, count) {
+    const response = await this.makeRequest(`/movies/${movieId}/watch-count`, {
+      method: 'PUT',
+      body: JSON.stringify({ count }),
+    });
+    
+    return await response.json();
+  }
+
   async getWatchNextMovies() {
     const response = await this.makeRequest('/collections/watch-next/movies');
     return await response.json();

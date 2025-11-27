@@ -373,23 +373,21 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
             </div>
             
             {/* Top right - Watch Next button */}
-            {!searchCriteria?.searchText && (
-              <button 
-                className={`watch-next-badge-large ${watchNextMovies.some(wm => wm.id === movie.id) ? 'active' : ''}`}
-                onClick={(e) => handleWatchNextToggle(e, movie)}
-                title={watchNextMovies.some(wm => wm.id === movie.id) ? "Remove from Watch Next" : "Add to Watch Next"}
-                aria-label="Toggle Watch Next"
+            <button 
+              className={`watch-next-badge-large ${watchNextMovies.some(wm => wm.id === movie.id) ? 'active' : ''}`}
+              onClick={(e) => handleWatchNextToggle(e, movie)}
+              title={watchNextMovies.some(wm => wm.id === movie.id) ? "Remove from Watch Next" : "Add to Watch Next"}
+              aria-label="Toggle Watch Next"
+            >
+              <svg 
+                className="star-icon" 
+                viewBox="0 0 24 24" 
+                fill={watchNextMovies.some(wm => wm.id === movie.id) ? "currentColor" : "none"}
+                stroke="currentColor"
               >
-                <svg 
-                  className="star-icon" 
-                  viewBox="0 0 24 24" 
-                  fill={watchNextMovies.some(wm => wm.id === movie.id) ? "currentColor" : "none"}
-                  stroke="currentColor"
-                >
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
-              </button>
-            )}
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+            </button>
             
             {/* Bottom title overlay - appears on hover */}
             <div className="poster-title-overlay-large">
@@ -494,11 +492,61 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       const updatedWatchNextMovies = await apiService.getWatchNextMovies();
       setWatchNextMovies(updatedWatchNextMovies);
       
+      // If removing from Watch Next, show the "Did you watch?" prompt
+      if (isCurrentlyInWatchNext) {
+        setPromptMovie(movie);
+        setShowWatchedPrompt(true);
+        // Auto-hide after 8 seconds
+        setTimeout(() => setShowWatchedPrompt(false), 8000);
+      }
+      
     } catch (error) {
       console.error('Error toggling watch next:', error);
       
       if (onShowAlert) {
         onShowAlert('Failed to update Watch Next status', 'danger');
+      }
+    }
+  };
+
+  // Handle marking movie as watched from prompt
+  const handlePromptMarkWatched = async (daysAgo = 0) => {
+    if (!promptMovie) return;
+    
+    try {
+      const date = new Date();
+      date.setDate(date.getDate() - daysAgo);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      const result = await apiService.markMovieAsWatched(promptMovie.id, dateStr);
+      const title = promptMovie.title;
+      const count = result.watch_count;
+      
+      // Fun messages based on watch count
+      const messages = count === 1
+        ? [
+            `🎬 "${title}" — First time! Hope you enjoyed it!`,
+            `🍿 "${title}" checked off! What did you think?`,
+            `✨ "${title}" — Another one for the memory bank!`,
+          ]
+        : [
+            `🎬 "${title}" — ${count}× now! A new favorite?`,
+            `🍿 "${title}" again! (${count}×) — Must be good!`,
+            `🔄 "${title}" for the ${count}${count === 2 ? 'nd' : count === 3 ? 'rd' : 'th'} time!`,
+          ];
+      
+      const message = messages[Math.floor(Math.random() * messages.length)];
+      
+      if (onShowAlert) {
+        onShowAlert(message, 'success');
+      }
+      
+      setShowWatchedPrompt(false);
+      setPromptMovie(null);
+    } catch (error) {
+      console.error('Error marking movie as watched:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to mark as watched', 'danger');
       }
     }
   };
@@ -694,6 +742,8 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
   // Get Watch Next movies for banner (already sorted by API)
   const [watchNextMovies, setWatchNextMovies] = useState([]);
+  const [showWatchedPrompt, setShowWatchedPrompt] = useState(false);
+  const [promptMovie, setPromptMovie] = useState(null); // Store full movie object for prompt
   
   useEffect(() => {
     const loadWatchNextMovies = async () => {
@@ -987,6 +1037,37 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           onMovieClick={handleMovieClick}
           onSearch={onSearch}
         />
+      )}
+
+      {/* "Did you watch?" prompt after removing from Watch Next */}
+      {showWatchedPrompt && (
+        <div className="watched-prompt-toast">
+          <span className="watched-prompt-text">Did you watch this movie?</span>
+          <div className="watched-prompt-buttons">
+            <button 
+              className="watched-prompt-btn"
+              onClick={() => handlePromptMarkWatched(0)}
+            >
+              Today
+            </button>
+            <button 
+              className="watched-prompt-btn"
+              onClick={() => handlePromptMarkWatched(1)}
+            >
+              Yesterday
+            </button>
+            <button 
+              className="watched-prompt-dismiss"
+              onClick={() => {
+                setShowWatchedPrompt(false);
+                setPromptMovie(null);
+              }}
+              title="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
       )}
 
     </div>

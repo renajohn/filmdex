@@ -99,7 +99,6 @@
 .movie-detail-content {
   padding: 0;
   position: relative; /* Positioning context for overlay */
-  overflow-x: hidden; /* Prevent horizontal overflow */
   width: 100%;
 }
 
@@ -110,7 +109,7 @@
   padding: 20px;
   border-radius: 8px 8px 0 0;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   min-height: 400px;
   width: 100%;
   box-sizing: border-box;
@@ -397,10 +396,14 @@
   align-items: center;
   gap: 15px;
   margin-top: 12px;
+  overflow: visible;
+  position: relative;
+  z-index: 10;
 }
 
 .action-buttons {
   display: flex;
+  overflow: visible;
   gap: 10px;
   align-items: center;
 }
@@ -438,6 +441,190 @@
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
+/* Watched Today Button */
+.watched-button-container {
+  position: relative;
+  display: inline-flex;
+  z-index: 100;
+}
+
+.action-btn.watched-today {
+  background: linear-gradient(135deg, #1e4620, #0d2e12);
+  color: #8fdf8f;
+  border: 1px solid #2d6b2f;
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+}
+
+.action-btn.watched-today:hover {
+  background: linear-gradient(135deg, #2d6b2f, #1e4620);
+  border-color: #4a9f4d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(45, 107, 47, 0.3);
+  color: #a8f0a8;
+}
+
+.action-btn.watched-today.has-watches {
+  background: linear-gradient(135deg, #1a3d1c, #0a2009);
+  border-color: #2d6b2f;
+}
+
+.action-btn.watched-today.has-watches:hover {
+  background: linear-gradient(135deg, #2d6b2f, #1e4620);
+  border-color: #4a9f4d;
+}
+
+.action-btn.watched-today:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.action-btn.watched-date-toggle {
+  background: linear-gradient(135deg, #1a3d1c, #0a2009);
+  color: #8fdf8f;
+  border: 1px solid #2d6b2f;
+  border-radius: 0 8px 8px 0;
+  padding: 8px 10px;
+  font-size: 0.7rem;
+  min-width: auto;
+}
+
+.action-btn.watched-date-toggle:hover {
+  background: linear-gradient(135deg, #2d6b2f, #1e4620);
+  border-color: #4a9f4d;
+  color: #a8f0a8;
+}
+
+.watched-date-picker {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: #1e2530;
+  border: 1px solid #3a4a5a;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+  z-index: 99999;
+  min-width: 200px;
+}
+
+.quick-date-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.quick-date-btn {
+  flex: 1;
+  padding: 8px 12px;
+  background: #2a3444;
+  color: #e2e8f0;
+  border: 1px solid #3a4a5a;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quick-date-btn:hover {
+  background: #3a4454;
+  border-color: #4a5a6a;
+}
+
+.date-picker-divider {
+  height: 1px;
+  background: #3a4a5a;
+  margin: 8px 0;
+}
+
+.watched-date-picker label {
+  display: block;
+  color: #8a9aaa;
+  font-size: 0.75rem;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+
+.watched-date-picker input[type="date"] {
+  width: 100%;
+  padding: 8px 10px;
+  background: #2a3444;
+  border: 1px solid #3a4a5a;
+  border-radius: 6px;
+  color: #f8f9fa;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+.watched-date-picker input[type="date"]:focus {
+  outline: none;
+  border-color: #4a9f4d;
+}
+
+.watch-count-editor {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.count-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: #2a3444;
+  color: #e2e8f0;
+  border: 1px solid #3a4a5a;
+  border-radius: 6px;
+  font-size: 1.2rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.count-btn:hover:not(:disabled) {
+  background: #3a4454;
+  border-color: #4a5a6a;
+}
+
+.count-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.count-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  min-width: 30px;
+  text-align: center;
+}
+
+.clear-watched-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: transparent;
+  color: #e57373;
+  border: 1px solid #5a3a3a;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-watched-btn:hover {
+  background: rgba(229, 115, 115, 0.1);
+  border-color: #e57373;
+}
 
 /* Ratings Section */
 .movie-detail-ratings-section {
@@ -2388,5 +2575,105 @@
     width: 1.1em;
     height: 1.1em;
     margin-right: 6px;
+  }
+}
+
+/* "Did you watch?" prompt toast */
+.watched-prompt-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e2530;
+  border: 1px solid #3a4a5a;
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 100000;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.watched-prompt-text {
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.watched-prompt-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.watched-prompt-btn {
+  padding: 6px 14px;
+  background: linear-gradient(135deg, #2d6b2f, #1e4620);
+  color: #a8f0a8;
+  border: 1px solid #4a9f4d;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.watched-prompt-btn:hover {
+  background: linear-gradient(135deg, #4a9f4d, #2d6b2f);
+  transform: translateY(-1px);
+}
+
+.watched-prompt-dismiss {
+  padding: 4px 8px;
+  background: transparent;
+  color: #8a9aaa;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  margin-left: 4px;
+}
+
+.watched-prompt-dismiss:hover {
+  color: #e2e8f0;
+}
+
+@media (max-width: 600px) {
+  .watched-prompt-toast {
+    bottom: 16px;
+    left: 16px;
+    right: 16px;
+    transform: none;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .watched-prompt-buttons {
+    width: 100%;
+    justify-content: center;
   }
 }

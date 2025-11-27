@@ -145,6 +145,11 @@ app.post('/api/migrate/title-status', movieController.migrateTitleStatus);
 // Watch Next routes
 app.put('/api/movies/:id/watch-next', movieController.toggleWatchNext);
 
+// Mark as Watched routes
+app.put('/api/movies/:id/watched', movieController.markAsWatched);
+app.delete('/api/movies/:id/watched', movieController.clearWatched);
+app.put('/api/movies/:id/watch-count', movieController.updateWatchCount);
+
 // TMDB Poster routes
 app.get('/api/tmdb/:tmdbId/posters', movieController.getMoviePosters);
 

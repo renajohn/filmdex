@@ -912,6 +912,66 @@ const movieController = {
     }
   },
 
+  // Mark a movie as watched (sets last_watched to today)
+  markAsWatched: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { date } = req.body; // Optional: allow custom date
+      
+      const result = await Movie.markAsWatched(id, date);
+      
+      if (result.changes === 0) {
+        return res.status(404).json({ error: 'Movie not found' });
+      }
+      
+      res.json(result);
+    } catch (error) {
+      logger.error('Error marking movie as watched:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Clear movie watched date and count (reset watch history)
+  clearWatched: async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const result = await Movie.clearWatched(id);
+      
+      if (result.changes === 0) {
+        return res.status(404).json({ error: 'Movie not found' });
+      }
+      
+      res.json(result);
+    } catch (error) {
+      logger.error('Error clearing movie watch history:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Update watch count directly
+  updateWatchCount: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { count } = req.body;
+      
+      if (count === undefined || count === null) {
+        return res.status(400).json({ error: 'Count is required' });
+      }
+      
+      const result = await Movie.updateWatchCount(id, count);
+      
+      if (result.changes === 0) {
+        return res.status(404).json({ error: 'Movie not found' });
+      }
+      
+      res.json(result);
+    } catch (error) {
+      logger.error('Error updating watch count:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
   // Get available posters from TMDB
   getMoviePosters: async (req, res) => {
     try {

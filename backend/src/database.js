@@ -12,6 +12,114 @@ const getDbSource = () => {
 
 let db = null;
 
+// Run auto-migrations for schema changes
+const runAutoMigrations = async () => {
+  console.log('Checking for schema migrations...');
+  
+  // Create migrations tracking table if it doesn't exist
+  await new Promise((resolve, reject) => {
+    db.run(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        migration_name TEXT UNIQUE NOT NULL,
+        applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+  
+  // Define migrations - add new ones here
+  const migrations = [
+    {
+      name: '009_add_last_watched',
+      up: async () => {
+        // Check if column exists
+        const columns = await new Promise((resolve, reject) => {
+          db.all(`PRAGMA table_info(movies)`, (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows);
+          });
+        });
+        
+        if (!columns.some(col => col.name === 'last_watched')) {
+          await new Promise((resolve, reject) => {
+            db.run(`ALTER TABLE movies ADD COLUMN last_watched DATE`, (err) => {
+              if (err && !err.message.includes('duplicate column')) reject(err);
+              else resolve();
+            });
+          });
+          console.log('  ✓ Added last_watched column');
+        }
+      }
+    },
+    {
+      name: '010_add_watch_count',
+      up: async () => {
+        // Check if column exists
+        const columns = await new Promise((resolve, reject) => {
+          db.all(`PRAGMA table_info(movies)`, (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows);
+          });
+        });
+        
+        if (!columns.some(col => col.name === 'watch_count')) {
+          await new Promise((resolve, reject) => {
+            db.run(`ALTER TABLE movies ADD COLUMN watch_count INTEGER DEFAULT 0`, (err) => {
+              if (err && !err.message.includes('duplicate column')) reject(err);
+              else resolve();
+            });
+          });
+          
+          // Migrate existing data
+          await new Promise((resolve, reject) => {
+            db.run(`
+              UPDATE movies 
+              SET watch_count = 1 
+              WHERE (last_watched IS NOT NULL OR never_seen = 0) AND (watch_count IS NULL OR watch_count = 0)
+            `, (err) => {
+              if (err) reject(err);
+              else resolve();
+            });
+          });
+          
+          console.log('  ✓ Added watch_count column');
+        }
+      }
+    }
+  ];
+  
+  // Run pending migrations
+  for (const migration of migrations) {
+    const applied = await new Promise((resolve, reject) => {
+      db.get(`SELECT * FROM schema_migrations WHERE migration_name = ?`, [migration.name], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+    
+    if (!applied) {
+      try {
+        await migration.up();
+        await new Promise((resolve, reject) => {
+          db.run(`INSERT INTO schema_migrations (migration_name) VALUES (?)`, [migration.name], (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+        console.log(`  ✓ Applied migration: ${migration.name}`);
+      } catch (error) {
+        console.error(`  ✗ Migration ${migration.name} failed:`, error.message);
+        // Continue with other migrations
+      }
+    }
+  }
+  
+  console.log('Schema migrations complete.');
+};
+
 const initDatabase = async () => {
   return new Promise(async (resolve, reject) => {
     if (db) {
@@ -61,6 +169,9 @@ const initDatabase = async () => {
           await AlbumCollection.createTable();
           await Book.createTable();
           await BookComment.createTable();
+          
+          // Run auto-migrations for schema updates
+          await runAutoMigrations();
           
           // Initialize system collections
           try {

@@ -7,7 +7,7 @@ import CollectionTagsInput from './CollectionTagsInput';
 import CollectionRenameDialog from './CollectionRenameDialog';
 import apiService from '../services/api';
 import { getLanguageName } from '../services/languageCountryUtils';
-import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsCopy, BsFilm, BsGripVertical } from 'react-icons/bs';
+import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsCopy, BsFilm, BsGripVertical, BsEye } from 'react-icons/bs';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
@@ -99,7 +99,12 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const [showCollectionRenameDialog, setShowCollectionRenameDialog] = useState(false);
   const [collectionRenameData, setCollectionRenameData] = useState({ oldName: '', newName: '', action: 'create' });
   const [collectionMembers, setCollectionMembers] = useState({}); // { collectionName: [movies] }
+  const [markingWatched, setMarkingWatched] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [watchDate, setWatchDate] = useState(new Date().toISOString().split('T')[0]);
+  const [showWatchedPrompt, setShowWatchedPrompt] = useState(false);
   const posterRef = useRef(null);
+  const datePickerRef = useRef(null);
   
   // Search handlers
   const handleDirectorClick = (directorName) => {
@@ -383,7 +388,24 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     document.addEventListener('click', handleDocClick, true);
     return () => document.removeEventListener('click', handleDocClick, true);
   }, [confirmDelete]);
-  
+
+  // Close date picker when clicking outside
+  useEffect(() => {
+    if (!showDatePicker) return;
+    
+    const handleClickOutside = (e) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(e.target)) {
+        setShowDatePicker(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showDatePicker]);
+
   if (!movieDetails && !loading) {
     console.log('MovieDetailCard: Returning null - no movieDetails and not loading');
     return null;
@@ -934,6 +956,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     try {
       const result = await apiService.toggleWatchNext(movieDetails.id);
       
+      // If removing from Watch Next, show the "Did you watch?" prompt
+      if (isCurrentlyInWatchNext) {
+        setShowWatchedPrompt(true);
+        // Auto-hide after 8 seconds
+        setTimeout(() => setShowWatchedPrompt(false), 8000);
+      }
+      
       // Refresh collections to show/hide Watch Next collection immediately
       const movieCollections = await apiService.getMovieCollections(movieDetails.id);
       const collectionNames = movieCollections.map(c => c.collection_name);
@@ -1001,6 +1030,143 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
           onRefresh();
         }, 100);
       }
+    }
+  };
+
+  // Handle marking movie as watched (increments count)
+  const handleMarkAsWatched = async (customDate = null) => {
+    setMarkingWatched(true);
+    setShowDatePicker(false);
+    try {
+      const dateToUse = customDate || new Date().toISOString().split('T')[0];
+      const result = await apiService.markMovieAsWatched(movieDetails.id, dateToUse);
+      const movieTitle = title;
+      const count = result.watch_count;
+      
+      // Update local state to show the new last_watched date and watch_count
+      setLocalMovieData(prev => ({
+        ...prev,
+        last_watched: result.last_watched,
+        watch_count: result.watch_count,
+        never_seen: false
+      }));
+      
+      if (onShowAlert) {
+        // Fun messages based on watch count
+        const messages = count === 1
+          ? [
+              `🎬 "${movieTitle}" — First time! Hope you enjoyed it!`,
+              `🍿 "${movieTitle}" checked off! What did you think?`,
+              `✨ "${movieTitle}" — Another one for the memory bank!`,
+            ]
+          : [
+              `🎬 "${movieTitle}" — ${count}× now! A new favorite?`,
+              `🍿 "${movieTitle}" again! (${count}×) — Must be good!`,
+              `🔄 "${movieTitle}" for the ${count}${count === 2 ? 'nd' : count === 3 ? 'rd' : 'th'} time!`,
+            ];
+        
+        const message = messages[Math.floor(Math.random() * messages.length)];
+        onShowAlert(message, 'success');
+      }
+      
+      // Refresh the main view
+      if (onRefresh) {
+        setTimeout(() => {
+          onRefresh();
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Error marking movie as watched:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to mark as watched. Please try again.', 'danger');
+      }
+    } finally {
+      setMarkingWatched(false);
+    }
+  };
+
+  // Handle updating watch count directly
+  const handleUpdateWatchCount = async (newCount) => {
+    try {
+      const result = await apiService.updateMovieWatchCount(movieDetails.id, newCount);
+      
+      setLocalMovieData(prev => ({
+        ...prev,
+        watch_count: result.watch_count
+      }));
+    } catch (error) {
+      console.error('Error updating watch count:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to update watch count.', 'danger');
+      }
+    }
+  };
+
+  // Toggle date picker for custom watch date
+  const toggleDatePicker = (e) => {
+    e.stopPropagation();
+    setShowDatePicker(!showDatePicker);
+    setWatchDate(currentData.last_watched || new Date().toISOString().split('T')[0]);
+  };
+
+  // Handle date change - just update local state
+  const handleDateChange = (newDate) => {
+    setWatchDate(newDate);
+  };
+
+  // Save on blur (when leaving the input or selecting from picker)
+  const handleDateBlur = () => {
+    // Only save if date is valid and different from current
+    if (watchDate && watchDate !== (currentData.last_watched || '')) {
+      handleMarkAsWatched(watchDate);
+    }
+  };
+
+  // Handle keyboard events on date input
+  const handleDateKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation(); // Don't let ESC bubble up to close movie dialog
+      setShowDatePicker(false);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (watchDate) {
+        handleMarkAsWatched(watchDate);
+      }
+    }
+  };
+
+  // Handle clearing the watch history (date and count)
+  const handleClearWatched = async () => {
+    setMarkingWatched(true);
+    setShowDatePicker(false);
+    try {
+      await apiService.clearMovieWatched(movieDetails.id);
+      
+      // Update local state to clear watch history
+      setLocalMovieData(prev => ({
+        ...prev,
+        last_watched: null,
+        watch_count: 0
+      }));
+      
+      if (onShowAlert) {
+        onShowAlert('Watch history cleared', 'success');
+      }
+      
+      // Refresh the main view
+      if (onRefresh) {
+        setTimeout(() => {
+          onRefresh();
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Error clearing watch history:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to clear watch history. Please try again.', 'danger');
+      }
+    } finally {
+      setMarkingWatched(false);
     }
   };
 
@@ -1631,6 +1797,106 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                       </button>
                     )}
                     
+                    <div className="watched-button-container" ref={datePickerRef}>
+                      <button 
+                        className={`action-btn watched-today ${(currentData.watch_count || 0) > 0 ? 'has-watches' : ''}`}
+                        onClick={() => handleMarkAsWatched()}
+                        disabled={markingWatched}
+                        title={currentData.last_watched 
+                          ? `Last watched: ${new Date(currentData.last_watched).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}` 
+                          : 'Mark as watched today (adds +1 to count)'}
+                      >
+                        <BsEye className="action-icon" />
+                        {markingWatched ? 'Saving...' : (() => {
+                          const count = currentData.watch_count || 0;
+                          if (count === 0) return 'Mark as Watched';
+                          const dateStr = currentData.last_watched 
+                            ? new Date(currentData.last_watched).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                            : '';
+                          if (count === 1) return `Watched ${dateStr}`;
+                          return `Watched ${count}× · ${dateStr}`;
+                        })()}
+                      </button>
+                      <button 
+                        className="action-btn watched-date-toggle"
+                        onClick={toggleDatePicker}
+                        disabled={markingWatched}
+                        title="More options"
+                      >
+                        ▼
+                      </button>
+                      
+                      {showDatePicker && (
+                        <div 
+                          className="watched-date-picker"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              e.stopPropagation();
+                              setShowDatePicker(false);
+                            }
+                          }}
+                        >
+                          <div className="quick-date-buttons">
+                            <button 
+                              type="button" 
+                              className="quick-date-btn"
+                              onClick={() => handleMarkAsWatched()}
+                            >
+                              Today
+                            </button>
+                            <button 
+                              type="button" 
+                              className="quick-date-btn"
+                              onClick={() => {
+                                const yesterday = new Date();
+                                yesterday.setDate(yesterday.getDate() - 1);
+                                handleMarkAsWatched(yesterday.toISOString().split('T')[0]);
+                              }}
+                            >
+                              Yesterday
+                            </button>
+                          </div>
+                          <div className="date-picker-divider"></div>
+                          <label>Or pick a date:</label>
+                          <input
+                            type="date"
+                            value={watchDate}
+                            onChange={(e) => handleDateChange(e.target.value)}
+                            onBlur={handleDateBlur}
+                            onKeyDown={handleDateKeyDown}
+                            max={new Date().toISOString().split('T')[0]}
+                          />
+                          <div className="date-picker-divider"></div>
+                          <label>Watch count:</label>
+                          <div className="watch-count-editor">
+                            <button 
+                              type="button"
+                              className="count-btn"
+                              onClick={() => handleUpdateWatchCount(Math.max(0, (currentData.watch_count || 0) - 1))}
+                              disabled={(currentData.watch_count || 0) <= 0}
+                            >
+                              −
+                            </button>
+                            <span className="count-value">{currentData.watch_count || 0}</span>
+                            <button 
+                              type="button"
+                              className="count-btn"
+                              onClick={() => handleUpdateWatchCount((currentData.watch_count || 0) + 1)}
+                            >
+                              +
+                            </button>
+                          </div>
+                          <button 
+                            type="button" 
+                            className="clear-watched-btn"
+                            onClick={() => handleClearWatched()}
+                          >
+                            Reset Watch History
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    
                     {onDelete && (
                       <button 
                         ref={deleteBtnRef}
@@ -2196,6 +2462,42 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                 {deleting ? 'Deleting...' : 'Delete Movie'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* "Did you watch?" prompt after removing from Watch Next */}
+      {showWatchedPrompt && (
+        <div className="watched-prompt-toast">
+          <span className="watched-prompt-text">Did you watch this movie?</span>
+          <div className="watched-prompt-buttons">
+            <button 
+              className="watched-prompt-btn"
+              onClick={() => {
+                handleMarkAsWatched();
+                setShowWatchedPrompt(false);
+              }}
+            >
+              Today
+            </button>
+            <button 
+              className="watched-prompt-btn"
+              onClick={() => {
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                handleMarkAsWatched(yesterday.toISOString().split('T')[0]);
+                setShowWatchedPrompt(false);
+              }}
+            >
+              Yesterday
+            </button>
+            <button 
+              className="watched-prompt-dismiss"
+              onClick={() => setShowWatchedPrompt(false)}
+              title="Dismiss"
+            >
+              ✕
+            </button>
           </div>
         </div>
       )}
