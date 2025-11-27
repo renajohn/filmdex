@@ -73,20 +73,26 @@ const runAutoMigrations = async () => {
             });
           });
           
-          // Migrate existing data
-          await new Promise((resolve, reject) => {
-            db.run(`
-              UPDATE movies 
-              SET watch_count = 1 
-              WHERE (last_watched IS NOT NULL OR never_seen = 0) AND (watch_count IS NULL OR watch_count = 0)
-            `, (err) => {
-              if (err) reject(err);
-              else resolve();
-            });
-          });
-          
           console.log('  ✓ Added watch_count column');
         }
+      }
+    },
+    {
+      name: '011_fix_watch_count_data',
+      up: async () => {
+        // FIX: Reset watch_count to 0 for all movies that don't have an explicit last_watched date
+        // This corrects the mistake in 010 which set watch_count=1 based on never_seen=0
+        const result = await new Promise((resolve, reject) => {
+          db.run(`
+            UPDATE movies 
+            SET watch_count = 0 
+            WHERE last_watched IS NULL
+          `, function(err) {
+            if (err) reject(err);
+            else resolve(this.changes);
+          });
+        });
+        console.log(`  ✓ Reset watch_count to 0 for ${result} movies without last_watched date`);
       }
     }
   ];

@@ -66,19 +66,20 @@ async function migrate() {
             }
           });
         });
-        
-        // Ensure all existing rows have watch_count = 0 (not NULL)
-        await new Promise((resolve, reject) => {
-          db.run(`UPDATE movies SET watch_count = 0 WHERE watch_count IS NULL`, (err) => {
-            if (err) reject(err);
-            else {
-              console.log('✓ Initialized watch_count to 0 for all movies');
-              resolve();
-            }
-          });
-        });
       } else {
         console.log('Column watch_count already exists, skipping...');
+      }
+      
+      // Always ensure watch_count is 0 for movies without explicit last_watched date
+      // This fixes any data corruption from earlier migrations
+      const fixResult = await new Promise((resolve, reject) => {
+        db.run(`UPDATE movies SET watch_count = 0 WHERE last_watched IS NULL`, function(err) {
+          if (err) reject(err);
+          else resolve(this.changes);
+        });
+      });
+      if (fixResult > 0) {
+        console.log(`✓ Reset watch_count to 0 for ${fixResult} movies without last_watched`);
       }
       
       console.log('Watch tracking migration completed successfully');
