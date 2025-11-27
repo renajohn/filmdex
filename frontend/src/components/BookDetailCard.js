@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Row, Col, Badge, Form, Alert } from 'react-bootstrap';
-import { BsPencil, BsTrash, BsBook, BsCalendar, BsTag, BsTranslate, BsFileEarmark, BsStar, BsPerson, BsHouse, BsChatSquareText, BsPlus, BsX, BsCheck, BsArrowLeft, BsDownload, BsFiles, BsChevronDown, BsChevronUp } from 'react-icons/bs';
+import { BsPencil, BsTrash, BsBook, BsCalendar, BsTag, BsTranslate, BsFileEarmark, BsStar, BsPerson, BsHouse, BsChatSquareText, BsPlus, BsX, BsCheck, BsArrowLeft, BsDownload, BsFiles, BsChevronDown, BsChevronUp, BsCamera } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import bookCommentService from '../services/bookCommentService';
 import CoverModal from './CoverModal';
 import BookForm from './BookForm';
+import StarRatingInput from './StarRatingInput';
+import InlineCoverSelector from './InlineCoverSelector';
 import './BookDetailCard.css';
 import './VolumeSelector.css';
 
@@ -110,12 +112,35 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
   const [seriesMembers, setSeriesMembers] = useState([]);
   const [loadingSeriesMembers, setLoadingSeriesMembers] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  
+  // Inline editing state
+  const [localBookData, setLocalBookData] = useState(book);
+  const [showCoverSelector, setShowCoverSelector] = useState(false);
+  const [editingOwner, setEditingOwner] = useState(false);
+  const [ownerValue, setOwnerValue] = useState('');
+  const [ownerSuggestions, setOwnerSuggestions] = useState([]);
+  const [showOwnerSuggestions, setShowOwnerSuggestions] = useState(false);
+  const [highlightedOwnerIndex, setHighlightedOwnerIndex] = useState(-1);
+  const [editingSeries, setEditingSeries] = useState(false);
+  const [seriesValue, setSeriesValue] = useState('');
+  const [seriesNumberValue, setSeriesNumberValue] = useState('');
+  const [seriesSuggestions, setSeriesSuggestions] = useState([]);
+  const [showSeriesSuggestions, setShowSeriesSuggestions] = useState(false);
+  const [highlightedSeriesIndex, setHighlightedSeriesIndex] = useState(-1);
+  const coverRef = useRef(null);
+  const ownerInputRef = useRef(null);
+  const seriesInputRef = useRef(null);
 
   useEffect(() => {
     if (book && book.id) {
       loadComments();
     }
   }, [book?.id]);
+
+  // Sync local book data when book prop changes
+  useEffect(() => {
+    setLocalBookData(book);
+  }, [book]);
 
   // Force re-render when book cover changes (e.g., after upload)
   useEffect(() => {
@@ -211,17 +236,272 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
     }
   };
 
+  // Use local data for display (allows immediate UI updates)
+  const currentBook = localBookData || book;
+
   // Description truncation - show ~5 lines worth of text
   const DESCRIPTION_CHAR_LIMIT = 350;
-  const isDescriptionLong = book?.description?.length > DESCRIPTION_CHAR_LIMIT;
+  const getDescription = () => currentBook?.description || '';
+  const isDescriptionLong = getDescription().length > DESCRIPTION_CHAR_LIMIT;
   
   const getDisplayDescription = () => {
-    if (!book?.description) return '';
-    if (!isDescriptionLong || descriptionExpanded) return book.description;
+    const desc = getDescription();
+    if (!desc) return '';
+    if (!isDescriptionLong || descriptionExpanded) return desc;
     // Truncate at the last complete word before the limit
-    const truncated = book.description.substring(0, DESCRIPTION_CHAR_LIMIT);
+    const truncated = desc.substring(0, DESCRIPTION_CHAR_LIMIT);
     const lastSpace = truncated.lastIndexOf(' ');
     return truncated.substring(0, lastSpace > 200 ? lastSpace : DESCRIPTION_CHAR_LIMIT) + '...';
+  };
+
+  // Handle rating change with immediate UI update
+  const handleRatingChange = async (newRating) => {
+    if (!currentBook?.id) return;
+    
+    // Optimistic update - update UI immediately
+    setLocalBookData(prev => ({
+      ...prev,
+      rating: newRating
+    }));
+    
+    try {
+      // Send full book data to avoid NOT NULL constraint issues
+      await bookService.updateBook(currentBook.id, { 
+        ...currentBook,
+        rating: newRating 
+      });
+      
+      // Notify parent of update
+      if (onBookUpdated) {
+        onBookUpdated({ ...currentBook, rating: newRating });
+      }
+    } catch (error) {
+      console.error('Error updating rating:', error);
+      // Rollback on error
+      setLocalBookData(prev => ({
+        ...prev,
+        rating: book.rating
+      }));
+    }
+  };
+
+  // Handle cover change button click to show selector
+  const handleCoverChangeClick = (e) => {
+    e.stopPropagation();
+    setShowCoverSelector(prev => !prev);
+  };
+
+  // Handle cover selection
+  const handleCoverSelected = (newCover) => {
+    // Update local state immediately
+    setLocalBookData(prev => ({
+      ...prev,
+      cover: newCover
+    }));
+    
+    setShowCoverSelector(false);
+    
+    // Notify parent of update
+    if (onBookUpdated) {
+      onBookUpdated({ ...currentBook, cover: newCover });
+    }
+  };
+
+  // Owner editing handlers
+  const startEditingOwner = () => {
+    setOwnerValue(currentBook.owner || '');
+    setEditingOwner(true);
+    setHighlightedOwnerIndex(-1);
+    loadOwnerSuggestions('');
+  };
+
+  const loadOwnerSuggestions = async (query) => {
+    try {
+      const suggestions = await bookService.getAutocompleteSuggestions('owner', query);
+      // API returns { owner: 'Name' } format - extract the owner value
+      const stringValues = (suggestions || []).map(s => s?.owner || '').filter(Boolean);
+      setOwnerSuggestions(stringValues);
+      setShowOwnerSuggestions(stringValues.length > 0);
+    } catch (error) {
+      console.error('Error loading owner suggestions:', error);
+      setOwnerSuggestions([]);
+      setShowOwnerSuggestions(false);
+    }
+  };
+
+  const handleOwnerChange = (value) => {
+    setOwnerValue(value);
+    setHighlightedOwnerIndex(-1);
+    loadOwnerSuggestions(value);
+  };
+
+  const handleOwnerSuggestionClick = (value) => {
+    setOwnerValue(value);
+    setShowOwnerSuggestions(false);
+    setHighlightedOwnerIndex(-1);
+  };
+
+  const handleOwnerKeyDown = (e) => {
+    if (!showOwnerSuggestions || ownerSuggestions.length === 0) {
+      if (e.key === 'Enter') { e.preventDefault(); saveOwner(); }
+      if (e.key === 'Escape') { e.preventDefault(); cancelEditingOwner(); }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedOwnerIndex(prev => prev < ownerSuggestions.length - 1 ? prev + 1 : prev);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedOwnerIndex(prev => prev > 0 ? prev - 1 : -1);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (highlightedOwnerIndex >= 0 && highlightedOwnerIndex < ownerSuggestions.length) {
+        handleOwnerSuggestionClick(ownerSuggestions[highlightedOwnerIndex]);
+      } else {
+        saveOwner();
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      if (showOwnerSuggestions) {
+        setShowOwnerSuggestions(false);
+      } else {
+        cancelEditingOwner();
+      }
+    }
+  };
+
+  const saveOwner = async () => {
+    if (!currentBook?.id) return;
+    
+    const newOwner = ownerValue || null;
+    setLocalBookData(prev => ({ ...prev, owner: newOwner }));
+    setEditingOwner(false);
+    
+    try {
+      // Send full book data to avoid NOT NULL constraint issues
+      await bookService.updateBook(currentBook.id, { 
+        ...currentBook,
+        owner: newOwner 
+      });
+      if (onBookUpdated) {
+        onBookUpdated({ ...currentBook, owner: newOwner });
+      }
+    } catch (error) {
+      console.error('Error updating owner:', error);
+      setLocalBookData(prev => ({ ...prev, owner: book.owner }));
+    }
+  };
+
+  const cancelEditingOwner = () => {
+    setEditingOwner(false);
+    setOwnerValue('');
+    setOwnerSuggestions([]);
+    setShowOwnerSuggestions(false);
+    setHighlightedOwnerIndex(-1);
+  };
+
+  // Series editing handlers
+  const startEditingSeries = () => {
+    setSeriesValue(currentBook.series || '');
+    setSeriesNumberValue(currentBook.seriesNumber?.toString() || '');
+    setEditingSeries(true);
+    setHighlightedSeriesIndex(-1);
+    loadSeriesSuggestions('');
+  };
+
+  const loadSeriesSuggestions = async (query) => {
+    try {
+      const suggestions = await bookService.getAutocompleteSuggestions('series', query);
+      // API returns { series: 'Name' } format - extract the series value
+      const stringValues = (suggestions || []).map(s => s?.series || '').filter(Boolean);
+      setSeriesSuggestions(stringValues);
+      setShowSeriesSuggestions(stringValues.length > 0);
+    } catch (error) {
+      console.error('Error loading series suggestions:', error);
+      setSeriesSuggestions([]);
+      setShowSeriesSuggestions(false);
+    }
+  };
+
+  const handleSeriesChange = (value) => {
+    setSeriesValue(value);
+    setHighlightedSeriesIndex(-1);
+    loadSeriesSuggestions(value);
+  };
+
+  const handleSeriesSuggestionClick = (value) => {
+    setSeriesValue(value);
+    setShowSeriesSuggestions(false);
+    setHighlightedSeriesIndex(-1);
+  };
+
+  const handleSeriesKeyDown = (e) => {
+    if (!showSeriesSuggestions || seriesSuggestions.length === 0) {
+      if (e.key === 'Enter') { e.preventDefault(); saveSeries(); }
+      if (e.key === 'Escape') { e.preventDefault(); cancelEditingSeries(); }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedSeriesIndex(prev => prev < seriesSuggestions.length - 1 ? prev + 1 : prev);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedSeriesIndex(prev => prev > 0 ? prev - 1 : -1);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (highlightedSeriesIndex >= 0 && highlightedSeriesIndex < seriesSuggestions.length) {
+        handleSeriesSuggestionClick(seriesSuggestions[highlightedSeriesIndex]);
+      } else {
+        saveSeries();
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      if (showSeriesSuggestions) {
+        setShowSeriesSuggestions(false);
+      } else {
+        cancelEditingSeries();
+      }
+    }
+  };
+
+  const saveSeries = async () => {
+    if (!currentBook?.id) return;
+    
+    const newSeries = seriesValue || null;
+    const seriesNum = seriesNumberValue ? parseFloat(seriesNumberValue) : null;
+    
+    setLocalBookData(prev => ({ 
+      ...prev, 
+      series: newSeries,
+      seriesNumber: seriesNum
+    }));
+    setEditingSeries(false);
+    
+    try {
+      // Send full book data to avoid NOT NULL constraint issues
+      await bookService.updateBook(currentBook.id, { 
+        ...currentBook,
+        series: newSeries,
+        seriesNumber: seriesNum
+      });
+      if (onBookUpdated) {
+        onBookUpdated({ ...currentBook, series: newSeries, seriesNumber: seriesNum });
+      }
+    } catch (error) {
+      console.error('Error updating series:', error);
+      setLocalBookData(prev => ({ ...prev, series: book.series, seriesNumber: book.seriesNumber }));
+    }
+  };
+
+  const cancelEditingSeries = () => {
+    setEditingSeries(false);
+    setSeriesValue('');
+    setSeriesNumberValue('');
+    setSeriesSuggestions([]);
+    setShowSeriesSuggestions(false);
+    setHighlightedSeriesIndex(-1);
   };
 
   const handleCopyRef = async (e) => {
@@ -490,21 +770,24 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
   };
 
   const getAuthorDisplay = () => {
-    if (Array.isArray(book.authors)) {
-      return book.authors.join(', ');
+    const bookData = currentBook || book;
+    if (Array.isArray(bookData.authors)) {
+      return bookData.authors.join(', ');
     }
-    return book.authors || 'Unknown Author';
+    return bookData.authors || 'Unknown Author';
   };
 
   const getArtistDisplay = () => {
-    if (Array.isArray(book.artists)) {
-      return book.artists.join(', ');
+    const bookData = currentBook || book;
+    if (Array.isArray(bookData.artists)) {
+      return bookData.artists.join(', ');
     }
-    return book.artists || null;
+    return bookData.artists || null;
   };
 
   const getCoverImage = () => {
-    return bookService.getImageUrl(book.cover);
+    const bookData = currentBook || book;
+    return bookService.getImageUrl(bookData.cover);
   };
 
   const getCoverUrl = (coverPath) => {
@@ -518,11 +801,12 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
   };
 
   const formatBookMetadata = () => {
+    const bookData = currentBook || book;
     const parts = [];
     
     // Language
     let langName = null;
-    if (book.language) {
+    if (bookData.language) {
       const langMap = {
         'fr': 'French',
         'en': 'English',
@@ -535,14 +819,14 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
         'zh': 'Chinese',
         'ko': 'Korean'
       };
-      langName = langMap[book.language.toLowerCase()] || book.language.toUpperCase();
+      langName = langMap[bookData.language.toLowerCase()] || bookData.language.toUpperCase();
     }
     
     // Format
-    const format = book.format || null;
+    const format = bookData.format || null;
     
     // Pages
-    const pages = book.pageCount || null;
+    const pages = bookData.pageCount || null;
     
     // Build the sentence naturally
     let sentence = '';
@@ -1032,28 +1316,28 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
           {getCoverImage() ? (
             <Row>
               <Col md={3}>
-                <div className="book-cover-container">
-                  <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '4px' }}>
-                    {book.borrowed && (
+                <div className="book-cover-container" ref={coverRef}>
+                  <div style={{ position: 'relative', overflow: 'visible', borderRadius: '4px' }}>
+                    {currentBook.borrowed && (
                       <div className="book-thumbnail-borrowed-ribbon">
                         Read & Gone
                       </div>
                     )}
-                    {book.titleStatus === 'borrowed' && !book.borrowed && (
+                    {currentBook.titleStatus === 'borrowed' && !currentBook.borrowed && (
                       <div className="book-thumbnail-borrowed-ribbon">
                         Borrowed
                       </div>
                     )}
-                    {book.titleStatus === 'wish' && (
+                    {currentBook.titleStatus === 'wish' && (
                       <div className="book-thumbnail-wishlist-ribbon">
                         Wishlist
                       </div>
                     )}
                     {getCoverImage() ? (
                       <img 
-                        key={`book-cover-${book.id}-${book.cover || 'no-cover'}`}
+                        key={`book-cover-${currentBook.id}-${currentBook.cover || 'no-cover'}`}
                         src={getCoverImage()} 
-                        alt={`${book.title} cover`}
+                        alt={`${currentBook.title} cover`}
                         className="book-cover-image book-cover-clickable"
                         onClick={() => handleCoverClick(getCoverImage(), 'Front Cover')}
                         onError={(e) => {
@@ -1064,6 +1348,14 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                         }}
                       />
                     ) : null}
+                    {/* Change Cover Button */}
+                    <button 
+                      className="cover-change-btn"
+                      onClick={handleCoverChangeClick}
+                      title="Change cover"
+                    >
+                      <BsCamera size={14} />
+                    </button>
                   </div>
                   {!getCoverImage() && (
                     <div 
@@ -1071,64 +1363,196 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                       style={{ display: 'flex', position: 'relative' }}
                     >
                       <BsBook size={64} />
+                      <button 
+                        className="cover-change-btn"
+                        onClick={handleCoverChangeClick}
+                        title="Add cover"
+                      >
+                        <BsCamera size={14} />
+                      </button>
                     </div>
                   )}
                   
-                  {(book.language || book.format || book.pageCount || book.publishedYear) && (
+                  {/* Inline Cover Selector */}
+                  {showCoverSelector && (
+                    <InlineCoverSelector
+                      book={currentBook}
+                      isOpen={showCoverSelector}
+                      onCoverSelected={handleCoverSelected}
+                      currentCover={currentBook.cover}
+                      onClose={() => setShowCoverSelector(false)}
+                    />
+                  )}
+                  
+                  {(currentBook.language || currentBook.format || currentBook.pageCount || currentBook.publishedYear) && (
                     <div className="book-metadata-summary">
                       {formatBookMetadata() && (
                         <div className="metadata-summary-line">
                           {formatBookMetadata()}.
                         </div>
                       )}
-                      {book.publishedYear && (
+                      {currentBook.publishedYear && (
                         <div className="metadata-summary-line">
-                          Published in {book.publishedYear}.
+                          Published in {currentBook.publishedYear}.
                         </div>
                       )}
                     </div>
                   )}
                   
-                  {book.rating && (
-                    <div className="book-rating-section">
-                      <BsStar className="me-2" style={{ color: '#fbbf24' }} />
-                      <strong>Rating:</strong> {book.rating}/5
-                    </div>
-                  )}
+                  {/* Star Rating - always show for easy editing */}
+                  <div className="book-rating-section interactive">
+                    <strong>Rating:</strong>
+                    <StarRatingInput 
+                      rating={currentBook.rating}
+                      onRatingChange={handleRatingChange}
+                      size="md"
+                    />
+                  </div>
                   
-                  {book.owner && (
-                    <div className="book-owner-section">
-                      <span className="owner-label">
-                        <BsPerson className="me-2" style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
-                        <strong>Belongs to:</strong>
-                      </span>
-                      <span 
-                        className="clickable-author"
-                        onClick={() => handleSearch('owner', book.owner)}
-                      >
-                        {book.owner}
-                      </span>
-                    </div>
-                  )}
+                  {/* Owner Section */}
+                  <div className="book-owner-section">
+                    <span className="owner-label">
+                      <BsPerson className="me-2" style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
+                      <strong>Belongs to:</strong>
+                    </span>
+                    {editingOwner ? (
+                      <div className="inline-edit-field">
+                        <div className="input-with-dropdown">
+                          <input
+                            ref={ownerInputRef}
+                            type="text"
+                            value={ownerValue}
+                            onChange={(e) => handleOwnerChange(e.target.value)}
+                            onKeyDown={handleOwnerKeyDown}
+                            onBlur={() => setTimeout(() => setShowOwnerSuggestions(false), 150)}
+                            placeholder="Enter owner name"
+                            autoFocus
+                            autoComplete="off"
+                          />
+                          {showOwnerSuggestions && ownerSuggestions.length > 0 && (
+                            <div className="inline-suggestions-dropdown">
+                              {ownerSuggestions.map((name, index) => (
+                                <div
+                                  key={index}
+                                  className={`suggestion-item ${highlightedOwnerIndex === index ? 'highlighted' : ''}`}
+                                  onClick={() => handleOwnerSuggestionClick(name)}
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onMouseEnter={() => setHighlightedOwnerIndex(index)}
+                                >
+                                  {name}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="inline-edit-actions">
+                          <button className="save-btn" onClick={saveOwner}>✓</button>
+                          <button className="cancel-btn" onClick={cancelEditingOwner}>✕</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {currentBook.owner ? (
+                          <span 
+                            className="clickable-author"
+                            onClick={() => handleSearch('owner', currentBook.owner)}
+                          >
+                            {currentBook.owner}
+                          </span>
+                        ) : (
+                          <span className="placeholder-value">None</span>
+                        )}
+                        <button 
+                          className="inline-edit-btn" 
+                          onClick={(e) => { e.stopPropagation(); startEditingOwner(); }}
+                          title="Edit owner"
+                        >
+                          <BsPencil size={12} />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </Col>
               
               <Col md={9}>
                 <div className="book-details">
-                  {book.series && (
-                    <div className="series-section">
-                      <div>
-                        <strong>Series:</strong>{' '}
-                        <span 
-                          className="clickable-series"
-                          onClick={() => handleSearch('series', book.series)}
-                        >
-                          {book.series}
-                          {book.seriesNumber && ` #${book.seriesNumber}`}
-                        </span>
+                  {/* Series Section */}
+                  <div className="series-section">
+                    <strong>Series:</strong>{' '}
+                    {editingSeries ? (
+                      <div className="inline-edit-field series-edit">
+                        <div style={{ position: 'relative', flex: 1 }}>
+                          <input
+                            ref={seriesInputRef}
+                            type="text"
+                            value={seriesValue}
+                            onChange={(e) => handleSeriesChange(e.target.value)}
+                            onKeyDown={handleSeriesKeyDown}
+                            onBlur={() => setTimeout(() => setShowSeriesSuggestions(false), 150)}
+                            placeholder="Series name..."
+                            autoFocus
+                            autoComplete="off"
+                            className="series-name-input"
+                          />
+                          {showSeriesSuggestions && seriesSuggestions.length > 0 && (
+                            <div className="inline-suggestions-dropdown">
+                              {seriesSuggestions.map((name, index) => (
+                                <div
+                                  key={index}
+                                  className={`suggestion-item ${highlightedSeriesIndex === index ? 'highlighted' : ''}`}
+                                  onClick={() => handleSeriesSuggestionClick(name)}
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onMouseEnter={() => setHighlightedSeriesIndex(index)}
+                                >
+                                  {name}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <span className="series-number-label">#</span>
+                        <input
+                          type="number"
+                          value={seriesNumberValue}
+                          onChange={(e) => setSeriesNumberValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') { e.preventDefault(); saveSeries(); }
+                            if (e.key === 'Escape') { e.preventDefault(); cancelEditingSeries(); }
+                          }}
+                          placeholder="1"
+                          step="0.5"
+                          min="0"
+                          className="series-number-input"
+                        />
+                        <div className="inline-edit-actions">
+                          <button className="save-btn" onClick={saveSeries}>✓</button>
+                          <button className="cancel-btn" onClick={cancelEditingSeries}>✕</button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <>
+                        {currentBook.series ? (
+                          <span 
+                            className="clickable-series"
+                            onClick={() => handleSearch('series', currentBook.series)}
+                          >
+                            {currentBook.series}
+                            {currentBook.seriesNumber && ` #${currentBook.seriesNumber}`}
+                          </span>
+                        ) : (
+                          <span className="placeholder-value">None</span>
+                        )}
+                        <button 
+                          className="inline-edit-btn" 
+                          onClick={(e) => { e.stopPropagation(); startEditingSeries(); }}
+                          title="Edit series"
+                        >
+                          <BsPencil size={12} />
+                        </button>
+                      </>
+                    )}
+                  </div>
                   
                   {Array.isArray(book.authors) && book.authors.length > 1 ? (
                     <div className="book-author-section">
@@ -1675,42 +2099,156 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                 </div>
               )}
               
-              {book.rating && (
-                <div className="book-rating-section">
-                  <BsStar className="me-2" style={{ color: '#fbbf24' }} />
-                  <strong>Rating:</strong> {book.rating}/5
-                </div>
-              )}
+              {/* Star Rating - always show for easy editing */}
+              <div className="book-rating-section interactive">
+                <strong>Rating:</strong>
+                <StarRatingInput 
+                  rating={currentBook.rating}
+                  onRatingChange={handleRatingChange}
+                  size="md"
+                />
+              </div>
               
-              {book.owner && (
-                <div className="book-owner-section">
-                  <BsPerson className="me-2" style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
-                  <strong>Owner:</strong>{' '}
-                  <span 
-                    className="clickable-author"
-                    onClick={() => handleSearch('owner', book.owner)}
-                  >
-                    {book.owner}
-                  </span>
-                </div>
-              )}
-              
-              {book.series && (
-                <div className="series-section">
-                  <div>
-                    <strong>Series:</strong>{' '}
-                    <span 
-                      className="clickable-series"
-                      onClick={() => handleSearch('series', book.series)}
-                    >
-                      {book.series}
-                      {book.seriesNumber && ` #${book.seriesNumber}`}
-                    </span>
+              {/* Owner Section */}
+              <div className="book-owner-section">
+                <BsPerson className="me-2" style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
+                <strong>Owner:</strong>{' '}
+                {editingOwner ? (
+                  <div className="inline-edit-field">
+                    <div className="input-with-dropdown">
+                      <input
+                        ref={ownerInputRef}
+                        type="text"
+                        value={ownerValue}
+                        onChange={(e) => handleOwnerChange(e.target.value)}
+                        onKeyDown={handleOwnerKeyDown}
+                        onBlur={() => setTimeout(() => setShowOwnerSuggestions(false), 150)}
+                        placeholder="Enter owner name"
+                        autoFocus
+                        autoComplete="off"
+                      />
+                      {showOwnerSuggestions && ownerSuggestions.length > 0 && (
+                        <div className="inline-suggestions-dropdown">
+                          {ownerSuggestions.map((name, index) => (
+                            <div
+                              key={index}
+                              className={`suggestion-item ${highlightedOwnerIndex === index ? 'highlighted' : ''}`}
+                              onClick={() => handleOwnerSuggestionClick(name)}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onMouseEnter={() => setHighlightedOwnerIndex(index)}
+                            >
+                              {name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="inline-edit-actions">
+                      <button className="save-btn" onClick={saveOwner}>✓</button>
+                      <button className="cancel-btn" onClick={cancelEditingOwner}>✕</button>
+                    </div>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <>
+                    {currentBook.owner ? (
+                      <span 
+                        className="clickable-author"
+                        onClick={() => handleSearch('owner', currentBook.owner)}
+                      >
+                        {currentBook.owner}
+                      </span>
+                    ) : (
+                      <span className="placeholder-value">None</span>
+                    )}
+                    <button 
+                      className="inline-edit-btn" 
+                      onClick={(e) => { e.stopPropagation(); startEditingOwner(); }}
+                      title="Edit owner"
+                    >
+                      <BsPencil size={12} />
+                    </button>
+                  </>
+                )}
+              </div>
               
-              {book.publisher && (
+              {/* Series Section */}
+              <div className="series-section">
+                <strong>Series:</strong>{' '}
+                {editingSeries ? (
+                  <div className="inline-edit-field series-edit">
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <input
+                        ref={seriesInputRef}
+                        type="text"
+                        value={seriesValue}
+                        onChange={(e) => handleSeriesChange(e.target.value)}
+                        onKeyDown={handleSeriesKeyDown}
+                        onBlur={() => setTimeout(() => setShowSeriesSuggestions(false), 150)}
+                        placeholder="Series name..."
+                        autoFocus
+                        autoComplete="off"
+                        className="series-name-input"
+                      />
+                      {showSeriesSuggestions && seriesSuggestions.length > 0 && (
+                        <div className="inline-suggestions-dropdown">
+                          {seriesSuggestions.map((name, index) => (
+                            <div
+                              key={index}
+                              className={`suggestion-item ${highlightedSeriesIndex === index ? 'highlighted' : ''}`}
+                              onClick={() => handleSeriesSuggestionClick(name)}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onMouseEnter={() => setHighlightedSeriesIndex(index)}
+                            >
+                              {name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <span className="series-number-label">#</span>
+                    <input
+                      type="number"
+                      value={seriesNumberValue}
+                      onChange={(e) => setSeriesNumberValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); saveSeries(); }
+                        if (e.key === 'Escape') { e.preventDefault(); cancelEditingSeries(); }
+                      }}
+                      placeholder="1"
+                      step="0.5"
+                      min="0"
+                      className="series-number-input"
+                    />
+                    <div className="inline-edit-actions">
+                      <button className="save-btn" onClick={saveSeries}>✓</button>
+                      <button className="cancel-btn" onClick={cancelEditingSeries}>✕</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {currentBook.series ? (
+                      <span 
+                        className="clickable-series"
+                        onClick={() => handleSearch('series', currentBook.series)}
+                      >
+                        {currentBook.series}
+                        {currentBook.seriesNumber && ` #${currentBook.seriesNumber}`}
+                      </span>
+                    ) : (
+                      <span className="placeholder-value">None</span>
+                    )}
+                    <button 
+                      className="inline-edit-btn" 
+                      onClick={(e) => { e.stopPropagation(); startEditingSeries(); }}
+                      title="Edit series"
+                    >
+                      <BsPencil size={12} />
+                    </button>
+                  </>
+                )}
+              </div>
+              
+              {currentBook.publisher && (
                 <div className="publisher">
                   <strong>Publisher:</strong> {book.publisher}
                 </div>

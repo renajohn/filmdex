@@ -1,0 +1,98 @@
+.star-rating-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stars-container {
+  display: inline-flex;
+  gap: 0;
+  flex-shrink: 0;
+}
+
+.star-button {
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.star-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.star-button:not(:disabled):hover {
+  transform: scale(1.1);
+}
+
+.star-button:not(:disabled):active {
+  transform: scale(0.95);
+}
+
+.star-button.filled,
+.star-button.half-filled {
+  color: #fbbf24;
+}
+
+.star-button.hovering:not(.filled):not(.half-filled) {
+  color: rgba(251, 191, 36, 0.4);
+}
+
+.star-button.saving {
+  pointer-events: none;
+}
+
+/* Size variants */
+.star-button.size-sm .star-icon {
+  font-size: 0.9rem;
+}
+
+.star-button.size-md .star-icon {
+  font-size: 1.1rem;
+}
+
+.star-button.size-lg .star-icon {
+  font-size: 1.5rem;
+}
+
+/* Star icon styling */
+.star-icon {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  transition: all 0.15s ease;
+}
+
+.star-button.filled .star-icon,
+.star-button.half-filled .star-icon {
+  filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.3));
+}
+
+.star-button:not(:disabled):hover .star-icon {
+  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.5));
+}
+
+/* Rating value display */
+.rating-value {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+  min-width: 1.5rem;
+}
+
+/* Saving indicator */
+.saving-indicator {
+  font-size: 0.75rem;
+  color: rgba(251, 191, 36, 0.7);
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
