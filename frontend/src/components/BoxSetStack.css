@@ -301,7 +301,15 @@
 
 .boxset-expansion-movie-item .movie-thumbnail {
   width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 3;
   margin-bottom: 0;
+}
+
+.boxset-expansion-movie-item .movie-thumbnail .thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 /* Override hover behavior for popover - show badges on hover */
