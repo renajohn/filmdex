@@ -1033,13 +1033,14 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     }
   };
 
-  // Handle marking movie as watched (increments count)
-  const handleMarkAsWatched = async (customDate = null) => {
+  // Handle marking movie as watched
+  // incrementCount: true = always increment, false = only increment if count was 0
+  const handleMarkAsWatched = async (customDate = null, incrementCount = true) => {
     setMarkingWatched(true);
     setShowDatePicker(false);
     try {
       const dateToUse = customDate || new Date().toISOString().split('T')[0];
-      const result = await apiService.markMovieAsWatched(movieDetails.id, dateToUse);
+      const result = await apiService.markMovieAsWatched(movieDetails.id, dateToUse, incrementCount);
       const movieTitle = title;
       const count = result.watch_count;
       
@@ -1117,8 +1118,9 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   // Save on blur (when leaving the input or selecting from picker)
   const handleDateBlur = () => {
     // Only save if date is valid and different from current
+    // Don't increment count when changing date via picker - only increment if count was 0
     if (watchDate && watchDate !== (currentData.last_watched || '')) {
-      handleMarkAsWatched(watchDate);
+      handleMarkAsWatched(watchDate, false);
     }
   };
 
@@ -1130,8 +1132,9 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       setShowDatePicker(false);
     } else if (e.key === 'Enter') {
       e.preventDefault();
+      // Don't increment count when changing date via picker - only increment if count was 0
       if (watchDate) {
-        handleMarkAsWatched(watchDate);
+        handleMarkAsWatched(watchDate, false);
       }
     }
   };

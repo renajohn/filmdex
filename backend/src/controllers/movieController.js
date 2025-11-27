@@ -916,9 +916,9 @@ const movieController = {
   markAsWatched: async (req, res) => {
     try {
       const { id } = req.params;
-      const { date } = req.body; // Optional: allow custom date
+      const { date, incrementCount = true } = req.body; // Optional: custom date and increment control
       
-      const result = await Movie.markAsWatched(id, date);
+      const result = await Movie.markAsWatched(id, date, incrementCount);
       
       if (result.changes === 0) {
         return res.status(404).json({ error: 'Movie not found' });

@@ -406,10 +406,11 @@ class ApiService {
   }
 
   // Mark movie as watched (sets last_watched to today)
-  async markMovieAsWatched(movieId, date = null) {
+  // incrementCount: true = always increment, false = only increment if count was 0
+  async markMovieAsWatched(movieId, date = null, incrementCount = true) {
     const response = await this.makeRequest(`/movies/${movieId}/watched`, {
       method: 'PUT',
-      body: JSON.stringify({ date }),
+      body: JSON.stringify({ date, incrementCount }),
     });
     
     return await response.json();

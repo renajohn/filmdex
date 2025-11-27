@@ -1005,13 +1005,17 @@ const Movie = {
     });
   },
 
-  // Mark a movie as watched (increments watch_count, sets last_watched, and never_seen to false)
-  markAsWatched: (id, date = null) => {
+  // Mark a movie as watched (optionally increments watch_count, sets last_watched, and never_seen to false)
+  // incrementCount: true = always increment, false = only increment if count was 0
+  markAsWatched: (id, date = null, incrementCount = true) => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
       const watchDate = date || new Date().toISOString().split('T')[0];
       
-      const sql = `UPDATE movies SET last_watched = ?, never_seen = 0, watch_count = COALESCE(watch_count, 0) + 1 WHERE id = ?`;
+      // If incrementCount is false, only increment if count is currently 0
+      const sql = incrementCount
+        ? `UPDATE movies SET last_watched = ?, never_seen = 0, watch_count = COALESCE(watch_count, 0) + 1 WHERE id = ?`
+        : `UPDATE movies SET last_watched = ?, never_seen = 0, watch_count = CASE WHEN COALESCE(watch_count, 0) = 0 THEN 1 ELSE watch_count END WHERE id = ?`;
       
       db.run(sql, [watchDate, id], function(err) {
         if (err) {
