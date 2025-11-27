@@ -504,7 +504,7 @@ function AppContent() {
               'artist:': 'Search by artist/illustrator name',
               'isbn:': 'Search by ISBN',
               'series:': 'Search by series name',
-              'owner:': 'Search by owner',
+              'owner:': 'Search by who it belongs to',
               'format:': 'Search by format',
               'language:': 'Search by language',
               'genre:': 'Search by genre',

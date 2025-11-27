@@ -741,7 +741,8 @@
   color: rgba(255, 255, 255, 0.75);
   font-size: 0.95rem;
   display: flex;
-  align-items: center;
+  align-items: baseline;
+  flex-wrap: wrap;
 }
 
 .book-rating-section strong,
@@ -749,6 +750,13 @@
   color: rgba(255, 255, 255, 0.9);
   font-weight: 600;
   margin-right: 0.5rem;
+}
+
+.owner-label {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .book-secondary-meta {

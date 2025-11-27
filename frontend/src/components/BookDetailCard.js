@@ -1084,8 +1084,10 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                   
                   {book.owner && (
                     <div className="book-owner-section">
-                      <BsPerson className="me-2" style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
-                      <strong>Owner:</strong>{' '}
+                      <span className="owner-label">
+                        <BsPerson className="me-2" style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
+                        <strong>Belongs to:</strong>
+                      </span>
                       <span 
                         className="clickable-author"
                         onClick={() => handleSearch('owner', book.owner)}
