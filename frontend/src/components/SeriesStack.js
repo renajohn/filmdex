@@ -4,7 +4,7 @@ import { BsPencil, BsCheck, BsX, BsPlus } from 'react-icons/bs';
 import BookThumbnail from './BookThumbnail';
 import './SeriesStack.css';
 
-const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpanded, onToggleExpanded, sortedBooks, onClose, onBookDropped, onSeriesMerge, onSeriesRename, onRemoveFromSeries, onAddBooksToSeries }) => {
+const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpanded, onToggleExpanded, sortedBooks, onClose, onBookDropped, onSeriesMerge, onSeriesRename, onRemoveFromSeries, onAddBooksToSeries, dataFirstLetter }) => {
   const targetRef = useRef(null);
   const containerRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -216,6 +216,7 @@ const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpan
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         style={{ position: 'relative' }}
+        {...(dataFirstLetter ? { 'data-first-letter': dataFirstLetter } : {})}
       >
         <div ref={containerRef} className="series-stack-container">
           {/* Invisible drag handle overlay */}

@@ -3,7 +3,7 @@ import { Popover, Overlay } from 'react-bootstrap';
 import MovieThumbnail from './MovieThumbnail';
 import './BoxSetStack.css';
 
-const BoxSetStack = ({ boxSetName, movies, onMovieClick, isExpanded, onToggleExpanded, sortedMovies, onClose, watchNextMovies, onWatchNextToggle }) => {
+const BoxSetStack = ({ boxSetName, movies, onMovieClick, isExpanded, onToggleExpanded, sortedMovies, onClose, watchNextMovies, onWatchNextToggle, dataFirstLetter }) => {
   const targetRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -128,6 +128,7 @@ const BoxSetStack = ({ boxSetName, movies, onMovieClick, isExpanded, onToggleExp
         className={`boxset-stack ${isExpanded ? 'expanded' : ''}`} 
         onClick={handleClick} 
         style={{ position: 'relative' }}
+        {...(dataFirstLetter ? { 'data-first-letter': dataFirstLetter } : {})}
       >
         <div ref={containerRef} className="boxset-stack-container">
           <div className="boxset-title-overlay">

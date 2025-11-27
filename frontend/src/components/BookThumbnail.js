@@ -4,7 +4,7 @@ import { BsBook, BsThreeDots, BsPencil, BsTrash, BsClipboard, BsFileEarmark, BsB
 import bookService from '../services/bookService';
 import './BookThumbnail.css';
 
-const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false, hideInfo = false, draggable = true, onBookDroppedForSeries = null, onAddToExistingSeries = null, onRemoveFromSeries = null, onSeriesMerge = null }) => {
+const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false, hideInfo = false, draggable = true, onBookDroppedForSeries = null, onAddToExistingSeries = null, onRemoveFromSeries = null, onSeriesMerge = null, dataItemId, dataFirstLetter }) => {
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleDragStart = (e) => {
@@ -178,6 +178,8 @@ const BookThumbnail = ({ book, onClick, onEdit, onDelete, disableMenu = false, h
       onDragEnter={canAcceptDrop ? handleDragEnter : undefined}
       onDragLeave={canAcceptDrop ? handleDragLeave : undefined}
       onDrop={canAcceptDrop ? handleDrop : undefined}
+      {...(dataItemId ? { 'data-item-id': dataItemId } : {})}
+      {...(dataFirstLetter ? { 'data-first-letter': dataFirstLetter } : {})}
     >
       <div className="book-thumbnail-cover">
         {book.titleStatus === 'borrowed' && (

@@ -5,7 +5,7 @@ import musicService from '../services/musicService';
 import ListenNextToggle from './ListenNextToggle';
 import './MusicThumbnail.css';
 
-const MusicThumbnail = ({ cd, onClick, onEdit, onDelete, disableMenu = false, onListenNextChange, isInListenNext: isInListenNextProp }) => {
+const MusicThumbnail = ({ cd, onClick, onEdit, onDelete, disableMenu = false, onListenNextChange, isInListenNext: isInListenNextProp, dataItemId, dataFirstLetter }) => {
   const [openingApple, setOpeningApple] = useState(false);
   const [togglingListenNext, setTogglingListenNext] = useState(false);
   
@@ -52,7 +52,12 @@ const MusicThumbnail = ({ cd, onClick, onEdit, onDelete, disableMenu = false, on
   };
 
   return (
-    <div className="music-thumbnail" onClick={onClick}>
+    <div 
+      className="music-thumbnail" 
+      onClick={onClick}
+      {...(dataItemId ? { 'data-item-id': dataItemId } : {})}
+      {...(dataFirstLetter ? { 'data-first-letter': dataFirstLetter } : {})}
+    >
       <div className="music-thumbnail-cover">
         {getCoverImage() ? (
           <img 

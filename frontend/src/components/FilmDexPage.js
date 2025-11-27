@@ -3,6 +3,7 @@ import apiService from '../services/api';
 import MovieThumbnail from './MovieThumbnail';
 import MovieDetailCard from './MovieDetailCard';
 import BoxSetStack from './BoxSetStack';
+import AlphabeticalIndex from './AlphabeticalIndex';
 import { NextBanner, CollectionHeader, EmptyState } from './shared';
 import { 
   BsChevronDown, 
@@ -34,6 +35,22 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
   // Track expanded box set
   const [expandedBoxSet, setExpandedBoxSet] = useState(null);
+  
+  // Ref for scroll container (for alphabetical index)
+  const scrollContainerRef = useRef(null);
+  const [scrollContainer, setScrollContainer] = useState(null);
+  
+  // Set scroll container once component mounts
+  useEffect(() => {
+    // Try to find the main scrollable container
+    const mainContent = scrollContainerRef.current?.closest('.app-main-content');
+    if (mainContent) {
+      setScrollContainer(mainContent);
+    } else {
+      // Fallback to document.documentElement for window scrolling
+      setScrollContainer(document.documentElement);
+    }
+  }, []);
 
   const getCombinedScore = (movie) => {
     const ratings = [];
@@ -321,7 +338,7 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
 
   // Large poster view renderer
-  const renderMovieCardLarge = (movie) => {
+  const renderMovieCardLarge = (movie, isFirstOfLetter = false, letter = null) => {
     const year = movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year;
     const combinedScore = getCombinedScore(movie);
     
@@ -330,7 +347,13 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                           (movie.collection_names && movie.collection_names.length > 0);
     
     return (
-      <div key={movie.id} className="movie-card-large" onClick={() => handleMovieClick(movie.id)}>
+      <div 
+        key={movie.id} 
+        className="movie-card-large" 
+        onClick={() => handleMovieClick(movie.id)}
+        data-item-id={movie.id}
+        {...(isFirstOfLetter && letter ? { 'data-first-letter': letter } : {})}
+      >
         <div className="movie-poster-large">
           <MovieThumbnail 
             imdbLink={movie.imdb_id ? `https://www.imdb.com/title/${movie.imdb_id}` : movie.imdb_link} 
@@ -772,8 +795,15 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   };
 
   return (
-    <div className="movie-search">
-
+    <div className="movie-search" ref={scrollContainerRef}>
+      {/* Alphabetical Index - only shows when sorted by title */}
+      <AlphabeticalIndex
+        items={movies}
+        getTitle={(movie) => movie.title}
+        scrollContainer={scrollContainer}
+        sortBy={sortBy}
+        disabled={searchCriteria?.searchText?.trim() || groupBy !== 'none'}
+      />
 
       {/* Watch Next Banner */}
       {watchNextMovies.length > 0 && !searchCriteria?.searchText && (
@@ -931,9 +961,18 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                       }
                     });
                     
-                    // Render the sorted combined items
+                    // Render the sorted combined items with first-letter tracking for index
                     const items = [];
+                    const seenLetters = new Set();
+                    
                     combinedItems.forEach(item => {
+                      // Determine the title for letter tracking
+                      const title = item.type === 'boxset' ? item.boxSetName : item.movie?.title;
+                      const firstChar = title?.charAt(0)?.toUpperCase() || '';
+                      const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
+                      const isFirstOfLetter = !seenLetters.has(letter);
+                      if (isFirstOfLetter) seenLetters.add(letter);
+                      
                       if (item.type === 'boxset') {
                         if (item.movies.length > 1) {
                           const isExpanded = expandedBoxSet === item.boxSetName;
@@ -949,21 +988,29 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                               onClose={handleCloseBoxSetExpansion}
                               watchNextMovies={watchNextMovies}
                               onWatchNextToggle={handleWatchNextToggle}
+                              dataFirstLetter={isFirstOfLetter ? letter : undefined}
                             />
                           );
                         } else {
                           // Single movie box set, render normally
-                          items.push(renderMovieCardLarge(item.movies[0]));
+                          items.push(renderMovieCardLarge(item.movies[0], isFirstOfLetter, letter));
                         }
                       } else {
-                        items.push(renderMovieCardLarge(item.movie));
+                        items.push(renderMovieCardLarge(item.movie, isFirstOfLetter, letter));
                       }
                     });
 
                     return items;
                   } else {
-                    // Normal rendering without stacking
-                    return movies && movies.map((movie) => renderMovieCardLarge(movie));
+                    // Normal rendering without stacking - track first letters for index
+                    const seenLetters = new Set();
+                    return movies && movies.map((movie) => {
+                      const firstChar = movie.title?.charAt(0)?.toUpperCase() || '';
+                      const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
+                      const isFirstOfLetter = !seenLetters.has(letter);
+                      if (isFirstOfLetter) seenLetters.add(letter);
+                      return renderMovieCardLarge(movie, isFirstOfLetter, letter);
+                    });
                   }
                 })()}
               </div>

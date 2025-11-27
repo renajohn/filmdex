@@ -5,6 +5,7 @@ import MusicForm from './MusicForm';
 import MusicThumbnail from './MusicThumbnail';
 import MusicDetailCard from './MusicDetailCard';
 import AddMusicDialog from './AddMusicDialog';
+import AlphabeticalIndex from './AlphabeticalIndex';
 import { NextBanner, CollectionHeader, EmptyState } from './shared';
 import { BsChevronDown, BsMusicNote } from 'react-icons/bs';
 import './MusicSearch.css';
@@ -45,6 +46,20 @@ const MusicSearch = forwardRef(({
   const navigate = useNavigate();
   const location = useLocation();
   const [listenNextAlbums, setListenNextAlbums] = useState([]);
+  
+  // Ref and state for scroll container (for alphabetical index)
+  const scrollContainerRef = useRef(null);
+  const [scrollContainer, setScrollContainer] = useState(null);
+  
+  // Set scroll container once component mounts
+  useEffect(() => {
+    const mainContent = scrollContainerRef.current?.closest('.app-main-content');
+    if (mainContent) {
+      setScrollContainer(mainContent);
+    } else {
+      setScrollContainer(document.documentElement);
+    }
+  }, []);
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
@@ -560,21 +575,35 @@ const MusicSearch = forwardRef(({
       );
     }
 
-    // Ungrouped view
+    // Ungrouped view - track first letters for alphabetical index
     if (groupBy === 'none') {
+      const seenLetters = new Set();
       return (
         <div className={`cd-grid ${sortLoading ? 'sort-loading' : ''}`}>
-          {filteredCds.map((cd) => (
-            <MusicThumbnail
-              key={cd.id}
-              cd={cd}
-              onClick={() => handleCdClick(cd.id)}
-              onEdit={() => handleEditCd(cd)}
-              onDelete={() => setShowDeleteModal({ show: true, albumId: cd.id })}
-              onListenNextChange={refreshListenNextAlbums}
-              isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
-            />
-          ))}
+          {filteredCds.map((cd) => {
+            // Use artist name for letter tracking when sorting by artist
+            const sortField = (sortBy === 'artist' || sortBy === 'artistReverse')
+              ? (Array.isArray(cd.artist) ? cd.artist[0] : cd.artist)
+              : cd.title;
+            const firstChar = sortField?.charAt(0)?.toUpperCase() || '';
+            const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
+            const isFirstOfLetter = !seenLetters.has(letter);
+            if (isFirstOfLetter) seenLetters.add(letter);
+            
+            return (
+              <MusicThumbnail
+                key={cd.id}
+                cd={cd}
+                onClick={() => handleCdClick(cd.id)}
+                onEdit={() => handleEditCd(cd)}
+                onDelete={() => setShowDeleteModal({ show: true, albumId: cd.id })}
+                onListenNextChange={refreshListenNextAlbums}
+                isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
+                dataItemId={cd.id}
+                dataFirstLetter={isFirstOfLetter ? letter : undefined}
+              />
+            );
+          })}
         </div>
       );
     }
@@ -655,7 +684,22 @@ const MusicSearch = forwardRef(({
   };
 
   return (
-    <div className="music-search">
+    <div className="music-search" ref={scrollContainerRef}>
+      {/* Alphabetical Index - shows when sorted alphabetically */}
+      <AlphabeticalIndex
+        items={filteredCds}
+        getTitle={(cd) => {
+          if (sortBy === 'artist' || sortBy === 'artistReverse') {
+            // For artist sort, use the first artist name
+            return Array.isArray(cd.artist) ? cd.artist[0] : cd.artist;
+          }
+          return cd.title;
+        }}
+        scrollContainer={scrollContainer}
+        sortBy={sortBy}
+        disabled={searchCriteria?.searchText?.trim() || groupBy !== 'none'}
+      />
+      
       {/* Listen Next Banner */}
       {listenNextAlbums.length > 0 && !searchCriteria?.searchText && (
         <NextBanner

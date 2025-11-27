@@ -6,6 +6,7 @@ import BookThumbnail from './BookThumbnail';
 import BookDetailCard from './BookDetailCard';
 import AddBookDialog from './AddBookDialog';
 import SeriesStack from './SeriesStack';
+import AlphabeticalIndex from './AlphabeticalIndex';
 import { CollectionHeader, EmptyState } from './shared';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { BsChevronDown, BsBook } from 'react-icons/bs';
@@ -71,6 +72,20 @@ const BookSearch = forwardRef(({
   const previousSearchTextRef = useRef('');
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Ref and state for scroll container (for alphabetical index)
+  const scrollContainerRef = useRef(null);
+  const [scrollContainer, setScrollContainer] = useState(null);
+  
+  // Set scroll container once component mounts
+  useEffect(() => {
+    const mainContent = scrollContainerRef.current?.closest('.app-main-content');
+    if (mainContent) {
+      setScrollContainer(mainContent);
+    } else {
+      setScrollContainer(document.documentElement);
+    }
+  }, []);
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
@@ -969,9 +984,23 @@ const BookSearch = forwardRef(({
         }
       });
 
-      // Render the sorted combined items
+      // Render the sorted combined items with first-letter tracking for index
       const items = [];
+      const seenLetters = new Set();
+      
       combinedItems.forEach(item => {
+        // Determine the field for letter tracking based on sort type
+        let sortField;
+        if (sortBy === 'author' || sortBy === 'authorReverse') {
+          sortField = item.type === 'series' ? item.books[0]?.author : item.book?.author;
+        } else {
+          sortField = item.type === 'series' ? item.seriesName : (item.book?.series || item.book?.title);
+        }
+        const firstChar = sortField?.charAt(0)?.toUpperCase() || '';
+        const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
+        const isFirstOfLetter = !seenLetters.has(letter);
+        if (isFirstOfLetter) seenLetters.add(letter);
+        
         if (item.type === 'series') {
           if (item.books.length > 1 && shouldUseStack) {
             const isExpanded = expandedSeries === item.seriesName;
@@ -1004,11 +1033,12 @@ const BookSearch = forwardRef(({
                   setExpandedSeries(null);
                   sessionStorage.removeItem('bookSearchExpandedSeries');
                 }}
+                dataFirstLetter={isFirstOfLetter ? letter : undefined}
               />
             );
           } else {
             // Single book in series or stack disabled, show as regular thumbnails
-            item.books.forEach((book) => {
+            item.books.forEach((book, bookIndex) => {
               items.push(
                 <BookThumbnail
                   key={book.id}
@@ -1019,6 +1049,8 @@ const BookSearch = forwardRef(({
                   onBookDroppedForSeries={!book.series ? handleBookDroppedForNewSeries : null}
                   onAddToExistingSeries={handleBookDroppedOnSeries}
                   onSeriesMerge={handleSeriesMerge}
+                  dataItemId={book.id}
+                  dataFirstLetter={bookIndex === 0 && isFirstOfLetter ? letter : undefined}
                 />
               );
             });
@@ -1034,6 +1066,8 @@ const BookSearch = forwardRef(({
               onClick={() => handleBookClick(item.book.id)}
               onEdit={() => handleEditBook(item.book)}
               onDelete={() => setShowDeleteModal({ show: true, bookId: item.book.id })}
+              dataItemId={item.book.id}
+              dataFirstLetter={isFirstOfLetter ? letter : undefined}
             />
           );
         }
@@ -1115,7 +1149,25 @@ const BookSearch = forwardRef(({
   ];
 
   return (
-    <div className="book-search">
+    <div className="book-search" ref={scrollContainerRef}>
+      {/* Alphabetical Index - shows when sorted alphabetically */}
+      <AlphabeticalIndex
+        items={filteredBooks}
+        getTitle={(book) => {
+          if (sortBy === 'author' || sortBy === 'authorReverse') {
+            return book.author;
+          }
+          return book.series || book.title;
+        }}
+        scrollContainer={scrollContainer}
+        sortBy={
+          sortBy === 'series' || sortBy === 'authorSeries' ? 'title' : 
+          sortBy === 'seriesReverse' ? 'titleReverse' : 
+          sortBy
+        }
+        disabled={searchCriteria?.searchText?.trim() || groupBy !== 'none'}
+      />
+      
       <div className="books-results">
         <CollectionHeader
           filteredCount={bookCount.filtered}
