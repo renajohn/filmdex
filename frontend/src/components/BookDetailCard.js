@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Row, Col, Badge, Form, Alert } from 'react-bootstrap';
-import { BsPencil, BsTrash, BsBook, BsCalendar, BsTag, BsTranslate, BsFileEarmark, BsStar, BsPerson, BsHouse, BsChatSquareText, BsPlus, BsX, BsCheck, BsArrowLeft, BsDownload, BsFiles } from 'react-icons/bs';
+import { BsPencil, BsTrash, BsBook, BsCalendar, BsTag, BsTranslate, BsFileEarmark, BsStar, BsPerson, BsHouse, BsChatSquareText, BsPlus, BsX, BsCheck, BsArrowLeft, BsDownload, BsFiles, BsChevronDown, BsChevronUp } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import bookCommentService from '../services/bookCommentService';
 import CoverModal from './CoverModal';
@@ -109,6 +109,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
   const scrollPositionRef = useRef(0);
   const [seriesMembers, setSeriesMembers] = useState([]);
   const [loadingSeriesMembers, setLoadingSeriesMembers] = useState(false);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
   useEffect(() => {
     if (book && book.id) {
@@ -208,6 +209,19 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
     } catch (e) {
       return dateString;
     }
+  };
+
+  // Description truncation - show ~5 lines worth of text
+  const DESCRIPTION_CHAR_LIMIT = 350;
+  const isDescriptionLong = book?.description?.length > DESCRIPTION_CHAR_LIMIT;
+  
+  const getDisplayDescription = () => {
+    if (!book?.description) return '';
+    if (!isDescriptionLong || descriptionExpanded) return book.description;
+    // Truncate at the last complete word before the limit
+    const truncated = book.description.substring(0, DESCRIPTION_CHAR_LIMIT);
+    const lastSpace = truncated.lastIndexOf(' ');
+    return truncated.substring(0, lastSpace > 200 ? lastSpace : DESCRIPTION_CHAR_LIMIT) + '...';
   };
 
   const handleCopyRef = async (e) => {
@@ -1167,8 +1181,26 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                   )}
                   
                   {book.description && (
-                    <div className="description-section">
-                      <p className="description-text">{book.description}</p>
+                    <div className="description-section enhanced">
+                      <strong>Description</strong>
+                      <div className={`description-content ${!descriptionExpanded && isDescriptionLong ? 'collapsed' : ''}`}>
+                        <p className="description-text">{getDisplayDescription()}</p>
+                        {!descriptionExpanded && isDescriptionLong && (
+                          <div className="description-fade-overlay" />
+                        )}
+                      </div>
+                      {isDescriptionLong && (
+                        <button 
+                          className="description-toggle-btn"
+                          onClick={() => setDescriptionExpanded(!descriptionExpanded)}
+                        >
+                          {descriptionExpanded ? (
+                            <>Show less <BsChevronUp className="ms-1" /></>
+                          ) : (
+                            <>Read more <BsChevronDown className="ms-1" /></>
+                          )}
+                        </button>
+                      )}
                     </div>
                   )}
                   
@@ -1930,9 +1962,26 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
               )}
               
               {book.description && (
-                <div className="description-section">
-                  <strong>Description:</strong>
-                  <p className="description-text">{book.description}</p>
+                <div className="description-section enhanced">
+                  <strong>Description</strong>
+                  <div className={`description-content ${!descriptionExpanded && isDescriptionLong ? 'collapsed' : ''}`}>
+                    <p className="description-text">{getDisplayDescription()}</p>
+                    {!descriptionExpanded && isDescriptionLong && (
+                      <div className="description-fade-overlay" />
+                    )}
+                  </div>
+                  {isDescriptionLong && (
+                    <button 
+                      className="description-toggle-btn"
+                      onClick={() => setDescriptionExpanded(!descriptionExpanded)}
+                    >
+                      {descriptionExpanded ? (
+                        <>Show less <BsChevronUp className="ms-1" /></>
+                      ) : (
+                        <>Read more <BsChevronDown className="ms-1" /></>
+                      )}
+                    </button>
+                  )}
                 </div>
               )}
               
