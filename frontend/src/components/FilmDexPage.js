@@ -16,7 +16,11 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
   const [movies, setMovies] = useState([]);
   const [allMovies, setAllMovies] = useState([]); // Store all movies from backend
   const [filteredMovies, setFilteredMovies] = useState([]); // Store filtered movies
-  const [sortBy, setSortBy] = useState('title'); // Current sort option
+  // Load sort preference from localStorage, default to 'title'
+  const [sortBy, setSortBy] = useState(() => {
+    const savedSort = localStorage.getItem('dexvault-filmdex-sort');
+    return savedSort || 'title';
+  });
   const [sortLoading, setSortLoading] = useState(false); // Sort loading state
   const [groupBy, setGroupBy] = useState('none'); // Current group option
   const [groupLoading, setGroupLoading] = useState(false); // Group loading state
@@ -29,7 +33,7 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
   // Load box set stacking preference from localStorage, default to true
   const [stackEnabled, setStackEnabled] = useState(() => {
-    const savedStackPref = localStorage.getItem('filmdex-stack-enabled');
+    const savedStackPref = localStorage.getItem('dexvault-filmdex-stack');
     return savedStackPref === null ? true : savedStackPref === 'true';
   });
 
@@ -598,6 +602,7 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
   const handleSortChange = async (sortOption) => {
     setSortBy(sortOption);
+    localStorage.setItem('dexvault-filmdex-sort', sortOption);
     setSortLoading(true);
     
     // Add a small delay to show loading state for better UX
@@ -838,7 +843,7 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
           stackEnabled={stackEnabled}
           onStackChange={(newValue) => {
             setStackEnabled(newValue);
-            localStorage.setItem('filmdex-stack-enabled', newValue.toString());
+            localStorage.setItem('dexvault-filmdex-stack', newValue.toString());
             setExpandedBoxSet(null);
           }}
           addButtonLabel="Add Movie"

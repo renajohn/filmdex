@@ -25,7 +25,11 @@ const MusicSearch = forwardRef(({
 }, ref) => {
   const [allCds, setAllCds] = useState([]);
   const [filteredCds, setFilteredCds] = useState([]);
-  const [sortBy, setSortBy] = useState('title');
+  // Load sort preference from localStorage, default to 'title'
+  const [sortBy, setSortBy] = useState(() => {
+    const savedSort = localStorage.getItem('dexvault-musicdex-sort');
+    return savedSort || 'title';
+  });
   const [sortLoading, setSortLoading] = useState(false);
   const [groupBy, setGroupBy] = useState('none');
   const [groupLoading, setGroupLoading] = useState(false);
@@ -201,6 +205,7 @@ const MusicSearch = forwardRef(({
 
   const handleSortChange = async (sortOption) => {
     setSortBy(sortOption);
+    localStorage.setItem('dexvault-musicdex-sort', sortOption);
     setSortLoading(true);
     
     // Add a small delay to show loading state for better UX

@@ -26,7 +26,11 @@ const BookSearch = forwardRef(({
 }, ref) => {
   const [allBooks, setAllBooks] = useState([]);
   const [filteredBooks, setFilteredBooks] = useState([]);
-  const [sortBy, setSortBy] = useState('series');
+  // Load sort preference from localStorage, default to 'series'
+  const [sortBy, setSortBy] = useState(() => {
+    const savedSort = localStorage.getItem('dexvault-bookdex-sort');
+    return savedSort || 'series';
+  });
   const [sortLoading, setSortLoading] = useState(false);
   const [groupBy, setGroupBy] = useState('none');
   const [groupLoading, setGroupLoading] = useState(false);
@@ -286,6 +290,7 @@ const BookSearch = forwardRef(({
 
   const handleSortChange = async (sortOption) => {
     setSortBy(sortOption);
+    localStorage.setItem('dexvault-bookdex-sort', sortOption);
     setSortLoading(true);
     
     await new Promise(resolve => setTimeout(resolve, 150));
