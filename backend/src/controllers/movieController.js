@@ -7,6 +7,7 @@ const omdbService = require('../services/omdbService');
 const importService = require('../services/importService');
 const imageService = require('../services/imageService');
 const collectionService = require('../services/collectionService');
+const cacheService = require('../services/cacheService');
 const Movie = require('../models/movie');
 const MovieCast = require('../models/movieCast');
 const MovieCrew = require('../models/movieCrew');
@@ -924,6 +925,9 @@ const movieController = {
         return res.status(404).json({ error: 'Movie not found' });
       }
       
+      // Invalidate analytics cache since watch data changed
+      await cacheService.invalidateAll();
+      
       res.json(result);
     } catch (error) {
       logger.error('Error marking movie as watched:', error);
@@ -941,6 +945,9 @@ const movieController = {
       if (result.changes === 0) {
         return res.status(404).json({ error: 'Movie not found' });
       }
+      
+      // Invalidate analytics cache since watch data changed
+      await cacheService.invalidateAll();
       
       res.json(result);
     } catch (error) {

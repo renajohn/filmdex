@@ -635,6 +635,8 @@ const Book = {
               params.push(value);
             }
           }
+          // Remove this filter from the query string
+          cleanedQuery = cleanedQuery.replace(match[0], '').trim();
         }
       }
       
