@@ -25,7 +25,9 @@ const PALETTE = {
 // ============= CHART COMPONENTS =============
 
 // Timeline chart with visible axis
-const TimelineChart = ({ data, valueKey, label, color = 'var(--accent-gold)', height = 120 }) => {
+const TimelineChart = ({ data, valueKey, label, color = 'var(--accent-gold)', height = 120, valuePrefix = '' }) => {
+  const [hovered, setHovered] = useState(null);
+  
   if (!data || data.length === 0) return <div className="chart-empty">No data available</div>;
   
   const max = Math.max(...data.map(d => d[valueKey] || 0), 1);
@@ -36,6 +38,12 @@ const TimelineChart = ({ data, valueKey, label, color = 'var(--accent-gold)', he
     return `${months[parseInt(month) - 1] || ''} ${year?.slice(2) || ''}`;
   };
   
+  const formatValue = (val) => {
+    if (valuePrefix === 'CHF ') return `CHF ${val.toFixed(1)}`;
+    if (typeof val === 'number' && !Number.isInteger(val)) return val.toFixed(1);
+    return val;
+  };
+  
   // Show every nth label to avoid crowding
   const labelInterval = Math.max(1, Math.floor(data.length / 6));
   
@@ -43,15 +51,25 @@ const TimelineChart = ({ data, valueKey, label, color = 'var(--accent-gold)', he
     <div className="timeline-chart" style={{ '--chart-height': `${height}px` }}>
       <div className="timeline-bars">
         {data.map((item, i) => (
-          <div key={i} className="timeline-bar-wrap">
+          <div 
+            key={i} 
+            className="timeline-bar-wrap"
+            onMouseEnter={() => setHovered(i)}
+            onMouseLeave={() => setHovered(null)}
+          >
             <div 
-              className="timeline-bar"
+              className={`timeline-bar ${hovered === i ? 'hovered' : ''}`}
               style={{ 
                 height: `${((item[valueKey] || 0) / max) * 100}%`,
                 backgroundColor: color,
               }}
-              title={`${formatPeriod(item.period)}: ${typeof item[valueKey] === 'number' && valueKey.includes('Value') ? `CHF ${item[valueKey].toFixed(0)}` : item[valueKey]}`}
             />
+            {hovered === i && (
+              <div className="chart-tooltip">
+                <strong>{formatPeriod(item.period)}</strong>
+                <span>{formatValue(item[valueKey] || 0)}</span>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -70,22 +88,33 @@ const TimelineChart = ({ data, valueKey, label, color = 'var(--accent-gold)', he
 };
 
 // Horizontal bars with full width usage
-const HorizontalBars = ({ data, nameKey, valueKey, colors, max, onClick, limit = 8, showAll = false }) => {
+const HorizontalBars = ({ data, nameKey, valueKey, colors, max, onClick, limit = 8, showAll = false, valueFormat }) => {
+  const [hovered, setHovered] = useState(null);
+  
   if (!data || data.length === 0) return <div className="chart-empty">No data</div>;
   
   const displayData = showAll ? data : data.slice(0, limit);
   const maxVal = max || Math.max(...displayData.map(d => d[valueKey] || 0), 1);
+  
+  const formatValue = (val) => {
+    if (valueFormat) return valueFormat(val);
+    return val;
+  };
+  
+  const isTruncated = (name) => String(name).length > 16;
   
   return (
     <div className="h-bars">
       {displayData.map((item, i) => (
         <div 
           key={i} 
-          className="h-bar-row"
+          className={`h-bar-row ${onClick ? 'clickable' : ''} ${hovered === i ? 'hovered' : ''}`}
           onClick={() => onClick?.(item)}
+          onMouseEnter={() => setHovered(i)}
+          onMouseLeave={() => setHovered(null)}
         >
-          <span className="h-bar-label" title={item[nameKey]}>
-            {String(item[nameKey]).length > 16 
+          <span className="h-bar-label">
+            {isTruncated(item[nameKey]) 
               ? String(item[nameKey]).slice(0, 16) + '…' 
               : item[nameKey]}
           </span>
@@ -98,7 +127,12 @@ const HorizontalBars = ({ data, nameKey, valueKey, colors, max, onClick, limit =
               }} 
             />
           </div>
-          <span className="h-bar-value">{item[valueKey]}</span>
+          <span className="h-bar-value">{formatValue(item[valueKey])}</span>
+          {hovered === i && isTruncated(item[nameKey]) && (
+            <div className="chart-tooltip bar-tooltip">
+              <strong>{item[nameKey]}</strong>
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -107,12 +141,13 @@ const HorizontalBars = ({ data, nameKey, valueKey, colors, max, onClick, limit =
 
 // Histogram for percentiles (Datadog style)
 const PercentileHistogram = ({ data, percentiles }) => {
+  const [hoveredBar, setHoveredBar] = useState(null);
+  
   if (!data || data.length === 0) return <div className="chart-empty">No price data</div>;
   
   // Group into buckets for histogram
   const buckets = [];
   const prices = data.map(d => d.rangeStart || 0).filter(p => p > 0);
-  const counts = data.reduce((acc, d) => { acc[d.rangeStart] = d.count; return acc; }, {});
   
   // Create meaningful buckets
   const maxPrice = Math.max(...prices, 1);
@@ -139,53 +174,48 @@ const PercentileHistogram = ({ data, percentiles }) => {
         {buckets.map((bucket, i) => (
           <div 
             key={i} 
-            className="histogram-bar"
-            style={{ 
-              height: `${(bucket.count / maxCount) * 100}%`,
-            }}
-            title={`CHF ${bucket.start}-${bucket.end}: ${bucket.count} movies`}
-          />
+            className={`histogram-bar ${hoveredBar === i ? 'hovered' : ''}`}
+            style={{ height: `${(bucket.count / maxCount) * 100}%` }}
+            onMouseEnter={() => setHoveredBar(i)}
+            onMouseLeave={() => setHoveredBar(null)}
+          >
+            {hoveredBar === i && bucket.count > 0 && (
+              <div className="chart-tooltip histogram-tip">
+                <strong>CHF {bucket.start}–{bucket.end}</strong>
+                <span>{bucket.count} movies</span>
+              </div>
+            )}
+          </div>
         ))}
       </div>
       <div className="percentile-lines">
         {percentiles?.p50 > 0 && (
           <div 
-            className="percentile-line p50" 
+            className="percentile-line" 
             style={{ left: `${getPercentilePosition(percentiles.p50)}%` }}
           >
             <span className="percentile-marker">p50</span>
+            <span className="percentile-value">CHF {percentiles.p50.toFixed(0)}</span>
           </div>
         )}
         {percentiles?.p90 > 0 && (
           <div 
-            className="percentile-line p90" 
+            className="percentile-line" 
             style={{ left: `${getPercentilePosition(percentiles.p90)}%` }}
           >
             <span className="percentile-marker">p90</span>
+            <span className="percentile-value">CHF {percentiles.p90.toFixed(0)}</span>
           </div>
         )}
         {percentiles?.p99 > 0 && (
           <div 
-            className="percentile-line p99" 
+            className="percentile-line" 
             style={{ left: `${getPercentilePosition(percentiles.p99)}%` }}
           >
             <span className="percentile-marker">p99</span>
+            <span className="percentile-value">CHF {percentiles.p99.toFixed(0)}</span>
           </div>
         )}
-      </div>
-      <div className="percentile-values">
-        <div className="pv-item">
-          <span className="pv-label">p50</span>
-          <span className="pv-value">CHF {(percentiles?.p50 || 0).toFixed(0)}</span>
-        </div>
-        <div className="pv-item highlight">
-          <span className="pv-label">p90</span>
-          <span className="pv-value">CHF {(percentiles?.p90 || 0).toFixed(0)}</span>
-        </div>
-        <div className="pv-item">
-          <span className="pv-label">p99</span>
-          <span className="pv-value">CHF {(percentiles?.p99 || 0).toFixed(0)}</span>
-        </div>
       </div>
     </div>
   );
@@ -204,6 +234,8 @@ const StatCard = ({ icon: Icon, value, label, accent = 'gold' }) => (
 
 // ============= RANKED LIST =============
 const RankedList = ({ items, nameKey, valueKey, valueFormat, subKey, onClick, limit = 8, colors, icon: Icon }) => {
+  const [hovered, setHovered] = useState(null);
+  
   if (!items || items.length === 0) return <div className="chart-empty">No data</div>;
   
   return (
@@ -211,8 +243,10 @@ const RankedList = ({ items, nameKey, valueKey, valueFormat, subKey, onClick, li
       {items.slice(0, limit).map((item, i) => (
         <div 
           key={i} 
-          className={`ranked-item ${onClick ? 'clickable' : ''}`}
+          className={`ranked-item ${onClick ? 'clickable' : ''} ${hovered === i ? 'hovered' : ''}`}
           onClick={() => onClick?.(item)}
+          onMouseEnter={() => setHovered(i)}
+          onMouseLeave={() => setHovered(null)}
         >
           <span 
             className="rank-badge" 
@@ -221,7 +255,7 @@ const RankedList = ({ items, nameKey, valueKey, valueFormat, subKey, onClick, li
             {Icon ? <Icon /> : i + 1}
           </span>
           <div className="rank-info">
-            <span className="rank-name" title={item[nameKey]}>
+            <span className="rank-name">
               {String(item[nameKey]).length > 24 
                 ? String(item[nameKey]).slice(0, 24) + '…' 
                 : item[nameKey]}
@@ -233,6 +267,12 @@ const RankedList = ({ items, nameKey, valueKey, valueFormat, subKey, onClick, li
           <span className="rank-value">
             {valueFormat ? valueFormat(item[valueKey]) : item[valueKey]}
           </span>
+          {hovered === i && String(item[nameKey]).length > 24 && (
+            <div className="chart-tooltip list-tooltip">
+              <strong>{item[nameKey]}</strong>
+              <span>{valueFormat ? valueFormat(item[valueKey]) : item[valueKey]}</span>
+            </div>
+          )}
         </div>
       ))}
     </div>
