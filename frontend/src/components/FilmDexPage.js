@@ -338,7 +338,7 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
 
 
   // Large poster view renderer
-  const renderMovieCardLarge = (movie, isFirstOfLetter = false, letter = null) => {
+  const renderMovieCardLarge = (movie, includeLetter = false, letter = null) => {
     const year = movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year;
     const combinedScore = getCombinedScore(movie);
     
@@ -352,7 +352,7 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
         className="movie-card-large" 
         onClick={() => handleMovieClick(movie.id)}
         data-item-id={movie.id}
-        {...(isFirstOfLetter && letter ? { 'data-first-letter': letter } : {})}
+        {...(includeLetter && letter ? { 'data-first-letter': letter } : {})}
       >
         <div className="movie-poster-large">
           <MovieThumbnail 
@@ -961,17 +961,14 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                       }
                     });
                     
-                    // Render the sorted combined items with first-letter tracking for index
+                    // Render the sorted combined items with letter tracking for index
                     const items = [];
-                    const seenLetters = new Set();
                     
                     combinedItems.forEach(item => {
                       // Determine the title for letter tracking
                       const title = item.type === 'boxset' ? item.boxSetName : item.movie?.title;
                       const firstChar = title?.charAt(0)?.toUpperCase() || '';
                       const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
-                      const isFirstOfLetter = !seenLetters.has(letter);
-                      if (isFirstOfLetter) seenLetters.add(letter);
                       
                       if (item.type === 'boxset') {
                         if (item.movies.length > 1) {
@@ -988,28 +985,25 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                               onClose={handleCloseBoxSetExpansion}
                               watchNextMovies={watchNextMovies}
                               onWatchNextToggle={handleWatchNextToggle}
-                              dataFirstLetter={isFirstOfLetter ? letter : undefined}
+                              dataFirstLetter={letter}
                             />
                           );
                         } else {
                           // Single movie box set, render normally
-                          items.push(renderMovieCardLarge(item.movies[0], isFirstOfLetter, letter));
+                          items.push(renderMovieCardLarge(item.movies[0], true, letter));
                         }
                       } else {
-                        items.push(renderMovieCardLarge(item.movie, isFirstOfLetter, letter));
+                        items.push(renderMovieCardLarge(item.movie, true, letter));
                       }
                     });
 
                     return items;
                   } else {
-                    // Normal rendering without stacking - track first letters for index
-                    const seenLetters = new Set();
+                    // Normal rendering without stacking - add letter to all items for index detection
                     return movies && movies.map((movie) => {
                       const firstChar = movie.title?.charAt(0)?.toUpperCase() || '';
                       const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
-                      const isFirstOfLetter = !seenLetters.has(letter);
-                      if (isFirstOfLetter) seenLetters.add(letter);
-                      return renderMovieCardLarge(movie, isFirstOfLetter, letter);
+                      return renderMovieCardLarge(movie, true, letter);
                     });
                   }
                 })()}
@@ -1058,7 +1052,11 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                         
                         {isExpanded && (
                           <div className="movies-grid movies-grid-large">
-                            {sortedGroupMovies.map((movie) => renderMovieCardLarge(movie))}
+                            {sortedGroupMovies.map((movie) => {
+                              const firstChar = movie.title?.charAt(0)?.toUpperCase() || '';
+                              const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
+                              return renderMovieCardLarge(movie, true, letter);
+                            })}
                           </div>
                         )}
                       </div>

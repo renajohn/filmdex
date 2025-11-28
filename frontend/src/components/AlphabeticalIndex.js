@@ -21,9 +21,11 @@ const AlphabeticalIndex = ({
   disabled = false
 }) => {
   const [activeLetter, setActiveLetter] = useState(null);
+  const [visibleLetters, setVisibleLetters] = useState(new Set()); // Letters currently visible on screen
   const [isDragging, setIsDragging] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const [hasScrollbar, setHasScrollbar] = useState(false);
   const indexRef = useRef(null);
   const hoverZoneRef = useRef(null);
   const letterRefs = useRef({});
@@ -103,7 +105,40 @@ const AlphabeticalIndex = ({
     }
   }, [scrollContainer, isDragging]);
   
-  // Track scrolling to show/hide the index
+  // Detect scrollbar presence
+  useEffect(() => {
+    if (!scrollContainer) return;
+    
+    const checkScrollbar = () => {
+      if (scrollContainer === document.documentElement) {
+        // For window/document scrolling
+        setHasScrollbar(document.documentElement.scrollHeight > window.innerHeight);
+      } else {
+        // For custom scroll container
+        setHasScrollbar(scrollContainer.scrollHeight > scrollContainer.clientHeight);
+      }
+    };
+    
+    // Check initially
+    checkScrollbar();
+    
+    // Use ResizeObserver to detect size changes
+    const resizeObserver = new ResizeObserver(checkScrollbar);
+    const targetElement = scrollContainer === document.documentElement 
+      ? document.body 
+      : scrollContainer;
+    resizeObserver.observe(targetElement);
+    
+    // Also listen to window resize
+    window.addEventListener('resize', checkScrollbar);
+    
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', checkScrollbar);
+    };
+  }, [scrollContainer]);
+  
+  // Track scrolling to show/hide the index and detect current letter
   useEffect(() => {
     if (!shouldShow || !scrollContainer) return;
     
@@ -131,6 +166,43 @@ const AlphabeticalIndex = ({
         setIsVisible(false);
       }
       
+      // Detect all letters currently visible on screen
+      const searchRoot = scrollContainer === document.documentElement 
+        ? document.body 
+        : scrollContainer;
+      
+      // Get viewport bounds (using viewport-relative coordinates)
+      const viewportTop = scrollContainer === document.documentElement
+        ? 0
+        : scrollContainer.getBoundingClientRect().top;
+      const viewportBottom = scrollContainer === document.documentElement
+        ? window.innerHeight
+        : scrollContainer.getBoundingClientRect().bottom;
+      
+      // Find all letters with visible elements
+      const nowVisible = new Set();
+      
+      allLetters.forEach(letter => {
+        if (!availableLetters.has(letter)) return;
+        
+        // Find all elements for this letter
+        const elements = searchRoot.querySelectorAll(`[data-first-letter="${letter}"]`);
+        
+        for (const element of elements) {
+          const rect = element.getBoundingClientRect();
+          
+          // Check if element is at least partially visible in viewport
+          // Use small offset at top (just enough to clear sticky header)
+          // Element is visible if any part of it is in the viewport
+          if (rect.bottom > viewportTop + 60 && rect.top < viewportBottom) {
+            nowVisible.add(letter);
+            break; // Found at least one visible element for this letter
+          }
+        }
+      });
+      
+      setVisibleLetters(nowVisible);
+      
       lastScrollTopRef.current = currentScrollTop;
     };
     
@@ -147,7 +219,7 @@ const AlphabeticalIndex = ({
         clearTimeout(hideTimeoutRef.current);
       }
     };
-  }, [shouldShow, scrollContainer, isDragging, isHovering]);
+  }, [shouldShow, scrollContainer, isDragging, isHovering, allLetters, availableLetters]);
   
   // Find the first item starting with a letter and scroll to it
   const scrollToLetter = useCallback((letter) => {
@@ -347,7 +419,7 @@ const AlphabeticalIndex = ({
       {/* Invisible hover zone on right edge */}
       <div 
         ref={hoverZoneRef}
-        className="alpha-index-hover-zone"
+        className={`alpha-index-hover-zone ${hasScrollbar ? 'has-scrollbar' : ''}`}
         onMouseEnter={handleHoverEnter}
         onMouseLeave={handleHoverLeave}
       />
@@ -362,7 +434,7 @@ const AlphabeticalIndex = ({
       {/* Alphabetical index */}
       <div 
         ref={indexRef}
-        className={`alpha-index ${isDragging ? 'dragging' : ''} ${showIndex ? 'visible' : ''}`}
+        className={`alpha-index ${isDragging ? 'dragging' : ''} ${showIndex ? 'visible' : ''} ${hasScrollbar ? 'has-scrollbar' : ''}`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -373,13 +445,14 @@ const AlphabeticalIndex = ({
         {allLetters.map(letter => {
           const isAvailable = availableLetters.has(letter);
           const isActive = activeLetter === letter;
+          const isVisible = visibleLetters.has(letter) && !isActive;
           
           return (
             <div
               key={letter}
               ref={el => letterRefs.current[letter] = el}
               data-letter={letter}
-              className={`alpha-index-letter ${isAvailable ? 'available' : 'disabled'} ${isActive ? 'active' : ''}`}
+              className={`alpha-index-letter ${isAvailable ? 'available' : 'disabled'} ${isActive ? 'active' : ''} ${isVisible ? 'visible-on-screen' : ''}`}
               onClick={(e) => {
                 e.stopPropagation();
                 if (isAvailable) {

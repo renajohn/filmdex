@@ -3,8 +3,8 @@
   /* Scroll performance optimizations */
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  /* Enable hardware acceleration */
-  transform: translateZ(0);
+  /* Note: transform: translateZ(0) removed - it creates a new containing block 
+     that breaks position: fixed for the alphabetical index */
 }
 
 .books-results-header {

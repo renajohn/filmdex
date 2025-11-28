@@ -96,6 +96,12 @@
   text-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
 }
 
+/* Letters currently visible on screen - dimmed yellow */
+.alpha-index-letter.visible-on-screen {
+  color: rgba(251, 191, 36, 0.65);
+  transform: scale(1.15);
+}
+
 /* Large feedback indicator shown while dragging */
 .alpha-index-feedback {
   position: fixed;
@@ -136,6 +142,15 @@
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
   }
+}
+
+/* Dynamic scrollbar detection - shift when scrollbar is present */
+.alpha-index.has-scrollbar {
+  right: 20px; /* Clear the scrollbar (~17px) */
+}
+
+.alpha-index-hover-zone.has-scrollbar {
+  width: 56px; /* Wider hover zone to account for scrollbar */
 }
 
 /* Mobile optimizations */

@@ -575,9 +575,8 @@ const MusicSearch = forwardRef(({
       );
     }
 
-    // Ungrouped view - track first letters for alphabetical index
+    // Ungrouped view - add letter to all items for alphabetical index visibility detection
     if (groupBy === 'none') {
-      const seenLetters = new Set();
       return (
         <div className={`cd-grid ${sortLoading ? 'sort-loading' : ''}`}>
           {filteredCds.map((cd) => {
@@ -587,8 +586,6 @@ const MusicSearch = forwardRef(({
               : cd.title;
             const firstChar = sortField?.charAt(0)?.toUpperCase() || '';
             const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
-            const isFirstOfLetter = !seenLetters.has(letter);
-            if (isFirstOfLetter) seenLetters.add(letter);
             
             return (
               <MusicThumbnail
@@ -600,7 +597,7 @@ const MusicSearch = forwardRef(({
                 onListenNextChange={refreshListenNextAlbums}
                 isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
                 dataItemId={cd.id}
-                dataFirstLetter={isFirstOfLetter ? letter : undefined}
+                dataFirstLetter={letter}
               />
             );
           })}
@@ -634,17 +631,26 @@ const MusicSearch = forwardRef(({
               
               {isExpanded && (
                 <div className="cd-grid">
-                  {sortedGroupCds.map((cd) => (
-                    <MusicThumbnail
-                      key={cd.id}
-                      cd={cd}
-                      onClick={() => handleCdClick(cd.id)}
-                      onEdit={() => handleEditCd(cd)}
-                      onDelete={() => setShowDeleteModal({ show: true, albumId: cd.id })}
-                      onListenNextChange={refreshListenNextAlbums}
-                      isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
-                    />
-                  ))}
+                  {sortedGroupCds.map((cd) => {
+                    const sortField = (sortBy === 'artist' || sortBy === 'artistReverse')
+                      ? (Array.isArray(cd.artist) ? cd.artist[0] : cd.artist)
+                      : cd.title;
+                    const firstChar = sortField?.charAt(0)?.toUpperCase() || '';
+                    const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
+                    
+                    return (
+                      <MusicThumbnail
+                        key={cd.id}
+                        cd={cd}
+                        onClick={() => handleCdClick(cd.id)}
+                        onEdit={() => handleEditCd(cd)}
+                        onDelete={() => setShowDeleteModal({ show: true, albumId: cd.id })}
+                        onListenNextChange={refreshListenNextAlbums}
+                        isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
+                        dataFirstLetter={letter}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </div>

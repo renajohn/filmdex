@@ -984,9 +984,8 @@ const BookSearch = forwardRef(({
         }
       });
 
-      // Render the sorted combined items with first-letter tracking for index
+      // Render the sorted combined items with letter on all items for index visibility detection
       const items = [];
-      const seenLetters = new Set();
       
       combinedItems.forEach(item => {
         // Determine the field for letter tracking based on sort type
@@ -998,8 +997,6 @@ const BookSearch = forwardRef(({
         }
         const firstChar = sortField?.charAt(0)?.toUpperCase() || '';
         const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
-        const isFirstOfLetter = !seenLetters.has(letter);
-        if (isFirstOfLetter) seenLetters.add(letter);
         
         if (item.type === 'series') {
           if (item.books.length > 1 && shouldUseStack) {
@@ -1033,12 +1030,19 @@ const BookSearch = forwardRef(({
                   setExpandedSeries(null);
                   sessionStorage.removeItem('bookSearchExpandedSeries');
                 }}
-                dataFirstLetter={isFirstOfLetter ? letter : undefined}
+                dataFirstLetter={letter}
               />
             );
           } else {
             // Single book in series or stack disabled, show as regular thumbnails
-            item.books.forEach((book, bookIndex) => {
+            item.books.forEach((book) => {
+              // Each book gets its own letter based on its title/series
+              const bookSortField = (sortBy === 'author' || sortBy === 'authorReverse')
+                ? book.author
+                : (book.series || book.title);
+              const bookFirstChar = bookSortField?.charAt(0)?.toUpperCase() || '';
+              const bookLetter = /[A-Z]/.test(bookFirstChar) ? bookFirstChar : '#';
+              
               items.push(
                 <BookThumbnail
                   key={book.id}
@@ -1050,7 +1054,7 @@ const BookSearch = forwardRef(({
                   onAddToExistingSeries={handleBookDroppedOnSeries}
                   onSeriesMerge={handleSeriesMerge}
                   dataItemId={book.id}
-                  dataFirstLetter={bookIndex === 0 && isFirstOfLetter ? letter : undefined}
+                  dataFirstLetter={bookLetter}
                 />
               );
             });
@@ -1067,7 +1071,7 @@ const BookSearch = forwardRef(({
               onEdit={() => handleEditBook(item.book)}
               onDelete={() => setShowDeleteModal({ show: true, bookId: item.book.id })}
               dataItemId={item.book.id}
-              dataFirstLetter={isFirstOfLetter ? letter : undefined}
+              dataFirstLetter={letter}
             />
           );
         }
@@ -1105,18 +1109,27 @@ const BookSearch = forwardRef(({
               
               {isExpanded && (
                 <div className="book-grid">
-                  {sortedGroupBooks.map((book) => (
-                    <BookThumbnail
-                      key={book.id}
-                      book={book}
-                      onClick={() => handleBookClick(book.id)}
-                      onBookDroppedForSeries={!book.series ? handleBookDroppedForNewSeries : null}
-                      onAddToExistingSeries={handleBookDroppedOnSeries}
-                      onSeriesMerge={handleSeriesMerge}
-                      onEdit={() => handleEditBook(book)}
-                      onDelete={() => setShowDeleteModal({ show: true, bookId: book.id })}
-                    />
-                  ))}
+                  {sortedGroupBooks.map((book) => {
+                    const sortField = (sortBy === 'author' || sortBy === 'authorReverse')
+                      ? book.author
+                      : (book.series || book.title);
+                    const firstChar = sortField?.charAt(0)?.toUpperCase() || '';
+                    const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
+                    
+                    return (
+                      <BookThumbnail
+                        key={book.id}
+                        book={book}
+                        onClick={() => handleBookClick(book.id)}
+                        onBookDroppedForSeries={!book.series ? handleBookDroppedForNewSeries : null}
+                        onAddToExistingSeries={handleBookDroppedOnSeries}
+                        onSeriesMerge={handleSeriesMerge}
+                        onEdit={() => handleEditBook(book)}
+                        onDelete={() => setShowDeleteModal({ show: true, bookId: book.id })}
+                        dataFirstLetter={letter}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </div>
