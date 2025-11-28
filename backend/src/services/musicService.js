@@ -703,7 +703,7 @@ class MusicService {
    */
   async getAutocompleteSuggestions(field, value) {
     // Validate field to prevent injection
-    const allowedFields = ['title', 'artist', 'genre', 'mood', 'track'];
+    const allowedFields = ['title', 'artist', 'genre', 'mood', 'track', 'label', 'country', 'year'];
     if (!allowedFields.includes(field)) {
       throw new Error(`Invalid field: ${field}`);
     }

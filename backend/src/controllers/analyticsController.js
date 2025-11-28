@@ -559,6 +559,74 @@ const analyticsController = {
         analytics.budgetRevenueData = [];
       }
 
+      // Most Watched Movies (by watch_count)
+      const watchedMovies = movies
+        .filter(m => m.watch_count && m.watch_count > 0)
+        .sort((a, b) => (b.watch_count || 0) - (a.watch_count || 0))
+        .slice(0, 15)
+        .map(m => ({
+          id: m.id,
+          title: m.title,
+          watchCount: m.watch_count,
+          lastWatched: m.last_watched,
+          rating: m.imdb_rating || m.tmdb_rating || 0,
+          genre: m.genre ? m.genre.split(',')[0].trim() : 'Unknown'
+        }));
+      analytics.mostWatchedMovies = watchedMovies;
+
+      // Top Rated Unwatched Movies
+      const unwatchedMovies = movies
+        .filter(m => (!m.watch_count || m.watch_count === 0) && (m.imdb_rating > 0 || m.tmdb_rating > 0))
+        .map(m => ({
+          id: m.id,
+          title: m.title,
+          imdbRating: m.imdb_rating || 0,
+          tmdbRating: m.tmdb_rating || 0,
+          rating: m.imdb_rating || m.tmdb_rating || 0,
+          genre: m.genre ? m.genre.split(',')[0].trim() : 'Unknown',
+          runtime: m.runtime || 0
+        }))
+        .sort((a, b) => b.rating - a.rating)
+        .slice(0, 15);
+      analytics.topRatedUnwatched = unwatchedMovies;
+
+      // Watching stats
+      const totalWatched = movies.filter(m => m.watch_count && m.watch_count > 0).length;
+      const totalUnwatched = movies.filter(m => !m.watch_count || m.watch_count === 0).length;
+      analytics.watchingStats = {
+        watched: totalWatched,
+        unwatched: totalUnwatched,
+        watchedPercent: movies.length > 0 ? Math.round((totalWatched / movies.length) * 100) : 0
+      };
+
+      // Last 6 Movies Watched (by last_watched date)
+      const lastWatchedMovies = movies
+        .filter(m => m.last_watched)
+        .sort((a, b) => new Date(b.last_watched) - new Date(a.last_watched))
+        .slice(0, 6)
+        .map(m => ({
+          id: m.id,
+          title: m.title,
+          lastWatched: m.last_watched,
+          watchCount: m.watch_count || 1,
+          genre: m.genre ? m.genre.split(',')[0].trim() : 'Unknown'
+        }));
+      analytics.lastWatchedMovies = lastWatchedMovies;
+
+      // Last 6 Movies Added (by acquired_date)
+      const recentlyAddedMovies = movies
+        .filter(m => m.acquired_date)
+        .sort((a, b) => new Date(b.acquired_date) - new Date(a.acquired_date))
+        .slice(0, 6)
+        .map(m => ({
+          id: m.id,
+          title: m.title,
+          acquiredDate: m.acquired_date,
+          format: m.format || 'Unknown',
+          genre: m.genre ? m.genre.split(',')[0].trim() : 'Unknown'
+        }));
+      analytics.recentlyAddedMovies = recentlyAddedMovies;
+
       // Cache the analytics data for 2 hours
       await cacheService.set(cacheKey, { success: true, data: analytics }, 12000);
       logger.info('💾 FILMDEX Analytics cached successfully');
@@ -987,6 +1055,55 @@ const analyticsController = {
             artistCount: Object.keys(artists).length
           };
         })
+        .sort((a, b) => b.count - a.count);
+
+      // Release country distribution
+      const countryCounts = {};
+      const countryNames = {
+        'XE': 'Europe',
+        'XW': 'Worldwide',
+        'US': 'United States',
+        'GB': 'United Kingdom',
+        'UK': 'United Kingdom',
+        'FR': 'France',
+        'DE': 'Germany',
+        'JP': 'Japan',
+        'AU': 'Australia',
+        'CA': 'Canada',
+        'NL': 'Netherlands',
+        'BE': 'Belgium',
+        'CH': 'Switzerland',
+        'IT': 'Italy',
+        'ES': 'Spain',
+        'SE': 'Sweden',
+        'NO': 'Norway',
+        'DK': 'Denmark',
+        'FI': 'Finland',
+        'AT': 'Austria',
+        'PT': 'Portugal',
+        'BR': 'Brazil',
+        'MX': 'Mexico',
+        'KR': 'South Korea',
+        'SG': 'Singapore',
+        'NZ': 'New Zealand'
+      };
+      
+      albums.forEach(album => {
+        if (album.country && album.country.trim()) {
+          const countryCode = album.country.trim().toUpperCase();
+          if (!countryCounts[countryCode]) {
+            countryCounts[countryCode] = { 
+              code: countryCode, 
+              name: countryNames[countryCode] || countryCode, 
+              count: 0 
+            };
+          }
+          countryCounts[countryCode].count++;
+        }
+      });
+      
+      analytics.countryDistribution = Object.values(countryCounts)
+        .map(({ code, name, count }) => ({ country: name, code, count }))
         .sort((a, b) => b.count - a.count);
 
       // COMPLETELY RE-IMPLEMENTED: Track overlap analysis

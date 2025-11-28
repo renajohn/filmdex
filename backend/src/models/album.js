@@ -336,8 +336,8 @@ const Album = {
       let whereClauses = [];
       let hasTrackFilter = false;
       
-      // Extract filters like artist:"value" or title:"value" or genre:"value" or mood:"value" or track:"value" or year:2020 or label:"Columbia"
-      const filterRegex = /(artist|title|genre|mood|track|year|label):"([^"]+)"|(year):(>=|<=|>|<)?(\d+)/g;
+      // Extract filters like artist:"value" or title:"value" or genre:"value" or mood:"value" or track:"value" or country:"value" or year:2020 or label:"Columbia"
+      const filterRegex = /(artist|title|genre|mood|track|year|label|country):"([^"]+)"|(year):(>=|<=|>|<)?(\d+)/g;
       let match;
       let hasFilters = false;
       
@@ -360,7 +360,8 @@ const Album = {
               'artist': 'artist',
               'title': 'title',
               'genre': 'genres',
-              'label': 'labels'
+              'label': 'labels',
+              'country': 'country'
             };
             const column = columnMap[field];
             
@@ -647,7 +648,7 @@ const Album = {
       const db = getDatabase();
       
       // Validate field to prevent SQL injection (accept singular forms)
-      const allowedFields = ['title', 'artist', 'genre', 'track', 'label'];
+      const allowedFields = ['title', 'artist', 'genre', 'track', 'label', 'country', 'year'];
       if (!allowedFields.includes(field)) {
         return reject(new Error(`Invalid field: ${field}`));
       }
@@ -674,12 +675,35 @@ const Album = {
         return;
       }
       
+      // Handle year autocomplete (numeric field)
+      if (field === 'year') {
+        const sql = `
+          SELECT DISTINCT release_year 
+          FROM albums 
+          WHERE release_year IS NOT NULL
+          ${value ? 'AND CAST(release_year AS TEXT) LIKE ?' : ''}
+          ORDER BY release_year DESC
+          LIMIT 20
+        `;
+        const params = value ? [`${value}%`] : [];
+        
+        db.all(sql, params, (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows.map(row => ({ year: row.release_year })));
+          }
+        });
+        return;
+      }
+      
       // Map 'genre' to its plural database column name
       const columnMap = {
         'title': 'title',
         'artist': 'artist',
         'genre': 'genres',
-        'label': 'labels'
+        'label': 'labels',
+        'country': 'country'
       };
       const column = columnMap[field] || field;
       

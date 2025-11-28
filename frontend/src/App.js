@@ -89,7 +89,7 @@ function AppContent() {
   const getAutocompleteOptions = async (text) => {
     // Different keywords for MusicDex, BookDex vs DexVault
     const keywords = location.pathname === '/musicdex' 
-      ? ['title:', 'artist:', 'genre:', 'track:']
+      ? ['title:', 'artist:', 'genre:', 'track:', 'label:', 'country:', 'year:']
       : location.pathname === '/bookdex'
         ? ['title:', 'author:', 'artist:', 'isbn:', 'series:', 'owner:', 'format:', 'language:', 'genre:', 'tag:', 'title_status:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=', 'rating:', 'rating:>', 'rating:<', 'rating:>=', 'rating:<=']
         : [
@@ -126,7 +126,7 @@ function AppContent() {
     
     // Check if we're inside a filter value (after a keyword)
     const filterMatch = location.pathname === '/musicdex'
-      ? currentWord.match(/^(title|artist|genre|mood|track):(.*)$/)
+      ? currentWord.match(/^(title|artist|genre|mood|track|label|country|year):(.*)$/)
       : location.pathname === '/bookdex'
         ? currentWord.match(/^(title|author|artist|isbn|series|owner|format|language|genre|tag|title_status|year|rating):(.*)$/)
         : currentWord.match(/^(actor|director|title|collection|box_set|genre|format|original_language|media_type|imdb_rating|tmdb_rating|rotten_tomato_rating):(.*)$/);
@@ -166,8 +166,8 @@ function AppContent() {
           }, {});
         }
         
-        // For actors, artists, genres, moods, authors, and tags - we get JSON arrays, so parse them to extract individual names
-        if (filterType === 'actor' || filterType === 'artist' || filterType === 'genre' || filterType === 'mood' || filterType === 'author' || filterType === 'tag') {
+        // For actors, artists, genres, moods, authors, tags, and labels - we get JSON arrays, so parse them to extract individual names
+        if (filterType === 'actor' || filterType === 'artist' || filterType === 'genre' || filterType === 'mood' || filterType === 'author' || filterType === 'tag' || filterType === 'label') {
           // Note: 'artist' here could be MusicDex artist or BookDex artist - handled by backend
           values = values.map(cast => {
             if (typeof cast === 'string') {
