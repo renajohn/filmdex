@@ -204,6 +204,106 @@ class BookService {
     this.apiCache.set(key, { data, timestamp: Date.now() });
   }
 
+  /**
+   * Validate if a cover URL actually returns a valid image
+   * For OpenLibrary ISBN-based covers, we can append ?default=false to get a 404 if no cover exists
+   * Returns true if the cover is valid, false otherwise
+   */
+  async validateCoverUrl(url, timeout = 5000) {
+    try {
+      // For OpenLibrary ISBN-based covers, use ?default=false to detect missing covers
+      let testUrl = url;
+      if (url.includes('covers.openlibrary.org/b/isbn/')) {
+        testUrl = url.includes('?') ? `${url}&default=false` : `${url}?default=false`;
+      }
+      
+      // Use HEAD request to check if the image exists
+      const response = await axios.head(testUrl, { 
+        timeout,
+        validateStatus: (status) => status < 500 // Accept all non-500 responses
+      });
+      
+      // Check for successful response and proper content type
+      if (response.status === 200) {
+        const contentType = response.headers['content-type'] || '';
+        const contentLength = parseInt(response.headers['content-length'] || '0', 10);
+        
+        // Verify it's an image and not a tiny placeholder (1x1 pixel = ~43 bytes for GIF, ~68 for PNG)
+        if (contentType.startsWith('image/')) {
+          // OpenLibrary returns a 1x1 transparent pixel when no cover exists
+          // This is typically less than 100 bytes
+          if (contentLength > 100 || contentLength === 0) { // 0 means unknown, assume valid
+            return true;
+          }
+          logger.info(`[CoverValidation] Cover at ${url} appears to be a placeholder (size: ${contentLength} bytes)`);
+          return false;
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      // 404 means no cover available (especially with ?default=false)
+      if (error.response && error.response.status === 404) {
+        logger.info(`[CoverValidation] Cover not found at ${url}`);
+        return false;
+      }
+      // For other errors (timeout, network issues), assume cover might exist
+      logger.warn(`[CoverValidation] Error validating cover ${url}: ${error.message}`);
+      return null; // Unknown - don't exclude but don't prefer
+    }
+  }
+
+  /**
+   * Find the best available cover from a list of cover options
+   * Validates covers in order of priority and returns the first valid one
+   */
+  async findBestCover(availableCovers, maxAttempts = 5) {
+    if (!availableCovers || availableCovers.length === 0) {
+      return null;
+    }
+
+    // Sort by priority (highest first)
+    const sortedCovers = [...availableCovers].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    
+    let attempts = 0;
+    for (const cover of sortedCovers) {
+      if (attempts >= maxAttempts) {
+        logger.info(`[CoverValidation] Reached max attempts (${maxAttempts}), using best available: ${cover.url}`);
+        return cover.url;
+      }
+      
+      // Skip validation for high-priority Google Books covers (they're usually reliable)
+      if (cover.source === 'Google Books' && cover.priority >= 3) {
+        return cover.url;
+      }
+      
+      const isValid = await this.validateCoverUrl(cover.url);
+      attempts++;
+      
+      if (isValid === true) {
+        logger.info(`[CoverValidation] Found valid cover: ${cover.url}`);
+        return cover.url;
+      }
+      
+      // If validation failed definitively, continue to next
+      if (isValid === false) {
+        continue;
+      }
+      
+      // If validation was inconclusive (null), use it but note the uncertainty
+      logger.info(`[CoverValidation] Using cover with uncertain validation: ${cover.url}`);
+      return cover.url;
+    }
+    
+    // If all covers failed validation, return the highest priority one anyway
+    if (sortedCovers.length > 0) {
+      logger.warn(`[CoverValidation] All covers failed validation, using first: ${sortedCovers[0].url}`);
+      return sortedCovers[0].url;
+    }
+    
+    return null;
+  }
+
   async initializeTables() {
     try {
       await Book.createTable();
@@ -284,20 +384,64 @@ class BookService {
 
       // Download and save cover if URL provided
       // Use the highest quality cover available from availableCovers if present
-      let coverUrlToUse = bookData.coverUrl;
-      if (bookData.availableCovers && Array.isArray(bookData.availableCovers) && bookData.availableCovers.length > 0) {
-        const largestCover = this.selectLargestCover(bookData.availableCovers);
-        if (largestCover) {
-          coverUrlToUse = largestCover;
-          logger.info(`[AddBook] Selected highest quality cover from ${bookData.availableCovers.length} available covers`);
-        }
-      }
-      
+      // Try multiple covers with fallback if the first ones fail
       let coverPath = bookData.cover;
-      if (coverUrlToUse && !coverPath) {
+      
+      if (!coverPath && bookData.availableCovers && Array.isArray(bookData.availableCovers) && bookData.availableCovers.length > 0) {
+        // Sort covers by priority (highest first)
+        const sortedCovers = [...bookData.availableCovers]
+          .filter(c => c.url && (!c.type || c.type === 'front'))
+          .sort((a, b) => (b.priority || 0) - (a.priority || 0));
+        
+        logger.info(`[AddBook] Trying ${sortedCovers.length} cover options (from ${bookData.availableCovers.length} available)`);
+        
+        // Try covers in order of priority until one succeeds
+        for (let i = 0; i < Math.min(sortedCovers.length, 5); i++) {
+          const cover = sortedCovers[i];
+          try {
+            const filename = `book_${Date.now()}_${i}.jpg`;
+            logger.info(`[AddBook] Trying cover ${i + 1}/${Math.min(sortedCovers.length, 5)}: ${cover.source || 'unknown'} (${cover.size || 'unknown size'})`);
+            
+            const downloadedPath = await imageService.downloadImageFromUrl(cover.url, 'book', filename);
+            if (downloadedPath) {
+              // Verify the downloaded file is valid (not a placeholder)
+              const path = require('path');
+              const fs = require('fs');
+              const downloadedFilename = downloadedPath.split('/').pop();
+              const fullPath = path.join(imageService.getLocalImagesDir(), 'book', downloadedFilename);
+              
+              const stats = fs.statSync(fullPath);
+              // OpenLibrary placeholder images are typically < 100 bytes
+              if (stats.size < 200) {
+                logger.warn(`[AddBook] Downloaded cover appears to be a placeholder (${stats.size} bytes), trying next`);
+                fs.unlinkSync(fullPath); // Clean up placeholder
+                continue;
+              }
+              
+              // Valid cover found, resize it
+              try {
+                await imageService.resizeImage(fullPath, fullPath, 1200, 1200);
+              } catch (resizeError) {
+                console.warn('Failed to resize cover:', resizeError.message);
+              }
+              
+              coverPath = downloadedPath;
+              logger.info(`[AddBook] Successfully downloaded cover from ${cover.source || 'unknown'}`);
+              break;
+            }
+          } catch (error) {
+            logger.warn(`[AddBook] Cover ${i + 1} failed: ${error.message}, trying next...`);
+          }
+        }
+        
+        if (!coverPath) {
+          logger.warn(`[AddBook] All cover download attempts failed`);
+        }
+      } else if (!coverPath && bookData.coverUrl) {
+        // Fallback: try the single coverUrl if no availableCovers
         try {
           const filename = `book_${Date.now()}.jpg`;
-          coverPath = await imageService.downloadImageFromUrl(coverUrlToUse, 'book', filename);
+          coverPath = await imageService.downloadImageFromUrl(bookData.coverUrl, 'book', filename);
           if (coverPath) {
             try {
               const path = require('path');
@@ -2613,6 +2757,105 @@ class BookService {
       urls.googleBooksPreview = volumeInfo.previewLink;
     }
     
+    // FALLBACK: Add ISBN-based cover URLs from multiple sources
+    // This helps when Google Books doesn't have cover art (common for French books)
+    
+    // Amazon Images - works well for French books, especially BD/comics
+    // Format: https://images-eu.ssl-images-amazon.com/images/P/{ISBN10}.01._SCLZZZZZZZ_.jpg
+    const addAmazonCovers = (isbn10Value, priority = 0) => {
+      if (!isbn10Value || isbn10Value.length !== 10) return;
+      
+      // Amazon offers different size formats
+      const sizes = [
+        { suffix: '._SCLZZZZZZZ_.jpg', size: 'large', priority: 6 + priority }, // High priority - Amazon often has best covers
+        { suffix: '._SL500_.jpg', size: 'medium', priority: 5 + priority },
+        { suffix: '._SL160_.jpg', size: 'small', priority: 4 + priority }
+      ];
+      
+      sizes.forEach(({ suffix, size, priority: sizePriority }) => {
+        const url = `https://images-eu.ssl-images-amazon.com/images/P/${isbn10Value}.01${suffix}`;
+        if (!availableCovers.some(c => c.url === url)) {
+          availableCovers.push({
+            source: 'Amazon',
+            url: url,
+            type: 'front',
+            isbn: isbn10Value,
+            size: size,
+            priority: sizePriority
+          });
+        }
+      });
+      
+      // Also try US Amazon for broader coverage
+      const usUrl = `https://images-na.ssl-images-amazon.com/images/P/${isbn10Value}.01._SCLZZZZZZZ_.jpg`;
+      if (!availableCovers.some(c => c.url === usUrl)) {
+        availableCovers.push({
+          source: 'Amazon-US',
+          url: usUrl,
+          type: 'front',
+          isbn: isbn10Value,
+          size: 'large',
+          priority: 5 + priority
+        });
+      }
+    };
+    
+    // OpenLibrary's cover API can return covers by ISBN from their aggregated sources
+    const addOpenLibraryIsbnCovers = (isbnValue, priority = 0) => {
+      if (!isbnValue) return;
+      const sizes = [
+        { suffix: '-L.jpg', size: 'large', priority: 4 + priority },
+        { suffix: '-M.jpg', size: 'medium', priority: 3 + priority },
+        { suffix: '-S.jpg', size: 'small', priority: 2 + priority }
+      ];
+      
+      sizes.forEach(({ suffix, size, priority: sizePriority }) => {
+        const url = `https://covers.openlibrary.org/b/isbn/${isbnValue}${suffix}`;
+        // Avoid duplicates
+        if (!availableCovers.some(c => c.url === url)) {
+          availableCovers.push({
+            source: 'OpenLibrary-ISBN',
+            url: url,
+            type: 'front',
+            isbn: isbnValue,
+            size: size,
+            priority: sizePriority
+          });
+        }
+      });
+    };
+    
+    // Add Amazon covers first (highest priority for French books)
+    // Need ISBN-10 for Amazon URLs
+    let isbn10ForAmazon = isbn;
+    if (!isbn10ForAmazon && isbn13 && isbn13.startsWith('978')) {
+      // Convert ISBN-13 to ISBN-10: remove 978 prefix and recalculate check digit
+      const isbn9 = isbn13.slice(3, 12);
+      let sum = 0;
+      for (let i = 0; i < 9; i++) {
+        sum += parseInt(isbn9[i]) * (10 - i);
+      }
+      const check = (11 - (sum % 11)) % 11;
+      isbn10ForAmazon = isbn9 + (check === 10 ? 'X' : check.toString());
+    }
+    if (isbn10ForAmazon && isbn10ForAmazon.length === 10) {
+      addAmazonCovers(isbn10ForAmazon, 0);
+    }
+    
+    // Add OpenLibrary ISBN-based covers as fallback
+    if (isbn13) {
+      addOpenLibraryIsbnCovers(isbn13, 0);
+    }
+    if (isbn && isbn !== isbn13) {
+      addOpenLibraryIsbnCovers(isbn, -1);
+    }
+    
+    // If Google Books didn't have a cover, try Amazon or OpenLibrary ISBN cover
+    if (!coverUrl && availableCovers.length > 0) {
+      const sortedCovers = [...availableCovers].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+      coverUrl = sortedCovers[0].url;
+    }
+    
     return {
       isbn: isbn,
       isbn13: isbn13,
@@ -3257,6 +3500,88 @@ class BookService {
         url: coverUrl,
         type: 'front'
       });
+    }
+    
+    // FALLBACK: Add ISBN-based cover URLs from multiple sources
+    // This is especially useful for French books and other non-English publications
+    
+    // Amazon Images - works well for French books, especially BD/comics
+    const addAmazonCoversOL = (isbn10Value, priority = 0) => {
+      if (!isbn10Value || isbn10Value.length !== 10) return;
+      
+      const sizes = [
+        { suffix: '._SCLZZZZZZZ_.jpg', size: 'large', priority: 6 + priority },
+        { suffix: '._SL500_.jpg', size: 'medium', priority: 5 + priority }
+      ];
+      
+      sizes.forEach(({ suffix, size, priority: sizePriority }) => {
+        const url = `https://images-eu.ssl-images-amazon.com/images/P/${isbn10Value}.01${suffix}`;
+        if (!availableCovers.some(c => c.url === url)) {
+          availableCovers.push({
+            source: 'Amazon',
+            url: url,
+            type: 'front',
+            isbn: isbn10Value,
+            size: size,
+            priority: sizePriority
+          });
+        }
+      });
+    };
+    
+    // OpenLibrary's cover API can return covers by ISBN even when the book record
+    // doesn't have cover_i metadata
+    const addIsbnBasedCovers = (isbnValue, priority = 1) => {
+      if (!isbnValue) return;
+      const sizes = [
+        { suffix: '-L.jpg', size: 'large', priority: 4 + priority },
+        { suffix: '-M.jpg', size: 'medium', priority: 3 + priority },
+        { suffix: '-S.jpg', size: 'small', priority: 2 + priority }
+      ];
+      
+      sizes.forEach(({ suffix, size, priority: sizePriority }) => {
+        const url = `https://covers.openlibrary.org/b/isbn/${isbnValue}${suffix}`;
+        // Avoid duplicates by URL
+        if (!availableCovers.some(c => c.url === url)) {
+          availableCovers.push({
+            source: 'OpenLibrary-ISBN',
+            url: url,
+            type: 'front',
+            isbn: isbnValue,
+            size: size,
+            priority: sizePriority
+          });
+        }
+      });
+    };
+    
+    // Add Amazon covers first (highest priority for French books)
+    if (isbn10) {
+      addAmazonCoversOL(isbn10, 0);
+    } else if (isbn13 && isbn13.startsWith('978')) {
+      // Convert ISBN-13 to ISBN-10
+      const isbn9 = isbn13.slice(3, 12);
+      let sum = 0;
+      for (let i = 0; i < 9; i++) {
+        sum += parseInt(isbn9[i]) * (10 - i);
+      }
+      const check = (11 - (sum % 11)) % 11;
+      const convertedIsbn10 = isbn9 + (check === 10 ? 'X' : check.toString());
+      addAmazonCoversOL(convertedIsbn10, 0);
+    }
+    
+    // Add OpenLibrary ISBN-based covers as fallback
+    if (isbn13) {
+      addIsbnBasedCovers(isbn13, 0);
+    }
+    if (isbn10 && isbn10 !== isbn13) {
+      addIsbnBasedCovers(isbn10, -1); // Lower priority for ISBN-10
+    }
+    
+    // If we still don't have a coverUrl but we have ISBN-based covers, use the best one
+    if (!coverUrl && availableCovers.length > 0) {
+      const sortedCovers = [...availableCovers].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+      coverUrl = sortedCovers[0].url;
     }
 
     return {
