@@ -28,8 +28,17 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   const [enrichingBookIndex, setEnrichingBookIndex] = useState(null); // Track which book is being enriched
   const [showVolumeSelector, setShowVolumeSelector] = useState(false);
   const [quickAdding, setQuickAdding] = useState(false); // Track quick add in progress
+  
+  // Quick add options
+  const [quickAddOwner, setQuickAddOwner] = useState('');
+  const [quickAddTitleStatus, setQuickAddTitleStatus] = useState('owned');
+  const [availableOwners, setAvailableOwners] = useState([]);
+  const [showOwnerDropdown, setShowOwnerDropdown] = useState(false);
+  const [filteredOwners, setFilteredOwners] = useState([]);
+  
   const isbnInputRef = useRef(null);
   const titleInputRef = useRef(null);
+  const ownerInputRef = useRef(null);
 
   // Save language preference when it changes
   const handleLanguageChange = (lang) => {
@@ -46,6 +55,24 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
           titleInputRef.current.focus();
         }
       }, 100);
+      
+      // Fetch available owners when dialog opens
+      const fetchOwners = async () => {
+        try {
+          const suggestions = await bookService.getAutocompleteSuggestions('owner', '');
+          console.log('[AddBookDialog] Fetched owner suggestions:', suggestions);
+          const owners = suggestions
+            .map(s => typeof s === 'string' ? s : (s.owner || s.value || s))
+            .filter(Boolean)
+            .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+          console.log('[AddBookDialog] Processed owners:', owners);
+          setAvailableOwners(owners);
+        } catch (err) {
+          console.warn('Failed to fetch owners:', err);
+          setAvailableOwners([]);
+        }
+      };
+      fetchOwners();
     }
   }, [show, searchTab]);
 
@@ -60,8 +87,33 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       setShowMetadataForm(false);
       setSelectedBook(null);
       setSelectedBookGroup(null);
+      // Reset quick add options
+      setQuickAddOwner('');
+      setQuickAddTitleStatus('owned');
+      setShowOwnerDropdown(false);
+      setFilteredOwners([]);
     }
   }, [show]);
+
+  // Filter owners based on input
+  const handleOwnerInputChange = (value) => {
+    setQuickAddOwner(value);
+    if (value.trim()) {
+      const filtered = availableOwners.filter(owner =>
+        owner.toLowerCase().includes(value.toLowerCase())
+      );
+      setFilteredOwners(filtered);
+      setShowOwnerDropdown(filtered.length > 0);
+    } else {
+      setFilteredOwners(availableOwners);
+      setShowOwnerDropdown(availableOwners.length > 0);
+    }
+  };
+
+  const handleOwnerSelect = (owner) => {
+    setQuickAddOwner(owner);
+    setShowOwnerDropdown(false);
+  };
 
   // Handle template book - pre-fill form when templateBook is provided
   useEffect(() => {
@@ -336,7 +388,8 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
         description: enrichedBook.description || book.description || '',
         coverUrl: enrichedBook.coverUrl || book.coverUrl || '',
         urls: enrichedBook.urls || book.urls || {},
-        titleStatus: defaultTitleStatus || 'owned'
+        titleStatus: quickAddTitleStatus || defaultTitleStatus || 'owned',
+        owner: quickAddOwner || ''
       };
       
       // Add the book
@@ -919,12 +972,68 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                           )}
                         </div>
                         
-                        {hasMultipleEditions ? (
+                        {hasMultipleEditions && (
                           <div className="group-toggle">
                             {isExpanded ? <BsChevronDown size={20} /> : <BsChevronRight size={20} />}
                           </div>
-                        ) : (
-                          <div className="book-action-buttons">
+                        )}
+                      </div>
+                      
+                      {/* Quick add controls on separate line for single editions */}
+                      {!hasMultipleEditions && (
+                        <div className="book-action-buttons">
+                          <div className="quick-add-options">
+                            <div className="quick-add-field owner-field">
+                              <label>Belongs to</label>
+                              <div className="owner-autocomplete">
+                                <Form.Control
+                                  ref={ownerInputRef}
+                                  size="sm"
+                                  type="text"
+                                  value={quickAddOwner}
+                                  onChange={(e) => handleOwnerInputChange(e.target.value)}
+                                  onFocus={() => {
+                                    console.log('[AddBookDialog] Owner input focused, availableOwners:', availableOwners);
+                                    setFilteredOwners(availableOwners);
+                                    setShowOwnerDropdown(availableOwners.length > 0);
+                                  }}
+                                  onBlur={() => setTimeout(() => setShowOwnerDropdown(false), 150)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  placeholder="Enter owner..."
+                                  autoComplete="off"
+                                />
+                                {showOwnerDropdown && filteredOwners.length > 0 && (
+                                  <div className="owner-dropdown">
+                                    {filteredOwners.map(owner => (
+                                      <div
+                                        key={owner}
+                                        className="owner-option"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOwnerSelect(owner);
+                                        }}
+                                      >
+                                        {owner}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="quick-add-field">
+                              <label>Status</label>
+                              <Form.Select
+                                size="sm"
+                                value={quickAddTitleStatus}
+                                onChange={(e) => setQuickAddTitleStatus(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <option value="owned">Owned</option>
+                                <option value="borrowed">Borrowed</option>
+                              </Form.Select>
+                            </div>
+                          </div>
+                          <div className="quick-add-buttons">
                             <Button
                               size="sm"
                               variant="success"
@@ -934,7 +1043,6 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                                 handleQuickAdd(group.books[0]);
                               }}
                               disabled={quickAdding || enriching}
-                              style={{ backgroundColor: '#22c55e', borderColor: '#16a34a', color: '#fff', marginRight: '8px' }}
                             >
                               {quickAdding ? (
                                 <>
@@ -957,7 +1065,6 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                                 handleSelectBook(group.books[0], group.books, 0, groupIndex);
                               }}
                               disabled={enriching || quickAdding}
-                              style={{ borderColor: 'rgba(255,255,255,0.3)', color: '#ccc' }}
                             >
                               {enriching && enrichingBookIndex === `group-${groupIndex}-book-0` ? (
                                 <>
@@ -969,8 +1076,8 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                               )}
                             </Button>
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                       
                       {/* Editions Table - Show if multiple editions */}
                       {hasMultipleEditions && isExpanded && (
