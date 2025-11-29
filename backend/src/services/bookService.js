@@ -418,6 +418,24 @@ class BookService {
                 continue;
               }
               
+              // Check if it's a PNG from Google Books - these are usually "not available" placeholders
+              // Real book covers from Google Books are JPEG
+              if (cover.source === 'Google Books' || cover.url?.includes('books.google.com')) {
+                // Read the first few bytes to check if it's a PNG
+                const fd = fs.openSync(fullPath, 'r');
+                const header = Buffer.alloc(8);
+                fs.readSync(fd, header, 0, 8, 0);
+                fs.closeSync(fd);
+                
+                // PNG magic bytes: 89 50 4E 47 0D 0A 1A 0A
+                const isPng = header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47;
+                if (isPng) {
+                  logger.warn(`[AddBook] Google Books returned PNG (likely "not available" placeholder), trying next`);
+                  fs.unlinkSync(fullPath); // Clean up placeholder
+                  continue;
+                }
+              }
+              
               // Valid cover found, resize it
               try {
                 await imageService.resizeImage(fullPath, fullPath, 1200, 1200);
@@ -441,15 +459,46 @@ class BookService {
         // Fallback: try the single coverUrl if no availableCovers
         try {
           const filename = `book_${Date.now()}.jpg`;
-          coverPath = await imageService.downloadImageFromUrl(bookData.coverUrl, 'book', filename);
-          if (coverPath) {
-            try {
-              const path = require('path');
-              const downloadedFilename = coverPath.split('/').pop();
-              const fullPath = path.join(imageService.getLocalImagesDir(), 'book', downloadedFilename);
-              await imageService.resizeImage(fullPath, fullPath, 1200, 1200);
-            } catch (resizeError) {
-              console.warn('Failed to resize cover:', resizeError.message);
+          const downloadedPath = await imageService.downloadImageFromUrl(bookData.coverUrl, 'book', filename);
+          if (downloadedPath) {
+            const path = require('path');
+            const fs = require('fs');
+            const downloadedFilename = downloadedPath.split('/').pop();
+            const fullPath = path.join(imageService.getLocalImagesDir(), 'book', downloadedFilename);
+            
+            // Verify the downloaded file is valid (not a placeholder)
+            const stats = fs.statSync(fullPath);
+            let isPlaceholder = false;
+            
+            if (stats.size < 200) {
+              logger.warn(`[AddBook] Downloaded cover appears to be a placeholder (${stats.size} bytes), discarding`);
+              isPlaceholder = true;
+            }
+            
+            // Check if it's a PNG from Google Books - these are usually "not available" placeholders
+            if (!isPlaceholder && bookData.coverUrl?.includes('books.google.com')) {
+              const fd = fs.openSync(fullPath, 'r');
+              const header = Buffer.alloc(8);
+              fs.readSync(fd, header, 0, 8, 0);
+              fs.closeSync(fd);
+              
+              const isPng = header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47;
+              if (isPng) {
+                logger.warn(`[AddBook] Google Books returned PNG (likely "not available" placeholder), discarding`);
+                isPlaceholder = true;
+              }
+            }
+            
+            if (isPlaceholder) {
+              fs.unlinkSync(fullPath); // Clean up placeholder
+              // coverPath stays null - no valid cover
+            } else {
+              try {
+                await imageService.resizeImage(fullPath, fullPath, 1200, 1200);
+              } catch (resizeError) {
+                console.warn('Failed to resize cover:', resizeError.message);
+              }
+              coverPath = downloadedPath;
             }
           }
         } catch (error) {
@@ -2595,47 +2644,65 @@ class BookService {
         }
       });
       
-      // Try to generate higher resolution versions from the large image
+      // Try to generate higher resolution versions from available images
       // Google Books URLs can be modified to get better quality
-      if (volumeInfo.imageLinks.large) {
-        let largeUrl = volumeInfo.imageLinks.large;
-        if (largeUrl && largeUrl.startsWith('http://')) {
-          largeUrl = largeUrl.replace('http://', 'https://');
+      // Use the best available image as base (large > medium > small > thumbnail)
+      const baseImageUrl = volumeInfo.imageLinks.large || 
+                          volumeInfo.imageLinks.medium || 
+                          volumeInfo.imageLinks.small || 
+                          volumeInfo.imageLinks.thumbnail;
+      
+      if (baseImageUrl) {
+        let baseUrl = baseImageUrl;
+        if (baseUrl && baseUrl.startsWith('http://')) {
+          baseUrl = baseUrl.replace('http://', 'https://');
         }
         
-        // Try to enhance the URL for better quality
-        // Method 1: Modify zoom parameter if present
-        if (largeUrl.includes('zoom=')) {
-          const enhancedUrl1 = largeUrl.replace(/zoom=\d+/, 'zoom=10');
-          if (enhancedUrl1 !== largeUrl) {
+        // Method 1: Try higher zoom levels for better quality
+        // Google Books uses zoom=1 for thumbnail, zoom=0 for no zoom (sometimes larger)
+        if (baseUrl.includes('zoom=')) {
+          // Try zoom=0 (sometimes gives full size)
+          const zoomZeroUrl = baseUrl.replace(/zoom=\d+/, 'zoom=0');
+          if (zoomZeroUrl !== baseUrl && !availableCovers.some(c => c.url === zoomZeroUrl)) {
             availableCovers.push({
               source: 'Google Books',
-              url: enhancedUrl1,
+              url: zoomZeroUrl,
               type: 'front',
               size: 'extra-large',
+              priority: 6
+            });
+          }
+          
+          // Try zoom=3 (larger version)
+          const zoom3Url = baseUrl.replace(/zoom=\d+/, 'zoom=3');
+          if (zoom3Url !== baseUrl && !availableCovers.some(c => c.url === zoom3Url)) {
+            availableCovers.push({
+              source: 'Google Books',
+              url: zoom3Url,
+              type: 'front',
+              size: 'large-enhanced',
               priority: 5
             });
           }
         }
         
         // Method 2: Add or modify w and h parameters for higher resolution
-        // Google Books images can be scaled up by modifying dimensions
-        if (largeUrl.includes('books.google.com') || largeUrl.includes('googleapis.com')) {
-          // Try to get a very high resolution version
-          // Remove existing w and h parameters and add larger ones
-          let enhancedUrl2 = largeUrl;
-          enhancedUrl2 = enhancedUrl2.replace(/[&?]w=\d+/g, '');
-          enhancedUrl2 = enhancedUrl2.replace(/[&?]h=\d+/g, '');
-          const separator = enhancedUrl2.includes('?') ? '&' : '?';
-          enhancedUrl2 = `${enhancedUrl2}${separator}w=1280&h=1920`;
+        if (baseUrl.includes('books.google.com') || baseUrl.includes('googleapis.com')) {
+          // Try to get a high resolution version with explicit dimensions
+          let enhancedUrl = baseUrl;
+          enhancedUrl = enhancedUrl.replace(/[&?]w=\d+/g, '');
+          enhancedUrl = enhancedUrl.replace(/[&?]h=\d+/g, '');
+          enhancedUrl = enhancedUrl.replace(/[&?]zoom=\d+/g, '');
+          const separator = enhancedUrl.includes('?') ? '&' : '?';
+          enhancedUrl = `${enhancedUrl}${separator}w=800&h=1200&zoom=0`;
           
-          if (enhancedUrl2 !== largeUrl) {
+          if (!availableCovers.some(c => c.url === enhancedUrl)) {
             availableCovers.push({
               source: 'Google Books',
-              url: enhancedUrl2,
+              url: enhancedUrl,
               type: 'front',
               size: 'extra-large',
-              priority: 5
+              priority: 7
             });
           }
         }
@@ -2646,6 +2713,51 @@ class BookService {
         const sortedCovers = availableCovers.sort((a, b) => b.priority - a.priority);
         coverUrl = sortedCovers[0].url;
       }
+    }
+    
+    // Add Amazon covers as PRIMARY source (highest priority)
+    // Amazon often has better covers for French books and music scores
+    // Amazon accepts both ISBN-10 and ISBN-13 in their image URLs
+    let amazonIsbn = null;
+    
+    // Prefer ISBN-10 for Amazon (better compatibility)
+    if (isbn && isbn.length === 10) {
+      amazonIsbn = isbn;
+    } else if (isbn13 && isbn13.startsWith('978')) {
+      // Convert ISBN-13 (978 prefix) to ISBN-10
+      const isbn9 = isbn13.slice(3, 12);
+      let sum = 0;
+      for (let i = 0; i < 9; i++) {
+        sum += parseInt(isbn9[i]) * (10 - i);
+      }
+      const check = (11 - (sum % 11)) % 11;
+      amazonIsbn = isbn9 + (check === 10 ? 'X' : check.toString());
+    } else if (isbn13) {
+      // For 979-prefix (ISMN for music, newer ISBNs), try with full ISBN-13
+      amazonIsbn = isbn13;
+    }
+    
+    if (amazonIsbn) {
+      // Amazon EU - highest priority (priority 10)
+      availableCovers.unshift({
+        source: 'Amazon-EU',
+        url: `https://images-eu.ssl-images-amazon.com/images/P/${amazonIsbn}.01._SCLZZZZZZZ_.jpg`,
+        type: 'front',
+        size: 'large',
+        priority: 10
+      });
+      
+      // Amazon US as fallback (priority 9)
+      availableCovers.push({
+        source: 'Amazon-US',
+        url: `https://images-na.ssl-images-amazon.com/images/P/${amazonIsbn}.01._SCLZZZZZZZ_.jpg`,
+        type: 'front',
+        size: 'large',
+        priority: 9
+      });
+      
+      // Update coverUrl to Amazon
+      coverUrl = `https://images-eu.ssl-images-amazon.com/images/P/${amazonIsbn}.01._SCLZZZZZZZ_.jpg`;
     }
     
     // Extract language (Google uses ISO 639-1 codes like 'en', 'fr')

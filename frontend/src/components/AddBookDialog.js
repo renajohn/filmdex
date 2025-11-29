@@ -60,12 +60,10 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       const fetchOwners = async () => {
         try {
           const suggestions = await bookService.getAutocompleteSuggestions('owner', '');
-          console.log('[AddBookDialog] Fetched owner suggestions:', suggestions);
           const owners = suggestions
             .map(s => typeof s === 'string' ? s : (s.owner || s.value || s))
             .filter(Boolean)
             .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-          console.log('[AddBookDialog] Processed owners:', owners);
           setAvailableOwners(owners);
         } catch (err) {
           console.warn('Failed to fetch owners:', err);
@@ -387,6 +385,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
         pageCount: enrichedBook.pageCount || book.pageCount || '',
         description: enrichedBook.description || book.description || '',
         coverUrl: enrichedBook.coverUrl || book.coverUrl || '',
+        availableCovers: enrichedBook.availableCovers || book.availableCovers || [],
         urls: enrichedBook.urls || book.urls || {},
         titleStatus: quickAddTitleStatus || defaultTitleStatus || 'owned',
         owner: quickAddOwner || ''
@@ -993,7 +992,6 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                                   value={quickAddOwner}
                                   onChange={(e) => handleOwnerInputChange(e.target.value)}
                                   onFocus={() => {
-                                    console.log('[AddBookDialog] Owner input focused, availableOwners:', availableOwners);
                                     setFilteredOwners(availableOwners);
                                     setShowOwnerDropdown(availableOwners.length > 0);
                                   }}
