@@ -35,6 +35,255 @@ function normalizeArrayField(value) {
 }
 
 /**
+ * Music Score Publisher Detection from ISMN
+ * ISMN format: 979-0-XXX-YYYYY-Z where XXX is the publisher code
+ */
+const MUSIC_PUBLISHERS = {
+  '201': { name: 'G. Henle Verlag', code: 'henle' },
+  '001': { name: 'Schott Music', code: 'schott' },
+  '2001': { name: 'Schott Music', code: 'schott' },
+  '006': { name: 'Bärenreiter', code: 'barenreiter' },
+  '004': { name: 'Peters Edition', code: 'peters' },
+  '048': { name: 'Universal Edition', code: 'universal' },
+  '051': { name: 'Breitkopf & Härtel', code: 'breitkopf' },
+  '014': { name: 'Boosey & Hawkes', code: 'boosey' },
+  '044': { name: 'Durand-Salabert-Eschig', code: 'durand' },
+};
+
+/**
+ * Check if an ISBN/ISMN is for a music score
+ * Music scores use ISMN (International Standard Music Number) starting with 979-0
+ */
+function isMusicScore(isbn) {
+  if (!isbn) return false;
+  const clean = isbn.replace(/[-\s]/g, '');
+  return clean.startsWith('9790');
+}
+
+/**
+ * Detect music publisher from ISMN
+ */
+function detectMusicPublisher(ismn) {
+  if (!ismn) return null;
+  const cleanIsmn = ismn.replace(/[-\s]/g, '');
+  if (!cleanIsmn.startsWith('9790')) return null;
+  
+  const afterPrefix = cleanIsmn.slice(4);
+  const sortedCodes = Object.keys(MUSIC_PUBLISHERS).sort((a, b) => b.length - a.length);
+  
+  for (const code of sortedCodes) {
+    if (afterPrefix.startsWith(code)) {
+      return { ...MUSIC_PUBLISHERS[code], publisherCode: code, ismn: cleanIsmn };
+    }
+  }
+  return null;
+}
+
+/**
+ * IMSLP (Petrucci Music Library) Integration
+ * Search for music scores and download the best available PDF
+ */
+
+/**
+ * Search IMSLP for a musical work by title and composer
+ * @param {string} title - The work title (e.g., "Album für die Jugend")
+ * @param {string} composer - The composer name (e.g., "Schumann")
+ * @returns {Promise<object|null>} - IMSLP work info or null if not found
+ */
+async function searchIMSLP(title, composer) {
+  try {
+    // Clean and format the search query
+    const cleanTitle = title.replace(/op\.\s*\d+/gi, '').trim();
+    const searchQuery = `${cleanTitle} ${composer || ''}`.trim();
+    
+    logger.info(`[IMSLP] Searching for: "${searchQuery}"`);
+    
+    // First, try to find the work page using MediaWiki API
+    const searchUrl = `https://imslp.org/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&srnamespace=0&srlimit=10&format=json`;
+    
+    // IMSLP sometimes has SSL certificate issues, create agent to handle this
+    const https = require('https');
+    const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+    
+    const response = await axios.get(searchUrl, { timeout: 15000, httpsAgent });
+    const results = response.data?.query?.search || [];
+    
+    if (results.length === 0) {
+      logger.info(`[IMSLP] No results found for "${searchQuery}"`);
+      return null;
+    }
+    
+    // Find the best matching work page
+    // Prefer pages with composer name in parentheses (work pages vs category pages)
+    let bestMatch = null;
+    for (const result of results) {
+      const pageTitle = result.title;
+      // IMSLP work pages follow the pattern: "Work Title (Composer, Name)"
+      if (pageTitle.includes('(') && pageTitle.includes(')')) {
+        bestMatch = result;
+        break;
+      }
+    }
+    
+    if (!bestMatch) {
+      bestMatch = results[0]; // Fall back to first result
+    }
+    
+    logger.info(`[IMSLP] Found work: "${bestMatch.title}"`);
+    
+    return {
+      title: bestMatch.title,
+      pageId: bestMatch.pageid,
+      pageUrl: `https://imslp.org/wiki/${encodeURIComponent(bestMatch.title.replace(/ /g, '_'))}`
+    };
+  } catch (error) {
+    logger.warn(`[IMSLP] Search error: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Get available PDF files from an IMSLP work page
+ * @param {string} pageTitle - The IMSLP page title
+ * @returns {Promise<array>} - Array of available PDF files with metadata
+ */
+async function getIMSLPFiles(pageTitle) {
+  try {
+    const apiUrl = `https://imslp.org/api.php?action=parse&page=${encodeURIComponent(pageTitle)}&format=json&prop=text`;
+    
+    const https = require('https');
+    const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+    
+    const response = await axios.get(apiUrl, { timeout: 15000, httpsAgent });
+    const htmlContent = response.data?.parse?.text?.['*'] || '';
+    
+    // Extract PDF file references
+    const pdfPattern = /href="\/images\/[^"]+\/(PMLP[0-9]+-[^"]+\.pdf)"/g;
+    const files = [];
+    let match;
+    
+    while ((match = pdfPattern.exec(htmlContent)) !== null) {
+      const filename = match[1];
+      
+      // Determine quality/priority based on filename
+      let priority = 0;
+      const lowerFilename = filename.toLowerCase();
+      
+      // Highest priority: Henle and Urtext editions
+      if (lowerFilename.includes('henle')) priority += 100;
+      if (lowerFilename.includes('urtext')) priority += 90;
+      
+      // High priority: Major publishers
+      if (lowerFilename.includes('peters')) priority += 50;
+      if (lowerFilename.includes('breitkopf')) priority += 50;
+      if (lowerFilename.includes('schirmer')) priority += 40;
+      if (lowerFilename.includes('durand')) priority += 40;
+      
+      // Medium priority: Complete scores (not individual pieces)
+      if (!lowerFilename.includes('no.') && !lowerFilename.includes('no_')) priority += 20;
+      
+      // Lower priority: Arrangements
+      if (lowerFilename.includes('arr') || lowerFilename.includes('arrangement')) priority -= 30;
+      
+      files.push({
+        filename,
+        priority,
+        isHenle: lowerFilename.includes('henle'),
+        isUrtext: lowerFilename.includes('urtext')
+      });
+    }
+    
+    // Sort by priority (highest first) and remove duplicates
+    const uniqueFiles = [...new Map(files.map(f => [f.filename, f])).values()];
+    uniqueFiles.sort((a, b) => b.priority - a.priority);
+    
+    logger.info(`[IMSLP] Found ${uniqueFiles.length} PDF files`);
+    
+    return uniqueFiles;
+  } catch (error) {
+    logger.warn(`[IMSLP] Error getting files: ${error.message}`);
+    return [];
+  }
+}
+
+/**
+ * Get the download URL for an IMSLP file
+ * IMSLP requires accepting a disclaimer, so we need to get the actual file URL
+ * @param {string} filename - The PDF filename
+ * @returns {Promise<string|null>} - Direct download URL or null
+ */
+async function getIMSLPDownloadUrl(filename) {
+  try {
+    // IMSLP files are served from /images/ with a hash-based path
+    // We need to query the File: page to get the actual URL
+    const filePageUrl = `https://imslp.org/api.php?action=query&titles=File:${encodeURIComponent(filename)}&prop=imageinfo&iiprop=url&format=json`;
+    
+    const https = require('https');
+    const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+    
+    const response = await axios.get(filePageUrl, { timeout: 15000, httpsAgent });
+    const pages = response.data?.query?.pages || {};
+    
+    for (const pageId of Object.keys(pages)) {
+      const page = pages[pageId];
+      if (page.imageinfo && page.imageinfo.length > 0) {
+        let url = page.imageinfo[0].url;
+        // Fix protocol-relative URLs
+        if (url.startsWith('//')) {
+          url = 'https:' + url;
+        }
+        logger.info(`[IMSLP] Got download URL for ${filename}`);
+        return url;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    logger.warn(`[IMSLP] Error getting download URL: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Search IMSLP and get the best available score PDF
+ * Prioritizes Henle and Urtext editions
+ * @param {string} title - The work title
+ * @param {string} composer - The composer name (optional)
+ * @returns {Promise<object|null>} - Best score info with download URL, or null
+ */
+async function findBestIMSLPScore(title, composer = null) {
+  try {
+    // Search for the work
+    const work = await searchIMSLP(title, composer);
+    if (!work) return null;
+    
+    // Get available files
+    const files = await getIMSLPFiles(work.title);
+    if (files.length === 0) return null;
+    
+    // Get the best file (first in sorted list)
+    const bestFile = files[0];
+    
+    // Get download URL
+    const downloadUrl = await getIMSLPDownloadUrl(bestFile.filename);
+    if (!downloadUrl) return null;
+    
+    return {
+      workTitle: work.title,
+      pageUrl: work.pageUrl,
+      filename: bestFile.filename,
+      downloadUrl,
+      isHenle: bestFile.isHenle,
+      isUrtext: bestFile.isUrtext,
+      source: 'IMSLP'
+    };
+  } catch (error) {
+    logger.error(`[IMSLP] Error finding best score: ${error.message}`);
+    return null;
+  }
+}
+
+/**
  * Extract series name and number from book title
  * Handles patterns like "Title T01", "Title T1", "Title Vol. 1", "Title #1", etc.
  * Returns { series, seriesNumber } or null if no series detected
@@ -528,6 +777,68 @@ class BookService {
           normalizedData.series = extractedSeries.series;
           normalizedData.seriesNumber = extractedSeries.seriesNumber;
           logger.info(`[AddBook] Extracted series from title: "${extractedSeries.series}" #${extractedSeries.seriesNumber}`);
+        }
+      }
+
+      // For music scores (ISMN), try to find and attach the best PDF from IMSLP
+      const isbnToCheck = normalizedData.isbn13 || normalizedData.isbn;
+      if (isMusicScore(isbnToCheck)) {
+        const publisher = detectMusicPublisher(isbnToCheck);
+        logger.info(`[AddBook] Music score detected - Publisher: ${publisher?.name || 'Unknown'}`);
+        
+        // Extract composer from authors for better IMSLP search
+        const composer = normalizedData.authors?.[0] || null;
+        const title = normalizedData.title;
+        
+        try {
+          logger.info(`[AddBook] Searching IMSLP for: "${title}" by ${composer || 'unknown composer'}`);
+          const imslpScore = await findBestIMSLPScore(title, composer);
+          
+          if (imslpScore) {
+            logger.info(`[AddBook] Found IMSLP score: ${imslpScore.filename} (Henle: ${imslpScore.isHenle}, Urtext: ${imslpScore.isUrtext})`);
+            
+            // IMSLP uses CAPTCHA protection, so we can't download automatically
+            // Instead, we store the page URL so users can easily access the scores
+            
+            // Add IMSLP page URL to the book's URLs
+            // URLs is stored as an object {label: url}, not an array
+            let urlsObj = normalizedData.urls;
+            if (typeof urlsObj === 'string') {
+              try {
+                urlsObj = JSON.parse(urlsObj);
+              } catch (e) {
+                urlsObj = {};
+              }
+            }
+            if (!urlsObj || typeof urlsObj !== 'object' || Array.isArray(urlsObj)) {
+              urlsObj = {};
+            }
+            
+            // Create a descriptive label based on the edition quality
+            const editionLabel = imslpScore.isHenle ? 'IMSLP (Henle edition)' : 
+                                 imslpScore.isUrtext ? 'IMSLP (Urtext edition)' : 
+                                 'IMSLP';
+            
+            // Add the IMSLP URL with the label as key
+            urlsObj[editionLabel] = imslpScore.pageUrl;
+            normalizedData.urls = urlsObj;
+            
+            // Add note about the edition in annotation
+            const editionNote = imslpScore.isHenle ? 'Henle edition available on IMSLP' : 
+                                imslpScore.isUrtext ? 'Urtext edition available on IMSLP' : 
+                                'PDF available on IMSLP';
+            if (normalizedData.annotation) {
+              normalizedData.annotation += '. ' + editionNote;
+            } else {
+              normalizedData.annotation = editionNote;
+            }
+            
+            logger.info(`[AddBook] Added IMSLP link: ${imslpScore.pageUrl}`);
+          } else {
+            logger.info(`[AddBook] No IMSLP score found for "${title}"`);
+          }
+        } catch (imslpError) {
+          logger.warn(`[AddBook] IMSLP search error: ${imslpError.message}`);
         }
       }
 
