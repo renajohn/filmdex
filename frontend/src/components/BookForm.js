@@ -6,6 +6,42 @@ import bookService from '../services/bookService';
 import CoverModal from './CoverModal';
 import './BookForm.css';
 
+// Detect book type from ISBN and genres
+const detectBookType = (isbn, genres = []) => {
+  const genreList = Array.isArray(genres) ? genres : [];
+  
+  // Check for music score by ISBN (ISMN starts with 9790)
+  const cleanIsbn = (isbn || '').replace(/[-\s]/g, '');
+  if (cleanIsbn.startsWith('9790')) {
+    return 'score';
+  }
+  
+  // Check genres for music or comics patterns
+  for (const genre of genreList) {
+    if (!genre || typeof genre !== 'string') continue;
+    const genreLower = genre.toLowerCase();
+    
+    // Check for music score
+    if (genreLower.includes('music /') || genreLower.startsWith('music/')) {
+      return 'score';
+    }
+    
+    // Check for graphic novel / comics
+    if (
+      genreLower.includes('comics & graphic novels') ||
+      genreLower.includes('bandes dessinées') ||
+      genreLower.includes('comic strips') ||
+      genreLower.includes('manga') ||
+      genreLower.includes('/manga/') ||
+      genreLower.includes('graphic novel')
+    ) {
+      return 'graphic-novel';
+    }
+  }
+  
+  return 'book';
+};
+
 const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline = false, onBookUpdated = null, defaultTitleStatus, onShowAlert }) => {
   const fileInputRef = useRef(null);
   const ebookInputRef = useRef(null);
@@ -56,7 +92,8 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
     description: '',
     urls: {},
     annotation: '',
-    titleStatus: 'owned'
+    titleStatus: 'owned',
+    bookType: 'book'
   });
   const [loading, setLoading] = useState(false);
   const [enriching, setEnriching] = useState(false);
@@ -358,6 +395,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
         urls: book.urls || {},
         annotation: book.annotation || '',
         titleStatus: book.titleStatus || defaultTitleStatus || 'owned',
+        bookType: book.bookType || detectBookType(book.isbn13, book.genres),
         coverUrl: preserveCoverUrl,
         ebookFile: book.ebookFile || null
       });
@@ -1452,6 +1490,35 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 />
               </Form.Group>
 
+              <Row className="g-2 mb-2">
+                <Col md={6} className="ps-0">
+                  <Form.Group className="mb-2">
+                    <Form.Label>Book Type</Form.Label>
+                    <Form.Select
+                      value={formData.bookType}
+                      onChange={(e) => handleInputChange('bookType', e.target.value)}
+                    >
+                      <option value="book">Book</option>
+                      <option value="graphic-novel">Graphic Novel</option>
+                      <option value="score">Score</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={6} className="pe-0">
+                  <Form.Group className="mb-2">
+                    <Form.Label>Status</Form.Label>
+                    <Form.Select
+                      value={formData.titleStatus}
+                      onChange={(e) => handleInputChange('titleStatus', e.target.value)}
+                    >
+                      <option value="owned">Owned</option>
+                      <option value="borrowed">Borrowed</option>
+                      <option value="wish">Wish</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+
               <Row className="g-2">
                 <Col md={6} className="ps-0">
                   <Form.Group className="mb-3">
@@ -1666,7 +1733,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
               </Row>
 
               <Row>
-                <Col md={6}>
+                <Col md={4}>
                   <Form.Group className="mb-3">
                     <Form.Label>Language</Form.Label>
                     <Form.Control
@@ -1677,7 +1744,20 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                     />
                   </Form.Group>
                 </Col>
-                <Col md={6}>
+                <Col md={4}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Book Type</Form.Label>
+                    <Form.Select
+                      value={formData.bookType}
+                      onChange={(e) => handleInputChange('bookType', e.target.value)}
+                    >
+                      <option value="book">Book</option>
+                      <option value="graphic-novel">Graphic Novel</option>
+                      <option value="score">Score</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={4}>
                   <Form.Group className="mb-3">
                     <Form.Label>Format</Form.Label>
                     <Form.Select
@@ -1813,19 +1893,6 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
               </Row>
 
               <Row>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Title Status</Form.Label>
-                    <Form.Select
-                      value={formData.titleStatus}
-                      onChange={(e) => handleInputChange('titleStatus', e.target.value)}
-                    >
-                      <option value="owned">Owned</option>
-                      <option value="borrowed">Borrowed</option>
-                      <option value="wish">Wish</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Read Date</Form.Label>
@@ -2213,6 +2280,35 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                 />
               </Form.Group>
 
+              <Row className="g-2 mb-2">
+                <Col md={6} className="ps-0">
+                  <Form.Group className="mb-2">
+                    <Form.Label>Book Type</Form.Label>
+                    <Form.Select
+                      value={formData.bookType}
+                      onChange={(e) => handleInputChange('bookType', e.target.value)}
+                    >
+                      <option value="book">Book</option>
+                      <option value="graphic-novel">Graphic Novel</option>
+                      <option value="score">Score</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={6} className="pe-0">
+                  <Form.Group className="mb-2">
+                    <Form.Label>Status</Form.Label>
+                    <Form.Select
+                      value={formData.titleStatus}
+                      onChange={(e) => handleInputChange('titleStatus', e.target.value)}
+                    >
+                      <option value="owned">Owned</option>
+                      <option value="borrowed">Borrowed</option>
+                      <option value="wish">Wish</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+
               <Row className="g-2">
                 <Col md={6} className="ps-0">
                   <Form.Group className="mb-3">
@@ -2428,7 +2524,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
               </Row>
 
               <Row>
-                <Col md={6}>
+                <Col md={4}>
                   <Form.Group className="mb-3">
                     <Form.Label>Language</Form.Label>
                     <Form.Control
@@ -2439,7 +2535,20 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                     />
                   </Form.Group>
                 </Col>
-                <Col md={6}>
+                <Col md={4}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Book Type</Form.Label>
+                    <Form.Select
+                      value={formData.bookType}
+                      onChange={(e) => handleInputChange('bookType', e.target.value)}
+                    >
+                      <option value="book">Book</option>
+                      <option value="graphic-novel">Graphic Novel</option>
+                      <option value="score">Score</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={4}>
                   <Form.Group className="mb-3">
                     <Form.Label>Format</Form.Label>
                     <Form.Select
@@ -2575,19 +2684,6 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
               </Row>
 
               <Row>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Title Status</Form.Label>
-                    <Form.Select
-                      value={formData.titleStatus}
-                      onChange={(e) => handleInputChange('titleStatus', e.target.value)}
-                    >
-                      <option value="owned">Owned</option>
-                      <option value="borrowed">Borrowed</option>
-                      <option value="wish">Wish</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Read Date</Form.Label>

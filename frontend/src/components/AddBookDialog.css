@@ -360,14 +360,45 @@
   cursor: pointer;
 }
 
+/* Buttons in header - floated right of title */
+.header-buttons {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.header-buttons .quick-add-btn {
+  background-color: #22c55e;
+  border-color: #16a34a;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.header-buttons .quick-add-btn:hover:not(:disabled) {
+  background-color: #16a34a;
+  border-color: #15803d;
+}
+
+.header-buttons .select-book-btn-header {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ccc;
+  white-space: nowrap;
+}
+
+.header-buttons .select-book-btn-header:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+
 .book-action-buttons {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
-  padding: 12px 16px;
-  background: rgba(35, 35, 35, 0.8);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px 16px;
+  background: rgba(35, 35, 35, 0.6);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .quick-add-options {
@@ -797,6 +828,18 @@
   .quick-add-buttons .quick-add-btn,
   .quick-add-buttons .select-book-btn-header {
     flex: 1;
+  }
+
+  /* Header buttons in mobile - stack below title */
+  .header-buttons {
+    margin-top: 8px;
+    gap: 6px;
+  }
+
+  .header-buttons .quick-add-btn,
+  .header-buttons .select-book-btn-header {
+    font-size: 0.8rem;
+    padding: 4px 10px;
   }
 
   /* Ensure table container doesn't cause horizontal scroll on parent */

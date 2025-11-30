@@ -18,7 +18,8 @@ const bookImslpService = require('./bookImslpService');
 const { 
   normalizeArrayField, 
   extractSeriesFromTitle, 
-  isMusicScore 
+  isMusicScore,
+  detectBookType 
 } = require('./utils/bookUtils');
 
 class BookService {
@@ -125,6 +126,24 @@ class BookService {
       if (isMusicScore(normalizedData.isbn13 || normalizedData.isbn)) {
         const enrichedData = await bookImslpService.enrichMusicScore(normalizedData);
         Object.assign(normalizedData, enrichedData);
+      }
+
+      // Detect book type if not provided
+      if (!normalizedData.bookType) {
+        normalizedData.bookType = detectBookType(
+          normalizedData.isbn13 || normalizedData.isbn,
+          normalizedData.genres || []
+        );
+        logger.info(`[AddBook] Detected book type: ${normalizedData.bookType}`);
+      }
+
+      // Add 'score' tag for music scores
+      if (normalizedData.bookType === 'score') {
+        const currentTags = normalizedData.tags || [];
+        if (!currentTags.includes('score')) {
+          normalizedData.tags = [...currentTags, 'score'];
+          logger.info(`[AddBook] Added 'score' tag for music score`);
+        }
       }
 
       return await Book.create(normalizedData);
@@ -273,7 +292,7 @@ class BookService {
   // ============================================
 
   async getAutocompleteSuggestions(field, value) {
-    const allowedFields = ['title', 'author', 'series', 'publisher', 'genre', 'tag', 'owner', 'title_status'];
+    const allowedFields = ['title', 'author', 'series', 'publisher', 'genre', 'tag', 'owner', 'title_status', 'type', 'book_type'];
     if (!allowedFields.includes(field)) {
       throw new Error(`Invalid field: ${field}`);
     }
@@ -284,6 +303,19 @@ class BookService {
         status.toLowerCase().includes((value || '').toLowerCase())
       );
       return matches.map(status => ({ title_status: status }));
+    }
+    
+    if (field === 'type' || field === 'book_type') {
+      const typeOptions = [
+        { value: 'book', label: 'Book' },
+        { value: 'graphic-novel', label: 'Graphic Novel' },
+        { value: 'score', label: 'Score' }
+      ];
+      const matches = typeOptions.filter(opt => 
+        opt.value.toLowerCase().includes((value || '').toLowerCase()) ||
+        opt.label.toLowerCase().includes((value || '').toLowerCase())
+      );
+      return matches.map(opt => ({ type: opt.value, book_type: opt.value }));
     }
     
     try {

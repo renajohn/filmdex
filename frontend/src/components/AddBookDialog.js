@@ -32,9 +32,46 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   // Quick add options
   const [quickAddOwner, setQuickAddOwner] = useState('');
   const [quickAddTitleStatus, setQuickAddTitleStatus] = useState('owned');
+  const [quickAddBookType, setQuickAddBookType] = useState('book');
   const [availableOwners, setAvailableOwners] = useState([]);
   const [showOwnerDropdown, setShowOwnerDropdown] = useState(false);
   const [filteredOwners, setFilteredOwners] = useState([]);
+  
+  // Detect book type from ISBN and genres
+  const detectBookType = (isbn, genres = []) => {
+    const genreList = Array.isArray(genres) ? genres : [];
+    
+    // Check for music score by ISBN (ISMN starts with 9790)
+    const cleanIsbn = (isbn || '').replace(/[-\s]/g, '');
+    if (cleanIsbn.startsWith('9790')) {
+      return 'score';
+    }
+    
+    // Check genres for music or comics patterns
+    for (const genre of genreList) {
+      if (!genre || typeof genre !== 'string') continue;
+      const genreLower = genre.toLowerCase();
+      
+      // Check for music score
+      if (genreLower.includes('music /') || genreLower.startsWith('music/')) {
+        return 'score';
+      }
+      
+      // Check for graphic novel / comics
+      if (
+        genreLower.includes('comics & graphic novels') ||
+        genreLower.includes('bandes dessinées') ||
+        genreLower.includes('comic strips') ||
+        genreLower.includes('manga') ||
+        genreLower.includes('/manga/') ||
+        genreLower.includes('graphic novel')
+      ) {
+        return 'graphic-novel';
+      }
+    }
+    
+    return 'book';
+  };
   
   const isbnInputRef = useRef(null);
   const titleInputRef = useRef(null);
@@ -88,6 +125,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       // Reset quick add options
       setQuickAddOwner('');
       setQuickAddTitleStatus('owned');
+      setQuickAddBookType('book');
       setShowOwnerDropdown(false);
       setFilteredOwners([]);
     }
@@ -394,25 +432,32 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       }
       
       // Prepare book data for saving
+      const genres = enrichedBook.genres || book.genres || [];
+      const isbn13 = enrichedBook.isbn13 || book.isbn13 || '';
+      
+      // Use explicitly selected bookType, or auto-detect from ISBN/genres
+      const bookType = quickAddBookType !== 'book' ? quickAddBookType : detectBookType(isbn13, genres);
+      
       const bookData = {
         title: enrichedBook.title || book.title,
         subtitle: enrichedBook.subtitle || book.subtitle || '',
         authors: enrichedBook.authors || book.authors || [],
         isbn: enrichedBook.isbn || book.isbn || '',
-        isbn13: enrichedBook.isbn13 || book.isbn13 || '',
+        isbn13: isbn13,
         publisher: enrichedBook.publisher || book.publisher || '',
         publishedYear: enrichedBook.publishedYear || book.publishedYear || '',
         language: enrichedBook.language || book.language || '',
         format: 'physical',
         series: enrichedBook.series || book.series || '',
         seriesNumber: enrichedBook.seriesNumber || book.seriesNumber || '',
-        genres: enrichedBook.genres || book.genres || [],
+        genres: genres,
         pageCount: enrichedBook.pageCount || book.pageCount || '',
         description: enrichedBook.description || book.description || '',
         coverUrl: enrichedBook.coverUrl || book.coverUrl || '',
         availableCovers: enrichedBook.availableCovers || book.availableCovers || [],
         urls: enrichedBook.urls || book.urls || {},
         titleStatus: quickAddTitleStatus || defaultTitleStatus || 'owned',
+        bookType: bookType,
         owner: quickAddOwner || ''
       };
       
@@ -1014,14 +1059,58 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                           )}
                         </div>
                         
-                        {hasMultipleEditions && (
+                        {hasMultipleEditions ? (
                           <div className="group-toggle">
                             {isExpanded ? <BsChevronDown size={20} /> : <BsChevronRight size={20} />}
+                          </div>
+                        ) : (
+                          <div className="header-buttons">
+                            <Button
+                              size="sm"
+                              variant="success"
+                              className="quick-add-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQuickAdd(group.books[0]);
+                              }}
+                              disabled={quickAdding || enriching}
+                            >
+                              {quickAdding ? (
+                                <>
+                                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                  Adding...
+                                </>
+                              ) : (
+                                <>
+                                  <BsPlus className="me-1" />
+                                  Quick Add
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline-secondary"
+                              className="select-book-btn-header"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectBook(group.books[0], group.books, 0, groupIndex);
+                              }}
+                              disabled={enriching || quickAdding}
+                            >
+                              {enriching && enrichingBookIndex === `group-${groupIndex}-book-0` ? (
+                                <>
+                                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                  Loading...
+                                </>
+                              ) : (
+                                'Edit First'
+                              )}
+                            </Button>
                           </div>
                         )}
                       </div>
                       
-                      {/* Quick add controls on separate line for single editions */}
+                      {/* Quick add options on separate line for single editions */}
                       {!hasMultipleEditions && (
                         <div className="book-action-buttons">
                           <div className="quick-add-options">
@@ -1073,49 +1162,19 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                                 <option value="borrowed">Borrowed</option>
                               </Form.Select>
                             </div>
-                          </div>
-                          <div className="quick-add-buttons">
-                            <Button
-                              size="sm"
-                              variant="success"
-                              className="quick-add-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleQuickAdd(group.books[0]);
-                              }}
-                              disabled={quickAdding || enriching}
-                            >
-                              {quickAdding ? (
-                                <>
-                                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                                  Adding...
-                                </>
-                              ) : (
-                                <>
-                                  <BsPlus className="me-1" />
-                                  Quick Add
-                                </>
-                              )}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline-secondary"
-                              className="select-book-btn-header"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSelectBook(group.books[0], group.books, 0, groupIndex);
-                              }}
-                              disabled={enriching || quickAdding}
-                            >
-                              {enriching && enrichingBookIndex === `group-${groupIndex}-book-0` ? (
-                                <>
-                                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                                  Loading...
-                                </>
-                              ) : (
-                                'Edit First'
-                              )}
-                            </Button>
+                            <div className="quick-add-field">
+                              <label>Type</label>
+                              <Form.Select
+                                size="sm"
+                                value={detectBookType(group.books[0]?.isbn13, group.books[0]?.genres)}
+                                onChange={(e) => setQuickAddBookType(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <option value="book">Book</option>
+                                <option value="graphic-novel">Graphic Novel</option>
+                                <option value="score">Score</option>
+                              </Form.Select>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -1181,42 +1240,25 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                                     </td>
                                     <td>{book.pageCount || '-'}</td>
                                     <td>
-                                      <div className="d-flex gap-1">
-                                        <Button
-                                          size="sm"
-                                          variant="success"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleQuickAdd(book);
-                                          }}
-                                          disabled={quickAdding || enriching}
-                                          style={{ backgroundColor: '#22c55e', borderColor: '#16a34a', color: '#fff' }}
-                                          title="Add immediately with this metadata"
-                                        >
-                                          {quickAdding ? (
-                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                          ) : (
-                                            <BsPlus size={16} />
-                                          )}
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="outline-secondary"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleSelectBook(book, group.books, bookIndex, groupIndex);
-                                          }}
-                                          disabled={enriching || quickAdding}
-                                          title="Edit metadata before adding"
-                                          style={{ borderColor: 'rgba(255,255,255,0.3)', color: '#ccc' }}
-                                        >
-                                          {enriching && enrichingBookIndex === `group-${groupIndex}-book-${bookIndex}` ? (
-                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                          ) : (
-                                            'Edit'
-                                          )}
-                                        </Button>
-                                      </div>
+                                      <Button
+                                        size="sm"
+                                        variant="outline-warning"
+                                        className="select-book-btn"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleSelectBook(book, group.books, bookIndex, groupIndex);
+                                        }}
+                                        disabled={enriching}
+                                      >
+                                        {enriching && enrichingBookIndex === `group-${groupIndex}-book-${bookIndex}` ? (
+                                          <>
+                                            <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                            Loading...
+                                          </>
+                                        ) : (
+                                          'Select'
+                                        )}
+                                      </Button>
                                     </td>
                                   </tr>
                                 );
@@ -1232,94 +1274,38 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
             </div>
           )}
 
-          {/* Simple list view for non-grouped results (fallback) */}
-          {groupedResults.length === 0 && searchResults.length > 0 && (
-            <div className="search-results">
-              <h6 className="results-title">Search Results ({searchResults.length})</h6>
-              <div className="results-list">
-                {searchResults.map((book, index) => (
-                  <div 
-                    key={index} 
-                    className="result-item"
-                    onClick={() => !enriching && handleSelectBook(book, null, null, null, index)}
-                    style={{ 
-                      opacity: enriching && enrichingBookIndex === `list-${index}` ? 0.6 : enriching ? 0.5 : 1,
-                      cursor: enriching ? 'not-allowed' : 'pointer',
-                      position: 'relative'
-                    }}
-                  >
-                    {enriching && enrichingBookIndex === `list-${index}` && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        zIndex: 10,
-                        backgroundColor: 'rgba(30, 30, 30, 0.95)',
-                        padding: '20px 30px',
-                        borderRadius: '8px',
-                        border: '2px solid #fbbf24',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '10px'
-                      }}>
-                        <div className="spinner-border text-warning" role="status" style={{ color: '#fbbf24', width: '2rem', height: '2rem' }}>
-                          <span className="visually-hidden">Loading...</span>
-                        </div>
-                        <div style={{ color: '#fbbf24', fontWeight: '600' }}>Enriching book metadata...</div>
-                      </div>
-                    )}
-                    <div className="result-cover">
-                      {book.coverUrl ? (
-                        <img src={book.coverUrl} alt={book.title} />
-                      ) : (
-                        <div className="result-cover-placeholder">
-                          <BsBook size={24} />
-                        </div>
-                      )}
-                    </div>
-                    <div className="result-info">
-                      <div className="result-title">{book.title}</div>
-                      {book.subtitle && (
-                        <div className="result-subtitle">{book.subtitle}</div>
-                      )}
-                      {book.authors && book.authors.length > 0 && (
-                        <div className="result-author">
-                          by {Array.isArray(book.authors) ? book.authors.join(', ') : book.authors}
-                        </div>
-                      )}
-                      <div className="result-meta">
-                        {book.language && (
-                          <Badge bg={getLanguageBadgeVariant(book.language)} className="me-2">
-                            {getLanguageDisplay(book.language)}
-                          </Badge>
-                        )}
-                        {book.publishedYear && <span>{book.publishedYear}</span>}
-                        {book.publisher && <span>{book.publisher}</span>}
-                        {book.isbn && <span>ISBN: {book.isbn}</span>}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            {/* Manual Entry Option */}
+            {!searching && searchResults.length === 0 && (searchIsbn || searchTitle || searchAuthor) && (
+              <div className="manual-entry-section">
+                <p className="text-muted">Can't find what you're looking for?</p>
+                <Button 
+                  variant="outline-warning" 
+                  onClick={handleManualEntry}
+                  className="manual-entry-btn"
+                >
+                  <BsPlus className="me-1" />
+                  Enter Book Manually
+                </Button>
               </div>
-            </div>
-          )}
-        </div>
-
-        <div className="manual-entry-section">
+            )}
+          </div>
+        </Modal.Body>
+        
+        <Modal.Footer className="add-book-dialog-footer">
+          <Button variant="secondary" onClick={handleClose}>
+            Close
+          </Button>
           <Button 
-            variant="outline-secondary" 
+            variant="outline-warning" 
             onClick={handleManualEntry}
             className="manual-entry-btn"
           >
-            <BsPlus className="me-2" />
-            Add Manually
+            <BsPlus className="me-1" />
+            Enter Manually
           </Button>
-        </div>
-      </Modal.Body>
-    </Modal>
-  );
-};
+        </Modal.Footer>
+      </Modal>
+    );
+  }
 
 export default AddBookDialog;

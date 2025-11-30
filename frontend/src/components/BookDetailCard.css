@@ -1026,6 +1026,55 @@
   margin-bottom: 0;
 }
 
+/* Inline book type select - styled to look like text, exact width */
+.inline-book-type-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed rgba(251, 191, 36, 0.5);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: inherit;
+  font-family: inherit;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  outline: none;
+  transition: width 0.15s ease, border-bottom-color 0.2s ease, color 0.2s ease;
+  min-width: 0;
+  text-align: left;
+}
+
+.inline-book-type-select:hover {
+  border-bottom-color: #fbbf24;
+  color: #fbbf24;
+}
+
+/* Expand to show all options when focused/open */
+.inline-book-type-select:focus {
+  border-bottom-color: #fbbf24;
+  border-bottom-style: solid;
+  color: #fbbf24;
+  width: auto !important;
+  min-width: 10ch;
+}
+
+.inline-book-type-select option {
+  background-color: #2a2a2a;
+  color: rgba(255, 255, 255, 0.9);
+  padding: 0.5rem;
+}
+
+.inline-book-type-select:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.metadata-with-type {
+  display: inline;
+}
+
 .book-rating-section,
 .book-owner-section {
   margin-bottom: 0.75rem;

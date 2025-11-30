@@ -344,6 +344,31 @@ const bookController = {
     }
   },
 
+  // Re-enrich an existing book by ID
+  reEnrichBook: async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      if (!id) {
+        return res.status(400).json({ error: 'Book ID is required' });
+      }
+      
+      const book = await bookService.getBookById(id);
+      if (!book) {
+        return res.status(404).json({ error: 'Book not found' });
+      }
+      
+      const enrichedBook = await bookService.enrichBook(book);
+      
+      // Update the book with enriched data
+      const updatedBook = await bookService.updateBook(id, enrichedBook);
+      res.json(updatedBook);
+    } catch (error) {
+      console.error('Error re-enriching book:', error);
+      res.status(500).json({ error: 'Failed to re-enrich book' });
+    }
+  },
+
   // Upload custom cover for a book
   uploadCustomCover: async (req, res) => {
     try {

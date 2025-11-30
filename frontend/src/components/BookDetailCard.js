@@ -127,6 +127,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
   const [seriesSuggestions, setSeriesSuggestions] = useState([]);
   const [showSeriesSuggestions, setShowSeriesSuggestions] = useState(false);
   const [highlightedSeriesIndex, setHighlightedSeriesIndex] = useState(-1);
+  const [savingBookType, setSavingBookType] = useState(false);
   const coverRef = useRef(null);
   const ownerInputRef = useRef(null);
   const seriesInputRef = useRef(null);
@@ -399,6 +400,33 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
     setOwnerSuggestions([]);
     setShowOwnerSuggestions(false);
     setHighlightedOwnerIndex(-1);
+  };
+
+  // Book type change handler - saves immediately on dropdown change
+  const handleBookTypeChange = async (newBookType) => {
+    if (savingBookType || newBookType === currentBook.bookType) return;
+    
+    setSavingBookType(true);
+    const previousBookType = currentBook.bookType;
+    
+    // Optimistic update
+    setLocalBookData(prev => ({ ...prev, bookType: newBookType }));
+    
+    try {
+      await bookService.updateBook(currentBook.id, { 
+        ...currentBook,
+        bookType: newBookType 
+      });
+      if (onBookUpdated) {
+        onBookUpdated({ ...currentBook, bookType: newBookType });
+      }
+    } catch (error) {
+      console.error('Error updating book type:', error);
+      // Rollback on error
+      setLocalBookData(prev => ({ ...prev, bookType: previousBookType }));
+    } finally {
+      setSavingBookType(false);
+    }
   };
 
   // Series editing handlers
@@ -800,58 +828,119 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
     }
   };
 
-  const formatBookMetadata = () => {
+  // Get book type display name
+  const getBookTypeDisplayName = (bookType) => {
+    const typeMap = {
+      'book': 'book',
+      'graphic-novel': 'graphic novel',
+      'score': 'score'
+    };
+    return typeMap[bookType] || 'book';
+  };
+
+  // Get language display name
+  const getLanguageDisplayName = (language) => {
+    if (!language) return null;
+    const langMap = {
+      'fr': 'French',
+      'en': 'English',
+      'de': 'German',
+      'es': 'Spanish',
+      'it': 'Italian',
+      'pt': 'Portuguese',
+      'ru': 'Russian',
+      'ja': 'Japanese',
+      'zh': 'Chinese',
+      'ko': 'Korean'
+    };
+    return langMap[language.toLowerCase()] || language.toUpperCase();
+  };
+
+  // Render metadata with inline book type dropdown
+  // Format: "96-page French graphic novel." or "96-page French graphic novel (e-book)."
+  const renderBookMetadata = () => {
     const bookData = currentBook || book;
-    const parts = [];
+    const pages = bookData.pageCount || null;
+    const langName = getLanguageDisplayName(bookData.language);
+    const format = bookData.format || 'physical';
+    const bookType = bookData.bookType || 'book';
+    const isNonPhysical = format === 'ebook' || format === 'audiobook';
     
-    // Language
-    let langName = null;
-    if (bookData.language) {
-      const langMap = {
-        'fr': 'French',
-        'en': 'English',
-        'de': 'German',
-        'es': 'Spanish',
-        'it': 'Italian',
-        'pt': 'Portuguese',
-        'ru': 'Russian',
-        'ja': 'Japanese',
-        'zh': 'Chinese',
-        'ko': 'Korean'
-      };
-      langName = langMap[bookData.language.toLowerCase()] || bookData.language.toUpperCase();
+    // Build prefix: "96-page French " or "French " or "96-page " or ""
+    let prefix = '';
+    if (pages) {
+      prefix = `${pages}-page `;
+    }
+    if (langName) {
+      prefix += `${langName} `;
     }
     
-    // Format
-    const format = bookData.format || null;
+    // Capitalize first letter of prefix if present
+    if (prefix) {
+      prefix = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+    }
+
+    // Format suffix for non-physical formats
+    const formatSuffix = isNonPhysical 
+      ? ` (${format === 'ebook' ? 'e-book' : 'audiobook'})`
+      : '';
+
+    // Determine if we need to capitalize the dropdown options (when there's no prefix)
+    const capitalizeOptions = !prefix;
     
-    // Pages
+    // Get display text for current selection to size the select
+    const getDisplayText = (type) => {
+      const texts = {
+        'book': capitalizeOptions ? 'Book' : 'book',
+        'graphic-novel': capitalizeOptions ? 'Graphic novel' : 'graphic novel',
+        'score': capitalizeOptions ? 'Score' : 'score'
+      };
+      return texts[type] || texts['book'];
+    };
+    
+    // Calculate width to exactly fit the text
+    const selectWidth = `calc(${getDisplayText(bookType).length}ch + 2px)`;
+    
+    return (
+      <span className="metadata-with-type">
+        {prefix}
+        <select
+          className="inline-book-type-select"
+          value={bookType}
+          onChange={(e) => handleBookTypeChange(e.target.value)}
+          disabled={savingBookType}
+          onClick={(e) => e.stopPropagation()}
+          style={{ width: selectWidth }}
+        >
+          <option value="book">{capitalizeOptions ? 'Book' : 'book'}</option>
+          <option value="graphic-novel">{capitalizeOptions ? 'Graphic novel' : 'graphic novel'}</option>
+          <option value="score">{capitalizeOptions ? 'Score' : 'score'}</option>
+        </select>
+        {formatSuffix}.
+      </span>
+    );
+  };
+
+  // Legacy function for compatibility - returns string only
+  const formatBookMetadata = () => {
+    const bookData = currentBook || book;
     const pages = bookData.pageCount || null;
+    const langName = getLanguageDisplayName(bookData.language);
+    const bookType = getBookTypeDisplayName(bookData.bookType || 'book');
+    const format = bookData.format || 'physical';
+    const isNonPhysical = format === 'ebook' || format === 'audiobook';
     
-    // Build the sentence naturally
     let sentence = '';
+    if (pages) {
+      sentence = `${pages}-page `;
+    }
+    if (langName) {
+      sentence += `${langName} `;
+    }
+    sentence += bookType;
     
-    if (pages && (langName || format)) {
-      // "88-page French physical book" or "88-page physical book" or "88-page French book"
-      const pageDesc = `${pages}-page`;
-      const descParts = [];
-      if (langName) descParts.push(langName);
-      if (format) descParts.push(format);
-      descParts.push('book');
-      sentence = `${pageDesc} ${descParts.join(' ')}`;
-    } else if (langName || format) {
-      // "French physical book" or "physical book" or "French book"
-      const descParts = [];
-      if (langName) descParts.push(langName);
-      if (format) descParts.push(format);
-      descParts.push('book');
-      sentence = descParts.join(' ');
-      if (pages) {
-        sentence += ` (${pages} page${pages !== 1 ? 's' : ''})`;
-      }
-    } else if (pages) {
-      // Just pages: "88-page book"
-      sentence = `${pages}-page book`;
+    if (isNonPhysical) {
+      sentence += ` (${format === 'ebook' ? 'e-book' : 'audiobook'})`;
     }
     
     return sentence ? sentence.charAt(0).toUpperCase() + sentence.slice(1) : '';
@@ -1384,13 +1473,11 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                     />
                   )}
                   
-                  {(currentBook.language || currentBook.format || currentBook.pageCount || currentBook.publishedYear) && (
+                  {(currentBook.language || currentBook.format || currentBook.pageCount || currentBook.publishedYear || currentBook.bookType) && (
                     <div className="book-metadata-summary">
-                      {formatBookMetadata() && (
-                        <div className="metadata-summary-line">
-                          {formatBookMetadata()}.
-                        </div>
-                      )}
+                      <div className="metadata-summary-line">
+                        {renderBookMetadata()}
+                      </div>
                       {currentBook.publishedYear && (
                         <div className="metadata-summary-line">
                           Published in {currentBook.publishedYear}.
@@ -2084,13 +2171,11 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                 )
               )}
             
-              {(book.language || book.format || book.pageCount || book.publishedYear) && (
+              {(book.language || book.format || book.pageCount || book.publishedYear || book.bookType) && (
                 <div className="book-metadata-summary">
-                  {formatBookMetadata() && (
-                    <div className="metadata-summary-line">
-                      {formatBookMetadata()}.
-                    </div>
-                  )}
+                  <div className="metadata-summary-line">
+                    {renderBookMetadata()}
+                  </div>
                   {book.publishedYear && (
                     <div className="metadata-summary-line">
                       Published in {book.publishedYear}.

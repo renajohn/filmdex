@@ -264,6 +264,51 @@ function cleanDescription(description) {
   return removeSurroundingQuotes(cleaned);
 }
 
+/**
+ * Detect book type based on ISBN and genres
+ * Returns 'score', 'graphic-novel', or 'book'
+ * 
+ * Detection logic:
+ * - Score: ISBN13 starts with 9790 (ISMN) OR genres contain "Music /"
+ * - Graphic Novel: genres contain "Comics & Graphic Novels", "Manga", "Bandes dessinées", or "Comic Strips"
+ * - Book: default
+ */
+function detectBookType(isbn, genres = []) {
+  // Ensure genres is an array
+  const genreList = Array.isArray(genres) ? genres : [];
+  
+  // 1. Check for music score by ISBN (ISMN)
+  if (isMusicScore(isbn)) {
+    return 'score';
+  }
+  
+  // 2. Check genres for music or comics patterns
+  for (const genre of genreList) {
+    if (!genre || typeof genre !== 'string') continue;
+    const genreLower = genre.toLowerCase();
+    
+    // Check for music score
+    if (genreLower.includes('music /') || genreLower.startsWith('music/')) {
+      return 'score';
+    }
+    
+    // Check for graphic novel / comics
+    if (
+      genreLower.includes('comics & graphic novels') ||
+      genreLower.includes('bandes dessinées') ||
+      genreLower.includes('comic strips') ||
+      genreLower.includes('manga') ||
+      genreLower.includes('/manga/') ||
+      genreLower.includes('graphic novel')
+    ) {
+      return 'graphic-novel';
+    }
+  }
+  
+  // Default to book
+  return 'book';
+}
+
 module.exports = {
   removeSurroundingQuotes,
   normalizeArrayField,
@@ -271,6 +316,7 @@ module.exports = {
   normalizeSeriesName,
   extractSeriesFromTitle,
   isMusicScore,
+  detectBookType,
   isbn13ToIsbn10,
   isNetworkError,
   cleanDescription,

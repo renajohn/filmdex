@@ -94,6 +94,76 @@ const runAutoMigrations = async () => {
         });
         console.log(`  ✓ Reset watch_count to 0 for ${result} movies without last_watched date`);
       }
+    },
+    {
+      name: '012_add_book_type',
+      up: async () => {
+        // Check if column exists
+        const columns = await new Promise((resolve, reject) => {
+          db.all(`PRAGMA table_info(books)`, (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows);
+          });
+        });
+        
+        if (!columns.some(col => col.name === 'book_type')) {
+          // Add book_type column with default 'book'
+          await new Promise((resolve, reject) => {
+            db.run(`ALTER TABLE books ADD COLUMN book_type TEXT DEFAULT 'book' CHECK(book_type IN ('book', 'graphic-novel', 'score'))`, (err) => {
+              if (err && !err.message.includes('duplicate column')) reject(err);
+              else resolve();
+            });
+          });
+          console.log('  ✓ Added book_type column to books table');
+          
+          // Smart backfill based on ISBN and genres
+          // 1. Music scores: ISBN13 starts with 9790 (ISMN) OR genres contain "Music /"
+          const scoresByIsbn = await new Promise((resolve, reject) => {
+            db.run(`
+              UPDATE books 
+              SET book_type = 'score' 
+              WHERE isbn13 LIKE '9790%'
+            `, function(err) {
+              if (err) reject(err);
+              else resolve(this.changes);
+            });
+          });
+          console.log(`  ✓ Backfilled ${scoresByIsbn} books as 'score' (by ISMN)`);
+          
+          const scoresByGenre = await new Promise((resolve, reject) => {
+            db.run(`
+              UPDATE books 
+              SET book_type = 'score' 
+              WHERE book_type = 'book' 
+                AND genres LIKE '%Music /%'
+            `, function(err) {
+              if (err) reject(err);
+              else resolve(this.changes);
+            });
+          });
+          console.log(`  ✓ Backfilled ${scoresByGenre} books as 'score' (by Music genre)`);
+          
+          // 2. Graphic novels: genres contain comic-related patterns
+          const graphicNovels = await new Promise((resolve, reject) => {
+            db.run(`
+              UPDATE books 
+              SET book_type = 'graphic-novel' 
+              WHERE book_type = 'book' 
+                AND (
+                  genres LIKE '%Comics & Graphic Novels%'
+                  OR genres LIKE '%Bandes dessinées%'
+                  OR genres LIKE '%bandes dessinées%'
+                  OR genres LIKE '%Comic Strips%'
+                  OR genres LIKE '%Manga%'
+                )
+            `, function(err) {
+              if (err) reject(err);
+              else resolve(this.changes);
+            });
+          });
+          console.log(`  ✓ Backfilled ${graphicNovels} books as 'graphic-novel'`);
+        }
+      }
     }
   ];
   

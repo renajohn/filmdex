@@ -158,6 +158,11 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
                 });
               }
               
+              // Copy bookType from template book (series volumes share the same type)
+              if (templateBook?.bookType) {
+                enriched.bookType = templateBook.bookType;
+              }
+              
               return { success: true, data: enriched };
             } catch (err) {
               console.warn(`Failed to enrich volume ${volume.seriesNumber}:`, err);
@@ -181,6 +186,11 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
                 if (templateBook.borrowedNotes) {
                   volumeWithOwner.borrowedNotes = templateBook.borrowedNotes;
                 }
+              }
+              
+              // Copy bookType from template book (series volumes share the same type)
+              if (templateBook?.bookType) {
+                volumeWithOwner.bookType = templateBook.bookType;
               }
               return { success: false, data: volumeWithOwner };
             }

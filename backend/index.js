@@ -246,6 +246,7 @@ app.put('/api/books/comments/:id', bookCommentController.updateComment);
 app.delete('/api/books/comments/:id', bookCommentController.deleteComment);
 app.get('/api/books/:bookId/comments', bookCommentController.getCommentsByBookId); // Must come after /comments/:id
 
+app.post('/api/books/:id/re-enrich', bookController.reEnrichBook); // Must come before generic /:id route
 app.get('/api/books/:id', bookController.getBookById);
 app.put('/api/books/:id', bookController.updateBook);
 app.put('/api/books/:id/status', bookController.updateBookStatus);

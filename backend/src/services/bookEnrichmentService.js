@@ -186,7 +186,7 @@ class BookEnrichmentService {
     
     let enriched = { ...bookData };
     
-    // Check for Amazon URLs and extract ASIN for cover
+    // Check for Amazon URLs and extract ASIN for cover, and ISBN for enrichment
     if (bookData.urls) {
       const amazonUrl = bookData.urls.amazon || bookData.urls.amazonUrl;
       if (amazonUrl) {
@@ -196,6 +196,23 @@ class BookEnrichmentService {
           const asinCovers = bookCoverService.generateAmazonCoversFromAsin(asin);
           enriched.availableCovers = [...(enriched.availableCovers || []), ...asinCovers];
           enriched.asin = asin;
+          
+          // If we don't have an ISBN, try to scrape it from Amazon page for better enrichment
+          if (!enriched.isbn && !enriched.isbn13) {
+            try {
+              const scrapedIsbn = await this._scrapeAmazonIsbn(amazonUrl);
+              if (scrapedIsbn) {
+                logger.info(`[Enrichment] Scraped ISBN ${scrapedIsbn} from Amazon page`);
+                if (scrapedIsbn.length === 13) {
+                  enriched.isbn13 = scrapedIsbn;
+                } else {
+                  enriched.isbn = scrapedIsbn;
+                }
+              }
+            } catch (error) {
+              logger.warn(`[Enrichment] Failed to scrape ISBN from Amazon: ${error.message}`);
+            }
+          }
         }
       }
     }
@@ -487,23 +504,53 @@ class BookEnrichmentService {
     }
     
     // Try Google Books first
+    let results = [];
     try {
       const googleResults = await bookApiService.searchGoogleBooks(
         searchQuery, limit, { title: finalTitle, author: finalAuthor, language }
       );
-      if (googleResults?.length > 0) return addAmazonCoversToResults(googleResults);
+      if (googleResults?.length > 0) {
+        results = addAmazonCoversToResults(googleResults);
+      }
     } catch (error) {
       logger.warn(`Google Books search failed: ${error.message}`);
     }
     
-    // Fallback to OpenLibrary
-    try {
-      const results = await bookApiService.searchOpenLibrary(searchQuery, limit, language);
-      return addAmazonCoversToResults(results);
-    } catch (error) {
-      logger.error(`OpenLibrary search failed: ${error.message}`);
-      return [];
+    // Fallback to OpenLibrary if no results
+    if (results.length === 0) {
+      try {
+        const olResults = await bookApiService.searchOpenLibrary(searchQuery, limit, language);
+        if (olResults?.length > 0) {
+          results = addAmazonCoversToResults(olResults);
+        }
+      } catch (error) {
+        logger.error(`OpenLibrary search failed: ${error.message}`);
+      }
     }
+    
+    // If we have Amazon URL/ASIN, enrich the results to get genres and other metadata
+    if (amazonUrl && results.length > 0) {
+      logger.info(`[Search] Enriching ${results.length} result(s) from Amazon search`);
+      const enrichedResults = await Promise.all(
+        results.map(async (book) => {
+          try {
+            // Add Amazon URL to book data for enrichment
+            const bookWithAmazon = {
+              ...book,
+              urls: { ...book.urls, amazon: amazonUrl }
+            };
+            const enriched = await this.enrichBook(bookWithAmazon);
+            return enriched;
+          } catch (error) {
+            logger.warn(`[Search] Failed to enrich book "${book.title}": ${error.message}`);
+            return book; // Return original if enrichment fails
+          }
+        })
+      );
+      return enrichedResults;
+    }
+    
+    return results;
   }
 
   /**

@@ -354,6 +354,7 @@ const Book = {
         urls: JSON.stringify(sanitizeUrls(bookData.urls || {})),
         annotation: bookData.annotation || null,
         title_status: bookData.titleStatus || 'owned',
+        book_type: bookData.bookType || 'book',
         created_at: now,
         updated_at: now
       };
@@ -362,9 +363,9 @@ const Book = {
         INSERT INTO books (
           isbn, isbn13, title, subtitle, authors, artists, publisher, published_year,
           language, format, filetype, drm, narrator, runtime, series, series_number,
-          genres, tags, rating, cover, owner, read_date, page_count, description, urls, annotation, ebook_file, title_status,
+          genres, tags, rating, cover, owner, read_date, page_count, description, urls, annotation, ebook_file, title_status, book_type,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const params = [
@@ -372,7 +373,7 @@ const Book = {
         book.published_year, book.language, book.format, book.filetype, book.drm,
         book.narrator, book.runtime, book.series, book.series_number, book.genres,
         book.tags, book.rating, book.cover, book.owner, book.read_date, book.page_count, book.description,
-        book.urls, book.annotation, bookData.ebookFile || null, book.title_status, book.created_at, book.updated_at
+        book.urls, book.annotation, bookData.ebookFile || null, book.title_status, book.book_type, book.created_at, book.updated_at
       ];
 
       db.run(sql, params, async function(err) {
@@ -529,8 +530,8 @@ const Book = {
       let whereClauses = [];
       let titleStatusFilter = null; // Track title_status filter separately to override default
       
-      // Extract filters like title:"value" or author:"value" or artist:"value" or isbn:"value" or series:"value" or owner:"value" or format:"value" or language:"value" or subtitle:"value" or title_status:owned or year:2020 or rating:4.5 or has_ebook:true
-      const filterRegex = /(title|author|artist|isbn|series|owner|format|language|genre|tag|subtitle|title_status):"([^"]+)"|(title_status|year|rating|has_ebook):(>=|<=|>|<)?(\S+)/g;
+      // Extract filters like title:"value" or author:"value" or artist:"value" or isbn:"value" or series:"value" or owner:"value" or format:"value" or language:"value" or subtitle:"value" or type:"graphic-novel" or title_status:owned or year:2020 or rating:4.5 or has_ebook:true
+      const filterRegex = /(title|author|artist|isbn|series|owner|format|language|genre|tag|subtitle|title_status|type|book_type):"([^"]+)"|(title_status|year|rating|has_ebook|type|book_type):(>=|<=|>|<)?(\S+)/g;
       let match;
       let hasFilters = false;
       let cleanedQuery = query; // Will be cleaned of title_status filters
@@ -564,7 +565,9 @@ const Book = {
             'format': 'format',
             'language': 'language',
             'genre': 'genres',
-            'tag': 'tags'
+            'tag': 'tags',
+            'type': 'book_type',
+            'book_type': 'book_type'
           };
           const column = columnMap[field];
           
@@ -601,6 +604,16 @@ const Book = {
             whereClauses.push('ebook_file IS NOT NULL AND ebook_file != ""');
           } else if (value === 'false') {
             whereClauses.push('(ebook_file IS NULL OR ebook_file = "")');
+          }
+          // Remove this filter from the query string
+          cleanedQuery = cleanedQuery.replace(match[0], '').trim();
+        }
+        // Handle type/book_type filter without quotes (type:book, type:score, type:graphic-novel)
+        else if ((match[3] === 'type' || match[3] === 'book_type') && match[5]) {
+          const value = match[5].trim().toLowerCase();
+          if (['book', 'score', 'graphic-novel'].includes(value)) {
+            whereClauses.push('book_type = ?');
+            params.push(value);
           }
           // Remove this filter from the query string
           cleanedQuery = cleanedQuery.replace(match[0], '').trim();
@@ -753,7 +766,7 @@ const Book = {
           published_year = ?, language = ?, format = ?, filetype = ?, drm = ?,
           narrator = ?, runtime = ?, series = ?, series_number = ?, genres = ?,
           tags = ?, rating = ?, cover = ?, owner = ?, read_date = ?, page_count = ?, description = ?,
-          urls = ?, annotation = ?, ebook_file = ?, title_status = ?, updated_at = ?
+          urls = ?, annotation = ?, ebook_file = ?, title_status = ?, book_type = ?, updated_at = ?
         WHERE id = ?
       `;
 
@@ -793,6 +806,7 @@ const Book = {
         bookData.annotation || null,
         ebookFile,
         bookData.titleStatus || 'owned',
+        bookData.bookType || 'book',
         now,
         id
       ];
@@ -944,6 +958,7 @@ const Book = {
       annotation: row.annotation,
       ebookFile: row.ebook_file,
       titleStatus: row.title_status,
+      bookType: row.book_type || 'book',
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };
