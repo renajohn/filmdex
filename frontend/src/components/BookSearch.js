@@ -1241,12 +1241,14 @@ const BookSearch = forwardRef(({
           setShowAddDialog(false);
           setAddingBook(true);
         }}
-        onBookAdded={async () => {
+        onBookAdded={async (book) => {
           try {
             await loadBooks();
           } finally {
             setAddingBook(false);
             setTemplateBook(null); // Clear template after book is added
+            // Re-open dialog if it was closed but we're in "add multiple" mode
+            // The dialog component will handle keeping itself open if addMultipleBooks is true
           }
         }}
         onAddError={(err) => {

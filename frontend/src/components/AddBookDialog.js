@@ -36,6 +36,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   const [availableOwners, setAvailableOwners] = useState([]);
   const [showOwnerDropdown, setShowOwnerDropdown] = useState(false);
   const [filteredOwners, setFilteredOwners] = useState([]);
+  const [addMultipleBooks, setAddMultipleBooks] = useState(false);
   
   // Detect book type from ISBN and genres
   const detectBookType = (isbn, genres = []) => {
@@ -111,7 +112,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     }
   }, [show, searchTab]);
 
-  // Reset search fields when dialog closes
+  // Reset search fields when dialog closes (but preserve owner and book type if addMultipleBooks is true)
   useEffect(() => {
     if (!show) {
       setSearchTab('isbn');
@@ -122,14 +123,16 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       setShowMetadataForm(false);
       setSelectedBook(null);
       setSelectedBookGroup(null);
-      // Reset quick add options
-      setQuickAddOwner('');
-      setQuickAddTitleStatus('owned');
-      setQuickAddBookType('book');
+      // Only reset quick add options if not adding multiple books
+      if (!addMultipleBooks) {
+        setQuickAddOwner('');
+        setQuickAddTitleStatus('owned');
+        setQuickAddBookType('book');
+      }
       setShowOwnerDropdown(false);
       setFilteredOwners([]);
     }
-  }, [show]);
+  }, [show, addMultipleBooks]);
 
   // Filter owners based on input
   const handleOwnerInputChange = (value) => {
@@ -473,13 +476,44 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       };
       
       // Add the book
-      if (onAddStart) onAddStart();
+      // Only call onAddStart if not adding multiple books (to avoid closing dialog)
+      if (!addMultipleBooks && onAddStart) {
+        onAddStart();
+      }
       const createdBook = await onAddBook(bookData);
       
-      // Close dialog and notify success
-      handleClose();
-      if (onBookAdded) {
-        onBookAdded(createdBook);
+      // Check if we should re-open the dialog for multiple books
+      if (addMultipleBooks) {
+        // Remember owner and book type
+        // Only reset book type if it's detected in the genre
+        const genres = enrichedBook.genres || book.genres || [];
+        const detectedType = detectBookType(isbn13, genres);
+        if (detectedType !== 'book') {
+          setQuickAddBookType(detectedType);
+        }
+        // Keep the current owner and book type
+        
+        // Clear search results and reset form state, but keep dialog open
+        setSearchResults([]);
+        setGroupedResults([]);
+        setExpandedGroups(new Set());
+        setError('');
+        setSearchIsbn('');
+        setSearchTitle('');
+        setSearchAuthor('');
+        
+        // Notify success but don't close dialog
+        // Note: We need to notify parent without closing, so we'll call onBookAdded
+        // but the parent should handle keeping dialog open if needed
+        if (onBookAdded) {
+          onBookAdded(createdBook);
+        }
+      } else {
+        // Close dialog and notify success
+        handleClose();
+        if (onBookAdded) {
+          onBookAdded(createdBook);
+        }
       }
     } catch (err) {
       console.error('Quick add failed:', err);
@@ -498,7 +532,29 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     setShowMetadataForm(true);
   };
 
-  const handleClose = () => {
+  const handleClose = (forceClose = false) => {
+    // If forceClose is true or addMultipleBooks is false, close normally
+    // Otherwise, if addMultipleBooks is true, just reset the form but keep dialog open
+    if (!forceClose && addMultipleBooks && !error) {
+      // Just reset the form state but keep dialog open
+      setSearchTab('isbn');
+      setSearchQuery('');
+      setSearchIsbn('');
+      setSearchTitle('');
+      setSearchAuthor('');
+      setSearchResults([]);
+      setGroupedResults([]);
+      setExpandedGroups(new Set());
+      setError('');
+      setShowMetadataForm(false);
+      setSelectedBook(null);
+      setSelectedBookGroup(null);
+      setSearchLanguage('any'); // Reset to default
+      setShowVolumeSelector(false);
+      // Don't call onHide() - keep dialog open
+      return;
+    }
+    
     setSearchTab('isbn');
     setSearchQuery('');
     setSearchIsbn('');
@@ -513,6 +569,8 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     setSelectedBookGroup(null);
     setSearchLanguage('any'); // Reset to default
     setShowVolumeSelector(false);
+    // Reset addMultipleBooks when actually closing
+    setAddMultipleBooks(false);
     onHide();
   };
 
@@ -523,13 +581,42 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   };
 
   const handleBookAdded = (book) => {
-    setShowMetadataForm(false);
-    setSelectedBook(null);
-    setSelectedBookGroup(null);
-    onHide();
-    
-    if (onBookAdded) {
-      onBookAdded(book);
+    // Check if we should re-open the dialog for multiple books
+    if (addMultipleBooks) {
+      // Remember owner and book type
+      // Check if book type should be reset based on genre
+      const genres = book.genres || [];
+      const isbn13 = book.isbn13 || book.isbn || '';
+      const detectedType = detectBookType(isbn13, genres);
+      if (detectedType !== 'book') {
+        setQuickAddBookType(detectedType);
+      }
+      // Keep the current owner and book type
+      
+      // Clear form state but keep dialog open
+      setShowMetadataForm(false);
+      setSelectedBook(null);
+      setSelectedBookGroup(null);
+      setSearchResults([]);
+      setGroupedResults([]);
+      setExpandedGroups(new Set());
+      setError('');
+      setSearchIsbn('');
+      setSearchTitle('');
+      setSearchAuthor('');
+      
+      if (onBookAdded) {
+        onBookAdded(book);
+      }
+    } else {
+      setShowMetadataForm(false);
+      setSelectedBook(null);
+      setSelectedBookGroup(null);
+      onHide();
+      
+      if (onBookAdded) {
+        onBookAdded(book);
+      }
     }
   };
 
@@ -864,7 +951,10 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
         defaultTitleStatus={defaultTitleStatus}
         onShowAlert={onShowAlert}
         onSave={async (bookData) => {
-          if (onAddStart) onAddStart();
+          // Only call onAddStart if not adding multiple books (to avoid closing dialog)
+          if (!addMultipleBooks && onAddStart) {
+            onAddStart();
+          }
           try {
             // Ensure titleStatus is set if defaultTitleStatus is provided
             const bookDataWithStatus = defaultTitleStatus 
@@ -1306,7 +1396,15 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
         </Modal.Body>
         
         <Modal.Footer className="add-book-dialog-footer">
-          <Button variant="secondary" onClick={handleClose}>
+          <Form.Check
+            type="checkbox"
+            id="add-multiple-books"
+            label="Add multiple books"
+            checked={addMultipleBooks}
+            onChange={(e) => setAddMultipleBooks(e.target.checked)}
+            className="me-auto"
+          />
+          <Button variant="secondary" onClick={() => handleClose(true)}>
             Close
           </Button>
           <Button 

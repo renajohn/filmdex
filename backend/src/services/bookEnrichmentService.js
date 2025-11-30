@@ -448,6 +448,18 @@ class BookEnrichmentService {
         if (match && match[1]) {
           let title = match[1].trim();
           
+          // Decode HTML entities (apostrophes, quotes, etc.)
+          title = title
+            .replace(/&apos;/g, "'")
+            .replace(/&#39;/g, "'")
+            .replace(/&#x27;/g, "'")
+            .replace(/&quot;/g, '"')
+            .replace(/&#34;/g, '"')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&nbsp;/g, ' ');
+          
           // Skip invalid titles
           if (invalidTitlePatterns.some(invalid => invalid.test(title))) {
             continue;
