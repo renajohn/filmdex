@@ -1063,6 +1063,75 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                         <div className="group-info">
                           <div className="group-title">{group.title}</div>
                           <div className="group-authors">{group.authors}</div>
+                          {!hasMultipleEditions && (
+                            <div className="quick-add-options-inline">
+                              <div className="quick-add-field owner-field">
+                                <label>Belongs to</label>
+                                <div className="owner-autocomplete">
+                                  <Form.Control
+                                    ref={ownerInputRef}
+                                    size="sm"
+                                    type="text"
+                                    value={quickAddOwner}
+                                    onChange={(e) => handleOwnerInputChange(e.target.value)}
+                                    onFocus={() => {
+                                      setFilteredOwners(availableOwners);
+                                      setShowOwnerDropdown(availableOwners.length > 0);
+                                    }}
+                                    onBlur={() => setTimeout(() => setShowOwnerDropdown(false), 150)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    placeholder="Enter owner..."
+                                    autoComplete="off"
+                                  />
+                                  {showOwnerDropdown && filteredOwners.length > 0 && (
+                                    <div className="owner-dropdown">
+                                      {filteredOwners.map(owner => (
+                                        <div
+                                          key={owner}
+                                          className="owner-option"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleOwnerSelect(owner);
+                                          }}
+                                        >
+                                          {owner}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="quick-add-field">
+                                <label>Status</label>
+                                <Form.Select
+                                  size="sm"
+                                  value={quickAddTitleStatus}
+                                  onChange={(e) => setQuickAddTitleStatus(e.target.value)}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <option value="owned">Owned</option>
+                                  <option value="borrowed">Borrowed</option>
+                                </Form.Select>
+                              </div>
+                              <div className="quick-add-field">
+                                <label>Type</label>
+                                <Form.Select
+                                  size="sm"
+                                  value={quickAddBookType}
+                                  onChange={(e) => {
+                                    const newValue = e.target.value;
+                                    console.log('[AddBookDialog] User changed bookType to:', newValue);
+                                    setQuickAddBookType(newValue);
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <option value="book">Book</option>
+                                  <option value="graphic-novel">Graphic Novel</option>
+                                  <option value="score">Score</option>
+                                </Form.Select>
+                              </div>
+                            </div>
+                          )}
                           {hasMultipleEditions && (
                             <div className="group-count">
                               {group.books.length} editions
@@ -1070,127 +1139,57 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                           )}
                         </div>
                         
-                        {hasMultipleEditions ? (
+                        {hasMultipleEditions && (
                           <div className="group-toggle">
                             {isExpanded ? <BsChevronDown size={20} /> : <BsChevronRight size={20} />}
-                          </div>
-                        ) : (
-                          <div className="header-buttons">
-                            <Button
-                              size="sm"
-                              variant="success"
-                              className="quick-add-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleQuickAdd(group.books[0]);
-                              }}
-                              disabled={quickAdding || enriching}
-                            >
-                              {quickAdding ? (
-                                <>
-                                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                                  Adding...
-                                </>
-                              ) : (
-                                <>
-                                  <BsPlus className="me-1" />
-                                  Quick Add
-                                </>
-                              )}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline-secondary"
-                              className="select-book-btn-header"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSelectBook(group.books[0], group.books, 0, groupIndex);
-                              }}
-                              disabled={enriching || quickAdding}
-                            >
-                              {enriching && enrichingBookIndex === `group-${groupIndex}-book-0` ? (
-                                <>
-                                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                                  Loading...
-                                </>
-                              ) : (
-                                'Edit First'
-                              )}
-                            </Button>
                           </div>
                         )}
                       </div>
                       
-                      {/* Quick add options on separate line for single editions */}
+                      {/* Action buttons on separate line for single editions */}
                       {!hasMultipleEditions && (
                         <div className="book-action-buttons">
-                          <div className="quick-add-options">
-                            <div className="quick-add-field owner-field">
-                              <label>Belongs to</label>
-                              <div className="owner-autocomplete">
-                                <Form.Control
-                                  ref={ownerInputRef}
-                                  size="sm"
-                                  type="text"
-                                  value={quickAddOwner}
-                                  onChange={(e) => handleOwnerInputChange(e.target.value)}
-                                  onFocus={() => {
-                                    setFilteredOwners(availableOwners);
-                                    setShowOwnerDropdown(availableOwners.length > 0);
-                                  }}
-                                  onBlur={() => setTimeout(() => setShowOwnerDropdown(false), 150)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  placeholder="Enter owner..."
-                                  autoComplete="off"
-                                />
-                                {showOwnerDropdown && filteredOwners.length > 0 && (
-                                  <div className="owner-dropdown">
-                                    {filteredOwners.map(owner => (
-                                      <div
-                                        key={owner}
-                                        className="owner-option"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleOwnerSelect(owner);
-                                        }}
-                                      >
-                                        {owner}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            <div className="quick-add-field">
-                              <label>Status</label>
-                              <Form.Select
-                                size="sm"
-                                value={quickAddTitleStatus}
-                                onChange={(e) => setQuickAddTitleStatus(e.target.value)}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <option value="owned">Owned</option>
-                                <option value="borrowed">Borrowed</option>
-                              </Form.Select>
-                            </div>
-                            <div className="quick-add-field">
-                              <label>Type</label>
-                              <Form.Select
-                                size="sm"
-                                value={quickAddBookType}
-                                onChange={(e) => {
-                                  const newValue = e.target.value;
-                                  console.log('[AddBookDialog] User changed bookType to:', newValue);
-                                  setQuickAddBookType(newValue);
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <option value="book">Book</option>
-                                <option value="graphic-novel">Graphic Novel</option>
-                                <option value="score">Score</option>
-                              </Form.Select>
-                            </div>
-                          </div>
+                          <Button
+                            size="sm"
+                            variant="success"
+                            className="quick-add-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleQuickAdd(group.books[0]);
+                            }}
+                            disabled={quickAdding || enriching}
+                          >
+                            {quickAdding ? (
+                              <>
+                                <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                Adding...
+                              </>
+                            ) : (
+                              <>
+                                <BsPlus className="me-1" />
+                                Quick Add
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline-secondary"
+                            className="select-book-btn-header"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectBook(group.books[0], group.books, 0, groupIndex);
+                            }}
+                            disabled={enriching || quickAdding}
+                          >
+                            {enriching && enrichingBookIndex === `group-${groupIndex}-book-0` ? (
+                              <>
+                                <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                Loading...
+                              </>
+                            ) : (
+                              'Edit First'
+                            )}
+                          </Button>
                         </div>
                       )}
                       
