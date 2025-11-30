@@ -3,6 +3,7 @@
  * Orchestrates enrichment from multiple data sources (Google Books, OpenLibrary)
  */
 
+const axios = require('axios');
 const logger = require('../logger');
 const bookApiService = require('./bookApiService');
 const bookCoverService = require('./bookCoverService');
@@ -274,6 +275,100 @@ class BookEnrichmentService {
   /**
    * Search external APIs with fallback
    */
+  /**
+   * Try to scrape ISBN from Amazon product page
+   */
+  async _scrapeAmazonIsbn(amazonUrl) {
+    try {
+      logger.info(`[Amazon] Attempting to scrape ISBN from: ${amazonUrl}`);
+      
+      const response = await axios.get(amazonUrl, {
+        timeout: 10000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1'
+        }
+      });
+      
+      const html = response.data;
+      
+      // Multiple patterns to find ISBN-13 (various Amazon HTML structures)
+      const isbn13Patterns = [
+        // Standard product details format
+        /ISBN-13\s*[:\s]*<\/span>\s*<span[^>]*>\s*([\d-]{10,17})/i,
+        /ISBN-13\s*[:\s]*([\d-]{10,17})/i,
+        // JSON-LD format
+        /"isbn13"\s*:\s*"(\d{13})"/i,
+        /"isbn"\s*:\s*"(\d{13})"/i,
+        // Table format with just numbers after ISBN-13 text
+        /ISBN-13[^<]*<[^>]*>[^<]*<[^>]*>\s*([\d-]{10,17})/i,
+        // Generic: any 13-digit number starting with 978 or 979
+        />(\s*978[\d-]{10,14})</i,
+        />(\s*979[\d-]{10,14})</i,
+        // Data attribute format
+        /data-isbn[^"]*"(\d{13})"/i,
+        // Plain text format
+        /ISBN-13[^0-9]*(97[89][\d-]{10,14})/i,
+        // Music scores often show as ISBN even for ISMN
+        /ISBN[^0-9]*(9790[\d-]{9,13})/i
+      ];
+      
+      for (const pattern of isbn13Patterns) {
+        const match = html.match(pattern);
+        if (match) {
+          const isbn = match[1].replace(/[-\s]/g, '');
+          if (isbn.length >= 10 && isbn.length <= 13) {
+            logger.info(`[Amazon] Found ISBN-13/ISMN: ${isbn}`);
+            return isbn;
+          }
+        }
+      }
+      
+      // Look for ISBN-10
+      const isbn10Patterns = [
+        /ISBN-10\s*[:\s]*<\/span>\s*<span[^>]*>\s*(\d{9}[\dX])/i,
+        /ISBN-10\s*[:\s]*(\d{9}[\dX])/i,
+        /"isbn10"\s*:\s*"(\d{9}[\dX])"/i,
+        /ISBN-10[^<]*<[^>]*>[^<]*<[^>]*>\s*(\d{9,13})/i,
+        /ISBN-10[^0-9]*(\d{9,13})/i
+      ];
+      
+      for (const pattern of isbn10Patterns) {
+        const match = html.match(pattern);
+        if (match) {
+          const isbn = match[1].replace(/[-\s]/g, '');
+          logger.info(`[Amazon] Found ISBN-10: ${isbn}`);
+          return isbn;
+        }
+      }
+      
+      // Look for ISMN explicitly labeled
+      const ismnPatterns = [
+        /ISMN\s*[:\s]*(979[-\s]?0[-\s]?[\d-]{7,12})/i,
+        /ISMN[^0-9]*(9790[\d-]{9,13})/i
+      ];
+      
+      for (const pattern of ismnPatterns) {
+        const match = html.match(pattern);
+        if (match) {
+          const ismn = match[1].replace(/[-\s]/g, '');
+          logger.info(`[Amazon] Found ISMN: ${ismn}`);
+          return ismn;
+        }
+      }
+      
+      logger.info(`[Amazon] No ISBN/ISMN found on page`);
+      return null;
+    } catch (error) {
+      logger.warn(`[Amazon] Failed to scrape page: ${error.message}`);
+      return null;
+    }
+  }
+
   async searchExternalBooks(query, filters = {}) {
     const { isbn, asin, amazonUrl, author, title, limit = 20, language = 'any' } = filters;
     
@@ -288,13 +383,19 @@ class BookEnrichmentService {
       logger.info(`[Search] Amazon ASIN detected: ${asin}`);
       amazonCovers = bookCoverService.generateAmazonCoversFromAsin(asin);
       
-      // Try to extract ISBN from Amazon URL parameters
+      // Try to extract ISBN from Amazon URL parameters first
       if (amazonUrl) {
         const isbnMatch = amazonUrl.match(/ISBN[%3A:]+(\d{10,13}|\d{3}[-\s]?\d[-\s]?\d{3,4}[-\s]?\d{4,5}[-\s]?\d)/i);
         if (isbnMatch) {
           const extractedIsbn = isbnMatch[1].replace(/[-\s]/g, '');
-          logger.info(`[Search] Extracted ISBN from Amazon URL: ${extractedIsbn}`);
+          logger.info(`[Search] Extracted ISBN from Amazon URL params: ${extractedIsbn}`);
           filters.isbn = extractedIsbn;
+        } else {
+          // Try to scrape ISBN from Amazon page
+          const scrapedIsbn = await this._scrapeAmazonIsbn(amazonUrl);
+          if (scrapedIsbn) {
+            filters.isbn = scrapedIsbn;
+          }
         }
       }
     }
@@ -368,6 +469,21 @@ class BookEnrichmentService {
     } else if (query?.trim()) {
       searchQuery = query.trim();
       finalTitle = query.trim();
+    }
+    
+    // If we have no search query but have Amazon ASIN, return placeholder
+    if (!searchQuery && amazonCovers.length > 0) {
+      logger.info(`[Search] No search query but ASIN available, returning placeholder`);
+      return [{
+        title: 'Unknown Title (from Amazon)',
+        authors: [],
+        asin: asin,
+        coverUrl: amazonCovers[0]?.url,
+        availableCovers: amazonCovers,
+        urls: { amazon: amazonUrl },
+        _fromAsin: true,
+        _needsManualEntry: true
+      }];
     }
     
     // Try Google Books first
