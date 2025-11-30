@@ -7,7 +7,7 @@ const axios = require('axios');
 const logger = require('../logger');
 const bookApiService = require('./bookApiService');
 const bookCoverService = require('./bookCoverService');
-const { normalizeTitle, extractSeriesFromTitle } = require('./utils/bookUtils');
+const { normalizeTitle, extractSeriesFromTitle, cleanDescription } = require('./utils/bookUtils');
 
 class BookEnrichmentService {
   /**
@@ -247,6 +247,15 @@ class BookEnrichmentService {
               } else if (scrapedMetadata.title && !shouldScrapeTitle) {
                 logger.info(`[Enrichment] Preserving original title "${originalTitle}" (scraped title "${scrapedMetadata.title}" ignored)`);
               }
+              // Use scraped description if available and we don't have one or it's longer
+              if (scrapedMetadata.description) {
+                const currentLen = (enriched.description || '').length;
+                const newLen = scrapedMetadata.description.length;
+                if (!enriched.description || newLen > currentLen * 1.2) {
+                  enriched.description = scrapedMetadata.description;
+                  logger.info(`[Enrichment] Using scraped description from Amazon (${newLen} chars)`);
+                }
+              }
             } catch (error) {
               logger.warn(`[Enrichment] Failed to scrape metadata from Amazon: ${error.message}`);
             }
@@ -402,7 +411,7 @@ class BookEnrichmentService {
       });
       
       const html = response.data;
-      const metadata = { title: null, isbn: null };
+      const metadata = { title: null, isbn: null, description: null };
       
       // Try to extract title from various Amazon HTML structures
       // Priority order: most specific first
@@ -532,14 +541,165 @@ class BookEnrichmentService {
         }
       }
       
-      if (!metadata.title && !metadata.isbn) {
-        logger.info(`[Amazon] No title or ISBN/ISMN found on page`);
+      // Extract description/summary from Amazon page
+      // Priority: data-feature-name="bookDescription" first (most reliable), then other sections
+      let descriptionText = null;
+      
+      // FIRST PRIORITY: Look for data-feature-name="bookDescription" (most reliable for books)
+      const bookDescMatch = html.match(/<div[^>]*data-feature-name=["']bookDescription["'][^>]*>([\s\S]{100,}?)<\/div>/i);
+      if (bookDescMatch && bookDescMatch[1]) {
+        let extracted = cleanDescription(bookDescMatch[1]);
+        if (extracted && extracted.length >= 50 && !this._isInvalidDescription(extracted)) {
+          descriptionText = extracted;
+          logger.info(`[Amazon] Found description from data-feature-name="bookDescription" (${extracted.length} chars)`);
+        }
+      }
+      
+      // SECOND PRIORITY: Other product description sections
+      if (!descriptionText) {
+        const descriptionPatterns = [
+          // Product description wrapper (most reliable for actual book descriptions)
+          /<div[^>]*id=["']productDescription["'][^>]*>([\s\S]{100,}?)<\/div>/i,
+          // Product description feature div
+          /<div[^>]*id=["']productDescription_feature_div["'][^>]*>([\s\S]{100,}?)<\/div>/i,
+          // Product description in a-expander-content (collapsible sections)
+          /<div[^>]*class=["'][^"']*a-expander-content[^"']*["'][^>]*>([\s\S]{100,}?)<\/div>/i,
+          // Product description wrapper class
+          /<div[^>]*class=["'][^"']*productDescriptionWrapper[^"']*["'][^>]*>([\s\S]{100,}?)<\/div>/i,
+          // About this item section (common on Amazon pages)
+          /<h2[^>]*>[\s\S]*?About this item[\s\S]*?<\/h2>[\s\S]*?<div[^>]*>([\s\S]{100,}?)<\/div>/i,
+          // Description in span with data-a-expander-content
+          /<span[^>]*data-a-expander-content[^>]*>([\s\S]{100,}?)<\/span>/i,
+          // Editorial reviews section
+          /<div[^>]*id=["']editorialReviews_feature_div["'][^>]*>([\s\S]{100,}?)<\/div>/i,
+          // Product description in feature-bullets
+          /<div[^>]*id=["']feature-bullets["'][^>]*>[\s\S]*?<ul[^>]*class=["'][^"']*a-unordered-list[^"']*["'][^>]*>([\s\S]*?)<\/ul>/i,
+          // JSON-LD description (but filter out page titles)
+          /"description"\s*:\s*"([^"]{100,})"/i
+        ];
+        
+        for (const pattern of descriptionPatterns) {
+          const matches = html.match(pattern);
+          if (matches && matches[1]) {
+            let extracted = matches[1];
+            
+            // Clean HTML tags and entities
+            extracted = cleanDescription(extracted);
+            
+            // Filter out invalid descriptions
+            if (extracted && extracted.length >= 50 && !this._isInvalidDescription(extracted)) {
+              descriptionText = extracted;
+              logger.info(`[Amazon] Found description (${extracted.length} chars)`);
+              break;
+            }
+          }
+        }
+      }
+      
+      // Try meta description as last resort, but only if it doesn't look like a page title
+      if (!descriptionText) {
+        const metaDescMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+        if (metaDescMatch && metaDescMatch[1]) {
+          let extracted = cleanDescription(metaDescMatch[1]);
+          if (extracted && extracted.length >= 100 && !this._isInvalidDescription(extracted)) {
+            descriptionText = extracted;
+            logger.info(`[Amazon] Found description from meta tag (${extracted.length} chars)`);
+          }
+        }
+      }
+      
+      // If we found a description from feature bullets, try to combine multiple items
+      if (!descriptionText) {
+        const featureBulletsMatch = html.match(/<div[^>]*id=["']feature-bullets["'][^>]*>([\s\S]*?)<\/div>/i);
+        if (featureBulletsMatch) {
+          const bulletsSection = featureBulletsMatch[1];
+          const bulletPattern = /<span[^>]*class=["'][^"']*a-list-item[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi;
+          const bullets = [];
+          let match;
+          while ((match = bulletPattern.exec(bulletsSection)) !== null) {
+            if (match[1]) {
+              const cleaned = cleanDescription(match[1]);
+              if (cleaned && cleaned.length >= 20 && !this._isInvalidDescription(cleaned)) {
+                bullets.push(cleaned);
+              }
+            }
+          }
+          if (bullets.length > 0) {
+            descriptionText = bullets.join('\n\n');
+            logger.info(`[Amazon] Found description from feature bullets (${descriptionText.length} chars)`);
+          }
+        }
+      }
+      
+      // Try to get description from product description section more comprehensively
+      if (!descriptionText) {
+        const productDescMatch = html.match(/<div[^>]*id=["']productDescription["'][^>]*>([\s\S]{100,})<\/div>/i);
+        if (productDescMatch) {
+          const cleaned = cleanDescription(productDescMatch[1]);
+          if (cleaned && cleaned.length >= 50 && !this._isInvalidDescription(cleaned)) {
+            descriptionText = cleaned;
+            logger.info(`[Amazon] Found description from productDescription (${descriptionText.length} chars)`);
+          }
+        }
+      }
+      
+      // Try to find description in a-expander-content sections (collapsible content)
+      if (!descriptionText) {
+        const expanderPattern = /<div[^>]*class=["'][^"']*a-expander-content[^"']*["'][^>]*>([\s\S]{100,}?)<\/div>/gi;
+        let match;
+        while ((match = expanderPattern.exec(html)) !== null) {
+          if (match[1]) {
+            const cleaned = cleanDescription(match[1]);
+            // Look for descriptions that contain actual narrative text (not just metadata)
+            const hasNarrativeText = cleaned && cleaned.length >= 100 && 
+                                     (cleaned.match(/[.!?]\s+[A-Z]/) || cleaned.split(/\s+/).length > 20) &&
+                                     !this._isInvalidDescription(cleaned);
+            if (hasNarrativeText) {
+              descriptionText = cleaned;
+              logger.info(`[Amazon] Found description from a-expander-content (${descriptionText.length} chars)`);
+              break;
+            }
+          }
+        }
+      }
+      
+      // Try to find description text that appears after "Read more" or similar markers
+      if (!descriptionText) {
+        // Look for text blocks that appear to be descriptions (multiple sentences, proper capitalization)
+        const textBlockPattern = /(?:<p[^>]*>|<div[^>]*>|<span[^>]*>)([A-ZÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞŸ][^<]{100,}?)(?:<\/p>|<\/div>|<\/span>)/gi;
+        const textBlocks = [];
+        let match;
+        while ((match = textBlockPattern.exec(html)) !== null) {
+          if (match[1]) {
+            const cleaned = cleanDescription(match[1]);
+            // Check if it looks like a real description (not a title or metadata)
+            if (cleaned && cleaned.length >= 100 && 
+                cleaned.match(/[.!?]\s+[A-Z]/) && // Has multiple sentences
+                cleaned.split(/\s+/).length > 15 && // Has enough words
+                !this._isInvalidDescription(cleaned)) {
+              textBlocks.push(cleaned);
+            }
+          }
+        }
+        if (textBlocks.length > 0) {
+          // Use the longest text block that looks like a description
+          descriptionText = textBlocks.reduce((a, b) => a.length > b.length ? a : b);
+          logger.info(`[Amazon] Found description from text blocks (${descriptionText.length} chars)`);
+        }
+      }
+      
+      if (descriptionText) {
+        metadata.description = descriptionText;
+      }
+      
+      if (!metadata.title && !metadata.isbn && !metadata.description) {
+        logger.info(`[Amazon] No title, ISBN/ISMN, or description found on page`);
       }
       
       return metadata;
     } catch (error) {
       logger.warn(`[Amazon] Failed to scrape page: ${error.message}`);
-      return { title: null, isbn: null };
+      return { title: null, isbn: null, description: null };
     }
   }
 
@@ -562,6 +722,7 @@ class BookEnrichmentService {
     // If we have an ASIN from an Amazon URL
     let amazonCovers = [];
     let scrapedAmazonTitle = null; // Store Amazon-scraped title early
+    let scrapedAmazonDescription = null; // Store Amazon-scraped description early
     if (asin) {
       logger.info(`[Search] Amazon ASIN detected: ${asin}`);
       amazonCovers = bookCoverService.generateAmazonCoversFromAsin(asin);
@@ -574,8 +735,8 @@ class BookEnrichmentService {
           logger.info(`[Search] Extracted ISBN from Amazon URL params: ${extractedIsbn}`);
           filters.isbn = extractedIsbn;
         } else {
-          // CRITICAL: Always scrape title from Amazon - it's the source of truth
-          // Scrape early so we can use it to replace truncated API titles
+          // CRITICAL: Always scrape title and description from Amazon - it's the source of truth
+          // Scrape early so we can use it to replace truncated API titles and add descriptions
           try {
             const scrapedMetadata = await this._scrapeAmazonMetadata(amazonUrl);
             if (scrapedMetadata.isbn) {
@@ -586,6 +747,10 @@ class BookEnrichmentService {
               filters.title = scrapedMetadata.title;
               normalizedTitle = scrapedMetadata.title;
               logger.info(`[Search] Scraped title from Amazon: "${scrapedAmazonTitle}"`);
+            }
+            if (scrapedMetadata.description) {
+              scrapedAmazonDescription = scrapedMetadata.description;
+              logger.info(`[Search] Scraped description from Amazon (${scrapedAmazonDescription.length} chars)`);
             }
           } catch (error) {
             logger.warn(`[Search] Failed to scrape Amazon metadata: ${error.message}`);
@@ -603,9 +768,9 @@ class BookEnrichmentService {
       }
     }
     
-    // Helper to add Amazon covers to results and preserve Amazon-scraped title
-    // CRITICAL: This function must preserve the Amazon title if it was scraped
-    const addAmazonCoversToResults = (results, amazonTitleToUse = null) => {
+    // Helper to add Amazon covers to results and preserve Amazon-scraped title and description
+    // CRITICAL: This function must preserve the Amazon title and description if they were scraped
+    const addAmazonCoversToResults = (results, amazonTitleToUse = null, amazonDescriptionToUse = null) => {
       if (amazonCovers.length === 0 || !results?.length) return results;
       // Use the best Amazon cover (first one, which is large size)
       const bestAmazonCover = amazonCovers[0]?.url;
@@ -620,9 +785,21 @@ class BookEnrichmentService {
           logger.info(`[Search] Replacing API title "${book.title}" with Amazon title "${amazonTitleToUse}"`);
         }
         
+        // Use Amazon description if available and longer than existing description
+        let descriptionToUse = book.description;
+        if (amazonDescriptionToUse) {
+          const currentLen = (book.description || '').length;
+          const amazonLen = amazonDescriptionToUse.length;
+          if (!book.description || amazonLen > currentLen * 1.2) {
+            descriptionToUse = amazonDescriptionToUse;
+            logger.info(`[Search] Using Amazon description (${amazonLen} chars)`);
+          }
+        }
+        
         return {
           ...book,
           title: titleToUse, // Use Amazon title if available
+          description: descriptionToUse, // Use Amazon description if available and better
           asin: asin,
           // Use Amazon cover as primary if available (it's usually better quality for music scores)
           coverUrl: bestAmazonCover || book.coverUrl,
@@ -638,7 +815,7 @@ class BookEnrichmentService {
         const googleResults = await bookApiService.searchGoogleBooksByIsbn(isbnToSearch);
         if (googleResults?.length > 0) {
           // CRITICAL: Replace API titles with Amazon-scraped title if available
-          return addAmazonCoversToResults(googleResults, scrapedAmazonTitle);
+          return addAmazonCoversToResults(googleResults, scrapedAmazonTitle, scrapedAmazonDescription);
         }
       } catch (error) {
         logger.warn(`Google Books ISBN search failed: ${error.message}`);
@@ -647,7 +824,7 @@ class BookEnrichmentService {
       try {
         const results = await bookApiService.searchByIsbn(isbnToSearch);
         // CRITICAL: Replace API titles with Amazon-scraped title if available
-        return addAmazonCoversToResults(results, scrapedAmazonTitle);
+        return addAmazonCoversToResults(results, scrapedAmazonTitle, scrapedAmazonDescription);
       } catch (error) {
         logger.error(`Both ISBN searches failed: ${error.message}`);
         // If we have Amazon ASIN but no book results, create a placeholder
@@ -706,7 +883,7 @@ class BookEnrichmentService {
       );
       if (googleResults?.length > 0) {
         // CRITICAL: Replace API titles with Amazon-scraped title if available
-        results = addAmazonCoversToResults(googleResults, scrapedAmazonTitle);
+        results = addAmazonCoversToResults(googleResults, scrapedAmazonTitle, scrapedAmazonDescription);
       }
     } catch (error) {
       logger.warn(`Google Books search failed: ${error.message}`);
@@ -718,7 +895,7 @@ class BookEnrichmentService {
         const olResults = await bookApiService.searchOpenLibrary(searchQuery, limit, language);
         if (olResults?.length > 0) {
           // CRITICAL: Replace API titles with Amazon-scraped title if available
-          results = addAmazonCoversToResults(olResults, scrapedAmazonTitle);
+          results = addAmazonCoversToResults(olResults, scrapedAmazonTitle, scrapedAmazonDescription);
         }
       } catch (error) {
         logger.error(`OpenLibrary search failed: ${error.message}`);
@@ -729,21 +906,26 @@ class BookEnrichmentService {
     if (amazonUrl && results.length > 0) {
       logger.info(`[Search] Enriching ${results.length} result(s) from Amazon search`);
       
-      // CRITICAL: Use the already-scraped Amazon title (scraped earlier in the function)
-      // This is the source of truth for complete titles
+      // CRITICAL: Use the already-scraped Amazon title and description (scraped earlier in the function)
+      // This is the source of truth for complete titles and descriptions
       // We scraped it early so we could replace API titles immediately
       let amazonTitle = scrapedAmazonTitle;
+      let amazonDescription = scrapedAmazonDescription;
       
       // Fallback: If we didn't scrape it earlier, try now (shouldn't happen, but safety)
-      if (!amazonTitle && amazonUrl) {
+      if ((!amazonTitle || !amazonDescription) && amazonUrl) {
         try {
           const scrapedMetadata = await this._scrapeAmazonMetadata(amazonUrl);
           if (scrapedMetadata.title && scrapedMetadata.title.trim().length >= 10) {
             amazonTitle = scrapedMetadata.title;
             logger.info(`[Search] Scraped title from Amazon (late fallback): "${amazonTitle}"`);
           }
+          if (scrapedMetadata.description) {
+            amazonDescription = scrapedMetadata.description;
+            logger.info(`[Search] Scraped description from Amazon (late fallback, ${amazonDescription.length} chars)`);
+          }
         } catch (error) {
-          logger.warn(`[Search] Failed to scrape title from Amazon: ${error.message}`);
+          logger.warn(`[Search] Failed to scrape metadata from Amazon: ${error.message}`);
         }
       }
       
@@ -779,11 +961,22 @@ class BookEnrichmentService {
               logger.info(`[Search] Using Amazon title (longer than API title): "${amazonTitle}"`);
             }
             
-            // Add Amazon URL to book data for enrichment
-            // CRITICAL: Pass the Amazon-scraped title as the original title so it's preserved
+            // Add Amazon URL and description to book data for enrichment
+            // CRITICAL: Pass the Amazon-scraped title and description so they're preserved
+            let descriptionToUse = book.description;
+            if (amazonDescription) {
+              const currentLen = (book.description || '').length;
+              const amazonLen = amazonDescription.length;
+              if (!book.description || amazonLen > currentLen * 1.2) {
+                descriptionToUse = amazonDescription;
+                logger.info(`[Search] Using Amazon description (${amazonLen} chars)`);
+              }
+            }
+            
             const bookWithAmazon = {
               ...book,
               title: titleToUse, // Use the best available title (prioritizing Amazon)
+              description: descriptionToUse, // Use Amazon description if available and better
               urls: { ...book.urls, amazon: amazonUrl }
             };
             
@@ -809,6 +1002,16 @@ class BookEnrichmentService {
             if (amazonTitle && enriched.title !== amazonTitle) {
               logger.warn(`[Search] ⚠ Title mismatch! Amazon title: "${amazonTitle}", Enriched title: "${enriched.title}" - fixing...`);
               enriched.title = amazonTitle;
+            }
+            
+            // Final check: ensure the description is the Amazon description if it's better
+            if (amazonDescription) {
+              const currentLen = (enriched.description || '').length;
+              const amazonLen = amazonDescription.length;
+              if (!enriched.description || amazonLen > currentLen * 1.2) {
+                enriched.description = amazonDescription;
+                logger.info(`[Search] ✓ Using Amazon description after enrichment (${amazonLen} chars)`);
+              }
             }
             
             return enriched;
@@ -1185,6 +1388,51 @@ class BookEnrichmentService {
     }
     
     return enriched;
+  }
+
+  _isInvalidDescription(text) {
+    if (!text || typeof text !== 'string') return true;
+    
+    const lowerText = text.toLowerCase();
+    
+    // Filter out page titles
+    const isPageTitle = text.match(/Amazon\.(fr|com|co\.uk|de|it|es)[:\s]*Books/i) ||
+                        text.match(/^[^:]+:\s*[^:]+:\s*[^:]+:\s*Amazon/i) ||
+                        (text.length < 200 && text.match(/:\s*[A-Z][a-z]+\s*,\s*[A-Z]/));
+    
+    // Filter out return policy and shipping information
+    const isReturnPolicy = lowerText.includes('go to your orders') ||
+                           lowerText.includes('start the return') ||
+                           lowerText.includes('select the ship method') ||
+                           lowerText.includes('ship it') ||
+                           lowerText.includes('return this item') ||
+                           lowerText.includes('free returns') ||
+                           lowerText.includes('return a product') ||
+                           lowerText.includes('request the return') ||
+                           lowerText.includes('return policy') ||
+                           lowerText.includes('delivery cost') ||
+                           lowerText.includes('delivery date') ||
+                           lowerText.includes('order total') ||
+                           lowerText.includes('checkout') ||
+                           lowerText.includes('add to basket') ||
+                           lowerText.includes('add to cart') ||
+                           lowerText.includes('buy now') ||
+                           lowerText.includes('secure transaction') ||
+                           lowerText.includes('payment security');
+    
+    // Filter out navigation and UI text
+    const isNavigationText = lowerText.includes('skip to') ||
+                             lowerText.includes('keyboard shortcuts') ||
+                             lowerText.includes('search alt') ||
+                             lowerText.includes('basket shift') ||
+                             lowerText.includes('home shift') ||
+                             lowerText.includes('orders shift');
+    
+    // Filter out very short text that starts with action words
+    const isActionText = text.length < 100 && 
+                         text.match(/^(Voir|See|View|Acheter|Buy|Read more|Add to|Select|Go to)/i);
+    
+    return isPageTitle || isReturnPolicy || isNavigationText || isActionText;
   }
 
   _titlesMatch(title1, title2) {
