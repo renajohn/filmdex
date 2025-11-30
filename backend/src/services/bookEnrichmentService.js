@@ -7,7 +7,7 @@ const axios = require('axios');
 const logger = require('../logger');
 const bookApiService = require('./bookApiService');
 const bookCoverService = require('./bookCoverService');
-const { normalizeTitle, extractSeriesFromTitle, cleanDescription } = require('./utils/bookUtils');
+const { normalizeTitle, extractSeriesFromTitle, cleanDescription, detectBookType, isMusicScore } = require('./utils/bookUtils');
 
 class BookEnrichmentService {
   /**
@@ -759,6 +759,12 @@ class BookEnrichmentService {
               filters.title = scrapedMetadata.title;
               normalizedTitle = scrapedMetadata.title;
               logger.info(`[Search] Scraped title from Amazon: "${scrapedAmazonTitle}"`);
+            } else if (scrapedMetadata.title && scrapedMetadata.title.trim().length >= 5) {
+              // Accept shorter titles (minimum 5 chars) for music scores and other special items
+              scrapedAmazonTitle = scrapedMetadata.title;
+              filters.title = scrapedMetadata.title;
+              normalizedTitle = scrapedMetadata.title;
+              logger.info(`[Search] Scraped title from Amazon (short): "${scrapedAmazonTitle}"`);
             }
             if (scrapedMetadata.description) {
               scrapedAmazonDescription = scrapedMetadata.description;
@@ -829,6 +835,8 @@ class BookEnrichmentService {
           // CRITICAL: Replace API titles with Amazon-scraped title if available
           return addAmazonCoversToResults(googleResults, scrapedAmazonTitle, scrapedAmazonDescription);
         }
+        // If Google Books returns empty but we have Amazon metadata, continue to OpenLibrary search
+        // (we'll return placeholder after both searches if still no results)
       } catch (error) {
         logger.warn(`Google Books ISBN search failed: ${error.message}`);
       }
@@ -836,20 +844,50 @@ class BookEnrichmentService {
       try {
         const results = await bookApiService.searchByIsbn(isbnToSearch);
         // CRITICAL: Replace API titles with Amazon-scraped title if available
-        return addAmazonCoversToResults(results, scrapedAmazonTitle, scrapedAmazonDescription);
-      } catch (error) {
-        logger.error(`Both ISBN searches failed: ${error.message}`);
-        // If we have Amazon ASIN but no book results, create a placeholder
-        if (amazonCovers.length > 0) {
-          logger.info(`[Search] No book found but ASIN available, returning placeholder`);
+        const enrichedResults = addAmazonCoversToResults(results, scrapedAmazonTitle, scrapedAmazonDescription);
+        
+        // If no results found but we have Amazon metadata, return placeholder
+        if (enrichedResults.length === 0 && (amazonCovers.length > 0 || scrapedAmazonTitle)) {
+          logger.info(`[Search] No book found by ISBN but Amazon metadata available, returning placeholder`);
+          const isbn = isbnToSearch;
+          const bookType = isbn ? detectBookType(isbn, []) : 'book';
           return [{
-            title: scrapedAmazonTitle || 'Unknown Title (from Amazon)',
-            authors: [],
+            title: scrapedAmazonTitle || normalizedTitle || 'Unknown Title (from Amazon)',
+            authors: normalizedAuthor ? [normalizedAuthor] : [],
+            isbn: isbn || undefined,
+            isbn13: isbn || undefined,
             asin: asin,
             coverUrl: amazonCovers[0]?.url,
             availableCovers: amazonCovers,
-            urls: { amazon: amazonUrl },
-            _fromAsin: true
+            description: scrapedAmazonDescription || undefined,
+            urls: amazonUrl ? { amazon: amazonUrl } : {},
+            bookType: bookType,
+            _fromAsin: true,
+            _needsManualEntry: true
+          }];
+        }
+        
+        return enrichedResults;
+      } catch (error) {
+        logger.error(`Both ISBN searches failed: ${error.message}`);
+        // If we have Amazon ASIN but no book results, create a placeholder
+        if (amazonCovers.length > 0 || scrapedAmazonTitle) {
+          logger.info(`[Search] No book found but ASIN available, returning placeholder`);
+          const isbn = isbnToSearch;
+          const bookType = isbn ? detectBookType(isbn, []) : 'book';
+          return [{
+            title: scrapedAmazonTitle || normalizedTitle || 'Unknown Title (from Amazon)',
+            authors: normalizedAuthor ? [normalizedAuthor] : [],
+            isbn: isbn || undefined,
+            isbn13: isbn || undefined,
+            asin: asin,
+            coverUrl: amazonCovers[0]?.url,
+            availableCovers: amazonCovers,
+            description: scrapedAmazonDescription || undefined,
+            urls: amazonUrl ? { amazon: amazonUrl } : {},
+            bookType: bookType,
+            _fromAsin: true,
+            _needsManualEntry: true
           }];
         }
         return [];
@@ -1034,6 +1072,30 @@ class BookEnrichmentService {
         })
       );
       return enrichedResults;
+    }
+    
+    // If we have Amazon ASIN/title but no results from APIs, return a placeholder
+    // This handles cases like music scores that aren't in Google Books/OpenLibrary
+    if (results.length === 0 && (amazonCovers.length > 0 || scrapedAmazonTitle)) {
+      logger.info(`[Search] No API results but Amazon metadata available, returning placeholder`);
+      const placeholderTitle = scrapedAmazonTitle || normalizedTitle || 'Unknown Title (from Amazon)';
+      const isbn = normalizedIsbn || filters.isbn;
+      // Detect book type from ISBN (e.g., music scores with ISMN starting with 9790)
+      const bookType = isbn ? detectBookType(isbn, []) : 'book';
+      return [{
+        title: placeholderTitle,
+        authors: normalizedAuthor ? [normalizedAuthor] : [],
+        isbn: isbn || undefined,
+        isbn13: isbn || undefined,
+        asin: asin,
+        coverUrl: amazonCovers[0]?.url,
+        availableCovers: amazonCovers,
+        description: scrapedAmazonDescription || undefined,
+        urls: amazonUrl ? { amazon: amazonUrl } : {},
+        bookType: bookType,
+        _fromAsin: true,
+        _needsManualEntry: true
+      }];
     }
     
     return results;
