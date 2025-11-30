@@ -118,6 +118,8 @@ class BookService {
       const params = new URLSearchParams();
       if (query) params.append('q', query);
       if (filters.isbn) params.append('isbn', filters.isbn);
+      if (filters.asin) params.append('asin', filters.asin);
+      if (filters.amazonUrl) params.append('amazonUrl', filters.amazonUrl);
       if (filters.author) params.append('author', filters.author);
       if (filters.title) params.append('title', filters.title);
       if (filters.limit) params.append('limit', filters.limit);

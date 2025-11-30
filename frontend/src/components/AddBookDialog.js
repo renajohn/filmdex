@@ -219,16 +219,35 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     return grouped;
   };
 
+  // Extract ASIN from Amazon URL
+  const extractAsinFromUrl = (url) => {
+    if (!url || typeof url !== 'string') return null;
+    const patterns = [
+      /\/dp\/([A-Z0-9]{10})/i,
+      /\/gp\/product\/([A-Z0-9]{10})/i,
+      /\/product\/([A-Z0-9]{10})/i,
+      /\/ASIN\/([A-Z0-9]{10})/i
+    ];
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) return match[1].toUpperCase();
+    }
+    return null;
+  };
+
   const handleSearch = async () => {
-    // Remove all non-digit characters from ISBN for search
-    const cleanedIsbn = searchIsbn.replace(/\D/g, '').trim();
+    // Check if ISBN field contains an Amazon URL
+    const amazonAsin = searchIsbn.includes('amazon') ? extractAsinFromUrl(searchIsbn) : null;
+    
+    // Remove all non-digit characters from ISBN for search (unless it's an Amazon URL)
+    const cleanedIsbn = amazonAsin ? '' : searchIsbn.replace(/\D/g, '').trim();
     const trimmedTitle = searchTitle.trim();
     const trimmedAuthor = searchAuthor.trim();
     
     // Check if any search field is filled based on current tab
     if (searchTab === 'isbn') {
-      if (!cleanedIsbn) {
-        setError('Please enter an ISBN');
+      if (!cleanedIsbn && !amazonAsin) {
+        setError('Please enter an ISBN or Amazon URL');
         return;
       }
     } else {
@@ -250,8 +269,14 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       let query = '';
       
       if (searchTab === 'isbn') {
-        // ISBN search mode - send only digits to backend
-        filters.isbn = cleanedIsbn;
+        if (amazonAsin) {
+          // Amazon ASIN detected - pass it to backend
+          filters.asin = amazonAsin;
+          filters.amazonUrl = searchIsbn.trim();
+        } else {
+          // ISBN search mode - send only digits to backend
+          filters.isbn = cleanedIsbn;
+        }
         query = ''; // ISBN search doesn't need a general query
       } else {
         // Title/Author search mode
@@ -577,6 +602,12 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     const inputValue = e.target.value;
     const previousValue = searchIsbn;
     
+    // If input looks like a URL, don't format it - just store as-is
+    if (inputValue.startsWith('http') || inputValue.includes('amazon.')) {
+      setSearchIsbn(inputValue);
+      return;
+    }
+    
     // Get cursor position before processing
     const cursorPosition = e.target.selectionStart;
     
@@ -660,6 +691,12 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   // Format ISBN when field loses focus (ensure complete formatting)
   const handleIsbnBlur = (e) => {
     const inputValue = e.target.value;
+    
+    // Don't reformat URLs
+    if (inputValue.startsWith('http') || inputValue.includes('amazon.')) {
+      return;
+    }
+    
     const digitsOnly = inputValue.replace(/\D/g, '');
     
     if (digitsOnly.length > 0) {
@@ -674,6 +711,12 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     
     // Get pasted text
     const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+    
+    // If pasting a URL, don't format - store as-is
+    if (pastedText.startsWith('http') || pastedText.includes('amazon.')) {
+      setSearchIsbn(pastedText.trim());
+      return;
+    }
     
     // Extract only digits
     const digitsOnly = pastedText.replace(/\D/g, '');
@@ -828,7 +871,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                 <Form.Control
                   ref={isbnInputRef}
                   type="text"
-                  placeholder="Enter ISBN (10 or 13 digits)"
+                  placeholder="ISBN or Amazon URL"
                   value={searchIsbn}
                   onChange={handleIsbnChange}
                   onBlur={handleIsbnBlur}

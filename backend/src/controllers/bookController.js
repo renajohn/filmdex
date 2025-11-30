@@ -246,14 +246,16 @@ const bookController = {
   // Search external book APIs (Google Books, OpenLibrary)
   searchExternalBooks: async (req, res) => {
     try {
-      const { q, isbn, author, title, limit, language } = req.query;
+      const { q, isbn, author, title, limit, language, asin, amazonUrl } = req.query;
       
-      if (!q && !isbn && !author && !title) {
-        return res.status(400).json({ error: 'Search query, ISBN, author, or title is required' });
+      if (!q && !isbn && !author && !title && !asin) {
+        return res.status(400).json({ error: 'Search query, ISBN, ASIN, author, or title is required' });
       }
       
       const filters = {
         isbn: isbn || null,
+        asin: asin || null,
+        amazonUrl: amazonUrl || null,
         author: author || null,
         title: title || null,
         limit: limit ? parseInt(limit) : 20,

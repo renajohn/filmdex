@@ -185,6 +185,20 @@ class BookEnrichmentService {
     
     let enriched = { ...bookData };
     
+    // Check for Amazon URLs and extract ASIN for cover
+    if (bookData.urls) {
+      const amazonUrl = bookData.urls.amazon || bookData.urls.amazonUrl;
+      if (amazonUrl) {
+        const asin = bookCoverService.extractAsinFromUrl(amazonUrl);
+        if (asin) {
+          logger.info(`[Enrichment] Extracted ASIN ${asin} from Amazon URL`);
+          const asinCovers = bookCoverService.generateAmazonCoversFromAsin(asin);
+          enriched.availableCovers = [...(enriched.availableCovers || []), ...asinCovers];
+          enriched.asin = asin;
+        }
+      }
+    }
+    
     // Store metadata from each source
     enriched._metadataSources = {
       original: {
@@ -261,15 +275,32 @@ class BookEnrichmentService {
    * Search external APIs with fallback
    */
   async searchExternalBooks(query, filters = {}) {
-    const { isbn, author, title, limit = 20, language = 'any' } = filters;
+    const { isbn, asin, amazonUrl, author, title, limit = 20, language = 'any' } = filters;
     
     // Normalize filters
     const normalizedTitle = title?.trim() || undefined;
     const normalizedAuthor = author?.trim() || undefined;
     const normalizedIsbn = isbn?.trim() || undefined;
     
+    // If we have an ASIN from an Amazon URL
+    let amazonCovers = [];
+    if (asin) {
+      logger.info(`[Search] Amazon ASIN detected: ${asin}`);
+      amazonCovers = bookCoverService.generateAmazonCoversFromAsin(asin);
+      
+      // Try to extract ISBN from Amazon URL parameters
+      if (amazonUrl) {
+        const isbnMatch = amazonUrl.match(/ISBN[%3A:]+(\d{10,13}|\d{3}[-\s]?\d[-\s]?\d{3,4}[-\s]?\d{4,5}[-\s]?\d)/i);
+        if (isbnMatch) {
+          const extractedIsbn = isbnMatch[1].replace(/[-\s]/g, '');
+          logger.info(`[Search] Extracted ISBN from Amazon URL: ${extractedIsbn}`);
+          filters.isbn = extractedIsbn;
+        }
+      }
+    }
+    
     // Check if query is an ISBN
-    let isbnToSearch = normalizedIsbn;
+    let isbnToSearch = filters.isbn?.trim() || normalizedIsbn;
     if (!isbnToSearch && query) {
       const cleanQuery = query.replace(/[-\s]/g, '');
       if (/^\d{10}$/.test(cleanQuery) || /^\d{13}$/.test(cleanQuery)) {
@@ -277,19 +308,48 @@ class BookEnrichmentService {
       }
     }
     
+    // Helper to add Amazon covers to results
+    const addAmazonCoversToResults = (results) => {
+      if (amazonCovers.length === 0 || !results?.length) return results;
+      // Use the best Amazon cover (first one, which is large size)
+      const bestAmazonCover = amazonCovers[0]?.url;
+      return results.map(book => ({
+        ...book,
+        asin: asin,
+        // Use Amazon cover as primary if available (it's usually better quality for music scores)
+        coverUrl: bestAmazonCover || book.coverUrl,
+        availableCovers: [...amazonCovers, ...(book.availableCovers || [])], // Amazon first
+        urls: { ...book.urls, amazon: amazonUrl }
+      }));
+    };
+    
     // ISBN search
     if (isbnToSearch) {
       try {
         const googleResults = await bookApiService.searchGoogleBooksByIsbn(isbnToSearch);
-        if (googleResults?.length > 0) return googleResults;
+        if (googleResults?.length > 0) return addAmazonCoversToResults(googleResults);
       } catch (error) {
         logger.warn(`Google Books ISBN search failed: ${error.message}`);
       }
       
       try {
-        return await bookApiService.searchByIsbn(isbnToSearch);
+        const results = await bookApiService.searchByIsbn(isbnToSearch);
+        return addAmazonCoversToResults(results);
       } catch (error) {
         logger.error(`Both ISBN searches failed: ${error.message}`);
+        // If we have Amazon ASIN but no book results, create a placeholder
+        if (amazonCovers.length > 0) {
+          logger.info(`[Search] No book found but ASIN available, returning placeholder`);
+          return [{
+            title: 'Unknown Title (from Amazon)',
+            authors: [],
+            asin: asin,
+            coverUrl: amazonCovers[0]?.url,
+            availableCovers: amazonCovers,
+            urls: { amazon: amazonUrl },
+            _fromAsin: true
+          }];
+        }
         return [];
       }
     }
@@ -315,14 +375,15 @@ class BookEnrichmentService {
       const googleResults = await bookApiService.searchGoogleBooks(
         searchQuery, limit, { title: finalTitle, author: finalAuthor, language }
       );
-      if (googleResults?.length > 0) return googleResults;
+      if (googleResults?.length > 0) return addAmazonCoversToResults(googleResults);
     } catch (error) {
       logger.warn(`Google Books search failed: ${error.message}`);
     }
     
     // Fallback to OpenLibrary
     try {
-      return await bookApiService.searchOpenLibrary(searchQuery, limit, language);
+      const results = await bookApiService.searchOpenLibrary(searchQuery, limit, language);
+      return addAmazonCoversToResults(results);
     } catch (error) {
       logger.error(`OpenLibrary search failed: ${error.message}`);
       return [];

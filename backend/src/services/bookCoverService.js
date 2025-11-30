@@ -204,6 +204,69 @@ class BookCoverService {
   }
 
   /**
+   * Extract ASIN from an Amazon URL
+   * Works with various Amazon URL formats (amazon.com, amazon.fr, etc.)
+   */
+  extractAsinFromUrl(url) {
+    if (!url || typeof url !== 'string') return null;
+    
+    // Match patterns like /dp/B00076PIVS/ or /gp/product/B00076PIVS/
+    const patterns = [
+      /\/dp\/([A-Z0-9]{10})/i,
+      /\/gp\/product\/([A-Z0-9]{10})/i,
+      /\/product\/([A-Z0-9]{10})/i,
+      /\/ASIN\/([A-Z0-9]{10})/i
+    ];
+    
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) {
+        return match[1].toUpperCase();
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * Generate Amazon cover URLs from an ASIN (not ISBN)
+   */
+  generateAmazonCoversFromAsin(asin, priority = 0) {
+    if (!asin || asin.length !== 10) return [];
+    
+    const covers = [];
+    const sizes = [
+      { suffix: '._SCLZZZZZZZ_.jpg', size: 'large', priority: 10 + priority },
+      { suffix: '._SL500_.jpg', size: 'medium', priority: 9 + priority },
+      { suffix: '._SL160_.jpg', size: 'small', priority: 8 + priority }
+    ];
+    
+    // EU Amazon (for .fr, .de, .it, .es, etc.)
+    sizes.forEach(({ suffix, size, priority: sizePriority }) => {
+      covers.push({
+        source: 'Amazon (ASIN)',
+        url: `https://images-eu.ssl-images-amazon.com/images/P/${asin}.01${suffix}`,
+        type: 'front',
+        asin: asin,
+        size: size,
+        priority: sizePriority
+      });
+    });
+    
+    // US Amazon fallback
+    covers.push({
+      source: 'Amazon-US (ASIN)',
+      url: `https://images-na.ssl-images-amazon.com/images/P/${asin}.01._SCLZZZZZZZ_.jpg`,
+      type: 'front',
+      asin: asin,
+      size: 'large',
+      priority: 9 + priority
+    });
+    
+    return covers;
+  }
+
+  /**
    * Generate OpenLibrary ISBN-based cover URLs
    */
   generateOpenLibraryIsbnCovers(isbn, priority = 0) {
