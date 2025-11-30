@@ -113,6 +113,9 @@ class BookService {
       };
 
       // Extract series from title if not provided
+      // CRITICAL: Preserve the original title - series extraction should NOT modify the title
+      // The title like "Les soeurs Grémillet - Tome 1 - Le rêve de Sarah" should remain intact
+      const originalTitleBeforeExtraction = normalizedData.title;
       if (!normalizedData.series && normalizedData.title) {
         const extractedSeries = extractSeriesFromTitle(normalizedData.title);
         if (extractedSeries) {
@@ -120,6 +123,13 @@ class BookService {
           normalizedData.seriesNumber = extractedSeries.seriesNumber;
           logger.info(`[AddBook] Extracted series: "${extractedSeries.series}" #${extractedSeries.seriesNumber}`);
         }
+      }
+      
+      // Ensure the original title is preserved after series extraction
+      // Series extraction should only extract series info, never modify the title
+      if (originalTitleBeforeExtraction && normalizedData.title !== originalTitleBeforeExtraction) {
+        normalizedData.title = originalTitleBeforeExtraction;
+        logger.info(`[AddBook] Preserved original title after series extraction: "${originalTitleBeforeExtraction}"`);
       }
 
       // For music scores, enrich with IMSLP data

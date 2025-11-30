@@ -91,6 +91,18 @@ class BookEnrichmentService {
       return book;
     }
     
+    // Explicitly extract and log genres/tags from OpenLibrary
+    if (olBook.genres && Array.isArray(olBook.genres) && olBook.genres.length > 0) {
+      logger.info(`[Enrichment] ✓ Found ${olBook.genres.length} genre(s) from OpenLibrary: ${olBook.genres.join(', ')}`);
+    } else if (olBook.genres) {
+      logger.info(`[Enrichment] ✓ Found genre from OpenLibrary: ${olBook.genres}`);
+    }
+    if (olBook.tags && Array.isArray(olBook.tags) && olBook.tags.length > 0) {
+      logger.info(`[Enrichment] ✓ Found ${olBook.tags.length} tag(s) from OpenLibrary: ${olBook.tags.join(', ')}`);
+    } else if (olBook.tags) {
+      logger.info(`[Enrichment] ✓ Found tag from OpenLibrary: ${olBook.tags}`);
+    }
+    
     return this._mergeBookData(book, olBook, 'OpenLibrary');
   }
 
@@ -173,6 +185,18 @@ class BookEnrichmentService {
       return book;
     }
     
+    // Explicitly extract and log genres/tags from Google Books
+    if (googleBook.genres && Array.isArray(googleBook.genres) && googleBook.genres.length > 0) {
+      logger.info(`[Enrichment] ✓ Found ${googleBook.genres.length} genre(s) from Google Books: ${googleBook.genres.join(', ')}`);
+    } else if (googleBook.genres) {
+      logger.info(`[Enrichment] ✓ Found genre from Google Books: ${googleBook.genres}`);
+    }
+    if (googleBook.tags && Array.isArray(googleBook.tags) && googleBook.tags.length > 0) {
+      logger.info(`[Enrichment] ✓ Found ${googleBook.tags.length} tag(s) from Google Books: ${googleBook.tags.join(', ')}`);
+    } else if (googleBook.tags) {
+      logger.info(`[Enrichment] ✓ Found tag from Google Books: ${googleBook.tags}`);
+    }
+    
     return this._mergeBookData(book, googleBook, 'Google Books');
   }
 
@@ -201,7 +225,10 @@ class BookEnrichmentService {
           enriched.asin = asin;
           
           // If we don't have an ISBN or title, try to scrape them from Amazon page
-          if ((!enriched.isbn && !enriched.isbn13) || !enriched.title) {
+          // IMPORTANT: Only scrape title if the original title is missing or very short (< 10 chars)
+          // This preserves user-provided titles like "Les soeurs Grémillet - Tome 1 - Le rêve de Sarah"
+          const shouldScrapeTitle = !enriched.title || enriched.title.trim().length < 10;
+          if ((!enriched.isbn && !enriched.isbn13) || shouldScrapeTitle) {
             try {
               const scrapedMetadata = await this._scrapeAmazonMetadata(amazonUrl);
               if (scrapedMetadata.isbn) {
@@ -212,11 +239,13 @@ class BookEnrichmentService {
                   enriched.isbn = scrapedMetadata.isbn;
                 }
               }
-              // Always use scraped title from Amazon if available - it's the source of truth
-              // The scraped title is more reliable than titles from Google Books/OpenLibrary which may be truncated
-              if (scrapedMetadata.title) {
+              // Only use scraped title if original title is missing or very short
+              // This preserves user-provided complete titles
+              if (scrapedMetadata.title && shouldScrapeTitle) {
                 enriched.title = scrapedMetadata.title;
-                logger.info(`[Enrichment] Using scraped title from Amazon: "${scrapedMetadata.title}" (replacing: "${enriched.title || 'none'}")`);
+                logger.info(`[Enrichment] Using scraped title from Amazon: "${scrapedMetadata.title}" (original was: "${originalTitle || 'none'}")`);
+              } else if (scrapedMetadata.title && !shouldScrapeTitle) {
+                logger.info(`[Enrichment] Preserving original title "${originalTitle}" (scraped title "${scrapedMetadata.title}" ignored)`);
               }
             } catch (error) {
               logger.warn(`[Enrichment] Failed to scrape metadata from Amazon: ${error.message}`);
@@ -276,22 +305,34 @@ class BookEnrichmentService {
     // Merge enriched data
     enriched = this._mergeAllSources(enriched, googleData, olData);
     
-    // Ensure original title is preserved, BUT if we have an Amazon URL and scraped a title,
-    // prefer the Amazon-scraped title as it's more complete
-    if (bookData.urls?.amazon || bookData.urls?.amazonUrl) {
-      // If we have Amazon URL, the scraped title should already be set above
-      // Don't override it with the original (which might be truncated)
-      logger.info(`[Enrichment] Title after enrichment: "${enriched.title}" (original was: "${originalTitle}")`);
-    } else {
-      // No Amazon URL, preserve original title
-      if (originalTitle && enriched.title !== originalTitle) {
+    // ALWAYS preserve the original title provided by the user
+    // The original title is the source of truth and should never be replaced
+    // This ensures titles like "Les soeurs Grémillet - Tome 1 - Le rêve de Sarah" are preserved
+    if (originalTitle && originalTitle.trim().length > 0) {
+      // Only replace if the enriched title is significantly longer and more complete
+      // This handles cases where Amazon scraping found a better title than a very short user input
+      const originalLen = originalTitle.trim().length;
+      const enrichedLen = (enriched.title || '').trim().length;
+      
+      // If original title is substantial (>= 10 chars), always preserve it
+      // If original title is short (< 10 chars) but enriched title is much longer (> 2x), use enriched
+      if (originalLen >= 10) {
         enriched.title = originalTitle;
-        logger.info(`[Enrichment] Final preservation of original title: "${originalTitle}"`);
+        logger.info(`[Enrichment] Preserving original title: "${originalTitle}" (enriched had: "${enriched.title}")`);
+      } else if (enrichedLen > originalLen * 2 && enrichedLen >= 20) {
+        logger.info(`[Enrichment] Using enriched title "${enriched.title}" (original "${originalTitle}" was very short)`);
+      } else {
+        enriched.title = originalTitle;
+        logger.info(`[Enrichment] Preserving original title: "${originalTitle}"`);
       }
+    } else if (enriched.title) {
+      logger.info(`[Enrichment] Using enriched title: "${enriched.title}" (no original title provided)`);
     }
     
     // Extract series from title if not found (use enriched title which should be the full Amazon title)
-    const titleForExtraction = enriched.title || originalTitle;
+    // CRITICAL: Always use the original title for series extraction to preserve the full title
+    // The original title like "Les soeurs Grémillet - Tome 1 - Le rêve de Sarah" should be preserved
+    const titleForExtraction = originalTitle || enriched.title;
     if (!enriched.series && titleForExtraction) {
       const extracted = extractSeriesFromTitle(titleForExtraction);
       if (extracted) {
@@ -301,6 +342,13 @@ class BookEnrichmentService {
       }
     }
     
+    // CRITICAL: After series extraction, ensure the original title is still preserved
+    // The title should NEVER be modified by series extraction - it's only used to extract series info
+    if (originalTitle && originalTitle.trim().length >= 10 && enriched.title !== originalTitle) {
+      enriched.title = originalTitle;
+      logger.info(`[Enrichment] Final preservation of original title after series extraction: "${originalTitle}"`);
+    }
+    
     // Select best cover
     if (enriched.availableCovers?.length > 0) {
       const largestCover = bookCoverService.selectLargestCover(enriched.availableCovers);
@@ -308,6 +356,23 @@ class BookEnrichmentService {
         enriched.coverUrl = largestCover;
         logger.info(`[Enrichment] Selected largest cover: ${largestCover}`);
       }
+    }
+    
+    // Summary of genres/tags found from all sources
+    const totalGenres = enriched.genres ? (Array.isArray(enriched.genres) ? enriched.genres.length : 1) : 0;
+    const totalTags = enriched.tags ? (Array.isArray(enriched.tags) ? enriched.tags.length : 1) : 0;
+    if (totalGenres > 0 || totalTags > 0) {
+      logger.info(`[Enrichment] Genre/Tag summary: ${totalGenres} genre(s), ${totalTags} tag(s) from all sources`);
+      if (totalGenres > 0) {
+        const genreList = Array.isArray(enriched.genres) ? enriched.genres : [enriched.genres];
+        logger.info(`[Enrichment] Final genres: ${genreList.join(', ')}`);
+      }
+      if (totalTags > 0) {
+        const tagList = Array.isArray(enriched.tags) ? enriched.tags : [enriched.tags];
+        logger.info(`[Enrichment] Final tags: ${tagList.join(', ')}`);
+      }
+    } else {
+      logger.info(`[Enrichment] No genres or tags found from external APIs`);
     }
     
     logger.info(`[Enrichment] Completed enrichment for "${enriched.title}"`);
@@ -496,6 +561,7 @@ class BookEnrichmentService {
     
     // If we have an ASIN from an Amazon URL
     let amazonCovers = [];
+    let scrapedAmazonTitle = null; // Store Amazon-scraped title early
     if (asin) {
       logger.info(`[Search] Amazon ASIN detected: ${asin}`);
       amazonCovers = bookCoverService.generateAmazonCoversFromAsin(asin);
@@ -508,16 +574,21 @@ class BookEnrichmentService {
           logger.info(`[Search] Extracted ISBN from Amazon URL params: ${extractedIsbn}`);
           filters.isbn = extractedIsbn;
         } else {
-          // Try to scrape ISBN and title from Amazon page
-          const scrapedMetadata = await this._scrapeAmazonMetadata(amazonUrl);
-          if (scrapedMetadata.isbn) {
-            filters.isbn = scrapedMetadata.isbn;
-          }
-          // Use scraped title if provided in filters is missing or very short
-          if (scrapedMetadata.title && (!normalizedTitle || normalizedTitle.length < 10)) {
-            filters.title = scrapedMetadata.title;
-            normalizedTitle = scrapedMetadata.title;
-            logger.info(`[Search] Using scraped title from Amazon: "${scrapedMetadata.title}"`);
+          // CRITICAL: Always scrape title from Amazon - it's the source of truth
+          // Scrape early so we can use it to replace truncated API titles
+          try {
+            const scrapedMetadata = await this._scrapeAmazonMetadata(amazonUrl);
+            if (scrapedMetadata.isbn) {
+              filters.isbn = scrapedMetadata.isbn;
+            }
+            if (scrapedMetadata.title && scrapedMetadata.title.trim().length >= 10) {
+              scrapedAmazonTitle = scrapedMetadata.title;
+              filters.title = scrapedMetadata.title;
+              normalizedTitle = scrapedMetadata.title;
+              logger.info(`[Search] Scraped title from Amazon: "${scrapedAmazonTitle}"`);
+            }
+          } catch (error) {
+            logger.warn(`[Search] Failed to scrape Amazon metadata: ${error.message}`);
           }
         }
       }
@@ -532,40 +603,58 @@ class BookEnrichmentService {
       }
     }
     
-    // Helper to add Amazon covers to results
-    const addAmazonCoversToResults = (results) => {
+    // Helper to add Amazon covers to results and preserve Amazon-scraped title
+    // CRITICAL: This function must preserve the Amazon title if it was scraped
+    const addAmazonCoversToResults = (results, amazonTitleToUse = null) => {
       if (amazonCovers.length === 0 || !results?.length) return results;
       // Use the best Amazon cover (first one, which is large size)
       const bestAmazonCover = amazonCovers[0]?.url;
-      return results.map(book => ({
-        ...book,
-        asin: asin,
-        // Use Amazon cover as primary if available (it's usually better quality for music scores)
-        coverUrl: bestAmazonCover || book.coverUrl,
-        availableCovers: [...amazonCovers, ...(book.availableCovers || [])], // Amazon first
-        urls: { ...book.urls, amazon: amazonUrl }
-      }));
+      return results.map(book => {
+        // CRITICAL: If we have an Amazon-scraped title, use it instead of the API title
+        // API titles are often truncated (e.g., "Le rêve de Sarah" instead of "Les soeurs Grémillet - Tome 1 - Le rêve de Sarah")
+        const titleToUse = (amazonTitleToUse && amazonTitleToUse.trim().length >= 10) 
+          ? amazonTitleToUse 
+          : book.title;
+        
+        if (amazonTitleToUse && titleToUse !== book.title) {
+          logger.info(`[Search] Replacing API title "${book.title}" with Amazon title "${amazonTitleToUse}"`);
+        }
+        
+        return {
+          ...book,
+          title: titleToUse, // Use Amazon title if available
+          asin: asin,
+          // Use Amazon cover as primary if available (it's usually better quality for music scores)
+          coverUrl: bestAmazonCover || book.coverUrl,
+          availableCovers: [...amazonCovers, ...(book.availableCovers || [])], // Amazon first
+          urls: { ...book.urls, amazon: amazonUrl }
+        };
+      });
     };
     
     // ISBN search
     if (isbnToSearch) {
       try {
         const googleResults = await bookApiService.searchGoogleBooksByIsbn(isbnToSearch);
-        if (googleResults?.length > 0) return addAmazonCoversToResults(googleResults);
+        if (googleResults?.length > 0) {
+          // CRITICAL: Replace API titles with Amazon-scraped title if available
+          return addAmazonCoversToResults(googleResults, scrapedAmazonTitle);
+        }
       } catch (error) {
         logger.warn(`Google Books ISBN search failed: ${error.message}`);
       }
       
       try {
         const results = await bookApiService.searchByIsbn(isbnToSearch);
-        return addAmazonCoversToResults(results);
+        // CRITICAL: Replace API titles with Amazon-scraped title if available
+        return addAmazonCoversToResults(results, scrapedAmazonTitle);
       } catch (error) {
         logger.error(`Both ISBN searches failed: ${error.message}`);
         // If we have Amazon ASIN but no book results, create a placeholder
         if (amazonCovers.length > 0) {
           logger.info(`[Search] No book found but ASIN available, returning placeholder`);
           return [{
-            title: 'Unknown Title (from Amazon)',
+            title: scrapedAmazonTitle || 'Unknown Title (from Amazon)',
             authors: [],
             asin: asin,
             coverUrl: amazonCovers[0]?.url,
@@ -616,7 +705,8 @@ class BookEnrichmentService {
         searchQuery, limit, { title: finalTitle, author: finalAuthor, language }
       );
       if (googleResults?.length > 0) {
-        results = addAmazonCoversToResults(googleResults);
+        // CRITICAL: Replace API titles with Amazon-scraped title if available
+        results = addAmazonCoversToResults(googleResults, scrapedAmazonTitle);
       }
     } catch (error) {
       logger.warn(`Google Books search failed: ${error.message}`);
@@ -627,7 +717,8 @@ class BookEnrichmentService {
       try {
         const olResults = await bookApiService.searchOpenLibrary(searchQuery, limit, language);
         if (olResults?.length > 0) {
-          results = addAmazonCoversToResults(olResults);
+          // CRITICAL: Replace API titles with Amazon-scraped title if available
+          results = addAmazonCoversToResults(olResults, scrapedAmazonTitle);
         }
       } catch (error) {
         logger.error(`OpenLibrary search failed: ${error.message}`);
@@ -638,39 +729,86 @@ class BookEnrichmentService {
     if (amazonUrl && results.length > 0) {
       logger.info(`[Search] Enriching ${results.length} result(s) from Amazon search`);
       
-      // Try to scrape title from Amazon if we don't have a good one
-      let amazonTitle = normalizedTitle;
-      if (!amazonTitle || amazonTitle.length < 10) {
+      // CRITICAL: Use the already-scraped Amazon title (scraped earlier in the function)
+      // This is the source of truth for complete titles
+      // We scraped it early so we could replace API titles immediately
+      let amazonTitle = scrapedAmazonTitle;
+      
+      // Fallback: If we didn't scrape it earlier, try now (shouldn't happen, but safety)
+      if (!amazonTitle && amazonUrl) {
         try {
           const scrapedMetadata = await this._scrapeAmazonMetadata(amazonUrl);
-          if (scrapedMetadata.title) {
+          if (scrapedMetadata.title && scrapedMetadata.title.trim().length >= 10) {
             amazonTitle = scrapedMetadata.title;
-            logger.info(`[Search] Scraped title from Amazon for enrichment: "${amazonTitle}"`);
+            logger.info(`[Search] Scraped title from Amazon (late fallback): "${amazonTitle}"`);
           }
         } catch (error) {
           logger.warn(`[Search] Failed to scrape title from Amazon: ${error.message}`);
         }
       }
       
+      // Fallback to normalizedTitle if Amazon scraping failed
+      if (!amazonTitle && normalizedTitle && normalizedTitle.trim().length >= 10) {
+        amazonTitle = normalizedTitle;
+      }
+      
+      if (amazonTitle) {
+        logger.info(`[Search] Using Amazon title for enrichment: "${amazonTitle}"`);
+      }
+      
       const enrichedResults = await Promise.all(
         results.map(async (book) => {
           try {
-            // Use the Amazon-scraped title if available, otherwise use the book's title
-            // This ensures titles like "Elles - Tome 3 - Plurielle(s)" are not truncated
-            const originalTitle = amazonTitle || normalizedTitle || book.title;
+            // CRITICAL: Always prioritize Amazon-scraped title as it's the most complete
+            // Titles from Google Books/OpenLibrary are often truncated
+            // This ensures titles like "Les soeurs Grémillet - Tome 1 - Le rêve de Sarah" are preserved
+            let titleToUse = book.title;
+            
+            // Priority order:
+            // 1. Amazon-scraped title (most complete, source of truth)
+            // 2. User-provided normalized title (if substantial)
+            // 3. Book title from APIs (may be truncated)
+            if (amazonTitle && amazonTitle.trim().length >= 10) {
+              titleToUse = amazonTitle;
+              logger.info(`[Search] Using Amazon-scraped title: "${amazonTitle}"`);
+            } else if (normalizedTitle && normalizedTitle.trim().length >= 10) {
+              titleToUse = normalizedTitle;
+              logger.info(`[Search] Using user-provided title: "${normalizedTitle}"`);
+            } else if (amazonTitle && amazonTitle.trim().length > (book.title || '').trim().length) {
+              titleToUse = amazonTitle;
+              logger.info(`[Search] Using Amazon title (longer than API title): "${amazonTitle}"`);
+            }
             
             // Add Amazon URL to book data for enrichment
+            // CRITICAL: Pass the Amazon-scraped title as the original title so it's preserved
             const bookWithAmazon = {
               ...book,
-              title: originalTitle, // Use the Amazon-scraped title or original title
+              title: titleToUse, // Use the best available title (prioritizing Amazon)
               urls: { ...book.urls, amazon: amazonUrl }
             };
+            
+            logger.info(`[Search] Enriching book with title: "${titleToUse}" (original API title was: "${book.title}")`);
             const enriched = await this.enrichBook(bookWithAmazon);
             
-            // Ensure the original title is preserved after enrichment
-            if (originalTitle && enriched.title !== originalTitle) {
-              enriched.title = originalTitle;
-              logger.info(`[Search] Preserved original title after enrichment: "${originalTitle}"`);
+            // CRITICAL: ALWAYS preserve the Amazon-scraped title or user-provided title
+            // The enrichBook method should preserve it, but we enforce it here as a safety measure
+            const titleToPreserve = amazonTitle || normalizedTitle;
+            if (titleToPreserve && titleToPreserve.trim().length >= 10) {
+              if (enriched.title !== titleToPreserve) {
+                enriched.title = titleToPreserve;
+                logger.info(`[Search] ✓ Enforced preservation of title: "${titleToPreserve}" (enriched had: "${enriched.title}")`);
+              } else {
+                logger.info(`[Search] ✓ Title already preserved: "${titleToPreserve}"`);
+              }
+            } else if (titleToUse && titleToUse.trim().length >= 10 && enriched.title !== titleToUse) {
+              enriched.title = titleToUse;
+              logger.info(`[Search] Preserved title after enrichment: "${titleToUse}" (enriched had: "${enriched.title}")`);
+            }
+            
+            // Final check: ensure the title is the full Amazon title
+            if (amazonTitle && enriched.title !== amazonTitle) {
+              logger.warn(`[Search] ⚠ Title mismatch! Amazon title: "${amazonTitle}", Enriched title: "${enriched.title}" - fixing...`);
+              enriched.title = amazonTitle;
             }
             
             return enriched;
@@ -855,12 +993,37 @@ class BookEnrichmentService {
     
     // Merge genres - always add genres from enrichment sources
     const allGenres = new Set(enriched.genres || []);
+    const newGenres = [];
     (enrichment.genres || []).forEach(g => {
       if (g && typeof g === 'string' && g.trim()) {
-        allGenres.add(g.trim());
+        const genre = g.trim();
+        if (!allGenres.has(genre)) {
+          newGenres.push(genre);
+          allGenres.add(genre);
+        }
       }
     });
     if (allGenres.size > 0) enriched.genres = Array.from(allGenres);
+    if (newGenres.length > 0) {
+      logger.info(`[Enrichment] Added ${newGenres.length} new genre(s) from ${sourceName}: ${newGenres.join(', ')}`);
+    }
+    
+    // Merge tags - always add tags from enrichment sources
+    const allTags = new Set(enriched.tags || []);
+    const newTags = [];
+    (enrichment.tags || []).forEach(t => {
+      if (t && typeof t === 'string' && t.trim()) {
+        const tag = t.trim();
+        if (!allTags.has(tag)) {
+          newTags.push(tag);
+          allTags.add(tag);
+        }
+      }
+    });
+    if (allTags.size > 0) enriched.tags = Array.from(allTags);
+    if (newTags.length > 0) {
+      logger.info(`[Enrichment] Added ${newTags.length} new tag(s) from ${sourceName}: ${newTags.join(', ')}`);
+    }
     
     // Merge covers
     if (!enriched.availableCovers) enriched.availableCovers = [];
@@ -1001,10 +1164,24 @@ class BookEnrichmentService {
                       enriched._metadataSources.openLibrary?.rating || 
                       enriched._metadataSources.original?.rating || null;
     
-    // Ensure original title is always preserved
-    if (originalTitle && enriched.title !== originalTitle) {
-      enriched.title = originalTitle;
-      logger.info(`[Enrichment] Preserved original title in _mergeAllSources: "${originalTitle}"`);
+    // ALWAYS preserve the original title - it should never be replaced
+    // The original title provided by the user is the source of truth
+    if (originalTitle && originalTitle.trim().length > 0) {
+      const originalLen = originalTitle.trim().length;
+      const enrichedLen = (enriched.title || '').trim().length;
+      
+      // If original title is substantial (>= 10 chars), always preserve it
+      if (originalLen >= 10) {
+        enriched.title = originalTitle;
+        if (enriched.title !== originalTitle) {
+          logger.info(`[Enrichment] Preserved original title in _mergeAllSources: "${originalTitle}" (enriched had: "${enriched.title}")`);
+        }
+      } else if (enrichedLen > originalLen * 2 && enrichedLen >= 20) {
+        logger.info(`[Enrichment] Using enriched title "${enriched.title}" (original "${originalTitle}" was very short)`);
+      } else {
+        enriched.title = originalTitle;
+        logger.info(`[Enrichment] Preserved original title in _mergeAllSources: "${originalTitle}"`);
+      }
     }
     
     return enriched;

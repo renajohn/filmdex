@@ -291,7 +291,7 @@ class BookApiService {
       language = langMap[language] || language;
     }
     
-    // Extract genres
+    // Extract genres from categories - actively search for genre information
     let genres = (volumeInfo.categories || [])
       .map(cat => {
         if (cat.includes(' / ')) {
@@ -307,6 +307,11 @@ class BookApiService {
       .filter(cat => cat !== null && cat.trim().length > 0);
     
     if (genres.length === 0 && volumeInfo.categories) genres = volumeInfo.categories;
+    
+    // Log genre extraction
+    if (genres.length > 0) {
+      logger.info(`[Google Books] Extracted ${genres.length} genre(s): ${genres.join(', ')}`);
+    }
     
     // Extract published year
     let publishedYear = null;
@@ -569,12 +574,32 @@ class BookApiService {
     // Extract series
     let series = workData?.series?.[0] || workData?.series || doc.series?.[0] || doc.series || null;
     
-    // Extract genres
+    // Extract genres from subjects - actively search for genre/tag information
     const genres = [];
     if (workData?.subjects) {
-      genres.push(...workData.subjects.slice(0, 10).map(s => typeof s === 'string' ? s : (s.name || s)));
+      genres.push(...workData.subjects.slice(0, 15).map(s => typeof s === 'string' ? s : (s.name || s)));
     }
-    if (genres.length === 0 && doc.subject) genres.push(...doc.subject.slice(0, 10));
+    if (genres.length === 0 && doc.subject) genres.push(...doc.subject.slice(0, 15));
+    
+    // Extract tags from additional OpenLibrary fields (subject_places, subject_times, subject_people)
+    const tags = [];
+    if (workData?.subject_places) {
+      tags.push(...workData.subject_places.slice(0, 5).map(s => typeof s === 'string' ? s : (s.name || s)));
+    }
+    if (workData?.subject_times) {
+      tags.push(...workData.subject_times.slice(0, 5).map(s => typeof s === 'string' ? s : (s.name || s)));
+    }
+    if (workData?.subject_people) {
+      tags.push(...workData.subject_people.slice(0, 5).map(s => typeof s === 'string' ? s : (s.name || s)));
+    }
+    
+    // Log genre/tag extraction
+    if (genres.length > 0) {
+      logger.info(`[OpenLibrary] Extracted ${genres.length} genre(s): ${genres.slice(0, 5).join(', ')}${genres.length > 5 ? '...' : ''}`);
+    }
+    if (tags.length > 0) {
+      logger.info(`[OpenLibrary] Extracted ${tags.length} tag(s): ${tags.join(', ')}`);
+    }
     
     // Extract language
     let language = null;
@@ -627,6 +652,7 @@ class BookApiService {
       authors: authors.length > 0 ? authors : null,
       publisher, publishedYear, language, series, seriesNumber: null,
       genres: genres.length > 0 ? genres : null,
+      tags: tags.length > 0 ? tags : null,
       description, coverUrl,
       pageCount: doc.number_of_pages || doc.number_of_pages_median || null,
       urls: Object.keys(urls).length > 0 ? urls : null,

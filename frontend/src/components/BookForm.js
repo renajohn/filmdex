@@ -340,9 +340,23 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
       const descriptionSource = selectedMetadataSource.description || 'auto';
       const initialDescription = getMetadataValue('description', descriptionSource);
       
-      // If this is a new book (no ID) with a series number, try to update the title
+      // CRITICAL: Preserve the original title from user input or book data
+      // If the book has _metadataSources, check if there's an original title that's longer/more complete
       let suggestedTitle = book.title || '';
-      if (!book.id && book.seriesNumber && book.title) {
+      
+      // If we have metadata sources, prefer the original title if it's more complete
+      if (book._metadataSources?.original?.title) {
+        const originalTitle = book._metadataSources.original.title;
+        const currentTitle = book.title || '';
+        // If original title is longer and more complete (>= 10 chars), use it
+        if (originalTitle.trim().length >= 10 && originalTitle.trim().length > currentTitle.trim().length) {
+          suggestedTitle = originalTitle;
+          console.log('[BookForm] Using original title from metadata:', originalTitle);
+        }
+      }
+      
+      // If this is a new book (no ID) with a series number, try to update the title
+      if (!book.id && book.seriesNumber && suggestedTitle) {
         // Try to find and replace volume numbers in the title
         // Patterns: T01, T1, Vol. 1, Volume 1, #1, etc.
         const volumePatterns = [
