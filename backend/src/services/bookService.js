@@ -130,11 +130,13 @@ class BookService {
 
       // Detect book type if not provided
       if (!normalizedData.bookType) {
+        const genres = normalizedData.genres || [];
+        logger.info(`[AddBook] Detecting book type with genres: ${Array.isArray(genres) ? genres.join(', ') : genres}`);
         normalizedData.bookType = detectBookType(
           normalizedData.isbn13 || normalizedData.isbn,
-          normalizedData.genres || []
+          genres
         );
-        logger.info(`[AddBook] Detected book type: ${normalizedData.bookType}`);
+        logger.info(`[AddBook] Detected book type: ${normalizedData.bookType} (genres: ${Array.isArray(genres) ? genres.join(', ') : 'none'})`);
       }
 
       // Add 'score' tag for music scores

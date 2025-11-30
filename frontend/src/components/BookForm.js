@@ -288,6 +288,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
   const userSelectedSourceRef = useRef(false); // Track if user has manually selected a source
   const isEnrichingRef = useRef(false); // Track if we're currently enriching to prevent useEffect from resetting formData
   const userSelectedCoverRef = useRef(false); // Track if user has manually selected a cover
+  const userSelectedBookTypeRef = useRef(false); // Track if user has manually selected a bookType
   
   useEffect(() => {
     if (book) {
@@ -300,10 +301,21 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
       const currentBookId = book.id || book.isbn || book.isbn13 || book.title;
       const isNewBook = prevBookIdRef.current !== null && prevBookIdRef.current !== currentBookId;
       
+      // CRITICAL: If user has manually selected bookType and it's NOT a new book,
+      // skip the entire formData update to avoid any chance of resetting their selection
+      // Only do this check if it's the same book (not a new one)
+      if (userSelectedBookTypeRef.current && !isNewBook && prevBookIdRef.current !== null) {
+        console.log('[BookForm] useEffect: User has selected bookType for same book - skipping formData update entirely');
+        // Still update the ref to track the current book
+        prevBookIdRef.current = currentBookId;
+        return; // Exit early - don't update formData at all
+      }
+      
       // If it's a new book, reset the user selection flags and local available covers
       if (isNewBook) {
         userSelectedSourceRef.current = false;
         userSelectedCoverRef.current = false; // Reset cover selection flag when switching books
+        userSelectedBookTypeRef.current = false; // Reset bookType selection flag when switching books
         setLocalAvailableCovers(null); // Reset local covers when switching books
       }
       
@@ -367,37 +379,99 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
       // Preserve user's cover selection if they've already selected one
       const preserveCoverUrl = userSelectedCoverRef.current ? formData.coverUrl : (book.coverUrl || null);
       
-      setFormData({
-        title: suggestedTitle,
-        subtitle: book.subtitle || '',
-        authors: Array.isArray(book.authors) ? book.authors : (book.authors ? [book.authors] : []),
-        artists: Array.isArray(book.artists) ? book.artists : (book.artists ? [book.artists] : []),
-        isbn: book.isbn || '',
-        isbn13: book.isbn13 || '',
-        publisher: book.publisher || '',
-        publishedYear: book.publishedYear || '',
-        language: book.language || '',
-        format: book.format || 'physical',
-        filetype: book.filetype || '',
-        drm: book.drm || '',
-        narrator: book.narrator || '',
-        runtime: book.runtime || '',
-        series: book.series || '',
-        seriesNumber: book.seriesNumber || '',
-        genres: Array.isArray(book.genres) ? book.genres : (book.genres ? [book.genres] : []),
-        tags: Array.isArray(book.tags) ? book.tags : (book.tags ? [book.tags] : []),
-        rating: book.rating || '',
-        cover: book.cover || null,
-        owner: book.owner || '',
-        readDate: book.readDate || '',
-        pageCount: book.pageCount || '',
-        description: initialDescription || '',
-        urls: book.urls || {},
-        annotation: book.annotation || '',
-        titleStatus: book.titleStatus || defaultTitleStatus || 'owned',
-        bookType: book.bookType || detectBookType(book.isbn13, book.genres),
-        coverUrl: preserveCoverUrl,
-        ebookFile: book.ebookFile || null
+      // CRITICAL: If user has manually selected bookType and it's NOT a new book, 
+      // skip updating formData entirely to avoid resetting their selection
+      if (userSelectedBookTypeRef.current && !isNewBook) {
+        console.log('[BookForm] useEffect: User has selected bookType and same book - skipping formData update to preserve selection');
+        // Still need to update other fields that might have changed, but preserve bookType
+        setFormData(prev => ({
+          ...prev, // Keep ALL previous values including bookType
+          title: suggestedTitle,
+          subtitle: book.subtitle || prev.subtitle || '',
+          authors: Array.isArray(book.authors) ? book.authors : (book.authors ? [book.authors] : prev.authors || []),
+          artists: Array.isArray(book.artists) ? book.artists : (book.artists ? [book.artists] : prev.artists || []),
+          isbn: book.isbn || prev.isbn || '',
+          isbn13: book.isbn13 || prev.isbn13 || '',
+          publisher: book.publisher || prev.publisher || '',
+          publishedYear: book.publishedYear || prev.publishedYear || '',
+          language: book.language || prev.language || '',
+          format: book.format || prev.format || 'physical',
+          filetype: book.filetype || prev.filetype || '',
+          drm: book.drm || prev.drm || '',
+          narrator: book.narrator || prev.narrator || '',
+          runtime: book.runtime || prev.runtime || '',
+          series: book.series || prev.series || '',
+          seriesNumber: book.seriesNumber || prev.seriesNumber || '',
+          genres: Array.isArray(book.genres) ? book.genres : (book.genres ? [book.genres] : prev.genres || []),
+          tags: Array.isArray(book.tags) ? book.tags : (book.tags ? [book.tags] : prev.tags || []),
+          rating: book.rating || prev.rating || '',
+          cover: book.cover || prev.cover || null,
+          owner: book.owner || prev.owner || '',
+          readDate: book.readDate || prev.readDate || '',
+          pageCount: book.pageCount || prev.pageCount || '',
+          description: initialDescription || prev.description || '',
+          urls: { ...prev.urls, ...book.urls },
+          annotation: book.annotation || prev.annotation || '',
+          titleStatus: book.titleStatus || prev.titleStatus || defaultTitleStatus || 'owned',
+          // bookType is NOT updated - preserve user's selection
+          coverUrl: preserveCoverUrl || prev.coverUrl,
+          ebookFile: book.ebookFile || prev.ebookFile || null
+        }));
+        return; // Exit early to avoid the full formData reset below
+      }
+      
+      // Normal flow: compute bookType (only for new books or when user hasn't selected)
+      let bookTypeToUse;
+      if (isNewBook) {
+        // It's a new book, so auto-detect or use book's bookType
+        if (book.bookType) {
+          bookTypeToUse = book.bookType;
+        } else {
+          // Auto-detect based on ISBN and genres
+          const detectedType = detectBookType(book.isbn13, book.genres);
+          bookTypeToUse = detectedType;
+        }
+        console.log('[BookForm] Auto-detected bookType for new book:', bookTypeToUse);
+      } else {
+        // Same book - preserve existing formData.bookType
+        bookTypeToUse = formData.bookType || book.bookType || 'book';
+        console.log('[BookForm] Preserving existing bookType:', bookTypeToUse);
+      }
+      
+      setFormData(prev => {
+        return {
+          ...prev,
+          title: suggestedTitle,
+          subtitle: book.subtitle || '',
+          authors: Array.isArray(book.authors) ? book.authors : (book.authors ? [book.authors] : []),
+          artists: Array.isArray(book.artists) ? book.artists : (book.artists ? [book.artists] : []),
+          isbn: book.isbn || '',
+          isbn13: book.isbn13 || '',
+          publisher: book.publisher || '',
+          publishedYear: book.publishedYear || '',
+          language: book.language || '',
+          format: book.format || 'physical',
+          filetype: book.filetype || '',
+          drm: book.drm || '',
+          narrator: book.narrator || '',
+          runtime: book.runtime || '',
+          series: book.series || '',
+          seriesNumber: book.seriesNumber || '',
+          genres: Array.isArray(book.genres) ? book.genres : (book.genres ? [book.genres] : []),
+          tags: Array.isArray(book.tags) ? book.tags : (book.tags ? [book.tags] : []),
+          rating: book.rating || '',
+          cover: book.cover || null,
+          owner: book.owner || '',
+          readDate: book.readDate || '',
+          pageCount: book.pageCount || '',
+          description: initialDescription || '',
+          urls: book.urls || {},
+          annotation: book.annotation || '',
+          titleStatus: book.titleStatus || defaultTitleStatus || 'owned',
+          bookType: bookTypeToUse,
+          coverUrl: preserveCoverUrl,
+          ebookFile: book.ebookFile || null
+        };
       });
       
       // Set initial cover preview only if user hasn't manually selected one
@@ -563,10 +637,23 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
   };
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    console.log('[BookForm] handleInputChange called:', field, '=', value, 'current formData.bookType:', formData.bookType);
+    
+    // Track when user manually changes bookType - do this FIRST before setState
+    if (field === 'bookType') {
+      console.log('[BookForm] User is changing bookType to:', value);
+      userSelectedBookTypeRef.current = true;
+      console.log('[BookForm] Set userSelectedBookTypeRef to true');
+    }
+    
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        [field]: value
+      };
+      console.log('[BookForm] Updated formData:', field, '=', updated[field], 'full bookType:', updated.bookType);
+      return updated;
+    });
     
     if (errors[field]) {
       setErrors(prev => ({
@@ -1176,6 +1263,25 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
       // Update form data with enriched information
       // Force update all fields that were enriched, regardless of current values
       setFormData(prev => {
+        // Re-detect book type if genres were updated, but preserve user's manual selection
+        let updatedBookType = prev.bookType; // Preserve current selection by default
+        const enrichedGenres = enrichedBook.genres && Array.isArray(enrichedBook.genres) && enrichedBook.genres.length > 0 
+          ? enrichedBook.genres 
+          : (prev.genres && prev.genres.length > 0 ? prev.genres : []);
+        
+        // Only update bookType if user hasn't manually changed it
+        if (!userSelectedBookTypeRef.current) {
+          // Check if enriched book has explicit bookType
+          if (enrichedBook.bookType) {
+            updatedBookType = enrichedBook.bookType;
+          } else if (enrichedGenres.length > 0) {
+            // Re-detect based on updated genres
+            const detectedType = detectBookType(enrichedBook.isbn13 || prev.isbn13, enrichedGenres);
+            updatedBookType = detectedType;
+          }
+        }
+        // If user has manually selected, keep their selection (updatedBookType already set to prev.bookType)
+        
         const updated = {
           ...prev,
           // Update description - always use enriched if available and longer, or if current is empty
@@ -1198,9 +1304,7 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
           // Update series number - use enriched if current is empty
           seriesNumber: prev.seriesNumber || enrichedBook.seriesNumber || '',
           // Update genres - merge if both exist, otherwise use whichever is available
-          genres: (prev.genres && prev.genres.length > 0) 
-            ? prev.genres 
-            : (enrichedBook.genres && Array.isArray(enrichedBook.genres) && enrichedBook.genres.length > 0 ? enrichedBook.genres : []),
+          genres: enrichedGenres,
           // Update tags - merge if both exist, otherwise use whichever is available
           tags: (prev.tags && prev.tags.length > 0) 
             ? prev.tags 
@@ -1208,7 +1312,9 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
           // Update URLs - merge
           urls: { ...prev.urls, ...enrichedBook.urls },
           // Update cover URL - prefer enriched if available
-          coverUrl: enrichedBook.coverUrl || prev.coverUrl || null
+          coverUrl: enrichedBook.coverUrl || prev.coverUrl || null,
+          // Update bookType - but preserve user's manual selection
+          bookType: updatedBookType
         };
         
         console.log('[BookForm] Updated formData after enrichment:', {
@@ -1495,8 +1601,20 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                   <Form.Group className="mb-2">
                     <Form.Label>Book Type</Form.Label>
                     <Form.Select
-                      value={formData.bookType}
-                      onChange={(e) => handleInputChange('bookType', e.target.value)}
+                      value={formData.bookType || 'book'}
+                      onChange={(e) => {
+                        const newValue = e.target.value;
+                        console.log('[BookForm] User changed bookType dropdown to:', newValue, 'current formData.bookType:', formData.bookType);
+                        // Set the ref FIRST - this is critical to prevent useEffect from resetting it
+                        userSelectedBookTypeRef.current = true;
+                        console.log('[BookForm] Set userSelectedBookTypeRef to true');
+                        // Update state directly - this should trigger a re-render with the new value
+                        setFormData(prev => {
+                          const updated = { ...prev, bookType: newValue };
+                          console.log('[BookForm] Direct setFormData update - bookType changed from', prev.bookType, 'to', newValue);
+                          return updated;
+                        });
+                      }}
                     >
                       <option value="book">Book</option>
                       <option value="graphic-novel">Graphic Novel</option>
@@ -1748,8 +1866,20 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                   <Form.Group className="mb-3">
                     <Form.Label>Book Type</Form.Label>
                     <Form.Select
-                      value={formData.bookType}
-                      onChange={(e) => handleInputChange('bookType', e.target.value)}
+                      value={formData.bookType || 'book'}
+                      onChange={(e) => {
+                        const newValue = e.target.value;
+                        console.log('[BookForm] User changed bookType dropdown to:', newValue, 'current formData.bookType:', formData.bookType);
+                        // Set the ref FIRST - this is critical to prevent useEffect from resetting it
+                        userSelectedBookTypeRef.current = true;
+                        console.log('[BookForm] Set userSelectedBookTypeRef to true');
+                        // Update state directly - this should trigger a re-render with the new value
+                        setFormData(prev => {
+                          const updated = { ...prev, bookType: newValue };
+                          console.log('[BookForm] Direct setFormData update - bookType changed from', prev.bookType, 'to', newValue);
+                          return updated;
+                        });
+                      }}
                     >
                       <option value="book">Book</option>
                       <option value="graphic-novel">Graphic Novel</option>
@@ -2285,8 +2415,20 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                   <Form.Group className="mb-2">
                     <Form.Label>Book Type</Form.Label>
                     <Form.Select
-                      value={formData.bookType}
-                      onChange={(e) => handleInputChange('bookType', e.target.value)}
+                      value={formData.bookType || 'book'}
+                      onChange={(e) => {
+                        const newValue = e.target.value;
+                        console.log('[BookForm] User changed bookType dropdown to:', newValue, 'current formData.bookType:', formData.bookType);
+                        // Set the ref FIRST - this is critical to prevent useEffect from resetting it
+                        userSelectedBookTypeRef.current = true;
+                        console.log('[BookForm] Set userSelectedBookTypeRef to true');
+                        // Update state directly - this should trigger a re-render with the new value
+                        setFormData(prev => {
+                          const updated = { ...prev, bookType: newValue };
+                          console.log('[BookForm] Direct setFormData update - bookType changed from', prev.bookType, 'to', newValue);
+                          return updated;
+                        });
+                      }}
                     >
                       <option value="book">Book</option>
                       <option value="graphic-novel">Graphic Novel</option>
@@ -2539,8 +2681,20 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
                   <Form.Group className="mb-3">
                     <Form.Label>Book Type</Form.Label>
                     <Form.Select
-                      value={formData.bookType}
-                      onChange={(e) => handleInputChange('bookType', e.target.value)}
+                      value={formData.bookType || 'book'}
+                      onChange={(e) => {
+                        const newValue = e.target.value;
+                        console.log('[BookForm] User changed bookType dropdown to:', newValue, 'current formData.bookType:', formData.bookType);
+                        // Set the ref FIRST - this is critical to prevent useEffect from resetting it
+                        userSelectedBookTypeRef.current = true;
+                        console.log('[BookForm] Set userSelectedBookTypeRef to true');
+                        // Update state directly - this should trigger a re-render with the new value
+                        setFormData(prev => {
+                          const updated = { ...prev, bookType: newValue };
+                          console.log('[BookForm] Direct setFormData update - bookType changed from', prev.bookType, 'to', newValue);
+                          return updated;
+                        });
+                      }}
                     >
                       <option value="book">Book</option>
                       <option value="graphic-novel">Graphic Novel</option>

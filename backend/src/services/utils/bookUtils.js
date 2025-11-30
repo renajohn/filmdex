@@ -293,13 +293,24 @@ function detectBookType(isbn, genres = []) {
     }
     
     // Check for graphic novel / comics
+    // Check various patterns that indicate comics/graphic novels
     if (
       genreLower.includes('comics & graphic novels') ||
+      genreLower.includes('comics and graphic novels') ||
       genreLower.includes('bandes dessinées') ||
+      genreLower.includes('bande dessinée') ||
+      genreLower.includes('bd ') || // French abbreviation
+      genreLower.includes(' comic') ||
       genreLower.includes('comic strips') ||
+      genreLower.includes('comic book') ||
       genreLower.includes('manga') ||
       genreLower.includes('/manga/') ||
-      genreLower.includes('graphic novel')
+      genreLower.includes('graphic novel') ||
+      genreLower.includes('graphicnovel') ||
+      genreLower === 'comics' ||
+      genreLower === 'comic' ||
+      genreLower === 'bande dessinée' ||
+      genreLower === 'bandes dessinées'
     ) {
       return 'graphic-novel';
     }

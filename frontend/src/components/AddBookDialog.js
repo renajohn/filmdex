@@ -345,6 +345,17 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       const grouped = groupSearchResults(results);
       setGroupedResults(grouped);
       
+      // Initialize quickAddBookType with detected type from first result (if available)
+      // Only if user hasn't manually changed it (still at default 'book')
+      if (results.length > 0 && quickAddBookType === 'book') {
+        const firstBook = results[0];
+        const detectedType = detectBookType(firstBook.isbn13 || firstBook.isbn, firstBook.genres || []);
+        if (detectedType !== 'book') {
+          setQuickAddBookType(detectedType);
+          console.log('[AddBookDialog] Initialized quickAddBookType to:', detectedType);
+        }
+      }
+      
       // Provide feedback when no results found
       if (results.length === 0) {
         const searchTerms = [];
@@ -1166,8 +1177,12 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                               <label>Type</label>
                               <Form.Select
                                 size="sm"
-                                value={detectBookType(group.books[0]?.isbn13, group.books[0]?.genres)}
-                                onChange={(e) => setQuickAddBookType(e.target.value)}
+                                value={quickAddBookType}
+                                onChange={(e) => {
+                                  const newValue = e.target.value;
+                                  console.log('[AddBookDialog] User changed bookType to:', newValue);
+                                  setQuickAddBookType(newValue);
+                                }}
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <option value="book">Book</option>

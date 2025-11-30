@@ -184,6 +184,9 @@ class BookEnrichmentService {
     
     logger.info(`[Enrichment] Starting comprehensive enrichment for "${bookData.title}"`);
     
+    // Preserve the original title - it should never be replaced
+    const originalTitle = bookData.title;
+    
     let enriched = { ...bookData };
     
     // Check for Amazon URLs and extract ASIN for cover, and ISBN for enrichment
@@ -197,29 +200,36 @@ class BookEnrichmentService {
           enriched.availableCovers = [...(enriched.availableCovers || []), ...asinCovers];
           enriched.asin = asin;
           
-          // If we don't have an ISBN, try to scrape it from Amazon page for better enrichment
-          if (!enriched.isbn && !enriched.isbn13) {
+          // If we don't have an ISBN or title, try to scrape them from Amazon page
+          if ((!enriched.isbn && !enriched.isbn13) || !enriched.title) {
             try {
-              const scrapedIsbn = await this._scrapeAmazonIsbn(amazonUrl);
-              if (scrapedIsbn) {
-                logger.info(`[Enrichment] Scraped ISBN ${scrapedIsbn} from Amazon page`);
-                if (scrapedIsbn.length === 13) {
-                  enriched.isbn13 = scrapedIsbn;
+              const scrapedMetadata = await this._scrapeAmazonMetadata(amazonUrl);
+              if (scrapedMetadata.isbn) {
+                logger.info(`[Enrichment] Scraped ISBN ${scrapedMetadata.isbn} from Amazon page`);
+                if (scrapedMetadata.isbn.length === 13) {
+                  enriched.isbn13 = scrapedMetadata.isbn;
                 } else {
-                  enriched.isbn = scrapedIsbn;
+                  enriched.isbn = scrapedMetadata.isbn;
                 }
               }
+              // Always use scraped title from Amazon if available - it's the source of truth
+              // The scraped title is more reliable than titles from Google Books/OpenLibrary which may be truncated
+              if (scrapedMetadata.title) {
+                enriched.title = scrapedMetadata.title;
+                logger.info(`[Enrichment] Using scraped title from Amazon: "${scrapedMetadata.title}" (replacing: "${enriched.title || 'none'}")`);
+              }
             } catch (error) {
-              logger.warn(`[Enrichment] Failed to scrape ISBN from Amazon: ${error.message}`);
+              logger.warn(`[Enrichment] Failed to scrape metadata from Amazon: ${error.message}`);
             }
           }
         }
       }
     }
     
-    // Store metadata from each source
+    // Store metadata from each source - include title in original metadata
     enriched._metadataSources = {
       original: {
+        title: originalTitle || null,
         description: bookData.description || null,
         series: bookData.series || null,
         seriesNumber: bookData.seriesNumber || null,
@@ -266,13 +276,28 @@ class BookEnrichmentService {
     // Merge enriched data
     enriched = this._mergeAllSources(enriched, googleData, olData);
     
-    // Extract series from title if not found
-    if (!enriched.series && enriched.title) {
-      const extracted = extractSeriesFromTitle(enriched.title);
+    // Ensure original title is preserved, BUT if we have an Amazon URL and scraped a title,
+    // prefer the Amazon-scraped title as it's more complete
+    if (bookData.urls?.amazon || bookData.urls?.amazonUrl) {
+      // If we have Amazon URL, the scraped title should already be set above
+      // Don't override it with the original (which might be truncated)
+      logger.info(`[Enrichment] Title after enrichment: "${enriched.title}" (original was: "${originalTitle}")`);
+    } else {
+      // No Amazon URL, preserve original title
+      if (originalTitle && enriched.title !== originalTitle) {
+        enriched.title = originalTitle;
+        logger.info(`[Enrichment] Final preservation of original title: "${originalTitle}"`);
+      }
+    }
+    
+    // Extract series from title if not found (use enriched title which should be the full Amazon title)
+    const titleForExtraction = enriched.title || originalTitle;
+    if (!enriched.series && titleForExtraction) {
+      const extracted = extractSeriesFromTitle(titleForExtraction);
       if (extracted) {
         enriched.series = extracted.series;
         enriched.seriesNumber = extracted.seriesNumber;
-        logger.info(`[Enrichment] Extracted series from title: "${extracted.series}" #${extracted.seriesNumber}`);
+        logger.info(`[Enrichment] Extracted series from title "${titleForExtraction}": "${extracted.series}" #${extracted.seriesNumber}`);
       }
     }
     
@@ -293,11 +318,11 @@ class BookEnrichmentService {
    * Search external APIs with fallback
    */
   /**
-   * Try to scrape ISBN from Amazon product page
+   * Try to scrape title and ISBN from Amazon product page
    */
-  async _scrapeAmazonIsbn(amazonUrl) {
+  async _scrapeAmazonMetadata(amazonUrl) {
     try {
-      logger.info(`[Amazon] Attempting to scrape ISBN from: ${amazonUrl}`);
+      logger.info(`[Amazon] Attempting to scrape metadata from: ${amazonUrl}`);
       
       const response = await axios.get(amazonUrl, {
         timeout: 10000,
@@ -312,6 +337,63 @@ class BookEnrichmentService {
       });
       
       const html = response.data;
+      const metadata = { title: null, isbn: null };
+      
+      // Try to extract title from various Amazon HTML structures
+      // Priority order: most specific first
+      const titlePatterns = [
+        // Product title span (most reliable for Amazon)
+        /<span[^>]*id=["']productTitle["'][^>]*>([^<]+)<\/span>/i,
+        // H1 with product title class
+        /<h1[^>]*class=["'][^"']*product-title[^"']*["'][^>]*>([^<]+)<\/h1>/i,
+        // H1 with title id
+        /<h1[^>]*id=["']title["'][^>]*>([^<]+)<\/h1>/i,
+        // Data attribute
+        /data-asin-title=["']([^"']+)["']/i,
+        // Meta tag og:title
+        /<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i,
+        // Page title (needs cleanup)
+        /<title[^>]*>([^<]+)<\/title>/i,
+        // JSON-LD format - be more specific to avoid matching error messages
+        /"@type"\s*:\s*"Product"[^}]*"name"\s*:\s*"([^"]+)"/i
+      ];
+      
+      // Invalid title patterns to filter out
+      const invalidTitlePatterns = [
+        /^flyout/i,
+        /^error/i,
+        /^undefined$/i,
+        /^null$/i,
+        /^loading/i,
+        /^please wait/i,
+        /amazon\.(fr|com|co\.uk|de|it|es)\s*$/i
+      ];
+      
+      for (const pattern of titlePatterns) {
+        const match = html.match(pattern);
+        if (match && match[1]) {
+          let title = match[1].trim();
+          
+          // Skip invalid titles
+          if (invalidTitlePatterns.some(invalid => invalid.test(title))) {
+            continue;
+          }
+          
+          // Clean up common Amazon title suffixes
+          title = title.replace(/\s*:\s*Amazon\.(fr|com|co\.uk|de|it|es)[^:]*$/i, '');
+          title = title.replace(/\s*-\s*Amazon[^:]*$/i, '');
+          // Remove " : " and everything after if it looks like a category (but keep if it's part of the title)
+          // Only remove if it's a single word after the colon (likely a category)
+          title = title.replace(/\s*:\s*[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s*$/, '');
+          
+          // Must be at least 5 characters and not just numbers/special chars
+          if (title.length >= 5 && /[a-zA-Z]/.test(title)) {
+            metadata.title = title;
+            logger.info(`[Amazon] Found title: "${title}"`);
+            break;
+          }
+        }
+      }
       
       // Multiple patterns to find ISBN-13 (various Amazon HTML structures)
       const isbn13Patterns = [
@@ -339,58 +421,76 @@ class BookEnrichmentService {
         if (match) {
           const isbn = match[1].replace(/[-\s]/g, '');
           if (isbn.length >= 10 && isbn.length <= 13) {
+            metadata.isbn = isbn;
             logger.info(`[Amazon] Found ISBN-13/ISMN: ${isbn}`);
-            return isbn;
+            break;
           }
         }
       }
       
-      // Look for ISBN-10
-      const isbn10Patterns = [
-        /ISBN-10\s*[:\s]*<\/span>\s*<span[^>]*>\s*(\d{9}[\dX])/i,
-        /ISBN-10\s*[:\s]*(\d{9}[\dX])/i,
-        /"isbn10"\s*:\s*"(\d{9}[\dX])"/i,
-        /ISBN-10[^<]*<[^>]*>[^<]*<[^>]*>\s*(\d{9,13})/i,
-        /ISBN-10[^0-9]*(\d{9,13})/i
-      ];
-      
-      for (const pattern of isbn10Patterns) {
-        const match = html.match(pattern);
-        if (match) {
-          const isbn = match[1].replace(/[-\s]/g, '');
-          logger.info(`[Amazon] Found ISBN-10: ${isbn}`);
-          return isbn;
+      // Look for ISBN-10 if we didn't find ISBN-13
+      if (!metadata.isbn) {
+        const isbn10Patterns = [
+          /ISBN-10\s*[:\s]*<\/span>\s*<span[^>]*>\s*(\d{9}[\dX])/i,
+          /ISBN-10\s*[:\s]*(\d{9}[\dX])/i,
+          /"isbn10"\s*:\s*"(\d{9}[\dX])"/i,
+          /ISBN-10[^<]*<[^>]*>[^<]*<[^>]*>\s*(\d{9,13})/i,
+          /ISBN-10[^0-9]*(\d{9,13})/i
+        ];
+        
+        for (const pattern of isbn10Patterns) {
+          const match = html.match(pattern);
+          if (match) {
+            const isbn = match[1].replace(/[-\s]/g, '');
+            metadata.isbn = isbn;
+            logger.info(`[Amazon] Found ISBN-10: ${isbn}`);
+            break;
+          }
         }
       }
       
-      // Look for ISMN explicitly labeled
-      const ismnPatterns = [
-        /ISMN\s*[:\s]*(979[-\s]?0[-\s]?[\d-]{7,12})/i,
-        /ISMN[^0-9]*(9790[\d-]{9,13})/i
-      ];
-      
-      for (const pattern of ismnPatterns) {
-        const match = html.match(pattern);
-        if (match) {
-          const ismn = match[1].replace(/[-\s]/g, '');
-          logger.info(`[Amazon] Found ISMN: ${ismn}`);
-          return ismn;
+      // Look for ISMN explicitly labeled if we still don't have ISBN
+      if (!metadata.isbn) {
+        const ismnPatterns = [
+          /ISMN\s*[:\s]*(979[-\s]?0[-\s]?[\d-]{7,12})/i,
+          /ISMN[^0-9]*(9790[\d-]{9,13})/i
+        ];
+        
+        for (const pattern of ismnPatterns) {
+          const match = html.match(pattern);
+          if (match) {
+            const ismn = match[1].replace(/[-\s]/g, '');
+            metadata.isbn = ismn;
+            logger.info(`[Amazon] Found ISMN: ${ismn}`);
+            break;
+          }
         }
       }
       
-      logger.info(`[Amazon] No ISBN/ISMN found on page`);
-      return null;
+      if (!metadata.title && !metadata.isbn) {
+        logger.info(`[Amazon] No title or ISBN/ISMN found on page`);
+      }
+      
+      return metadata;
     } catch (error) {
       logger.warn(`[Amazon] Failed to scrape page: ${error.message}`);
-      return null;
+      return { title: null, isbn: null };
     }
+  }
+
+  /**
+   * Try to scrape ISBN from Amazon product page (backward compatibility)
+   */
+  async _scrapeAmazonIsbn(amazonUrl) {
+    const metadata = await this._scrapeAmazonMetadata(amazonUrl);
+    return metadata.isbn;
   }
 
   async searchExternalBooks(query, filters = {}) {
     const { isbn, asin, amazonUrl, author, title, limit = 20, language = 'any' } = filters;
     
     // Normalize filters
-    const normalizedTitle = title?.trim() || undefined;
+    let normalizedTitle = title?.trim() || undefined;
     const normalizedAuthor = author?.trim() || undefined;
     const normalizedIsbn = isbn?.trim() || undefined;
     
@@ -408,10 +508,16 @@ class BookEnrichmentService {
           logger.info(`[Search] Extracted ISBN from Amazon URL params: ${extractedIsbn}`);
           filters.isbn = extractedIsbn;
         } else {
-          // Try to scrape ISBN from Amazon page
-          const scrapedIsbn = await this._scrapeAmazonIsbn(amazonUrl);
-          if (scrapedIsbn) {
-            filters.isbn = scrapedIsbn;
+          // Try to scrape ISBN and title from Amazon page
+          const scrapedMetadata = await this._scrapeAmazonMetadata(amazonUrl);
+          if (scrapedMetadata.isbn) {
+            filters.isbn = scrapedMetadata.isbn;
+          }
+          // Use scraped title if provided in filters is missing or very short
+          if (scrapedMetadata.title && (!normalizedTitle || normalizedTitle.length < 10)) {
+            filters.title = scrapedMetadata.title;
+            normalizedTitle = scrapedMetadata.title;
+            logger.info(`[Search] Using scraped title from Amazon: "${scrapedMetadata.title}"`);
           }
         }
       }
@@ -531,15 +637,42 @@ class BookEnrichmentService {
     // If we have Amazon URL/ASIN, enrich the results to get genres and other metadata
     if (amazonUrl && results.length > 0) {
       logger.info(`[Search] Enriching ${results.length} result(s) from Amazon search`);
+      
+      // Try to scrape title from Amazon if we don't have a good one
+      let amazonTitle = normalizedTitle;
+      if (!amazonTitle || amazonTitle.length < 10) {
+        try {
+          const scrapedMetadata = await this._scrapeAmazonMetadata(amazonUrl);
+          if (scrapedMetadata.title) {
+            amazonTitle = scrapedMetadata.title;
+            logger.info(`[Search] Scraped title from Amazon for enrichment: "${amazonTitle}"`);
+          }
+        } catch (error) {
+          logger.warn(`[Search] Failed to scrape title from Amazon: ${error.message}`);
+        }
+      }
+      
       const enrichedResults = await Promise.all(
         results.map(async (book) => {
           try {
+            // Use the Amazon-scraped title if available, otherwise use the book's title
+            // This ensures titles like "Elles - Tome 3 - Plurielle(s)" are not truncated
+            const originalTitle = amazonTitle || normalizedTitle || book.title;
+            
             // Add Amazon URL to book data for enrichment
             const bookWithAmazon = {
               ...book,
+              title: originalTitle, // Use the Amazon-scraped title or original title
               urls: { ...book.urls, amazon: amazonUrl }
             };
             const enriched = await this.enrichBook(bookWithAmazon);
+            
+            // Ensure the original title is preserved after enrichment
+            if (originalTitle && enriched.title !== originalTitle) {
+              enriched.title = originalTitle;
+              logger.info(`[Search] Preserved original title after enrichment: "${originalTitle}"`);
+            }
+            
             return enriched;
           } catch (error) {
             logger.warn(`[Search] Failed to enrich book "${book.title}": ${error.message}`);
@@ -654,7 +787,7 @@ class BookEnrichmentService {
 
   _extractMetadata(book) {
     if (!book) return null;
-    return {
+    const metadata = {
       description: book.description || null,
       series: book.series || null,
       seriesNumber: book.seriesNumber || null,
@@ -666,6 +799,10 @@ class BookEnrichmentService {
       rating: book.rating || null,
       authors: book.authors || null
     };
+    if (metadata.genres) {
+      logger.info(`[Enrichment] Extracted ${Array.isArray(metadata.genres) ? metadata.genres.length : 1} genre(s): ${Array.isArray(metadata.genres) ? metadata.genres.join(', ') : metadata.genres}`);
+    }
+    return metadata;
   }
 
   _mergeBookData(base, enrichment, sourceName) {
@@ -673,6 +810,10 @@ class BookEnrichmentService {
     
     const enriched = { ...base };
     const enrichedFields = [];
+    
+    // IMPORTANT: Preserve the original title from base - never replace it with enrichment title
+    // The original title (e.g., from Amazon) should always be kept
+    const originalTitle = enriched.title;
     
     // Description: prefer longer
     if (enrichment.description) {
@@ -712,9 +853,13 @@ class BookEnrichmentService {
       enrichedFields.push('publishedYear');
     }
     
-    // Merge genres
+    // Merge genres - always add genres from enrichment sources
     const allGenres = new Set(enriched.genres || []);
-    (enrichment.genres || []).forEach(g => allGenres.add(g));
+    (enrichment.genres || []).forEach(g => {
+      if (g && typeof g === 'string' && g.trim()) {
+        allGenres.add(g.trim());
+      }
+    });
     if (allGenres.size > 0) enriched.genres = Array.from(allGenres);
     
     // Merge covers
@@ -737,6 +882,12 @@ class BookEnrichmentService {
     if (!enriched.urls) enriched.urls = {};
     if (enrichment.urls) enriched.urls = { ...enriched.urls, ...enrichment.urls };
     
+    // Ensure original title is preserved
+    if (originalTitle && enriched.title !== originalTitle) {
+      enriched.title = originalTitle;
+      logger.info(`[Enrichment] Preserved original title: "${originalTitle}" (enrichment had: "${enrichment.title}")`);
+    }
+    
     if (enrichedFields.length > 0) {
       logger.info(`[Enrichment] Enriched with ${sourceName}: ${enrichedFields.join(', ')}`);
     }
@@ -745,6 +896,9 @@ class BookEnrichmentService {
   }
 
   _mergeAllSources(enriched, googleData, olData) {
+    // Preserve the original title - it should never be replaced
+    const originalTitle = enriched.title;
+    
     // Merge Google Books data
     if (googleData) {
       enriched = this._mergeBookData(enriched, googleData, 'Google Books');
@@ -766,21 +920,58 @@ class BookEnrichmentService {
       }
     }
     
-    // Aggregate genres and tags from all sources
+    // Aggregate genres and tags from all sources - ensure we get genres from enrichment
     const allGenres = new Set();
     const allTags = new Set();
     
+    // Start with existing genres from enriched book
+    if (enriched.genres) {
+      (Array.isArray(enriched.genres) ? enriched.genres : [enriched.genres])
+        .forEach(g => {
+          if (g && typeof g === 'string' && g.trim()) {
+            allGenres.add(g.trim());
+          }
+        });
+    }
+    
+    // Add genres from all metadata sources
     [enriched._metadataSources.original, enriched._metadataSources.googleBooks, enriched._metadataSources.openLibrary]
       .forEach(source => {
         if (source?.genres) {
-          (Array.isArray(source.genres) ? source.genres : [source.genres]).forEach(g => g && allGenres.add(g));
+          (Array.isArray(source.genres) ? source.genres : [source.genres])
+            .forEach(g => {
+              if (g && typeof g === 'string' && g.trim()) {
+                allGenres.add(g.trim());
+              }
+            });
         }
         if (source?.tags) {
           (Array.isArray(source.tags) ? source.tags : [source.tags]).forEach(t => t && allTags.add(t));
         }
       });
     
-    if (allGenres.size > 0) enriched.genres = Array.from(allGenres);
+    // Also check googleData and olData directly for genres (they might not be in _metadataSources yet)
+    if (googleData?.genres) {
+      (Array.isArray(googleData.genres) ? googleData.genres : [googleData.genres])
+        .forEach(g => {
+          if (g && typeof g === 'string' && g.trim()) {
+            allGenres.add(g.trim());
+          }
+        });
+    }
+    if (olData?.genres) {
+      (Array.isArray(olData.genres) ? olData.genres : [olData.genres])
+        .forEach(g => {
+          if (g && typeof g === 'string' && g.trim()) {
+            allGenres.add(g.trim());
+          }
+        });
+    }
+    
+    if (allGenres.size > 0) {
+      enriched.genres = Array.from(allGenres);
+      logger.info(`[Enrichment] Aggregated ${allGenres.size} genre(s) from all sources: ${Array.from(allGenres).join(', ')}`);
+    }
     if (allTags.size > 0) enriched.tags = Array.from(allTags);
     
     // Use longest description
@@ -793,18 +984,28 @@ class BookEnrichmentService {
       enriched.description = descriptions.reduce((a, b) => a.length > b.length ? a : b);
     }
     
-    // Series: prefer OpenLibrary
-    enriched.series = enriched._metadataSources.openLibrary?.series || 
-                      enriched._metadataSources.googleBooks?.series || 
-                      enriched._metadataSources.original?.series || null;
-    enriched.seriesNumber = enriched._metadataSources.openLibrary?.seriesNumber || 
-                            enriched._metadataSources.googleBooks?.seriesNumber || 
-                            enriched._metadataSources.original?.seriesNumber || null;
+    // Series: prefer OpenLibrary, but don't override if already extracted from title
+    if (!enriched.series) {
+      enriched.series = enriched._metadataSources.openLibrary?.series || 
+                        enriched._metadataSources.googleBooks?.series || 
+                        enriched._metadataSources.original?.series || null;
+    }
+    if (!enriched.seriesNumber) {
+      enriched.seriesNumber = enriched._metadataSources.openLibrary?.seriesNumber || 
+                              enriched._metadataSources.googleBooks?.seriesNumber || 
+                              enriched._metadataSources.original?.seriesNumber || null;
+    }
     
     // Rating: prefer Google Books
     enriched.rating = enriched._metadataSources.googleBooks?.rating || 
                       enriched._metadataSources.openLibrary?.rating || 
                       enriched._metadataSources.original?.rating || null;
+    
+    // Ensure original title is always preserved
+    if (originalTitle && enriched.title !== originalTitle) {
+      enriched.title = originalTitle;
+      logger.info(`[Enrichment] Preserved original title in _mergeAllSources: "${originalTitle}"`);
+    }
     
     return enriched;
   }
