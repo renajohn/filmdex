@@ -1030,7 +1030,9 @@ const BookSearch = forwardRef(({
         } else {
           sortField = item.type === 'series' ? item.seriesName : (item.book?.series || item.book?.title);
         }
-        const firstChar = sortField?.charAt(0)?.toUpperCase() || '';
+        // Remove articles before getting first character to match sorting behavior
+        const sortFieldWithoutArticles = removeArticlesForSorting(sortField || '');
+        const firstChar = sortFieldWithoutArticles?.charAt(0)?.toUpperCase() || '';
         const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
         
         if (item.type === 'series') {
@@ -1077,7 +1079,9 @@ const BookSearch = forwardRef(({
               const bookSortField = (sortBy === 'author' || sortBy === 'authorReverse')
                 ? book.author
                 : (book.series || book.title);
-              const bookFirstChar = bookSortField?.charAt(0)?.toUpperCase() || '';
+              // Remove articles before getting first character to match sorting behavior
+              const bookSortFieldWithoutArticles = removeArticlesForSorting(bookSortField || '');
+              const bookFirstChar = bookSortFieldWithoutArticles?.charAt(0)?.toUpperCase() || '';
               const bookLetter = /[A-Z]/.test(bookFirstChar) ? bookFirstChar : '#';
               
               items.push(

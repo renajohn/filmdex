@@ -44,6 +44,16 @@ const AlphabeticalIndex = ({
     sortBy === 'authorReverse'
   ) && !disabled;
   
+  // Helper function to remove articles (determinants) for letter calculation
+  const removeArticles = (text) => {
+    if (!text) return '';
+    const trimmed = text.trim();
+    // French articles: Le, La, Les, Un, Une, Des, Du, De
+    // English articles: The, A, An
+    const articlePattern = /^(le|la|les|un|une|des|du|de|the|a|an)\s+/i;
+    return trimmed.replace(articlePattern, '').trim() || trimmed;
+  };
+
   // Calculate which letters have items
   const availableLetters = useMemo(() => {
     if (!items.length) return new Set();
@@ -52,7 +62,9 @@ const AlphabeticalIndex = ({
     items.forEach(item => {
       const title = getTitle(item);
       if (title && typeof title === 'string') {
-        const firstChar = title.charAt(0).toUpperCase();
+        // Remove articles before getting first character to match sorting behavior
+        const titleWithoutArticles = removeArticles(title);
+        const firstChar = titleWithoutArticles.charAt(0).toUpperCase();
         if (/[A-Z]/.test(firstChar)) {
           letters.add(firstChar);
         } else if (/[0-9]/.test(firstChar)) {
@@ -260,7 +272,9 @@ const AlphabeticalIndex = ({
       const targetItem = items.find(item => {
         const title = getTitle(item);
         if (!title || typeof title !== 'string') return false;
-        const firstChar = title.charAt(0).toUpperCase();
+        // Remove articles before getting first character to match sorting behavior
+        const titleWithoutArticles = removeArticles(title);
+        const firstChar = titleWithoutArticles.charAt(0).toUpperCase();
         if (letter === '#') return !/[A-Z]/.test(firstChar);
         return firstChar === letter;
       });
