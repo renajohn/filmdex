@@ -3,7 +3,7 @@ import { Popover, Overlay } from 'react-bootstrap';
 import MovieThumbnail from './MovieThumbnail';
 import './BoxSetStack.css';
 
-const BoxSetStack = ({ boxSetName, movies, onMovieClick, isExpanded, onToggleExpanded, sortedMovies, onClose, watchNextMovies, onWatchNextToggle, dataFirstLetter }) => {
+const BoxSetStack = ({ boxSetName, movies, onMovieClick, isExpanded, onToggleExpanded, sortedMovies, onClose, watchNextMovies, onWatchNextToggle, dataFirstLetter, totalCount }) => {
   const targetRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -133,6 +133,9 @@ const BoxSetStack = ({ boxSetName, movies, onMovieClick, isExpanded, onToggleExp
         <div ref={containerRef} className="boxset-stack-container">
           <div className="boxset-title-overlay">
             <h4 className="boxset-title-text">{boxSetName}</h4>
+            {totalCount && totalCount !== movies.length && (
+              <span className="boxset-partial-count">({movies.length}/{totalCount})</span>
+            )}
           </div>
           {displayMovies.slice(0, 3).map((movie, index) => {
             // Rotation for stacking effect:
@@ -219,7 +222,11 @@ const BoxSetStack = ({ boxSetName, movies, onMovieClick, isExpanded, onToggleExp
             <Popover.Header>
               <div className="boxset-expansion-header">
                 <h4 className="boxset-expansion-title">{boxSetName}</h4>
-                <span className="boxset-expansion-count">{sortedMovies.length} movies</span>
+                <span className="boxset-expansion-count">
+                  {totalCount && totalCount !== sortedMovies.length 
+                    ? `${sortedMovies.length}/${totalCount} movies`
+                    : `${sortedMovies.length} movies`}
+                </span>
               </div>
             </Popover.Header>
             <Popover.Body>

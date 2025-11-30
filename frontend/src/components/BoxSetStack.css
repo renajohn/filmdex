@@ -70,6 +70,14 @@
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
 }
 
+.boxset-partial-count {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #b3b3b3;
+  margin-top: 2px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
 .boxset-stack-item {
   width: 100%;
   position: absolute;

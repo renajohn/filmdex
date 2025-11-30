@@ -888,12 +888,41 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
               <div className={`movies-grid movies-grid-large ${sortLoading ? 'sort-loading' : ''}`}>
                 {(() => {
                   // Check if box set stacking should be used
+                  const shouldUseStack = stackEnabled;
                   const hasActiveFilter = searchCriteria?.searchText?.trim();
-                  const shouldUseStack = stackEnabled && !hasActiveFilter;
 
                   if (shouldUseStack) {
-                    // Group movies by box set
-                    const { boxSetMap, standaloneMovies } = groupMoviesByBoxSet(movies);
+                    // When searching, group ALL movies by box set, then filter each stack
+                    // When not searching, just group the current movies
+                    const moviesToGroup = hasActiveFilter ? allMovies : movies;
+                    const { boxSetMap: allBoxSetMap, standaloneMovies: allStandaloneMovies } = groupMoviesByBoxSet(moviesToGroup);
+                    
+                    // If searching, filter each box set to only include matching movies
+                    let boxSetMap = allBoxSetMap;
+                    let standaloneMovies = allStandaloneMovies;
+                    const boxSetTotalCounts = new Map(); // Track total counts for each box set
+                    
+                    if (hasActiveFilter) {
+                      // Create a Set of filtered movie IDs for quick lookup
+                      const filteredMovieIds = new Set(filteredMovies.map(m => m.id));
+                      
+                      // Store total counts before filtering
+                      allBoxSetMap.forEach((boxSetMovies, boxSetName) => {
+                        boxSetTotalCounts.set(boxSetName, boxSetMovies.length);
+                      });
+                      
+                      // Filter box sets to only include matching movies
+                      boxSetMap = new Map();
+                      allBoxSetMap.forEach((boxSetMovies, boxSetName) => {
+                        const matchingMovies = boxSetMovies.filter(m => filteredMovieIds.has(m.id));
+                        if (matchingMovies.length > 0) {
+                          boxSetMap.set(boxSetName, matchingMovies);
+                        }
+                      });
+                      
+                      // Filter standalone movies
+                      standaloneMovies = allStandaloneMovies.filter(m => filteredMovieIds.has(m.id));
+                    }
                     
                     // Create a combined list for sorting
                     const combinedItems = [];
@@ -978,6 +1007,7 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                       if (item.type === 'boxset') {
                         if (item.movies.length > 1) {
                           const isExpanded = expandedBoxSet === item.boxSetName;
+                          const totalCount = hasActiveFilter ? boxSetTotalCounts.get(item.boxSetName) : null;
                           items.push(
                             <BoxSetStack
                               key={`boxset-${item.boxSetName}`}
@@ -991,6 +1021,7 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                               watchNextMovies={watchNextMovies}
                               onWatchNextToggle={handleWatchNextToggle}
                               dataFirstLetter={letter}
+                              totalCount={totalCount}
                             />
                           );
                         } else {

@@ -4,7 +4,7 @@ import { BsPencil, BsCheck, BsX, BsPlus } from 'react-icons/bs';
 import BookThumbnail from './BookThumbnail';
 import './SeriesStack.css';
 
-const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpanded, onToggleExpanded, sortedBooks, onClose, onBookDropped, onSeriesMerge, onSeriesRename, onRemoveFromSeries, onAddBooksToSeries, dataFirstLetter }) => {
+const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpanded, onToggleExpanded, sortedBooks, onClose, onBookDropped, onSeriesMerge, onSeriesRename, onRemoveFromSeries, onAddBooksToSeries, dataFirstLetter, totalCount }) => {
   const targetRef = useRef(null);
   const containerRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -272,7 +272,11 @@ const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpan
         </div>
         <div className="series-stack-label">
           <span className="series-stack-name">{seriesName}</span>
-          <span className="series-stack-count">({books.length})</span>
+          <span className="series-stack-count">
+            {totalCount && totalCount !== books.length 
+              ? `(${books.length}/${totalCount})`
+              : `(${books.length})`}
+          </span>
         </div>
       </div>
       
@@ -345,7 +349,11 @@ const SeriesStack = ({ seriesName, books, onBookClick, onEdit, onDelete, isExpan
                     )}
                   </div>
                 )}
-                <span className="series-expansion-count">{sortedBooks.length} books</span>
+                <span className="series-expansion-count">
+                  {totalCount && totalCount !== sortedBooks.length 
+                    ? `${sortedBooks.length}/${totalCount} books`
+                    : `${sortedBooks.length} books`}
+                </span>
               </div>
             </Popover.Header>
             <Popover.Body>

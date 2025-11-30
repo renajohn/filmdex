@@ -908,11 +908,41 @@ const BookSearch = forwardRef(({
     }
 
     if (groupBy === 'none') {
-      const { seriesMap, standaloneBooks } = groupBooksBySeries(filteredBooks);
-      
       // Check if there's an active filter
       const hasActiveFilter = searchCriteria?.searchText?.trim() || (defaultTitleStatus && defaultTitleStatus !== 'all');
-      const shouldUseStack = stackEnabled && !hasActiveFilter;
+      const shouldUseStack = stackEnabled;
+      
+      // When searching, group ALL books by series, then filter each stack
+      // When not searching, just group the current books
+      const booksToGroup = hasActiveFilter ? allBooks : filteredBooks;
+      const { seriesMap: allSeriesMap, standaloneBooks: allStandaloneBooks } = groupBooksBySeries(booksToGroup);
+      
+      // If searching, filter each series to only include matching books
+      let seriesMap = allSeriesMap;
+      let standaloneBooks = allStandaloneBooks;
+      const seriesTotalCounts = new Map(); // Track total counts for each series
+      
+      if (hasActiveFilter) {
+        // Create a Set of filtered book IDs for quick lookup
+        const filteredBookIds = new Set(filteredBooks.map(b => b.id));
+        
+        // Store total counts before filtering
+        allSeriesMap.forEach((seriesBooks, seriesName) => {
+          seriesTotalCounts.set(seriesName, seriesBooks.length);
+        });
+        
+        // Filter series to only include matching books
+        seriesMap = new Map();
+        allSeriesMap.forEach((seriesBooks, seriesName) => {
+          const matchingBooks = seriesBooks.filter(b => filteredBookIds.has(b.id));
+          if (matchingBooks.length > 0) {
+            seriesMap.set(seriesName, matchingBooks);
+          }
+        });
+        
+        // Filter standalone books
+        standaloneBooks = allStandaloneBooks.filter(b => filteredBookIds.has(b.id));
+      }
 
       // Create a combined list of items for unified sorting
       const combinedItems = [];
@@ -1006,6 +1036,7 @@ const BookSearch = forwardRef(({
         if (item.type === 'series') {
           if (item.books.length > 1 && shouldUseStack) {
             const isExpanded = expandedSeries === item.seriesName;
+            const totalCount = hasActiveFilter ? seriesTotalCounts.get(item.seriesName) : null;
             
             items.push(
               <SeriesStack
@@ -1036,6 +1067,7 @@ const BookSearch = forwardRef(({
                   sessionStorage.removeItem('bookSearchExpandedSeries');
                 }}
                 dataFirstLetter={letter}
+                totalCount={totalCount}
               />
             );
           } else {
