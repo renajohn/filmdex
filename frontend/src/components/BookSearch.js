@@ -1291,9 +1291,12 @@ const BookSearch = forwardRef(({
           }}
           onEdit={() => handleEditBook(selectedBookDetails)}
           onUpdateBook={onUpdateBook}
-          onBookUpdated={async (bookId) => {
+          onBookUpdated={async (bookOrId) => {
             try {
+              // Handle both cases: bookOrId can be a book object or just an ID
+              const bookId = typeof bookOrId === 'object' ? bookOrId?.id : bookOrId;
               console.log('BookSearch: Refreshing book data for ID:', bookId);
+              
               // Save expanded series state before reloading
               const currentExpanded = expandedSeries;
               // Refresh the book list to show updated covers
@@ -1303,11 +1306,21 @@ const BookSearch = forwardRef(({
                 setExpandedSeries(currentExpanded);
                 sessionStorage.setItem('bookSearchExpandedSeries', currentExpanded);
               }
+              
               // Also update the detail card if it's open
-              const updatedBook = await bookService.getBookById(bookId);
-              console.log('BookSearch: Updated book data:', updatedBook);
-              console.log('BookSearch: ebookFile value:', updatedBook?.ebookFile);
-              setSelectedBookDetails(updatedBook);
+              // If we already have the full book object, use it directly; otherwise fetch
+              let updatedBook;
+              if (typeof bookOrId === 'object' && bookOrId?.id) {
+                updatedBook = bookOrId;
+              } else if (bookId) {
+                updatedBook = await bookService.getBookById(bookId);
+              }
+              
+              if (updatedBook) {
+                console.log('BookSearch: Updated book data:', updatedBook);
+                console.log('BookSearch: ebookFile value:', updatedBook?.ebookFile);
+                setSelectedBookDetails(updatedBook);
+              }
             } catch (err) {
               console.error('Failed to reload book details after update:', err);
               if (onShowAlert) {
