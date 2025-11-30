@@ -177,7 +177,9 @@ const BookSearch = forwardRef(({
   // Helper function to remove articles (determinants) for sorting
   const removeArticlesForSorting = useCallback((text) => {
     if (!text) return '';
-    const trimmed = text.trim();
+    // Ensure text is a string
+    const textStr = typeof text === 'string' ? text : String(text || '');
+    const trimmed = textStr.trim();
     // French articles: Le, La, Les, Un, Une, Des, Du, De
     // English articles: The, A, An
     const articlePattern = /^(le|la|les|un|une|des|du|de|the|a|an)\s+/i;
@@ -1026,9 +1028,21 @@ const BookSearch = forwardRef(({
         // Determine the field for letter tracking based on sort type
         let sortField;
         if (sortBy === 'author' || sortBy === 'authorReverse') {
-          sortField = item.type === 'series' ? item.books[0]?.author : item.book?.author;
+          const book = item.type === 'series' ? item.books[0] : item.book;
+          if (book) {
+            // Handle authors field (can be array or string)
+            if (Array.isArray(book.authors) && book.authors.length > 0) {
+              sortField = String(book.authors[0] || '');
+            } else if (typeof book.authors === 'string') {
+              sortField = book.authors;
+            } else {
+              sortField = String(book.author || '');
+            }
+          } else {
+            sortField = '';
+          }
         } else {
-          sortField = item.type === 'series' ? item.seriesName : (item.book?.series || item.book?.title);
+          sortField = item.type === 'series' ? item.seriesName : (item.book?.series || item.book?.title || '');
         }
         // Remove articles before getting first character to match sorting behavior
         const sortFieldWithoutArticles = removeArticlesForSorting(sortField || '');
@@ -1076,9 +1090,19 @@ const BookSearch = forwardRef(({
             // Single book in series or stack disabled, show as regular thumbnails
             item.books.forEach((book) => {
               // Each book gets its own letter based on its title/series
-              const bookSortField = (sortBy === 'author' || sortBy === 'authorReverse')
-                ? book.author
-                : (book.series || book.title);
+              let bookSortField;
+              if (sortBy === 'author' || sortBy === 'authorReverse') {
+                // Handle authors field (can be array or string)
+                if (Array.isArray(book.authors) && book.authors.length > 0) {
+                  bookSortField = String(book.authors[0] || '');
+                } else if (typeof book.authors === 'string') {
+                  bookSortField = book.authors;
+                } else {
+                  bookSortField = String(book.author || '');
+                }
+              } else {
+                bookSortField = book.series || book.title || '';
+              }
               // Remove articles before getting first character to match sorting behavior
               const bookSortFieldWithoutArticles = removeArticlesForSorting(bookSortField || '');
               const bookFirstChar = bookSortFieldWithoutArticles?.charAt(0)?.toUpperCase() || '';
@@ -1209,9 +1233,16 @@ const BookSearch = forwardRef(({
         items={filteredBooks}
         getTitle={(book) => {
           if (sortBy === 'author' || sortBy === 'authorReverse') {
-            return book.author;
+            // Handle authors field (can be array or string)
+            if (Array.isArray(book.authors) && book.authors.length > 0) {
+              return String(book.authors[0] || '');
+            } else if (typeof book.authors === 'string') {
+              return book.authors;
+            } else {
+              return String(book.author || '');
+            }
           }
-          return book.series || book.title;
+          return book.series || book.title || '';
         }}
         scrollContainer={scrollContainer}
         sortBy={
