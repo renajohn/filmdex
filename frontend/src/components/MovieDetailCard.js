@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FormControl, Dropdown } from 'react-bootstrap';
-import CircularProgressBar from './CircularProgressBar';
+import { FormControl } from 'react-bootstrap';
 import CompactRatingsWidget from './CompactRatingsWidget';
 import InlinePosterSelector from './InlinePosterSelector';
 import CollectionTagsInput from './CollectionTagsInput';
 import CollectionRenameDialog from './CollectionRenameDialog';
 import apiService from '../services/api';
 import { getLanguageName } from '../services/languageCountryUtils';
-import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsArrowClockwise, BsCopy, BsFilm, BsGripVertical, BsEye } from 'react-icons/bs';
+import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsCopy, BsFilm, BsGripVertical, BsEye } from 'react-icons/bs';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
@@ -21,7 +20,6 @@ const SortableCollectionMember = ({ movie, collectionName, onMovieClick, getPost
     listeners,
     setNodeRef,
     transform,
-    transition,
     isDragging,
   } = useSortable({ id: `${collectionName}-${movie.id}` });
 
@@ -77,7 +75,6 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const [deleting, setDeleting] = useState(false);
   const deleteBtnRef = useRef(null);
   const [cast, setCast] = useState([]);
-  const [crew, setCrew] = useState([]);
   
   // In-place editing state
   const [editingField, setEditingField] = useState(null);
@@ -97,7 +94,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const [pendingUpdate, setPendingUpdate] = useState(null);
   const [collections, setCollections] = useState([]);
   const [showCollectionRenameDialog, setShowCollectionRenameDialog] = useState(false);
-  const [collectionRenameData, setCollectionRenameData] = useState({ oldName: '', newName: '', action: 'create' });
+  const [collectionRenameData] = useState({ oldName: '', newName: '', action: 'create' });
   const [collectionMembers, setCollectionMembers] = useState({}); // { collectionName: [movies] }
   const [markingWatched, setMarkingWatched] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -234,24 +231,20 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     setLocalMovieData(movieDetails);
   }, [movieDetails]);
 
-  // Load cast and crew data
+  // Load cast data
   useEffect(() => {
-    const loadCastAndCrew = async () => {
+    const loadCast = async () => {
       if (!movieDetails?.id) return;
       
       try {
-        const [castData, crewData] = await Promise.all([
-          apiService.getMovieCast(movieDetails.id),
-          apiService.getMovieCrew(movieDetails.id)
-        ]);
+        const castData = await apiService.getMovieCast(movieDetails.id);
         setCast(castData);
-        setCrew(crewData);
       } catch (error) {
-        // Failed to load cast and crew
+        // Failed to load cast
       }
     };
 
-    loadCastAndCrew();
+    loadCast();
   }, [movieDetails?.id]);
 
   // Load collection names for autocomplete
@@ -449,17 +442,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     trailer_key,
     trailer_site,
     recommended_age,
-    title_status,
-    media_type
+    title_status
   } = currentData || {};
-
-  const formatRating = (rating) => {
-    return rating ? rating.toString() : '-';
-  };
-
-  const formatPercentage = (rating) => {
-    return rating ? `${rating}%` : '-';
-  };
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
@@ -496,37 +480,6 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       maximumFractionDigits: 2
     }).format(price);
   };
-
-  const getRatingPercentage = (rating, maxRating = 10) => {
-    if (!rating || rating === '-') return 0;
-    return Math.min(Math.max((parseFloat(rating) / maxRating) * 100, 0), 100);
-  };
-
-  const getRatingColor = (rating, maxRating = 10) => {
-    if (!rating || rating === '-') return '#3a3a3a';
-    
-    const percentage = (parseFloat(rating) / maxRating) * 100;
-    
-    // Red to green continuum based on score
-    if (percentage >= 80) {
-      return '#22c55e'; // Excellent - bright green
-    } else if (percentage >= 70) {
-      return '#4ade80'; // Very good - medium green
-    } else if (percentage >= 60) {
-      return '#6ee7b7'; // Good - light green
-    } else if (percentage >= 50) {
-      return '#86efac'; // Fair - pale green
-    } else if (percentage >= 40) {
-      return '#a7f3d0'; // Below average - very pale green
-    } else if (percentage >= 30) {
-      return '#fbbf24'; // Poor - amber
-    } else if (percentage >= 20) {
-      return '#f59e0b'; // Very poor - orange
-    } else {
-      return '#ef4444'; // Terrible - red
-    }
-  };
-
 
   const getStatusLabel = (status) => {
     switch (status) {
@@ -589,10 +542,6 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     return `${baseUrl}/api/images/${profilePath}`;
   };
 
-  const getTrailerUrl = (trailerKey, trailerSite) => {
-    if (!trailerKey || trailerSite !== 'YouTube') return null;
-    return `https://www.youtube.com/watch?v=${trailerKey}`;
-  };
 
   const getTrailerEmbedUrl = (trailerKey, trailerSite) => {
     if (!trailerKey || trailerSite !== 'YouTube') {
@@ -677,8 +626,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       // Store the pending update and show dialog
       setPendingUpdate({
         field: editingField,
-        value: editValue,
-        updateData: editingField === 'title_status' ? { title_status: editValue } : { [editingField]: editValue }
+        value: editValue
       });
       setShowPropagationDialog(true);
       return;
@@ -954,7 +902,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     const isCurrentlyInWatchNext = collections.some(c => c.type === 'watch_next');
     
     try {
-      const result = await apiService.toggleWatchNext(movieDetails.id);
+      await apiService.toggleWatchNext(movieDetails.id);
       
       // If removing from Watch Next, show the "Did you watch?" prompt
       if (isCurrentlyInWatchNext) {
@@ -1287,9 +1235,6 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     };
   };
 
-  
-
-
   // Skeleton loading state
   if (loading) {
     console.log('MovieDetailCard: Rendering loading skeleton');
@@ -1432,11 +1377,6 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     }
   };
 
-  const handleCollectionRename = (action) => {
-    setCollectionRenameData(prev => ({ ...prev, action }));
-    setShowCollectionRenameDialog(false);
-    // The actual rename logic will be handled by the dialog
-  };
 
   const handleCollectionRenameConfirm = async (action) => {
     try {
@@ -1955,41 +1895,44 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                 )}
 
                 {/* Box Set Members Section */}
-                {boxSetMembers && boxSetMembers.length > 1 && collections.find(c => c.type === 'box_set') && (() => {
+                {(() => {
                   const boxSetCollection = collections.find(c => c.type === 'box_set');
+                  if (!boxSetMembers || boxSetMembers.length <= 1 || !boxSetCollection) {
+                    return null;
+                  }
                   return (
-                  <div className="movie-detail-boxset">
-                    <h3>"{collections.find(c => c.type === 'box_set')?.name}" box set</h3>
-                    <div className="boxset-posters-horizontal">
-                      {boxSetMembers.map((member, index) => (
-                        <div 
-                          key={`boxset-${member.id}`} 
-                          className={`boxset-poster-item ${member.id === id ? 'current' : ''}`}
-                          onClick={() => handleMovieTitleClick(member.id)}
-                        >
-                          <div className="boxset-poster-container">
-                            {member.poster_path ? (
-                              <img 
-                                src={getPosterUrl(member.poster_path)} 
-                                alt={member.title}
-                                className="boxset-poster-image"
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                }}
-                              />
-                            ) : (
-                              <div className="boxset-poster-placeholder">
-                                <BsFilm size={32} />
+                    <div className="movie-detail-boxset">
+                      <h3>"{boxSetCollection.name}" box set</h3>
+                      <div className="boxset-posters-horizontal">
+                        {boxSetMembers.map((member, index) => (
+                          <div 
+                            key={`boxset-${member.id}`} 
+                            className={`boxset-poster-item ${member.id === id ? 'current' : ''}`}
+                            onClick={() => handleMovieTitleClick(member.id)}
+                          >
+                            <div className="boxset-poster-container">
+                              {member.poster_path ? (
+                                <img 
+                                  src={getPosterUrl(member.poster_path)} 
+                                  alt={member.title}
+                                  className="boxset-poster-image"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <div className="boxset-poster-placeholder">
+                                  <BsFilm size={32} />
+                                </div>
+                              )}
+                              <div className="boxset-poster-overlay">
+                                <div className="boxset-poster-title">{member.title}</div>
                               </div>
-                            )}
-                            <div className="boxset-poster-overlay">
-                              <div className="boxset-poster-title">{member.title}</div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
                   );
                 })()}
 

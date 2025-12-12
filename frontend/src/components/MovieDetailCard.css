@@ -1872,7 +1872,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 2000;
+  z-index: 10004; /* Above movie detail card (10003) */
   padding: 20px;
 }
 
