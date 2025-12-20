@@ -1894,49 +1894,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                   </div>
                 )}
 
-                {/* Box Set Members Section */}
-                {(() => {
-                  const boxSetCollection = collections.find(c => c.type === 'box_set');
-                  if (!boxSetMembers || boxSetMembers.length <= 1 || !boxSetCollection) {
-                    return null;
-                  }
-                  return (
-                    <div className="movie-detail-boxset">
-                      <h3>"{boxSetCollection.name}" box set</h3>
-                      <div className="boxset-posters-horizontal">
-                        {boxSetMembers.map((member, index) => (
-                          <div 
-                            key={`boxset-${member.id}`} 
-                            className={`boxset-poster-item ${member.id === id ? 'current' : ''}`}
-                            onClick={() => handleMovieTitleClick(member.id)}
-                          >
-                            <div className="boxset-poster-container">
-                              {member.poster_path ? (
-                                <img 
-                                  src={getPosterUrl(member.poster_path)} 
-                                  alt={member.title}
-                                  className="boxset-poster-image"
-                                  onError={(e) => {
-                                    e.target.style.display = 'none';
-                                  }}
-                                />
-                              ) : (
-                                <div className="boxset-poster-placeholder">
-                                  <BsFilm size={32} />
-                                </div>
-                              )}
-                              <div className="boxset-poster-overlay">
-                                <div className="boxset-poster-title">{member.title}</div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Collection Members Sections */}
+                {/* Collection Members Sections (including Box Sets) */}
                 <DndContext 
                   sensors={sensors}
                   collisionDetection={closestCenter}
@@ -1955,22 +1913,23 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                   {Object.entries(collectionMembers).map(([collectionName, members]) => {
                     if (members.length === 0) return null;
                     
-                    // Filter out box_set collections from display (they have their own section)
-                    const collection = collections.find(c => c.name === collectionName);
-                    if (collection && collection.type === 'box_set') {
-                      return null;
-                    }
-                    
                     // If collection not found in current movie's collections, skip it (e.g., after removal)
+                    const collection = collections.find(c => c.name === collectionName);
                     if (!collection) {
                       return null;
                     }
                     
-                    // Special styling for Watch Next collection
-                    const isWatchNext = collection && collection.type === 'watch_next';
+                    // Skip box sets with only 1 member (no point showing a collection of one)
+                    if (collection.type === 'box_set' && members.length <= 1) {
+                      return null;
+                    }
+                    
+                    // Determine collection type for styling and display
+                    const isWatchNext = collection.type === 'watch_next';
+                    const isBoxSet = collection.type === 'box_set';
                     
                     return (
-                      <div key={collectionName} className={`movie-detail-collection ${isWatchNext ? 'watch-next-collection' : ''}`}>
+                      <div key={collectionName} className={`movie-detail-collection ${isWatchNext ? 'watch-next-collection' : ''} ${isBoxSet ? 'box-set-collection' : ''}`}>
                         <h3>
                           {isWatchNext ? (
                             <>
@@ -1984,6 +1943,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                               </svg>
                               In Watch Next
                             </>
+                          ) : isBoxSet ? (
+                            `"${collectionName}" box set`
                           ) : (
                             `"${collectionName}" collection`
                           )}

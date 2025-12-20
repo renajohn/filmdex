@@ -111,14 +111,29 @@ const BoxSetStack = ({ boxSetName, movies, onMovieClick, isExpanded, onToggleExp
     };
   }, [isExpanded, onClose]);
 
-  // Use provided sortedMovies or sort them by collection_order
+  // Use provided sortedMovies or sort them by collection_order, then by release_date
   const displayMovies = sortedMovies || [...movies].sort((a, b) => {
     const orderA = a.collection_order != null ? Number(a.collection_order) : 999999;
     const orderB = b.collection_order != null ? Number(b.collection_order) : 999999;
-    if (isNaN(orderA) && isNaN(orderB)) return a.title.localeCompare(b.title);
+    if (isNaN(orderA) && isNaN(orderB)) {
+      // Both are NaN, sort by release_date, then by title
+      const dateA = a.release_date ? new Date(a.release_date).getTime() : 0;
+      const dateB = b.release_date ? new Date(b.release_date).getTime() : 0;
+      if (dateA !== dateB) return dateA - dateB;
+      return a.title.localeCompare(b.title);
+    }
     if (isNaN(orderA)) return 1;
     if (isNaN(orderB)) return -1;
-    return orderA - orderB;
+    
+    // If collection_order is different, sort by that
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+    
+    // If collection_order is the same (or both null with value 999999), sort by release_date
+    const dateA = a.release_date ? new Date(a.release_date).getTime() : 0;
+    const dateB = b.release_date ? new Date(b.release_date).getTime() : 0;
+    return dateA - dateB;
   });
 
   return (

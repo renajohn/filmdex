@@ -929,11 +929,20 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                     
                     // Add box sets (represented by their first movie for sorting)
                     boxSetMap.forEach((boxSetMovies, boxSetName) => {
-                      // Sort movies within box set by collection_order to get the first movie
+                      // Sort movies within box set by collection_order, then by release_date
                       const sortedMovies = [...boxSetMovies].sort((a, b) => {
                         const orderA = a.collection_order != null ? Number(a.collection_order) : 999999;
                         const orderB = b.collection_order != null ? Number(b.collection_order) : 999999;
-                        return orderA - orderB;
+                        
+                        // If collection_order is different, sort by that
+                        if (orderA !== orderB) {
+                          return orderA - orderB;
+                        }
+                        
+                        // If collection_order is the same (or both null), sort by release_date
+                        const dateA = a.release_date ? new Date(a.release_date).getTime() : 0;
+                        const dateB = b.release_date ? new Date(b.release_date).getTime() : 0;
+                        return dateA - dateB;
                       });
                       
                       combinedItems.push({
