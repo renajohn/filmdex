@@ -238,12 +238,13 @@ const Movie = {
       }
 
       // Advanced search with multiple filter support
+      // Enhanced with: OR syntax (genre:action,comedy), negation (-genre:horror), ranges (year:2020-2024)
       if (criteria.searchText) {
         let searchText = criteria.searchText.trim();
         
-        // Parse all special syntax filters
+        // Parse all special syntax filters with OR and negation support
         const filters = {
-          actors: [],
+          actors: [],        // { values: [...], negate: bool }
           directors: [],
           titles: [],
           collections: [],
@@ -263,147 +264,162 @@ const Movie = {
           lastWatched: []
         };
         
-        // Extract actor:"Name" or actor:Name filters (can be multiple)
-        let actorMatches;
-        const actorQuotedRegex = /actor:"([^"]+)"/g;
-        const actorWordRegex = /actor:(\S+)/g;
+        // Helper: parse comma-separated values respecting quotes
+        // Handles: value1,value2,"value with spaces","another value"
+        const parseCommaSeparatedValues = (valueStr) => {
+          const values = [];
+          let current = '';
+          let inQuotes = false;
+          
+          for (let i = 0; i < valueStr.length; i++) {
+            const char = valueStr[i];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              if (current.trim()) values.push(current.trim());
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          if (current.trim()) values.push(current.trim());
+          return values.filter(v => v);
+        };
         
-        while ((actorMatches = actorQuotedRegex.exec(searchText)) !== null) {
-          filters.actors.push(actorMatches[1]);
+        // Helper: extract filter value including quoted parts with spaces
+        const extractFilterValue = (text, startIndex) => {
+          let value = '';
+          let inQuotes = false;
+          let i = startIndex;
+          
+          while (i < text.length) {
+            const char = text[i];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+              value += char;
+            } else if (char === ' ' && !inQuotes) {
+              break;
+            } else {
+              value += char;
+            }
+            i++;
+          }
+          return { value, endIndex: i };
+        };
+        
+        // Helper to extract text filters with smart comma-separated value parsing
+        const extractTextFilter = (fieldName, text) => {
+          const results = [];
+          let remaining = text;
+          
+          // Find negated filters: -field:...
+          const negRe = new RegExp(`-${fieldName}:`, 'g');
+          let match;
+          const negMatches = [];
+          while ((match = negRe.exec(text)) !== null) {
+            const valueStart = match.index + match[0].length;
+            const { value, endIndex } = extractFilterValue(text, valueStart);
+            if (value) {
+              negMatches.push({ value, fullMatch: text.substring(match.index, endIndex) });
+            }
+          }
+          for (const m of negMatches.reverse()) {
+            const values = parseCommaSeparatedValues(m.value);
+            if (values.length > 0) {
+              results.push({ values, negate: true });
+              remaining = remaining.replace(m.fullMatch, ' ').trim();
+            }
+          }
+          
+          // Find regular filters: field:... (not preceded by -)
+          const posRe = new RegExp(`(?<!-)${fieldName}:`, 'g');
+          const posMatches = [];
+          while ((match = posRe.exec(remaining)) !== null) {
+            const valueStart = match.index + match[0].length;
+            const { value, endIndex } = extractFilterValue(remaining, valueStart);
+            if (value) {
+              posMatches.push({ value, fullMatch: remaining.substring(match.index, endIndex) });
+            }
+          }
+          for (const m of posMatches.reverse()) {
+            const values = parseCommaSeparatedValues(m.value);
+            if (values.length > 0) {
+              results.push({ values, negate: false });
+              remaining = remaining.replace(m.fullMatch, ' ').trim();
+            }
+          }
+          
+          return { filters: results, remainingText: remaining };
+        };
+        
+        // Extract all text-based filters
+        let result;
+        result = extractTextFilter('actor', searchText);
+        filters.actors = result.filters;
+        searchText = result.remainingText;
+        
+        result = extractTextFilter('director', searchText);
+        filters.directors = result.filters;
+        searchText = result.remainingText;
+        
+        result = extractTextFilter('title', searchText);
+        filters.titles = result.filters;
+        searchText = result.remainingText;
+        
+        result = extractTextFilter('collection', searchText);
+        filters.collections = result.filters;
+        searchText = result.remainingText;
+        
+        result = extractTextFilter('box_set', searchText);
+        filters.boxSets = result.filters;
+        searchText = result.remainingText;
+        
+        result = extractTextFilter('genre', searchText);
+        filters.genres = result.filters;
+        searchText = result.remainingText;
+        
+        result = extractTextFilter('format', searchText);
+        filters.formats = result.filters;
+        searchText = result.remainingText;
+        
+        result = extractTextFilter('original_language', searchText);
+        filters.languages = result.filters;
+        searchText = result.remainingText;
+        
+        result = extractTextFilter('media_type', searchText);
+        filters.mediaTypes = result.filters;
+        searchText = result.remainingText;
+        
+        // Extract year filters with range support: year:2020-2024, year:>=2020, -year:2020
+        // Negated year with range
+        const negYearRangeRe = /-year:(\d+)-(\d+)/g;
+        let yearM;
+        while ((yearM = negYearRangeRe.exec(searchText)) !== null) {
+          filters.years.push({ operator: 'not_between', min: parseInt(yearM[1]), max: parseInt(yearM[2]) });
         }
-        searchText = searchText.replace(actorQuotedRegex, '').trim();
+        searchText = searchText.replace(negYearRangeRe, '').trim();
         
-        while ((actorMatches = actorWordRegex.exec(searchText)) !== null) {
-          filters.actors.push(actorMatches[1]);
+        // Regular year with range
+        const yearRangeRe = /(?<!-)year:(\d+)-(\d+)/g;
+        while ((yearM = yearRangeRe.exec(searchText)) !== null) {
+          filters.years.push({ operator: 'between', min: parseInt(yearM[1]), max: parseInt(yearM[2]) });
         }
-        searchText = searchText.replace(actorWordRegex, '').trim();
+        searchText = searchText.replace(yearRangeRe, '').trim();
         
-        // Extract director:"Name" or director:Name filters (can be multiple)
-        let directorMatches;
-        const directorQuotedRegex = /director:"([^"]+)"/g;
-        const directorWordRegex = /director:(\S+)/g;
-        
-        while ((directorMatches = directorQuotedRegex.exec(searchText)) !== null) {
-          filters.directors.push(directorMatches[1]);
+        // Negated year with operator
+        const negYearOpRe = /-year:(>=|<=|>|<|)(\d+)/g;
+        while ((yearM = negYearOpRe.exec(searchText)) !== null) {
+          const op = yearM[1] || '=';
+          const opMap = { '>=': '<', '<=': '>', '>': '<=', '<': '>=', '=': '!=' };
+          filters.years.push({ operator: opMap[op], value: parseInt(yearM[2]) });
         }
-        searchText = searchText.replace(directorQuotedRegex, '').trim();
+        searchText = searchText.replace(negYearOpRe, '').trim();
         
-        while ((directorMatches = directorWordRegex.exec(searchText)) !== null) {
-          filters.directors.push(directorMatches[1]);
-        }
-        searchText = searchText.replace(directorWordRegex, '').trim();
-        
-        // Extract title: filters (quoted or single word)
-        const titleQuotedRegex = /title:"([^"]+)"/g;
-        const titleWordRegex = /title:(\S+)/g;
-        let titleMatches;
-        
-        while ((titleMatches = titleQuotedRegex.exec(searchText)) !== null) {
-          filters.titles.push(titleMatches[1]);
-        }
-        searchText = searchText.replace(titleQuotedRegex, '').trim();
-        
-        while ((titleMatches = titleWordRegex.exec(searchText)) !== null) {
-          filters.titles.push(titleMatches[1]);
-        }
-        searchText = searchText.replace(titleWordRegex, '').trim();
-        
-        // Extract collection:"Name" or collection:Name filters (can be multiple)
-        let collectionMatches;
-        const collectionQuotedRegex = /collection:"([^"]+)"/g;
-        const collectionWordRegex = /collection:(\S+)/g;
-        
-        while ((collectionMatches = collectionQuotedRegex.exec(searchText)) !== null) {
-          filters.collections.push(collectionMatches[1]);
-        }
-        searchText = searchText.replace(collectionQuotedRegex, '').trim();
-        
-        while ((collectionMatches = collectionWordRegex.exec(searchText)) !== null) {
-          filters.collections.push(collectionMatches[1]);
-        }
-        searchText = searchText.replace(collectionWordRegex, '').trim();
-        
-        // Extract box_set:"Name" or box_set:Name filters (can be multiple)
-        let boxSetMatches;
-        const boxSetQuotedRegex = /box_set:"([^"]+)"/g;
-        const boxSetWordRegex = /box_set:(\S+)/g;
-        
-        while ((boxSetMatches = boxSetQuotedRegex.exec(searchText)) !== null) {
-          filters.boxSets.push(boxSetMatches[1]);
-        }
-        searchText = searchText.replace(boxSetQuotedRegex, '').trim();
-        
-        while ((boxSetMatches = boxSetWordRegex.exec(searchText)) !== null) {
-          filters.boxSets.push(boxSetMatches[1]);
-        }
-        searchText = searchText.replace(boxSetWordRegex, '').trim();
-        
-        // Extract genre:"Name" or genre:Name filters (can be multiple)
-        let genreMatches;
-        const genreQuotedRegex = /genre:"([^"]+)"/g;
-        const genreWordRegex = /genre:(\S+)/g;
-        
-        while ((genreMatches = genreQuotedRegex.exec(searchText)) !== null) {
-          filters.genres.push(genreMatches[1]);
-        }
-        searchText = searchText.replace(genreQuotedRegex, '').trim();
-        
-        while ((genreMatches = genreWordRegex.exec(searchText)) !== null) {
-          filters.genres.push(genreMatches[1]);
-        }
-        searchText = searchText.replace(genreWordRegex, '').trim();
-        
-        // Extract format:"Name" or format:Name filters (can be multiple)
-        let formatMatches;
-        const formatQuotedRegex = /format:"([^"]+)"/g;
-        const formatWordRegex = /format:(\S+)/g;
-        
-        while ((formatMatches = formatQuotedRegex.exec(searchText)) !== null) {
-          filters.formats.push(formatMatches[1]);
-        }
-        searchText = searchText.replace(formatQuotedRegex, '').trim();
-        
-        while ((formatMatches = formatWordRegex.exec(searchText)) !== null) {
-          filters.formats.push(formatMatches[1]);
-        }
-        searchText = searchText.replace(formatWordRegex, '').trim();
-        
-        // Extract original_language:"Name" or original_language:Name filters (can be multiple)
-        let languageMatches;
-        const languageQuotedRegex = /original_language:"([^"]+)"/g;
-        const languageWordRegex = /original_language:(\S+)/g;
-        
-        while ((languageMatches = languageQuotedRegex.exec(searchText)) !== null) {
-          filters.languages.push(languageMatches[1]);
-        }
-        searchText = searchText.replace(languageQuotedRegex, '').trim();
-        
-        while ((languageMatches = languageWordRegex.exec(searchText)) !== null) {
-          filters.languages.push(languageMatches[1]);
-        }
-        searchText = searchText.replace(languageWordRegex, '').trim();
-        
-        // Extract media_type:"Name" or media_type:Name filters (can be multiple)
-        let mediaTypeMatches;
-        const mediaTypeQuotedRegex = /media_type:"([^"]+)"/g;
-        const mediaTypeWordRegex = /media_type:(\S+)/g;
-        
-        while ((mediaTypeMatches = mediaTypeQuotedRegex.exec(searchText)) !== null) {
-          filters.mediaTypes.push(mediaTypeMatches[1]);
-        }
-        searchText = searchText.replace(mediaTypeQuotedRegex, '').trim();
-        
-        while ((mediaTypeMatches = mediaTypeWordRegex.exec(searchText)) !== null) {
-          filters.mediaTypes.push(mediaTypeMatches[1]);
-        }
-        searchText = searchText.replace(mediaTypeWordRegex, '').trim();
-        
-        // Extract year: filters with operators
-        const yearRegex = /year:(>=|<=|>|<|)(\d+)/g;
-        let yearMatches;
-        while ((yearMatches = yearRegex.exec(searchText)) !== null) {
-          const operator = yearMatches[1] || '=';
-          const value = parseInt(yearMatches[2]);
+        // Regular year with operator
+        const yearRegex = /(?<!-)year:(>=|<=|>|<|)(\d+)/g;
+        while ((yearM = yearRegex.exec(searchText)) !== null) {
+          const operator = yearM[1] || '=';
+          const value = parseInt(yearM[2]);
           filters.years.push({ operator, value });
         }
         searchText = searchText.replace(yearRegex, '').trim();
@@ -546,72 +562,128 @@ const Movie = {
         const incompleteOperatorPredicateRegex = /\b(year|imdb_rating|tmdb_rating|rotten_tomato_rating|recommended_age|price|watched|last_watched):(>=|<=|>|<)\s*$/g;
         searchText = searchText.replace(incompleteOperatorPredicateRegex, '').trim();
         
-        // Apply actor filters (AND logic)
-        filters.actors.forEach(actorName => {
-          sql += ` AND m.cast LIKE ?`;
-          params.push(`%${actorName}%`);
-        });
+        // Helper to apply text filter with OR/negation support
+        const applyTextFilter = (filterList, column, columnIsTitle = false) => {
+          filterList.forEach(filter => {
+            if (filter.values.length === 0) return;
+            
+            let clause;
+            if (columnIsTitle) {
+              // Title searches both title and original_title
+              if (filter.values.length === 1) {
+                clause = `(m.title LIKE ? OR m.original_title LIKE ?)`;
+                params.push(`%${filter.values[0]}%`, `%${filter.values[0]}%`);
+              } else {
+                const orClauses = filter.values.map(v => {
+                  params.push(`%${v}%`, `%${v}%`);
+                  return `(m.title LIKE ? OR m.original_title LIKE ?)`;
+                });
+                clause = `(${orClauses.join(' OR ')})`;
+              }
+            } else {
+              if (filter.values.length === 1) {
+                clause = `${column} LIKE ?`;
+                params.push(`%${filter.values[0]}%`);
+              } else {
+                const orClauses = filter.values.map(v => {
+                  params.push(`%${v}%`);
+                  return `${column} LIKE ?`;
+                });
+                clause = `(${orClauses.join(' OR ')})`;
+              }
+            }
+            
+            sql += filter.negate ? ` AND NOT ${clause}` : ` AND ${clause}`;
+          });
+        };
         
-        // Apply director filters (AND logic)
-        filters.directors.forEach(directorName => {
-          sql += ` AND m.director LIKE ?`;
-          params.push(`%${directorName}%`);
-        });
+        // Helper to apply collection/box_set filter with OR/negation
+        const applyCollectionFilter = (filterList, isBoxSet = false) => {
+          filterList.forEach(filter => {
+            if (filter.values.length === 0) return;
+            
+            let existsClause;
+            if (filter.values.length === 1) {
+              if (isBoxSet) {
+                existsClause = `EXISTS (
+                  SELECT 1 FROM movie_collections mc_f
+                  JOIN collections c_f ON mc_f.collection_id = c_f.id
+                  WHERE mc_f.movie_id = m.id AND c_f.type = 'box_set' AND c_f.name LIKE ?
+                )`;
+              } else {
+                existsClause = `EXISTS (
+                  SELECT 1 FROM movie_collections mc_f
+                  JOIN collections c_f ON mc_f.collection_id = c_f.id
+                  WHERE mc_f.movie_id = m.id AND c_f.name LIKE ?
+                )`;
+              }
+              params.push(`%${filter.values[0]}%`);
+            } else {
+              const orClauses = filter.values.map(v => {
+                params.push(`%${v}%`);
+                return `c_f.name LIKE ?`;
+              });
+              if (isBoxSet) {
+                existsClause = `EXISTS (
+                  SELECT 1 FROM movie_collections mc_f
+                  JOIN collections c_f ON mc_f.collection_id = c_f.id
+                  WHERE mc_f.movie_id = m.id AND c_f.type = 'box_set' AND (${orClauses.join(' OR ')})
+                )`;
+              } else {
+                existsClause = `EXISTS (
+                  SELECT 1 FROM movie_collections mc_f
+                  JOIN collections c_f ON mc_f.collection_id = c_f.id
+                  WHERE mc_f.movie_id = m.id AND (${orClauses.join(' OR ')})
+                )`;
+              }
+            }
+            
+            sql += filter.negate ? ` AND NOT ${existsClause}` : ` AND ${existsClause}`;
+          });
+        };
         
-        // Apply title filters (AND logic - all titles must match)
-        filters.titles.forEach(titleTerm => {
-          sql += ` AND (m.title LIKE ? OR m.original_title LIKE ?)`;
-          const titleSearch = `%${titleTerm}%`;
-          params.push(titleSearch, titleSearch);
-        });
+        // Apply actor filters (supports OR and negation)
+        applyTextFilter(filters.actors, 'm.cast');
         
-        // Apply collection filters (AND logic - all collections must match)
-        filters.collections.forEach(collectionName => {
-          sql += ` AND EXISTS (
-            SELECT 1 FROM movie_collections mc3
-            JOIN collections c3 ON mc3.collection_id = c3.id
-            WHERE mc3.movie_id = m.id AND c3.name LIKE ?
-          )`;
-          params.push(`%${collectionName}%`);
-        });
+        // Apply director filters
+        applyTextFilter(filters.directors, 'm.director');
         
-        // Apply box set filters (AND logic - all box sets must match)
-        filters.boxSets.forEach(boxSetName => {
-          sql += ` AND EXISTS (
-            SELECT 1 FROM movie_collections mc4
-            JOIN collections c4 ON mc4.collection_id = c4.id
-            WHERE mc4.movie_id = m.id AND c4.type = 'box_set' AND c4.name LIKE ?
-          )`;
-          params.push(`%${boxSetName}%`);
-        });
+        // Apply title filters
+        applyTextFilter(filters.titles, null, true);
         
-        // Apply genre filters (AND logic)
-        filters.genres.forEach(genreName => {
-          sql += ` AND m.genre LIKE ?`;
-          params.push(`%${genreName}%`);
-        });
+        // Apply collection filters
+        applyCollectionFilter(filters.collections, false);
         
-        // Apply format filters (AND logic)
-        filters.formats.forEach(formatName => {
-          sql += ` AND m.format LIKE ?`;
-          params.push(`%${formatName}%`);
-        });
+        // Apply box set filters
+        applyCollectionFilter(filters.boxSets, true);
         
-        // Apply language filters (AND logic)
-        filters.languages.forEach(languageName => {
-          sql += ` AND m.original_language LIKE ?`;
-          params.push(`%${languageName}%`);
-        });
+        // Apply genre filters
+        applyTextFilter(filters.genres, 'm.genre');
         
-        // Apply media type filters (AND logic)
-        filters.mediaTypes.forEach(mediaType => {
-          sql += ` AND m.media_type LIKE ?`;
-          params.push(`%${mediaType}%`);
-        });
+        // Apply format filters
+        applyTextFilter(filters.formats, 'm.format');
         
-        // Apply year filters (AND logic)
+        // Apply language filters
+        applyTextFilter(filters.languages, 'm.original_language');
+        
+        // Apply media type filters
+        applyTextFilter(filters.mediaTypes, 'm.media_type');
+        
+        // Apply year filters (with range support)
         filters.years.forEach(yearFilter => {
           switch (yearFilter.operator) {
+            case 'between':
+              sql += ` AND CAST(strftime('%Y', m.release_date) AS INTEGER) BETWEEN ? AND ?`;
+              params.push(yearFilter.min, yearFilter.max);
+              break;
+            case 'not_between':
+              sql += ` AND CAST(strftime('%Y', m.release_date) AS INTEGER) NOT BETWEEN ? AND ?`;
+              params.push(yearFilter.min, yearFilter.max);
+              break;
+            case '!=':
+              sql += ` AND strftime('%Y', m.release_date) != ?`;
+              params.push(yearFilter.value.toString());
+              break;
             case '>':
               sql += ` AND strftime('%Y', m.release_date) > ?`;
               params.push(yearFilter.value.toString());

@@ -539,14 +539,82 @@ const Book = {
     
     const isArrayColumn = (col) => ['authors', 'artists', 'genres', 'tags'].includes(col);
     
-    // Process negated quoted filters: -field:"value" or -field:"val1,val2"
-    const negQuotedRe = /-(title|author|artist|isbn|series|owner|format|language|genre|tag|subtitle|type|book_type):"([^"]+)"/g;
-    let m;
-    while ((m = negQuotedRe.exec(query)) !== null) {
+    // Helper: parse comma-separated values respecting quotes
+    // Handles: value1,value2,"value with spaces","another value"
+    const parseCommaSeparatedValues = (valueStr) => {
+      const values = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < valueStr.length; i++) {
+        const char = valueStr[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          if (current.trim()) values.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      if (current.trim()) values.push(current.trim());
+      return values.filter(v => v);
+    };
+    
+    // Helper: extract filter value including quoted parts with spaces
+    const extractFilterValue = (text, startIndex) => {
+      let value = '';
+      let inQuotes = false;
+      let i = startIndex;
+      
+      while (i < text.length) {
+        const char = text[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+          value += char;
+        } else if (char === ' ' && !inQuotes) {
+          break;
+        } else {
+          value += char;
+        }
+        i++;
+      }
+      return { value, endIndex: i };
+    };
+    
+    // Helper to process regex patterns
+    const processPattern = (pattern, text, handler) => {
+      let m;
+      let remaining = text;
+      const originalText = text;
+      while ((m = pattern.exec(originalText)) !== null) {
+        handler(m);
+        remaining = remaining.replace(m[0], ' ').trim();
+      }
+      return remaining;
+    };
+    
+    // Text fields that support smart comma-separated parsing
+    const textFields = 'title|author|artist|isbn|series|owner|format|language|genre|tag|subtitle';
+    
+    // Process negated text field filters with smart value extraction
+    const negTextFilterRe = new RegExp(`-(${textFields}):`, 'g');
+    let match;
+    const negTextMatches = [];
+    while ((match = negTextFilterRe.exec(cleanedQuery)) !== null) {
+      const field = match[1];
+      const valueStart = match.index + match[0].length;
+      const { value, endIndex } = extractFilterValue(cleanedQuery, valueStart);
+      if (value) {
+        negTextMatches.push({ field, value, fullMatch: cleanedQuery.substring(match.index, endIndex) });
+      }
+    }
+    
+    for (const m of negTextMatches.reverse()) {
       hasFilters = true;
-      const col = columnMap[m[1]];
+      const col = columnMap[m.field];
       if (!col) continue;
-      const vals = m[2].split(',').map(v => v.trim()).filter(v => v);
+      const vals = parseCommaSeparatedValues(m.value);
       if (col === 'book_type') {
         const valid = vals.filter(v => ['book', 'score', 'graphic-novel'].includes(v.toLowerCase()));
         if (valid.length === 1) { whereClauses.push(`${col} != ?`); params.push(valid[0].toLowerCase()); }
@@ -558,27 +626,42 @@ const Book = {
         const clauses = vals.map(v => { params.push(`%${v}%`); return `${col} LIKE ?`; });
         whereClauses.push(`NOT (${clauses.join(' OR ')})`);
       }
-      cleanedQuery = cleanedQuery.replace(m[0], '').trim();
+      cleanedQuery = cleanedQuery.replace(m.fullMatch, ' ').trim();
     }
     
-    // Process regular quoted filters: field:"value" or field:"val1,val2"
-    const quotedRe = /(?<!-)(title|author|artist|isbn|series|owner|format|language|genre|tag|subtitle|title_status|type|book_type):"([^"]+)"/g;
-    while ((m = quotedRe.exec(query)) !== null) {
+    // Process regular text field filters with smart value extraction
+    const posTextFilterRe = new RegExp(`(?<!-)(${textFields}|title_status|type|book_type):`, 'g');
+    const posTextMatches = [];
+    while ((match = posTextFilterRe.exec(cleanedQuery)) !== null) {
+      const field = match[1];
+      const valueStart = match.index + match[0].length;
+      const { value, endIndex } = extractFilterValue(cleanedQuery, valueStart);
+      if (value) {
+        posTextMatches.push({ field, value, fullMatch: cleanedQuery.substring(match.index, endIndex) });
+      }
+    }
+    
+    for (const m of posTextMatches.reverse()) {
       hasFilters = true;
-      if (m[1] === 'title_status') {
-        const vals = m[2].split(',').map(v => v.trim()).filter(v => ['owned', 'borrowed', 'wish'].includes(v));
+      
+      if (m.field === 'title_status') {
+        const vals = parseCommaSeparatedValues(m.value).filter(v => ['owned', 'borrowed', 'wish'].includes(v));
         titleStatusFilter = vals.length === 1 ? vals[0] : (vals.length > 1 ? vals : null);
-        cleanedQuery = cleanedQuery.replace(m[0], '').trim();
+        cleanedQuery = cleanedQuery.replace(m.fullMatch, ' ').trim();
         continue;
       }
-      const col = columnMap[m[1]];
+      if (m.field === 'type' || m.field === 'book_type') {
+        const vals = parseCommaSeparatedValues(m.value).filter(v => ['book', 'score', 'graphic-novel'].includes(v.toLowerCase()));
+        if (vals.length === 1) { whereClauses.push('book_type = ?'); params.push(vals[0].toLowerCase()); }
+        else if (vals.length > 1) { whereClauses.push(`book_type IN (${vals.map(() => '?').join(',')})`); vals.forEach(v => params.push(v.toLowerCase())); }
+        cleanedQuery = cleanedQuery.replace(m.fullMatch, ' ').trim();
+        continue;
+      }
+      
+      const col = columnMap[m.field];
       if (!col) continue;
-      const vals = m[2].split(',').map(v => v.trim()).filter(v => v);
-      if (col === 'book_type') {
-        const valid = vals.filter(v => ['book', 'score', 'graphic-novel'].includes(v.toLowerCase()));
-        if (valid.length === 1) { whereClauses.push(`${col} = ?`); params.push(valid[0].toLowerCase()); }
-        else if (valid.length > 1) { whereClauses.push(`${col} IN (${valid.map(() => '?').join(',')})`); valid.forEach(v => params.push(v.toLowerCase())); }
-      } else if (isArrayColumn(col)) {
+      const vals = parseCommaSeparatedValues(m.value);
+      if (isArrayColumn(col)) {
         if (vals.length === 1) { whereClauses.push(`${col} LIKE ?`); params.push(`%${vals[0]}%`); }
         else { const clauses = vals.map(v => { params.push(`%${v}%`); return `${col} LIKE ?`; }); whereClauses.push(`(${clauses.join(' OR ')})`); }
       } else if (col === 'owner') {
@@ -587,91 +670,94 @@ const Book = {
         if (vals.length === 1) { whereClauses.push(`${col} LIKE ?`); params.push(`%${vals[0]}%`); }
         else { const clauses = vals.map(v => { params.push(`%${v}%`); return `${col} LIKE ?`; }); whereClauses.push(`(${clauses.join(' OR ')})`); }
       }
-      cleanedQuery = cleanedQuery.replace(m[0], '').trim();
+      cleanedQuery = cleanedQuery.replace(m.fullMatch, ' ').trim();
     }
     
-    // Process negated unquoted: -type:value, -format:val1,val2, -has_ebook:true
-    const negUnquotedRe = /-(type|book_type|format|language|has_ebook):(\S+)/g;
-    while ((m = negUnquotedRe.exec(query)) !== null) {
-      hasFilters = true;
-      const field = m[1], rawVal = m[2];
-      if (field === 'has_ebook') {
-        const v = rawVal.toLowerCase();
+    // Process has_ebook filter
+    cleanedQuery = processPattern(
+      /-has_ebook:(true|false)/gi,
+      cleanedQuery,
+      (m) => {
+        hasFilters = true;
+        const v = m[1].toLowerCase();
         if (v === 'true') whereClauses.push('(ebook_file IS NULL OR ebook_file = "")');
         else if (v === 'false') whereClauses.push('ebook_file IS NOT NULL AND ebook_file != ""');
-        cleanedQuery = cleanedQuery.replace(m[0], '').trim();
-        continue;
       }
-      const col = columnMap[field];
-      if (!col) continue;
-      const vals = rawVal.split(',').map(v => v.trim().toLowerCase()).filter(v => v);
-      if (col === 'book_type') {
-        const valid = vals.filter(v => ['book', 'score', 'graphic-novel'].includes(v));
-        if (valid.length === 1) { whereClauses.push(`${col} != ?`); params.push(valid[0]); }
-        else if (valid.length > 1) { whereClauses.push(`${col} NOT IN (${valid.map(() => '?').join(',')})`); valid.forEach(v => params.push(v)); }
-      } else {
-        if (vals.length === 1) { whereClauses.push(`${col} != ?`); params.push(vals[0]); }
-        else { whereClauses.push(`${col} NOT IN (${vals.map(() => '?').join(',')})`); vals.forEach(v => params.push(v)); }
-      }
-      cleanedQuery = cleanedQuery.replace(m[0], '').trim();
-    }
+    );
     
-    // Process regular unquoted: type:val, year:2020, year:>=2020, year:2020-2024
-    const unquotedRe = /(?<!-)(title_status|year|rating|has_ebook|type|book_type|format|language):(>=|<=|>|<)?(\S+)/g;
-    while ((m = unquotedRe.exec(query)) !== null) {
-      hasFilters = true;
-      const field = m[1], op = m[2] || '', rawVal = m[3];
-      
-      if (field === 'title_status') {
-        const vals = rawVal.split(',').map(v => v.trim()).filter(v => ['owned', 'borrowed', 'wish'].includes(v));
-        titleStatusFilter = vals.length === 1 ? vals[0] : (vals.length > 1 ? vals : null);
-        cleanedQuery = cleanedQuery.replace(m[0], '').trim();
-        continue;
-      }
-      if (field === 'has_ebook') {
-        const v = rawVal.toLowerCase();
+    cleanedQuery = processPattern(
+      /has_ebook:(true|false)/gi,
+      cleanedQuery,
+      (m) => {
+        hasFilters = true;
+        const v = m[1].toLowerCase();
         if (v === 'true') whereClauses.push('ebook_file IS NOT NULL AND ebook_file != ""');
         else if (v === 'false') whereClauses.push('(ebook_file IS NULL OR ebook_file = "")');
-        cleanedQuery = cleanedQuery.replace(m[0], '').trim();
-        continue;
       }
-      if (field === 'type' || field === 'book_type') {
-        const vals = rawVal.split(',').map(v => v.trim().toLowerCase()).filter(v => ['book', 'score', 'graphic-novel'].includes(v));
-        if (vals.length === 1) { whereClauses.push('book_type = ?'); params.push(vals[0]); }
-        else if (vals.length > 1) { whereClauses.push(`book_type IN (${vals.map(() => '?').join(',')})`); vals.forEach(v => params.push(v)); }
-        cleanedQuery = cleanedQuery.replace(m[0], '').trim();
-        continue;
-      }
-      if (field === 'format' || field === 'language') {
-        const col = columnMap[field];
-        const vals = rawVal.split(',').map(v => v.trim()).filter(v => v);
-        if (vals.length === 1) { whereClauses.push(`${col} = ?`); params.push(vals[0]); }
-        else if (vals.length > 1) { whereClauses.push(`${col} IN (${vals.map(() => '?').join(',')})`); vals.forEach(v => params.push(v)); }
-        cleanedQuery = cleanedQuery.replace(m[0], '').trim();
-        continue;
-      }
-      if (field === 'year' || field === 'rating') {
-        const col = field === 'year' ? 'published_year' : 'rating';
-        // Range syntax: year:2020-2024
-        const rangeMatch = rawVal.match(/^(\d+)-(\d+)$/);
-        if (rangeMatch) {
-          whereClauses.push(`${col} BETWEEN ? AND ?`);
-          params.push(parseFloat(rangeMatch[1]), parseFloat(rangeMatch[2]));
-          cleanedQuery = cleanedQuery.replace(m[0], '').trim();
-          continue;
+    );
+    
+    // Process year/rating with range or operators: year:2020-2024, year:>=2020, -year:2020
+    cleanedQuery = processPattern(
+      /-year:(>=|<=|>|<)?(\d+)(?:-(\d+))?/g,
+      cleanedQuery,
+      (m) => {
+        hasFilters = true;
+        if (m[3]) {
+          whereClauses.push(`published_year NOT BETWEEN ? AND ?`);
+          params.push(parseInt(m[2]), parseInt(m[3]));
+        } else {
+          const op = m[1] || '=';
+          const val = parseInt(m[2]);
+          const opMap = { '>=': '<', '<=': '>', '>': '<=', '<': '>=', '=': '!=' };
+          whereClauses.push(`published_year ${opMap[op]} ?`);
+          params.push(val);
         }
-        const val = parseFloat(rawVal);
-        if (!isNaN(val)) {
-          if (op === '>=') { whereClauses.push(`${col} >= ?`); params.push(val); }
-          else if (op === '<=') { whereClauses.push(`${col} <= ?`); params.push(val); }
-          else if (op === '>') { whereClauses.push(`${col} > ?`); params.push(val); }
-          else if (op === '<') { whereClauses.push(`${col} < ?`); params.push(val); }
-          else { whereClauses.push(`${col} = ?`); params.push(val); }
-        }
-        cleanedQuery = cleanedQuery.replace(m[0], '').trim();
-        continue;
       }
-    }
+    );
+    
+    cleanedQuery = processPattern(
+      /year:(>=|<=|>|<)?(\d+)(?:-(\d+))?/g,
+      cleanedQuery,
+      (m) => {
+        hasFilters = true;
+        if (m[3]) {
+          whereClauses.push(`published_year BETWEEN ? AND ?`);
+          params.push(parseInt(m[2]), parseInt(m[3]));
+        } else {
+          const op = m[1] || '=';
+          const val = parseInt(m[2]);
+          const opSql = { '>=': '>=', '<=': '<=', '>': '>', '<': '<', '=': '=' }[op];
+          whereClauses.push(`published_year ${opSql} ?`);
+          params.push(val);
+        }
+      }
+    );
+    
+    cleanedQuery = processPattern(
+      /-rating:(>=|<=|>|<)?(\d+(?:\.\d+)?)/g,
+      cleanedQuery,
+      (m) => {
+        hasFilters = true;
+        const op = m[1] || '=';
+        const val = parseFloat(m[2]);
+        const opMap = { '>=': '<', '<=': '>', '>': '<=', '<': '>=', '=': '!=' };
+        whereClauses.push(`rating ${opMap[op]} ?`);
+        params.push(val);
+      }
+    );
+    
+    cleanedQuery = processPattern(
+      /rating:(>=|<=|>|<)?(\d+(?:\.\d+)?)/g,
+      cleanedQuery,
+      (m) => {
+        hasFilters = true;
+        const op = m[1] || '=';
+        const val = parseFloat(m[2]);
+        const opSql = { '>=': '>=', '<=': '<=', '>': '>', '<': '<', '=': '=' }[op];
+        whereClauses.push(`rating ${opSql} ?`);
+        params.push(val);
+      }
+    );
     
     return { params, whereClauses, titleStatusFilter, hasFilters, cleanedQuery: cleanedQuery.trim() };
   },

@@ -326,77 +326,197 @@ const Album = {
     });
   },
 
+  // Helper function to parse enhanced search query syntax for albums
+  // Supports: OR (genre:rock,jazz), negation (-artist:Beatles), ranges (year:2020-2024)
+  // Also supports mixed quoted/unquoted: title:21,Absolution,"Anthology 1"
+  _parseSearchQuery: (query) => {
+    const params = [];
+    const whereClauses = [];
+    let hasFilters = false;
+    let hasTrackFilter = false;
+    let cleanedQuery = query;
+    
+    const columnMap = {
+      'artist': 'artist', 'title': 'title', 'genre': 'genres', 'mood': 'moods',
+      'label': 'labels', 'country': 'country', 'track': 'track'
+    };
+    
+    // Helper: build clause for single/multiple values
+    const buildClause = (column, values, negate = false) => {
+      if (column === 'track') {
+        hasTrackFilter = true;
+        const clauses = values.map(v => {
+          params.push(`%${v}%`);
+          return `EXISTS (SELECT 1 FROM tracks WHERE tracks.album_id = albums.id AND tracks.title LIKE ?)`;
+        });
+        const combined = clauses.length === 1 ? clauses[0] : `(${clauses.join(' OR ')})`;
+        return negate ? `NOT ${combined}` : combined;
+      }
+      if (values.length === 1) {
+        params.push(`%${values[0]}%`);
+        return negate ? `${column} NOT LIKE ?` : `${column} LIKE ?`;
+      }
+      const clauses = values.map(v => { params.push(`%${v}%`); return `${column} LIKE ?`; });
+      const orClause = `(${clauses.join(' OR ')})`;
+      return negate ? `NOT ${orClause}` : orClause;
+    };
+    
+    // Helper: parse comma-separated values respecting quotes
+    // Handles: value1,value2,"value with spaces","another value"
+    const parseCommaSeparatedValues = (valueStr) => {
+      const values = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < valueStr.length; i++) {
+        const char = valueStr[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          if (current.trim()) values.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      if (current.trim()) values.push(current.trim());
+      return values.filter(v => v);
+    };
+    
+    // Helper: extract filter value including quoted parts with spaces
+    // Matches: field:value or field:val1,val2,"val 3" until next unquoted space or end
+    const extractFilterValue = (text, startIndex) => {
+      let value = '';
+      let inQuotes = false;
+      let i = startIndex;
+      
+      while (i < text.length) {
+        const char = text[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+          value += char;
+        } else if (char === ' ' && !inQuotes) {
+          break; // End of filter value
+        } else {
+          value += char;
+        }
+        i++;
+      }
+      return { value, endIndex: i };
+    };
+    
+    // Process filters with smart value extraction
+    const fields = 'artist|title|genre|mood|track|label|country';
+    
+    // Pattern for negated filters: -field:...
+    const negFilterRe = new RegExp(`-(${fields}):`, 'g');
+    let match;
+    const negMatches = [];
+    while ((match = negFilterRe.exec(cleanedQuery)) !== null) {
+      const field = match[1];
+      const valueStart = match.index + match[0].length;
+      const { value, endIndex } = extractFilterValue(cleanedQuery, valueStart);
+      if (value) {
+        negMatches.push({ field, value, fullMatch: cleanedQuery.substring(match.index, endIndex) });
+      }
+    }
+    
+    // Process negated matches (in reverse to preserve indices when removing)
+    for (const m of negMatches.reverse()) {
+      hasFilters = true;
+      const col = columnMap[m.field];
+      if (col) {
+        const vals = parseCommaSeparatedValues(m.value);
+        whereClauses.push(buildClause(col, vals, true));
+        cleanedQuery = cleanedQuery.replace(m.fullMatch, ' ').trim();
+      }
+    }
+    
+    // Pattern for regular filters: field:... (not preceded by -)
+    // We need to find field: that's not preceded by -
+    const posFilterRe = new RegExp(`(?<!-)(${fields}):`, 'g');
+    const posMatches = [];
+    while ((match = posFilterRe.exec(cleanedQuery)) !== null) {
+      const field = match[1];
+      const valueStart = match.index + match[0].length;
+      const { value, endIndex } = extractFilterValue(cleanedQuery, valueStart);
+      if (value) {
+        posMatches.push({ field, value, fullMatch: cleanedQuery.substring(match.index, endIndex) });
+      }
+    }
+    
+    // Process positive matches (in reverse to preserve indices when removing)
+    for (const m of posMatches.reverse()) {
+      hasFilters = true;
+      const col = columnMap[m.field];
+      if (col) {
+        const vals = parseCommaSeparatedValues(m.value);
+        whereClauses.push(buildClause(col, vals, false));
+        cleanedQuery = cleanedQuery.replace(m.fullMatch, ' ').trim();
+      }
+    }
+    
+    // Helper to process regex patterns
+    const processPattern = (pattern, text, handler) => {
+      let m;
+      let remaining = text;
+      const originalText = text;
+      while ((m = pattern.exec(originalText)) !== null) {
+        handler(m);
+        remaining = remaining.replace(m[0], ' ').trim();
+      }
+      return remaining;
+    };
+    
+    // Pattern 5: Year with range or operators: year:2020-2024, year:>=2020, -year:2020
+    cleanedQuery = processPattern(
+      /-year:(>=|<=|>|<)?(\d+)(?:-(\d+))?/g,
+      cleanedQuery,
+      (m) => {
+        hasFilters = true;
+        if (m[3]) { // Range: -year:2020-2024 -> NOT BETWEEN
+          whereClauses.push(`release_year NOT BETWEEN ? AND ?`);
+          params.push(parseInt(m[2]), parseInt(m[3]));
+        } else {
+          const op = m[1] || '=';
+          const val = parseInt(m[2]);
+          const opMap = { '>=': '<', '<=': '>', '>': '<=', '<': '>=', '=': '!=' };
+          whereClauses.push(`release_year ${opMap[op]} ?`);
+          params.push(val);
+        }
+      }
+    );
+    
+    cleanedQuery = processPattern(
+      /year:(>=|<=|>|<)?(\d+)(?:-(\d+))?/g,
+      cleanedQuery,
+      (m) => {
+        hasFilters = true;
+        if (m[3]) { // Range: year:2020-2024
+          whereClauses.push(`release_year BETWEEN ? AND ?`);
+          params.push(parseInt(m[2]), parseInt(m[3]));
+        } else {
+          const op = m[1] || '=';
+          const val = parseInt(m[2]);
+          const opSql = { '>=': '>=', '<=': '<=', '>': '>', '<': '<', '=': '=' }[op];
+          whereClauses.push(`release_year ${opSql} ?`);
+          params.push(val);
+        }
+      }
+    );
+    
+    return { params, whereClauses, hasFilters, hasTrackFilter, cleanedQuery: cleanedQuery.trim() };
+  },
+
   search: (query) => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
       
-      // Parse filter syntax (e.g., artist:"Dire Straits" title:"Brothers in Arms" genre:"rock" mood:"calm" track:"Money for Nothing")
-      const filters = [];
-      const params = [];
-      let whereClauses = [];
-      let hasTrackFilter = false;
-      
-      // Extract filters like artist:"value" or title:"value" or genre:"value" or mood:"value" or track:"value" or country:"value" or year:2020 or label:"Columbia"
-      const filterRegex = /(artist|title|genre|mood|track|year|label|country):"([^"]+)"|(year):(>=|<=|>|<)?(\d+)/g;
-      let match;
-      let hasFilters = false;
-      
-      while ((match = filterRegex.exec(query)) !== null) {
-        hasFilters = true;
-        
-        // Handle quoted filters (artist:"value", title:"value", etc.)
-        if (match[1] && match[2]) {
-          const field = match[1];
-          const value = match[2];
-          
-          if (field === 'track') {
-            // Track filter requires a JOIN with the tracks table
-            hasTrackFilter = true;
-            whereClauses.push(`EXISTS (SELECT 1 FROM tracks WHERE tracks.album_id = albums.id AND tracks.title LIKE ?)`);
-            params.push(`%${value}%`);
-          } else {
-            // Map singular field names to plural column names where needed
-            const columnMap = {
-              'artist': 'artist',
-              'title': 'title',
-              'genre': 'genres',
-              'label': 'labels',
-              'country': 'country'
-            };
-            const column = columnMap[field];
-            
-            if (column) {
-              whereClauses.push(`${column} LIKE ?`);
-              params.push(`%${value}%`);
-            }
-          }
-        }
-        // Handle year filters (year:2020, year:>=2020, etc.)
-        else if (match[3] === 'year' && match[5]) {
-          const operator = match[4] || '=';
-          const year = parseInt(match[5]);
-          
-          if (operator === '>=') {
-            whereClauses.push(`release_year >= ?`);
-            params.push(year);
-          } else if (operator === '<=') {
-            whereClauses.push(`release_year <= ?`);
-            params.push(year);
-          } else if (operator === '>') {
-            whereClauses.push(`release_year > ?`);
-            params.push(year);
-          } else if (operator === '<') {
-            whereClauses.push(`release_year < ?`);
-            params.push(year);
-          } else {
-            whereClauses.push(`release_year = ?`);
-            params.push(year);
-          }
-        }
-      }
+      // Use enhanced search parser (supports OR, negation, ranges)
+      const { params, whereClauses, hasFilters, hasTrackFilter, cleanedQuery } = Album._parseSearchQuery(query);
       
       // If no filters found, do a general search
-      if (!hasFilters) {
+      if (!hasFilters && !cleanedQuery.trim()) {
         const sql = `
           SELECT * FROM albums 
           WHERE (title LIKE ? OR artist LIKE ? OR labels LIKE ? OR genres LIKE ?)
@@ -414,9 +534,18 @@ const Album = {
         });
       } else {
         // Build filtered query
+        let whereClause = whereClauses.length > 0 ? whereClauses.join(' AND ') : '1=1';
+        
+        // Add general text search if there's remaining text
+        if (cleanedQuery.trim()) {
+          const searchTerm = `%${cleanedQuery.trim()}%`;
+          whereClause += ` AND (title LIKE ? OR artist LIKE ? OR labels LIKE ? OR genres LIKE ?)`;
+          params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+        }
+        
         const sql = `
           SELECT ${hasTrackFilter ? 'DISTINCT' : ''} albums.* FROM albums 
-          WHERE ${whereClauses.join(' AND ')}
+          WHERE ${whereClause}
           AND (title_status = ? OR title_status IS NULL)
           ORDER BY artist, title
         `;

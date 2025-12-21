@@ -135,35 +135,57 @@ function AppContent() {
     const cursorPos = text.length;
     
     // Find the last word being typed (after last space or at start)
+    // Must respect quotes - don't split at spaces inside quotes
     const beforeCursor = text.substring(0, cursorPos);
-    const lastSpaceIndex = beforeCursor.lastIndexOf(' ');
+    
+    // Find last space that's not inside quotes
+    let lastSpaceIndex = -1;
+    let inQuotes = false;
+    for (let i = 0; i < beforeCursor.length; i++) {
+      const char = beforeCursor[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ' ' && !inQuotes) {
+        lastSpaceIndex = i;
+      }
+    }
     const currentWord = beforeCursor.substring(lastSpaceIndex + 1);
     
-    // Check if we're inside a filter value (after a keyword)
+    // Check if we're inside a filter value (after a keyword) - supports negation with - prefix
     const filterMatch = location.pathname === '/musicdex'
-      ? currentWord.match(/^(title|artist|genre|mood|track|label|country|year):(.*)$/)
+      ? currentWord.match(/^(-?)(title|artist|genre|mood|track|label|country|year):(.*)$/)
       : location.pathname === '/bookdex'
-        ? currentWord.match(/^(title|author|artist|isbn|series|owner|format|language|genre|tag|type|title_status|year|rating):(.*)$/)
-        : currentWord.match(/^(actor|director|title|collection|box_set|genre|format|original_language|media_type|imdb_rating|tmdb_rating|rotten_tomato_rating):(.*)$/);
+        ? currentWord.match(/^(-?)(title|author|artist|isbn|series|owner|format|language|genre|tag|type|title_status|year|rating):(.*)$/)
+        : currentWord.match(/^(-?)(actor|director|title|collection|box_set|genre|format|original_language|media_type|imdb_rating|tmdb_rating|rotten_tomato_rating):(.*)$/);
     
     if (filterMatch) {
-      const [, filterType, filterValue] = filterMatch;
+      const [fullMatch, negationPrefix, filterType, filterValue] = filterMatch;
       
-      // Don't show suggestions if already inside quotes
-      if (filterValue.includes('"')) {
+      // Handle comma-separated values (for OR syntax)
+      // Extract the part after the last comma as the search term
+      const lastCommaIndex = filterValue.lastIndexOf(',');
+      const existingValues = lastCommaIndex >= 0 ? filterValue.substring(0, lastCommaIndex + 1) : '';
+      const currentSearchTerm = lastCommaIndex >= 0 ? filterValue.substring(lastCommaIndex + 1) : filterValue;
+      
+      // Don't show suggestions if currently inside quotes (unless after comma)
+      // Check if we're inside an unclosed quote
+      const quoteCount = currentSearchTerm.split('"').length - 1;
+      if (quoteCount % 2 === 1) {
+        // Odd number of quotes means we're inside a quoted string
         return [];
       }
       
       // Show suggestions immediately when predicate is typed (even with empty value)
       // or when user starts typing a value
       
-      // Fetch value suggestions from backend
+      // Fetch value suggestions from backend using the current term (after last comma)
       try {
+        const searchTerm = currentSearchTerm.replace(/"/g, ''); // Remove quotes for search
         const response = location.pathname === '/musicdex'
-          ? await musicService.getAutocompleteSuggestions(filterType, filterValue)
+          ? await musicService.getAutocompleteSuggestions(filterType, searchTerm)
           : location.pathname === '/bookdex'
-            ? await bookService.getAutocompleteSuggestions(filterType, filterValue)
-            : await apiService.getAutocompleteSuggestions(filterType, filterValue);
+            ? await bookService.getAutocompleteSuggestions(filterType, searchTerm)
+            : await apiService.getAutocompleteSuggestions(filterType, searchTerm);
         
         // Extract values from response (backend now returns {field: value} format)
         let values = response.map(item => item[filterType]).filter(value => value && value !== 'undefined');
@@ -196,11 +218,13 @@ function AppContent() {
             return Array.isArray(cast) ? cast : [cast];
           }).flat();
           
-          // Filter to only show those that match the search term
-          const searchTerm = filterValue.toLowerCase();
-          values = values.filter(item => 
-            item && typeof item === 'string' && item.toLowerCase().includes(searchTerm)
-          );
+          // Filter to only show those that match the current search term (after last comma, not full filterValue)
+          const termToMatch = currentSearchTerm.replace(/"/g, '').toLowerCase();
+          if (termToMatch) {
+            values = values.filter(item => 
+              item && typeof item === 'string' && item.toLowerCase().includes(termToMatch)
+            );
+          }
         }
         
         // Handle numeric filters for books (year, rating), title_status, and type
@@ -215,7 +239,7 @@ function AppContent() {
               isValue: true,
               keyword: status,
               filterType,
-              replaceText: text.substring(0, lastSpaceIndex + 1) + `title_status:${status}`
+              replaceText: text.substring(0, lastSpaceIndex + 1) + `${negationPrefix}title_status:${status}`
             }));
           }
           // For type, show predefined book type values
@@ -233,7 +257,7 @@ function AppContent() {
               isValue: true,
               keyword: opt.label,
               filterType,
-              replaceText: text.substring(0, lastSpaceIndex + 1) + `type:${opt.value}`
+              replaceText: text.substring(0, lastSpaceIndex + 1) + `${negationPrefix}type:${opt.value}`
             }));
           }
           // For numeric filters, don't show autocomplete suggestions
@@ -243,13 +267,26 @@ function AppContent() {
         // Remove duplicates and limit to 20
         values = [...new Set(values)].slice(0, 20);
         
-        return values.map(value => ({
-          isValue: true,
-          keyword: value,
-          filterType,
-          collectionType: collectionTypes[value], // Include collection type for proper hinting
-          replaceText: text.substring(0, lastSpaceIndex + 1) + `${filterType}:"${value}"`
-        }));
+        // Filter out values that are already in existingValues
+        const existingValuesList = existingValues.split(',').map(v => v.replace(/"/g, '').trim().toLowerCase()).filter(v => v);
+        values = values.filter(v => !existingValuesList.includes(v.toLowerCase()));
+        
+        return values.map(value => {
+          // Strip leading/trailing quotes from value to avoid double-quoting
+          const cleanValue = value.replace(/^["']|["']$/g, '');
+          // Check if value needs quotes (contains spaces or special chars)
+          const needsQuotes = cleanValue.includes(' ') || cleanValue.includes(',') || cleanValue.includes(':');
+          const formattedValue = needsQuotes ? `"${cleanValue}"` : cleanValue;
+          // Include existing values (comma-separated) before the new value
+          const valueToInsert = existingValues ? `${existingValues}${formattedValue}` : formattedValue;
+          return {
+            isValue: true,
+            keyword: value, // Show original value in dropdown
+            filterType,
+            collectionType: collectionTypes[value], // Include collection type for proper hinting
+            replaceText: text.substring(0, lastSpaceIndex + 1) + `${negationPrefix}${filterType}:${valueToInsert}`
+          };
+        });
       } catch (error) {
         console.error('Error fetching autocomplete suggestions:', error);
         return [];
@@ -264,13 +301,17 @@ function AppContent() {
       return [];
     }
     
-    // Filter keywords that start with current word
-    const matches = keywords.filter(kw => kw.startsWith(currentWordLower));
+    // Check if typing a negated predicate (starts with -)
+    const isNegated = currentWordLower.startsWith('-');
+    const searchTerm = isNegated ? currentWordLower.substring(1) : currentWordLower;
+    
+    // Filter keywords that start with the search term (without the -)
+    const matches = keywords.filter(kw => kw.startsWith(searchTerm));
     
     return matches.map(kw => ({
       isValue: false,
-      keyword: kw,
-      replaceText: text.substring(0, lastSpaceIndex + 1) + kw
+      keyword: isNegated ? `-${kw}` : kw,
+      replaceText: text.substring(0, lastSpaceIndex + 1) + (isNegated ? `-${kw}` : kw)
     }));
   };
 
