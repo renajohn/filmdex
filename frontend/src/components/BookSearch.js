@@ -9,7 +9,7 @@ import SeriesStack from './SeriesStack';
 import AlphabeticalIndex from './AlphabeticalIndex';
 import { CollectionHeader, EmptyState } from './shared';
 import { Modal, Button, Form } from 'react-bootstrap';
-import { BsChevronDown, BsBook } from 'react-icons/bs';
+import { BsChevronDown, BsBook, BsX } from 'react-icons/bs';
 import './BookSearch.css';
 
 const BookSearch = forwardRef(({ 
@@ -43,7 +43,11 @@ const BookSearch = forwardRef(({
     return saved || null;
   });
   const expandedSeriesRef = useRef(null);
-  const [stackEnabled, setStackEnabled] = useState(true);
+  // Load stack preference from localStorage
+  const [stackEnabled, setStackEnabled] = useState(() => {
+    const saved = localStorage.getItem('dexvault-bookdex-stack');
+    return saved !== null ? saved === 'true' : true;
+  });
   
   // Initialize and keep ref in sync with state
   useEffect(() => {
@@ -55,6 +59,11 @@ const BookSearch = forwardRef(({
       expandedSeriesRef.current = expandedSeries;
     }
   }, [expandedSeries]);
+  
+  // Persist stack preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('dexvault-bookdex-stack', stackEnabled.toString());
+  }, [stackEnabled]);
   
   
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -173,6 +182,69 @@ const BookSearch = forwardRef(({
       }
     }
   };
+
+  // Displayable books (same as filtered books, type filtering done via search syntax)
+  const displayBooks = filteredBooks;
+  
+  // Helper to parse active filters from search text
+  const parseActiveFilters = useCallback((searchText) => {
+    const filters = [];
+    if (!searchText) return filters;
+    
+    // Match type filters: type:value or type:val1,val2 or -type:value
+    const typeMatch = searchText.match(/(-?)(type|book_type):([^\s]+)/i);
+    if (typeMatch) {
+      const negated = typeMatch[1] === '-';
+      const values = typeMatch[3].replace(/"/g, '').split(',');
+      values.forEach(v => {
+        const label = v === 'graphic-novel' ? 'Graphic Novels' : v === 'score' ? 'Scores' : 'Books';
+        filters.push({ type: 'type', value: v, label: `${negated ? 'Not ' : ''}${label}`, raw: typeMatch[0] });
+      });
+    }
+    
+    // Match format filters
+    const formatMatch = searchText.match(/(-?)(format):([^\s]+)/i);
+    if (formatMatch) {
+      const negated = formatMatch[1] === '-';
+      const values = formatMatch[3].replace(/"/g, '').split(',');
+      values.forEach(v => {
+        filters.push({ type: 'format', value: v, label: `${negated ? 'Not ' : ''}${v}`, raw: formatMatch[0] });
+      });
+    }
+    
+    // Match year filters
+    const yearMatch = searchText.match(/year:(>=|<=|>|<)?(\d+(?:-\d+)?)/i);
+    if (yearMatch) {
+      const op = yearMatch[1] || '';
+      const val = yearMatch[2];
+      filters.push({ type: 'year', value: val, label: `Year ${op}${val}`, raw: yearMatch[0] });
+    }
+    
+    // Match language filters
+    const langMatch = searchText.match(/language:([^\s]+)/i);
+    if (langMatch) {
+      filters.push({ type: 'language', value: langMatch[1], label: `Language: ${langMatch[1]}`, raw: langMatch[0] });
+    }
+    
+    // Match has_ebook filter
+    const ebookMatch = searchText.match(/has_ebook:(true|false)/i);
+    if (ebookMatch) {
+      const hasEbook = ebookMatch[1].toLowerCase() === 'true';
+      filters.push({ type: 'has_ebook', value: hasEbook, label: hasEbook ? 'Has E-book' : 'No E-book', raw: ebookMatch[0] });
+    }
+    
+    return filters;
+  }, []);
+
+  // Get active filters from current search
+  const activeFilters = parseActiveFilters(searchCriteria?.searchText || '');
+  
+  // Remove a filter from search
+  const removeFilter = useCallback((filter) => {
+    const currentSearch = searchCriteria?.searchText || '';
+    const newSearch = currentSearch.replace(filter.raw, '').trim();
+    updateSearchViaUrl(newSearch);
+  }, [searchCriteria?.searchText, updateSearchViaUrl]);
 
   // Helper function to remove articles (determinants) for sorting
   const removeArticlesForSorting = useCallback((text) => {
@@ -882,16 +954,22 @@ const BookSearch = forwardRef(({
       );
     }
 
-    if (filteredBooks.length === 0) {
-      return searchCriteria?.searchText && searchCriteria.searchText.trim() ? (
-        <EmptyState
-          icon="📚"
-          title="No Results Found"
-          description={`No books match "${searchCriteria.searchText}"`}
-          hint="Try different keywords or clear your search"
-          collectionInfo={`You have <strong>${allBooks.length}</strong> ${allBooks.length === 1 ? 'book' : 'books'} in your collection`}
-        />
-      ) : (
+    if (displayBooks.length === 0) {
+      const hasSearchText = searchCriteria?.searchText && searchCriteria.searchText.trim();
+      
+      if (hasSearchText) {
+        return (
+          <EmptyState
+            icon="📚"
+            title="No Results Found"
+            description={`No books match "${searchCriteria.searchText}"`}
+            hint="Try different keywords or clear your search"
+            collectionInfo={`You have <strong>${allBooks.length}</strong> ${allBooks.length === 1 ? 'book' : 'books'} in your collection`}
+          />
+        );
+      }
+      
+      return (
         <EmptyState
           icon="📖"
           title="Welcome to BookDex!"
@@ -916,7 +994,7 @@ const BookSearch = forwardRef(({
       
       // When searching, group ALL books by series, then filter each stack
       // When not searching, just group the current books
-      const booksToGroup = hasActiveFilter ? allBooks : filteredBooks;
+      const booksToGroup = hasActiveFilter ? allBooks : displayBooks;
       const { seriesMap: allSeriesMap, standaloneBooks: allStandaloneBooks } = groupBooksBySeries(booksToGroup);
       
       // If searching, filter each series to only include matching books
@@ -925,8 +1003,8 @@ const BookSearch = forwardRef(({
       const seriesTotalCounts = new Map(); // Track total counts for each series
       
       if (hasActiveFilter) {
-        // Create a Set of filtered book IDs for quick lookup
-        const filteredBookIds = new Set(filteredBooks.map(b => b.id));
+        // Create a Set of filtered book IDs for quick lookup (with type filters applied)
+        const filteredBookIds = new Set(displayBooks.map(b => b.id));
         
         // Store total counts before filtering
         allSeriesMap.forEach((seriesBooks, seriesName) => {
@@ -1149,7 +1227,7 @@ const BookSearch = forwardRef(({
       );
     }
 
-    const grouped = groupBooks(filteredBooks, groupBy);
+    const grouped = groupBooks(displayBooks, groupBy);
     const sortedGroupKeys = Object.keys(grouped).sort();
 
     return (
@@ -1255,7 +1333,7 @@ const BookSearch = forwardRef(({
       
       <div className="books-results">
         <CollectionHeader
-          filteredCount={bookCount.filtered}
+          filteredCount={displayBooks.length}
           totalCount={bookCount.total}
           itemLabel="books"
           sortBy={sortBy}
@@ -1274,6 +1352,30 @@ const BookSearch = forwardRef(({
           onAdd={() => setShowAddDialog(true)}
           loading={loading}
         />
+
+        {/* Active Filter Chips */}
+        {activeFilters.length > 0 && (
+          <div className="active-filters">
+            {activeFilters.map((filter, idx) => (
+              <span key={idx} className="filter-chip">
+                {filter.label}
+                <button 
+                  className="filter-chip-remove"
+                  onClick={() => removeFilter(filter)}
+                  title="Remove filter"
+                >
+                  <BsX />
+                </button>
+              </span>
+            ))}
+            <button 
+              className="clear-all-filters"
+              onClick={() => updateSearchViaUrl('')}
+            >
+              Clear all
+            </button>
+          </div>
+        )}
 
         {renderBookGrid()}
       </div>

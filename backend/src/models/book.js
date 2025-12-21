@@ -521,144 +521,180 @@ const Book = {
     });
   },
 
+  // Helper function to parse enhanced search query syntax
+  // Supports: OR (type:book,graphic-novel), negation (-type:score), ranges (year:2020-2024)
+  _parseSearchQuery: (query) => {
+    const params = [];
+    const whereClauses = [];
+    let titleStatusFilter = null;
+    let hasFilters = false;
+    let cleanedQuery = query;
+    
+    // Column mapping for filter fields
+    const columnMap = {
+      'title': 'title', 'subtitle': 'subtitle', 'author': 'authors', 'artist': 'artists',
+      'isbn': 'isbn', 'series': 'series', 'owner': 'owner', 'format': 'format',
+      'language': 'language', 'genre': 'genres', 'tag': 'tags', 'type': 'book_type', 'book_type': 'book_type'
+    };
+    
+    const isArrayColumn = (col) => ['authors', 'artists', 'genres', 'tags'].includes(col);
+    
+    // Process negated quoted filters: -field:"value" or -field:"val1,val2"
+    const negQuotedRe = /-(title|author|artist|isbn|series|owner|format|language|genre|tag|subtitle|type|book_type):"([^"]+)"/g;
+    let m;
+    while ((m = negQuotedRe.exec(query)) !== null) {
+      hasFilters = true;
+      const col = columnMap[m[1]];
+      if (!col) continue;
+      const vals = m[2].split(',').map(v => v.trim()).filter(v => v);
+      if (col === 'book_type') {
+        const valid = vals.filter(v => ['book', 'score', 'graphic-novel'].includes(v.toLowerCase()));
+        if (valid.length === 1) { whereClauses.push(`${col} != ?`); params.push(valid[0].toLowerCase()); }
+        else if (valid.length > 1) { whereClauses.push(`${col} NOT IN (${valid.map(() => '?').join(',')})`); valid.forEach(v => params.push(v.toLowerCase())); }
+      } else if (isArrayColumn(col)) {
+        const clauses = vals.map(v => { params.push(`%${v}%`); return `${col} LIKE ?`; });
+        whereClauses.push(`NOT (${clauses.join(' OR ')})`);
+      } else {
+        const clauses = vals.map(v => { params.push(`%${v}%`); return `${col} LIKE ?`; });
+        whereClauses.push(`NOT (${clauses.join(' OR ')})`);
+      }
+      cleanedQuery = cleanedQuery.replace(m[0], '').trim();
+    }
+    
+    // Process regular quoted filters: field:"value" or field:"val1,val2"
+    const quotedRe = /(?<!-)(title|author|artist|isbn|series|owner|format|language|genre|tag|subtitle|title_status|type|book_type):"([^"]+)"/g;
+    while ((m = quotedRe.exec(query)) !== null) {
+      hasFilters = true;
+      if (m[1] === 'title_status') {
+        const vals = m[2].split(',').map(v => v.trim()).filter(v => ['owned', 'borrowed', 'wish'].includes(v));
+        titleStatusFilter = vals.length === 1 ? vals[0] : (vals.length > 1 ? vals : null);
+        cleanedQuery = cleanedQuery.replace(m[0], '').trim();
+        continue;
+      }
+      const col = columnMap[m[1]];
+      if (!col) continue;
+      const vals = m[2].split(',').map(v => v.trim()).filter(v => v);
+      if (col === 'book_type') {
+        const valid = vals.filter(v => ['book', 'score', 'graphic-novel'].includes(v.toLowerCase()));
+        if (valid.length === 1) { whereClauses.push(`${col} = ?`); params.push(valid[0].toLowerCase()); }
+        else if (valid.length > 1) { whereClauses.push(`${col} IN (${valid.map(() => '?').join(',')})`); valid.forEach(v => params.push(v.toLowerCase())); }
+      } else if (isArrayColumn(col)) {
+        if (vals.length === 1) { whereClauses.push(`${col} LIKE ?`); params.push(`%${vals[0]}%`); }
+        else { const clauses = vals.map(v => { params.push(`%${v}%`); return `${col} LIKE ?`; }); whereClauses.push(`(${clauses.join(' OR ')})`); }
+      } else if (col === 'owner') {
+        whereClauses.push(`LOWER(${col}) = LOWER(?)`); params.push(vals[0]);
+      } else {
+        if (vals.length === 1) { whereClauses.push(`${col} LIKE ?`); params.push(`%${vals[0]}%`); }
+        else { const clauses = vals.map(v => { params.push(`%${v}%`); return `${col} LIKE ?`; }); whereClauses.push(`(${clauses.join(' OR ')})`); }
+      }
+      cleanedQuery = cleanedQuery.replace(m[0], '').trim();
+    }
+    
+    // Process negated unquoted: -type:value, -format:val1,val2, -has_ebook:true
+    const negUnquotedRe = /-(type|book_type|format|language|has_ebook):(\S+)/g;
+    while ((m = negUnquotedRe.exec(query)) !== null) {
+      hasFilters = true;
+      const field = m[1], rawVal = m[2];
+      if (field === 'has_ebook') {
+        const v = rawVal.toLowerCase();
+        if (v === 'true') whereClauses.push('(ebook_file IS NULL OR ebook_file = "")');
+        else if (v === 'false') whereClauses.push('ebook_file IS NOT NULL AND ebook_file != ""');
+        cleanedQuery = cleanedQuery.replace(m[0], '').trim();
+        continue;
+      }
+      const col = columnMap[field];
+      if (!col) continue;
+      const vals = rawVal.split(',').map(v => v.trim().toLowerCase()).filter(v => v);
+      if (col === 'book_type') {
+        const valid = vals.filter(v => ['book', 'score', 'graphic-novel'].includes(v));
+        if (valid.length === 1) { whereClauses.push(`${col} != ?`); params.push(valid[0]); }
+        else if (valid.length > 1) { whereClauses.push(`${col} NOT IN (${valid.map(() => '?').join(',')})`); valid.forEach(v => params.push(v)); }
+      } else {
+        if (vals.length === 1) { whereClauses.push(`${col} != ?`); params.push(vals[0]); }
+        else { whereClauses.push(`${col} NOT IN (${vals.map(() => '?').join(',')})`); vals.forEach(v => params.push(v)); }
+      }
+      cleanedQuery = cleanedQuery.replace(m[0], '').trim();
+    }
+    
+    // Process regular unquoted: type:val, year:2020, year:>=2020, year:2020-2024
+    const unquotedRe = /(?<!-)(title_status|year|rating|has_ebook|type|book_type|format|language):(>=|<=|>|<)?(\S+)/g;
+    while ((m = unquotedRe.exec(query)) !== null) {
+      hasFilters = true;
+      const field = m[1], op = m[2] || '', rawVal = m[3];
+      
+      if (field === 'title_status') {
+        const vals = rawVal.split(',').map(v => v.trim()).filter(v => ['owned', 'borrowed', 'wish'].includes(v));
+        titleStatusFilter = vals.length === 1 ? vals[0] : (vals.length > 1 ? vals : null);
+        cleanedQuery = cleanedQuery.replace(m[0], '').trim();
+        continue;
+      }
+      if (field === 'has_ebook') {
+        const v = rawVal.toLowerCase();
+        if (v === 'true') whereClauses.push('ebook_file IS NOT NULL AND ebook_file != ""');
+        else if (v === 'false') whereClauses.push('(ebook_file IS NULL OR ebook_file = "")');
+        cleanedQuery = cleanedQuery.replace(m[0], '').trim();
+        continue;
+      }
+      if (field === 'type' || field === 'book_type') {
+        const vals = rawVal.split(',').map(v => v.trim().toLowerCase()).filter(v => ['book', 'score', 'graphic-novel'].includes(v));
+        if (vals.length === 1) { whereClauses.push('book_type = ?'); params.push(vals[0]); }
+        else if (vals.length > 1) { whereClauses.push(`book_type IN (${vals.map(() => '?').join(',')})`); vals.forEach(v => params.push(v)); }
+        cleanedQuery = cleanedQuery.replace(m[0], '').trim();
+        continue;
+      }
+      if (field === 'format' || field === 'language') {
+        const col = columnMap[field];
+        const vals = rawVal.split(',').map(v => v.trim()).filter(v => v);
+        if (vals.length === 1) { whereClauses.push(`${col} = ?`); params.push(vals[0]); }
+        else if (vals.length > 1) { whereClauses.push(`${col} IN (${vals.map(() => '?').join(',')})`); vals.forEach(v => params.push(v)); }
+        cleanedQuery = cleanedQuery.replace(m[0], '').trim();
+        continue;
+      }
+      if (field === 'year' || field === 'rating') {
+        const col = field === 'year' ? 'published_year' : 'rating';
+        // Range syntax: year:2020-2024
+        const rangeMatch = rawVal.match(/^(\d+)-(\d+)$/);
+        if (rangeMatch) {
+          whereClauses.push(`${col} BETWEEN ? AND ?`);
+          params.push(parseFloat(rangeMatch[1]), parseFloat(rangeMatch[2]));
+          cleanedQuery = cleanedQuery.replace(m[0], '').trim();
+          continue;
+        }
+        const val = parseFloat(rawVal);
+        if (!isNaN(val)) {
+          if (op === '>=') { whereClauses.push(`${col} >= ?`); params.push(val); }
+          else if (op === '<=') { whereClauses.push(`${col} <= ?`); params.push(val); }
+          else if (op === '>') { whereClauses.push(`${col} > ?`); params.push(val); }
+          else if (op === '<') { whereClauses.push(`${col} < ?`); params.push(val); }
+          else { whereClauses.push(`${col} = ?`); params.push(val); }
+        }
+        cleanedQuery = cleanedQuery.replace(m[0], '').trim();
+        continue;
+      }
+    }
+    
+    return { params, whereClauses, titleStatusFilter, hasFilters, cleanedQuery: cleanedQuery.trim() };
+  },
+
   search: (query) => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
       
-      // Parse filter syntax (e.g., title:"Book Title" author:"Author Name" isbn:"123456" series:"Series Name" owner:"Renault" format:"ebook" language:"en" title_status:owned year:2020 rating:4.5)
-      const params = [];
-      let whereClauses = [];
-      let titleStatusFilter = null; // Track title_status filter separately to override default
+      // Use enhanced search parser (supports OR, negation, ranges)
+      const { params, whereClauses, titleStatusFilter, hasFilters, cleanedQuery } = Book._parseSearchQuery(query);
       
-      // Extract filters like title:"value" or author:"value" or artist:"value" or isbn:"value" or series:"value" or owner:"value" or format:"value" or language:"value" or subtitle:"value" or type:"graphic-novel" or title_status:owned or year:2020 or rating:4.5 or has_ebook:true
-      const filterRegex = /(title|author|artist|isbn|series|owner|format|language|genre|tag|subtitle|title_status|type|book_type):"([^"]+)"|(title_status|year|rating|has_ebook|type|book_type):(>=|<=|>|<)?(\S+)/g;
-      let match;
-      let hasFilters = false;
-      let cleanedQuery = query; // Will be cleaned of title_status filters
-      
-      while ((match = filterRegex.exec(query)) !== null) {
-        hasFilters = true;
-        
-        // Handle quoted filters (title:"value", author:"value", etc.)
-        if (match[1] && match[2]) {
-          const field = match[1];
-          const value = match[2];
-          
-          // Special handling for title_status
-          if (field === 'title_status') {
-            if (['owned', 'borrowed', 'wish'].includes(value)) {
-              titleStatusFilter = value;
-              // Remove this filter from the query string
-              cleanedQuery = cleanedQuery.replace(match[0], '').trim();
-            }
-            continue;
-          }
-          
-          const columnMap = {
-            'title': 'title',
-            'subtitle': 'subtitle',
-            'author': 'authors',
-            'artist': 'artists',
-            'isbn': 'isbn',
-            'series': 'series',
-            'owner': 'owner',
-            'format': 'format',
-            'language': 'language',
-            'genre': 'genres',
-            'tag': 'tags',
-            'type': 'book_type',
-            'book_type': 'book_type'
-          };
-          const column = columnMap[field];
-          
-          if (column) {
-            if (column === 'authors' || column === 'artists' || column === 'genres' || column === 'tags') {
-              // For JSON arrays, search within the JSON string
-              whereClauses.push(`${column} LIKE ?`);
-              params.push(`%${value}%`);
-            } else if (column === 'owner') {
-              // For owner, use case-insensitive exact match
-              whereClauses.push(`LOWER(${column}) = LOWER(?)`);
-              params.push(value);
-            } else {
-              whereClauses.push(`${column} LIKE ?`);
-              params.push(`%${value}%`);
-            }
-            // Remove this filter from the query string
-            cleanedQuery = cleanedQuery.replace(match[0], '').trim();
-          }
-        }
-        // Handle title_status without quotes (title_status:owned, title_status:borrowed)
-        else if (match[3] === 'title_status' && match[5]) {
-          const value = match[5].trim();
-          if (['owned', 'borrowed', 'wish'].includes(value)) {
-            titleStatusFilter = value;
-            // Remove this filter from the query string
-            cleanedQuery = cleanedQuery.replace(match[0], '').trim();
-          }
-        }
-        // Handle has_ebook filter (has_ebook:true)
-        else if (match[3] === 'has_ebook' && match[5]) {
-          const value = match[5].trim().toLowerCase();
-          if (value === 'true') {
-            whereClauses.push('ebook_file IS NOT NULL AND ebook_file != ""');
-          } else if (value === 'false') {
-            whereClauses.push('(ebook_file IS NULL OR ebook_file = "")');
-          }
-          // Remove this filter from the query string
-          cleanedQuery = cleanedQuery.replace(match[0], '').trim();
-        }
-        // Handle type/book_type filter without quotes (type:book, type:score, type:graphic-novel)
-        else if ((match[3] === 'type' || match[3] === 'book_type') && match[5]) {
-          const value = match[5].trim().toLowerCase();
-          if (['book', 'score', 'graphic-novel'].includes(value)) {
-            whereClauses.push('book_type = ?');
-            params.push(value);
-          }
-          // Remove this filter from the query string
-          cleanedQuery = cleanedQuery.replace(match[0], '').trim();
-        }
-        // Handle numeric filters (year:2020, year:>=2020, rating:4.5, etc.)
-        else if ((match[3] === 'year' || match[3] === 'rating') && match[5]) {
-          const field = match[3];
-          const operator = match[4] || '=';
-          const value = parseFloat(match[5]);
-          
-          const columnMap = {
-            'year': 'published_year',
-            'rating': 'rating'
-          };
-          const column = columnMap[field];
-          
-          if (column) {
-            if (operator === '>=') {
-              whereClauses.push(`${column} >= ?`);
-              params.push(value);
-            } else if (operator === '<=') {
-              whereClauses.push(`${column} <= ?`);
-              params.push(value);
-            } else if (operator === '>') {
-              whereClauses.push(`${column} > ?`);
-              params.push(value);
-            } else if (operator === '<') {
-              whereClauses.push(`${column} < ?`);
-              params.push(value);
-            } else {
-              whereClauses.push(`${column} = ?`);
-              params.push(value);
-            }
-          }
-          // Remove this filter from the query string
-          cleanedQuery = cleanedQuery.replace(match[0], '').trim();
-        }
-      }
-      
-      // Build title_status filter clause
+      // Build title_status filter clause (supports array for OR logic)
       let titleStatusClause = "(title_status IN ('owned', 'borrowed') OR title_status IS NULL)";
       let titleStatusParams = [];
       if (titleStatusFilter) {
-        titleStatusClause = "title_status = ?";
-        titleStatusParams = [titleStatusFilter];
+        if (Array.isArray(titleStatusFilter)) {
+          // Multiple statuses: title_status IN ('owned', 'wish')
+          titleStatusClause = `title_status IN (${titleStatusFilter.map(() => '?').join(', ')})`;
+          titleStatusParams = titleStatusFilter;
+        } else {
+          titleStatusClause = "title_status = ?";
+          titleStatusParams = [titleStatusFilter];
+        }
       }
       
       // Use cleaned query for general search (without title_status filter)

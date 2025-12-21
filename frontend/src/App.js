@@ -28,8 +28,23 @@ function AppContent() {
   const searchInputRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchCriteria, setSearchCriteria] = useState({
-    searchText: ''
+  // Helper to get product name from path
+  const getProductFromPath = (path) => {
+    if (path === '/filmdex') return 'filmdex';
+    if (path === '/musicdex') return 'musicdex';
+    if (path === '/bookdex' || path === '/wishlist') return 'bookdex';
+    return null;
+  };
+
+  // Initialize search from localStorage based on current product
+  const [searchCriteria, setSearchCriteria] = useState(() => {
+    const currentPath = window.location.pathname;
+    const product = getProductFromPath(currentPath);
+    if (product) {
+      const savedText = localStorage.getItem(`dexvault-${product}-search`) || '';
+      return { searchText: savedText };
+    }
+    return { searchText: '' };
   });
   const [loading, setLoading] = useState(false);
   const [hasCheckedBackfill, setHasCheckedBackfill] = useState(false);
@@ -939,6 +954,14 @@ function AppContent() {
     };
   }, []);
 
+  // Sync search input field with state on mount
+  useEffect(() => {
+    if (searchInputRef.current && searchCriteria.searchText) {
+      searchInputRef.current.value = searchCriteria.searchText;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
+
   // Handle search query parameter from URL
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -954,16 +977,64 @@ function AppContent() {
     }
   }, [location.search, navigate, location.pathname]);
 
-  // Clear search when navigating between pages (without search param)
+  // Track current product to avoid saving when navigating
+  const currentProductRef = useRef(getProductFromPath(location.pathname));
+  const isRestoringRef = useRef(false);
+
+  // Save search to localStorage when it changes (per product)
+  // Only save if not currently restoring from navigation
   useEffect(() => {
-    // Only clear search if we're changing paths and there's no search param
-    if (!location.search) {
-      const previousPath = sessionStorage.getItem('previousPath');
-      if (previousPath && previousPath !== location.pathname) {
-        setSearchCriteria({ searchText: '' });
-      }
+    if (isRestoringRef.current) {
+      return; // Don't save during restoration
     }
-    sessionStorage.setItem('previousPath', location.pathname);
+    const product = currentProductRef.current;
+    if (product) {
+      localStorage.setItem(`dexvault-${product}-search`, searchCriteria.searchText || '');
+    }
+  }, [searchCriteria.searchText]);
+
+  // Restore search from localStorage when navigating between pages
+  useEffect(() => {
+    const previousProduct = currentProductRef.current;
+    const newProduct = getProductFromPath(location.pathname);
+    
+    // Update the current product ref
+    currentProductRef.current = newProduct;
+    
+    // Only restore/update search when product actually changes
+    if (previousProduct !== newProduct) {
+      isRestoringRef.current = true;
+      
+      // If there's a URL search param, use that
+      if (location.search) {
+        const params = new URLSearchParams(location.search);
+        const searchParam = params.get('search');
+        if (searchParam) {
+          setSearchCriteria({ searchText: searchParam });
+          if (searchInputRef.current) {
+            searchInputRef.current.value = searchParam;
+          }
+        }
+      } else if (newProduct) {
+        // Otherwise restore from localStorage for this product
+        const savedText = localStorage.getItem(`dexvault-${newProduct}-search`) || '';
+        setSearchCriteria({ searchText: savedText });
+        // Update the input field
+        if (searchInputRef.current) {
+          searchInputRef.current.value = savedText;
+        }
+      } else {
+        setSearchCriteria({ searchText: '' });
+        if (searchInputRef.current) {
+          searchInputRef.current.value = '';
+        }
+      }
+      
+      // Reset the restoring flag after a tick
+      setTimeout(() => {
+        isRestoringRef.current = false;
+      }, 0);
+    }
   }, [location.pathname, location.search]);
 
   // Check for backfill on app startup
