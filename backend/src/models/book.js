@@ -598,7 +598,8 @@ const Book = {
     const textFields = 'title|author|artist|isbn|series|owner|format|language|genre|tag|subtitle';
     
     // Process negated text field filters with smart value extraction
-    const negTextFilterRe = new RegExp(`-(${textFields}):`, 'g');
+    // Include type and book_type for negated type filters like -type:score
+    const negTextFilterRe = new RegExp(`-(${textFields}|type|book_type):`, 'g');
     let match;
     const negTextMatches = [];
     while ((match = negTextFilterRe.exec(cleanedQuery)) !== null) {
