@@ -170,21 +170,24 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
-.group-cover {
+/* Album cover - must be square (1:1 ratio) */
+.add-music-dialog .group-cover {
   width: 80px;
   height: 80px;
+  aspect-ratio: 1 / 1;
   object-fit: cover;
   border-radius: 4px;
   border: 1px solid rgba(68, 68, 68, 0.6);
   flex-shrink: 0;
 }
 
-.group-cover-placeholder {
+.add-music-dialog .group-cover-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(68, 68, 68, 0.3);
   color: #9ca3af;
+  aspect-ratio: 1 / 1;
 }
 
 .group-info {
@@ -245,7 +248,8 @@
 .releases-table-container {
   background: rgba(42, 42, 42, 0.6);
   border-top: 1px solid rgba(68, 68, 68, 0.4);
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .releases-table {
@@ -354,4 +358,118 @@
   background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.4);
   color: #fca5a5;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+  .add-music-dialog .modal-dialog {
+    margin: 0.5rem;
+    max-width: calc(100% - 1rem);
+  }
+  
+  .add-music-dialog-body {
+    max-height: 75vh;
+    padding: 12px !important;
+  }
+  
+  .search-type-selector {
+    flex-wrap: wrap;
+  }
+  
+  .search-type-btn {
+    flex: 1 1 auto;
+    min-width: 80px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+  
+  .add-music-dialog .group-cover {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .group-header-content {
+    gap: 10px;
+    padding: 12px;
+  }
+  
+  .group-info .group-title {
+    font-size: 0.95rem;
+  }
+  
+  .group-info .group-artist {
+    font-size: 0.85rem;
+  }
+  
+  /* Mobile table - card layout for each row */
+  .releases-table-container {
+    padding: 8px;
+  }
+  
+  .releases-table {
+    display: block;
+  }
+  
+  .releases-table thead {
+    display: none;
+  }
+  
+  .releases-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .releases-table tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px !important;
+    background: rgba(68, 68, 68, 0.4) !important;
+    border-radius: 8px;
+    border: none !important;
+    align-items: center;
+  }
+  
+  .releases-table tbody td {
+    padding: 0 !important;
+    font-size: 0.8rem;
+  }
+  
+  /* Hide less important columns on mobile */
+  .releases-table tbody td:nth-child(3), /* Label */
+  .releases-table tbody td:nth-child(5) { /* Barcode */
+    display: none;
+  }
+  
+  /* Style remaining columns */
+  .releases-table tbody td:nth-child(1)::before { content: ""; } /* Year */
+  .releases-table tbody td:nth-child(2)::before { content: "• "; color: #6b7280; } /* Country */
+  .releases-table tbody td:nth-child(4)::before { content: "• "; color: #6b7280; } /* Catalog */
+  .releases-table tbody td:nth-child(6)::before { content: "• "; color: #6b7280; } /* Format */
+  
+  /* Button takes full width on mobile */
+  .releases-table tbody td:last-child {
+    flex-basis: 100%;
+    margin-top: 8px;
+  }
+  
+  .select-release-btn {
+    width: 100%;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+  }
+  
+  .select-release-btn-header {
+    padding: 8px 12px;
+    font-size: 0.75rem;
+  }
+  
+  .manual-entry-content {
+    padding: 12px;
+  }
+  
+  .manual-entry-btn {
+    width: 100%;
+  }
 }

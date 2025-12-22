@@ -310,9 +310,34 @@
   opacity: 1;
 }
 
+.modal-body {
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
 .modal-footer {
   background: rgba(42, 42, 42, 0.95);
   border-top: 1px solid rgba(68, 68, 68, 0.6);
+  position: sticky;
+  bottom: 0;
+}
+
+/* Mobile scrolling adjustments */
+@media (max-width: 768px) {
+  .modal-body {
+    max-height: 60vh;
+    padding: 12px !important;
+  }
+  
+  .modal-footer {
+    padding: 12px;
+    gap: 8px;
+  }
+  
+  .modal-footer .btn {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 /* Button styling - exact match to AddMusicDialog */
