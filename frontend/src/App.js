@@ -32,7 +32,8 @@ function AppContent() {
   const getProductFromPath = (path) => {
     if (path === '/filmdex') return 'filmdex';
     if (path === '/musicdex') return 'musicdex';
-    if (path === '/bookdex' || path === '/wishlist') return 'bookdex';
+    if (path === '/bookdex') return 'bookdex';
+    if (path === '/wishlist') return 'wishlist';
     return null;
   };
 
