@@ -1328,7 +1328,8 @@ const BookSearch = forwardRef(({
           sortBy === 'seriesReverse' ? 'titleReverse' : 
           sortBy
         }
-        disabled={searchCriteria?.searchText?.trim() || groupBy !== 'none'}
+        // Keep available during search/filter (e.g. "-type:score"); disable only when grouping is enabled
+        disabled={groupBy !== 'none'}
       />
       
       <div className="books-results">

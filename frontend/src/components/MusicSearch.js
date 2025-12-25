@@ -708,7 +708,8 @@ const MusicSearch = forwardRef(({
         }}
         scrollContainer={scrollContainer}
         sortBy={sortBy}
-        disabled={searchCriteria?.searchText?.trim() || groupBy !== 'none'}
+        // Keep available during search/filter; disable only when grouping is enabled
+        disabled={groupBy !== 'none'}
       />
       
       {/* Listen Next Banner */}

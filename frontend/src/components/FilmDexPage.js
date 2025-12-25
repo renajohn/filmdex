@@ -1,4 +1,4 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback, useMemo } from 'react';
 import apiService from '../services/api';
 import MovieThumbnail from './MovieThumbnail';
 import MovieDetailCard from './MovieDetailCard';
@@ -55,6 +55,22 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
       setScrollContainer(document.documentElement);
     }
   }, []);
+
+  // Keep letter logic consistent with AlphabeticalIndex (handles FR/EN leading articles)
+  const removeArticlesForIndex = useCallback((text) => {
+    if (!text) return '';
+    const trimmed = String(text).trim();
+    // French: Le, La, Les, Un, Une, Des, Du, De
+    // English: The, A, An
+    const articlePattern = /^(le|la|les|un|une|des|du|de|the|a|an)\s+/i;
+    return trimmed.replace(articlePattern, '').trim() || trimmed;
+  }, []);
+
+  const getFirstLetterForIndex = useCallback((title) => {
+    const t = removeArticlesForIndex(title);
+    const firstChar = t?.charAt(0)?.toUpperCase() || '';
+    return /[A-Z]/.test(firstChar) ? firstChar : '#';
+  }, [removeArticlesForIndex]);
 
   const getCombinedScore = (movie) => {
     const ratings = [];
@@ -758,6 +774,116 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     return { boxSetMap, standaloneMovies };
   };
 
+  // Items used to compute the A-Z index letters; must match the titles actually rendered (box set name vs movie title)
+  const alphabeticalIndexItems = useMemo(() => {
+    // Index doesn't make sense in grouped view (many items are collapsed)
+    if (groupBy !== 'none') return [];
+
+    // If stacking is disabled, the rendered list is just movies
+    if (!stackEnabled) {
+      return (movies || []).map(m => ({ title: m?.title || '' }));
+    }
+
+    const hasActiveFilter = !!searchCriteria?.searchText?.trim();
+    const moviesToGroup = hasActiveFilter ? allMovies : movies;
+    const { boxSetMap: allBoxSetMap, standaloneMovies: allStandaloneMovies } = groupMoviesByBoxSet(moviesToGroup || []);
+
+    // When filtering, we only render stacks/movies that match filteredMovies, but we keep stack grouping from allMovies
+    let boxSetMap = allBoxSetMap;
+    let standaloneMovies = allStandaloneMovies;
+
+    if (hasActiveFilter) {
+      const filteredMovieIds = new Set((filteredMovies || []).map(m => m.id));
+
+      boxSetMap = new Map();
+      allBoxSetMap.forEach((boxSetMovies, boxSetName) => {
+        const matchingMovies = boxSetMovies.filter(m => filteredMovieIds.has(m.id));
+        if (matchingMovies.length > 0) {
+          boxSetMap.set(boxSetName, matchingMovies);
+        }
+      });
+
+      standaloneMovies = allStandaloneMovies.filter(m => filteredMovieIds.has(m.id));
+    }
+
+    // Build combined list in the same order as the stacked renderer
+    const combinedItems = [];
+
+    boxSetMap.forEach((boxSetMovies, boxSetName) => {
+      const sortedMovies = [...boxSetMovies].sort((a, b) => {
+        const orderA = a.collection_order != null ? Number(a.collection_order) : 999999;
+        const orderB = b.collection_order != null ? Number(b.collection_order) : 999999;
+        if (orderA !== orderB) return orderA - orderB;
+        const dateA = a.release_date ? new Date(a.release_date).getTime() : 0;
+        const dateB = b.release_date ? new Date(b.release_date).getTime() : 0;
+        return dateA - dateB;
+      });
+
+      combinedItems.push({
+        type: 'boxset',
+        boxSetName,
+        representativeMovie: sortedMovies[0],
+      });
+    });
+
+    standaloneMovies.forEach(movie => {
+      combinedItems.push({
+        type: 'movie',
+        movie,
+      });
+    });
+
+    combinedItems.sort((a, b) => {
+      const movieA = a.type === 'boxset' ? a.representativeMovie : a.movie;
+      const movieB = b.type === 'boxset' ? b.representativeMovie : b.movie;
+
+      switch (sortBy) {
+        case 'title': {
+          const titleA = a.type === 'boxset' ? a.boxSetName : movieA.title;
+          const titleB = b.type === 'boxset' ? b.boxSetName : movieB.title;
+          return titleA.localeCompare(titleB);
+        }
+        case 'titleReverse': {
+          const titleA = a.type === 'boxset' ? a.boxSetName : movieA.title;
+          const titleB = b.type === 'boxset' ? b.boxSetName : movieB.title;
+          return titleB.localeCompare(titleA);
+        }
+        case 'lastAddedFirst':
+          return new Date(movieB.acquired_date || movieB.created_at || movieB.updated_at) -
+                 new Date(movieA.acquired_date || movieA.created_at || movieA.updated_at);
+        case 'lastAddedLast':
+          return new Date(movieA.acquired_date || movieA.created_at || movieA.updated_at) -
+                 new Date(movieB.acquired_date || movieB.created_at || movieB.updated_at);
+        case 'rating': {
+          const ratingA = getCombinedScore(movieA) || 0;
+          const ratingB = getCombinedScore(movieB) || 0;
+          return ratingB - ratingA;
+        }
+        case 'ratingLowest': {
+          const ratingA = getCombinedScore(movieA) || 0;
+          const ratingB = getCombinedScore(movieB) || 0;
+          return ratingA - ratingB;
+        }
+        case 'ageAsc': {
+          const ageA = movieA.recommended_age ?? 999;
+          const ageB = movieB.recommended_age ?? 999;
+          return ageA - ageB;
+        }
+        case 'ageDesc': {
+          const ageA = movieA.recommended_age ?? -1;
+          const ageB = movieB.recommended_age ?? -1;
+          return ageB - ageA;
+        }
+        default:
+          return 0;
+      }
+    });
+
+    return combinedItems.map(item => ({
+      title: item.type === 'boxset' ? item.boxSetName : (item.movie?.title || ''),
+    }));
+  }, [groupBy, stackEnabled, movies, searchCriteria?.searchText, allMovies, filteredMovies, sortBy, getCombinedScore]);
+
   // Toggle box set stack expansion
   const toggleBoxSetExpansion = (boxSetName) => {
     setExpandedBoxSet(expandedBoxSet === boxSetName ? null : boxSetName);
@@ -803,11 +929,12 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
     <div className="movie-search" ref={scrollContainerRef}>
       {/* Alphabetical Index - only shows when sorted by title */}
       <AlphabeticalIndex
-        items={movies}
-        getTitle={(movie) => movie.title}
+        items={alphabeticalIndexItems}
+        getTitle={(item) => item.title}
         scrollContainer={scrollContainer}
         sortBy={sortBy}
-        disabled={searchCriteria?.searchText?.trim() || groupBy !== 'none'}
+        // Keep available during filtering/search; disable only when grouping is enabled
+        disabled={groupBy !== 'none'}
       />
 
       {/* Watch Next Banner */}
@@ -1010,8 +1137,7 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                     combinedItems.forEach(item => {
                       // Determine the title for letter tracking
                       const title = item.type === 'boxset' ? item.boxSetName : item.movie?.title;
-                      const firstChar = title?.charAt(0)?.toUpperCase() || '';
-                      const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
+                      const letter = getFirstLetterForIndex(title);
                       
                       if (item.type === 'boxset') {
                         if (item.movies.length > 1) {
@@ -1046,8 +1172,7 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                   } else {
                     // Normal rendering without stacking - add letter to all items for index detection
                     return movies && movies.map((movie) => {
-                      const firstChar = movie.title?.charAt(0)?.toUpperCase() || '';
-                      const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
+                      const letter = getFirstLetterForIndex(movie.title);
                       return renderMovieCardLarge(movie, true, letter);
                     });
                   }
@@ -1098,8 +1223,7 @@ const FilmDexPage = forwardRef(({ refreshTrigger, searchCriteria, loading, setLo
                         {isExpanded && (
                           <div className="movies-grid movies-grid-large">
                             {sortedGroupMovies.map((movie) => {
-                              const firstChar = movie.title?.charAt(0)?.toUpperCase() || '';
-                              const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
+                              const letter = getFirstLetterForIndex(movie.title);
                               return renderMovieCardLarge(movie, true, letter);
                             })}
                           </div>
