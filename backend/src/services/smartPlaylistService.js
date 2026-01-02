@@ -4,7 +4,7 @@ const Collection = require('../models/collection');
 const AlbumCollection = require('../models/albumCollection');
 const logger = require('../logger');
 
-const TARGET_PLAYLIST_SIZE = 3;
+const ALBUMS_PER_SUGGESTION = 1; // Add 1 album per click
 const RECENT_SUGGESTION_DAYS = 14; // Avoid albums suggested in last 2 weeks
 
 // Ensure the table exists (for databases created before this feature)
@@ -233,12 +233,6 @@ const smartPlaylistService = {
       
       // 1. Get current Listen Next albums
       const currentIds = await smartPlaylistService.getCurrentListenNextIds();
-      const neededCount = TARGET_PLAYLIST_SIZE - currentIds.length;
-      
-      if (neededCount <= 0) {
-        // Already have 3 or more albums
-        return { added: [], message: 'Listen Next is already full' };
-      }
 
       // 2. Get recently suggested albums to avoid
       const recentSuggestions = await PlaylistHistory.getRecentSuggestions(RECENT_SUGGESTION_DAYS);
@@ -256,7 +250,7 @@ const smartPlaylistService = {
       );
 
       // If we filtered out too many, relax the recent suggestion constraint (still exclude classical)
-      if (candidates.length < neededCount) {
+      if (candidates.length < ALBUMS_PER_SUGGESTION) {
         candidates = allAlbums.filter(album => 
           !currentIds.includes(album.id) && !album.isClassical
         );
@@ -270,7 +264,7 @@ const smartPlaylistService = {
       const selectedAlbums = smartPlaylistService.selectAlbumsWeighted(
         candidates,
         artistDistribution,
-        neededCount
+        ALBUMS_PER_SUGGESTION
       );
 
       // 6. Add selected albums to Listen Next

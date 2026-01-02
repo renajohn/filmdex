@@ -12,8 +12,8 @@ const musicCollectionService = {
       }
       
       const albums = await Collection.getAlbums(listenNextCollection.id);
-      // Return in reverse order (newest additions first)
-      return albums.reverse();
+      // Return in original order (oldest additions first, newest at the end)
+      return albums;
     } catch (error) {
       logger.error('Error getting Listen Next albums:', error);
       throw error;

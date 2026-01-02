@@ -19,7 +19,6 @@ import './shared.css';
  * @param {Function} props.getFormat - Optional function to get format
  * @param {Function} props.onSmartFill - Optional callback for smart fill action
  * @param {boolean} props.smartFillLoading - Whether smart fill is in progress
- * @param {number} props.targetCount - Target number of items (default 3)
  * @param {Function} props.onShuffle - Optional callback for shuffle action (item) => void
  * @param {number} props.shufflingItemId - ID of item currently being shuffled (for loading state)
  */
@@ -37,7 +36,6 @@ const NextBanner = ({
   getFormat,
   onSmartFill,
   smartFillLoading = false,
-  targetCount = 3,
   onShuffle,
   shufflingItemId = null
 }) => {
@@ -112,9 +110,8 @@ const NextBanner = ({
     return icon;
   };
 
-  // Calculate how many more items are needed to reach target
-  const slotsRemaining = Math.max(0, targetCount - items.length);
-  const showSmartFill = onSmartFill && slotsRemaining > 0;
+  // Show the "Help me choose" card if smart fill is available
+  const showHelpMeChoose = hasSmartFill;
 
   return (
     <div className="next-banner" ref={bannerRef}>
@@ -125,38 +122,11 @@ const NextBanner = ({
           <span className="next-banner__count">
             {items.length} {items.length === 1 ? itemLabel : itemLabelPlural}
           </span>
-          {showSmartFill && (
-            <button 
-              className={`next-banner__smart-fill-btn ${smartFillLoading ? 'loading' : ''}`}
-              onClick={onSmartFill}
-              disabled={smartFillLoading}
-              title={`Add ${slotsRemaining} suggested ${slotsRemaining === 1 ? 'album' : 'albums'}`}
-            >
-              {smartFillLoading ? (
-                <span className="next-banner__smart-fill-spinner" />
-              ) : (
-                <>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                  <span>Fill ({slotsRemaining})</span>
-                </>
-              )}
-            </button>
-          )}
         </div>
       </div>
       
       <div className="next-banner__carousel">
         <div className="next-banner__track">
-          {items.length === 0 && hasSmartFill && (
-            <div className="next-banner__empty-state">
-              <span className="next-banner__empty-icon">🎲</span>
-              <p className="next-banner__empty-text">
-                Click <strong>Fill</strong> to get smart suggestions based on your collection
-              </p>
-            </div>
-          )}
           {items.map((item) => (
             <div 
               key={item.id} 
@@ -242,6 +212,28 @@ const NextBanner = ({
               )}
             </div>
           ))}
+          
+          {/* "Help me choose" placeholder card */}
+          {showHelpMeChoose && (
+            <button
+              className={`next-banner__help-card next-banner__help-card--${type} ${smartFillLoading ? 'loading' : ''}`}
+              onClick={onSmartFill}
+              disabled={smartFillLoading}
+              title="Get smart suggestions based on your collection"
+            >
+              {smartFillLoading ? (
+                <div className="next-banner__help-loading">
+                  <span className="next-banner__help-spinner" />
+                  <span className="next-banner__help-loading-text">Choosing...</span>
+                </div>
+              ) : (
+                <>
+                  <span className="next-banner__help-text">Help me choose</span>
+                  <span className="next-banner__help-icon">+</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

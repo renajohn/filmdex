@@ -780,7 +780,6 @@ const MusicSearch = forwardRef(({
       {/* Listen Next Banner - show when there are albums OR when we have albums in collection to suggest */}
       {!searchCriteria?.searchText && (listenNextAlbums.length > 0 || allCds.length > 0) && (
         <NextBanner
-          key={`listen-next-${listenNextAlbums.length > 0 ? 'has-items' : 'empty'}`}
           items={listenNextAlbums}
           type="music"
           title="Listen Next"
@@ -792,7 +791,6 @@ const MusicSearch = forwardRef(({
           getSubtitle={(album) => Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}
           onSmartFill={handleSmartFill}
           smartFillLoading={smartFillLoading}
-          targetCount={3}
           onShuffle={handleShuffleAlbum}
           shufflingItemId={shufflingAlbumId}
         />
