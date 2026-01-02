@@ -542,6 +542,122 @@
   align-items: center;
 }
 
+/* Smart Fill Button */
+.next-banner__smart-fill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.25));
+  color: #22c55e;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+}
+
+.next-banner__smart-fill-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.35), rgba(22, 163, 74, 0.4));
+  border-color: rgba(34, 197, 94, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25);
+}
+
+.next-banner__smart-fill-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.next-banner__smart-fill-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.next-banner__smart-fill-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.next-banner__smart-fill-btn.loading {
+  pointer-events: none;
+  min-width: 80px;
+  justify-content: center;
+}
+
+.next-banner__smart-fill-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(34, 197, 94, 0.3);
+  border-top-color: #22c55e;
+  border-radius: 50%;
+  animation: smart-fill-spin 0.8s linear infinite;
+}
+
+@keyframes smart-fill-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Empty State for Smart Fill */
+.next-banner__empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 40px;
+  min-height: 160px;
+  width: 100%;
+  text-align: center;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.05), rgba(245, 158, 11, 0.08));
+  border: 1px dashed rgba(251, 191, 36, 0.3);
+  border-radius: 12px;
+  animation: fadeIn 0.5s ease;
+}
+
+.next-banner__empty-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+  animation: gentle-bounce 2s ease-in-out infinite;
+}
+
+@keyframes gentle-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.next-banner__empty-text {
+  color: rgba(251, 191, 36, 0.8);
+  font-size: 0.95rem;
+  margin: 0;
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+.next-banner__empty-text strong {
+  color: #22c55e;
+  font-weight: 600;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 /* Banner Carousel */
 .next-banner__carousel {
   position: relative;
@@ -655,6 +771,92 @@
 
 .next-banner__remove-btn:active {
   transform: scale(0.95);
+}
+
+/* Shuffle Button */
+.next-banner__shuffle-btn {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 20;
+  padding: 0;
+}
+
+.next-banner__shuffle-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.next-banner__card:hover .next-banner__shuffle-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.next-banner__shuffle-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  border-color: rgba(139, 92, 246, 0.5);
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+.next-banner__shuffle-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.next-banner__shuffle-btn:disabled {
+  cursor: not-allowed;
+}
+
+.next-banner__shuffle-btn.loading {
+  opacity: 1;
+  transform: scale(1);
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+}
+
+.next-banner__shuffle-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: shuffle-spin 0.8s linear infinite;
+}
+
+@keyframes shuffle-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Card shuffling state */
+.next-banner__card.shuffling {
+  animation: card-shuffle 0.5s ease-in-out;
+}
+
+@keyframes card-shuffle {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-10px) rotate(-3deg);
+  }
+  75% {
+    transform: translateY(-10px) rotate(3deg);
+  }
 }
 
 /* Card Image Container */

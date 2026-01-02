@@ -223,6 +223,9 @@ app.post('/api/music/migrate/resize-covers', musicController.resizeAllAlbumCover
 app.get('/api/music/albums/:id/apple-music', musicController.getAppleMusicUrl);
 app.put('/api/music/albums/:id/listen-next', musicController.toggleListenNext);
 app.get('/api/collections/listen-next/albums', musicController.getListenNextAlbums);
+app.post('/api/collections/listen-next/smart-fill', musicController.smartFillListenNext);
+app.post('/api/collections/listen-next/shuffle/:albumId', musicController.shuffleListenNextAlbum);
+app.get('/api/collections/listen-next/stats', musicController.getSmartPlaylistStats);
 
 // Book routes
 app.get('/api/books', bookController.getAllBooks);

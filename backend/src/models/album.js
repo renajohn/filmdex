@@ -863,6 +863,7 @@ const Album = {
         const db = getDatabase();
         const Collection = require('./collection');
         const AlbumCollection = require('./albumCollection');
+        const PlaylistHistory = require('./playlistHistory');
         
         // Get the Listen Next system collection
         const listenNextCollection = await Collection.findByType('listen_next');
@@ -885,7 +886,7 @@ const Album = {
             });
           });
           
-          resolve({ id });
+          resolve({ id, action: 'removed' });
         } else {
           // Add to Listen Next at the end
           const position = await AlbumCollection.getNextOrder(listenNextCollection.id);
@@ -896,7 +897,15 @@ const Album = {
             collection_order: position
           });
           
-          resolve({ id });
+          // Record in playlist history (so it won't be re-suggested for 14 days)
+          try {
+            await PlaylistHistory.recordSuggestion(id);
+          } catch (historyError) {
+            // Don't fail the toggle if history recording fails
+            console.warn('Failed to record playlist history:', historyError.message);
+          }
+          
+          resolve({ id, action: 'added' });
         }
       } catch (error) {
         reject(error);

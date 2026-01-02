@@ -888,6 +888,61 @@ const musicController = {
       logger.error('Error getting Listen Next albums:', error);
       res.status(500).json({ error: error.message });
     }
+  },
+
+  // Smart fill Listen Next with suggested albums
+  smartFillListenNext: async (req, res) => {
+    try {
+      const smartPlaylistService = require('../services/smartPlaylistService');
+      const result = await smartPlaylistService.smartFillListenNext();
+      
+      // Get the updated Listen Next albums to return
+      const musicCollectionService = require('../services/musicCollectionService');
+      const albums = await musicCollectionService.getListenNextAlbums();
+      
+      res.json({
+        success: true,
+        added: result.added.length,
+        message: result.message,
+        albums: albums
+      });
+    } catch (error) {
+      logger.error('Error in smart fill Listen Next:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Get smart playlist statistics
+  getSmartPlaylistStats: async (req, res) => {
+    try {
+      const smartPlaylistService = require('../services/smartPlaylistService');
+      const stats = await smartPlaylistService.getStats();
+      res.json(stats);
+    } catch (error) {
+      logger.error('Error getting smart playlist stats:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Shuffle a specific album in Listen Next (replace with new suggestion)
+  shuffleListenNextAlbum: async (req, res) => {
+    try {
+      const { albumId } = req.params;
+      const smartPlaylistService = require('../services/smartPlaylistService');
+      const result = await smartPlaylistService.shuffleAlbum(parseInt(albumId, 10));
+      
+      // Get the updated Listen Next albums to return
+      const musicCollectionService = require('../services/musicCollectionService');
+      const albums = await musicCollectionService.getListenNextAlbums();
+      
+      res.json({
+        ...result,
+        albums: albums
+      });
+    } catch (error) {
+      logger.error('Error shuffling Listen Next album:', error);
+      res.status(500).json({ error: error.message });
+    }
   }
 };
 

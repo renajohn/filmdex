@@ -231,6 +231,7 @@ const initDatabase = async () => {
           const AlbumCollection = require('./models/albumCollection');
           const Book = require('./models/book');
           const BookComment = require('./models/bookComment');
+          const PlaylistHistory = require('./models/playlistHistory');
           
           // Create all tables with their final schema
           await Movie.createTable();
@@ -245,6 +246,7 @@ const initDatabase = async () => {
           await AlbumCollection.createTable();
           await Book.createTable();
           await BookComment.createTable();
+          await PlaylistHistory.createTable();
           
           // Run auto-migrations for schema updates
           await runAutoMigrations();

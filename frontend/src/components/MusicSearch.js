@@ -50,6 +50,8 @@ const MusicSearch = forwardRef(({
   const navigate = useNavigate();
   const location = useLocation();
   const [listenNextAlbums, setListenNextAlbums] = useState([]);
+  const [smartFillLoading, setSmartFillLoading] = useState(false);
+  const [shufflingAlbumId, setShufflingAlbumId] = useState(null);
   
   // Ref and state for scroll container (for alphabetical index)
   const scrollContainerRef = useRef(null);
@@ -101,6 +103,69 @@ const MusicSearch = forwardRef(({
   useEffect(() => {
     refreshListenNextAlbums();
   }, [refreshTrigger, refreshListenNextAlbums]);
+
+  // Smart fill Listen Next with suggested albums
+  const handleSmartFill = useCallback(async () => {
+    if (smartFillLoading) return;
+    
+    setSmartFillLoading(true);
+    try {
+      const result = await musicService.smartFillListenNext();
+      setListenNextAlbums(result.albums || []);
+      
+      if (result.added > 0 && onShowAlert) {
+        const messages = [
+          `🎲 Added ${result.added} album${result.added !== 1 ? 's' : ''} to your queue!`,
+          `🎵 ${result.added} fresh pick${result.added !== 1 ? 's' : ''} added!`,
+          `✨ Your queue is ready with ${result.added} new album${result.added !== 1 ? 's' : ''}!`,
+        ];
+        const message = messages[Math.floor(Math.random() * messages.length)];
+        onShowAlert(message, 'success');
+      }
+    } catch (error) {
+      console.error('Error in smart fill:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to add suggestions', 'danger');
+      }
+    } finally {
+      setSmartFillLoading(false);
+    }
+  }, [smartFillLoading, onShowAlert]);
+
+  // Shuffle a specific album in Listen Next (replace with a new suggestion)
+  const handleShuffleAlbum = useCallback(async (album) => {
+    if (shufflingAlbumId !== null) return;
+    
+    setShufflingAlbumId(album.id);
+    try {
+      const result = await musicService.shuffleListenNextAlbum(album.id);
+      
+      if (result.success) {
+        setListenNextAlbums(result.albums || []);
+        
+        if (onShowAlert) {
+          const messages = [
+            `🔀 Swapped for "${result.added?.title}"!`,
+            `🎲 New pick: "${result.added?.title}"`,
+            `✨ "${result.added?.title}" is up next!`,
+          ];
+          const message = messages[Math.floor(Math.random() * messages.length)];
+          onShowAlert(message, 'success');
+        }
+      } else {
+        if (onShowAlert) {
+          onShowAlert(result.message || 'No replacement available', 'warning');
+        }
+      }
+    } catch (error) {
+      console.error('Error shuffling album:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to shuffle album', 'danger');
+      }
+    } finally {
+      setShufflingAlbumId(null);
+    }
+  }, [shufflingAlbumId, onShowAlert]);
 
   // Handle search from App.js
   useEffect(() => {
@@ -712,9 +777,10 @@ const MusicSearch = forwardRef(({
         disabled={groupBy !== 'none'}
       />
       
-      {/* Listen Next Banner */}
-      {listenNextAlbums.length > 0 && !searchCriteria?.searchText && (
+      {/* Listen Next Banner - show when there are albums OR when we have albums in collection to suggest */}
+      {!searchCriteria?.searchText && (listenNextAlbums.length > 0 || allCds.length > 0) && (
         <NextBanner
+          key={`listen-next-${listenNextAlbums.length > 0 ? 'has-items' : 'empty'}`}
           items={listenNextAlbums}
           type="music"
           title="Listen Next"
@@ -724,6 +790,11 @@ const MusicSearch = forwardRef(({
           getImageUrl={(album) => getCoverUrl(album.cover)}
           getTitle={(album) => album.title}
           getSubtitle={(album) => Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}
+          onSmartFill={handleSmartFill}
+          smartFillLoading={smartFillLoading}
+          targetCount={3}
+          onShuffle={handleShuffleAlbum}
+          shufflingItemId={shufflingAlbumId}
         />
       )}
 

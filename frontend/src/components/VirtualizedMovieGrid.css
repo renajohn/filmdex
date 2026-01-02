@@ -1,0 +1,73 @@
+/* Virtualized Movie Grid Styles */
+.virtualized-movie-grid {
+  width: 100%;
+  /* Fill available space - adjust for header, banner, and controls */
+  height: calc(100vh - 220px);
+  min-height: 500px;
+  position: relative;
+  /* Note: avoid contain: strict as it can break AutoSizer height detection */
+  contain: layout style;
+}
+
+.virtualized-movie-grid.sort-loading {
+  opacity: 0.6;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.virtual-grid {
+  /* Smooth scrolling optimizations */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-behavior: auto; /* Use auto for better performance, smooth can cause jank */
+}
+
+.virtual-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.virtual-grid::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.virtual-grid::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(100, 100, 100, 0.4), rgba(80, 80, 80, 0.5));
+  border-radius: 4px;
+}
+
+.virtual-grid::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(120, 120, 120, 0.6), rgba(100, 100, 100, 0.7));
+}
+
+.virtual-grid-cell {
+  /* Hardware acceleration */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  contain: layout style paint;
+}
+
+.virtual-grid-cell.empty {
+  pointer-events: none;
+}
+
+/* Override movie card styles for virtualized grid */
+.virtual-grid-cell .movie-card-large {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+.virtual-grid-cell .movie-poster-large {
+  width: 100%;
+  height: 100%;
+  padding-top: 0;
+}
+
+.virtual-grid-cell .movie-thumbnail-large {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+

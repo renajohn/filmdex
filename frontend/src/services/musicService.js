@@ -573,6 +573,67 @@ class MusicService {
       throw error;
     }
   }
+
+  /**
+   * Smart fill Listen Next with suggested albums based on collection distribution
+   * and listening history
+   * @returns {Promise<{success: boolean, added: number, message: string, albums: Array}>}
+   */
+  async smartFillListenNext() {
+    try {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/collections/listen-next/smart-fill`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error smart filling listen next:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get smart playlist statistics (artist distribution, suggestion history)
+   */
+  async getSmartPlaylistStats() {
+    try {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/collections/listen-next/stats`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching smart playlist stats:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Shuffle a specific album in Listen Next - replace it with a new suggestion
+   * Classical albums are replaced with other classical albums
+   * Non-classical albums are replaced with other non-classical albums
+   * @param {number} albumId - The album ID to replace
+   * @returns {Promise<{success: boolean, added: object, removed: object, albums: Array}>}
+   */
+  async shuffleListenNextAlbum(albumId) {
+    try {
+      const baseUrl = await this.getBaseUrl();
+      const response = await fetch(`${baseUrl}/collections/listen-next/shuffle/${albumId}`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error shuffling listen next album:', error);
+      throw error;
+    }
+  }
 }
 
 const musicServiceInstance = new MusicService();
