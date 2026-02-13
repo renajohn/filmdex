@@ -5,7 +5,7 @@ WORKDIR /build
 
 # Install frontend dependencies
 COPY frontend/package*.json ./frontend/
-RUN cd frontend && npm ci
+RUN cd frontend && npm ci --legacy-peer-deps
 
 # Copy frontend source and build
 COPY frontend/ ./frontend/
@@ -21,7 +21,7 @@ WORKDIR /app
 
 # Install backend dependencies
 COPY backend/package*.json ./backend/
-RUN cd backend && npm install --production && npm rebuild sqlite3
+RUN cd backend && npm install --omit=dev && npm rebuild sqlite3
 
 # Copy backend source
 COPY backend/index.js ./backend/
