@@ -206,57 +206,6 @@ echo "👋 FilmDex stopped"
     console.log('✅ Start script created');
   }
 
-  createDockerfile() {
-    console.log('🐳 Creating Dockerfile...');
-    
-    const dockerfile = `# FilmDex Dockerfile
-# Version: ${this.version}
-# Target: ${this.deploymentTarget}
-
-FROM node:18-alpine
-
-# Install build dependencies for native modules (sqlite3)
-RUN apk add --no-cache python3 make g++ sqlite-dev
-
-# Set working directory
-WORKDIR /app
-
-# Copy package files
-COPY backend/package*.json ./
-
-# Install dependencies
-RUN npm install --production
-
-# Rebuild native modules for Alpine Linux architecture
-RUN npm rebuild sqlite3
-
-# Copy application files (excluding .env files via .dockerignore)
-COPY . .
-
-# Create data directory
-RUN mkdir -p /data
-
-# Expose port
-EXPOSE 3001
-
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3001
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \\
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
-
-# Start the application
-CMD ["node", "backend/index.js"]
-`;
-
-    const dockerfilePath = path.join(this.distDir, 'Dockerfile');
-    fs.writeFileSync(dockerfilePath, dockerfile);
-    
-    console.log('✅ Dockerfile created');
-  }
-
   checkSecurity() {
     console.log('🔒 Checking for security issues...');
     
@@ -288,7 +237,7 @@ CMD ["node", "backend/index.js"]
     }
     
     // Check if .dockerignore exists and contains .env
-    const dockerignorePath = path.join(this.distDir, '.dockerignore');
+    const dockerignorePath = path.join(this.projectRoot, '.dockerignore');
     if (fs.existsSync(dockerignorePath)) {
       const dockerignoreContent = fs.readFileSync(dockerignorePath, 'utf8');
       if (dockerignoreContent.includes('.env')) {
@@ -297,137 +246,6 @@ CMD ["node", "backend/index.js"]
         console.warn('⚠️  WARNING: .dockerignore may not exclude .env files');
       }
     }
-  }
-
-  createDockerIgnore() {
-    console.log('🚫 Creating .dockerignore...');
-    
-    const dockerignore = `# Dependencies
-node_modules
-npm-debug.log*
-
-# Build artifacts
-dist
-build
-
-# Environment files (CRITICAL: Never include in Docker images)
-.env
-.env.*
-.env.local
-.env.development
-.env.development.local
-.env.test
-.env.test.local
-.env.production
-.env.production.local
-.env.staging
-.env.staging.local
-
-# IDE files
-.vscode
-.idea
-*.swp
-*.swo
-*~
-
-# OS files
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Git
-.git
-.gitignore
-.gitattributes
-
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage
-.nyc_output
-
-# Dependency directories
-jspm_packages/
-
-# Optional npm cache directory
-.npm
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# next.js build output
-.next
-
-# nuxt.js build output
-.nuxt
-
-# vuepress build output
-.vuepress/dist
-
-# Serverless directories
-.serverless
-
-# FuseBox cache
-.fusebox/
-
-# DynamoDB Local files
-.dynamodb/
-
-# TernJS port file
-.tern-port
-
-# Symlinks (for local testing only)
-data
-
-# Security: API keys and secrets
-*.key
-*.pem
-*.p12
-*.pfx
-secrets/
-credentials/
-
-# Temporary files
-tmp/
-temp/
-.tmp/
-.temp/
-
-# Editor directories and files
-.vscode/
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-`;
-
-    const dockerignorePath = path.join(this.distDir, '.dockerignore');
-    fs.writeFileSync(dockerignorePath, dockerignore);
-    
-    console.log('✅ .dockerignore created');
   }
 
   copyDirectory(src, dest) {
@@ -506,8 +324,6 @@ temp/
       this.copyDeploymentConfig();
       this.createDataSymlink();
       this.createStartScript();
-      this.createDockerfile();
-      this.createDockerIgnore();
       this.createVersionFile();
       this.checkSecurity();
       

@@ -53,10 +53,24 @@ class ConfigManager {
         throw new Error('Data path not set. Load deployment config first.');
       }
 
+      // Ensure data directory exists
+      if (!fs.existsSync(this.dataPath)) {
+        fs.mkdirSync(this.dataPath, { recursive: true });
+        console.log(`Created data directory: ${this.dataPath}`);
+      }
+
       const optionsPath = path.join(this.dataPath, 'options.json');
-      
+
+      // Auto-create default options.json if it doesn't exist
       if (!fs.existsSync(optionsPath)) {
-        throw new Error(`Data options file not found: ${optionsPath}`);
+        const defaults = {
+          log_level: 'info',
+          omdb_api_key: '',
+          tmdb_api_key: '',
+          max_upload_mb: 20
+        };
+        fs.writeFileSync(optionsPath, JSON.stringify(defaults, null, 2));
+        console.log(`Created default options.json at: ${optionsPath}`);
       }
 
       const optionsData = fs.readFileSync(optionsPath, 'utf8');
