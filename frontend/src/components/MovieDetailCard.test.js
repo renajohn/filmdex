@@ -76,7 +76,7 @@ describe('MovieDetailCard', () => {
   });
 
   it('calls onClose when close button is clicked', () => {
-    const mockOnClose = jest.fn();
+    const mockOnClose = vi.fn();
     render(<MovieDetailCard movieDetails={mockMovieDetails} onClose={mockOnClose} />);
     
     const closeButton = screen.getByText('×');

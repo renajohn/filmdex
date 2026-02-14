@@ -5,17 +5,23 @@ import UnmatchedMovies from './UnmatchedMovies';
 import apiService from '../services/api';
 
 // Mock the API service
-jest.mock('../services/api');
+vi.mock('../services/api', () => ({
+  default: {
+    getImportStatus: vi.fn(),
+    getMovieSuggestions: vi.fn(),
+    resolveMovie: vi.fn(),
+  },
+}));
 
 // Mock fetch for polling
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 describe('UnmatchedMovies', () => {
-  const mockOnImportComplete = jest.fn();
+  const mockOnImportComplete = vi.fn();
   const testImportId = 'test-import-id';
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     fetch.mockClear();
   });
 

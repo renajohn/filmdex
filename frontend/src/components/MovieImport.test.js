@@ -5,14 +5,18 @@ import MovieImport from './MovieImport';
 import apiService from '../services/api';
 
 // Mock the API service
-jest.mock('../services/api');
+vi.mock('../services/api', () => ({
+  default: {
+    importCsv: vi.fn(),
+  },
+}));
 
 describe('MovieImport', () => {
-  const mockOnImportStart = jest.fn();
-  const mockOnError = jest.fn();
+  const mockOnImportStart = vi.fn();
+  const mockOnError = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('renders the import form', () => {

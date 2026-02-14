@@ -4,20 +4,22 @@ import '@testing-library/jest-dom';
 import MovieForm from './MovieForm';
 
 // Mock the API service
-jest.mock('../services/api', () => ({
-  createMovie: jest.fn(),
-  updateMovie: jest.fn(),
-  fetchRatings: jest.fn()
+vi.mock('../services/api', () => ({
+  default: {
+    createMovie: vi.fn(),
+    updateMovie: vi.fn(),
+    fetchRatings: vi.fn(),
+  },
 }));
 
 import apiService from '../services/api';
 
 describe('MovieForm', () => {
-  const mockOnSave = jest.fn();
-  const mockOnCancel = jest.fn();
+  const mockOnSave = vi.fn();
+  const mockOnCancel = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should render correctly for adding new movie', () => {

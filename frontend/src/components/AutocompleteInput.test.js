@@ -4,17 +4,17 @@ import '@testing-library/jest-dom';
 import AutocompleteInput from './AutocompleteInput';
 
 // Mock the API service
-jest.mock('../services/api', () => ({
-  getAutocompleteSuggestions: jest.fn()
+vi.mock('../services/api', () => ({
+  default: { getAutocompleteSuggestions: vi.fn() },
 }));
 
 import apiService from '../services/api';
 
 describe('AutocompleteInput', () => {
-  const mockOnChange = jest.fn();
+  const mockOnChange = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should render correctly with basic props', () => {

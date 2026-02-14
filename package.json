@@ -11,7 +11,7 @@
         "build:prod": "node build.js prod",
         "start": "cd dist && ./start.sh",
         "dev": "concurrently --kill-others-on-fail \"npm run dev:backend\" \"npm run dev:frontend\"",
-        "dev:frontend": "cd frontend && BROWSER=none npm start",
+        "dev:frontend": "cd frontend && npm start",
         "dev:backend": "nodemon --watch backend/src --watch backend/index.js --watch data --watch deployment.dev.json --delay 2 --exec \"node dev-backend.js\"",
         "test:local": "npm run build:dev && npm start",
         "test:prod": "npm run build:prod && npm start",
