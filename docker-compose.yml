@@ -1,6 +1,6 @@
 services:
   dexvault:
-    build: .
+    image: ghcr.io/renajohn/filmdex:latest
     ports:
       - "3001:3001"
     volumes:
@@ -16,5 +16,7 @@ services:
       timeout: 3s
       start_period: 5s
       retries: 3
+  labels:
+    - "com.centurylinklabs.watchtower.enable=true"
 volumes:
   dexvault_data:  
