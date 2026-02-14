@@ -1,5 +1,5 @@
 # Stage 1: Build frontend
-FROM node:18-alpine AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 
 WORKDIR /build
 
@@ -12,7 +12,7 @@ COPY frontend/ ./frontend/
 RUN cd frontend && PUBLIC_URL=/ npm run build
 
 # Stage 2: Production image
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Install build dependencies for native modules (sqlite3)
 RUN apk add --no-cache python3 make g++ sqlite-dev

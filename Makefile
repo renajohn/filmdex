@@ -24,11 +24,15 @@ status:             ## Show container status
 	docker compose ps
 
 build:              ## Build Docker image locally
-	docker buildx build --platform linux/amd64,linux/arm64 -t $(IMAGE):latest -t $(IMAGE):$(VERSION) --load .
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml build
 
-publish:            ## Build and push to GHCR
-	docker buildx build --platform linux/amd64,linux/arm64 -t $(IMAGE):latest -t $(IMAGE):$(VERSION) --push .
-	@echo "Published $(IMAGE):$(VERSION)"
+test:               ## Build and run locally (no push)
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+
+publish:            ## Push to main (CI builds and pushes to GHCR)
+	git push origin main
+	@echo "CI will publish $(IMAGE):$(VERSION)"
+	@echo "Watch: https://github.com/renajohn/filmdex/actions"
 
 clean:              ## Remove dist/ and stop containers
 	docker compose down 2>/dev/null || true

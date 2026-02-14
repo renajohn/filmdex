@@ -1,0 +1,4 @@
+services:
+  dexvault:
+    image: ghcr.io/renajohn/filmdex:latest
+    build: .
