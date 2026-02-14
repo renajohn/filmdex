@@ -21,7 +21,7 @@ WORKDIR /app
 
 # Install backend dependencies
 COPY backend/package*.json ./backend/
-RUN cd backend && npm install --omit=dev --build-from-source
+RUN cd backend && npm install --omit=dev && npx --yes node-pre-gyp rebuild --build-from-source -C node_modules/sqlite3
 
 # Copy backend source
 COPY backend/index.js ./backend/
