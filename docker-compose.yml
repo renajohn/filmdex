@@ -16,7 +16,7 @@ services:
       timeout: 3s
       start_period: 5s
       retries: 3
-  labels:
-    - "com.centurylinklabs.watchtower.enable=true"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
 volumes:
   dexvault_data:  

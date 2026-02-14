@@ -9,7 +9,7 @@ RUN cd frontend && npm ci --legacy-peer-deps
 
 # Copy frontend source and build
 COPY frontend/ ./frontend/
-RUN cd frontend && PUBLIC_URL=/ npm run build
+RUN cd frontend && DISABLE_ESLINT_PLUGIN=true PUBLIC_URL=/ npm run build
 
 # Stage 2: Production image
 FROM node:20-alpine
@@ -21,7 +21,7 @@ WORKDIR /app
 
 # Install backend dependencies
 COPY backend/package*.json ./backend/
-RUN cd backend && npm install --omit=dev && npm rebuild sqlite3
+RUN cd backend && npm install --omit=dev --build-from-source
 
 # Copy backend source
 COPY backend/index.js ./backend/
