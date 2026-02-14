@@ -21,8 +21,7 @@ WORKDIR /app
 
 # Install backend dependencies
 COPY backend/package*.json ./backend/
-RUN cd backend && npm install --omit=dev \
-    && cd node_modules/sqlite3 && npx @mapbox/node-pre-gyp install --build-from-source
+RUN cd backend && npm install --omit=dev
 
 # Copy backend source
 COPY backend/index.js ./backend/
