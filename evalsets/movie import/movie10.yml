@@ -1,0 +1,22 @@
+image: movie10.jpg
+
+expected:
+  title: "The Matrix"
+  original_title: "The Matrix"
+  year: 1999
+  director: "Lana Wachowski"
+  genre:
+    - Action
+    - Science Fiction
+  cast:
+    - Keanu Reeves
+    - Laurence Fishburne
+    - Carrie-Anne Moss
+    - Hugo Weaving
+    - Joe Pantoliano
+  runtime: 136
+  format: 4k
+  imdb_id: tt0133093
+  tmdb_id: 603
+  imdb_rating: 8.7
+  plot: "When a beautiful stranger leads computer hacker Neo to a forbidding underworld, he discovers the shocking truth -- the life he knows is the elaborate deception of an evil cyber-intelligence."

@@ -1,0 +1,23 @@
+image: movie5.jpg
+
+expected:
+  title: "Le Fabuleux Destin d'Amélie Poulain"
+  original_title: "Le Fabuleux Destin d'Amélie Poulain"
+  year: 2001
+  director: "Jean-Pierre Jeunet"
+  genre:
+    - Comedy
+    - Romance
+  cast:
+    - Audrey Tautou
+    - Mathieu Kassovitz
+    - Rufus
+    - Jamel Debbouze
+    - Dominique Pinon
+    - Isabelle Nanty
+  runtime: 122
+  format: Blu-ray
+  imdb_id: tt0211915
+  tmdb_id: 194
+  imdb_rating: 8.3
+  plot: "Amélie is an innocent and naive girl in Paris with her own sense of justice. She decides to help those around her and, along the way, discovers love."

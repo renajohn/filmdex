@@ -1,0 +1,23 @@
+image: movie11.jpg
+
+expected:
+  title: "Jurassic Park"
+  original_title: "Jurassic Park"
+  year: 1993
+  director: "Steven Spielberg"
+  genre:
+    - Adventure
+    - Science Fiction
+    - Thriller
+  cast:
+    - Sam Neill
+    - Laura Dern
+    - Jeff Goldblum
+    - Richard Attenborough
+    - Samuel L. Jackson
+  runtime: 127
+  format: 4k
+  imdb_id: tt0107290
+  tmdb_id: 329
+  imdb_rating: 8.2
+  plot: "A pragmatic paleontologist touring an almost complete theme park on an island is tasked with protecting a couple of kids after a power failure causes the park's cloned dinosaurs to run loose."

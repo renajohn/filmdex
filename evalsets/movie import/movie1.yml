@@ -1,0 +1,26 @@
+image: movie1.webp
+
+expected:
+  title: "John Wick: Chapter 3 - Parabellum"
+  original_title: "John Wick: Chapter 3 - Parabellum"
+  year: 2019
+  director: "Chad Stahelski"
+  genre:
+    - Action
+    - Thriller
+    - Crime
+  cast:
+    - Keanu Reeves
+    - Halle Berry
+    - Ian McShane
+    - Laurence Fishburne
+    - Mark Dacascos
+    - Asia Kate Dillon
+    - Lance Reddick
+    - Anjelica Huston
+  runtime: 131
+  format: 4k
+  imdb_id: tt6146586
+  tmdb_id: 458156
+  imdb_rating: 7.4
+  plot: "John Wick is on the run after killing a member of the international assassins' guild, and with a $14 million price tag on his head, he is the target of hit men and women everywhere."

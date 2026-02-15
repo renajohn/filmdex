@@ -1,0 +1,23 @@
+image: movie12.jpg
+
+expected:
+  title: "Back to the Future"
+  original_title: "Back to the Future"
+  year: 1985
+  director: "Robert Zemeckis"
+  genre:
+    - Adventure
+    - Comedy
+    - Science Fiction
+  cast:
+    - Michael J. Fox
+    - Christopher Lloyd
+    - Lea Thompson
+    - Crispin Glover
+    - Thomas F. Wilson
+  runtime: 116
+  format: 4k
+  imdb_id: tt0088763
+  tmdb_id: 105
+  imdb_rating: 8.5
+  plot: "Marty McFly, a 17-year-old high school student, is accidentally sent 30 years into the past in a time-traveling DeLorean invented by his close friend, the maverick scientist Doc Brown."

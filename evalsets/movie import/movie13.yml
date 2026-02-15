@@ -1,0 +1,24 @@
+image: movie13.jpg
+
+expected:
+  title: "Alien"
+  original_title: "Alien"
+  year: 1979
+  director: "Ridley Scott"
+  genre:
+    - Horror
+    - Science Fiction
+  cast:
+    - Sigourney Weaver
+    - Tom Skerritt
+    - John Hurt
+    - Ian Holm
+    - Harry Dean Stanton
+    - Veronica Cartwright
+    - Yaphet Kotto
+  runtime: 117
+  format: 4k
+  imdb_id: tt0078748
+  tmdb_id: 348
+  imdb_rating: 8.5
+  plot: "During its return to the earth, commercial spaceship Nostromo intercepts a distress signal from a distant planet. When a three-member team of the crew discovers a chamber containing thousands of eggs on the planet, a creature inside one of the eggs attacks an explorer."

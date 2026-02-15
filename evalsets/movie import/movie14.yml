@@ -1,0 +1,26 @@
+image: movie14.HEIC
+
+expected:
+  title: "Le Robot Sauvage"
+  original_title: "The Wild Robot"
+  year: 2024
+  director: "Chris Sanders"
+  genre:
+    - Animation
+    - Science Fiction
+    - Family
+  cast:
+    - Lupita Nyong'o
+    - Pedro Pascal
+    - Kit Connor
+    - Bill Nighy
+    - Stephanie Hsu
+    - Mark Hamill
+    - Catherine O'Hara
+    - Matt Berry
+  runtime: 102
+  format: bluray
+  imdb_id: tt29623480
+  tmdb_id: 1184918
+  imdb_rating: 8.1
+  plot: "After a shipwreck, an intelligent robot called Roz is stranded on an uninhabited island. To survive the harsh environment, Roz bonds with the island's animals and cares for an orphaned gosling."

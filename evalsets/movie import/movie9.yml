@@ -1,0 +1,26 @@
+image: movie9.jpg
+
+expected:
+  title: "Inception"
+  original_title: "Inception"
+  year: 2010
+  director: "Christopher Nolan"
+  genre:
+    - Action
+    - Science Fiction
+    - Adventure
+  cast:
+    - Leonardo DiCaprio
+    - Joseph Gordon-Levitt
+    - Marion Cotillard
+    - Elliot Page
+    - Tom Hardy
+    - Cillian Murphy
+    - Ken Watanabe
+    - Michael Caine
+  runtime: 148
+  format: 4k
+  imdb_id: tt1375666
+  tmdb_id: 27205
+  imdb_rating: 8.8
+  plot: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O."

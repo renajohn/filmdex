@@ -1,0 +1,24 @@
+image: movie7.jpg
+
+expected:
+  title: "Der Untergang"
+  original_title: "Der Untergang"
+  year: 2004
+  director: "Oliver Hirschbiegel"
+  genre:
+    - Drama
+    - History
+    - War
+  cast:
+    - Bruno Ganz
+    - Alexandra Maria Lara
+    - Corinna Harfouch
+    - Juliane Köhler
+    - Ulrich Noethen
+    - Thomas Kretschmann
+  runtime: 156
+  format: 4k
+  imdb_id: tt0363163
+  tmdb_id: 613
+  imdb_rating: 8.2
+  plot: "Traudl Junge, the final secretary for Adolf Hitler, tells of the Nazi dictator's final days in his Berlin bunker at the end of WWII."

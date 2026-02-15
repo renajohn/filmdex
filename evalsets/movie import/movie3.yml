@@ -1,0 +1,25 @@
+image: movie3.jpg
+
+expected:
+  title: "A Minecraft Movie"
+  original_title: "A Minecraft Movie"
+  year: 2025
+  director: "Jared Hess"
+  genre:
+    - Adventure
+    - Comedy
+    - Family
+    - Fantasy
+  cast:
+    - Jason Momoa
+    - Jack Black
+    - Danielle Brooks
+    - Emma Myers
+    - Sebastian Hansen
+    - Jennifer Coolidge
+  runtime: 101
+  format: 4k
+  imdb_id: tt3566834
+  tmdb_id: 762509
+  imdb_rating: 6.2
+  plot: "Four misfits are suddenly pulled through a mysterious portal into a bizarre, cubic wonderland that thrives on imagination. To get back home, they'll have to master this world while embarking on a quest with an unexpected expert crafter."

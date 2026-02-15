@@ -8,6 +8,7 @@ const importService = require('../services/importService');
 const imageService = require('../services/imageService');
 const collectionService = require('../services/collectionService');
 const cacheService = require('../services/cacheService');
+const coverScanService = require('../services/coverScanService');
 const Movie = require('../models/movie');
 const MovieCast = require('../models/movieCast');
 const MovieCrew = require('../models/movieCrew');
@@ -1394,6 +1395,94 @@ const movieController = {
       const result = await collectionService.cleanupEmptyCollections();
       res.json(result);
     } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Scan a cover image to identify a movie using local LLM
+  scanCover: async (req, res) => {
+    try {
+      const { image, mimeType } = req.body;
+
+      if (!image) {
+        return res.status(400).json({ error: 'Image data is required' });
+      }
+
+      // Check LLM availability first
+      const health = await coverScanService.checkHealth();
+      if (!health.available) {
+        return res.status(503).json({ error: 'Cover scan service is not available', details: health.error });
+      }
+
+      // Analyze the cover image
+      let llmResult;
+      try {
+        llmResult = await coverScanService.analyzeImage(image, mimeType || 'image/jpeg', 'movie');
+      } catch (error) {
+        logger.error('LLM analysis failed:', error.message);
+        return res.status(422).json({ error: 'Could not identify movie from cover image', details: error.message });
+      }
+
+      // Search TMDB with extracted title (and original title if different)
+      const searches = [tmdbService.searchAll(llmResult.title, llmResult.year)];
+      if (llmResult.original_title) {
+        searches.push(tmdbService.searchAll(llmResult.original_title, llmResult.year));
+      }
+      const searchResults = await Promise.all(searches);
+      // Merge and deduplicate by TMDB id
+      const seen = new Set();
+      const tmdbResults = [];
+      for (const results of searchResults) {
+        for (const r of results) {
+          if (!seen.has(r.id)) {
+            seen.add(r.id);
+            tmdbResults.push(r);
+          }
+        }
+      }
+
+      if (!tmdbResults || tmdbResults.length === 0) {
+        return res.json({
+          llm_result: llmResult,
+          suggested_format: llmResult.format,
+          results: [],
+          best_match_index: null
+        });
+      }
+
+      // Rank results by match quality
+      const rankedResults = coverScanService.rankResults(tmdbResults, llmResult);
+
+      // Check existing editions for top results (same pattern as searchAllTMDB)
+      const resultsWithEditions = await Promise.all(
+        rankedResults.slice(0, 10).map(async (movie) => {
+          try {
+            const editions = await Movie.findAllByTmdbId(movie.id);
+            return {
+              ...movie,
+              existingEditions: editions ? editions.map(ed => ({
+                id: ed.id,
+                title: ed.title,
+                format: ed.format,
+                title_status: ed.title_status || 'owned'
+              })) : [],
+              hasEditions: editions && editions.length > 0,
+              editionsCount: editions ? editions.length : 0
+            };
+          } catch (err) {
+            return { ...movie, existingEditions: [], hasEditions: false, editionsCount: 0 };
+          }
+        })
+      );
+
+      res.json({
+        llm_result: llmResult,
+        suggested_format: llmResult.format,
+        results: resultsWithEditions,
+        best_match_index: 0
+      });
+    } catch (error) {
+      logger.error('Error scanning cover:', error);
       res.status(500).json({ error: error.message });
     }
   },

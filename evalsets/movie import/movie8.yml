@@ -1,0 +1,24 @@
+image: movie8.jpg
+
+expected:
+  title: "Gladiator"
+  original_title: "Gladiator"
+  year: 2000
+  director: "Ridley Scott"
+  genre:
+    - Action
+    - Adventure
+    - Drama
+  cast:
+    - Russell Crowe
+    - Joaquin Phoenix
+    - Connie Nielsen
+    - Oliver Reed
+    - Richard Harris
+    - Derek Jacobi
+  runtime: 155
+  format: 4k
+  imdb_id: tt0172495
+  tmdb_id: 98
+  imdb_rating: 8.5
+  plot: "A former Roman General sets out to exact vengeance against the corrupt emperor who murdered his family and sent him into slavery."

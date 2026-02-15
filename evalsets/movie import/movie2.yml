@@ -1,0 +1,24 @@
+image: movie2.webp
+
+expected:
+  title: "The Mask"
+  original_title: "The Mask"
+  year: 1994
+  director: "Chuck Russell"
+  genre:
+    - Comedy
+    - Fantasy
+    - Crime
+  cast:
+    - Jim Carrey
+    - Cameron Diaz
+    - Peter Riegert
+    - Peter Greene
+    - Amy Yasbeck
+    - Richard Jeni
+  runtime: 101
+  format: 4k
+  imdb_id: tt0110475
+  tmdb_id: 854
+  imdb_rating: 6.9
+  plot: "When timid bank clerk Stanley Ipkiss discovers a magical mask containing the spirit of the Norse god Loki, his whole life changes. While wearing the mask he becomes a zany, green-faced superhero."

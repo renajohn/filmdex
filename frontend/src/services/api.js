@@ -611,6 +611,21 @@ class ApiService {
     return await response.json();
   }
 
+  // Scan a movie cover image using local LLM
+  async scanMovieCover(base64Image, mimeType) {
+    const response = await this.makeRequest('/movies/scan-cover', {
+      method: 'POST',
+      body: JSON.stringify({ image: base64Image, mimeType }),
+    });
+    return await response.json();
+  }
+
+  // Check if cover scan (LLM) service is available
+  async checkCoverScanHealth() {
+    const response = await this.makeRequest('/cover-scan/health');
+    return await response.json();
+  }
+
   // Get analytics data
   async getAnalytics() {
     const response = await this.makeRequest('/analytics');

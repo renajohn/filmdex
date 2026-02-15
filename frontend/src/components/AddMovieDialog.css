@@ -927,3 +927,217 @@
 .add-movie-dialog-content {
   position: relative;
 }
+
+/* ===== Cover Scan Styles ===== */
+
+/* Drop zone */
+.cover-dropzone {
+  border: 2px dashed #555;
+  border-radius: 12px;
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 16px;
+}
+
+.cover-dropzone:hover,
+.cover-dropzone.drag-over {
+  border-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.05);
+}
+
+.cover-dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.cover-dropzone-icon {
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.cover-dropzone:hover .cover-dropzone-icon,
+.cover-dropzone.drag-over .cover-dropzone-icon {
+  color: #fbbf24;
+}
+
+.cover-dropzone-content p {
+  margin: 0;
+  color: #ccc;
+  font-size: 0.95rem;
+}
+
+.cover-dropzone-hint {
+  color: #888 !important;
+  font-size: 0.8rem !important;
+}
+
+/* Cover preview */
+.cover-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.cover-preview img {
+  max-height: 300px;
+  max-width: 100%;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.cover-change-btn {
+  font-size: 0.8rem !important;
+  padding: 4px 12px !important;
+}
+
+/* Scan button */
+.scan-btn {
+  width: 100%;
+  padding: 14px 20px !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 8px;
+}
+
+/* Scan status spinner */
+.scan-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  color: #fbbf24;
+  font-size: 0.95rem;
+}
+
+.scan-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(251, 191, 36, 0.2);
+  border-top-color: #fbbf24;
+  border-radius: 50%;
+  animation: posterSpin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+/* Scan error */
+.scan-error {
+  background: rgba(220, 53, 69, 0.15);
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  color: #ff6b7a;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}
+
+.scan-error .btn-link {
+  background: none;
+  border: none;
+  color: #fbbf24;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* "or" divider */
+.scan-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.scan-divider::before,
+.scan-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #555;
+}
+
+.scan-divider span {
+  color: #888;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Search by title fallback button */
+.scan-fallback-btn {
+  width: 100%;
+}
+
+/* Back to cover scan button */
+.back-to-scan-btn {
+  margin-bottom: 16px;
+  font-size: 0.8rem !important;
+  padding: 6px 12px !important;
+}
+
+/* Scan match banner */
+.scan-match-banner {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.15));
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  color: #fbbf24;
+  font-size: 0.95rem;
+}
+
+.scan-match-banner strong {
+  color: #fff;
+}
+
+/* Best match highlight */
+.search-result-item.best-match {
+  border: 2px solid rgba(251, 191, 36, 0.5);
+  background: rgba(251, 191, 36, 0.05);
+  position: relative;
+}
+
+.search-result-item.best-match:hover {
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.best-match-badge {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #1a1a1a;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* Responsive adjustments for cover scan */
+@media (max-width: 768px) {
+  .cover-dropzone {
+    padding: 24px 16px;
+  }
+
+  .cover-preview img {
+    max-height: 200px;
+  }
+
+  .step-connector {
+    width: 30px;
+    margin: 0 8px;
+  }
+
+  .step-label {
+    font-size: 0.7rem;
+  }
+}

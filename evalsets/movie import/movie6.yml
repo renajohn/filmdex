@@ -1,0 +1,22 @@
+image: movie6.jpg
+
+expected:
+  title: "Das Boot"
+  original_title: "Das Boot"
+  year: 1981
+  director: "Wolfgang Petersen"
+  genre:
+    - Drama
+    - War
+  cast:
+    - Jürgen Prochnow
+    - Herbert Grönemeyer
+    - Klaus Wennemann
+    - Hubertus Bengsch
+    - Martin Semmelrogge
+  runtime: 149
+  format: Blu-ray
+  imdb_id: tt0082096
+  tmdb_id: 387
+  imdb_rating: 8.4
+  plot: "A German U-boat stalks the frigid waters of the North Atlantic as its young crew tries to endure the claustrophobic terror of underwater warfare."

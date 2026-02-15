@@ -1,0 +1,22 @@
+image: movie4.jpg
+
+expected:
+  title: "Intouchables"
+  original_title: "Intouchables"
+  year: 2011
+  director: "Olivier Nakache"
+  genre:
+    - Comedy
+    - Drama
+  cast:
+    - François Cluzet
+    - Omar Sy
+    - Anne Le Ny
+    - Audrey Fleurot
+    - Clotilde Mollet
+  runtime: 112
+  format: Blu-ray
+  imdb_id: tt1675434
+  tmdb_id: 77338
+  imdb_rating: 8.5
+  plot: "A true story of two men who should never have met – a quadriplegic aristocrat who was injured in a paragliding accident and a young man from the projects."

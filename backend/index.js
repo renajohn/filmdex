@@ -131,6 +131,7 @@ app.get('/api/movies/:id/crew', movieController.getMovieCrew);
 app.post('/api/movies', movieController.createMovie);
 app.post('/api/movies/add', movieController.addMovie);
 app.post('/api/movies/add-with-pipeline', movieController.addMovieWithPipeline);
+app.post('/api/movies/scan-cover', movieController.scanCover);
 app.get('/api/tmdb/search', movieController.searchTMDB);
 app.put('/api/movies/:id', movieController.updateMovie);
 app.post('/api/movies/:id/refresh-ratings', movieController.refreshMovieRatings);
@@ -280,6 +281,17 @@ app.post('/api/backup/restore', backupController.restoreBackup);
 app.post('/api/backup/upload-restore', backupController.uploadMiddleware, backupController.uploadAndRestoreBackup);
 app.delete('/api/backup/:filename', backupController.deleteBackup);
 app.post('/api/backup/cleanup-restore', backupController.cleanupRestoreBackups);
+
+// Cover scan health check
+app.get('/api/cover-scan/health', async (req, res) => {
+  try {
+    const coverScanService = require('./src/services/coverScanService');
+    const health = await coverScanService.checkHealth();
+    res.json(health);
+  } catch (error) {
+    res.json({ available: false, error: error.message });
+  }
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
