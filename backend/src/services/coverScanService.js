@@ -2,6 +2,7 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const axios = require('axios');
 
 const DEFAULT_BASE_URL = 'http://p-cloud.local:8001';
 const DEFAULT_MODEL = 'Qwen3-VL-8B-Instruct-Q4_K_M';
@@ -27,39 +28,59 @@ function getConfig() {
  * macOS Sequoia blocks Node.js from LAN access, but curl (a system binary)
  * has implicit local network permission.
  */
-function curlPost(url, body, timeoutSec = 60) {
-  // Write body to temp file to avoid shell escaping issues with large payloads
-  const tmpFile = path.join(os.tmpdir(), `coverscan-${Date.now()}.json`);
+async function axiosPost(url, body, timeoutSec = 60) {
   try {
-    fs.writeFileSync(tmpFile, JSON.stringify(body));
-    const output = execFileSync('curl', [
-      '-s', '-S',
-      '--max-time', String(timeoutSec),
-      '-H', 'Content-Type: application/json',
-      '-d', `@${tmpFile}`,
-      url
-    ], { encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 });
-    return JSON.parse(output);
-  } finally {
-    try { fs.unlinkSync(tmpFile); } catch (e) { /* ignore */ }
+    const response = await axios.post(url, body, {
+      timeout: timeoutSec * 1000,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  } catch (error) {
+    if (error.response) {
+      throw new Error(`HTTP ${error.response.status}: ${error.response.data}`);
+    } else if (error.request) {
+      throw new Error('Network error: No response received');
+    } else {
+      throw new Error(error.message);
+    }
   }
 }
 
-function curlGet(url, timeoutSec = 5) {
-  const output = execFileSync('curl', [
-    '-s', '-S',
-    '--max-time', String(timeoutSec),
-    url
-  ], { encoding: 'utf8' });
-  return JSON.parse(output);
+async function axiosGet(url, timeoutSec = 5) {
+  try {
+    const response = await axios.get(url, {
+      timeout: timeoutSec * 1000
+    });
+    return response.data;
+  } catch (error) {
+    if (error.response) {
+      throw new Error(`HTTP ${error.response.status}: ${error.response.data}`);
+    } else if (error.request) {
+      throw new Error('Network error: No response received');
+    } else {
+      throw new Error(error.message);
+    }
+  }
 }
 
-function curlGetBinary(url, timeoutSec = 10) {
-  return execFileSync('curl', [
-    '-s', '-S',
-    '--max-time', String(timeoutSec),
-    url
-  ], { encoding: 'buffer' });
+async function axiosGetBinary(url, timeoutSec = 10) {
+  try {
+    const response = await axios.get(url, {
+      timeout: timeoutSec * 1000,
+      responseType: 'arraybuffer'
+    });
+    return Buffer.from(response.data, 'binary');
+  } catch (error) {
+    if (error.response) {
+      throw new Error(`HTTP ${error.response.status}: ${error.response.data}`);
+    } else if (error.request) {
+      throw new Error('Network error: No response received');
+    } else {
+      throw new Error(error.message);
+    }
+  }
 }
 
 /**
@@ -116,7 +137,7 @@ async function analyzeImage(base64Image, mimeType, mediaType = 'movie') {
     ? 'Look at this movie cover image. Identify the movie and extract: the title exactly as printed on the cover, the original international release title (the title this movie is commonly known by in English on TMDB/IMDb), the release year, and the physical media format (DVD, Blu-ray, or 4K/UHD). Use your knowledge of real movies to identify the correct film — the cover may use a localized, translated, or regional title that differs from the original. Respond with ONLY a JSON object like: {"title": "Jugend ohne Jugend", "original_title": "Youth Without Youth", "year": 2007, "format": "Blu-ray"}. Always include original_title with the well-known English/international title. Only omit original_title if the printed title is already the standard international title. If you cannot determine year, omit it. Do not include any other text.'
     : 'Look at this media cover image. Identify the media and extract: the title exactly as printed, the original international release title (commonly known English title on TMDB/IMDb), the release year, and the physical media format. Respond with ONLY a JSON object like: {"title": "Title on Cover", "original_title": "International Title", "year": 2020, "format": "Blu-ray"}. Always include original_title unless the printed title is already the standard international title. If you cannot determine a field, omit it. Do not include any other text.';
 
-  const response = curlPost(`${baseUrl}/v1/chat/completions`, {
+  const response = await axiosPost(`${baseUrl}/v1/chat/completions`, {
     model,
     messages: [
       {
@@ -334,7 +355,7 @@ async function checkHealth() {
   const { baseUrl } = getConfig();
 
   try {
-    const data = curlGet(`${baseUrl}/v1/models`);
+    const data = await axiosGet(`${baseUrl}/v1/models`);
     return {
       available: true,
       models: data?.data?.map(m => m.id) || []
@@ -367,8 +388,8 @@ async function matchPoster(base64CoverImage, posters) {
     for (let i = 0; i < limited.length; i++) {
       const url = `https://image.tmdb.org/t/p/w185${limited[i].file_path}`;
       try {
-        const buf = curlGetBinary(url, 10);
-        posterEntries.push({ index: i, file_path: limited[i].file_path, base64: buf.toString('base64') });
+      const buf = await axiosGetBinary(url, 10);
+      posterEntries.push({ index: i, file_path: limited[i].file_path, base64: buf.toString('base64') });
       } catch (e) {
         // Skip posters that fail to download
       }
@@ -394,7 +415,7 @@ async function matchPoster(base64CoverImage, posters) {
       text: `Which POSTER number (1-${posterEntries.length}) most closely matches the COVER photo? Respond with ONLY the number.`
     });
 
-    const response = curlPost(`${baseUrl}/v1/chat/completions`, {
+    const response = await axiosPost(`${baseUrl}/v1/chat/completions`, {
       model,
       messages: [{ role: 'user', content }],
       max_tokens: 32,
@@ -428,5 +449,8 @@ module.exports = {
   rankResults,
   getConfidence,
   checkHealth,
-  matchPoster
+  matchPoster,
+  axiosPost,
+  axiosGet,
+  axiosGetBinary
 };
