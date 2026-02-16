@@ -1097,6 +1097,12 @@
   color: #fff;
 }
 
+.scan-match-banner.scan-match-uncertain {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.12), rgba(202, 138, 4, 0.12));
+  border-color: rgba(234, 179, 8, 0.35);
+  color: #eab308;
+}
+
 /* Best match highlight */
 .search-result-item.best-match {
   border: 2px solid rgba(251, 191, 36, 0.5);

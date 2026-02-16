@@ -1,0 +1,25 @@
+image: movie17.jpeg
+
+expected:
+  title: "I Am Legend"
+  original_title: "I Am Legend"
+  year: 2007
+  director: "Francis Lawrence"
+  genre:
+    - Drama
+    - Science Fiction
+    - Thriller
+  cast:
+    - Will Smith
+    - Alice Braga
+    - Charlie Tahan
+    - Dash Mihok
+    - Salli Richardson-Whitfield
+    - Willow Smith
+    - Emma Thompson
+    - Darrell Foster
+  runtime: 101
+  format: bluray
+  imdb_id: tt0480249
+  tmdb_id: 6479
+  plot: "Robert Neville is a scientist who was unable to stop the spread of the terrible virus that was incurable and man-made. Immune, Neville is now the last human survivor in what is left of New York City."

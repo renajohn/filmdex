@@ -54,6 +54,14 @@ function curlGet(url, timeoutSec = 5) {
   return JSON.parse(output);
 }
 
+function curlGetBinary(url, timeoutSec = 10) {
+  return execFileSync('curl', [
+    '-s', '-S',
+    '--max-time', String(timeoutSec),
+    url
+  ], { encoding: 'buffer' });
+}
+
 /**
  * Prepare an image for the LLM: convert to JPEG and resize to max 1024px.
  * Handles JPEG, PNG, WebP, and HEIC input formats.
@@ -105,8 +113,8 @@ async function analyzeImage(base64Image, mimeType, mediaType = 'movie') {
   ({ base64: base64Image, mimeType } = prepareImage(base64Image, mimeType));
 
   const prompt = mediaType === 'movie'
-    ? 'Look at this movie cover image. Extract the movie title exactly as shown, the original title if the cover is not in English (e.g. the English title), the release year, and the physical media format (e.g. DVD, Blu-ray, 4K/UHD). Respond with ONLY a JSON object like: {"title": "Titre du Film", "original_title": "Original Movie Title", "year": 2020, "format": "Blu-ray"}. If the title is already in English, omit original_title. If you cannot determine a field, omit it. Do not include any other text.'
-    : 'Look at this media cover image. Extract the title exactly as shown, the original title if not in English, the release year, and the physical media format. Respond with ONLY a JSON object like: {"title": "Title", "original_title": "Original Title", "year": 2020, "format": "Blu-ray"}. If the title is already in English, omit original_title. If you cannot determine a field, omit it. Do not include any other text.';
+    ? 'Look at this movie cover image. Identify the movie and extract: the title exactly as printed on the cover, the original international release title (the title this movie is commonly known by in English on TMDB/IMDb), the release year, and the physical media format (DVD, Blu-ray, or 4K/UHD). Use your knowledge of real movies to identify the correct film — the cover may use a localized, translated, or regional title that differs from the original. Respond with ONLY a JSON object like: {"title": "Jugend ohne Jugend", "original_title": "Youth Without Youth", "year": 2007, "format": "Blu-ray"}. Always include original_title with the well-known English/international title. Only omit original_title if the printed title is already the standard international title. If you cannot determine year, omit it. Do not include any other text.'
+    : 'Look at this media cover image. Identify the media and extract: the title exactly as printed, the original international release title (commonly known English title on TMDB/IMDb), the release year, and the physical media format. Respond with ONLY a JSON object like: {"title": "Title on Cover", "original_title": "International Title", "year": 2020, "format": "Blu-ray"}. Always include original_title unless the printed title is already the standard international title. If you cannot determine a field, omit it. Do not include any other text.';
 
   const response = curlPost(`${baseUrl}/v1/chat/completions`, {
     model,
@@ -293,8 +301,30 @@ function rankResults(tmdbResults, llmResult) {
 
   scored.sort((a, b) => b._score - a._score);
 
-  // Remove scoring metadata
-  return scored.map(({ _score, _originalIndex, ...rest }) => rest);
+  // Keep _score for confidence calculation, remove _originalIndex
+  return scored.map(({ _originalIndex, ...rest }) => rest);
+}
+
+/**
+ * Determine confidence that the top-ranked result is the correct match.
+ * Returns 'high' or 'low'.
+ *
+ * High confidence requires:
+ *   - Top result scored >= 120 (exact title + year match territory)
+ *   - Clear gap (>= 30 points) between #1 and #2, or only one result
+ */
+function getConfidence(rankedResults) {
+  if (!rankedResults || rankedResults.length === 0) return 'low';
+
+  const topScore = rankedResults[0]._score || 0;
+  const secondScore = rankedResults.length > 1 ? (rankedResults[1]._score || 0) : 0;
+  const gap = topScore - secondScore;
+
+  if (topScore >= 120 && (rankedResults.length === 1 || gap >= 30)) {
+    return 'high';
+  }
+
+  return 'low';
 }
 
 /**
@@ -317,10 +347,86 @@ async function checkHealth() {
   }
 }
 
+/**
+ * Match a cover photo against TMDB poster thumbnails using the LLM.
+ * Returns the file_path of the best-matching poster, or null on failure.
+ *
+ * @param {string} base64CoverImage - Already-resized JPEG cover image (base64)
+ * @param {Array} posters - Array of {file_path, ...} from tmdbService.getMoviePosters
+ * @returns {string|null} The file_path of the matched poster, or null
+ */
+async function matchPoster(base64CoverImage, posters) {
+  if (!posters || posters.length === 0) return null;
+
+  const { baseUrl, model } = getConfig();
+  const limited = posters.slice(0, 10);
+
+  try {
+    // Download poster thumbnails via curl
+    const posterEntries = [];
+    for (let i = 0; i < limited.length; i++) {
+      const url = `https://image.tmdb.org/t/p/w185${limited[i].file_path}`;
+      try {
+        const buf = curlGetBinary(url, 10);
+        posterEntries.push({ index: i, file_path: limited[i].file_path, base64: buf.toString('base64') });
+      } catch (e) {
+        // Skip posters that fail to download
+      }
+    }
+
+    if (posterEntries.length === 0) return null;
+
+    // Build multi-image content with interleaved text labels so the model
+    // can reliably associate each image with its number
+    const content = [
+      { type: 'text', text: 'Here is the COVER photo to match:' },
+      { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64CoverImage}` } },
+      { type: 'text', text: `Here are ${posterEntries.length} poster options. Which one matches the cover above?` }
+    ];
+
+    for (let i = 0; i < posterEntries.length; i++) {
+      content.push({ type: 'text', text: `POSTER ${i + 1}:` });
+      content.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${posterEntries[i].base64}` } });
+    }
+
+    content.push({
+      type: 'text',
+      text: `Which POSTER number (1-${posterEntries.length}) most closely matches the COVER photo? Respond with ONLY the number.`
+    });
+
+    const response = curlPost(`${baseUrl}/v1/chat/completions`, {
+      model,
+      messages: [{ role: 'user', content }],
+      max_tokens: 32,
+      temperature: 0.1
+    }, 120);
+
+    let text = response.choices?.[0]?.message?.content || '';
+    // Strip <think> tags (Qwen thinking mode)
+    text = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
+    try { require('../logger').debug('matchPoster LLM response:', text); } catch (_) { /* noop */ }
+
+    // Parse the number from the response
+    const match = text.match(/(\d+)/);
+    if (!match) return null;
+
+    const selectedIndex = parseInt(match[1], 10);
+    if (selectedIndex < 1 || selectedIndex > posterEntries.length) return null;
+
+    return posterEntries[selectedIndex - 1].file_path;
+  } catch (e) {
+    try { require('../logger').debug('Poster matching failed:', e.message); } catch (_) { /* noop */ }
+    return null;
+  }
+}
+
 module.exports = {
   analyzeImage,
   parseResponse,
   normalizeFormat,
   rankResults,
-  checkHealth
+  getConfidence,
+  checkHealth,
+  matchPoster
 };

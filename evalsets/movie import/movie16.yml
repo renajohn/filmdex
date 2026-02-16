@@ -1,0 +1,25 @@
+image: movie16.jpeg
+
+expected:
+  title: "Jugend ohne Jugend"
+  original_title: "Youth Without Youth"
+  year: 2007
+  director: "Francis Ford Coppola"
+  genre:
+    - Fantasy
+    - Drama
+    - Mystery
+  cast:
+    - Tim Roth
+    - Alexandra Maria Lara
+    - Bruno Ganz
+    - André Hennicke
+    - Marcel Iureș
+    - Adrian Pintea
+    - Florin Piersic Jr.
+    - Zoltan Butuc
+  runtime: 124
+  format: bluray
+  imdb_id: tt0481797
+  tmdb_id: 7797
+  plot: "Professor of language and philosophy Dominic Matei is struck by lightning and ages backwards from 70 to 40 in a week, attracting the world and the Nazis."

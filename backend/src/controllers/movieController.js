@@ -1424,11 +1424,18 @@ const movieController = {
       }
 
       // Search TMDB with extracted title (and original title if different)
-      const searches = [tmdbService.searchAll(llmResult.title, llmResult.year)];
+      // Always search both with and without year — the LLM year may be wrong,
+      // and ranking will prefer the correct year match anyway.
+      const searches = [
+        tmdbService.searchAll(llmResult.title, llmResult.year),
+        tmdbService.searchAll(llmResult.title)
+      ];
       if (llmResult.original_title) {
         searches.push(tmdbService.searchAll(llmResult.original_title, llmResult.year));
+        searches.push(tmdbService.searchAll(llmResult.original_title));
       }
       const searchResults = await Promise.all(searches);
+
       // Merge and deduplicate by TMDB id
       const seen = new Set();
       const tmdbResults = [];
@@ -1453,13 +1460,18 @@ const movieController = {
       // Rank results by match quality
       const rankedResults = coverScanService.rankResults(tmdbResults, llmResult);
 
+      // Determine confidence before stripping scores
+      const confidence = coverScanService.getConfidence(rankedResults);
+
       // Check existing editions for top results (same pattern as searchAllTMDB)
       const resultsWithEditions = await Promise.all(
         rankedResults.slice(0, 10).map(async (movie) => {
+          // Strip internal _score before sending to client
+          const { _score, ...movieData } = movie;
           try {
-            const editions = await Movie.findAllByTmdbId(movie.id);
+            const editions = await Movie.findAllByTmdbId(movieData.id);
             return {
-              ...movie,
+              ...movieData,
               existingEditions: editions ? editions.map(ed => ({
                 id: ed.id,
                 title: ed.title,
@@ -1470,16 +1482,32 @@ const movieController = {
               editionsCount: editions ? editions.length : 0
             };
           } catch (err) {
-            return { ...movie, existingEditions: [], hasEditions: false, editionsCount: 0 };
+            return { ...movieData, existingEditions: [], hasEditions: false, editionsCount: 0 };
           }
         })
       );
 
+      // Poster matching: try to find which TMDB poster matches the scanned cover
+      let matchedPoster = null;
+      try {
+        const bestMatch = resultsWithEditions[0];
+        if (bestMatch) {
+          const posters = await tmdbService.getMoviePosters(bestMatch.id, bestMatch.media_type);
+          if (posters && posters.length > 1) {
+            matchedPoster = await coverScanService.matchPoster(image, posters);
+          }
+        }
+      } catch (e) {
+        logger.debug('Poster matching failed (non-fatal):', e.message);
+      }
+
       res.json({
         llm_result: llmResult,
         suggested_format: llmResult.format,
+        confidence,
         results: resultsWithEditions,
-        best_match_index: 0
+        best_match_index: 0,
+        matched_poster: matchedPoster
       });
     } catch (error) {
       logger.error('Error scanning cover:', error);

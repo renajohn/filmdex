@@ -163,15 +163,35 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
       setScanResult(result);
 
       if (result.results && result.results.length > 0) {
-        // Pre-load results and advance to step 1
-        setSearchResults(result.results);
-        setFormData(prev => ({
-          ...prev,
-          title: result.llm_result?.title || '',
-          year: result.llm_result?.year?.toString() || '',
-          format: result.suggested_format || prev.format
-        }));
-        setCurrentStep(1);
+        const bestMatch = result.results[0];
+
+        // If the LLM matched a poster, pre-select it
+        if (result.matched_poster) {
+          setCustomPosterUrl(`https://image.tmdb.org/t/p/original${result.matched_poster}`);
+        }
+
+        if (result.confidence === 'high') {
+          // High confidence — skip confirmation, go straight to collection info
+          setSelectedMovie(bestMatch);
+          setSearchResults([]);
+          setFormData(prev => ({
+            ...prev,
+            title: bestMatch.title,
+            year: bestMatch.release_date ? new Date(bestMatch.release_date).getFullYear().toString() : '',
+            format: result.suggested_format || prev.format
+          }));
+          setCurrentStep(2);
+        } else {
+          // Low confidence — show confirmation step with results
+          setSearchResults(result.results);
+          setFormData(prev => ({
+            ...prev,
+            title: result.llm_result?.title || '',
+            year: result.llm_result?.year?.toString() || '',
+            format: result.suggested_format || prev.format
+          }));
+          setCurrentStep(1);
+        }
       } else {
         setScanError('No TMDB matches found. Try searching by title instead.');
       }
@@ -259,7 +279,11 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
 
   const handleMovieSelect = (movie) => {
     setSelectedMovie(movie);
-    setCustomPosterUrl(null);
+    // Keep the scan-matched poster if the user selects the best match (index 0),
+    // otherwise reset it since the poster was matched against a different movie.
+    if (!scanResult?.matched_poster || searchResults.indexOf(movie) !== 0) {
+      setCustomPosterUrl(null);
+    }
     setFormData(prev => ({
       ...prev,
       title: movie.title,
@@ -281,6 +305,10 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
       title: scanResult?.llm_result?.title || '',
       year: scanResult?.llm_result?.year?.toString() || ''
     }));
+    // Re-populate results from scan if available (needed after high-confidence skip)
+    if (scanResult?.results?.length > 0) {
+      setSearchResults(scanResult.results);
+    }
     setCurrentStep(1);
   };
 
@@ -612,9 +640,10 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
               {scanResult && scanResult.results?.length > 0 ? (
                 <>
                   <h3>Confirm Match</h3>
-                  <div className="scan-match-banner">
-                    We found <strong>{scanResult.llm_result?.title}</strong>
+                  <div className="scan-match-banner scan-match-uncertain">
+                    Not sure about the exact movie. We read <strong>{scanResult.llm_result?.title}</strong>
                     {scanResult.llm_result?.year && <> ({scanResult.llm_result.year})</>}
+                    {' '}&mdash; please pick the right match below.
                   </div>
                 </>
               ) : (
