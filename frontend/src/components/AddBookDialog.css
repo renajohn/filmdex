@@ -615,6 +615,147 @@
   color: rgba(255, 255, 255, 0.95) !important;
 }
 
+/* Cover Scan Styles */
+.scan-section {
+  text-align: center;
+}
+
+.cover-dropzone {
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  padding: 32px 20px;
+  background-color: rgba(50, 50, 50, 0.5);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 16px;
+}
+
+.cover-dropzone:hover {
+  border-color: #fbbf24;
+  background-color: rgba(251, 191, 36, 0.05);
+}
+
+.cover-dropzone.drag-over {
+  border-color: #fbbf24;
+  background-color: rgba(251, 191, 36, 0.1);
+}
+
+.cover-preview {
+  position: relative;
+  display: inline-block;
+}
+
+.cover-preview img {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.cover-change-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.cover-dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.cover-dropzone-icon {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.cover-dropzone-hint {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0;
+}
+
+.add-book-dialog .btn-primary {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+  color: #1a1a1a !important;
+  border: 1px solid rgba(251, 191, 36, 0.3) !important;
+}
+
+.add-book-dialog .btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  border-color: rgba(251, 191, 36, 0.5) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3) !important;
+}
+
+.add-book-dialog .btn-primary:focus {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+  border-color: rgba(251, 191, 36, 0.5) !important;
+  box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.25) !important;
+}
+
+.add-book-dialog .btn-primary:disabled {
+  background-color: #555 !important;
+  color: #888 !important;
+  cursor: not-allowed;
+}
+
+.scan-btn {
+  width: 100%;
+  padding: 14px 20px !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  margin-bottom: 8px;
+}
+
+.scan-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  color: #fbbf24;
+  font-size: 0.95rem;
+}
+
+.scan-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(251, 191, 36, 0.2);
+  border-top-color: #fbbf24;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.scan-error {
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.scan-divider {
+  position: relative;
+}
+
+.scan-divider span {
+  position: relative;
+  z-index: 1;
+}
+
+.scan-fallback-btn {
+  border-radius: 8px;
+  font-weight: 500;
+  padding: 12px 24px;
+}
+
 /* Mobile responsive styles for editions table */
 @media (max-width: 768px) {
   /* Modal adjustments for mobile */

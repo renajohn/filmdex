@@ -1,6 +1,7 @@
 const request = require('supertest');
 const app = require('../../index');
 const MovieImport = require('../../src/models/movieImport');
+const UnmatchedMovie = require('../../src/models/unmatchedMovie');
 
 describe('POST /api/import/resolve', () => {
   let testImportId;
@@ -9,6 +10,26 @@ describe('POST /api/import/resolve', () => {
     // Create a test import session
     const importSession = await MovieImport.create();
     testImportId = importSession.id;
+
+    // Create an unmatched movie for resolution
+    await UnmatchedMovie.create({
+      import_id: testImportId,
+      title: 'Test Movie',
+      original_title: 'Test Movie Original',
+      csv_data: {
+        title: 'Test Movie',
+        original_title: 'Test Movie Original',
+        release_date: '2023-01-01',
+        genre: 'Action',
+        director: 'Test Director',
+        cast: ['Actor 1', 'Actor 2'],
+        format: 'Blu-ray',
+        price: '19.99',
+        comments: 'Great movie',
+        never_seen: false,
+        acquired_date: '2023-12-01'
+      }
+    });
   });
 
   it('should resolve a movie with valid data', async () => {

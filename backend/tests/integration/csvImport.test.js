@@ -170,6 +170,26 @@ describe('CSV Import Integration Flow', () => {
     const importSession = await MovieImport.create();
     const importId = importSession.id;
 
+    // Create an unmatched movie for resolution
+    await UnmatchedMovie.create({
+      import_id: importId,
+      title: 'Test Movie',
+      original_title: 'Test Movie Original',
+      csv_data: {
+        title: 'Test Movie',
+        original_title: 'Test Movie Original',
+        release_date: '2023-01-01',
+        genre: 'Action',
+        director: 'Test Director',
+        cast: ['Actor 1', 'Actor 2'],
+        format: 'Blu-ray',
+        price: '19.99',
+        comments: 'Great movie',
+        never_seen: false,
+        acquired_date: '2023-12-01'
+      }
+    });
+
     // Resolve a movie
     const resolveData = {
       importId: importId,

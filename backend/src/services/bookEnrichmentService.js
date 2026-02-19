@@ -358,12 +358,12 @@ class BookEnrichmentService {
       logger.info(`[Enrichment] Final preservation of original title after series extraction: "${originalTitle}"`);
     }
     
-    // Select best cover
+    // Select best cover (validates URLs to skip placeholders/1x1 images)
     if (enriched.availableCovers?.length > 0) {
-      const largestCover = bookCoverService.selectLargestCover(enriched.availableCovers);
-      if (largestCover) {
-        enriched.coverUrl = largestCover;
-        logger.info(`[Enrichment] Selected largest cover: ${largestCover}`);
+      const bestCover = await bookCoverService.findBestCover(enriched.availableCovers);
+      if (bestCover) {
+        enriched.coverUrl = bestCover;
+        logger.info(`[Enrichment] Selected best cover: ${bestCover}`);
       }
     }
     

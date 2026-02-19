@@ -7,7 +7,7 @@ const fs = require('fs');
 const configManager = require('./src/config');
 const logger = require('./src/logger');
 const movieController = require('./src/controllers/movieController');
-const { importController, uploadMiddleware } = require('./src/controllers/importController');
+const { importController } = require('./src/controllers/importController'); // Don't import uploadMiddleware yet - we'll create it after config is loaded
 const analyticsController = require('./src/controllers/analyticsController');
 const musicController = require('./src/controllers/musicController');
 const musicService = require('./src/services/musicService');
@@ -46,8 +46,25 @@ app.use(cors());
 app.use(express.static('public'));
 
 // Apply multer middleware specifically for file upload routes BEFORE JSON parsing
-app.post('/api/import/csv', uploadMiddleware, importController.uploadCsv);
+// Create upload middleware after config is loaded
+let csvUploadMiddleware;
+let moviePosterUploadMiddleware;
+let backupUploadMiddleware;
+
+// We'll set up the upload middleware after config is loaded, in the startServer function
+app.post('/api/import/csv', (req, res, next) => {
+  if (!csvUploadMiddleware) {
+    return next(new Error('Upload middleware not initialized'));
+  }
+  csvUploadMiddleware(req, res, next);
+}, importController.uploadCsv);
 app.post('/api/movies/:id/upload-poster', movieController.posterUploadMiddleware, movieController.uploadCustomPoster);
+app.post('/api/backup/upload-restore', (req, res, next) => {
+  if (!backupUploadMiddleware) {
+    return next(new Error('Upload middleware not initialized'));
+  }
+  backupUploadMiddleware(req, res, next);
+}, backupController.uploadAndRestoreBackup);
 
 // JSON parsing middleware for all other routes (with increased limit for cover art)
 app.use(express.json({ limit: '50mb' }));
@@ -57,10 +74,10 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 const startServer = async () => {
   try {
     await initDatabase();
-    
+
     // Initialize services with configuration
     await imageService.init();
-    
+
     // Initialize ebooks directory
     try {
       const ebooksDir = configManager.getEbooksPath();
@@ -72,16 +89,31 @@ const startServer = async () => {
       logger.warn('Failed to initialize ebooks directory:', error.message);
       // Don't block initialization if ebooks directory creation fails
     }
-    
+
     // Initialize music tables
     await musicService.initializeTables();
-    
+
     // Note: Book tables are initialized in database.js during initDatabase()
-    
+
     logger.info('Database initialized successfully');
     logger.info(`Using database: ${configManager.getDatabasePath()}`);
     logger.info(`Using images directory: ${configManager.getImagesPath()}`);
     logger.info(`Using ebooks directory: ${configManager.getEbooksPath()}`);
+
+    // Initialize upload middleware with proper config
+    const { upload } = require('./src/controllers/importController');
+
+    // CSV upload middleware
+    csvUploadMiddleware = upload.single('file');
+
+    // Movie poster upload middleware - same config as CSV
+    moviePosterUploadMiddleware = upload.single('file');
+
+    // Backup upload middleware - same config as CSV
+    backupUploadMiddleware = upload.single('file');
+
+    // Update the route handlers with the newly created middleware
+    app.post('/api/import/csv', csvUploadMiddleware, importController.uploadCsv);
   } catch (error) {
     logger.error('Failed to initialize database:', error);
     process.exit(1);
@@ -240,6 +272,7 @@ app.get('/api/books/autocomplete', bookController.getAutocompleteSuggestions); /
 app.post('/api/books', bookController.addBook);
 app.post('/api/books/batch', bookController.addBooksBatch);
 app.post('/api/books/enrich', bookController.enrichBook);
+app.post('/api/books/scan-cover', bookController.scanCover);
 
 // Book comment routes - Must come before /:id route
 const bookCommentController = require('./src/controllers/bookCommentController');
@@ -495,21 +528,26 @@ app.use((req, res) => {
 });
 
 // Start the server
-startServer().then(() => {
-  const server = app.listen(PORT, () => {
-    logger.info(`Server is running on port ${PORT}`);
-    logger.info(`Frontend available at: http://localhost:${PORT}/app/`);
-    logger.info(`API available at: http://localhost:${PORT}/api/`);
-  });
-  
-  // Set a longer timeout for large file downloads (30 minutes)
-  // This prevents the server from closing connections during large backup downloads
-  server.timeout = 30 * 60 * 1000; // 30 minutes in milliseconds
-  server.keepAliveTimeout = 30 * 60 * 1000; // 30 minutes
-  server.headersTimeout = 31 * 60 * 1000; // Slightly longer than keepAliveTimeout
+const serverReady = startServer().then(() => {
+  // Only start listening if not in test environment
+  if (process.env.NODE_ENV !== 'test') {
+    const server = app.listen(PORT, () => {
+      logger.info(`Server is running on port ${PORT}`);
+      logger.info(`Frontend available at: http://localhost:${PORT}/app/`);
+      logger.info(`API available at: http://localhost:${PORT}/api/`);
+    });
+
+    // Set a longer timeout for large file downloads (30 minutes)
+    server.timeout = 30 * 60 * 1000;
+    server.keepAliveTimeout = 30 * 60 * 1000;
+    server.headersTimeout = 31 * 60 * 1000;
+  }
 }).catch((error) => {
   logger.error('Failed to start server:', error);
-  process.exit(1);
+  if (process.env.NODE_ENV !== 'test') {
+    process.exit(1);
+  }
 });
 
+app.serverReady = serverReady;
 module.exports = app;

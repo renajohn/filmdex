@@ -1,0 +1,10 @@
+image: book10.jpg
+
+expected:
+  title: "Les carnets de Cerise T1"
+  authors:
+    - "Joris Chamblain"
+    - "Aurélie Neyret"
+  book_type: "graphic-novel"
+  isbn13: "9782302030381"
+  language: "fr"

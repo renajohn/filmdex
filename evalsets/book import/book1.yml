@@ -1,0 +1,9 @@
+image: book1.jpg
+
+expected:
+  title: "Lessons in Chemistry"
+  authors:
+    - "Bonnie Garmus"
+  book_type: "book"
+  isbn13: "9780385547376"
+  language: "en"

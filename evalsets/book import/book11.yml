@@ -1,0 +1,10 @@
+image: book11.jpg
+
+expected:
+  title: "Les carnets de Cerise T02"
+  authors:
+    - "Joris Chamblain"
+    - "Aurélie Neyret"
+  book_type: "graphic-novel"
+  isbn13: "9782302038967"
+  language: "fr"

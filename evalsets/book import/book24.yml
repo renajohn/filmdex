@@ -1,0 +1,9 @@
+image: book24.jpg
+
+expected:
+  title: "The Best Movie Themes Ever"
+  authors:
+    - "Hal Leonard Corp"
+  book_type: "score"
+  isbn13: "9781495073328"
+  language: "en"

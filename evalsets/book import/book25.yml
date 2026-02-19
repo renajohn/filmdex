@@ -1,0 +1,9 @@
+image: book25.jpg
+
+expected:
+  title: "Das wohltemperierte Klavier"
+  authors:
+    - "Johann Sebastian Bach"
+  book_type: "score"
+  isbn13: "9790201800158"
+  language: "en"

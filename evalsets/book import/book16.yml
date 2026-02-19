@@ -1,0 +1,9 @@
+image: book16.png
+
+expected:
+  title: "Chi : une vie de chat"
+  authors:
+    - "Kanata Konami"
+  book_type: "graphic-novel"
+  isbn13: "9782723478458"
+  language: "fr"

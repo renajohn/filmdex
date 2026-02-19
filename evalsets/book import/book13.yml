@@ -1,0 +1,9 @@
+image: book13.jpg
+
+expected:
+  title: "Les Royaumes de Feu BD T1 - La Prophétie"
+  authors:
+    - "Tui T. Sutherland"
+  book_type: "graphic-novel"
+  isbn13: "9782075132428"
+  language: "fr"

@@ -1,0 +1,9 @@
+image: book7.jpg
+
+expected:
+  title: "The Man in the High Castle"
+  authors:
+    - "Philip K. Dick"
+  book_type: "book"
+  isbn13: "9780141186672"
+  language: "en"

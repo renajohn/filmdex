@@ -1,0 +1,9 @@
+image: book3.jpg
+
+expected:
+  title: "The Testaments"
+  authors:
+    - "Margaret Atwood"
+  book_type: "book"
+  isbn13: "9780385543798"
+  language: "en"

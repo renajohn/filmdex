@@ -1,0 +1,9 @@
+image: book20.jpg
+
+expected:
+  title: "Frieren T1"
+  authors:
+    - "Kanehito Yamada"
+  book_type: "graphic-novel"
+  isbn13: "9791032711613"
+  language: "fr"

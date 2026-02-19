@@ -6,6 +6,8 @@ const imageService = require('../services/imageService');
 const configManager = require('../config');
 const Book = require('../models/book');
 const logger = require('../logger');
+const coverScanService = require('../services/coverScanService');
+const amazonSearchService = require('../services/amazonSearchService');
 
 // Helper function to format file size
 const formatFileSize = (bytes) => {
@@ -643,6 +645,117 @@ const bookController = {
 
   // Middleware for ebook upload
   ebookUploadMiddleware: ebookUpload.single('ebook'),
+
+  // Scan a book cover image to identify a book using local LLM
+  scanCover: async (req, res) => {
+    try {
+      const { image, mimeType } = req.body;
+
+      if (!image) {
+        return res.status(400).json({ error: 'Image data is required' });
+      }
+
+      // Check LLM availability first
+      const health = await coverScanService.checkHealth();
+      if (!health.available) {
+        return res.status(503).json({ error: 'Cover scan service is not available', details: health.error });
+      }
+
+      // Analyze the book cover image
+      let llmResult;
+      try {
+        llmResult = await coverScanService.analyzeBookImage(image, mimeType || 'image/jpeg');
+      } catch (error) {
+        logger.error('LLM book analysis failed:', error.message);
+        return res.status(422).json({ error: 'Could not identify book from cover image', details: error.message });
+      }
+
+      // Search Amazon for the book (get all results)
+      let amazonResults = [];
+      try {
+        amazonResults = await amazonSearchService.searchAmazonProducts(
+          llmResult.title,
+          llmResult.authors,
+          llmResult.book_type
+        );
+      } catch (error) {
+        logger.error('Amazon search failed (non-fatal):', error.message);
+      }
+
+      // Build candidate searches in parallel:
+      // 1. One search per Amazon ASIN
+      // 2. A fallback title+author search (always, to cast a wider net)
+      const searchPromises = [];
+
+      for (const amazonResult of amazonResults) {
+        searchPromises.push(
+          bookService.searchExternalBooks('', {
+            asin: amazonResult.asin,
+            amazonUrl: amazonResult.url,
+            limit: 5,
+            language: llmResult.language || 'any'
+          }).catch(error => {
+            logger.error(`Book enrichment failed for ASIN ${amazonResult.asin} (non-fatal):`, error.message);
+            return [];
+          })
+        );
+      }
+
+      // Always run title+author search in parallel
+      if (llmResult.title) {
+        const query = llmResult.authors?.length > 0
+          ? `${llmResult.title} ${llmResult.authors[0]}`
+          : llmResult.title;
+        searchPromises.push(
+          bookService.searchExternalBooks(query, {
+            title: llmResult.title,
+            author: llmResult.authors?.[0] || null,
+            limit: 10,
+            language: llmResult.language || 'any'
+          }).catch(error => {
+            logger.error('Fallback book search failed (non-fatal):', error.message);
+            return [];
+          })
+        );
+      }
+
+      // Aggregate and deduplicate candidates by ISBN
+      const allResults = await Promise.all(searchPromises);
+      const seen = new Set();
+      const candidates = [];
+      for (const resultSet of allResults) {
+        for (const book of resultSet) {
+          const key = book.isbn13 || book.isbn || book.title;
+          if (key && seen.has(key)) continue;
+          if (key) seen.add(key);
+          candidates.push(book);
+        }
+      }
+
+      // Rank results and take top 10
+      const rankedCandidates = coverScanService.rankBookResults(candidates, llmResult).slice(0, 10);
+      const confidence = coverScanService.getConfidence(rankedCandidates);
+
+      // Strip internal _score before sending to client
+      const cleanCandidates = rankedCandidates.map(({ _score, ...rest }) => rest);
+
+      const firstAmazon = amazonResults.length > 0 ? amazonResults[0] : null;
+      res.json({
+        llmExtraction: {
+          title: llmResult.title,
+          authors: llmResult.authors,
+          bookType: llmResult.book_type,
+          language: llmResult.language
+        },
+        amazonResult: firstAmazon ? { url: firstAmazon.url, asin: firstAmazon.asin } : null,
+        candidates: cleanCandidates,
+        confidence
+      });
+    } catch (error) {
+      logger.error('Error scanning book cover:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
 
   // Export books to CSV
   exportCSV: async (req, res) => {

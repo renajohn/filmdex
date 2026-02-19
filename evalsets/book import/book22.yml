@@ -1,0 +1,9 @@
+image: book22.jpg
+
+expected:
+  title: "Improve your sight-reading!"
+  authors:
+    - "Paul Harris"
+  book_type: "score"
+  isbn13: "9780571533039"
+  language: "en"

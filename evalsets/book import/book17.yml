@@ -1,0 +1,9 @@
+image: book17.jpg
+
+expected:
+  title: "Sorceline Book 2"
+  authors:
+    - "Sylvia Douyé"
+  book_type: "graphic-novel"
+  isbn13: "9781524891459"
+  language: "en"

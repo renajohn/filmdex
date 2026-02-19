@@ -230,6 +230,184 @@ function parseResponse(text) {
 }
 
 /**
+ * Send a book cover image to the local LLM and extract title/authors/type/language.
+ */
+async function analyzeBookImage(base64Image, mimeType) {
+  const { baseUrl, model } = getConfig();
+
+  // Convert to JPEG and resize to 1024px max for faster LLM processing
+  ({ base64: base64Image, mimeType } = prepareImage(base64Image, mimeType));
+
+  const prompt = 'Look at this book cover image. Identify the book and extract: the title exactly as printed on the cover, the author(s), the type of book (book, graphic-novel, or score/sheet music), and the language of the text on the cover. For graphic novels, manga, and comic books use "graphic-novel". For music scores and sheet music use "score". For everything else use "book". Respond with ONLY a JSON object like: {"title": "Les carnets de Cerise", "authors": ["Joris Chamblain", "Aurélie Neyret"], "book_type": "graphic-novel", "language": "fr"}. If you cannot determine a field, omit it. Do not include any other text.';
+
+  const response = await axiosPost(`${baseUrl}/v1/chat/completions`, {
+    model,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image_url',
+            image_url: {
+              url: `data:${mimeType};base64,${base64Image}`
+            }
+          },
+          {
+            type: 'text',
+            text: prompt
+          }
+        ]
+      }
+    ],
+    max_tokens: 256,
+    temperature: 0.1
+  }, 60);
+
+  const text = response.choices?.[0]?.message?.content;
+  if (!text) {
+    const detail = response.error?.message || response.choices?.[0]?.finish_reason || 'empty content';
+    throw new Error(`No response from LLM (${detail})`);
+  }
+
+  try { require('../logger').debug('LLM raw response (book):', text); } catch (e) { /* noop */ }
+
+  const parsed = parseResponse(text);
+  if (!parsed || !parsed.title) {
+    throw new Error('Could not extract title from book cover image');
+  }
+
+  return {
+    title: parsed.title,
+    authors: parsed.authors || [],
+    book_type: parsed.book_type || 'book',
+    language: parsed.language || null
+  };
+}
+
+/**
+ * Normalize a string by removing diacritics (e.g. "Céline" → "Celine").
+ */
+function removeDiacritics(str) {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
+ * Extract volume/number from a title string.
+ * Matches patterns like "numéro 2", "tome 3", "vol. 1", "#5", "n°2", "volume 4".
+ * Returns an array of numbers found.
+ */
+function extractVolumes(str) {
+  const normalized = removeDiacritics(str).toLowerCase();
+  const volumes = [];
+  const patterns = [
+    /(?:numero|tome|vol\.?|volume|n°|#)\s*(\d+)/g,
+    /\b(\d+)\s*(?:e|er|eme|ère)\b/g
+  ];
+  for (const pattern of patterns) {
+    let m;
+    while ((m = pattern.exec(normalized)) !== null) {
+      volumes.push(parseInt(m[1], 10));
+    }
+  }
+  return volumes;
+}
+
+// Words in result titles that indicate merchandise/derivatives, not the actual book
+const MERCHANDISE_WORDS = ['calendrier', 'calendar', 'agenda', 'poster', 'artbook', 'art book', 'coloring', 'coloriage', 'sticker', 'figurine', 'marque-page', 'bookmark'];
+
+/**
+ * Rank book search results by how well they match the LLM extraction.
+ * Returns the results array sorted by match quality (best first).
+ */
+function rankBookResults(bookResults, llmResult) {
+  const logger = require('../logger');
+  if (!bookResults || bookResults.length === 0) return [];
+  if (!llmResult) return bookResults;
+
+  const llmTitle = removeDiacritics(llmResult.title || '').toLowerCase().trim();
+  const llmAuthors = (llmResult.authors || []).map(a => removeDiacritics(a).toLowerCase().trim());
+  const llmVolumes = extractVolumes(llmResult.title || '');
+  const llmBookType = llmResult.book_type || 'book';
+
+  const scored = bookResults.map((result, originalIndex) => {
+    let score = 0;
+    const resultTitle = removeDiacritics(result.title || '').toLowerCase().trim();
+
+    // Title scoring
+    if (resultTitle === llmTitle) {
+      score += 100;
+    } else if (resultTitle.includes(llmTitle) || llmTitle.includes(resultTitle)) {
+      score += 50;
+    } else {
+      const llmWords = llmTitle.split(/\s+/).filter(w => w.length > 2);
+      const resultWords = resultTitle.split(/\s+/).filter(w => w.length > 2);
+
+      // Exact word overlap
+      const exactOverlap = llmWords.filter(w => resultWords.includes(w)).length;
+      score += exactOverlap * 15;
+
+      // Fuzzy prefix matching: words sharing 4+ char prefix get partial credit
+      const unmatchedLlm = llmWords.filter(w => !resultWords.includes(w));
+      const unmatchedResult = resultWords.filter(w => !llmWords.includes(w));
+      for (const lw of unmatchedLlm) {
+        if (lw.length < 4) continue;
+        const prefix = lw.substring(0, 4);
+        if (unmatchedResult.some(rw => rw.length >= 4 && rw.startsWith(prefix))) {
+          score += 8;
+        }
+      }
+    }
+
+    // Volume/number matching
+    if (llmVolumes.length > 0) {
+      const resultVolumes = extractVolumes(result.title || '');
+      const seriesNum = result.seriesNumber ? parseInt(result.seriesNumber, 10) : null;
+      for (const v of llmVolumes) {
+        if (resultVolumes.includes(v) || seriesNum === v) {
+          score += 25;
+        }
+      }
+    }
+
+    // Author scoring
+    const resultAuthors = (result.authors || []).map(a =>
+      removeDiacritics(typeof a === 'string' ? a : '').toLowerCase().trim()
+    );
+    for (const llmAuthor of llmAuthors) {
+      const llmParts = llmAuthor.split(/\s+/);
+      const llmLast = llmParts[llmParts.length - 1];
+      if (resultAuthors.some(ra => ra === llmAuthor)) {
+        score += 50;
+      } else if (resultAuthors.some(ra => ra.includes(llmLast) || llmLast.length > 3 && ra.includes(llmLast))) {
+        score += 20;
+      }
+    }
+
+    // Penalize merchandise/derivatives (calendars, artbooks, etc.)
+    // These share the same title/author but aren't the actual book
+    const isMerchandise = MERCHANDISE_WORDS.some(w => resultTitle.includes(w));
+    const llmIsMerchandise = MERCHANDISE_WORDS.some(w => llmTitle.includes(w));
+    if (isMerchandise && !llmIsMerchandise) {
+      score -= 60;
+    }
+
+    // Boost exact title length match — prefer results whose title length is close to LLM title
+    // This helps distinguish "Les Carnets de Cerise, Tome 1" from "Les Carnets de Cerise - Calendrier 2016"
+    const lengthDiff = Math.abs(resultTitle.length - llmTitle.length);
+    if (lengthDiff <= 5) {
+      score += 10;
+    }
+
+    logger.info(`[BookRank] "${result.title}" → score=${score}`);
+    return { ...result, _score: score, _originalIndex: originalIndex };
+  });
+
+  scored.sort((a, b) => b._score - a._score);
+
+  return scored.map(({ _originalIndex, ...rest }) => rest);
+}
+
+/**
  * Normalize LLM format strings to app format values.
  */
 function normalizeFormat(llmFormat) {
@@ -444,9 +622,11 @@ async function matchPoster(base64CoverImage, posters) {
 
 module.exports = {
   analyzeImage,
+  analyzeBookImage,
   parseResponse,
   normalizeFormat,
   rankResults,
+  rankBookResults,
   getConfidence,
   checkHealth,
   matchPoster,

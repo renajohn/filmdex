@@ -1,0 +1,9 @@
+image: book5.jpg
+
+expected:
+  title: "Parable of the Talents"
+  authors:
+    - "Octavia E. Butler"
+  book_type: "book"
+  isbn13: "9780446675789"
+  language: "en"

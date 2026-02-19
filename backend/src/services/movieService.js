@@ -269,25 +269,23 @@ const movieService = {
         year: localMovie.release_date ? new Date(localMovie.release_date).getFullYear() : null,
         format: localMovie.format,
         acquired_date: localMovie.acquired_date,
-        
-        // Use local plot as overview
-        overview: localMovie.plot || null,
-        
-        // Local database fields
-        poster_path: localMovie.poster_path || null,
-        adult: localMovie.adult || false,
-        genres: localMovie.genre || [],
-        trailer_key: localMovie.trailer_key || null,
-        trailer_site: localMovie.trailer_site || null,
+
+        // Use TMDB data if available, otherwise fall back to local data
+        overview: tmdbData?.overview || localMovie.plot || null,
+        poster_path: tmdbData?.poster_path || localMovie.poster_path || null,
+        adult: tmdbData?.adult !== undefined ? tmdbData.adult : (localMovie.adult || false),
+        genres: tmdbData?.genres || (localMovie.genre ? [localMovie.genre] : []),
+        trailer_key: tmdbData?.videos?.results?.[0]?.key || localMovie.trailer_key || null,
+        trailer_site: tmdbData?.videos?.results?.[0]?.site || localMovie.trailer_site || null,
         tmdb_id: localMovie.tmdb_id || null,
         imdb_id: localMovie.imdb_id || null,
-        backdrop_path: localMovie.backdrop_path || null,
-        popularity: localMovie.popularity || null,
-        vote_count: localMovie.vote_count || null,
-        video: localMovie.video || false,
-        budget: localMovie.budget || null,
-        revenue: localMovie.revenue || null,
-        status: localMovie.status || null,
+        backdrop_path: tmdbData?.backdrop_path || localMovie.backdrop_path || null,
+        popularity: tmdbData?.popularity || localMovie.popularity || null,
+        vote_count: tmdbData?.vote_count || localMovie.vote_count || null,
+        video: tmdbData?.video !== undefined ? tmdbData.video : (localMovie.video || false),
+        budget: tmdbData?.budget || localMovie.budget || null,
+        revenue: tmdbData?.revenue || localMovie.revenue || null,
+        status: tmdbData?.status || localMovie.status || null,
         recommended_age: localMovie.recommended_age || null,
         age_processed: localMovie.age_processed || false,
         title_status: localMovie.title_status || 'owned',
@@ -295,6 +293,12 @@ const movieService = {
         last_watched: localMovie.last_watched || null,
         watch_count: localMovie.watch_count || 0
       };
+
+      // Add TMDB-specific fields
+      if (tmdbData) {
+        movieDetails.credits = tmdbData.credits;
+        movieDetails.videos = tmdbData.videos;
+      }
 
       return movieDetails;
     } catch (error) {

@@ -30,12 +30,13 @@ class BookCoverService {
         const contentLength = parseInt(response.headers['content-length'] || '0', 10);
         
         if (contentType.startsWith('image/')) {
-          // OpenLibrary returns a 1x1 transparent pixel when no cover exists (< 100 bytes)
-          if (contentLength > 100 || contentLength === 0) {
-            return true;
+          // Amazon/OpenLibrary return 1x1 pixel placeholders when no cover exists
+          // These are typically < 500 bytes; real covers are always > 1KB
+          if (contentLength > 0 && contentLength < 500) {
+            logger.info(`[CoverValidation] Cover at ${url} appears to be a placeholder (size: ${contentLength} bytes)`);
+            return false;
           }
-          logger.info(`[CoverValidation] Cover at ${url} appears to be a placeholder (size: ${contentLength} bytes)`);
-          return false;
+          return true;
         }
       }
       

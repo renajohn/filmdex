@@ -16,7 +16,7 @@ describe('Integration: Add Movie Flow', () => {
   it('should simulate the entire flow of searching for a movie and adding it to the database', async () => {
     // Step 1: Search for a movie (this will use TMDB API if available)
     const searchResponse = await request(app)
-      .get('/movies/search/tmdb')
+      .get('/api/movies/search/tmdb')
       .query({ query: 'Inception' });
 
     expect(searchResponse.status).toBe(200);
@@ -39,7 +39,7 @@ describe('Integration: Add Movie Flow', () => {
       };
 
       const addResponse = await request(app)
-        .post('/movies')
+        .post('/api/movies')
         .send(movieData);
 
       expect(addResponse.status).toBe(201);
@@ -48,7 +48,7 @@ describe('Integration: Add Movie Flow', () => {
 
       // Step 3: Verify the movie was added to the database
       const getResponse = await request(app)
-        .get(`/movies/${addResponse.body.id}`);
+        .get(`/api/movies/${addResponse.body.id}`);
 
       expect(getResponse.status).toBe(200);
       expect(getResponse.body.title).toBe(movieData.title);
@@ -58,7 +58,7 @@ describe('Integration: Add Movie Flow', () => {
   it('should handle adding a movie manually when search returns no results', async () => {
     // Step 1: Search for a non-existent movie
     const searchResponse = await request(app)
-      .get('/movies/search/tmdb')
+      .get('/api/movies/search/tmdb')
       .query({ query: 'nonexistentmovie12345' });
 
     expect(searchResponse.status).toBe(200);
@@ -77,7 +77,7 @@ describe('Integration: Add Movie Flow', () => {
     };
 
     const addResponse = await request(app)
-      .post('/movies')
+      .post('/api/movies')
       .send(movieData);
 
     expect(addResponse.status).toBe(201);
@@ -85,7 +85,7 @@ describe('Integration: Add Movie Flow', () => {
 
     // Step 3: Verify the movie exists in the database
     const allMoviesResponse = await request(app)
-      .get('/movies');
+      .get('/api/movies');
 
     expect(allMoviesResponse.status).toBe(200);
     expect(allMoviesResponse.body.length).toBe(1);
@@ -102,14 +102,14 @@ describe('Integration: Add Movie Flow', () => {
 
     // Add the movie first time
     const firstAddResponse = await request(app)
-      .post('/movies')
+      .post('/api/movies')
       .send(movieData);
 
     expect(firstAddResponse.status).toBe(201);
 
     // Try to add the same movie again
     const secondAddResponse = await request(app)
-      .post('/movies')
+      .post('/api/movies')
       .send(movieData);
 
     // This should either succeed (if we allow duplicates) or fail with appropriate error

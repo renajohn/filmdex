@@ -1,0 +1,12 @@
+image: book23.jpg
+
+expected:
+  title: "The Harry Potter Piano Anthology"
+  authors:
+    - "John Williams"
+    - "Alexandre Desplat"
+    - "James Newton Howard"
+    - "Nicholas Hooper"
+  book_type: "score"
+  isbn13: "9780571592807"
+  language: "en"

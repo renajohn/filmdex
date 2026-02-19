@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Modal, Button, Form, Alert, Table, Badge } from 'react-bootstrap';
-import { BsX, BsSearch, BsPlus, BsChevronDown, BsChevronRight, BsBook } from 'react-icons/bs';
+import { BsX, BsSearch, BsPlus, BsChevronDown, BsChevronRight, BsBook, BsCamera, BsUpload } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import BookForm from './BookForm';
 import VolumeSelector from './VolumeSelector';
+import apiService from '../services/api';
 import './AddBookDialog.css';
 
 const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAddError, templateBook, onAddBooksBatch, defaultTitleStatus, onShowAlert }) => {
@@ -28,6 +29,18 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   const [enrichingBookIndex, setEnrichingBookIndex] = useState(null); // Track which book is being enriched
   const [showVolumeSelector, setShowVolumeSelector] = useState(false);
   const [quickAdding, setQuickAdding] = useState(false); // Track quick add in progress
+
+  // Cover scan state
+  const [coverImage, setCoverImage] = useState(null); // base64
+  const [coverPreview, setCoverPreview] = useState(null); // data URL for preview
+  const [coverMimeType, setCoverMimeType] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [scanError, setScanError] = useState(null);
+  const [coverScanAvailable, setCoverScanAvailable] = useState(null); // null = unknown, true/false
+  const [showCoverScanStep, setShowCoverScanStep] = useState(true);
+  const fileInputRef = useRef(null);
+  const dropzoneRef = useRef(null);
   
   // Quick add options
   const [quickAddOwner, setQuickAddOwner] = useState('');
@@ -38,7 +51,8 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   const [filteredOwners, setFilteredOwners] = useState([]);
   const [addMultipleBooks, setAddMultipleBooks] = useState(false);
   
-  // Detect book type from ISBN and genres
+  // Workflow state - matches AddMovieDialog pattern
+  const [currentStep, setCurrentStep] = useState(0);
   const detectBookType = (isbn, genres = []) => {
     const genreList = Array.isArray(genres) ? genres : [];
     
@@ -133,6 +147,31 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       setFilteredOwners([]);
     }
   }, [show, addMultipleBooks]);
+
+  // Check cover scan availability on first open
+  useEffect(() => {
+    if (show && coverScanAvailable === null) {
+      apiService.checkCoverScanHealth()
+        .then(health => setCoverScanAvailable(health.available))
+        .catch(() => setCoverScanAvailable(false));
+    }
+  }, [show, coverScanAvailable]);
+
+  // Reset cover scan state when dialog opens/closes
+  useEffect(() => {
+    if (show) {
+      // Reset scan-related state
+      setCoverImage(null);
+      setCoverPreview(null);
+      setCoverMimeType(null);
+      setScanning(false);
+      setScanResult(null);
+      setScanError(null);
+      setSearchTab('isbn');
+      // Reset cover scan step visibility based on availability
+      setShowCoverScanStep(coverScanAvailable !== false);
+    }
+  }, [show]);
 
   // Filter owners based on input
   const handleOwnerInputChange = (value) => {
@@ -530,6 +569,182 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     setSelectedBook({});
     setSelectedBookGroup([]);
     setShowMetadataForm(true);
+  };
+
+  // ===== Cover Scan Functions =====
+
+  const handleFileSelect = useCallback((file) => {
+    if (!file) return;
+
+    // Browsers may not report a MIME type for HEIC/HEIF — infer from extension
+    const ext = file.name?.split('.').pop()?.toLowerCase();
+    const extMimeMap = { heic: 'image/heic', heif: 'image/heif' };
+    const mimeType = file.type || extMimeMap[ext];
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+    if (!validTypes.includes(mimeType)) {
+      setScanError('Please select a JPG, PNG, WebP, or HEIC image.');
+      return;
+    }
+
+    setScanError(null);
+    setCoverMimeType(mimeType);
+
+    // Resize image to max 1024px before uploading to reduce transfer size
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1024;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          const scale = MAX / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        setCoverPreview(resizedDataUrl);
+        setCoverImage(resizedDataUrl.split(',')[1]);
+        setCoverMimeType('image/jpeg');
+      };
+      img.onerror = () => {
+        // Browser can't decode (e.g. HEIC on non-Safari) — send raw, let server handle it
+        setCoverPreview(dataUrl);
+        setCoverImage(dataUrl.split(',')[1]);
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzoneRef.current?.classList.remove('drag-over');
+
+    const file = e.dataTransfer?.files?.[0];
+    if (file) handleFileSelect(file);
+  }, [handleFileSelect]);
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzoneRef.current?.classList.add('drag-over');
+  }, []);
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzoneRef.current?.classList.remove('drag-over');
+  }, []);
+
+  const handleScanCover = async () => {
+    if (!coverImage) return;
+
+    setScanning(true);
+    setScanError(null);
+    setScanResult(null);
+
+    try {
+      const result = await apiService.scanBookCover(coverImage, coverMimeType);
+      setScanResult(result);
+
+      if (result.candidates && result.candidates.length > 0) {
+        const bestMatch = result.candidates[0];
+
+        if (result.confidence === 'high') {
+          // High confidence — enrich and show metadata form directly
+          setEnriching(true);
+          try {
+            const enrichedBook = await bookService.enrichBook(bestMatch);
+            setSelectedBook(enrichedBook);
+            setSelectedBookGroup([enrichedBook]);
+            setShowMetadataForm(true);
+          } catch (enrichError) {
+            console.warn('Failed to enrich book, using original:', enrichError);
+            setSelectedBook(bestMatch);
+            setSelectedBookGroup([bestMatch]);
+            setShowMetadataForm(true);
+          } finally {
+            setEnriching(false);
+          }
+        } else {
+          // Low confidence — show search results for confirmation
+          const enrichedCandidates = await Promise.all(
+            result.candidates.map(async (c) => {
+              try {
+                return await bookService.enrichBook(c);
+              } catch (err) {
+                return c;
+              }
+            })
+          );
+          setSearchResults(enrichedCandidates);
+          setGroupedResults(groupSearchResults(enrichedCandidates));
+          setExpandedGroups(new Set());
+          // Switch to search results view so candidates are visible
+          setShowCoverScanStep(false);
+        }
+      } else {
+        setScanError('No books found. Try searching by ISBN or title instead.');
+      }
+    } catch (err) {
+      console.error('Cover scan error:', err);
+      if (err.status === 503) {
+        setScanError('Cover scan service is not available. Try searching by ISBN or title instead.');
+        setCoverScanAvailable(false);
+      } else if (err.status === 422) {
+        setScanError('Could not identify the book from this image. Try a clearer photo or search by ISBN/title.');
+      } else {
+        setScanError(err.data?.error || err.message || 'Failed to scan cover. Try searching by ISBN or title.');
+      }
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleCoverChange = () => {
+    setCoverImage(null);
+    setCoverPreview(null);
+    setCoverMimeType(null);
+    setScanResult(null);
+    setScanError(null);
+  };
+
+  const handleCloseMetadataFormAndScanAgain = () => {
+    setShowMetadataForm(false);
+    setSelectedBook(null);
+    setSelectedBookGroup(null);
+  };
+
+  // Show all scan candidates when user wants to pick a different book
+  const handleShowScanCandidates = () => {
+    if (!scanResult?.candidates || scanResult.candidates.length === 0) return;
+    setShowMetadataForm(false);
+    setSelectedBook(null);
+    setSelectedBookGroup(null);
+
+    // Show candidates immediately without waiting for enrichment
+    const candidates = scanResult.candidates;
+    setSearchResults(candidates);
+    setGroupedResults(groupSearchResults(candidates));
+    setExpandedGroups(new Set());
+    setShowCoverScanStep(false);
+
+    // Enrich all in background, update list once done
+    Promise.all(
+      candidates.map(async (c) => {
+        try { return await bookService.enrichBook(c); } catch { return c; }
+      })
+    ).then(enriched => {
+      setSearchResults(enriched);
+      setGroupedResults(groupSearchResults(enriched));
+    });
   };
 
   const handleClose = (forceClose = false) => {
@@ -950,6 +1165,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
         availableBooks={selectedBookGroup}
         defaultTitleStatus={defaultTitleStatus}
         onShowAlert={onShowAlert}
+        onShowOtherResults={scanResult?.candidates?.length > 1 ? handleShowScanCandidates : null}
         onSave={async (bookData) => {
           // Only call onAddStart if not adding multiple books (to avoid closing dialog)
           if (!addMultipleBooks && onAddStart) {
@@ -957,7 +1173,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
           }
           try {
             // Ensure titleStatus is set if defaultTitleStatus is provided
-            const bookDataWithStatus = defaultTitleStatus 
+            const bookDataWithStatus = defaultTitleStatus
               ? { ...bookData, titleStatus: defaultTitleStatus }
               : bookData;
             const createdBook = await onAddBook(bookDataWithStatus);
@@ -979,6 +1195,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     );
   }
 
+
   return (
     <Modal show={show} onHide={handleClose} size="lg" centered style={{ zIndex: 10100 }} className="add-book-dialog">
       <Modal.Header closeButton className="add-book-dialog-header">
@@ -986,11 +1203,128 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       </Modal.Header>
       
       <Modal.Body className="add-book-dialog-body">
-        <div className="search-section mb-3">
-          <h6 className="add-book-section-title mb-3">
-            <BsSearch className="me-2" />
-            Search for Books
-          </h6>
+        {/* Cover Scan Step */}
+        {showCoverScanStep && (
+          <div className="scan-section mb-4">
+            <h6 className="add-book-section-title mb-3">
+              <BsCamera className="me-2" />
+              Scan Book Cover
+            </h6>
+            
+            {coverScanAvailable === false && (
+              <Alert variant="warning" className="mb-3 scan-error">
+                Cover scan service is not available. Please use search instead.
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="ms-2 p-0"
+                  onClick={() => {
+                    setCoverScanAvailable(null);
+                    apiService.checkCoverScanHealth()
+                      .then(health => setCoverScanAvailable(health.available))
+                      .catch(() => setCoverScanAvailable(false));
+                  }}
+                >
+                  Retry
+                </Button>
+              </Alert>
+            )}
+            
+            {/* Drop zone / file input */}
+            <div
+              ref={dropzoneRef}
+              className="cover-dropzone"
+              onClick={() => fileInputRef.current?.click()}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+            >
+              {coverPreview ? (
+                <div className="cover-preview">
+                  <img src={coverPreview} alt="Cover preview" />
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary cover-change-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCoverImage(null);
+                      setCoverPreview(null);
+                      setCoverMimeType(null);
+                      setScanResult(null);
+                      setScanError(null);
+                    }}
+                  >
+                    Change Image
+                  </button>
+                </div>
+              ) : (
+                <div className="cover-dropzone-content">
+                  <div className="cover-dropzone-icon">
+                    <BsCamera size={48} />
+                  </div>
+                  <p>Drop a book cover image here or click to browse</p>
+                  <p className="cover-dropzone-hint">JPG, PNG, WebP, or HEIC</p>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,.heic,.heif"
+                capture="environment"
+                style={{ display: 'none' }}
+                onChange={(e) => handleFileSelect(e.target.files?.[0])}
+              />
+            </div>
+            
+            {/* Scan button */}
+            {coverImage && !scanning && (
+              <button
+                type="button"
+                className="btn btn-primary scan-btn"
+                onClick={handleScanCover}
+                disabled={coverScanAvailable === false}
+              >
+                Identify Book
+              </button>
+            )}
+
+            {/* Scanning status */}
+            {scanning && (
+              <div className="scan-status">
+                <div className="scan-spinner"></div>
+                <span>Analyzing cover image...</span>
+              </div>
+            )}
+            
+            {/* Scan error */}
+            {scanError && (
+              <Alert variant="danger" className="mb-3 scan-error">
+                {scanError}
+              </Alert>
+            )}
+            
+            {/* Divider and text search fallback */}
+            <div className="scan-divider">
+              <span>or</span>
+            </div>
+            
+            <Button
+              type="button"
+              className="btn btn-outline-secondary scan-fallback-btn w-100"
+              onClick={() => setShowCoverScanStep(false)}
+            >
+              Search by ISBN or title
+            </Button>
+          </div>
+        )}
+        
+        {/* Search Section - Only show if cover scan is disabled or skipped */}
+        {!showCoverScanStep && (
+          <div className="search-section mb-3">
+            <h6 className="add-book-section-title mb-3">
+              <BsSearch className="me-2" />
+              Search for Books
+            </h6>
           
           {/* Search Mode Tabs */}
           <div className="search-tabs mb-3">
@@ -1393,6 +1727,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
               </div>
             )}
           </div>
+        )}
         </Modal.Body>
         
         <Modal.Footer className="add-book-dialog-footer">

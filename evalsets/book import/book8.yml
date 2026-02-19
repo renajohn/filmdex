@@ -1,0 +1,9 @@
+image: book8.jpg
+
+expected:
+  title: "The Clean Coder"
+  authors:
+    - "Robert C. Martin"
+  book_type: "book"
+  isbn13: "9780137081073"
+  language: "en"

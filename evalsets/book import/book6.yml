@@ -1,0 +1,9 @@
+image: book6.webp
+
+expected:
+  title: "Station Eleven"
+  authors:
+    - "Emily St. John Mandel"
+  book_type: "book"
+  isbn13: "9780385353311"
+  language: "en"

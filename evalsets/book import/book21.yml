@@ -1,0 +1,9 @@
+image: book21.jpg
+
+expected:
+  title: "La Rose Ecarlate T04"
+  authors:
+    - "Patricia Lyfoung"
+  book_type: "graphic-novel"
+  isbn13: "9782756032108"
+  language: "fr"

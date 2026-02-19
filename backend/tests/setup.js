@@ -1,23 +1,25 @@
-const { initDatabase } = require('../src/database');
-const Movie = require('../src/models/movie');
-const MovieImport = require('../src/models/movieImport');
+// Set test environment
+process.env.NODE_ENV = 'test';
 
-// Setup test database
+jest.mock('../src/config', () => ({
+  loadDeploymentConfig: () => ({}),
+  loadDataConfig: () => ({}),
+  getDeploymentConfig: () => ({}),
+  getDataConfig: () => ({}),
+  getDatabasePath: () => ':memory:',
+  getDataPath: () => '/tmp/dexvault-test',
+  getImagesPath: () => '/tmp/dexvault-test/images',
+  getEbooksPath: () => '/tmp/dexvault-test/ebooks',
+  getApiKeys: () => ({ omdb: '', tmdb: '' }),
+  getLogLevel: () => 'error',
+  getMaxUploadMb: () => 20,
+  getMaxUploadBytes: () => 20 * 1024 * 1024,
+}));
+
+// Wait for app initialization (database tables, migrations, etc.)
 beforeAll(async () => {
-  await initDatabase();
-  await Movie.createTable();
-  await MovieImport.createTable();
-  await MovieCast.createTable();
-  await MovieCrew.createTable();
-});
-
-// Clean up after each test
-afterEach(async () => {
-  await Movie.deleteAll();
-  // Note: MovieImport doesn't have deleteAll, but in real tests you'd clean up
-});
-
-// Close database connections after all tests
-afterAll(async () => {
-  // The database connection will be closed when the process exits
+  const app = require('../index');
+  if (app.serverReady) {
+    await app.serverReady;
+  }
 });

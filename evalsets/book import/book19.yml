@@ -1,0 +1,10 @@
+image: book19.jpg
+
+expected:
+  title: "Les Sortilèges de Zora T02"
+  authors:
+    - "Judith Peignen"
+    - "Ariane Delrieu"
+  book_type: "graphic-novel"
+  isbn13: "9782331054723"
+  language: "fr"

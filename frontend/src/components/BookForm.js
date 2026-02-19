@@ -42,7 +42,7 @@ const detectBookType = (isbn, genres = []) => {
   return 'book';
 };
 
-const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline = false, onBookUpdated = null, defaultTitleStatus, onShowAlert }) => {
+const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline = false, onBookUpdated = null, defaultTitleStatus, onShowAlert, onShowOtherResults = null }) => {
   const fileInputRef = useRef(null);
   const ebookInputRef = useRef(null);
   const ownerInputRef = useRef(null);
@@ -3202,6 +3202,11 @@ const BookForm = ({ book = null, availableBooks = null, onSave, onCancel, inline
         
       {!inline && (
         <Modal.Footer>
+          {onShowOtherResults && (
+            <Button variant="outline-secondary" onClick={onShowOtherResults} disabled={loading} className="me-auto">
+              Wrong book? Show other results
+            </Button>
+          )}
           <Button variant="secondary" onClick={onCancel} disabled={loading}>
             Cancel
           </Button>

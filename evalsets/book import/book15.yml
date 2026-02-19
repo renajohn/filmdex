@@ -1,0 +1,9 @@
+image: book15.jpg
+
+expected:
+  title: "Les Royaumes de Feu BD T3 - Au cœur de la jungle"
+  authors:
+    - "Tui T. Sutherland"
+  book_type: "graphic-novel"
+  isbn13: "9782075138994"
+  language: "fr"

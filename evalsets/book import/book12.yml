@@ -1,0 +1,10 @@
+image: book12.jpeg
+
+expected:
+  title: "Les carnets de Cerise T03"
+  authors:
+    - "Joris Chamblain"
+    - "Aurélie Neyret"
+  book_type: "graphic-novel"
+  isbn13: "9782302044708"
+  language: "fr"

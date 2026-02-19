@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "description": "DexVault Backend - Express.js backend for DexVault media collection manager",
   "dependencies": {
+    "@jest/globals": "^29.7.0",
     "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
     "axios": "^1.12.0",

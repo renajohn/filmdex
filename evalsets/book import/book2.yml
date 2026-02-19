@@ -1,0 +1,9 @@
+image: book2.jpg
+
+expected:
+  title: "La Servante écarlate"
+  authors:
+    - "Margaret Atwood"
+  book_type: "book"
+  isbn13: "9782221253441"
+  language: "fr"

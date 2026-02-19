@@ -1,0 +1,209 @@
+.book-import {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.import-header {
+  margin-bottom: 30px;
+}
+
+.import-header h2 {
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.import-header p {
+  color: #666;
+  line-height: 1.6;
+}
+
+.import-form {
+  margin-bottom: 30px;
+}
+
+.file-drop-zone {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 20px;
+}
+
+.file-drop-zone.drag-active {
+  border-color: #007bff;
+  background-color: #f8f9ff;
+}
+
+.file-drop-zone.file-selected {
+  border-color: #28a745;
+  background-color: #f8fff8;
+}
+
+.file-input {
+  display: none;
+}
+
+.file-label {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.file-selected-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.file-icon {
+  font-size: 40px;
+  color: #666;
+}
+
+.file-info {
+  flex: 1;
+  text-align: left;
+  margin-left: 15px;
+}
+
+.file-name {
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.file-size {
+  font-size: 14px;
+  color: #666;
+}
+
+.remove-file {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #666;
+  cursor: pointer;
+  margin-left: 15px;
+}
+
+.remove-file:hover {
+  color: #333;
+}
+
+.file-drop-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.drop-text {
+  margin: 10px 0;
+  color: #666;
+}
+
+.file-requirements {
+  color: #666;
+  font-size: 14px;
+}
+
+.import-actions {
+  text-align: center;
+}
+
+.import-button {
+  padding: 12px 24px;
+  font-size: 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.import-button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.import-button:disabled {
+  background-color: #ccc;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.import-info {
+  margin-top: 30px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.import-info h3 {
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.format-requirements {
+  margin-bottom: 0;
+}
+
+.requirement {
+  margin-bottom: 15px;
+}
+
+.requirement strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.requirement ul {
+  margin: 8px 0 0 20px;
+}
+
+.requirement li {
+  margin-bottom: 5px;
+  line-height: 1.4;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .book-import {
+    padding: 0 15px;
+  }
+
+  .file-drop-zone {
+    padding: 30px 15px;
+  }
+
+  .file-info {
+    margin-left: 10px;
+  }
+
+  .import-actions {
+    margin-top: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .file-drop-zone {
+    padding: 25px 15px;
+  }
+
+  .file-icon {
+    font-size: 32px;
+  }
+
+  .file-name {
+    font-size: 16px;
+  }
+
+  .import-button {
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+}
+
+/* Add styles for the search results if needed */
+/* We'll reuse the existing styles from UnmatchedBooks */

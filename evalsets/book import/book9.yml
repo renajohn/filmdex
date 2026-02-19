@@ -1,0 +1,9 @@
+image: book9.jpg
+
+expected:
+  title: "Conclave"
+  authors:
+    - "Robert Harris"
+  book_type: "book"
+  isbn13: "9780091959173"
+  language: "en"

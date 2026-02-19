@@ -206,9 +206,9 @@ const importController = {
 };
 
 // Middleware for file upload
-const uploadMiddleware = upload.single('file');
+// Don't export uploadMiddleware here - create it in index.js with proper config
 
 module.exports = {
   importController,
-  uploadMiddleware
+  upload // Keep upload for creating middleware in index.js
 };

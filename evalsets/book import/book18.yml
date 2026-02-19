@@ -1,0 +1,9 @@
+image: book18.jpg
+
+expected:
+  title: "Sorceline Book 3"
+  authors:
+    - "Sylvia Douyé"
+  book_type: "graphic-novel"
+  isbn13: "9798881608842"
+  language: "en"

@@ -1,0 +1,9 @@
+image: book4.jpg
+
+expected:
+  title: "Parable of the Sower"
+  authors:
+    - "Octavia E. Butler"
+  book_type: "book"
+  isbn13: "9781472214775"
+  language: "en"
