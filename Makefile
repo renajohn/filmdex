@@ -1,7 +1,7 @@
 IMAGE := ghcr.io/renajohn/filmdex
 VERSION := $(shell node scripts/get-version.js)
 
-.PHONY: dev run stop publish build logs status clean install
+.PHONY: dev run stop publish build logs status clean install test lint typecheck
 
 ## Development
 dev:                ## Start frontend + backend in dev mode
@@ -9,6 +9,15 @@ dev:                ## Start frontend + backend in dev mode
 
 install:            ## Install all dependencies
 	npm run install:all
+
+## Testing & Types
+test:               ## Run all tests (backend + frontend)
+	cd backend && npm test
+	cd frontend && npx vitest --run
+
+typecheck:          ## Run TypeScript type checking
+	cd backend && npx tsc --noEmit
+	cd frontend && npx tsc --noEmit
 
 ## Docker
 run:                ## Start the app (pulls from GHCR)

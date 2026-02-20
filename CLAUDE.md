@@ -23,14 +23,14 @@ npm run build:prod   # production build
 npm start            # runs dist/start.sh
 
 # Frontend tests
-cd frontend && npx react-scripts test        # interactive watch mode
-cd frontend && npx react-scripts test --watchAll=false  # single run
-cd frontend && npx react-scripts test --testPathPattern=ComponentName  # single test file
+cd frontend && npx vitest              # interactive watch mode
+cd frontend && npx vitest --run        # single run
+cd frontend && npx vitest --run ComponentName  # single test file
 ```
 
 ## Architecture
 
-**Monorepo with three package.json files:** root (orchestration/dev tooling), `frontend/` (React CRA app), `backend/` (Express API server).
+**Monorepo with three package.json files:** root (orchestration/dev tooling), `frontend/` (React Vite app), `backend/` (Express API server). Fully TypeScript.
 
 ### Backend (`backend/`)
 - **Express 5** server with SQLite3 database
@@ -38,18 +38,18 @@ cd frontend && npx react-scripts test --testPathPattern=ComponentName  # single 
 - Controllers: movie, music, book, import, analytics, backfill, backup, bookComment
 - External API integrations: `tmdbService`, `omdbService`, `musicbrainzService`, `bookApiService`, `bookImslpService`
 - Image handling: `imageService` (download/storage), `posterService` (movie posters), `bookCoverService`
-- Database migrations in `backend/migrations/` and inline in `src/database.js` (`runAutoMigrations`)
+- Database migrations in `backend/migrations/` and inline in `src/database.ts` (`runAutoMigrations`)
 - Config hierarchy: `deployment.{dev,prod}.json` → `data/options.json` → environment variables
 - Data directory (`data/`) holds `db.sqlite`, `options.json`, and `images/` — mounted as volume in Docker
 
 ### Frontend (`frontend/`)
-- **React 19** with Create React App, React Router 7, React Bootstrap, react-icons
-- Main app shell in `App.js` — manages search state, navigation pills, and routing
+- **React 19** with Vite, React Router 7, React Bootstrap, react-icons
+- Main app shell in `App.tsx` — manages search state, navigation pills, and routing
 - Pages: FilmDexPage (movies), MusicDexPage, BookDexPage, WishListPage, AnalyticsPage, BackupPage, ImportPage
 - Shared collection components in `components/shared/` (CollectionGrid, CollectionHeader, NextBanner, EmptyState)
-- Service layer in `services/` — `api.js` (movies/general), `musicService.js`, `bookService.js`, `bookCommentService.js`, `backupService.js`
-- Supports Home Assistant ingress mode (detected via URL path in `api.js`)
-- Frontend proxies API calls to backend via `"proxy": "http://localhost:3001"` in dev mode
+- Service layer in `services/` — `api.ts` (movies/general), `musicService.ts`, `bookService.ts`, `bookCommentService.ts`, `backupService.ts`
+- Supports Home Assistant ingress mode (detected via URL path in `api.ts`)
+- Frontend proxies API calls to backend via Vite proxy config in dev mode
 
 ### Build System
 - `build.js` — custom Node.js build script that assembles `dist/` with frontend build, backend source, Dockerfile, start script, and version info

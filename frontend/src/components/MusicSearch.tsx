@@ -1,0 +1,1026 @@
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import musicService from '../services/musicService';
+import MusicForm from './MusicForm';
+import MusicThumbnail from './MusicThumbnail';
+import MusicDetailCard from './MusicDetailCard';
+import AddMusicDialog from './AddMusicDialog';
+import AlphabeticalIndex from './AlphabeticalIndex';
+import { NextBanner, CollectionHeader, EmptyState } from './shared';
+import { BsChevronDown, BsMusicNote } from 'react-icons/bs';
+import './MusicSearch.css';
+
+interface MusicSearchProps {
+  cds: any;
+  loading: boolean;
+  onAddCd: (cdData: any) => Promise<any>;
+  onAddCdFromMusicBrainz: (releaseId: string, cdData: any) => Promise<any>;
+  onAddCdByBarcode: (barcode: string, cdData: any) => Promise<any>;
+  onUpdateCd: (id: number | string, cdData: any) => void;
+  onDeleteCd: (id: number | string) => Promise<any>;
+  onShowAlert?: (message: string, variant: string) => void;
+  onOpenAddDialog?: () => void;
+  refreshTrigger?: number;
+  searchCriteria?: { searchText?: string; [key: string]: any } | null;
+}
+
+interface Album {
+  id: number;
+  title: string;
+  artist: string | string[];
+  cover?: string;
+  releaseYear?: number;
+  createdAt?: string;
+  genres?: string[];
+  labels?: string[];
+  country?: string;
+  recordingQuality?: string;
+  [key: string]: any;
+}
+
+interface SmartFillResult {
+  albums: Album[];
+  added: number;
+  [key: string]: any;
+}
+
+interface ShuffleResult {
+  success: boolean;
+  albums?: Album[];
+  added?: { title?: string; [key: string]: any };
+  message?: string;
+  [key: string]: any;
+}
+
+interface DeleteModalState {
+  show: boolean;
+  albumId: number | null;
+}
+
+const MusicSearch = forwardRef<any, MusicSearchProps>(({
+  cds,
+  loading,
+  onAddCd,
+  onAddCdFromMusicBrainz,
+  onAddCdByBarcode,
+  onUpdateCd,
+  onDeleteCd,
+  onShowAlert,
+  onOpenAddDialog,
+  refreshTrigger,
+  searchCriteria
+}, ref) => {
+  const [allCds, setAllCds] = useState<Album[]>([]);
+  const [filteredCds, setFilteredCds] = useState<Album[]>([]);
+  // Load sort preference from localStorage, default to 'title'
+  const [sortBy, setSortBy] = useState(() => {
+    const savedSort = localStorage.getItem('dexvault-musicdex-sort');
+    return savedSort || 'title';
+  });
+  const [sortLoading, setSortLoading] = useState(false);
+  const [groupBy, setGroupBy] = useState('none');
+  const [groupLoading, setGroupLoading] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
+  const [expandAllGroups, setExpandAllGroups] = useState(false);
+  const [cdCount, setCdCount] = useState({ filtered: 0, total: 0 });
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [addingAlbum, setAddingAlbum] = useState(false);
+  const [addError, setAddError] = useState('');
+  const [editingCd, setEditingCd] = useState<any>(null);
+  const [reviewingRelease, setReviewingRelease] = useState<any>(null);
+  const [selectedCdDetails, setSelectedCdDetails] = useState<any>(null);
+  const [, setLoadingDetails] = useState(false);
+  const [cdDetailsBeforeEdit, setCdDetailsBeforeEdit] = useState<any>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState<DeleteModalState>({ show: false, albumId: null });
+  const previousSearchTextRef = useRef('');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [listenNextAlbums, setListenNextAlbums] = useState<Album[]>([]);
+  const [smartFillLoading, setSmartFillLoading] = useState(false);
+  const [shufflingAlbumId, setShufflingAlbumId] = useState<number | null>(null);
+
+  // Ref and state for scroll container (for alphabetical index)
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [scrollContainer, setScrollContainer] = useState<HTMLElement | null>(null);
+
+  // Set scroll container once component mounts
+  useEffect(() => {
+    const mainContent = scrollContainerRef.current?.closest('.app-main-content') as HTMLElement | null;
+    if (mainContent) {
+      setScrollContainer(mainContent);
+    } else {
+      setScrollContainer(document.documentElement);
+    }
+  }, []);
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    refresh: loadCds,
+    search: performSearch,
+    openAddDialog: () => setShowAddDialog(true),
+    openAlbumDetails: (album: any) => setSelectedCdDetails(album),
+    setSearchQuery: (query: string) => {
+      // Update the URL with the new search query
+      navigate(`${location.pathname}?search=${encodeURIComponent(query)}`);
+    }
+  }));
+
+  // Function to update search via URL (which will update the search bar in App.js)
+  const updateSearchViaUrl = (query: string) => {
+    navigate(`${location.pathname}?search=${encodeURIComponent(query)}`);
+  };
+
+  useEffect(() => {
+    loadCds();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger]);
+
+  // Load Listen Next albums
+  const refreshListenNextAlbums = useCallback(async () => {
+    try {
+      const albums = await musicService.getListenNextAlbums() as Album[];
+      setListenNextAlbums(albums);
+    } catch (error) {
+      console.warn('Failed to load Listen Next albums:', error);
+      setListenNextAlbums([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshListenNextAlbums();
+  }, [refreshTrigger, refreshListenNextAlbums]);
+
+  // Smart fill Listen Next with suggested albums
+  const handleSmartFill = useCallback(async () => {
+    if (smartFillLoading) return;
+
+    setSmartFillLoading(true);
+    try {
+      const result = await musicService.smartFillListenNext() as SmartFillResult;
+      setListenNextAlbums(result.albums || []);
+
+      if (result.added > 0 && onShowAlert) {
+        const messages = [
+          `🎲 Added ${result.added} album${result.added !== 1 ? 's' : ''} to your queue!`,
+          `🎵 ${result.added} fresh pick${result.added !== 1 ? 's' : ''} added!`,
+          `✨ Your queue is ready with ${result.added} new album${result.added !== 1 ? 's' : ''}!`,
+        ];
+        const message = messages[Math.floor(Math.random() * messages.length)];
+        onShowAlert(message, 'success');
+      }
+    } catch (error) {
+      console.error('Error in smart fill:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to add suggestions', 'danger');
+      }
+    } finally {
+      setSmartFillLoading(false);
+    }
+  }, [smartFillLoading, onShowAlert]);
+
+  // Shuffle a specific album in Listen Next (replace with a new suggestion)
+  const handleShuffleAlbum = useCallback(async (album: Album) => {
+    if (shufflingAlbumId !== null) return;
+
+    setShufflingAlbumId(album.id);
+    try {
+      const result = await musicService.shuffleListenNextAlbum(album.id) as ShuffleResult;
+
+      if (result.success) {
+        setListenNextAlbums(result.albums || []);
+
+        if (onShowAlert) {
+          const messages = [
+            `🔀 Swapped for "${result.added?.title}"!`,
+            `🎲 New pick: "${result.added?.title}"`,
+            `✨ "${result.added?.title}" is up next!`,
+          ];
+          const message = messages[Math.floor(Math.random() * messages.length)];
+          onShowAlert(message, 'success');
+        }
+      } else {
+        if (onShowAlert) {
+          onShowAlert(result.message || 'No replacement available', 'warning');
+        }
+      }
+    } catch (error) {
+      console.error('Error shuffling album:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to shuffle album', 'danger');
+      }
+    } finally {
+      setShufflingAlbumId(null);
+    }
+  }, [shufflingAlbumId, onShowAlert]);
+
+  // Handle search from App.js
+  useEffect(() => {
+    const currentSearchText = searchCriteria?.searchText || '';
+
+    // Only run if search text has actually changed
+    if (currentSearchText !== previousSearchTextRef.current) {
+      previousSearchTextRef.current = currentSearchText;
+
+      if (currentSearchText.trim()) {
+        performSearch(currentSearchText);
+      } else {
+        setFilteredCds(allCds);
+        setCdCount({ filtered: allCds.length, total: allCds.length });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchCriteria?.searchText, allCds]);
+
+  const loadCds = async () => {
+    try {
+      const data = await musicService.getAlbumsByStatus('owned') as Album[];
+      // Apply default sorting to loaded data
+      const sortedInitial = sortCds(data, sortBy);
+      setAllCds(sortedInitial);
+
+      // Respect current search criteria when reloading
+      const currentSearchText = searchCriteria?.searchText || '';
+      if (currentSearchText.trim()) {
+        // Re-apply search filter
+        const localResults = await musicService.searchAlbums(currentSearchText) as Album[];
+        const sortedResults = sortCds(localResults, sortBy);
+        setFilteredCds(sortedResults);
+        setCdCount({ filtered: sortedResults.length, total: sortedInitial.length });
+      } else {
+        // No search - show all albums
+        setFilteredCds(sortedInitial);
+        setCdCount({ filtered: sortedInitial.length, total: sortedInitial.length });
+      }
+    } catch (error) {
+      console.error('Error loading albums:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to load albums: ' + (error as Error).message, 'danger');
+      }
+    }
+  };
+
+  const performSearch = async (query: string) => {
+    if (!query.trim()) {
+      const sortedAll = sortCds(allCds, sortBy);
+      setFilteredCds(sortedAll);
+      setCdCount({ filtered: sortedAll.length, total: allCds.length });
+      return;
+    }
+
+    try {
+      // Search local albums
+      const localResults = await musicService.searchAlbums(query) as Album[];
+      const sortedResults = sortCds(localResults, sortBy);
+      setFilteredCds(sortedResults);
+      setCdCount({ filtered: sortedResults.length, total: allCds.length });
+    } catch (error) {
+      console.error('Error searching:', error);
+      if (onShowAlert) {
+        onShowAlert('Search failed: ' + (error as Error).message, 'danger');
+      }
+    }
+  };
+
+  const sortCds = useCallback((cdsToSort: Album[], sortOption: string) => {
+    const sorted = [...cdsToSort];
+
+    switch (sortOption) {
+      case 'title':
+        return sorted.sort((a, b) => a.title.localeCompare(b.title));
+      case 'titleReverse':
+        return sorted.sort((a, b) => b.title.localeCompare(a.title));
+      case 'artist':
+        return sorted.sort((a, b) => {
+          const artistA = Array.isArray(a.artist) ? a.artist.join(', ') : a.artist;
+          const artistB = Array.isArray(b.artist) ? b.artist.join(', ') : b.artist;
+          return artistA.localeCompare(artistB);
+        });
+      case 'artistReverse':
+        return sorted.sort((a, b) => {
+          const artistA = Array.isArray(a.artist) ? a.artist.join(', ') : a.artist;
+          const artistB = Array.isArray(b.artist) ? b.artist.join(', ') : b.artist;
+          return artistB.localeCompare(artistA);
+        });
+      case 'year':
+        return sorted.sort((a, b) => (b.releaseYear || 0) - (a.releaseYear || 0));
+      case 'yearReverse':
+        return sorted.sort((a, b) => (a.releaseYear || 0) - (b.releaseYear || 0));
+      case 'lastAdded':
+        return sorted.sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime());
+      case 'lastAddedReverse':
+        return sorted.sort((a, b) => new Date(a.createdAt || '').getTime() - new Date(b.createdAt || '').getTime());
+      default:
+        return sorted;
+    }
+  }, []);
+
+  const handleSortChange = async (sortOption: string) => {
+    setSortBy(sortOption);
+    localStorage.setItem('dexvault-musicdex-sort', sortOption);
+    setSortLoading(true);
+
+    // Add a small delay to show loading state for better UX
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    try {
+      const sortedCds = sortCds(filteredCds, sortOption);
+      setFilteredCds(sortedCds);
+      setCdCount({ filtered: sortedCds.length, total: allCds.length });
+    } finally {
+      setSortLoading(false);
+    }
+  };
+
+  const groupCds = useCallback((cdsToGroup: Album[], groupOption: string) => {
+    if (groupOption === 'none') {
+      return { 'All Albums': cdsToGroup };
+    }
+
+    const groups: Record<string, Album[]> = {};
+
+    cdsToGroup.forEach((cd: Album) => {
+      let groupKeys: string[] = [];
+
+      switch (groupOption) {
+        case 'artist':
+          const artists = Array.isArray(cd.artist) ? cd.artist : [cd.artist];
+          groupKeys = artists.map((a: string) => a || 'Unknown Artist');
+          break;
+        case 'genre':
+          if (cd.genres && cd.genres.length > 0) {
+            groupKeys = cd.genres;
+          } else {
+            groupKeys = ['Unknown Genre'];
+          }
+          break;
+        case 'label':
+          if (cd.labels && cd.labels.length > 0) {
+            groupKeys = cd.labels;
+          } else {
+            groupKeys = ['Unknown Label'];
+          }
+          break;
+        case 'decade':
+          if (cd.releaseYear && !isNaN(cd.releaseYear)) {
+            const decade = Math.floor(cd.releaseYear / 10) * 10;
+            groupKeys = [`${decade}s`];
+          } else {
+            groupKeys = ['Unknown Decade'];
+          }
+          break;
+        case 'country':
+          groupKeys = [cd.country || 'Unknown Country'];
+          break;
+        case 'quality':
+          groupKeys = [cd.recordingQuality || 'Not Rated'];
+          break;
+        default:
+          groupKeys = ['All Albums'];
+      }
+
+      // Add album to each group it belongs to
+      groupKeys.forEach((groupKey: string) => {
+        if (!groups[groupKey]) {
+          groups[groupKey] = [];
+        }
+        groups[groupKey].push(cd);
+      });
+    });
+
+    // Sort groups alphabetically by key
+    const sortedGroups: Record<string, Album[]> = {};
+    Object.keys(groups).sort().forEach(key => {
+      sortedGroups[key] = groups[key];
+    });
+
+    return sortedGroups;
+  }, []);
+
+  const handleGroupChange = async (groupOption: string) => {
+    setGroupBy(groupOption);
+    setGroupLoading(true);
+
+    // Add a small delay to show loading state for better UX
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    // If grouping is enabled, expand all groups initially
+    if (groupOption !== 'none') {
+      const grouped = groupCds(filteredCds, groupOption);
+      const allGroupKeys = Object.keys(grouped);
+      setExpandedGroups(new Set(allGroupKeys));
+      setExpandAllGroups(true);
+    } else {
+      setExpandedGroups(new Set());
+      setExpandAllGroups(false);
+    }
+
+    setGroupLoading(false);
+  };
+
+  const toggleGroup = (groupKey: string) => {
+    const newExpandedGroups = new Set(expandedGroups);
+    if (newExpandedGroups.has(groupKey)) {
+      newExpandedGroups.delete(groupKey);
+    } else {
+      newExpandedGroups.add(groupKey);
+    }
+    setExpandedGroups(newExpandedGroups);
+  };
+
+  const toggleAllGroups = () => {
+    if (groupBy === 'none') return;
+
+    const grouped = groupCds(filteredCds, groupBy);
+    const allGroupKeys = Object.keys(grouped);
+
+    if (expandAllGroups) {
+      setExpandedGroups(new Set());
+      setExpandAllGroups(false);
+    } else {
+      setExpandedGroups(new Set(allGroupKeys));
+      setExpandAllGroups(true);
+    }
+  };
+
+  const handleEditCd = async (cd: Album) => {
+    try {
+      setLoadingDetails(true);
+      const details = await musicService.getAlbumById(cd.id);
+      setCdDetailsBeforeEdit(selectedCdDetails);
+      setEditingCd(details);
+      setSelectedCdDetails(null);
+    } catch (err) {
+      if (onShowAlert) {
+        onShowAlert('Failed to load album details for editing: ' + (err as Error).message, 'danger');
+      }
+      setCdDetailsBeforeEdit(selectedCdDetails);
+      setEditingCd(cd);
+      setSelectedCdDetails(null);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+
+  const handleReviewMetadata = async (release: any, allReleasesInGroup: any[] | null = null) => {
+    try {
+      if (!release) {
+        // Manual entry - just show empty form
+        setReviewingRelease({});
+        return;
+      }
+
+      // Check if this is an album object (from the new workflow) or a release object (from the old workflow)
+      if (release.id && !release.musicbrainzReleaseId) {
+        // This is an album object from the new workflow - open detail view
+        console.log('Opening detail view for album:', release.title);
+
+        // Refresh the albums list to include the new album
+        await loadCds();
+
+        // Find the album in the updated list and show its details
+        const updatedCds = await musicService.getAlbumsByStatus('owned') as Album[];
+        const addedAlbum = updatedCds.find((cd: Album) => cd.id === release.id);
+
+        if (addedAlbum) {
+          setSelectedCdDetails(addedAlbum);
+        }
+
+        return;
+      }
+
+      // Old workflow - continue with existing logic
+      // Extract all available cover art options from the group
+      let availableCovers: any[] = [];
+      if (allReleasesInGroup && allReleasesInGroup.length > 0) {
+        availableCovers = allReleasesInGroup
+          .filter((r: any) => r.coverArt?.front?.url || r.coverArt?.url) // Support both old and new format
+          .map((r: any) => ({
+            url: r.coverArt?.front?.url || r.coverArt?.url, // Use front cover or fallback to old format
+            country: r.country,
+            year: r.releaseYear,
+            catalogNumber: r.catalogNumber
+          }));
+
+        // Remove duplicates based on URL
+        availableCovers = Array.from(
+          new Map(availableCovers.map((c: any) => [c.url, c])).values()
+        );
+      }
+
+      // Fetch full details from MusicBrainz
+      setLoadingDetails(true);
+      const details = await musicService.getMusicBrainzReleaseDetails(release.musicbrainzReleaseId) as any;
+
+      // Convert MusicBrainz data to album form data
+      const cdData = {
+        title: details.title || release.title,
+        artist: details.artist || release.artist,
+        releaseYear: details.releaseYear || release.releaseYear,
+        labels: details.labels || release.labels || [],
+        catalogNumber: details.catalogNumber || release.catalogNumber,
+        barcode: details.barcode || release.barcode,
+        country: details.country || release.country,
+        format: details.format || release.format || 'CD',
+        genres: details.genres || release.genres || [],
+        tags: details.tags || release.tags || [],
+        cover: details.coverArt?.front?.url || details.coverArt?.url || release.coverArt?.front?.url || release.coverArt?.url,
+        musicbrainzReleaseId: details.musicbrainzReleaseId || release.musicbrainzReleaseId,
+        musicbrainzReleaseGroupId: details.musicbrainzReleaseGroupId || release.musicbrainzReleaseGroupId,
+        releaseGroupFirstReleaseDate: details.releaseGroupFirstReleaseDate || release.releaseGroupFirstReleaseDate,
+        releaseGroupType: details.releaseGroupType || release.releaseGroupType,
+        releaseGroupSecondaryTypes: details.releaseGroupSecondaryTypes || release.releaseGroupSecondaryTypes || [],
+        urls: details.urls || release.urls,
+        discs: details.discs || [],
+        editionNotes: details.editionNotes || '',
+        annotation: details.annotation || '',
+        // Add available covers for the picker
+        availableCovers: availableCovers.length > 1 ? availableCovers : null
+      };
+
+      setReviewingRelease(cdData);
+    } catch (err) {
+      console.error('Error in handleReviewMetadata:', err);
+      if (onShowAlert) {
+        onShowAlert('Failed to load release details: ' + (err as Error).message, 'danger');
+      }
+      // Still show form with basic data
+      setReviewingRelease(release);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const handleFormCancel = () => {
+    setShowAddForm(false);
+    setEditingCd(null);
+    setReviewingRelease(null);
+    if (cdDetailsBeforeEdit) {
+      setSelectedCdDetails(cdDetailsBeforeEdit);
+      setCdDetailsBeforeEdit(null);
+    }
+  };
+
+  const handleFormSave = async (createdAlbum: any = null) => {
+    setShowAddForm(false);
+    setEditingCd(null);
+    setReviewingRelease(null);
+
+    if (createdAlbum) {
+      // Reload the album list first
+      await loadCds();
+      // Then fetch the complete album details (including tracks) and show the detail dialog
+      try {
+        const completeAlbumDetails = await musicService.getAlbumById(createdAlbum.id);
+        setSelectedCdDetails(completeAlbumDetails);
+      } catch (err) {
+        console.error('Failed to load complete album details after creation:', err);
+        // Fallback to showing the basic album data
+        setSelectedCdDetails(createdAlbum);
+      }
+    } else {
+      // For updates, reload first then show details
+      await loadCds();
+      if (cdDetailsBeforeEdit) {
+        try {
+          const updatedDetails = await musicService.getAlbumById(cdDetailsBeforeEdit.id);
+          setSelectedCdDetails(updatedDetails);
+          setCdDetailsBeforeEdit(null);
+        } catch (err) {
+          console.error('Failed to reload album details after save:', err);
+          setSelectedCdDetails(cdDetailsBeforeEdit);
+          setCdDetailsBeforeEdit(null);
+        }
+      }
+    }
+  };
+
+  const handleCdClick = async (cdId: number | string) => {
+    try {
+      setLoadingDetails(true);
+      const details = await musicService.getAlbumById(cdId);
+      setSelectedCdDetails(details);
+    } catch (err) {
+      if (onShowAlert) {
+        onShowAlert('Failed to load album details: ' + (err as Error).message, 'danger');
+      }
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const handleListenNextToggle = async (e: React.MouseEvent, album: Album) => {
+    e.stopPropagation(); // Prevent opening album details
+
+    // Check if album is currently in Listen Next
+    const isCurrentlyInListenNext = listenNextAlbums.some(a => a.id === album.id);
+    const isLastAlbum = isCurrentlyInListenNext && listenNextAlbums.length === 1;
+
+    // Handle removal animation in background (non-blocking)
+    if (isCurrentlyInListenNext) {
+      const cardElement = (e.currentTarget as HTMLElement).closest('.listen-next-poster-card');
+      if (cardElement) {
+        cardElement.classList.add('removing');
+      }
+
+      // If this is the last album, also animate the banner closing
+      if (isLastAlbum) {
+        const bannerElement = document.querySelector('.listen-next-banner');
+        if (bannerElement) {
+          bannerElement.classList.add('closing');
+        }
+      }
+    }
+
+    // Then make the API call
+    try {
+      await musicService.toggleListenNext(album.id);
+
+      // Refresh Listen Next albums after successful toggle
+      const updatedListenNextAlbums = await musicService.getListenNextAlbums() as Album[];
+      setListenNextAlbums(updatedListenNextAlbums);
+
+    } catch (error) {
+      console.error('Error toggling listen next:', error);
+
+      if (onShowAlert) {
+        onShowAlert('Failed to update Listen Next status', 'danger');
+      }
+    }
+  };
+
+
+  const renderCdGrid = () => {
+    if (loading) {
+      return (
+        <div className="d-flex justify-content-center align-items-center" style={{ height: '200px' }}>
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Empty State - Check if it's a search or truly empty database
+    if (filteredCds.length === 0) {
+      return searchCriteria?.searchText && searchCriteria.searchText.trim() ? (
+        /* Search returned no results */
+        <EmptyState
+          icon="🎵"
+          title="No Results Found"
+          description={`No albums match "${searchCriteria.searchText}"`}
+          hint="Try different keywords or clear your search"
+          collectionInfo={`You have <strong>${allCds.length}</strong> ${allCds.length === 1 ? 'album' : 'albums'} in your collection`}
+        />
+      ) : (
+        /* Database is empty */
+        <EmptyState
+          icon="💿"
+          title="Welcome to MusicDex!"
+          description="Your music collection is empty. Add your first album to get started and begin tracking your music library."
+          action={
+            <button
+              className="btn btn-primary btn-lg mt-4"
+              onClick={onOpenAddDialog}
+            >
+              <BsMusicNote className="me-2" />
+              Add Your First Album
+            </button>
+          }
+        />
+      );
+    }
+
+    // Ungrouped view - add letter to all items for alphabetical index visibility detection
+    if (groupBy === 'none') {
+      return (
+        <div className={`cd-grid ${sortLoading ? 'sort-loading' : ''}`}>
+          {filteredCds.map((cd) => {
+            // Use artist name for letter tracking when sorting by artist
+            const sortField = (sortBy === 'artist' || sortBy === 'artistReverse')
+              ? (Array.isArray(cd.artist) ? cd.artist[0] : cd.artist)
+              : cd.title;
+            const firstChar = sortField?.charAt(0)?.toUpperCase() || '';
+            const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
+
+            return (
+              <MusicThumbnail
+                key={cd.id}
+                cd={cd}
+                onClick={() => handleCdClick(cd.id)}
+                onEdit={() => handleEditCd(cd)}
+                onDelete={() => setShowDeleteModal({ show: true, albumId: cd.id })}
+                onListenNextChange={refreshListenNextAlbums}
+                isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
+                dataItemId={cd.id}
+                dataFirstLetter={letter}
+              />
+            );
+          })}
+        </div>
+      );
+    }
+
+    // Grouped view
+    const grouped = groupCds(filteredCds, groupBy);
+    const sortedGroupKeys = Object.keys(grouped).sort();
+
+    return (
+      <div className={`cds-groups ${sortLoading || groupLoading ? 'sort-loading' : ''}`}>
+        {sortedGroupKeys.map((groupKey) => {
+          const groupCdsItems = grouped[groupKey];
+          const isExpanded = expandedGroups.has(groupKey);
+          const sortedGroupCds = sortCds(groupCdsItems, sortBy);
+
+          return (
+            <div key={groupKey} className="cd-group">
+              <div
+                className="group-header"
+                onClick={() => toggleGroup(groupKey)}
+              >
+                <div className="group-title">
+                  <BsChevronDown className={`group-chevron ${isExpanded ? 'expanded' : ''}`} />
+                  <span>{groupKey}</span>
+                  <span className="group-count">({groupCdsItems.length})</span>
+                </div>
+              </div>
+
+              {isExpanded && (
+                <div className="cd-grid">
+                  {sortedGroupCds.map((cd) => {
+                    const sortField = (sortBy === 'artist' || sortBy === 'artistReverse')
+                      ? (Array.isArray(cd.artist) ? cd.artist[0] : cd.artist)
+                      : cd.title;
+                    const firstChar = sortField?.charAt(0)?.toUpperCase() || '';
+                    const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
+
+                    return (
+                      <MusicThumbnail
+                        key={cd.id}
+                        cd={cd}
+                        onClick={() => handleCdClick(cd.id)}
+                        onEdit={() => handleEditCd(cd)}
+                        onDelete={() => setShowDeleteModal({ show: true, albumId: cd.id })}
+                        onListenNextChange={refreshListenNextAlbums}
+                        isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
+                        dataFirstLetter={letter}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // MusicBrainz search is now handled via the Add Album dialog
+
+  const sortOptions = [
+    { value: 'title', label: 'Title A-Z' },
+    { value: 'titleReverse', label: 'Title Z-A' },
+    { value: 'artist', label: 'Artist A-Z' },
+    { value: 'artistReverse', label: 'Artist Z-A' },
+    { value: 'year', label: 'Year (Newest)' },
+    { value: 'yearReverse', label: 'Year (Oldest)' },
+    { value: 'lastAdded', label: 'Last Added' },
+    { value: 'lastAddedReverse', label: 'First Added' }
+  ];
+
+  const groupOptions = [
+    { value: 'none', label: 'No grouping' },
+    { value: 'artist', label: 'Group by Artist' },
+    { value: 'genre', label: 'Group by Genre' },
+    { value: 'label', label: 'Group by Label' },
+    { value: 'decade', label: 'Group by Decade' },
+    { value: 'country', label: 'Group by Country' },
+    { value: 'quality', label: 'Group by Quality' }
+  ];
+
+  // Helper function to get cover URL
+  const getCoverUrl = (coverPath: string | null | undefined) => {
+    if (!coverPath) return null;
+    return musicService.getImageUrl(coverPath);
+  };
+
+  return (
+    <div className="music-search" ref={scrollContainerRef}>
+      {/* Alphabetical Index - shows when sorted alphabetically */}
+      <AlphabeticalIndex
+        items={filteredCds}
+        getTitle={(cd: Record<string, unknown>) => {
+          if (sortBy === 'artist' || sortBy === 'artistReverse') {
+            // For artist sort, use the first artist name
+            return Array.isArray(cd.artist) ? cd.artist[0] : String(cd.artist || '');
+          }
+          return String(cd.title || '');
+        }}
+        scrollContainer={scrollContainer}
+        sortBy={sortBy}
+        // Keep available during search/filter; disable only when grouping is enabled
+        disabled={groupBy !== 'none'}
+      />
+
+      {/* Listen Next Banner - show when there are albums OR when we have albums in collection to suggest */}
+      {!searchCriteria?.searchText && (listenNextAlbums.length > 0 || allCds.length > 0) && (
+        <NextBanner
+          items={listenNextAlbums}
+          type="music"
+          title="Listen Next"
+          icon="🎧"
+          onItemClick={handleCdClick}
+          onRemove={(e, item) => handleListenNextToggle(e, item as Album)}
+          getImageUrl={(album) => getCoverUrl(album.cover) || ''}
+          getTitle={(album) => album.title || ''}
+          getSubtitle={(album) => Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}
+          onSmartFill={handleSmartFill}
+          smartFillLoading={smartFillLoading}
+          onShuffle={(item) => handleShuffleAlbum(item as Album)}
+          shufflingItemId={shufflingAlbumId}
+        />
+      )}
+
+      {/* Results Header with Controls */}
+      <div className="cds-results">
+        <CollectionHeader
+          filteredCount={cdCount.filtered}
+          totalCount={cdCount.total}
+          itemLabel="albums"
+          sortBy={sortBy}
+          sortOptions={sortOptions}
+          onSortChange={handleSortChange}
+          sortLoading={sortLoading}
+          groupBy={groupBy}
+          groupOptions={groupOptions}
+          onGroupChange={handleGroupChange}
+          groupLoading={groupLoading}
+          expandAllGroups={expandAllGroups}
+          onToggleAllGroups={toggleAllGroups}
+          showStackToggle={false}
+          addButtonLabel="Add Album"
+          onAdd={() => setShowAddDialog(true)}
+          loading={loading}
+        />
+
+        {/* Album Grid or Grouped Albums */}
+        {renderCdGrid()}
+      </div>
+
+      {/* Forms and Modals */}
+      <AddMusicDialog
+        show={showAddDialog}
+        onHide={() => setShowAddDialog(false)}
+        onAddCd={onAddCd}
+        onAddCdFromMusicBrainz={onAddCdFromMusicBrainz}
+        onAddCdByBarcode={onAddCdByBarcode}
+        onReviewMetadata={handleReviewMetadata}
+        defaultTitleStatus={undefined}
+        onAddStart={() => {
+          // Close dialog instantly and show overlay
+          setShowAddDialog(false);
+          setAddingAlbum(true);
+          setAddError('');
+        }}
+        onAlbumAdded={async () => {
+          try {
+            await loadCds();
+          } finally {
+            setAddingAlbum(false);
+            setAddError('');
+          }
+        }}
+        onAddError={(err: any) => {
+          setAddingAlbum(false);
+          setAddError(err?.message || 'Failed to add album');
+          if (onShowAlert) onShowAlert('Failed to add album: ' + (err?.message || ''), 'danger');
+        }}
+      />
+
+      {showAddForm && (
+        <MusicForm
+          onSave={async (cdData: any) => {
+            const createdAlbum = await onAddCd(cdData);
+            await handleFormSave(createdAlbum);
+            return createdAlbum;
+          }}
+          onCancel={handleFormCancel}
+        />
+      )}
+
+      {reviewingRelease && (
+        <MusicForm
+          cd={reviewingRelease}
+          onSave={async (cdData: any) => {
+            let createdAlbum;
+            // If this came from MusicBrainz search, use the proper method to download covers
+            if (cdData.musicbrainzReleaseId) {
+              createdAlbum = await onAddCdFromMusicBrainz(cdData.musicbrainzReleaseId, cdData);
+            } else {
+              createdAlbum = await onAddCd(cdData);
+            }
+            await handleFormSave(createdAlbum);
+          }}
+          onCancel={handleFormCancel}
+        />
+      )}
+
+      {editingCd && (
+        <MusicForm
+          cd={editingCd}
+          onSave={async (cdData: any) => {
+            onUpdateCd(editingCd.id, cdData);
+            await handleFormSave();
+          }}
+          onCancel={handleFormCancel}
+        />
+      )}
+
+      {selectedCdDetails && (
+        <MusicDetailCard
+          cd={selectedCdDetails}
+          onClose={() => setSelectedCdDetails(null)}
+          onEdit={() => handleEditCd(selectedCdDetails)}
+          onDelete={async () => {
+            try {
+              await onDeleteCd(selectedCdDetails.id);
+              setSelectedCdDetails(null);
+              await loadCds();
+            } catch (e) {
+              if (onShowAlert) onShowAlert('Failed to delete album: ' + ((e as any)?.message || ''), 'danger');
+            }
+          }}
+          onSearch={updateSearchViaUrl}
+          onListenNextChange={refreshListenNextAlbums}
+        />
+      )}
+
+      {addingAlbum && (
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+          <div className="loading-message">
+            Adding album to your collection...
+          </div>
+        </div>
+      )}
+
+      {addError && (
+        <div className="error-message">
+          {addError}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal.show && (
+        <div className="modal show" style={{ display: 'block', zIndex: 10210 }} tabIndex={-1}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Delete Album</h5>
+              </div>
+              <div className="modal-body">
+                <p>Are you sure you want to remove this album from your collection?</p>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowDeleteModal({ show: false, albumId: null })}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={async () => {
+                    const id = showDeleteModal.albumId;
+                    try {
+                      await onDeleteCd(id!);
+                      // If detail for this album is open, close it
+                      if (selectedCdDetails && selectedCdDetails.id === id) {
+                        setSelectedCdDetails(null);
+                      }
+                      await loadCds();
+                    } finally {
+                      setShowDeleteModal({ show: false, albumId: null });
+                    }
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {(showDeleteModal.show) && (
+        <div className="modal-backdrop show" style={{ zIndex: 10200 }}></div>
+      )}
+    </div>
+  );
+});
+
+export default MusicSearch;

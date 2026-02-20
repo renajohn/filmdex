@@ -1,0 +1,1627 @@
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { BsTrash, BsCurrencyDollar, BsClipboard, BsMusicNote, BsFilm, BsBook, BsFileEarmark } from 'react-icons/bs';
+import apiService from '../services/api';
+import musicService from '../services/musicService';
+import bookService from '../services/bookService';
+import MovieThumbnail from '../components/MovieThumbnail';
+import MovieDetailCard from '../components/MovieDetailCard';
+import MusicDetailCard from '../components/MusicDetailCard';
+import BookThumbnail from '../components/BookThumbnail';
+import BookDetailCard from '../components/BookDetailCard';
+import AddMusicDialog from '../components/AddMusicDialog';
+import AddBookDialog from '../components/AddBookDialog';
+import MusicForm from '../components/MusicForm';
+import CircularProgressBar from '../components/CircularProgressBar';
+import './WishListPage.css';
+
+export interface WishListPageRef {
+  refreshItems: () => Promise<void>;
+}
+
+interface WishListPageProps {
+  searchCriteria?: { searchText?: string; [key: string]: any };
+  onAddMovie?: (mode: string) => void;
+  onAddAlbum?: (mode: string) => void;
+  onAddBook?: (mode: string) => void;
+  onMovieMovedToCollection?: () => void;
+  onAlbumMovedToCollection?: (album: any) => void;
+  onBookMovedToCollection?: (book: any) => void;
+  onShowAlert?: (message: string, type: string) => void;
+  onMovieAdded?: (message: string, type: string) => void;
+  onAlbumAdded?: (id?: number) => void;
+  onBookAdded?: (id?: number) => void;
+  onSearch?: (criteria: any) => void;
+}
+
+interface DeleteModalState {
+  show: boolean;
+  itemId: number | null;
+  itemType: string | null;
+}
+
+interface MarkOwnedModalState {
+  show: boolean;
+  item: any;
+  itemType: string | null;
+}
+
+interface MarkOwnedFormState {
+  title: string;
+  format: string;
+  price: string;
+  condition: string;
+  purchasedAt: string;
+  notes: string;
+}
+
+const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCriteria, onAddMovie, onAddAlbum, onAddBook, onMovieMovedToCollection, onAlbumMovedToCollection, onBookMovedToCollection, onShowAlert, onMovieAdded, onAlbumAdded, onBookAdded, onSearch }, ref) => {
+  const navigate = useNavigate();
+  const [allMovies, setAllMovies] = useState<any[]>([]);
+  const [movies, setMovies] = useState<any[]>([]);
+  const [allAlbums, setAllAlbums] = useState<any[]>([]);
+  const [albums, setAlbums] = useState<any[]>([]);
+  const [allBooks, setAllBooks] = useState<any[]>([]);
+  const [books, setBooks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [selectedMovieDetails, setSelectedMovieDetails] = useState<any>(null);
+  const [selectedAlbumDetails, setSelectedAlbumDetails] = useState<any>(null);
+  const [selectedBookDetails, setSelectedBookDetails] = useState<any>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState<DeleteModalState>({ show: false, itemId: null, itemType: null });
+  const [showMarkOwnedModal, setShowMarkOwnedModal] = useState<MarkOwnedModalState>({ show: false, item: null, itemType: null });
+  const [showAddMusicDialog, setShowAddMusicDialog] = useState(false);
+  const [showMusicForm, setShowMusicForm] = useState(false);
+  const [addingAlbum, setAddingAlbum] = useState(false);
+  const [addError, setAddError] = useState('');
+  const [showAddBookDialog, setShowAddBookDialog] = useState(false);
+  const [addingBook, setAddingBook] = useState(false);
+  const [addBookError, setAddBookError] = useState('');
+  const [markOwnedForm, setMarkOwnedForm] = useState<MarkOwnedFormState>({
+    title: '',
+    format: 'Blu-ray 4K',
+    price: '',
+    condition: '',
+    purchasedAt: '',
+    notes: ''
+  });
+
+  useEffect(() => {
+    loadWishListItems();
+  }, []);
+
+  useImperativeHandle(ref, () => ({
+    refreshItems: loadWishListItems
+  }));
+
+  const loadWishListItems = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      // Load movies, albums, and books in parallel
+      const [wishListMovies, wishListAlbums, wishListBooks] = await Promise.all([
+        apiService.getMoviesByStatus('wish') as Promise<any[]>,
+        musicService.getAlbumsByStatus('wish') as Promise<any[]>,
+        bookService.getBooksByStatus('wish') as Promise<any[]>
+      ]);
+
+      setAllMovies(wishListMovies);
+      setMovies(wishListMovies);
+      setAllAlbums(wishListAlbums);
+      setAlbums(wishListAlbums);
+      setAllBooks(wishListBooks);
+      setBooks(wishListBooks);
+    } catch (err) {
+      setError('Failed to load wish list: ' + (err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter items based on search text from searchCriteria
+  useEffect(() => {
+    const searchText = searchCriteria?.searchText || '';
+    if (!searchText || searchText.trim() === '') {
+      setMovies(allMovies);
+      setAlbums(allAlbums);
+      setBooks(allBooks);
+    } else {
+      // Use the same advanced search logic for movies, albums, and books
+      performAdvancedSearch(searchText);
+    }
+  }, [searchCriteria, allMovies, allAlbums, allBooks]);
+
+  const performAdvancedSearch = async (searchText: string) => {
+    try {
+      // Search movies, albums, and books in parallel
+      const [movieResults, albumResults, bookResults] = await Promise.all([
+        (apiService.searchMovies({
+          searchText,
+          title_status: 'wish'
+        }) as Promise<any[]>).catch(() => {
+          // Fallback to simple search if advanced search fails
+          const searchLower = searchText.toLowerCase().trim();
+          return allMovies.filter(movie => {
+            return (
+              (movie.title && movie.title.toLowerCase().includes(searchLower)) ||
+              (movie.original_title && movie.original_title.toLowerCase().includes(searchLower)) ||
+              (movie.director && movie.director.toLowerCase().includes(searchLower)) ||
+              (movie.comments && movie.comments.toLowerCase().includes(searchLower))
+            );
+          });
+        }),
+        // For albums, we need to search only within wish list albums
+        Promise.resolve().then(() => {
+          const searchLower = searchText.toLowerCase().trim();
+          return allAlbums.filter(album => {
+            // Only include wish list albums
+            if (album.titleStatus !== 'wish') return false;
+
+            const artistString = Array.isArray(album.artist) ? album.artist.join(', ') : album.artist;
+            const genresString = Array.isArray(album.genres) ? album.genres.join(', ') : album.genres;
+            return (
+              (album.title && album.title.toLowerCase().includes(searchLower)) ||
+              (artistString && artistString.toLowerCase().includes(searchLower)) ||
+              (genresString && genresString.toLowerCase().includes(searchLower)) ||
+              (album.catalogNumber && album.catalogNumber.toLowerCase().includes(searchLower)) ||
+              (album.barcode && album.barcode.toLowerCase().includes(searchLower))
+            );
+          });
+        }),
+        // For books, search within wish list books
+        Promise.resolve().then(() => {
+          const searchLower = searchText.toLowerCase().trim();
+          return allBooks.filter(book => {
+            // Only include wish list books
+            if (book.titleStatus !== 'wish') return false;
+
+            const authorsString = Array.isArray(book.authors) ? book.authors.join(', ') : book.authors;
+            const genresString = Array.isArray(book.genres) ? book.genres.join(', ') : book.genres;
+            return (
+              (book.title && book.title.toLowerCase().includes(searchLower)) ||
+              (authorsString && authorsString.toLowerCase().includes(searchLower)) ||
+              (genresString && genresString.toLowerCase().includes(searchLower)) ||
+              (book.isbn && book.isbn.toLowerCase().includes(searchLower)) ||
+              (book.isbn13 && book.isbn13.toLowerCase().includes(searchLower)) ||
+              (book.series && book.series.toLowerCase().includes(searchLower))
+            );
+          });
+        })
+      ]);
+
+      setMovies(movieResults);
+      setAlbums(albumResults);
+      setBooks(bookResults);
+    } catch (error) {
+      console.error('Advanced search failed:', error);
+      // Fallback to simple search
+      const searchLower = searchText.toLowerCase().trim();
+      setMovies(allMovies.filter(movie => {
+        return (
+          (movie.title && movie.title.toLowerCase().includes(searchLower)) ||
+          (movie.original_title && movie.original_title.toLowerCase().includes(searchLower)) ||
+          (movie.director && movie.director.toLowerCase().includes(searchLower)) ||
+          (movie.comments && movie.comments.toLowerCase().includes(searchLower))
+        );
+      }));
+      setAlbums(allAlbums.filter(album => {
+        const artistString = Array.isArray(album.artist) ? album.artist.join(', ') : album.artist;
+        const genresString = Array.isArray(album.genres) ? album.genres.join(', ') : album.genres;
+        return (
+          (album.title && album.title.toLowerCase().includes(searchLower)) ||
+          (artistString && artistString.toLowerCase().includes(searchLower)) ||
+          (genresString && genresString.toLowerCase().includes(searchLower)) ||
+          (album.catalogNumber && album.catalogNumber.toLowerCase().includes(searchLower)) ||
+          (album.barcode && album.barcode.toLowerCase().includes(searchLower))
+        );
+      }));
+      setBooks(allBooks.filter(book => {
+        const authorsString = Array.isArray(book.authors) ? book.authors.join(', ') : book.authors;
+        const genresString = Array.isArray(book.genres) ? book.genres.join(', ') : book.genres;
+        return (
+          (book.title && book.title.toLowerCase().includes(searchLower)) ||
+          (authorsString && authorsString.toLowerCase().includes(searchLower)) ||
+          (genresString && genresString.toLowerCase().includes(searchLower)) ||
+          (book.isbn && book.isbn.toLowerCase().includes(searchLower)) ||
+          (book.isbn13 && book.isbn13.toLowerCase().includes(searchLower)) ||
+          (book.series && book.series.toLowerCase().includes(searchLower))
+        );
+      }));
+    }
+  };
+
+  const handleDeleteItem = async (itemId: number, itemType: string) => {
+    try {
+      setDeletingId(itemId);
+      if (itemType === 'movie') {
+        await apiService.deleteMovie(itemId);
+        setAllMovies(allMovies.filter(movie => movie.id !== itemId));
+        setMovies(movies.filter(movie => movie.id !== itemId));
+      } else if (itemType === 'album') {
+        await musicService.deleteAlbum(itemId);
+        setAllAlbums(allAlbums.filter(album => album.id !== itemId));
+        setAlbums(albums.filter(album => album.id !== itemId));
+      } else if (itemType === 'book') {
+        await bookService.deleteBook(itemId);
+        setAllBooks(allBooks.filter(book => book.id !== itemId));
+        setBooks(books.filter(book => book.id !== itemId));
+      }
+    } catch (err) {
+      setError(`Failed to delete ${itemType}: ` + (err as Error).message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+
+  const handleAddMovie = () => {
+    if (onAddMovie) {
+      onAddMovie('wishlist');
+    } else {
+      navigate('/add-movie-simple?mode=wishlist');
+    }
+  };
+
+  const handleAddAlbum = () => {
+    setShowAddMusicDialog(true);
+  };
+
+  const handleAddBook = () => {
+    setShowAddBookDialog(true);
+  };
+
+  const handleAddBookDialogClose = () => {
+    setShowAddBookDialog(false);
+  };
+
+  const handleAddBookToWishlist = async (bookData: any) => {
+    try {
+      // Set the book status to 'wish' for wish list, preserving all other data
+      const bookDataWithStatus = { ...bookData, titleStatus: 'wish' };
+      const newBook = await bookService.addBook(bookDataWithStatus) as any;
+
+      // Refresh the books list
+      loadWishListItems();
+      setShowAddBookDialog(false);
+
+      if (onBookAdded) {
+        onBookAdded(newBook.id);
+      }
+
+      return newBook;
+    } catch (error) {
+      console.error('Error adding book:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to add book: ' + (error as Error).message, 'danger');
+      }
+      throw error;
+    }
+  };
+
+  const handleAddMusicDialogClose = () => {
+    setShowAddMusicDialog(false);
+  };
+
+  const handleAddCd = async (cdData: any) => {
+    try {
+      // Set the album status to 'wish' for wish list, preserving all other data
+      const albumData = { ...cdData, titleStatus: 'wish' };
+      const newAlbum = await musicService.addAlbum(albumData) as any;
+
+      // Refresh the albums list
+      loadWishListItems();
+      setShowAddMusicDialog(false);
+
+      if (onAlbumAdded) {
+        onAlbumAdded(newAlbum.id);
+      }
+    } catch (error) {
+      console.error('Error adding album:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to add album: ' + (error as Error).message, 'danger');
+      }
+    }
+  };
+
+  const handleAddCdFromMusicBrainz = async (releaseId: string, additionalData: any) => {
+    try {
+      // Set the album status to 'wish' for wish list
+      const albumData = { ...additionalData, titleStatus: 'wish' };
+      const newAlbum = await musicService.addAlbumFromMusicBrainz(releaseId, albumData) as any;
+
+      // Refresh the albums list
+      loadWishListItems();
+      setShowAddMusicDialog(false);
+
+      if (onAlbumAdded) {
+        onAlbumAdded(newAlbum.id);
+      }
+    } catch (error) {
+      console.error('Error adding album:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to add album: ' + (error as Error).message, 'danger');
+      }
+    }
+  };
+
+  const handleAddCdByBarcode = async (barcode: string, additionalData: any) => {
+    try {
+      // Set the album status to 'wish' for wish list
+      const albumData = { ...additionalData, titleStatus: 'wish' };
+      const newAlbum = await musicService.addAlbumByBarcode(barcode, albumData) as any;
+
+      // Refresh the albums list
+      loadWishListItems();
+      setShowAddMusicDialog(false);
+
+      if (onAlbumAdded) {
+        onAlbumAdded(newAlbum.id);
+      }
+    } catch (error) {
+      console.error('Error adding album:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to add album: ' + (error as Error).message, 'danger');
+      }
+    }
+  };
+
+  const handleReviewMetadata = async (release: any, allReleasesInGroup: any) => {
+    console.log('handleReviewMetadata called with:', {
+      release: release ? (release.title || release.id) : 'null',
+      allReleasesInGroup: allReleasesInGroup ? allReleasesInGroup.length : 'undefined'
+    });
+
+    if (release === null) {
+      // Manual entry case - open MusicForm
+      console.log('Opening MusicForm for manual entry');
+      setShowAddMusicDialog(false);
+      setShowMusicForm(true);
+      return;
+    }
+
+    // Check if this is an album object (from the new workflow) or a release object (from the old workflow)
+    if (release.id && !release.musicbrainzReleaseId) {
+      // This is an album object from the new workflow - open detail view
+      console.log('Opening detail view for album:', release.title);
+      setShowAddMusicDialog(false);
+
+      // Refresh the albums list to include the new album
+      loadWishListItems();
+
+      if (onAlbumAdded) {
+        onAlbumAdded(release.id);
+      }
+      return;
+    }
+
+    // Old workflow - add the album directly without review
+    try {
+      console.log('Adding album directly to wish list:', release.title);
+      setAddingAlbum(true);
+
+      // Use the MusicBrainz service to add the album with full metadata
+      const newAlbum = await musicService.addAlbumFromMusicBrainz(
+        release.musicbrainzReleaseId,
+        { titleStatus: 'wish' }
+      ) as any;
+
+      // Refresh the albums list
+      loadWishListItems();
+      setShowAddMusicDialog(false);
+
+      if (onAlbumAdded) {
+        onAlbumAdded(newAlbum.id);
+      }
+
+      console.log('Album added successfully:', newAlbum.title);
+    } catch (error) {
+      console.error('Error adding album:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to add album: ' + (error as Error).message, 'danger');
+      }
+    } finally {
+      setAddingAlbum(false);
+    }
+  };
+
+  const handleMusicFormClose = () => {
+    console.log('Closing MusicForm');
+    setShowMusicForm(false);
+  };
+
+  const handleMusicFormSave = async (cdData: any) => {
+    try {
+      // Set the album status to 'wish' for wish list
+      const albumData = { ...cdData, titleStatus: 'wish' };
+      const newAlbum = await musicService.addAlbum(albumData) as any;
+
+      // Refresh the albums list
+      loadWishListItems();
+      setShowMusicForm(false);
+
+      if (onAlbumAdded) {
+        onAlbumAdded(newAlbum.id);
+      }
+
+      return newAlbum;
+    } catch (error) {
+      console.error('Error adding album:', error);
+      if (onShowAlert) {
+        onShowAlert('Failed to add album: ' + (error as Error).message, 'danger');
+      }
+      throw error;
+    }
+  };
+
+  const handleItemClick = async (itemId: number, itemType: string) => {
+    try {
+      setLoadingDetails(true);
+      if (itemType === 'movie') {
+        const movieDetails = await apiService.getMovieDetails(itemId);
+        setSelectedMovieDetails(movieDetails);
+        setSelectedAlbumDetails(null);
+        setSelectedBookDetails(null);
+      } else if (itemType === 'album') {
+        const albumDetails = await musicService.getAlbumById(itemId);
+        setSelectedAlbumDetails(albumDetails);
+        setSelectedMovieDetails(null);
+        setSelectedBookDetails(null);
+      } else if (itemType === 'book') {
+        const bookDetails = await bookService.getBookById(itemId);
+        setSelectedBookDetails(bookDetails);
+        setSelectedMovieDetails(null);
+        setSelectedAlbumDetails(null);
+      }
+    } catch (error) {
+      console.error(`Failed to load ${itemType} details:`, error);
+      setError(`Failed to load ${itemType} details: ` + (error as Error).message);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const handleCloseDetails = () => {
+    setSelectedMovieDetails(null);
+    setSelectedAlbumDetails(null);
+    setSelectedBookDetails(null);
+  };
+
+  const handleBookClick = async (bookId: number) => {
+    try {
+      setLoadingDetails(true);
+      const bookDetails = await bookService.getBookById(bookId);
+      setSelectedBookDetails(bookDetails);
+      setSelectedMovieDetails(null);
+      setSelectedAlbumDetails(null);
+    } catch (error) {
+      console.error('Failed to load book details:', error);
+      setError('Failed to load book details: ' + (error as Error).message);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  // Refresh function for detail card that updates thumbnails without affecting dialog
+  const handleRefreshForDetailCard = async () => {
+    try {
+      const [wishListMovies, wishListAlbums, wishListBooks] = await Promise.all([
+        apiService.getMoviesByStatus('wish') as Promise<any[]>,
+        musicService.getAlbumsByStatus('wish') as Promise<any[]>,
+        bookService.getBooksByStatus('wish') as Promise<any[]>
+      ]);
+
+      // Update the lists to refresh thumbnails
+      setAllMovies(wishListMovies);
+      setMovies(wishListMovies);
+      setAllAlbums(wishListAlbums);
+      setAlbums(wishListAlbums);
+      setAllBooks(wishListBooks);
+      setBooks(wishListBooks);
+
+      // If there's a selected item, update its data in the list without changing selected details
+      if (selectedMovieDetails) {
+        const updatedMovie = wishListMovies.find((movie: any) => movie.id === selectedMovieDetails.id);
+        if (updatedMovie) {
+          setSelectedMovieDetails((prev: any) => ({
+            ...prev,
+            ...updatedMovie
+          }));
+        }
+      }
+
+      if (selectedAlbumDetails) {
+        const updatedAlbum = wishListAlbums.find((album: any) => album.id === selectedAlbumDetails.id);
+        if (updatedAlbum) {
+          setSelectedAlbumDetails((prev: any) => ({
+            ...prev,
+            ...updatedAlbum
+          }));
+        }
+      }
+
+      if (selectedBookDetails) {
+        const updatedBook = wishListBooks.find((book: any) => book.id === selectedBookDetails.id);
+        if (updatedBook) {
+          setSelectedBookDetails((prev: any) => ({
+            ...prev,
+            ...updatedBook
+          }));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to refresh wish list:', err);
+    }
+  };
+
+  const handleDeleteClick = (itemId: number, itemType: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowDeleteModal({ show: true, itemId, itemType });
+  };
+
+  const handleMarkOwnedClick = (item: any, itemType: string, e: React.MouseEvent | { stopPropagation: () => void }) => {
+    e.stopPropagation();
+    let defaultFormat = 'CD';
+    if (itemType === 'movie') {
+      defaultFormat = item.format || 'Blu-ray 4K';
+    } else if (itemType === 'book') {
+      defaultFormat = item.format || 'Hardcover';
+    }
+    setMarkOwnedForm({
+      title: item.title,
+      format: defaultFormat,
+      price: '',
+      condition: '',
+      purchasedAt: '',
+      notes: ''
+    });
+    setShowMarkOwnedModal({ show: true, item, itemType });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (showDeleteModal.itemId && showDeleteModal.itemType) {
+      await handleDeleteItem(showDeleteModal.itemId, showDeleteModal.itemType);
+      setShowDeleteModal({ show: false, itemId: null, itemType: null });
+    }
+  };
+
+  const handleMarkOwnedConfirm = async () => {
+    if (showMarkOwnedModal.item && showMarkOwnedModal.itemType) {
+      try {
+        const itemType = showMarkOwnedModal.itemType;
+        const item = showMarkOwnedModal.item;
+
+        if (itemType === 'movie') {
+          const movieData = {
+            title: markOwnedForm.title,
+            format: markOwnedForm.format || 'Blu-ray 4K',
+            price: markOwnedForm.price ? parseFloat(markOwnedForm.price) : null,
+            acquired_date: new Date().toISOString().split('T')[0],
+            title_status: 'owned'
+          };
+
+          await apiService.updateMovie(item.id, movieData);
+
+          // Remove from wish list
+          setAllMovies(allMovies.filter(m => m.id !== item.id));
+          setMovies(movies.filter(m => m.id !== item.id));
+
+          // Notify parent component to refresh collection
+          if (onMovieMovedToCollection) {
+            onMovieMovedToCollection();
+          }
+        } else if (itemType === 'album') {
+          const albumData = {
+            ...item,
+            titleStatus: 'owned',
+            ownership: {
+              ...item.ownership,
+              condition: markOwnedForm.condition || item.ownership?.condition,
+              purchasedAt: markOwnedForm.purchasedAt || item.ownership?.purchasedAt,
+              priceChf: parseFloat(markOwnedForm.price) || item.ownership?.priceChf,
+              notes: markOwnedForm.notes || item.ownership?.notes
+            }
+          };
+
+          await musicService.updateAlbum(item.id, albumData);
+
+          // Remove from wish list
+          setAllAlbums(allAlbums.filter(a => a.id !== item.id));
+          setAlbums(albums.filter(a => a.id !== item.id));
+
+          // Notify parent component to refresh collection
+          if (onAlbumMovedToCollection) {
+            onAlbumMovedToCollection(item);
+          }
+        } else if (itemType === 'book') {
+          const bookData = {
+            ...item,
+            titleStatus: 'owned',
+            format: markOwnedForm.format || item.format || 'Hardcover',
+            price: markOwnedForm.price ? parseFloat(markOwnedForm.price) : item.price
+          };
+
+          await bookService.updateBook(item.id, bookData);
+
+          // Remove from wish list
+          setAllBooks(allBooks.filter(b => b.id !== item.id));
+          setBooks(books.filter(b => b.id !== item.id));
+
+          // Notify parent component to refresh collection
+          if (onBookMovedToCollection) {
+            onBookMovedToCollection(item);
+          }
+        }
+
+        // Show success message
+        setError(''); // Clear any previous errors
+        const itemTypeName = itemType === 'movie' ? 'Movie' : itemType === 'album' ? 'Album' : 'Book';
+        console.log(`${itemTypeName} "${markOwnedForm.title}" successfully moved to collection!`);
+
+        setShowMarkOwnedModal({ show: false, item: null, itemType: null });
+        setMarkOwnedForm({
+          title: '',
+          format: 'Blu-ray 4K',
+          price: '',
+          condition: '',
+          purchasedAt: '',
+          notes: ''
+        });
+      } catch (err) {
+        setError(`Failed to mark ${showMarkOwnedModal.itemType} as owned: ` + (err as Error).message);
+      }
+    }
+  };
+
+  const handleCopyToClipboard = async () => {
+    if (allMovies.length === 0 && allAlbums.length === 0 && allBooks.length === 0) return;
+
+    // Create markdown list from all items (not filtered)
+    let markdown = 'wishlist:\n';
+
+    // Add movies
+    allMovies.forEach(movie => {
+      const year = getYear(movie);
+      const format = movie.format || 'Unspecified';
+      markdown += ` - 🎬 ${movie.title} (${year}) in ${format}\n`;
+    });
+
+    // Add albums
+    allAlbums.forEach(album => {
+      const year = album.releaseYear || 'Unknown';
+      const format = album.format || 'CD';
+      const artistString = Array.isArray(album.artist) ? album.artist.join(', ') : album.artist;
+      markdown += ` - 🎵 ${album.title} by ${artistString} (${year}) in ${format}\n`;
+    });
+
+    // Add books
+    allBooks.forEach(book => {
+      const year = book.publishedYear || 'Unknown';
+      const format = book.format || 'Hardcover';
+      const authorsString = Array.isArray(book.authors) ? book.authors.join(', ') : book.authors;
+      markdown += ` - 📚 ${book.title} by ${authorsString || 'Unknown'} (${year}) in ${format}\n`;
+    });
+
+    try {
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(markdown);
+        if (onShowAlert) {
+          onShowAlert('Wishlist copied to clipboard!', 'success');
+        }
+        return;
+      }
+    } catch (err) {
+      console.log('Modern clipboard API failed, trying fallback method:', err);
+    }
+
+    // Fallback method for iframe/restricted contexts (like Home Assistant)
+    try {
+      // Save the current active element to restore focus later
+      const activeElement = document.activeElement as HTMLElement;
+
+      const textArea = document.createElement('textarea');
+      textArea.value = markdown;
+      // Position off-screen to prevent any visual flickering
+      textArea.style.position = 'absolute';
+      textArea.style.left = '-9999px';
+      textArea.style.top = '-9999px';
+      textArea.style.width = '1px';
+      textArea.style.height = '1px';
+      textArea.style.padding = '0';
+      textArea.style.border = '0';
+      textArea.style.outline = '0';
+      textArea.style.boxShadow = 'none';
+      textArea.style.background = 'transparent';
+      textArea.style.pointerEvents = 'none';
+      textArea.setAttribute('readonly', '');
+      textArea.setAttribute('aria-hidden', 'true');
+      textArea.tabIndex = -1;
+
+      document.body.appendChild(textArea);
+
+      // Select the text
+      textArea.select();
+      textArea.setSelectionRange(0, textArea.value.length);
+
+      const successful = document.execCommand('copy');
+
+      // Clean up
+      document.body.removeChild(textArea);
+
+      // Restore focus to prevent flickering
+      if (activeElement && activeElement.focus) {
+        activeElement.focus();
+      }
+
+      if (successful) {
+        if (onShowAlert) {
+          onShowAlert('Wishlist copied to clipboard!', 'success');
+        }
+      } else {
+        throw new Error('execCommand failed');
+      }
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      if (onShowAlert) {
+        onShowAlert('Failed to copy to clipboard', 'danger');
+      }
+    }
+  };
+
+  const handleEditMovie = (movieId: number) => {
+    // Navigate to edit page or open edit modal
+    console.log('Edit movie:', movieId);
+  };
+
+  const handleDeleteItemFromDetails = async (itemId: number, itemType: string) => {
+    try {
+      if (itemType === 'movie') {
+        await apiService.deleteMovie(itemId);
+        setAllMovies(allMovies.filter(movie => movie.id !== itemId));
+        setMovies(movies.filter(movie => movie.id !== itemId));
+        setSelectedMovieDetails(null);
+      } else if (itemType === 'album') {
+        await musicService.deleteAlbum(itemId);
+        setAllAlbums(allAlbums.filter(album => album.id !== itemId));
+        setAlbums(albums.filter(album => album.id !== itemId));
+        setSelectedAlbumDetails(null);
+      } else if (itemType === 'book') {
+        await bookService.deleteBook(itemId);
+        setAllBooks(allBooks.filter(book => book.id !== itemId));
+        setBooks(books.filter(book => book.id !== itemId));
+        setSelectedBookDetails(null);
+      }
+    } catch (err) {
+      setError(`Failed to delete ${itemType}: ` + (err as Error).message);
+    }
+  };
+
+  const handleCopyBarcode = (barcode: string) => {
+    navigator.clipboard.writeText(barcode);
+    if (onShowAlert) {
+      onShowAlert('Barcode copied to clipboard!', 'info');
+    }
+  };
+
+  const handleCopyCatalogNumber = (catalogNumber: string) => {
+    navigator.clipboard.writeText(catalogNumber);
+    if (onShowAlert) {
+      onShowAlert('Catalog number copied to clipboard!', 'info');
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'Unknown';
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const getYear = (movie: any) => {
+    if (movie.release_date) {
+      return new Date(movie.release_date).getFullYear();
+    }
+    return movie.year || 'Unknown';
+  };
+
+  const getRatingPercentage = (rating: any, maxRating: number = 10) => {
+    if (!rating || rating === '-') return 0;
+    return Math.min(Math.max((parseFloat(rating) / maxRating) * 100, 0), 100);
+  };
+
+  const getRatingColor = (rating: any, maxRating: number = 10) => {
+    if (!rating || rating === '-') return '#3a3a3a';
+
+    const percentage = (parseFloat(rating) / maxRating) * 100;
+
+    // Red to green continuum based on score
+    if (percentage >= 80) {
+      return '#22c55e'; // Excellent - bright green
+    } else if (percentage >= 70) {
+      return '#4ade80'; // Very good - medium green
+    } else if (percentage >= 60) {
+      return '#6ee7b7'; // Good - light green
+    } else if (percentage >= 50) {
+      return '#86efac'; // Fair - pale green
+    } else if (percentage >= 40) {
+      return '#a7f3d0'; // Below average - very pale green
+    } else if (percentage >= 30) {
+      return '#fbbf24'; // Poor - amber
+    } else if (percentage >= 20) {
+      return '#f59e0b'; // Very poor - orange
+    } else {
+      return '#ef4444'; // Terrible - red
+    }
+  };
+
+  const formatRating = (rating: any) => {
+    return rating ? rating.toString() : '-';
+  };
+
+  if (loading) {
+    return (
+      <div className="wishlist-page">
+        <div className="loading">Loading wish list...</div>
+      </div>
+    );
+  }
+
+  const searchText = searchCriteria?.searchText || '';
+  const hasSearchText = searchText && searchText.trim() !== '';
+  const totalItems = movies.length + albums.length + books.length;
+  const totalAllItems = allMovies.length + allAlbums.length + allBooks.length;
+
+  return (
+    <div className="wishlist-page">
+      <div className="wishlist-header">
+        <div className="wishlist-title-section">
+          <h1>My Wish List</h1>
+          {totalAllItems > 0 && (
+            <span className="wishlist-count">
+              ({totalItems}{hasSearchText ? ` of ${totalAllItems}` : ''} item{totalItems !== 1 ? 's' : ''})
+            </span>
+          )}
+        </div>
+        <div className="wishlist-actions">
+          {totalAllItems > 0 && (
+            <button
+              className="copy-clipboard-btn"
+              onClick={handleCopyToClipboard}
+              title="Copy wishlist to clipboard as markdown"
+            >
+              <BsClipboard />
+            </button>
+          )}
+          <div className="add-buttons">
+            <button
+              className="add-movie-btn"
+              onClick={handleAddMovie}
+              title="Add Movie to Wish List"
+            >
+              <BsFilm className="me-2" />
+              Add Movie
+            </button>
+            <button
+              className="add-album-btn"
+              onClick={handleAddAlbum}
+              title="Add Album to Wish List"
+            >
+              <BsMusicNote className="me-2" />
+              Add Album
+            </button>
+            <button
+              className="add-book-btn"
+              onClick={handleAddBook}
+              title="Add Book to Wish List"
+            >
+              <BsBook className="me-2" />
+              Add Book
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <div className="error-message">
+          {error}
+        </div>
+      )}
+
+      {totalAllItems === 0 ? (
+        <div className="empty-wishlist">
+          <h3>Your wish list is empty</h3>
+          <p>Add movies, albums, and books you'd like to acquire to your collection.</p>
+          <div className="add-buttons">
+            <button
+              className="add-movie-btn"
+              onClick={handleAddMovie}
+            >
+              <BsFilm className="me-2" />
+              Add Your First Movie
+            </button>
+            <button
+              className="add-album-btn"
+              onClick={handleAddAlbum}
+            >
+              <BsMusicNote className="me-2" />
+              Add Your First Album
+            </button>
+            <button
+              className="add-book-btn"
+              onClick={handleAddBook}
+            >
+              <BsBook className="me-2" />
+              Add Your First Book
+            </button>
+          </div>
+        </div>
+      ) : totalItems === 0 ? (
+        <div className="empty-wishlist">
+          <h3>No items found</h3>
+          <p>Try a different search term.</p>
+        </div>
+      ) : (
+        <div className="wishlist-content">
+          {/* Movies Section */}
+          {movies.length > 0 && (
+            <div className="wishlist-section">
+              <h2 className="wish-list-section-title">
+                <BsFilm className="me-2" />
+                Movies ({movies.length})
+              </h2>
+              <div className="table-responsive">
+                <table className="table table-dark table-striped table-hover">
+                  <thead className="thead-dark">
+                    <tr>
+                      <th scope="col">Poster</th>
+                      <th scope="col">Title</th>
+                      <th scope="col">Year</th>
+                      <th scope="col">Ratings</th>
+                      <th scope="col">Added Date</th>
+                      <th scope="col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {movies.map((movie) => (
+                      <tr
+                        key={`movie-${movie.id}`}
+                        className="clickable-row"
+                        onClick={() => handleItemClick(movie.id, 'movie')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <td>
+                          <div className="table-poster">
+                            <MovieThumbnail
+                              imdbLink={movie.imdb_id ? `https://www.imdb.com/title/${movie.imdb_id}` : movie.imdb_link}
+                              title={movie.title}
+                              year={getYear(movie)}
+                              className="movie-thumbnail-table"
+                              disableZoom={true}
+                              posterPath={movie.poster_path}
+                              recommendedAge={movie.recommended_age}
+                            />
+                          </div>
+                        </td>
+                        <td>
+                          <div className="movie-title-cell">
+                            <strong>{movie.title}</strong>
+                            {movie.original_title && movie.original_title !== movie.title && (
+                              <div className="original-title">{movie.original_title}</div>
+                            )}
+                          </div>
+                        </td>
+                        <td>{getYear(movie)}</td>
+                        <td>
+                          <div className="ratings-cell">
+                            {movie.tmdb_rating && (
+                              <div className="rating-widget">
+                                <CircularProgressBar
+                                  percentage={getRatingPercentage(movie.tmdb_rating, 10)}
+                                  color={getRatingColor(movie.tmdb_rating, 10)}
+                                  size="medium"
+                                  className="tmdb-progress"
+                                >
+                                  <span className="rating-score">{movie.tmdb_rating.toFixed(1)}</span>
+                                </CircularProgressBar>
+                                <span className="rating-label">TMDB</span>
+                              </div>
+                            )}
+                            {movie.imdb_rating && (
+                              <div className="rating-widget">
+                                <CircularProgressBar
+                                  percentage={getRatingPercentage(movie.imdb_rating, 10)}
+                                  color={getRatingColor(movie.imdb_rating, 10)}
+                                  size="medium"
+                                  className="imdb-progress"
+                                >
+                                  <span className="rating-score">{formatRating(movie.imdb_rating)}</span>
+                                </CircularProgressBar>
+                                <span className="rating-label">IMDB</span>
+                              </div>
+                            )}
+                            {movie.rotten_tomato_rating && (
+                              <div className="rating-widget">
+                                <CircularProgressBar
+                                  percentage={movie.rotten_tomato_rating}
+                                  color={getRatingColor(movie.rotten_tomato_rating, 100)}
+                                  size="medium"
+                                  className="rt-progress"
+                                >
+                                  <span className="rating-score">{movie.rotten_tomato_rating}%</span>
+                                </CircularProgressBar>
+                                <span className="rating-label">RT</span>
+                              </div>
+                            )}
+                            {!movie.tmdb_rating && !movie.imdb_rating && !movie.rotten_tomato_rating && '-'}
+                          </div>
+                        </td>
+                        <td>{formatDate(movie.acquired_date)}</td>
+                        <td>
+                          <div className="actions-cell">
+                            <button
+                              type="button"
+                              className="action-button delete"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(movie.id, 'movie', e);
+                              }}
+                              disabled={deletingId === movie.id}
+                              title="Delete movie"
+                            >
+                              <BsTrash />
+                            </button>
+                            <button
+                              type="button"
+                              className="action-button mark-owned"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkOwnedClick(movie, 'movie', e);
+                              }}
+                              title="Mark as owned"
+                            >
+                              <BsCurrencyDollar />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Albums Section */}
+          {albums.length > 0 && (
+            <div className="wishlist-section">
+              <h2 className="wish-list-section-title">
+                <BsMusicNote className="me-2" />
+                Albums ({albums.length})
+              </h2>
+              <div className="table-responsive">
+                <table className="table table-dark table-striped table-hover">
+                  <thead className="thead-dark">
+                    <tr>
+                      <th scope="col">Cover</th>
+                      <th scope="col">Title</th>
+                      <th scope="col">Artist</th>
+                      <th scope="col">Year</th>
+                      <th scope="col">Format</th>
+                      <th scope="col">Added Date</th>
+                      <th scope="col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {albums.map((album) => (
+                      <tr
+                        key={`album-${album.id}`}
+                        className="clickable-row"
+                        onClick={() => handleItemClick(album.id, 'album')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <td>
+                          <div className="album-poster">
+                            <img
+                              src={musicService.getImageUrl(album.cover) || musicService.getImageUrl('/placeholder-album.png') || undefined}
+                              alt={album.title}
+                              className="music-thumbnail-table"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = musicService.getImageUrl('/placeholder-album.png') || '';
+                              }}
+                            />
+                          </div>
+                        </td>
+                        <td>
+                          <div className="album-title-cell">
+                            <strong>{album.title}</strong>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="artist-cell">
+                            {Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}
+                          </div>
+                        </td>
+                        <td>{album.releaseYear || 'Unknown'}</td>
+                        <td>{album.format || 'CD'}</td>
+                        <td>{formatDate(album.createdAt)}</td>
+                        <td>
+                          <div className="actions-cell">
+                            <button
+                              type="button"
+                              className="action-button delete"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(album.id, 'album', e);
+                              }}
+                              disabled={deletingId === album.id}
+                              title="Delete album"
+                            >
+                              <BsTrash />
+                            </button>
+                            <button
+                              type="button"
+                              className="action-button mark-owned"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkOwnedClick(album, 'album', e);
+                              }}
+                              title="Mark as owned"
+                            >
+                              <BsCurrencyDollar />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Books Section */}
+          {books.length > 0 && (
+            <div className="wishlist-section">
+              <h2 className="wish-list-section-title">
+                <BsBook className="me-2" />
+                Books ({books.length})
+              </h2>
+              <div className="table-responsive">
+                <table className="table table-dark table-striped table-hover">
+                  <thead className="thead-dark">
+                    <tr>
+                      <th scope="col">Cover</th>
+                      <th scope="col">Title</th>
+                      <th scope="col">Author</th>
+                      <th scope="col">Year</th>
+                      <th scope="col">Format</th>
+                      <th scope="col">Added Date</th>
+                      <th scope="col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {books.map((book) => (
+                      <tr
+                        key={`book-${book.id}`}
+                        className="clickable-row"
+                        onClick={() => handleItemClick(book.id, 'book')}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <td>
+                          <div className="book-poster" style={{ position: 'relative' }}>
+                            {book.ebookFile && book.ebookFile.trim() && (
+                              <div
+                                className="book-thumbnail-ebook-badge"
+                                title="T\u00e9l\u00e9charger l'e-book"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    await bookService.downloadEbook(book.id);
+                                  } catch (error) {
+                                    console.error('Error downloading ebook:', error);
+                                    alert('Erreur lors du t\u00e9l\u00e9chargement de l\'e-book: ' + (error as Error).message);
+                                  }
+                                }}
+                              >
+                                <BsFileEarmark size={14} />
+                              </div>
+                            )}
+                            <img
+                              src={bookService.getImageUrl(book.cover) || bookService.getImageUrl('/placeholder-book.png') || undefined}
+                              alt={book.title}
+                              className="book-thumbnail-table"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = bookService.getImageUrl('/placeholder-book.png') || '';
+                              }}
+                            />
+                          </div>
+                        </td>
+                        <td>
+                          <div className="book-title-cell">
+                            <strong>{book.title}</strong>
+                            {book.series && (
+                              <div className="book-series">{book.series}{book.seriesNumber ? ` #${book.seriesNumber}` : ''}</div>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="author-cell">
+                            {Array.isArray(book.authors) ? book.authors.join(', ') : book.authors || 'Unknown'}
+                          </div>
+                        </td>
+                        <td>{book.publishedYear || 'Unknown'}</td>
+                        <td>{book.format || 'Hardcover'}</td>
+                        <td>{formatDate(book.createdAt)}</td>
+                        <td>
+                          <div className="actions-cell">
+                            <button
+                              type="button"
+                              className="action-button delete"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(book.id, 'book', e);
+                              }}
+                              disabled={deletingId === book.id}
+                              title="Delete book"
+                            >
+                              <BsTrash />
+                            </button>
+                            <button
+                              type="button"
+                              className="action-button mark-owned"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkOwnedClick(book, 'book', e);
+                              }}
+                              title="Mark as owned"
+                            >
+                              <BsCurrencyDollar />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Detail Cards */}
+      {(selectedMovieDetails && !loadingDetails) && (
+        <MovieDetailCard
+          movieDetails={selectedMovieDetails}
+          loading={loadingDetails}
+          onClose={handleCloseDetails}
+          onEdit={handleEditMovie as (...args: unknown[]) => void}
+          onDelete={() => handleDeleteItemFromDetails(selectedMovieDetails.id, 'movie')}
+          onShowAlert={onShowAlert}
+          onRefresh={handleRefreshForDetailCard}
+          onMovieClick={(movieId: number) => handleItemClick(movieId, 'movie')}
+          onSearch={onSearch}
+        />
+      )}
+
+      {(selectedAlbumDetails && !loadingDetails) && (
+        <MusicDetailCard
+          cd={selectedAlbumDetails}
+          onClose={handleCloseDetails}
+          onDelete={() => handleDeleteItemFromDetails(selectedAlbumDetails.id, 'album')}
+          onSearch={onSearch}
+        />
+      )}
+
+      {(selectedBookDetails && !loadingDetails) && (
+        <BookDetailCard
+          book={selectedBookDetails}
+          onClose={handleCloseDetails}
+          onEdit={() => {}}
+          onDelete={() => handleDeleteItemFromDetails(selectedBookDetails.id, 'book')}
+          onUpdateBook={async (id: number | string, bookData: any) => {
+            await bookService.updateBook(id, bookData);
+            handleRefreshForDetailCard();
+          }}
+          onBookUpdated={handleRefreshForDetailCard}
+          onSearch={onSearch}
+          onAddNextVolume={() => {}}
+          onAddBooksBatch={() => {}}
+          onAddStart={() => {}}
+          onBookAdded={() => {}}
+          onAddError={() => {}}
+          onBookClick={handleBookClick}
+        />
+      )}
+
+      {/* Loading indicator for detail cards */}
+      {loadingDetails && (
+        <div className="modal show" style={{ display: 'block' }} tabIndex={-1}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-body text-center">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+                <p className="mt-3 mb-0">Loading details...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal.show && (
+        <div className="modal show" style={{ display: 'block' }} tabIndex={-1}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Delete {showDeleteModal.itemType === 'movie' ? 'Movie' : showDeleteModal.itemType === 'album' ? 'Album' : 'Book'}</h5>
+              </div>
+              <div className="modal-body">
+                <p>Are you sure you want to remove this {showDeleteModal.itemType} from your wish list?</p>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowDeleteModal({ show: false, itemId: null, itemType: null })}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={handleDeleteConfirm}
+                  disabled={deletingId === showDeleteModal.itemId}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mark as Owned Modal */}
+      {showMarkOwnedModal.show && (
+        <div className="modal show" style={{ display: 'block' }} tabIndex={-1}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Add to Collection</h5>
+              </div>
+              <div className="modal-body">
+                <div className="form-group mb-3">
+                  <label htmlFor="title">Title</label>
+                  <input
+                    type="text"
+                    id="title"
+                    className="form-control"
+                    value={markOwnedForm.title}
+                    onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, title: e.target.value }))}
+                  />
+                </div>
+                <div className="form-group mb-3">
+                  <label htmlFor="format">Format</label>
+                  <select
+                    id="format"
+                    className="form-control"
+                    value={markOwnedForm.format}
+                    onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, format: e.target.value }))}
+                  >
+                    {showMarkOwnedModal.itemType === 'movie' ? (
+                      <>
+                        <option value="Unspecified">Unspecified</option>
+                        <option value="Blu-ray 4K">Blu-ray 4K</option>
+                        <option value="Blu-ray">Blu-ray</option>
+                        <option value="DVD">DVD</option>
+                        <option value="Digital">Digital</option>
+                      </>
+                    ) : showMarkOwnedModal.itemType === 'album' ? (
+                      <>
+                        <option value="CD">CD</option>
+                        <option value="Vinyl">Vinyl</option>
+                        <option value="Digital">Digital</option>
+                        <option value="Cassette">Cassette</option>
+                        <option value="Other">Other</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="Hardcover">Hardcover</option>
+                        <option value="Paperback">Paperback</option>
+                        <option value="Ebook">Ebook</option>
+                        <option value="Audiobook">Audiobook</option>
+                        <option value="Other">Other</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+                <div className="form-group mb-3">
+                  <label htmlFor="price">Price</label>
+                  <input
+                    type="number"
+                    id="price"
+                    step="0.01"
+                    className="form-control"
+                    value={markOwnedForm.price}
+                    onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, price: e.target.value }))}
+                    placeholder="Price paid"
+                  />
+                </div>
+                {showMarkOwnedModal.itemType === 'album' && (
+                  <>
+                    <div className="form-group mb-3">
+                      <label htmlFor="condition">Condition</label>
+                      <select
+                        id="condition"
+                        className="form-control"
+                        value={markOwnedForm.condition}
+                        onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, condition: e.target.value }))}
+                      >
+                        <option value="">-</option>
+                        <option value="M">Mint (M)</option>
+                        <option value="NM">Near Mint (NM)</option>
+                        <option value="VG+">Very Good Plus (VG+)</option>
+                        <option value="VG">Very Good (VG)</option>
+                      </select>
+                    </div>
+                    <div className="form-group mb-3">
+                      <label htmlFor="purchasedAt">Purchased At</label>
+                      <input
+                        type="date"
+                        id="purchasedAt"
+                        className="form-control"
+                        value={markOwnedForm.purchasedAt}
+                        onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, purchasedAt: e.target.value }))}
+                      />
+                    </div>
+                    <div className="form-group mb-3">
+                      <label htmlFor="notes">Notes</label>
+                      <textarea
+                        id="notes"
+                        className="form-control"
+                        rows={3}
+                        value={markOwnedForm.notes}
+                        onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, notes: e.target.value }))}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowMarkOwnedModal({ show: false, item: null, itemType: null })}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-success"
+                  onClick={handleMarkOwnedConfirm}
+                  disabled={!markOwnedForm.title.trim()}
+                >
+                  Add to Collection
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Music Dialog */}
+      {showAddMusicDialog && (
+        <AddMusicDialog
+          show={showAddMusicDialog}
+          onHide={handleAddMusicDialogClose}
+          onAddCd={handleAddCd}
+          onAddCdFromMusicBrainz={handleAddCdFromMusicBrainz}
+          onAddCdByBarcode={handleAddCdByBarcode}
+          onReviewMetadata={handleReviewMetadata}
+          defaultTitleStatus="wish"
+          onAlbumAdded={() => {
+            // Immediately refresh wishlist when album is added
+            loadWishListItems();
+            setAddingAlbum(false);
+            setAddError('');
+            if (onAlbumAdded) onAlbumAdded();
+          }}
+          onAddStart={() => {
+            setShowAddMusicDialog(false); // close dialog instantly
+            setAddingAlbum(true);
+            setAddError('');
+          }}
+          onAddError={(err: any) => {
+            setAddingAlbum(false);
+            setAddError(err?.message || 'Failed to add album');
+            if (onShowAlert) onShowAlert('Failed to add album: ' + (err?.message || ''), 'danger');
+          }}
+        />
+      )}
+
+      {/* Add Book Dialog */}
+      {showAddBookDialog && (
+        <AddBookDialog
+          show={showAddBookDialog}
+          onHide={handleAddBookDialogClose}
+          onAddBook={handleAddBookToWishlist}
+          defaultTitleStatus="wish"
+          templateBook={undefined}
+          onAddBooksBatch={undefined}
+          onShowAlert={onShowAlert || undefined}
+          onBookAdded={() => {
+            // Immediately refresh wishlist when book is added
+            loadWishListItems();
+            setAddingBook(false);
+            setAddBookError('');
+            if (onBookAdded) onBookAdded();
+          }}
+          onAddStart={() => {
+            setShowAddBookDialog(false); // close dialog instantly
+            setAddingBook(true);
+            setAddBookError('');
+          }}
+          onAddError={(err: any) => {
+            setAddingBook(false);
+            setAddBookError(err?.message || 'Failed to add book');
+            if (onShowAlert) onShowAlert('Failed to add book: ' + (err?.message || ''), 'danger');
+          }}
+        />
+      )}
+
+      {/* Music Form for Manual Entry */}
+      {showMusicForm && (
+        <MusicForm
+          onCancel={handleMusicFormClose}
+          onSave={handleMusicFormSave}
+        />
+      )}
+
+      {/* Loading indicator for album addition */}
+      {addingAlbum && (
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+          <div className="loading-message">
+            Adding album to your wish list...
+          </div>
+        </div>
+      )}
+
+      {/* Loading indicator for book addition */}
+      {addingBook && (
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+          <div className="loading-message">
+            Adding book to your wish list...
+          </div>
+        </div>
+      )}
+
+      {addError && (
+        <div className="error-message">
+          {addError}
+        </div>
+      )}
+
+      {addBookError && (
+        <div className="error-message">
+          {addBookError}
+        </div>
+      )}
+
+
+      {/* Modal backdrop */}
+      {(showDeleteModal.show || showMarkOwnedModal.show || loadingDetails || showAddMusicDialog || showMusicForm || addingAlbum || showAddBookDialog || addingBook) && (
+        <div className="modal-backdrop show"></div>
+      )}
+
+    </div>
+  );
+});
+
+WishListPage.displayName = 'WishListPage';
+
+export default WishListPage;

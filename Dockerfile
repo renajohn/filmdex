@@ -19,12 +19,13 @@ RUN apk add --no-cache python3 make g++ sqlite-dev curl ffmpeg
 
 WORKDIR /app
 
-# Install backend dependencies
+# Install backend dependencies (include dev deps for tsx)
 COPY backend/package*.json ./backend/
-RUN cd backend && npm install --omit=dev
+COPY backend/tsconfig.json ./backend/
+RUN cd backend && npm install
 
 # Copy backend source
-COPY backend/index.js ./backend/
+COPY backend/index.ts ./backend/
 COPY backend/src/ ./backend/src/
 COPY backend/migrations/ ./backend/migrations/
 
@@ -50,4 +51,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
 
 # Start the application
-CMD ["node", "backend/index.js"]
+CMD ["npx", "tsx", "backend/index.ts"]

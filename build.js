@@ -97,7 +97,8 @@ class BuildSystem {
     
     // Copy backend files (excluding node_modules - let Docker install fresh)
     const backendFiles = [
-      'index.js',
+      'index.ts',
+      'tsconfig.json',
       'package.json',
       'package-lock.json'
     ];
@@ -189,12 +190,12 @@ cd backend
 # Install dependencies if needed
 if [ ! -d "node_modules" ]; then
     echo "📦 Installing dependencies..."
-    npm install --production
+    npm install
 fi
 
 # Start the application with deployment config from parent directory
 echo "🎬 Starting FilmDex backend..."
-node index.js --deployment=../deployment.json
+npx tsx index.ts --deployment=../deployment.json
 
 echo "👋 FilmDex stopped"
 `;

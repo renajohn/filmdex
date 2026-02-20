@@ -23,8 +23,11 @@
     "vite": "^6.0.0"
   },
   "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@vitest/coverage-v8": "^3.0.0",
     "jsdom": "^25.0.0",
+    "typescript": "^5.9.3",
     "vitest": "^3.0.0"
   },
   "scripts": {
