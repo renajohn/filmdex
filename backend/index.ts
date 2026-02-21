@@ -417,8 +417,8 @@ if (frontendPath) {
       return htmlContent;
     };
 
-    // Handle root route
-    app.get('/', (req: Request, res: Response) => {
+    // Helper to send index.html with no-cache headers and ingress rewriting
+    const sendIngressIndexHtml = (req: Request, res: Response) => {
       // Debug: Log ingress headers
       logger.debug('Request headers:', {
         'x-ingress-path': req.headers['x-ingress-path'],
@@ -436,8 +436,14 @@ if (frontendPath) {
       htmlContent = rewriteHtmlForIngress(htmlContent, req);
 
       res.setHeader('Content-Type', 'text/html');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.send(htmlContent);
-    });
+    };
+
+    // Handle root route
+    app.get('/', sendIngressIndexHtml);
 
     // Handle all other routes for React Router (catch-all)
     // But exclude API routes, images, static files, and health check
@@ -451,14 +457,7 @@ if (frontendPath) {
       }
 
       // For all other routes, serve the React app
-      const htmlPath = path.join(frontendPath as string, 'index.html');
-      let htmlContent = fs.readFileSync(htmlPath, 'utf8');
-
-      // Rewrite HTML for ingress if needed
-      htmlContent = rewriteHtmlForIngress(htmlContent, req);
-
-      res.setHeader('Content-Type', 'text/html');
-      res.send(htmlContent);
+      sendIngressIndexHtml(req, res);
     });
   } else {
     // Normal mode: serve frontend with /filmdex routing
@@ -470,18 +469,32 @@ if (frontendPath) {
     });
 
     // Serve static files from frontend build (CSS, JS, images, etc.)
-    app.use('/static', express.static(path.join(frontendPath, 'static')));
+    // Vite hashes filenames, so we can cache them aggressively
+    app.use('/static', express.static(path.join(frontendPath, 'static'), {
+      maxAge: '1y',
+      immutable: true,
+    }));
+    app.use('/assets', express.static(path.join(frontendPath, 'assets'), {
+      maxAge: '1y',
+      immutable: true,
+    }));
     app.use('/', express.static(frontendPath, { index: false }));
 
-    // Handle /filmdex route
-    app.get('/filmdex', (req: Request, res: Response) => {
+    // Helper to send index.html with no-cache headers
+    // This ensures browsers (especially iOS Safari / home screen PWAs)
+    // always check for the latest version of the app shell
+    const sendIndexHtml = (req: Request, res: Response) => {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.sendFile(path.join(frontendPath as string, 'index.html'));
-    });
+    };
+
+    // Handle /filmdex route
+    app.get('/filmdex', sendIndexHtml);
 
     // Handle all other routes for React Router (catch-all)
-    app.use('/', (req: Request, res: Response) => {
-      res.sendFile(path.join(frontendPath as string, 'index.html'));
-    });
+    app.use('/', sendIndexHtml);
   }
 
 // Handle Chrome DevTools request to silence warning
