@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DexVault UI Component Explorer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ui-bg: #111;
+    --ui-surface: #1a1a1a;
+    --ui-border: #333;
+    --ui-text: #e5e5e5;
+    --ui-text-dim: #888;
+    --ui-accent: #fbbf24;
+    --ui-accent-hover: #f59e0b;
+    --ctrl-bg: #222;
+    --ctrl-hover: #2a2a2a;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--ui-bg);
+    color: var(--ui-text);
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    grid-template-rows: auto 1fr auto;
+    height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: var(--ui-surface);
+    border-bottom: 1px solid var(--ui-border);
+  }
+  .header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ui-accent);
+    letter-spacing: 0.5px;
+  }
+  .preset-bar {
+    display: flex;
+    gap: 6px;
+  }
+  .preset-btn {
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--ctrl-bg);
+    color: var(--ui-text-dim);
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .preset-btn:hover {
+    background: var(--ctrl-hover);
+    color: var(--ui-text);
+    border-color: var(--ui-accent);
+  }
+  .preset-btn.active {
+    background: var(--ui-accent);
+    color: #111;
+    border-color: var(--ui-accent);
+  }
+
+  /* Controls Panel */
+  .controls {
+    grid-column: 1;
+    overflow-y: auto;
+    padding: 16px;
+    border-right: 1px solid var(--ui-border);
+    background: var(--ui-surface);
+  }
+  .controls::-webkit-scrollbar { width: 6px; }
+  .controls::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+  .controls::-webkit-scrollbar-track { background: transparent; }
+
+  .section {
+    margin-bottom: 20px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--ui-accent);
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #2a2a2a;
+  }
+
+  .control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .control-row label {
+    font-size: 12px;
+    color: var(--ui-text-dim);
+    flex-shrink: 0;
+  }
+  .control-row .value {
+    font-size: 11px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: var(--ui-accent);
+    min-width: 42px;
+    text-align: right;
+    margin-left: 8px;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 140px;
+    height: 4px;
+    background: #333;
+    border-radius: 2px;
+    outline: none;
+    margin-left: 10px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--ui-accent);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
+
+  input[type="color"] {
+    -webkit-appearance: none;
+    width: 28px;
+    height: 28px;
+    border: 2px solid #444;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    margin-left: 10px;
+  }
+  input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+  input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
+
+  select {
+    background: var(--ctrl-bg);
+    color: var(--ui-text);
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    outline: none;
+    margin-left: 10px;
+  }
+  select:focus { border-color: var(--ui-accent); }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .toggle-row label { font-size: 12px; color: var(--ui-text-dim); }
+  .toggle {
+    width: 36px;
+    height: 20px;
+    background: #333;
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle.on { background: var(--ui-accent); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+  .toggle.on::after { transform: translateX(16px); }
+
+  /* Component selector */
+  .component-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+  .component-tab {
+    flex: 1;
+    padding: 8px 4px;
+    font-size: 11px;
+    font-weight: 500;
+    text-align: center;
+    background: var(--ctrl-bg);
+    color: var(--ui-text-dim);
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .component-tab:hover { color: var(--ui-text); border-color: #555; }
+  .component-tab.active {
+    background: var(--ui-accent);
+    color: #111;
+    border-color: var(--ui-accent);
+  }
+
+  /* Preview Area */
+  .preview-area {
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    padding: 32px;
+  }
+
+  .preview-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  /* Grid preview */
+  .grid-preview {
+    display: grid;
+    transition: gap 0.2s ease;
+  }
+
+  /* Card preview */
+  .card-preview {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.25s ease;
+    cursor: pointer;
+  }
+  .card-preview:hover .card-overlay {
+    opacity: 1;
+  }
+  .card-preview img, .card-preview .card-placeholder {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .card-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    color: #555;
+  }
+  .card-info {
+    padding: 8px 4px 0;
+  }
+  .card-info .title {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .card-info .subtitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .card-overlay {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card-badge {
+    position: absolute;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+
+  /* Prompt Area */
+  .prompt-area {
+    grid-column: 2;
+    padding: 16px 20px;
+    background: var(--ui-surface);
+    border-top: 1px solid var(--ui-border);
+  }
+  .prompt-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .prompt-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--ui-text-dim);
+  }
+  .copy-btn {
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--ui-accent);
+    color: #111;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .copy-btn:hover { background: var(--ui-accent-hover); }
+  .copy-btn.copied { background: #22c55e; }
+  .prompt-text {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ui-text);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    white-space: pre-wrap;
+    max-height: 80px;
+    overflow-y: auto;
+  }
+  .prompt-text::-webkit-scrollbar { width: 4px; }
+  .prompt-text::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+
+  /* Background context toggle */
+  .bg-toggle {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+  .bg-opt {
+    flex: 1;
+    padding: 6px;
+    font-size: 11px;
+    text-align: center;
+    background: var(--ctrl-bg);
+    color: var(--ui-text-dim);
+    border: 1px solid var(--ui-border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .bg-opt:hover { border-color: #555; }
+  .bg-opt.active { background: var(--ui-accent); color: #111; border-color: var(--ui-accent); }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Header -->
+  <div class="header">
+    <h1>DexVault UI Explorer</h1>
+    <div class="preset-bar">
+      <button class="preset-btn active" onclick="applyPreset('default')">Default</button>
+      <button class="preset-btn" onclick="applyPreset('compact')">Compact</button>
+      <button class="preset-btn" onclick="applyPreset('airy')">Airy</button>
+      <button class="preset-btn" onclick="applyPreset('sharp')">Sharp</button>
+      <button class="preset-btn" onclick="applyPreset('soft')">Soft &amp; Glowy</button>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <!-- Component Type -->
+    <div class="component-tabs">
+      <div class="component-tab active" onclick="setComponent('movie')">Movie</div>
+      <div class="component-tab" onclick="setComponent('music')">Music</div>
+      <div class="component-tab" onclick="setComponent('book')">Book</div>
+    </div>
+
+    <!-- Background -->
+    <div class="bg-toggle">
+      <div class="bg-opt active" onclick="setBg('gradient')" data-bg="gradient">Gradient</div>
+      <div class="bg-opt" onclick="setBg('dark')" data-bg="dark">Solid Dark</div>
+      <div class="bg-opt" onclick="setBg('light')" data-bg="light">Light</div>
+    </div>
+
+    <!-- Card Section -->
+    <div class="section">
+      <div class="section-title">Card</div>
+
+      <div class="control-row">
+        <label>Border Radius</label>
+        <input type="range" min="0" max="24" value="12" oninput="set('cardRadius', +this.value)">
+        <span class="value" id="v-cardRadius">12px</span>
+      </div>
+      <div class="control-row">
+        <label>Border Width</label>
+        <input type="range" min="0" max="4" step="0.5" value="1" oninput="set('cardBorderWidth', +this.value)">
+        <span class="value" id="v-cardBorderWidth">1px</span>
+      </div>
+      <div class="control-row">
+        <label>Border Color</label>
+        <input type="color" value="#3a3a3a" oninput="set('cardBorderColor', this.value)">
+      </div>
+      <div class="control-row">
+        <label>Shadow Blur</label>
+        <input type="range" min="0" max="48" value="24" oninput="set('shadowBlur', +this.value)">
+        <span class="value" id="v-shadowBlur">24px</span>
+      </div>
+      <div class="control-row">
+        <label>Shadow Y Offset</label>
+        <input type="range" min="0" max="24" value="8" oninput="set('shadowY', +this.value)">
+        <span class="value" id="v-shadowY">8px</span>
+      </div>
+      <div class="control-row">
+        <label>Shadow Opacity</label>
+        <input type="range" min="0" max="100" value="20" oninput="set('shadowOpacity', +this.value)">
+        <span class="value" id="v-shadowOpacity">0.20</span>
+      </div>
+    </div>
+
+    <!-- Grid Section -->
+    <div class="section">
+      <div class="section-title">Grid</div>
+
+      <div class="control-row">
+        <label>Columns</label>
+        <input type="range" min="2" max="8" value="4" oninput="set('gridCols', +this.value)">
+        <span class="value" id="v-gridCols">4</span>
+      </div>
+      <div class="control-row">
+        <label>Gap</label>
+        <input type="range" min="4" max="40" value="20" oninput="set('gridGap', +this.value)">
+        <span class="value" id="v-gridGap">20px</span>
+      </div>
+      <div class="control-row">
+        <label>Item Width</label>
+        <input type="range" min="100" max="280" value="180" oninput="set('itemWidth', +this.value)">
+        <span class="value" id="v-itemWidth">180px</span>
+      </div>
+    </div>
+
+    <!-- Colors Section -->
+    <div class="section">
+      <div class="section-title">Colors</div>
+
+      <div class="control-row">
+        <label>Accent</label>
+        <input type="color" value="#fbbf24" oninput="set('accentColor', this.value)">
+        <span class="value" id="v-accentColor">#fbbf24</span>
+      </div>
+      <div class="control-row">
+        <label>Card BG</label>
+        <input type="color" value="#2d2d2d" oninput="set('cardBg', this.value)">
+        <span class="value" id="v-cardBg">#2d2d2d</span>
+      </div>
+      <div class="control-row">
+        <label>Title Color</label>
+        <input type="color" value="#f8f9fa" oninput="set('titleColor', this.value)">
+        <span class="value" id="v-titleColor">#f8f9fa</span>
+      </div>
+      <div class="control-row">
+        <label>Subtitle Color</label>
+        <input type="color" value="#a3a3a3" oninput="set('subtitleColor', this.value)">
+        <span class="value" id="v-subtitleColor">#a3a3a3</span>
+      </div>
+    </div>
+
+    <!-- Typography Section -->
+    <div class="section">
+      <div class="section-title">Typography</div>
+
+      <div class="control-row">
+        <label>Title Size</label>
+        <input type="range" min="10" max="20" value="14" oninput="set('titleSize', +this.value)">
+        <span class="value" id="v-titleSize">14px</span>
+      </div>
+      <div class="control-row">
+        <label>Title Weight</label>
+        <select onchange="set('titleWeight', +this.value)">
+          <option value="400">Regular</option>
+          <option value="500">Medium</option>
+          <option value="600" selected>Semibold</option>
+          <option value="700">Bold</option>
+        </select>
+      </div>
+      <div class="control-row">
+        <label>Subtitle Size</label>
+        <input type="range" min="9" max="16" value="12" oninput="set('subtitleSize', +this.value)">
+        <span class="value" id="v-subtitleSize">12px</span>
+      </div>
+    </div>
+
+    <!-- Hover Effects Section -->
+    <div class="section">
+      <div class="section-title">Hover &amp; Effects</div>
+
+      <div class="control-row">
+        <label>Hover Scale</label>
+        <input type="range" min="100" max="112" value="105" oninput="set('hoverScale', +this.value)">
+        <span class="value" id="v-hoverScale">1.05</span>
+      </div>
+      <div class="control-row">
+        <label>Hover Lift (Y)</label>
+        <input type="range" min="0" max="8" value="2" oninput="set('hoverLift', +this.value)">
+        <span class="value" id="v-hoverLift">-2px</span>
+      </div>
+      <div class="control-row">
+        <label>Transition Speed</label>
+        <select onchange="set('transitionSpeed', this.value)">
+          <option value="0.1s">Fast (0.1s)</option>
+          <option value="0.2s">Snappy (0.2s)</option>
+          <option value="0.3s" selected>Standard (0.3s)</option>
+          <option value="0.5s">Smooth (0.5s)</option>
+        </select>
+      </div>
+
+      <div class="toggle-row">
+        <label>Hover Overlay</label>
+        <div class="toggle on" onclick="toggleBool(this, 'hoverOverlay')"></div>
+      </div>
+      <div class="control-row">
+        <label>Overlay Opacity</label>
+        <input type="range" min="0" max="80" value="40" oninput="set('overlayOpacity', +this.value)">
+        <span class="value" id="v-overlayOpacity">0.40</span>
+      </div>
+
+      <div class="toggle-row">
+        <label>Show Badge</label>
+        <div class="toggle on" onclick="toggleBool(this, 'showBadge')"></div>
+      </div>
+      <div class="toggle-row">
+        <label>Glassmorphism Menu</label>
+        <div class="toggle on" onclick="toggleBool(this, 'glassMenu')"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="preview-area" id="previewArea">
+    <div class="preview-container" id="previewContainer"></div>
+  </div>
+
+  <!-- Prompt -->
+  <div class="prompt-area">
+    <div class="prompt-header">
+      <span class="prompt-label">Generated Prompt</span>
+      <button class="copy-btn" onclick="copyPrompt()">Copy Prompt</button>
+    </div>
+    <div class="prompt-text" id="promptOutput"></div>
+  </div>
+</div>
+
+<script>
+// Sample media data
+const MEDIA = {
+  movie: [
+    { title: 'Blade Runner 2049', subtitle: 'Denis Villeneuve', year: '2017', color: '#1a3a5c' },
+    { title: 'The Grand Budapest Hotel', subtitle: 'Wes Anderson', year: '2014', color: '#8b4060' },
+    { title: 'Interstellar', subtitle: 'Christopher Nolan', year: '2014', color: '#2a1a3a' },
+    { title: 'Parasite', subtitle: 'Bong Joon-ho', year: '2019', color: '#3a5a2a' },
+    { title: 'Mad Max: Fury Road', subtitle: 'George Miller', year: '2015', color: '#5a3a1a' },
+    { title: 'Arrival', subtitle: 'Denis Villeneuve', year: '2016', color: '#2a3a4a' },
+    { title: 'Dune', subtitle: 'Denis Villeneuve', year: '2021', color: '#4a3a1a' },
+    { title: 'Everything Everywhere', subtitle: 'Daniels', year: '2022', color: '#3a1a4a' },
+  ],
+  music: [
+    { title: 'OK Computer', subtitle: 'Radiohead', year: '1997', color: '#2a3a5a' },
+    { title: 'In Rainbows', subtitle: 'Radiohead', year: '2007', color: '#5a2a2a' },
+    { title: 'Vespertine', subtitle: 'Bjork', year: '2001', color: '#e8e8e8' },
+    { title: 'Loveless', subtitle: 'My Bloody Valentine', year: '1991', color: '#7a2a5a' },
+    { title: 'Remain in Light', subtitle: 'Talking Heads', year: '1980', color: '#5a1a1a' },
+    { title: 'Hounds of Love', subtitle: 'Kate Bush', year: '1985', color: '#1a2a5a' },
+    { title: 'Dummy', subtitle: 'Portishead', year: '1994', color: '#1a1a3a' },
+    { title: 'Kid A', subtitle: 'Radiohead', year: '2000', color: '#4a5a6a' },
+  ],
+  book: [
+    { title: 'Dune', subtitle: 'Frank Herbert', year: '1965', color: '#5a4a1a' },
+    { title: 'Neuromancer', subtitle: 'William Gibson', year: '1984', color: '#1a3a2a' },
+    { title: 'House of Leaves', subtitle: 'Mark Z. Danielewski', year: '2000', color: '#1a1a3a' },
+    { title: 'Blood Meridian', subtitle: 'Cormac McCarthy', year: '1985', color: '#4a1a1a' },
+    { title: 'Gravity\'s Rainbow', subtitle: 'Thomas Pynchon', year: '1973', color: '#3a3a1a' },
+    { title: 'Infinite Jest', subtitle: 'David Foster Wallace', year: '1996', color: '#2a4a5a' },
+    { title: 'The Road', subtitle: 'Cormac McCarthy', year: '2006', color: '#3a3a3a' },
+    { title: 'Piranesi', subtitle: 'Susanna Clarke', year: '2020', color: '#4a5a6a' },
+  ]
+};
+
+const ICONS = { movie: '\u{1F3AC}', music: '\u{1F3B5}', book: '\u{1F4D6}' };
+const ASPECT = { movie: '150%', music: '100%', book: '150%' };
+
+const DEFAULTS = {
+  component: 'movie',
+  bgMode: 'gradient',
+  cardRadius: 12,
+  cardBorderWidth: 1,
+  cardBorderColor: '#3a3a3a',
+  shadowBlur: 24,
+  shadowY: 8,
+  shadowOpacity: 20,
+  gridCols: 4,
+  gridGap: 20,
+  itemWidth: 180,
+  accentColor: '#fbbf24',
+  cardBg: '#2d2d2d',
+  titleColor: '#f8f9fa',
+  subtitleColor: '#a3a3a3',
+  titleSize: 14,
+  titleWeight: 600,
+  subtitleSize: 12,
+  hoverScale: 105,
+  hoverLift: 2,
+  transitionSpeed: '0.3s',
+  hoverOverlay: true,
+  overlayOpacity: 40,
+  showBadge: true,
+  glassMenu: true,
+};
+
+const PRESETS = {
+  default: { ...DEFAULTS },
+  compact: {
+    ...DEFAULTS,
+    cardRadius: 6,
+    shadowBlur: 8,
+    shadowY: 4,
+    shadowOpacity: 15,
+    gridCols: 6,
+    gridGap: 10,
+    itemWidth: 130,
+    titleSize: 11,
+    subtitleSize: 10,
+    hoverScale: 102,
+    hoverLift: 1,
+    transitionSpeed: '0.15s',
+    hoverOverlay: false,
+    showBadge: false,
+  },
+  airy: {
+    ...DEFAULTS,
+    cardRadius: 16,
+    shadowBlur: 32,
+    shadowY: 12,
+    shadowOpacity: 15,
+    gridCols: 3,
+    gridGap: 36,
+    itemWidth: 220,
+    titleSize: 16,
+    subtitleSize: 13,
+    hoverScale: 103,
+    hoverLift: 4,
+    transitionSpeed: '0.5s',
+  },
+  sharp: {
+    ...DEFAULTS,
+    cardRadius: 0,
+    cardBorderWidth: 2,
+    cardBorderColor: '#fbbf24',
+    shadowBlur: 0,
+    shadowY: 0,
+    shadowOpacity: 0,
+    gridGap: 16,
+    hoverScale: 100,
+    hoverLift: 0,
+    hoverOverlay: true,
+    overlayOpacity: 60,
+    transitionSpeed: '0.1s',
+  },
+  soft: {
+    ...DEFAULTS,
+    cardRadius: 20,
+    cardBorderWidth: 0,
+    shadowBlur: 40,
+    shadowY: 16,
+    shadowOpacity: 30,
+    accentColor: '#a78bfa',
+    cardBg: '#1e1b2e',
+    gridGap: 28,
+    hoverScale: 106,
+    hoverLift: 6,
+    transitionSpeed: '0.4s',
+    overlayOpacity: 30,
+  },
+};
+
+let state = { ...DEFAULTS };
+
+function set(key, val) {
+  state[key] = val;
+  const vEl = document.getElementById('v-' + key);
+  if (vEl) {
+    if (key === 'shadowOpacity' || key === 'overlayOpacity') vEl.textContent = (val / 100).toFixed(2);
+    else if (key === 'hoverScale') vEl.textContent = (val / 100).toFixed(2);
+    else if (key === 'hoverLift') vEl.textContent = '-' + val + 'px';
+    else if (key.endsWith('Color') || key === 'cardBg') vEl.textContent = val;
+    else if (typeof val === 'number') vEl.textContent = val + (key.includes('Weight') || key === 'gridCols' ? '' : 'px');
+  }
+  clearActivePreset();
+  updateAll();
+}
+
+function toggleBool(el, key) {
+  state[key] = !state[key];
+  el.classList.toggle('on', state[key]);
+  clearActivePreset();
+  updateAll();
+}
+
+function setComponent(type) {
+  state.component = type;
+  document.querySelectorAll('.component-tab').forEach((t, i) => {
+    t.classList.toggle('active', t.textContent.toLowerCase() === type);
+  });
+  updateAll();
+}
+
+function setBg(mode) {
+  state.bgMode = mode;
+  document.querySelectorAll('.bg-opt').forEach(b => {
+    b.classList.toggle('active', b.dataset.bg === mode);
+  });
+  updateAll();
+}
+
+function clearActivePreset() {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+}
+
+function applyPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  state = { ...p, component: state.component, bgMode: state.bgMode };
+
+  // Sync all controls
+  document.querySelectorAll('.controls input[type="range"]').forEach(input => {
+    const handler = input.getAttribute('oninput');
+    if (!handler) return;
+    const match = handler.match(/set\('(\w+)'/);
+    if (match && state[match[1]] !== undefined) {
+      input.value = state[match[1]];
+      const vEl = document.getElementById('v-' + match[1]);
+      if (vEl) {
+        const k = match[1], v = state[k];
+        if (k === 'shadowOpacity' || k === 'overlayOpacity') vEl.textContent = (v / 100).toFixed(2);
+        else if (k === 'hoverScale') vEl.textContent = (v / 100).toFixed(2);
+        else if (k === 'hoverLift') vEl.textContent = '-' + v + 'px';
+        else vEl.textContent = v + (k.includes('Weight') || k === 'gridCols' ? '' : 'px');
+      }
+    }
+  });
+  document.querySelectorAll('.controls input[type="color"]').forEach(input => {
+    const handler = input.getAttribute('oninput');
+    if (!handler) return;
+    const match = handler.match(/set\('(\w+)'/);
+    if (match && state[match[1]] !== undefined) {
+      input.value = state[match[1]];
+      const vEl = document.getElementById('v-' + match[1]);
+      if (vEl) vEl.textContent = state[match[1]];
+    }
+  });
+  document.querySelectorAll('.controls select').forEach(sel => {
+    const handler = sel.getAttribute('onchange');
+    if (!handler) return;
+    const match = handler.match(/set\('(\w+)'/);
+    if (match && state[match[1]] !== undefined) {
+      const val = state[match[1]];
+      for (let opt of sel.options) {
+        if (opt.value == val) { sel.selectedIndex = opt.index; break; }
+      }
+    }
+  });
+  document.querySelectorAll('.toggle').forEach(tog => {
+    const handler = tog.getAttribute('onclick');
+    if (!handler) return;
+    const match = handler.match(/toggleBool\(this,\s*'(\w+)'/);
+    if (match && state[match[1]] !== undefined) {
+      tog.classList.toggle('on', state[match[1]]);
+    }
+  });
+
+  document.querySelectorAll('.preset-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase().replace(/[^a-z]/g, '') === name.replace(/[^a-z]/g, ''));
+  });
+
+  updateAll();
+}
+
+function updateAll() {
+  renderPreview();
+  updatePrompt();
+}
+
+function renderPreview() {
+  const area = document.getElementById('previewArea');
+  const container = document.getElementById('previewContainer');
+  const s = state;
+  const items = MEDIA[s.component];
+  const icon = ICONS[s.component];
+  const aspect = ASPECT[s.component];
+
+  // Background
+  if (s.bgMode === 'gradient') {
+    area.style.background = 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)';
+  } else if (s.bgMode === 'dark') {
+    area.style.background = '#111';
+  } else {
+    area.style.background = '#f0f0f0';
+  }
+
+  const shadow = s.shadowBlur > 0
+    ? `0 ${s.shadowY}px ${s.shadowBlur}px rgba(0,0,0,${s.shadowOpacity / 100})`
+    : 'none';
+
+  const hoverShadow = s.shadowBlur > 0
+    ? `0 ${s.shadowY + 4}px ${s.shadowBlur + 12}px rgba(0,0,0,${Math.min(s.shadowOpacity + 10, 100) / 100})`
+    : 'none';
+
+  const border = s.cardBorderWidth > 0
+    ? `${s.cardBorderWidth}px solid ${s.cardBorderColor}`
+    : 'none';
+
+  const trans = `all ${s.transitionSpeed} ease`;
+  const scale = s.hoverScale / 100;
+  const lift = s.hoverLift;
+
+  // Build hover CSS
+  const hoverStyleId = 'dynamic-hover';
+  let styleEl = document.getElementById(hoverStyleId);
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = hoverStyleId;
+    document.head.appendChild(styleEl);
+  }
+  styleEl.textContent = `
+    .card-preview:hover {
+      transform: scale(${scale}) translateY(-${lift}px) !important;
+      box-shadow: ${hoverShadow} !important;
+    }
+    .card-preview:hover .card-overlay {
+      opacity: 1 !important;
+    }
+  `;
+
+  let html = `<div class="grid-preview" style="
+    grid-template-columns: repeat(${s.gridCols}, ${s.itemWidth}px);
+    gap: ${s.gridGap}px;
+  ">`;
+
+  items.forEach((item, i) => {
+    html += `<div class="card-preview" style="
+      width: ${s.itemWidth}px;
+      border-radius: ${s.cardRadius}px;
+      box-shadow: ${shadow};
+      border: ${border};
+      background: ${s.cardBg};
+      transition: ${trans};
+    ">
+      <div style="
+        position: relative;
+        width: 100%;
+        padding-top: ${aspect};
+        background: ${item.color};
+        border-radius: ${s.cardRadius}px ${s.cardRadius}px 0 0;
+        overflow: hidden;
+      ">
+        <div style="
+          position: absolute; inset: 0;
+          display: flex; align-items: center; justify-content: center;
+          font-size: ${Math.max(s.itemWidth * 0.25, 28)}px;
+          opacity: 0.35;
+        ">${icon}</div>
+        ${s.hoverOverlay ? `
+        <div class="card-overlay" style="
+          background: rgba(0,0,0,${s.overlayOpacity / 100});
+          border-radius: ${s.cardRadius}px ${s.cardRadius}px 0 0;
+        ">
+          ${s.glassMenu ? `<div style="
+            width: 32px; height: 32px;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; color: #333;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+          ">\u22EF</div>` : ''}
+        </div>` : ''}
+        ${s.showBadge ? `<div class="card-badge" style="
+          top: 8px; left: 8px;
+          background: rgba(0,0,0,0.65);
+          color: ${s.accentColor};
+          backdrop-filter: blur(4px);
+        ">${item.year}</div>` : ''}
+      </div>
+      <div class="card-info" style="padding: ${Math.max(s.gridGap * 0.4, 6)}px ${Math.max(s.gridGap * 0.2, 4)}px 0;">
+        <div class="title" style="
+          font-size: ${s.titleSize}px;
+          font-weight: ${s.titleWeight};
+          color: ${s.titleColor};
+          line-height: 1.25;
+          max-width: ${s.itemWidth - 8}px;
+        ">${item.title}</div>
+        <div class="subtitle" style="
+          font-size: ${s.subtitleSize}px;
+          color: ${s.subtitleColor};
+          margin-top: 2px;
+          max-width: ${s.itemWidth - 8}px;
+        ">${item.subtitle}</div>
+      </div>
+      <div style="height: ${Math.max(s.gridGap * 0.3, 6)}px;"></div>
+    </div>`;
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function updatePrompt() {
+  const s = state;
+  const d = DEFAULTS;
+  const parts = [];
+  const type = s.component.charAt(0).toUpperCase() + s.component.slice(1);
+
+  // Card shape
+  const shapeDesc = [];
+  if (s.cardRadius !== d.cardRadius) {
+    if (s.cardRadius === 0) shapeDesc.push('sharp square corners');
+    else if (s.cardRadius >= 16) shapeDesc.push(`generously rounded corners (${s.cardRadius}px radius)`);
+    else shapeDesc.push(`${s.cardRadius}px border-radius`);
+  }
+  if (s.cardBorderWidth !== d.cardBorderWidth || s.cardBorderColor !== d.cardBorderColor) {
+    if (s.cardBorderWidth === 0) shapeDesc.push('no border');
+    else shapeDesc.push(`a ${s.cardBorderWidth}px ${s.cardBorderColor} border`);
+  }
+  if (shapeDesc.length) parts.push('Give each card ' + shapeDesc.join(' and '));
+
+  // Shadow
+  if (s.shadowBlur !== d.shadowBlur || s.shadowY !== d.shadowY || s.shadowOpacity !== d.shadowOpacity) {
+    if (s.shadowBlur === 0) {
+      parts.push('Remove box shadows entirely for a flat look');
+    } else {
+      const intensity = s.shadowBlur >= 32 ? 'a deep, dramatic' : s.shadowBlur >= 16 ? 'a medium' : 'a subtle';
+      parts.push(`Use ${intensity} box-shadow (0 ${s.shadowY}px ${s.shadowBlur}px rgba(0,0,0,${(s.shadowOpacity/100).toFixed(2)}))`);
+    }
+  }
+
+  // Grid
+  if (s.gridCols !== d.gridCols || s.gridGap !== d.gridGap || s.itemWidth !== d.itemWidth) {
+    const density = s.gridGap <= 12 ? 'tight' : s.gridGap >= 30 ? 'spacious' : '';
+    parts.push(`${density ? density.charAt(0).toUpperCase() + density.slice(1) + ' grid' : 'Grid'} layout: ${s.gridCols} columns, ${s.gridGap}px gap, ${s.itemWidth}px wide items`);
+  }
+
+  // Colors
+  if (s.accentColor !== d.accentColor) parts.push(`Change the accent color to ${s.accentColor}`);
+  if (s.cardBg !== d.cardBg) parts.push(`Card background: ${s.cardBg}`);
+  if (s.titleColor !== d.titleColor) parts.push(`Title text color: ${s.titleColor}`);
+  if (s.subtitleColor !== d.subtitleColor) parts.push(`Subtitle text color: ${s.subtitleColor}`);
+
+  // Typography
+  if (s.titleSize !== d.titleSize || s.titleWeight !== d.titleWeight) {
+    const weightName = {400:'regular',500:'medium',600:'semibold',700:'bold'}[s.titleWeight];
+    parts.push(`Title: ${s.titleSize}px ${weightName}`);
+  }
+  if (s.subtitleSize !== d.subtitleSize) parts.push(`Subtitle: ${s.subtitleSize}px`);
+
+  // Hover
+  const hoverDesc = [];
+  if (s.hoverScale !== d.hoverScale) hoverDesc.push(`scale to ${(s.hoverScale/100).toFixed(2)}`);
+  if (s.hoverLift !== d.hoverLift) hoverDesc.push(`lift ${s.hoverLift}px`);
+  if (s.transitionSpeed !== d.transitionSpeed) hoverDesc.push(`${s.transitionSpeed} transition`);
+  if (hoverDesc.length) parts.push('On hover: ' + hoverDesc.join(', '));
+
+  if (s.hoverOverlay !== d.hoverOverlay) {
+    parts.push(s.hoverOverlay ? 'Show a dark overlay on hover' : 'Remove the hover overlay');
+  } else if (s.hoverOverlay && s.overlayOpacity !== d.overlayOpacity) {
+    parts.push(`Hover overlay at ${(s.overlayOpacity/100).toFixed(2)} opacity`);
+  }
+
+  if (s.showBadge !== d.showBadge) parts.push(s.showBadge ? 'Add year badges' : 'Remove badges from cards');
+  if (s.glassMenu !== d.glassMenu) parts.push(s.glassMenu ? 'Add glassmorphic menu button' : 'Remove glassmorphic menu button on hover');
+
+  const output = document.getElementById('promptOutput');
+  if (parts.length === 0) {
+    output.textContent = `The ${type} collection grid is using the current DexVault defaults. Adjust controls to generate a prompt.`;
+  } else {
+    output.textContent = `Update the ${type} collection thumbnail grid with the following design changes:\n${parts.map(p => '- ' + p).join('\n')}`;
+  }
+}
+
+function copyPrompt() {
+  const text = document.getElementById('promptOutput').textContent;
+  navigator.clipboard.writeText(text);
+  const btn = document.querySelector('.copy-btn');
+  btn.textContent = 'Copied!';
+  btn.classList.add('copied');
+  setTimeout(() => {
+    btn.textContent = 'Copy Prompt';
+    btn.classList.remove('copied');
+  }, 1500);
+}
+
+// Initial render
+updateAll();
+</script>
+</body>
+</html>

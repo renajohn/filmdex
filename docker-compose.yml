@@ -21,6 +21,6 @@ services:
       - homepage.group=Apps
       - homepage.name=DexVault
       - homepage.href=http://p-cloud.local:8051
-      - homepage.icon=logo192.png
+      - homepage.icon=http://p-cloud.local/logo192.png
 volumes:
   dexvault_data:  
