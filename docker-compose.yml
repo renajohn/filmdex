@@ -2,7 +2,7 @@ services:
   dexvault:
     image: ghcr.io/renajohn/filmdex:latest
     ports:
-      - "3001:3001"
+      - "8051:3001"
     volumes:
       - dexvault_data:/data
     environment:
@@ -18,5 +18,9 @@ services:
       retries: 3
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
+      - homepage.group=Apps
+      - homepage.name=DexVault
+      - homepage.href=http://p-cloud.local:8051
+      - homepage.icon=logo192.png
 volumes:
   dexvault_data:  
