@@ -1,10 +1,10 @@
 services:
   dexvault:
     image: ghcr.io/renajohn/filmdex:latest
-    ports:
-      - "8051:3001"
     volumes:
       - dexvault_data:/data
+    networks:
+      - web
     environment:
       - NODE_ENV=production
       - TMDB_API_KEY=${TMDB_API_KEY:-}
@@ -18,10 +18,19 @@ services:
       retries: 3
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.dexvault.rule=Host(`dexvault.lab.crog.org`)"
+      - "traefik.http.routers.dexvault.entrypoints=websecure"
+      - "traefik.http.routers.dexvault.tls=true"
+      - "traefik.http.services.dexvault.loadbalancer.server.port=3001"
       - homepage.group=Apps
       - homepage.name=DexVault
-      - homepage.href=http://p-cloud.local:8051
-      - homepage.icon=http://p-cloud.local:8051/logo192.png
+      - homepage.href=https://dexvault.lab.crog.org
+      - homepage.icon=https://dexvault.lab.crog.org/logo192.png
       - homepage.description=Gestion de collection de films, musique et livres
 volumes:
-  dexvault_data:  
+  dexvault_data:
+
+networks:
+  web:
+    external: true
