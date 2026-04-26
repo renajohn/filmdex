@@ -16,6 +16,7 @@ import bookController from './src/controllers/bookController';
 import bookService from './src/services/bookService';
 import backupController from './src/controllers/backupController';
 import bookCommentController from './src/controllers/bookCommentController';
+import { mountMcp } from './src/mcp/mount';
 import Movie from './src/models/movie';
 import MovieImport from './src/models/movieImport';
 import MovieCast from './src/models/movieCast';
@@ -71,6 +72,10 @@ app.post('/api/backup/upload-restore', (req: Request, res: Response, next: NextF
 // JSON parsing middleware for all other routes (with increased limit for cover art)
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// MCP server: mount before static and after JSON parsing.
+// The streamable HTTP transport reads req.body (already parsed by express.json).
+mountMcp(app, '/mcp');
 
 // Initialize database
 const startServer = async (): Promise<void> => {

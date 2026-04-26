@@ -23,6 +23,15 @@ services:
       - "traefik.http.routers.dexvault.entrypoints=websecure"
       - "traefik.http.routers.dexvault.tls=true"
       - "traefik.http.services.dexvault.loadbalancer.server.port=3001"
+      # MCP server: separate router on its own subdomain. The client talks to
+      # https://dexvault-mcp.lab.crog.org/ (root) and the addprefix middleware
+      # rewrites the path so the backend receives POST /mcp.
+      - "traefik.http.routers.dexvault-mcp.rule=Host(`dexvault-mcp.lab.crog.org`)"
+      - "traefik.http.routers.dexvault-mcp.entrypoints=websecure"
+      - "traefik.http.routers.dexvault-mcp.tls=true"
+      - "traefik.http.routers.dexvault-mcp.service=dexvault"
+      - "traefik.http.routers.dexvault-mcp.middlewares=dexvault-mcp-prefix"
+      - "traefik.http.middlewares.dexvault-mcp-prefix.addprefix.prefix=/mcp"
       - homepage.group=Apps
       - homepage.name=DexVault
       - homepage.href=https://dexvault.lab.crog.org
