@@ -152,9 +152,22 @@ The three deep modules are the priority for unit tests because they encapsulate 
 - Traefik routing — verified manually at deployment time.
 - Performance/load tests — not needed for a single-user, local-network MCP server.
 
+## Write tools (post-MVP)
+
+The read-only MVP has since gained its first write tools for movie watch tracking:
+
+- **`mark_movie_watched`** — input: `{ id, date? }` where `date` is `YYYY-MM-DD` (defaults to today). Calls `Movie.markAsWatched`, setting `last_watched`, clearing `never_seen`, and incrementing `watch_count` by one on each call. Returns the updated watch state as JSON; returns an MCP error when the id does not exist.
+- **`clear_movie_watched`** — input: `{ id }`. Calls `Movie.clearWatched`, resetting `last_watched` to null and `watch_count` to zero. Returns the updated state as JSON; returns an MCP error when the id does not exist.
+
+A read tool for the movie watch queue was added alongside them:
+
+- **`list_watch_next`** — input: `{ limit?, format_output? }` (default limit 20, max 100; markdown by default, JSON opt-in). Returns the movies queued in the system "Watch Next" collection via `collectionService.getWatchNextMovies()`, newest additions first, projected to the same compact movie columns as `search_movies` (with `id` first for chaining `get_movie`).
+
+These remain local-network-only (no auth) like the read tools.
+
 ## Out of Scope
 
-- **Write operations** (add/edit/delete movies/albums/books, mark as watched/read, manage collections). Read-only MVP only; write tools will be a future PRD if/when needed.
+- **Other write operations** (add/edit/delete movies/albums/books, mark books read, manage collections). Only movie watch tracking is implemented; further write tools will be added if/when needed.
 - **Smart playlist / recommendation tools** that go beyond plain search (e.g. exposing `smartPlaylistService` directly). Claude can already recommend on top of search results; deeper integration is a future step.
 - **Import / backfill / backup tools**. Maintenance tasks remain in the existing UI.
 - **Authentication** (bearer token, OAuth). Not needed for a local-only deployment.
@@ -170,6 +183,6 @@ The three deep modules are the priority for unit tests because they encapsulate 
 - **Mount order in `backend/index.ts`**: the MCP router should be mounted before the static file handler and after `cors`/`express.json`. The MCP transport reads the request body itself, so the ordering with `express.json` must be verified per SDK guidance (some SDK versions require raw body — consult the latest SDK docs at implementation time).
 - **DNS verification**: at deploy time, confirm `dexvault-mcp.lab.crog.org` resolves correctly on the local network and that Traefik picks up the new router.
 - **Future evolution paths** (out of scope but anticipated):
-  - Add write tools (mark as watched, add to wishlist) once the read flow is stable.
+  - Add further write tools (add to wishlist, mark books read) — movie watch tracking (`mark_movie_watched`, `clear_movie_watched`) is already implemented.
   - Add a `recommend_movie` tool wrapping `smartPlaylistService` for richer suggestions.
   - Add OAuth + public exposure if the user wants claude.ai access.

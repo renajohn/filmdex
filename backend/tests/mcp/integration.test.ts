@@ -309,16 +309,19 @@ beforeAll(async () => {
 }, 30000);
 
 describe('MCP integration: tool registry', () => {
-  it('exposes the 8 documented tools', async () => {
+  it('exposes the 11 documented tools', async () => {
     const list = await client.listTools();
     const names = list.tools.map(t => t.name).sort();
     expect(names).toEqual(
       [
+        'clear_movie_watched',
         'get_album',
         'get_book',
         'get_collection_stats',
         'get_movie',
+        'list_watch_next',
         'list_wishlist',
+        'mark_movie_watched',
         'search_albums',
         'search_books',
         'search_movies',
@@ -579,5 +582,172 @@ describe('safe handler', () => {
       const r = (await client.callTool({ name: 'get_movie', arguments: { id: -1 } })) as CallToolResult;
       expect(r.isError).toBe(true);
     }
+  });
+});
+
+// Create a fresh, unwatched movie so write-tool tests don't depend on or
+// disturb the shared read-tool fixtures.
+const makeMovie = async (title: string) => {
+  return Movie.create({
+    title,
+    original_title: title,
+    original_language: 'en',
+    genre: null,
+    director: 'Test Director',
+    cast: [],
+    release_date: '2023-01-01',
+    format: 'Blu-ray',
+    imdb_rating: null,
+    rotten_tomato_rating: null,
+    rotten_tomatoes_link: null,
+    tmdb_rating: null,
+    tmdb_id: null,
+    imdb_id: null,
+    price: null,
+    runtime: null,
+    plot: null,
+    comments: null,
+    never_seen: true,
+    acquired_date: null,
+    import_id: null,
+    poster_path: null,
+    backdrop_path: null,
+    budget: null,
+    revenue: null,
+    trailer_key: null,
+    trailer_site: null,
+    status: null,
+    popularity: null,
+    vote_count: null,
+    adult: false,
+    video: false,
+    media_type: 'movie',
+    recommended_age: null,
+    title_status: 'owned',
+  });
+};
+
+describe('mark_movie_watched', () => {
+  it('marks a movie watched at a given date, setting last_watched and never_seen=false', async () => {
+    const m = await makeMovie('Mark Target A');
+    const r = await callTool('mark_movie_watched', { id: m.id, date: '2025-03-15' });
+    const parsed = JSON.parse(textOf(r));
+    expect(parsed.id).toBe(m.id);
+    expect(parsed.last_watched).toBe('2025-03-15');
+    expect(parsed.never_seen).toBe(false);
+    expect(parsed.watch_count).toBe(1);
+  });
+
+  it('increments watch_count on each call', async () => {
+    const m = await makeMovie('Mark Target B');
+    await callTool('mark_movie_watched', { id: m.id, date: '2025-01-01' });
+    const r = await callTool('mark_movie_watched', { id: m.id, date: '2025-02-01' });
+    const parsed = JSON.parse(textOf(r));
+    expect(parsed.watch_count).toBe(2);
+    expect(parsed.last_watched).toBe('2025-02-01');
+  });
+
+  it('defaults to today when no date is provided', async () => {
+    const m = await makeMovie('Mark Target C');
+    const r = await callTool('mark_movie_watched', { id: m.id });
+    const parsed = JSON.parse(textOf(r));
+    const today = new Date().toISOString().split('T')[0];
+    expect(parsed.last_watched).toBe(today);
+    expect(parsed.watch_count).toBe(1);
+  });
+
+  it('returns isError when the movie does not exist', async () => {
+    const r = await callTool('mark_movie_watched', { id: 99999 });
+    expect(r.isError).toBe(true);
+    expect(textOf(r)).toContain('not found');
+  });
+
+  it('rejects an invalid date format via zod validation', async () => {
+    let threw = false;
+    let result: CallToolResult | undefined;
+    try {
+      result = (await client.callTool({
+        name: 'mark_movie_watched',
+        arguments: { id: 1, date: '15-03-2025' },
+      })) as CallToolResult;
+    } catch (err) {
+      threw = true;
+      expect((err as Error).message).toMatch(/(Invalid|validation|expected|parse|date|YYYY)/i);
+    }
+    if (!threw) {
+      expect(result!.isError).toBe(true);
+    }
+  });
+});
+
+describe('clear_movie_watched', () => {
+  it('resets last_watched to null and watch_count to 0', async () => {
+    const m = await makeMovie('Clear Target');
+    await callTool('mark_movie_watched', { id: m.id, date: '2025-04-01' });
+    const r = await callTool('clear_movie_watched', { id: m.id });
+    const parsed = JSON.parse(textOf(r));
+    expect(parsed.id).toBe(m.id);
+    expect(parsed.last_watched).toBeNull();
+    expect(parsed.watch_count).toBe(0);
+  });
+
+  it('returns isError when the movie does not exist', async () => {
+    const r = await callTool('clear_movie_watched', { id: 99999 });
+    expect(r.isError).toBe(true);
+    expect(textOf(r)).toContain('not found');
+  });
+});
+
+describe('list_watch_next', () => {
+  let firstId: number;
+  let secondId: number;
+
+  beforeAll(async () => {
+    await Collection.initializeSystemCollections();
+    const a = await makeMovie('Watch Next One');
+    const b = await makeMovie('Watch Next Two');
+    firstId = a.id;
+    secondId = b.id;
+    await Movie.toggleWatchNext(a.id);
+    await Movie.toggleWatchNext(b.id);
+  });
+
+  it('returns Watch Next movies as id-first markdown by default', async () => {
+    const r = await callTool('list_watch_next', {});
+    const text = textOf(r);
+    expect(text).toMatch(/^\| id \| title \|/m);
+    expect(text).toContain('Watch Next One');
+    expect(text).toContain('Watch Next Two');
+  });
+
+  it('returns JSON with compact movie fields, newest additions first', async () => {
+    const r = await callTool('list_watch_next', { format_output: 'json' });
+    const parsed = JSON.parse(textOf(r));
+    expect(Array.isArray(parsed.items)).toBe(true);
+    expect(parsed.items[0]).toHaveProperty('id');
+    expect(parsed.items[0]).toHaveProperty('title');
+    expect(parsed.items[0]).toHaveProperty('watched');
+    // toggled a then b; Watch Next lists newest additions first, so b leads.
+    expect(parsed.items[0].id).toBe(secondId);
+    expect(parsed.items.map((i: { id: number }) => i.id)).toContain(firstId);
+  });
+
+  it('respects limit and reports truncation', async () => {
+    const r = await callTool('list_watch_next', { limit: 1, format_output: 'json' });
+    const parsed = JSON.parse(textOf(r));
+    expect(parsed.returned).toBe(1);
+    expect(parsed.truncated).toBe(true);
+    expect(parsed.total_count).toBeGreaterThanOrEqual(2);
+  });
+
+  it('returns an empty list (not an error) when nothing is queued', async () => {
+    // Remove both from Watch Next via toggle, then expect an empty result.
+    await Movie.toggleWatchNext(firstId);
+    await Movie.toggleWatchNext(secondId);
+    const r = await callTool('list_watch_next', { format_output: 'json' });
+    const parsed = JSON.parse(textOf(r));
+    expect(r.isError).toBeFalsy();
+    expect(parsed.items.length).toBe(0);
+    expect(parsed.total_count).toBe(0);
   });
 });

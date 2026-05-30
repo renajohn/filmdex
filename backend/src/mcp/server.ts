@@ -7,6 +7,9 @@ import { registerGetAlbum } from './tools/getAlbum';
 import { registerGetBook } from './tools/getBook';
 import { registerGetCollectionStats } from './tools/getCollectionStats';
 import { registerListWishlist } from './tools/listWishlist';
+import { registerMarkMovieWatched } from './tools/markMovieWatched';
+import { registerClearMovieWatched } from './tools/clearMovieWatched';
+import { registerListWatchNext } from './tools/listWatchNext';
 
 export const SERVER_NAME = 'dexvault-mcp';
 export const SERVER_VERSION = '0.1.0';
@@ -29,6 +32,9 @@ export const createMcpServer = (): McpServer => {
   registerGetBook(server);
   registerGetCollectionStats(server);
   registerListWishlist(server);
+  registerMarkMovieWatched(server);
+  registerClearMovieWatched(server);
+  registerListWatchNext(server);
 
   return server;
 };
