@@ -4,8 +4,8 @@ import os from 'os';
 import path from 'path';
 import axios, { type AxiosResponse } from 'axios';
 
-const DEFAULT_BASE_URL = 'http://p-cloud.local:8001';
-const DEFAULT_MODEL = 'Qwen3-VL-8B-Instruct-Q4_K_M';
+const DEFAULT_BASE_URL = 'https://llm-next.lab.crog.org';
+const DEFAULT_MODEL = 'Qwen3.6-35B-A3B';
 
 interface LLMConfig {
   baseUrl: string;
