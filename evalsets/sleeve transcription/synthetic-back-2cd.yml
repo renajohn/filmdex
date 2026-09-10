@@ -1,0 +1,23 @@
+# A two-disc set, tracks printed in two columns under "CD 1" and "CD 2".
+# Multi-disc is where a transcription most easily goes wrong: the numbering
+# restarts, so without reading the headings the second disc overwrites the
+# first.
+image: synthetic-back-2cd.jpg
+
+expected:
+  title: "NOCTURNES COMPLETES"
+  artist: "ORCHESTRE DU LEMAN"
+  label: "Lac Records"
+  catalogNumber: "LR-2219/20"
+  discCount: 2
+  tracks:
+    - { disc: 1, n: 1, title: "Ouverture",        duration: "2:11" }
+    - { disc: 1, n: 2, title: "Le Jardin Perdu",  duration: "4:38" }
+    - { disc: 1, n: 3, title: "Symphonie No. 3",  duration: "6:02" }
+    - { disc: 1, n: 4, title: "Interlude",        duration: "1:47" }
+    - { disc: 1, n: 5, title: "La Nuit Blanche",  duration: "5:23" }
+    - { disc: 1, n: 6, title: "Fugue en Ré",      duration: "3:56" }
+    - { disc: 2, n: 1, title: "Adagio",           duration: "7:14" }
+    - { disc: 2, n: 2, title: "Marche Funèbre",   duration: "5:41" }
+    - { disc: 2, n: 3, title: "Les Quatre Vents", duration: "4:09" }
+    - { disc: 2, n: 4, title: "Rondo Final",      duration: "8:33" }
