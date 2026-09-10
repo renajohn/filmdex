@@ -838,7 +838,7 @@ const Album = {
       const db = getDatabase();
 
       // Validate field to prevent SQL injection (accept singular forms)
-      const allowedFields = ['title', 'artist', 'genre', 'track', 'label', 'country', 'year'];
+      const allowedFields = ['title', 'artist', 'genre', 'mood', 'track', 'label', 'country', 'year'];
       if (!allowedFields.includes(field)) {
         return reject(new Error(`Invalid field: ${field}`));
       }
@@ -887,15 +887,21 @@ const Album = {
         return;
       }
 
-      // Map 'genre' to its plural database column name
+      // Map 'genre' to its plural database column name. The map doubles as the
+      // allowlist: falling back to the raw field would put an unchecked name
+      // straight into the query below.
       const columnMap: Record<string, string> = {
         'title': 'title',
         'artist': 'artist',
         'genre': 'genres',
+        'mood': 'moods',
         'label': 'labels',
         'country': 'country'
       };
-      const column = columnMap[field] || field;
+      const column = columnMap[field];
+      if (!column) {
+        return reject(new Error(`Invalid field: ${field}`));
+      }
 
       const sql = `
         SELECT DISTINCT ${column}

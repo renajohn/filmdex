@@ -529,6 +529,11 @@ const musicController = {
       const suggestions = await musicService.getAutocompleteSuggestions(field as string, (value as string) || '');
       res.json(suggestions);
     } catch (error) {
+      // An unknown field is the caller's mistake, not a server failure.
+      if (/^Invalid field/.test((error as Error).message)) {
+        res.status(400).json({ error: (error as Error).message });
+        return;
+      }
       console.error('Error getting autocomplete suggestions:', error);
       res.status(500).json({ error: 'Failed to get autocomplete suggestions' });
     }
