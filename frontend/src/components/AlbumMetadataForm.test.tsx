@@ -8,6 +8,7 @@ vi.mock('../services/musicService', () => ({
   default: {
     getCoverArt: vi.fn().mockResolvedValue(null),
     addAlbumFromMusicBrainz: vi.fn().mockResolvedValue({ id: 42 }),
+    addAlbumFromSource: vi.fn().mockResolvedValue({ id: 42 }),
     getAlbumById: vi.fn().mockResolvedValue({ id: 42 }),
     uploadCover: vi.fn(),
     uploadBackCover: vi.fn()
@@ -44,9 +45,9 @@ describe('AlbumMetadataForm — ownership payload', () => {
     userEvent.selectOptions(screen.getByLabelText('Condition'), 'NM');
     userEvent.click(screen.getByRole('button', { name: 'Add Album' }));
 
-    await waitFor(() => expect(musicService.addAlbumFromMusicBrainz).toHaveBeenCalled());
+    await waitFor(() => expect(musicService.addAlbumFromSource).toHaveBeenCalled());
 
-    const [, payload] = (musicService.addAlbumFromMusicBrainz as any).mock.calls[0];
+    const [, , payload] = (musicService.addAlbumFromSource as any).mock.calls[0];
     expect(payload.condition).toBe('NM');
   });
 
@@ -71,7 +72,7 @@ describe('AlbumMetadataForm — state between two consecutive adds', () => {
     userEvent.selectOptions(screen.getByLabelText('Condition'), 'NM');
     userEvent.click(screen.getByRole('button', { name: 'Add Album' }));
 
-    await waitFor(() => expect(musicService.addAlbumFromMusicBrainz).toHaveBeenCalled());
+    await waitFor(() => expect(musicService.addAlbumFromSource).toHaveBeenCalled());
 
     // The dialog stays mounted in MusicDex, so the next release reuses this instance.
     rerender(
@@ -92,7 +93,7 @@ describe('AlbumMetadataForm — state between two consecutive adds', () => {
 
 describe('AlbumMetadataForm — failure keeps the context', () => {
   it('keeps the dialog open and shows the error when the add fails', async () => {
-    (musicService.addAlbumFromMusicBrainz as any).mockRejectedValueOnce(new Error('Network down'));
+    (musicService.addAlbumFromSource as any).mockRejectedValueOnce(new Error('Network down'));
     const onHide = vi.fn();
     const onAddStart = vi.fn();
 
@@ -128,5 +129,44 @@ describe('AlbumMetadataForm — failure keeps the context', () => {
     userEvent.click(screen.getByRole('button', { name: 'Add Album' }));
 
     await waitFor(() => expect(onHide).toHaveBeenCalled());
+  });
+});
+
+describe('AlbumMetadataForm — adds through the release source', () => {
+  it('adds a Discogs release through Discogs', async () => {
+    render(
+      <AlbumMetadataForm
+        show={true}
+        onHide={vi.fn()}
+        release={{ source: 'discogs', releaseId: '7156458', title: 'Drones', artist: ['Muse'] } as any}
+        allReleasesInGroup={[]}
+      />
+    );
+
+    userEvent.click(screen.getByRole('button', { name: 'Add Album' }));
+
+    await waitFor(() =>
+      expect(musicService.addAlbumFromSource).toHaveBeenCalledWith(
+        'discogs',
+        '7156458',
+        expect.anything()
+      )
+    );
+  });
+
+  it('still adds a MusicBrainz release through MusicBrainz', async () => {
+    render(
+      <AlbumMetadataForm show={true} onHide={vi.fn()} release={releaseA} allReleasesInGroup={[releaseA]} />
+    );
+
+    userEvent.click(screen.getByRole('button', { name: 'Add Album' }));
+
+    await waitFor(() =>
+      expect(musicService.addAlbumFromSource).toHaveBeenCalledWith(
+        'musicbrainz',
+        'mbid-a',
+        expect.anything()
+      )
+    );
   });
 });

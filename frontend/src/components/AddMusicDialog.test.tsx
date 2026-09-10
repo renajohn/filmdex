@@ -23,6 +23,7 @@ vi.mock('../services/musicService', () => ({
     searchByBarcode: vi.fn().mockResolvedValue([]),
     searchByCatalogNumber: vi.fn().mockResolvedValue([]),
     scanAlbumCover: vi.fn(),
+    addAlbumFromSource: vi.fn().mockResolvedValue({ id: 1 }),
     addAlbumFromMusicBrainz: vi.fn().mockResolvedValue({ id: 1 }),
     getAlbumById: vi.fn().mockResolvedValue({ id: 1 })
   }
@@ -246,7 +247,11 @@ describe('AddMusicDialog — one-tap add alongside review', () => {
     userEvent.click(screen.getByRole('button', { name: /^add$/i }));
 
     await waitFor(() =>
-      expect(musicService.addAlbumFromMusicBrainz).toHaveBeenCalledWith('mbid-1', expect.anything())
+      expect(musicService.addAlbumFromSource).toHaveBeenCalledWith(
+        'musicbrainz',
+        'mbid-1',
+        expect.anything()
+      )
     );
   });
 
@@ -255,7 +260,7 @@ describe('AddMusicDialog — one-tap add alongside review', () => {
 
     userEvent.click(screen.getByRole('button', { name: /^add$/i }));
 
-    await waitFor(() => expect(musicService.addAlbumFromMusicBrainz).toHaveBeenCalled());
+    await waitFor(() => expect(musicService.addAlbumFromSource).toHaveBeenCalled());
     expect(screen.queryByText(/ownership information/i)).not.toBeInTheDocument();
   });
 
@@ -271,7 +276,7 @@ describe('AddMusicDialog — one-tap add alongside review', () => {
   });
 
   it('keeps the results and shows the reason when the add fails', async () => {
-    (musicService.addAlbumFromMusicBrainz as any).mockRejectedValueOnce(
+    (musicService.addAlbumFromSource as any).mockRejectedValueOnce(
       new Error('Album already exists in collection')
     );
     await showResults();
@@ -404,5 +409,74 @@ describe('AddMusicDialog — MusicBrainz unavailable after a good scan', () => {
     userEvent.click(retry);
 
     await waitFor(() => expect(musicService.searchMusicBrainz).toHaveBeenCalled());
+  });
+});
+
+describe('AddMusicDialog — results from either source', () => {
+  const discogsResult = {
+    source: 'discogs',
+    releaseId: '7156458',
+    discogsReleaseId: '7156458',
+    musicbrainzReleaseId: null,
+    title: 'Drones',
+    artist: ['Muse'],
+    releaseYear: 2015,
+    format: 'CD',
+    coverArt: { front: 'https://i.discogs.com/front.jpg', back: null }
+  };
+
+  const showDiscogsResults = async () => {
+    (musicService.scanAlbumCover as any).mockResolvedValue({
+      llm_result: { artist: 'Muse', title: 'Drones', year: 2015 },
+      results: [discogsResult],
+      confidence: 'high'
+    });
+    renderDialog();
+    fireEvent.change(screen.getByTestId('album-photo-input'), { target: { files: [photoFile()] } });
+    await waitFor(() => expect(screen.getByText('Drones')).toBeInTheDocument());
+  };
+
+  it('adds a Discogs result through its own source', async () => {
+    await showDiscogsResults();
+
+    userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+
+    await waitFor(() =>
+      expect(musicService.addAlbumFromSource).toHaveBeenCalledWith(
+        'discogs',
+        '7156458',
+        expect.anything()
+      )
+    );
+  });
+
+  it('adds a MusicBrainz result through its own source', async () => {
+    (musicService.scanAlbumCover as any).mockResolvedValue({
+      llm_result: { artist: 'Miles Davis', title: 'Kind of Blue' },
+      results: [{ ...release(), source: 'musicbrainz', releaseId: 'mbid-1' }],
+      confidence: 'high'
+    });
+    renderDialog();
+    fireEvent.change(screen.getByTestId('album-photo-input'), { target: { files: [photoFile()] } });
+    await waitFor(() => expect(screen.getByText('Kind of Blue')).toBeInTheDocument());
+
+    userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+
+    await waitFor(() =>
+      expect(musicService.addAlbumFromSource).toHaveBeenCalledWith(
+        'musicbrainz',
+        'mbid-1',
+        expect.anything()
+      )
+    );
+  });
+
+  it('shows the cover Discogs already provided instead of asking for one', async () => {
+    await showDiscogsResults();
+
+    const img = await screen.findByRole('img');
+    expect(img).toHaveAttribute('src', 'https://i.discogs.com/front.jpg');
+    // Cover Art Archive knows nothing about a Discogs release.
+    expect(musicService.getCoverArt).not.toHaveBeenCalled();
   });
 });

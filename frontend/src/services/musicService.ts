@@ -290,6 +290,42 @@ class MusicService {
     return await response.json();
   }
 
+  /**
+   * Add a release from whichever database it was found in.
+   * Search results carry `source` and `releaseId`; pass them straight through.
+   */
+  async addAlbumFromSource(
+    source: string,
+    releaseId: string,
+    additionalData: Record<string, unknown> = {}
+  ): Promise<unknown> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(
+      `${baseUrl}/music/releases/${encodeURIComponent(source)}/${encodeURIComponent(releaseId)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(additionalData)
+      }
+    );
+
+    if (!response.ok) {
+      let message = `HTTP error! status: ${response.status}`;
+      let code: string | undefined;
+      try {
+        const body = await response.json();
+        if (body?.error) message = body.error;
+        code = body?.code;
+      } catch (_) { /* keep the status-based message */ }
+      const error = new Error(message) as Error & { status?: number; code?: string };
+      error.status = response.status;
+      error.code = code;
+      throw error;
+    }
+
+    return await response.json();
+  }
+
   async searchMusicBrainz(query: string): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();

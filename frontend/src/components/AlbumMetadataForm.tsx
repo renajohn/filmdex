@@ -398,14 +398,18 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
       console.log('AlbumMetadataForm: Calling addAlbumFromMusicBrainz with releaseId:', release?.musicbrainzReleaseId);
 
       // Add the album with cover art information
-      const newAlbum = (await musicService.addAlbumFromMusicBrainz(
-        release?.musicbrainzReleaseId as string,
-        {
-          ...formData.ownership,
-          coverArtData: coverArtData,
-          titleStatus: defaultTitleStatus || undefined
-        }
-      )) as any;
+      // The release knows which database it came from; older ones only have an MBID.
+      const releaseId = (release?.releaseId
+        || release?.discogsReleaseId
+        || release?.musicbrainzReleaseId) as string;
+      const source = (release?.source
+        || (release?.discogsReleaseId ? 'discogs' : 'musicbrainz')) as string;
+
+      const newAlbum = (await musicService.addAlbumFromSource(source, releaseId, {
+        ...formData.ownership,
+        coverArtData: coverArtData,
+        titleStatus: defaultTitleStatus || undefined
+      })) as any;
 
       console.log('AlbumMetadataForm: Album added successfully:', newAlbum);
 

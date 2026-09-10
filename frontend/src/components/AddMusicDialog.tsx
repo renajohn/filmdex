@@ -344,14 +344,16 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
    * do want to set a price or pick among several covers.
    */
   const handleQuickAdd = async (release: MusicRelease) => {
-    const releaseId = release?.musicbrainzReleaseId || release?.id;
+    // Results carry the database they came from; older ones only have an MBID.
+    const releaseId = release?.releaseId || release?.discogsReleaseId || release?.musicbrainzReleaseId || release?.id;
+    const source = release?.source || (release?.discogsReleaseId ? 'discogs' : 'musicbrainz');
     if (!releaseId || addingReleaseId) return;
 
     setAddingReleaseId(releaseId);
     setError('');
 
     try {
-      const album = await musicService.addAlbumFromMusicBrainz(releaseId, {
+      const album = await musicService.addAlbumFromSource(source, releaseId, {
         titleStatus: defaultTitleStatus || undefined
       });
 

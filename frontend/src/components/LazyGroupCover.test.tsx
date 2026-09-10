@@ -57,3 +57,26 @@ describe('LazyGroupCover', () => {
     await waitFor(() => expect(screen.queryByRole('img')).not.toBeInTheDocument());
   });
 });
+
+describe('LazyGroupCover — cover already known', () => {
+  it('uses the artwork the release carries instead of fetching one', async () => {
+    render(
+      <LazyGroupCover
+        releases={[{ discogsReleaseId: '1', coverArt: { front: 'https://i.discogs.com/x.jpg' } } as any]}
+        title="Drones"
+      />
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole('img')).toHaveAttribute('src', 'https://i.discogs.com/x.jpg')
+    );
+    // Cover Art Archive is keyed on MusicBrainz ids; it knows nothing here.
+    expect(musicService.getCoverArt).not.toHaveBeenCalled();
+  });
+
+  it('still fetches when the release carries no artwork', async () => {
+    render(<LazyGroupCover releases={[{ musicbrainzReleaseId: 'first' }]} title="First" />);
+
+    await waitFor(() => expect(musicService.getCoverArt).toHaveBeenCalled());
+  });
+});
