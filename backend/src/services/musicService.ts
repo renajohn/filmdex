@@ -2,6 +2,7 @@
 import Album from '../models/album';
 import Track from '../models/track';
 import { getDatabase } from '../database';
+import { normalizeAlbumOwnership } from './utils/albumOwnership';
 import musicbrainzService from './musicbrainzService';
 import type { FormattedRelease } from './musicbrainzService';
 import imageService from './imageService';
@@ -736,8 +737,42 @@ class MusicService {
     try {
       // Checked before anything is fetched or written to disk, so a duplicate
       // attempt leaves no orphan files behind.
-      const alreadyInCollection = await Album.findByMusicbrainzId(releaseId);
-      if (alreadyInCollection) {
+      const existing = await Album.findByMusicbrainzId(releaseId);
+      if (existing) {
+        const wantsOwned = (additionalData.titleStatus as string | undefined) !== 'wish';
+
+        // Buying something off the wish list is the normal case, not a conflict:
+        // promote the row in place instead of refusing the add.
+        if (existing.titleStatus === 'wish' && wantsOwned) {
+          logger.info(`Promoting album ${existing.id} from the wish list to the collection`);
+          await Album.updateStatus(existing.id, 'owned');
+
+          // The stored row carries an empty nested `ownership`, which would win
+          // over the flat fields the form posts, so merge them explicitly:
+          // what the user just entered takes precedence, the rest is kept.
+          const incoming = normalizeAlbumOwnership(additionalData);
+          const ownership = {
+            condition: incoming.condition ?? existing.ownership?.condition ?? null,
+            notes: incoming.notes ?? existing.ownership?.notes ?? null,
+            purchasedAt: incoming.purchasedAt ?? existing.ownership?.purchasedAt ?? null,
+            priceChf: incoming.priceChf ?? existing.ownership?.priceChf ?? null
+          };
+
+          await Album.update(existing.id, {
+            ...(existing as unknown as AlbumCreateData),
+            ...(additionalData as unknown as AlbumCreateData),
+            ownership,
+            titleStatus: 'owned'
+          });
+
+          this.attachCoverArt(existing.id, releaseId, additionalData).catch((error: unknown) => {
+            const err = error as { message: string };
+            logger.error(`Failed to attach cover art for album ${existing.id}: ${err.message}`);
+          });
+
+          return (await Album.findById(existing.id))!;
+        }
+
         throw new Error('Album already exists in collection');
       }
 
