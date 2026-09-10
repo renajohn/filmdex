@@ -206,6 +206,21 @@ const search = async (criteria: { artist?: string | null; title?: string | null 
   return data.results || [];
 };
 
+/**
+ * Free-text search, Discogs' own general query.
+ *
+ * More forgiving than artist+title when the sleeve credits a performer the
+ * database files differently, or the model read the wording loosely.
+ */
+const searchFreeText = async (query: string): Promise<DiscogsSearchHit[]> => {
+  const data = await request<{ results?: DiscogsSearchHit[] }>('/database/search', {
+    q: query,
+    type: 'release',
+    per_page: 25
+  });
+  return data.results || [];
+};
+
 const searchByBarcode = async (barcode: string): Promise<DiscogsSearchHit[]> => {
   const data = await request<{ results?: DiscogsSearchHit[] }>('/database/search', {
     barcode,
@@ -221,6 +236,7 @@ const getRelease = async (releaseId: string | number): Promise<DiscogsRelease> =
 export default {
   isConfigured,
   search,
+  searchFreeText,
   searchByBarcode,
   getRelease,
   formatRelease

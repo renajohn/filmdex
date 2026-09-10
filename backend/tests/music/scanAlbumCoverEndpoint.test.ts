@@ -35,6 +35,7 @@ const silenceDiscogs = () => {
 const mockDiscogsSearch = (hits: Array<Record<string, unknown>>, releases: Record<string, unknown> = {}) => {
   jest.spyOn(discogsService, 'isConfigured').mockReturnValue(true);
   jest.spyOn(discogsService, 'search').mockResolvedValue(hits as any);
+  jest.spyOn(discogsService, 'searchFreeText').mockResolvedValue(hits as any);
   jest.spyOn(discogsService, 'getRelease').mockResolvedValue({ id: 1 } as any);
   jest.spyOn(discogsService, 'formatRelease').mockReturnValue(releases as any);
 };
@@ -208,6 +209,7 @@ describe('POST /api/music/scan-cover — Discogs first', () => {
   it('falls back to MusicBrainz when Discogs finds nothing', async () => {
     mockAnalysis({ artist: 'Miles Davis', title: 'Kind of Blue', year: 1959 });
     mockDiscogsSearch([], {});
+    jest.spyOn(discogsService, 'searchFreeText').mockResolvedValue([] as any);
     jest.spyOn(musicbrainzService, 'searchRelease').mockResolvedValue([release()] as any);
     jest.spyOn(musicbrainzService, 'formatReleaseData').mockImplementation((raw: any) => raw);
 
@@ -253,6 +255,7 @@ describe('POST /api/music/scan-cover — Discogs search widening', () => {
       .mockResolvedValueOnce([] as any)
       .mockResolvedValueOnce([{ id: 42 }] as any);
     jest.spyOn(discogsService, 'getRelease').mockResolvedValue({ id: 42 } as any);
+    jest.spyOn(discogsService, 'searchFreeText').mockResolvedValue([] as any);
     jest.spyOn(discogsService, 'formatRelease').mockReturnValue({
       discogsReleaseId: '42',
       title: 'Rare Record',
@@ -274,6 +277,7 @@ describe('POST /api/music/scan-cover — Discogs search widening', () => {
     mockAnalysis({ artist: 'Various Artists', title: 'Baroque Masterpieces', year: 2011 });
     jest.spyOn(discogsService, 'isConfigured').mockReturnValue(true);
     const search = jest.spyOn(discogsService, 'search').mockResolvedValue([] as any);
+    jest.spyOn(discogsService, 'searchFreeText').mockResolvedValue([] as any);
     jest.spyOn(musicbrainzService, 'searchRelease').mockResolvedValue([] as any);
     jest.spyOn(musicbrainzService, 'formatReleaseData').mockImplementation((raw: any) => raw);
 
@@ -290,6 +294,7 @@ describe('POST /api/music/scan-cover — says which database answered', () => {
     mockAnalysis({ artist: 'Nobody', title: 'Nothing' });
     jest.spyOn(discogsService, 'isConfigured').mockReturnValue(true);
     jest.spyOn(discogsService, 'search').mockResolvedValue([] as any);
+    jest.spyOn(discogsService, 'searchFreeText').mockResolvedValue([] as any);
     jest.spyOn(musicbrainzService, 'searchRelease').mockResolvedValue([] as any);
     jest.spyOn(musicbrainzService, 'formatReleaseData').mockImplementation((raw: any) => raw);
 
@@ -308,6 +313,26 @@ describe('POST /api/music/scan-cover — says which database answered', () => {
 
     const res = await post({ image: IMAGE });
 
+    expect(res.body.source).toBe('discogs');
+  });
+});
+
+describe('POST /api/music/scan-cover — last Discogs attempt', () => {
+  it('tries a free-text Discogs search before giving up on Discogs', async () => {
+    mockAnalysis({ artist: 'Musici Di San Marco', title: 'Händel Water Music Suite' });
+    jest.spyOn(discogsService, 'isConfigured').mockReturnValue(true);
+    jest.spyOn(discogsService, 'search').mockResolvedValue([] as any);
+    const free = jest.spyOn(discogsService, 'searchFreeText').mockResolvedValue([{ id: 5 }] as any);
+    jest.spyOn(discogsService, 'getRelease').mockResolvedValue({ id: 5 } as any);
+    jest.spyOn(discogsService, 'formatRelease').mockReturnValue({
+      discogsReleaseId: '5', title: 'Water Music', artist: ['Handel'], format: 'CD', discs: []
+    } as any);
+    const mbSearch = jest.spyOn(musicbrainzService, 'searchRelease');
+
+    const res = await post({ image: IMAGE });
+
+    expect(free).toHaveBeenCalledWith('Musici Di San Marco Händel Water Music Suite');
+    expect(mbSearch).not.toHaveBeenCalled();
     expect(res.body.source).toBe('discogs');
   });
 });

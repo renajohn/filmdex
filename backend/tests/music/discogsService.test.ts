@@ -185,3 +185,21 @@ describe('discogsService.formatRelease', () => {
     expect(formatted.discs[1].tracks[0].title).toBe('B');
   });
 });
+
+describe('discogsService.searchFreeText', () => {
+  it('uses the general q parameter, which tolerates a sloppy reading', async () => {
+    const get = mockGet({ results: [SEARCH_HIT] });
+
+    await discogsService.searchFreeText('Muse Drones');
+
+    const [, config] = get.mock.calls[0] as [string, any];
+    expect(config.params.q).toBe('Muse Drones');
+    expect(config.params.type).toBe('release');
+  });
+
+  it('returns an empty list when nothing matches', async () => {
+    mockGet({ results: [] });
+
+    await expect(discogsService.searchFreeText('zzzz')).resolves.toEqual([]);
+  });
+});

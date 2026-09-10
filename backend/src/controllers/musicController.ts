@@ -292,8 +292,16 @@ const musicController = {
           // A stylised or mis-read artist name should widen the search, not send
           // us straight to the fallback database.
           if (hits.length === 0 && searchArtist) {
-            logger.info(`Discogs: no hit for artist+title, retrying on title alone`);
+            logger.info('Discogs: no hit for artist+title, retrying on title alone');
             hits = await discogsService.search({ artist: null, title: llmResult.title });
+          }
+
+          // Last resort on Discogs: its general query is more forgiving than the
+          // structured fields when a performer is filed differently.
+          if (hits.length === 0) {
+            const freeText = [llmResult.artist, llmResult.title].filter(Boolean).join(' ');
+            logger.info(`Discogs: still nothing, trying free text "${freeText}"`);
+            hits = await discogsService.searchFreeText(freeText);
           }
 
           logger.info(`Discogs returned ${hits.length} hit(s)`);
