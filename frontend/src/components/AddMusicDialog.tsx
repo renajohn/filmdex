@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Tabs, Tab, Form, Alert, Table, Badge } from 'react-bootstrap';
 import { BsX, BsSearch, BsUpcScan, BsPlus, BsPencil, BsChevronDown, BsChevronRight } from 'react-icons/bs';
 import musicService from '../services/musicService';
+import LazyGroupCover from './LazyGroupCover';
 import AlbumMetadataForm from './AlbumMetadataForm';
 import './AddMusicDialog.css';
 
@@ -38,11 +39,6 @@ interface CoverArtMeta {
   };
 }
 
-interface LazyGroupCoverProps {
-  releases: MusicRelease[];
-  title: string;
-}
-
 interface AddMusicDialogProps {
   show: boolean;
   onHide: () => void;
@@ -55,59 +51,6 @@ interface AddMusicDialogProps {
   onAddStart?: () => void;
   onAddError?: (error: Error) => void;
 }
-
-// Lazy cover component: fetch one front cover per group after render
-const LazyGroupCover: React.FC<LazyGroupCoverProps> = ({ releases, title }) => {
-  const [url, setUrl] = useState<string | null>(null);
-  const loadedRef = useRef(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      if (loadedRef.current || !releases || releases.length === 0) return;
-      loadedRef.current = true;
-      // Try up to 5 releases in the group to find any cover (prefer front, fallback to back)
-      const maxToTry = Math.min(5, releases.length);
-      for (let i = 0; i < maxToTry; i++) {
-        const rel = releases[i];
-        const releaseId = rel?.musicbrainzReleaseId || rel?.id;
-        if (!releaseId) continue;
-        const meta = await musicService.getCoverArt(releaseId) as CoverArtMeta;
-        if (cancelled) return;
-        const front = meta?.front;
-        const back = meta?.back;
-        const candidate =
-          (front?.thumbnails?.['500'] || front?.thumbnails?.['250'] || front?.url) ||
-          (back?.thumbnails?.['500'] || back?.thumbnails?.['250'] || back?.url) ||
-          null;
-        if (candidate) {
-          setUrl(candidate);
-          break;
-        }
-      }
-    };
-    // Slight delay to prioritize UI thread
-    const t = setTimeout(load, 50);
-    return () => { cancelled = true; clearTimeout(t); };
-  }, [releases]);
-
-  if (!url) {
-    return (
-      <div className="group-cover group-cover-placeholder">
-        <BsSearch size={32} />
-      </div>
-    );
-  }
-  return (
-    <img
-      src={url}
-      alt={`${title} cover`}
-      className="group-cover"
-      loading="lazy"
-      onError={(e) => { e.currentTarget.style.display = 'none'; }}
-    />
-  );
-};
 
 const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCdByBarcode, onReviewMetadata, defaultTitleStatus, onAlbumAdded: onAlbumAddedFromParent, onAddStart, onAddError }) => {
   const [searchQuery, setSearchQuery] = useState('');

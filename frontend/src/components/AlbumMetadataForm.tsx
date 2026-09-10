@@ -432,6 +432,9 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
         console.warn('AlbumMetadataForm: Failed to fetch album after uploads, using created album:', fetchErr);
       }
 
+      // Clear before notifying so the next release starts from a clean form
+      resetState();
+
       // Notify parent that album was added
       if (onAlbumAdded) {
         onAlbumAdded(finalAlbum);
@@ -450,7 +453,10 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
     }
   };
 
-  const handleClose = () => {
+  // MusicDex keeps this dialog mounted between adds, so every add has to leave
+  // the component as clean as a fresh mount -- otherwise the next album inherits
+  // the previous cover selection, price and condition.
+  const resetState = () => {
     setFormData({
       ownership: {
         condition: '',
@@ -474,6 +480,10 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
     if (backCoverInputRef.current) {
       backCoverInputRef.current.value = '';
     }
+  };
+
+  const handleClose = () => {
+    resetState();
     onHide();
   };
 
@@ -711,7 +721,7 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
             <Card.Body className="dark-card-body">
               <Row>
                 <Col md={6}>
-                  <Form.Group className="mb-3">
+                  <Form.Group className="mb-3" controlId="albumMetadataPurchasedAt">
                     <Form.Label>Purchase Date</Form.Label>
                     <Form.Control
                       type="date"
@@ -721,7 +731,7 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
                   </Form.Group>
                 </Col>
                 <Col md={6}>
-                  <Form.Group className="mb-3">
+                  <Form.Group className="mb-3" controlId="albumMetadataPriceChf">
                     <Form.Label>Price (CHF)</Form.Label>
                     <Form.Control
                       type="number"
@@ -736,24 +746,22 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
               </Row>
               <Row>
                 <Col md={6}>
-                  <Form.Group className="mb-3">
+                  <Form.Group className="mb-3" controlId="albumMetadataCondition">
                     <Form.Label>Condition</Form.Label>
                     <Form.Select
                       value={formData.ownership.condition}
                       onChange={(e) => handleInputChange('condition', e.target.value)}
                     >
                       <option value="">Select condition</option>
-                      <option value="Mint">Mint</option>
-                      <option value="Near Mint">Near Mint</option>
-                      <option value="Very Good">Very Good</option>
-                      <option value="Good">Good</option>
-                      <option value="Fair">Fair</option>
-                      <option value="Poor">Poor</option>
+                      <option value="M">Mint (M)</option>
+                      <option value="NM">Near Mint (NM)</option>
+                      <option value="VG+">Very Good Plus (VG+)</option>
+                      <option value="VG">Very Good (VG)</option>
                     </Form.Select>
                   </Form.Group>
                 </Col>
                 <Col md={6}>
-                  <Form.Group className="mb-3">
+                  <Form.Group className="mb-3" controlId="albumMetadataNotes">
                     <Form.Label>Notes</Form.Label>
                     <Form.Control
                       as="textarea"
