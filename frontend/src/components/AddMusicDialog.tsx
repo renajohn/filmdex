@@ -4,6 +4,7 @@ import { BsX, BsSearch, BsUpcScan, BsPlus, BsPencil, BsChevronDown, BsChevronRig
 import musicService from '../services/musicService';
 import LazyGroupCover from './LazyGroupCover';
 import { downscaleImage } from '../utils/downscaleImage';
+import { decodeBarcode } from '../utils/decodeBarcode';
 import AlbumMetadataForm from './AlbumMetadataForm';
 import './AddMusicDialog.css';
 
@@ -72,6 +73,8 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
   const [searchBy, setSearchBy] = useState('photo'); // 'photo', 'title', 'catalog', 'barcode'
   const [scanning, setScanning] = useState(false);
   const [addingReleaseId, setAddingReleaseId] = useState<string | null>(null);
+  const [decodingBarcode, setDecodingBarcode] = useState(false);
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
   const [scanSummary, setScanSummary] = useState<ScanSummary | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -165,21 +168,19 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
     return grouped;
   };
 
-  const handleSearch = async () => {
-    const trimmedQuery = searchQuery.trim();
-    const trimmedArtist = searchArtist.trim();
-    const trimmedValue = searchValue.trim();
-    
-    // Allow searching by album title OR artist (artist-only search supported)
-    if (searchBy === 'title' && !trimmedQuery && !trimmedArtist) {
-      setError('Please enter an album title or artist');
-      return;
-    }
-    
-    if ((searchBy === 'catalog' || searchBy === 'barcode') && !trimmedValue) {
-      setError(`Please enter a ${searchBy === 'catalog' ? 'catalog number' : 'barcode'}`);
-      return;
-    }
+  /**
+   * Runs a search from explicit values rather than from state, so a caller that
+   * just decoded a barcode can search with it without waiting for a re-render.
+   */
+  const runSearch = async (
+    mode: string,
+    value: string,
+    query: string = '',
+    artist: string = ''
+  ) => {
+    const trimmedValue = value.trim();
+    const trimmedQuery = query.trim();
+    const trimmedArtist = artist.trim();
 
     setSearching(true);
     setError('');
@@ -187,9 +188,9 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
     try {
       let results: MusicRelease[];
 
-      if (searchBy === 'catalog') {
+      if (mode === 'catalog') {
         results = await musicService.searchByCatalogNumber(trimmedValue) as MusicRelease[];
-      } else if (searchBy === 'barcode') {
+      } else if (mode === 'barcode') {
         results = await musicService.searchByBarcode(trimmedValue) as MusicRelease[];
       } else {
         // Title/Artist search. Quoting the terms keeps Lucene from choking on
@@ -222,6 +223,25 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
     } finally {
       setSearching(false);
     }
+  };
+
+  const handleSearch = async () => {
+    const trimmedQuery = searchQuery.trim();
+    const trimmedArtist = searchArtist.trim();
+    const trimmedValue = searchValue.trim();
+
+    // Allow searching by album title OR artist (artist-only search supported)
+    if (searchBy === 'title' && !trimmedQuery && !trimmedArtist) {
+      setError('Please enter an album title or artist');
+      return;
+    }
+
+    if ((searchBy === 'catalog' || searchBy === 'barcode') && !trimmedValue) {
+      setError(`Please enter a ${searchBy === 'catalog' ? 'catalog number' : 'barcode'}`);
+      return;
+    }
+
+    await runSearch(searchBy, trimmedValue, trimmedQuery, trimmedArtist);
   };
 
   /** Opens the camera/picker. Must be called synchronously from a tap. */
@@ -269,6 +289,39 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
       // A file input keeps its value, so picking the same photo again would not
       // fire another change event.
       if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
+
+  /**
+   * Read the barcode off a photo, then search with it.
+   *
+   * A barcode pins the exact edition, which a cover photo cannot do -- two
+   * pressings share the same artwork. Decoding from a still rather than a live
+   * feed keeps this working over plain HTTP, where getUserMedia is blocked.
+   */
+  const handleBarcodePhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setDecodingBarcode(true);
+    setError('');
+
+    try {
+      const barcode = await decodeBarcode(file);
+
+      if (!barcode) {
+        setError('No barcode found in that photo. Try again closer, or type it in.');
+        return;
+      }
+
+      // Show what was read so a misread can be corrected by hand.
+      setSearchValue(barcode);
+      await runSearch('barcode', barcode);
+    } catch (err) {
+      setError((err as Error).message || 'Could not read the barcode');
+    } finally {
+      setDecodingBarcode(false);
+      if (barcodeInputRef.current) barcodeInputRef.current.value = '';
     }
   };
 
@@ -401,6 +454,16 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
           className="photo-scan-input"
         />
 
+        <input
+          ref={barcodeInputRef}
+          data-testid="barcode-photo-input"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+          capture="environment"
+          onChange={handleBarcodePhoto}
+          className="photo-scan-input"
+        />
+
         {/* Search Interface */}
         <div className="search-section mb-3">
           <h6 className="add-album-section-title mb-3">
@@ -520,6 +583,28 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                   className="search-input"
                 />
               </div>
+              {searchBy === 'barcode' && (
+                <div className="col-12">
+                  <Button
+                    variant="outline-light"
+                    className="w-100 barcode-scan-btn"
+                    disabled={decodingBarcode || searching}
+                    onClick={() => barcodeInputRef.current?.click()}
+                  >
+                    {decodingBarcode ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" />
+                        Reading the barcode...
+                      </>
+                    ) : (
+                      <>
+                        <BsUpcScan className="me-2" />
+                        Scan the barcode
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
               <div className="col-12 col-md-2">
                 <Button 
                   onClick={handleSearch}

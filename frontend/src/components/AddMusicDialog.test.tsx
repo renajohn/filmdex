@@ -11,6 +11,11 @@ vi.mock('../utils/downscaleImage', () => ({
   default: vi.fn()
 }));
 
+vi.mock('../utils/decodeBarcode', () => ({
+  decodeBarcode: vi.fn(),
+  default: vi.fn()
+}));
+
 vi.mock('../services/musicService', () => ({
   default: {
     getCoverArt: vi.fn().mockResolvedValue(null),
@@ -24,6 +29,7 @@ vi.mock('../services/musicService', () => ({
 }));
 
 import musicService from '../services/musicService';
+import { decodeBarcode } from '../utils/decodeBarcode';
 
 const release = (over: Record<string, unknown> = {}) => ({
   musicbrainzReleaseId: 'mbid-1',
@@ -284,5 +290,59 @@ describe('AddMusicDialog — one-tap add alongside review', () => {
     await waitFor(() =>
       expect(screen.getByText(/ownership information/i)).toBeInTheDocument()
     );
+  });
+});
+
+describe('AddMusicDialog — barcode by photo', () => {
+  const goToBarcode = () => {
+    renderDialog();
+    userEvent.click(screen.getByRole('button', { name: /^barcode$/i }));
+  };
+
+  it('offers to photograph the barcode', async () => {
+    goToBarcode();
+
+    expect(await screen.findByRole('button', { name: /scan/i })).toBeInTheDocument();
+  });
+
+  it('searches with the decoded barcode without any typing', async () => {
+    (decodeBarcode as any).mockResolvedValue('5099750442227');
+    goToBarcode();
+
+    const input = await screen.findByTestId('barcode-photo-input');
+    fireEvent.change(input, { target: { files: [photoFile()] } });
+
+    await waitFor(() =>
+      expect(musicService.searchByBarcode).toHaveBeenCalledWith('5099750442227')
+    );
+  });
+
+  it('fills the field with what it read, so it can be corrected', async () => {
+    (decodeBarcode as any).mockResolvedValue('5099750442227');
+    goToBarcode();
+
+    fireEvent.change(screen.getByTestId('barcode-photo-input'), {
+      target: { files: [photoFile()] }
+    });
+
+    await waitFor(() =>
+      expect((screen.getByPlaceholderText(/barcode/i) as HTMLInputElement).value).toBe(
+        '5099750442227'
+      )
+    );
+  });
+
+  it('says so when no barcode could be read', async () => {
+    (decodeBarcode as any).mockResolvedValue(null);
+    goToBarcode();
+
+    fireEvent.change(screen.getByTestId('barcode-photo-input'), {
+      target: { files: [photoFile()] }
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText(/no barcode/i)).toBeInTheDocument()
+    );
+    expect(musicService.searchByBarcode).not.toHaveBeenCalled();
   });
 });
