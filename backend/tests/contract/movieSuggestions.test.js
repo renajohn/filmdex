@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('../../index');
+const app = (m => m.default || m)(require('../../index'));
 
 describe('GET /api/import/:id/suggestions', () => {
   const testImportId = '00000000-0000-0000-0000-000000000000';

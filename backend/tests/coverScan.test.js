@@ -14,7 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
-const { analyzeImage, parseResponse, normalizeFormat, rankResults, checkHealth } = require('../src/services/coverScanService');
+const { analyzeImage, parseResponse, normalizeFormat, rankResults, checkHealth } = require('../src/services/coverScanService').default;
 
 // Load evalsets
 const EVALSET_DIR = path.join(__dirname, '../../evalsets/movie import');

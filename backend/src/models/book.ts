@@ -1125,13 +1125,8 @@ const Book = {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
 
-      // Validate field to prevent SQL injection
-      const allowedFields = ['title', 'author', 'artist', 'series', 'publisher', 'genre', 'tag', 'owner'];
-      if (!allowedFields.includes(field)) {
-        return reject(new Error(`Invalid field: ${field}`));
-      }
-
-      // Map field names to column names
+      // The map is the allowlist: a field with no column here never reaches the
+      // query, so an unmapped name cannot become `SELECT DISTINCT undefined`.
       const columnMap: Record<string, string> = {
         'title': 'title',
         'author': 'authors',
@@ -1143,6 +1138,9 @@ const Book = {
         'owner': 'owner'
       };
       const column = columnMap[field];
+      if (!column) {
+        return reject(new Error(`Invalid field: ${field}`));
+      }
 
       // For owner field, show all owners when query is empty (better for look-ahead)
       let sql: string;

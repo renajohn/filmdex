@@ -136,19 +136,36 @@ const durationToSeconds = (value: string | undefined): number | null => {
 };
 
 /**
- * Discogs positions are "1", "A1" for vinyl sides, or "2-5" on multi-disc sets.
- * Returns the disc and the track number within it.
+ * Discogs positions are "1", "A1" for vinyl sides, "2-5" on multi-disc sets, or
+ * "CD2-5" when the label prefixes the medium. Returns the disc and the track
+ * number within it; formatRelease renumbers a disc whose numbers still collide.
  */
 const parsePosition = (position: string | undefined, fallbackIndex: number): { disc: number; track: number } => {
   const raw = (position || '').trim();
-  const multiDisc = raw.match(/^(\d+)[-.](\d+)$/);
+
+  // "2-5" and "2.5", with an optional medium prefix such as "CD2-5".
+  const multiDisc = raw.match(/^[A-Za-z]*\s*(\d+)\s*[-.]\s*(\d+)$/);
   if (multiDisc) {
     return { disc: parseInt(multiDisc[1], 10), track: parseInt(multiDisc[2], 10) };
+  }
+
+  // Vinyl sides: A and B are the two sides of the first disc, C and D of the
+  // second. Without this a 2xLP collapses onto disc 1 with four "track 1".
+  const side = raw.match(/^([A-Za-z])(\d+)$/);
+  if (side) {
+    const sideIndex = side[1].toUpperCase().charCodeAt(0) - 'A'.charCodeAt(0);
+    return { disc: Math.floor(sideIndex / 2) + 1, track: parseInt(side[2], 10) };
   }
 
   const plain = raw.match(/(\d+)/);
   return { disc: 1, track: plain ? parseInt(plain[1], 10) : fallbackIndex + 1 };
 };
+
+/**
+ * "Nirvana (2)" -> "Nirvana". Discogs appends a numeric suffix whenever a name
+ * is already taken; it belongs to their database, not to the sleeve.
+ */
+const cleanArtistName = (name: string): string => name.replace(/\s*\(\d+\)\s*$/, '').trim();
 
 const formatRelease = (release: DiscogsRelease): FormattedDiscogsRelease => {
   const identifiers = release.identifiers || [];
@@ -176,7 +193,16 @@ const formatRelease = (release: DiscogsRelease): FormattedDiscogsRelease => {
 
   const discs = Array.from(byDisc.entries())
     .sort(([a], [b]) => a - b)
-    .map(([number, tracks]) => ({ number, tracks }));
+    .map(([number, tracks]) => {
+      // Vinyl numbering restarts on every side and some releases have no usable
+      // position at all, so a disc can end up with duplicate track numbers.
+      // Keep the sleeve order and renumber sequentially when that happens.
+      const collides = new Set(tracks.map(t => t.trackNumber)).size !== tracks.length;
+      return {
+        number,
+        tracks: collides ? tracks.map((t, i) => ({ ...t, trackNumber: i + 1 })) : tracks
+      };
+    });
 
   const totalDuration = playable.reduce((sum, t) => sum + (durationToSeconds(t.duration) || 0), 0);
 
@@ -185,7 +211,7 @@ const formatRelease = (release: DiscogsRelease): FormattedDiscogsRelease => {
     masterId: release.master_id || null,
     musicbrainzReleaseId: null,
     title: release.title || '',
-    artist: (release.artists || []).map(a => a.name || '').filter(Boolean),
+    artist: (release.artists || []).map(a => cleanArtistName(a.name || '')).filter(Boolean),
     releaseYear: release.year || (release.released ? parseInt(release.released.slice(0, 4), 10) : null) || null,
     country: release.country || null,
     format: release.formats?.[0]?.name || 'CD',

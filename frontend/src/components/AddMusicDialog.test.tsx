@@ -479,4 +479,17 @@ describe('AddMusicDialog — results from either source', () => {
     // Cover Art Archive knows nothing about a Discogs release.
     expect(musicService.getCoverArt).not.toHaveBeenCalled();
   });
+
+  it('shows the in-flight spinner on a Discogs result too', async () => {
+    // Keyed on the MusicBrainz id alone, a Discogs result greyed out with no
+    // spinner anywhere and the click looked like it had done nothing.
+    (musicService.addAlbumFromSource as any).mockImplementation(() => new Promise(() => {}));
+    await showDiscogsResults();
+
+    userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+
+    await waitFor(() =>
+      expect(document.querySelector('.quick-add-btn .spinner-border')).toBeInTheDocument()
+    );
+  });
 });

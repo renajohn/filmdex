@@ -55,4 +55,19 @@ describe('POST /api/music/releases/:source/:releaseId', () => {
 
     expect(res.status).toBe(400);
   });
+
+  it('reports the unique-index violation of a double tap as a duplicate too', async () => {
+    // Two taps close enough together both clear the service's duplicate checks
+    // and the second insert trips the partial unique index on the release id.
+    const constraint = Object.assign(
+      new Error('SQLITE_CONSTRAINT: UNIQUE constraint failed: albums.discogs_release_id'),
+      { code: 'SQLITE_CONSTRAINT' }
+    );
+    jest.spyOn(musicService, 'addAlbumFromDiscogs').mockRejectedValue(constraint);
+
+    const res = await post('discogs', '7156458');
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('DUPLICATE_ALBUM');
+  });
 });

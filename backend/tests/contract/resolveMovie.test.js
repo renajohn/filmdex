@@ -1,7 +1,7 @@
 const request = require('supertest');
-const app = require('../../index');
-const MovieImport = require('../../src/models/movieImport');
-const UnmatchedMovie = require('../../src/models/unmatchedMovie');
+const app = (m => m.default || m)(require('../../index'));
+const MovieImport = (m => m.default || m)(require('../../src/models/movieImport'));
+const UnmatchedMovie = (m => m.default || m)(require('../../src/models/unmatchedMovie'));
 
 describe('POST /api/import/resolve', () => {
   let testImportId;
