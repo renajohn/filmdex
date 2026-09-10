@@ -175,6 +175,50 @@ const runAutoMigrations = async (): Promise<void> => {
           console.log(`  ✓ Backfilled ${graphicNovels} books as 'graphic-novel'`);
         }
       }
+    },
+    {
+      name: '013_unique_album_musicbrainz_id',
+      up: async () => {
+        // The application checks for an existing release before inserting, but
+        // two concurrent requests (a double tap) can both pass that check. A
+        // partial unique index makes the database the last line of defence,
+        // while still allowing any number of hand-entered albums with no id.
+        const duplicates = await new Promise<Array<{ musicbrainz_release_id: string; n: number }>>((resolve, reject) => {
+          currentDb.all(`
+            SELECT musicbrainz_release_id, COUNT(*) AS n
+            FROM albums
+            WHERE musicbrainz_release_id IS NOT NULL
+            GROUP BY musicbrainz_release_id
+            HAVING n > 1
+          `, (err: Error | null, rows: Array<{ musicbrainz_release_id: string; n: number }>) => {
+            if (err) reject(err);
+            else resolve(rows || []);
+          });
+        });
+
+        if (duplicates.length > 0) {
+          // Refuse to guess which copy to drop: leave the data alone and say so,
+          // rather than failing startup or deleting someone's album.
+          console.warn(
+            `  ! Skipping unique index: ${duplicates.length} MusicBrainz id(s) already appear more than once ` +
+            `(${duplicates.map(d => d.musicbrainz_release_id).join(', ')}). ` +
+            'Remove the duplicate albums, then restart to apply it.'
+          );
+          return;
+        }
+
+        await new Promise<void>((resolve, reject) => {
+          currentDb.run(`
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_albums_musicbrainz_id_unique
+            ON albums(musicbrainz_release_id)
+            WHERE musicbrainz_release_id IS NOT NULL
+          `, (err: Error | null) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+        console.log('  ✓ albums.musicbrainz_release_id is now unique');
+      }
     }
   ];
 
