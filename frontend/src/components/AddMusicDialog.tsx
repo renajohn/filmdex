@@ -69,7 +69,7 @@ interface AddMusicDialogProps {
 const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCdByBarcode, onReviewMetadata, defaultTitleStatus, onAlbumAdded: onAlbumAddedFromParent, onAddStart, onAddError }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchArtist, setSearchArtist] = useState('');
-  const [searchBy, setSearchBy] = useState('title'); // 'title', 'catalog', 'barcode', 'photo'
+  const [searchBy, setSearchBy] = useState('photo'); // 'photo', 'title', 'catalog', 'barcode'
   const [scanning, setScanning] = useState(false);
   const [scanSummary, setScanSummary] = useState<ScanSummary | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -219,6 +219,12 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
     }
   };
 
+  /** Opens the camera/picker. Must be called synchronously from a tap. */
+  const openCamera = () => {
+    setSearchBy('photo');
+    photoInputRef.current?.click();
+  };
+
   /**
    * Photo path: pick (or shoot) a sleeve, downscale it in the browser, and scan.
    *
@@ -301,7 +307,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
   const handleClose = () => {
     setSearchQuery('');
     setSearchArtist('');
-    setSearchBy('title');
+    setSearchBy('photo');
     setSearchValue('');
     setSearchResults([]);
     setGroupedResults([]);
@@ -349,6 +355,18 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
       </Modal.Header>
       
       <Modal.Body className="add-music-dialog-body">
+        {/* Always mounted: openCamera() clicks it from within the user's tap,
+            which would be impossible if it appeared only after a state change. */}
+        <input
+          ref={photoInputRef}
+          data-testid="album-photo-input"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+          capture="environment"
+          onChange={handlePhotoSelected}
+          className="photo-scan-input"
+        />
+
         {/* Search Interface */}
         <div className="search-section mb-3">
           <h6 className="add-album-section-title mb-3">
@@ -358,6 +376,13 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
           
           {/* Search Type Selector */}
           <div className="search-type-selector mb-3">
+            <button
+              className={`search-type-btn ${searchBy === 'photo' ? 'active' : ''}`}
+              onClick={openCamera}
+            >
+              <BsCamera className="me-1" />
+              Photo
+            </button>
             <button 
               className={`search-type-btn ${searchBy === 'title' ? 'active' : ''}`}
               onClick={() => setSearchBy('title')}
@@ -376,29 +401,13 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
             >
               Barcode
             </button>
-            <button
-              className={`search-type-btn ${searchBy === 'photo' ? 'active' : ''}`}
-              onClick={() => setSearchBy('photo')}
-            >
-              <BsCamera className="me-1" />
-              Photo
-            </button>
           </div>
           
           {/* Search Inputs */}
           {searchBy === 'photo' ? (
             <div className="photo-scan-section mb-3">
-              <input
-                ref={photoInputRef}
-                data-testid="album-photo-input"
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-                capture="environment"
-                onChange={handlePhotoSelected}
-                className="photo-scan-input"
-              />
               <Button
-                onClick={() => photoInputRef.current?.click()}
+                onClick={openCamera}
                 disabled={scanning}
                 className="search-btn w-100 photo-scan-btn"
               >

@@ -53,13 +53,11 @@ describe('AddMusicDialog — photo mode', () => {
   it('offers a photo option next to the text searches', () => {
     renderDialog();
 
-    expect(screen.getByRole('button', { name: /photo/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^photo$/i })).toBeInTheDocument();
   });
 
   it('uses the rear camera for the capture input', async () => {
     renderDialog();
-
-    userEvent.click(screen.getByRole('button', { name: /photo/i }));
 
     const input = await screen.findByTestId('album-photo-input');
     expect(input).toHaveAttribute('capture', 'environment');
@@ -69,7 +67,6 @@ describe('AddMusicDialog — photo mode', () => {
   it('scans as soon as a photo is picked, with no extra tap', async () => {
     renderDialog();
 
-    userEvent.click(screen.getByRole('button', { name: /photo/i }));
     const input = await screen.findByTestId('album-photo-input');
 
     fireEvent.change(input, { target: { files: [photoFile()] } });
@@ -80,7 +77,6 @@ describe('AddMusicDialog — photo mode', () => {
   it('sends base64 without the data-url prefix, plus the mime type', async () => {
     renderDialog();
 
-    userEvent.click(screen.getByRole('button', { name: /photo/i }));
     const input = await screen.findByTestId('album-photo-input');
     fireEvent.change(input, { target: { files: [photoFile()] } });
 
@@ -94,7 +90,6 @@ describe('AddMusicDialog — photo mode', () => {
   it('shows the identified release as a result', async () => {
     renderDialog();
 
-    userEvent.click(screen.getByRole('button', { name: /photo/i }));
     const input = await screen.findByTestId('album-photo-input');
     fireEvent.change(input, { target: { files: [photoFile()] } });
 
@@ -105,7 +100,6 @@ describe('AddMusicDialog — photo mode', () => {
     (musicService.scanAlbumCover as any).mockRejectedValue(new Error('Could not identify album'));
     renderDialog();
 
-    userEvent.click(screen.getByRole('button', { name: /photo/i }));
     const input = await screen.findByTestId('album-photo-input');
     fireEvent.change(input, { target: { files: [photoFile()] } });
 
@@ -116,7 +110,6 @@ describe('AddMusicDialog — photo mode', () => {
     (musicService.scanAlbumCover as any).mockRejectedValueOnce(new Error('Network down'));
     renderDialog();
 
-    userEvent.click(screen.getByRole('button', { name: /photo/i }));
     const input = (await screen.findByTestId('album-photo-input')) as HTMLInputElement;
     fireEvent.change(input, { target: { files: [photoFile()] } });
 
@@ -132,9 +125,51 @@ describe('AddMusicDialog — empty text search', () => {
     (musicService.searchMusicBrainz as any).mockResolvedValue([]);
     renderDialog();
 
+    userEvent.click(screen.getByRole('button', { name: /album title/i }));
     userEvent.type(screen.getByPlaceholderText(/album title/i), 'zzzz');
     userEvent.click(screen.getByRole('button', { name: /^search$/i }));
 
     await waitFor(() => expect(screen.getByText(/no (results|match)/i)).toBeInTheDocument());
+  });
+});
+
+describe('AddMusicDialog — photo is the default path', () => {
+  it('opens straight on the photo option', () => {
+    renderDialog();
+
+    expect(screen.getByRole('button', { name: /take a photo/i })).toBeInTheDocument();
+  });
+
+  it('opens the camera on the very first tap, with no mode tap in between', async () => {
+    renderDialog();
+
+    const input = screen.getByTestId('album-photo-input');
+    const clickSpy = vi.spyOn(input, 'click');
+
+    userEvent.click(screen.getByRole('button', { name: /take a photo/i }));
+
+    await waitFor(() => expect(clickSpy).toHaveBeenCalled());
+  });
+
+  it('opens the camera directly when coming back from a text search', async () => {
+    renderDialog();
+
+    const input = screen.getByTestId('album-photo-input');
+    const clickSpy = vi.spyOn(input, 'click');
+
+    userEvent.click(screen.getByRole('button', { name: /album title/i }));
+    userEvent.click(screen.getByRole('button', { name: /^photo$/i }));
+
+    await waitFor(() => expect(clickSpy).toHaveBeenCalled());
+  });
+
+  it('still lets the user fall back to typing a title', async () => {
+    renderDialog();
+
+    userEvent.click(screen.getByRole('button', { name: /album title/i }));
+
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText(/album title/i)).toBeInTheDocument()
+    );
   });
 });
