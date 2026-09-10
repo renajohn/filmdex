@@ -177,6 +177,42 @@ const runAutoMigrations = async (): Promise<void> => {
       }
     },
     {
+      name: '014_add_discogs_release_id',
+      up: async () => {
+        // Discogs is now the primary source for physical pressings, so albums
+        // need their own external id: a Discogs release has no MusicBrainz id.
+        const columns = await new Promise<Array<{ name: string }>>((resolve, reject) => {
+          currentDb.all('PRAGMA table_info(albums)', (err: Error | null, rows: Array<{ name: string }>) => {
+            if (err) reject(err);
+            else resolve(rows || []);
+          });
+        });
+
+        if (!columns.some(c => c.name === 'discogs_release_id')) {
+          await new Promise<void>((resolve, reject) => {
+            currentDb.run('ALTER TABLE albums ADD COLUMN discogs_release_id TEXT', (err: Error | null) => {
+              if (err) reject(err);
+              else resolve();
+            });
+          });
+          console.log('  ✓ Added discogs_release_id column');
+        }
+
+        // Partial, like the MusicBrainz one: any number of albums may have none.
+        await new Promise<void>((resolve, reject) => {
+          currentDb.run(`
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_albums_discogs_id_unique
+            ON albums(discogs_release_id)
+            WHERE discogs_release_id IS NOT NULL
+          `, (err: Error | null) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+        console.log('  ✓ albums.discogs_release_id is now unique');
+      }
+    },
+    {
       name: '013_unique_album_musicbrainz_id',
       up: async () => {
         // The application checks for an existing release before inserting, but

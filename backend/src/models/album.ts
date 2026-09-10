@@ -104,6 +104,7 @@ const Album = {
           cover TEXT,
           back_cover TEXT,
           musicbrainz_release_id TEXT,
+          discogs_release_id TEXT,
           musicbrainz_release_group_id TEXT,
           release_group_first_release_date INTEGER,
           release_group_type TEXT,
@@ -156,6 +157,9 @@ const Album = {
             }),
             new Promise((resolve) => {
               db.run(`ALTER TABLE albums ADD COLUMN title_status TEXT DEFAULT 'owned'`, () => resolve());
+            }),
+            new Promise((resolve) => {
+              db.run(`ALTER TABLE albums ADD COLUMN discogs_release_id TEXT`, () => resolve());
             })
           ];
 
@@ -222,6 +226,7 @@ const Album = {
         cover: cdData.cover || null,
         back_cover: cdData.backCover || null,
         musicbrainz_release_id: cdData.musicbrainzReleaseId || null,
+        discogs_release_id: cdData.discogsReleaseId || null,
         musicbrainz_release_group_id: cdData.musicbrainzReleaseGroupId || null,
         release_group_first_release_date: cdData.releaseGroupFirstReleaseDate || null,
         release_group_type: cdData.releaseGroupType || null,
@@ -247,18 +252,18 @@ const Album = {
           artist, title, release_year, labels, catalog_number, barcode,
           country, edition_notes, genres, moods, tags, rating, total_duration,
           format, packaging, status, release_events, recording_quality, cover, back_cover,
-          musicbrainz_release_id, musicbrainz_release_group_id, release_group_first_release_date,
+          musicbrainz_release_id, discogs_release_id, musicbrainz_release_group_id, release_group_first_release_date,
           release_group_type, release_group_secondary_types, condition, ownership_notes, purchased_at,
           price_chf, producer, engineer, recording_location, language, urls, isrc_codes, annotation, title_status,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const params = [
         cd.artist, cd.title, cd.release_year, cd.labels, cd.catalog_number,
         cd.barcode, cd.country, cd.edition_notes, cd.genres, cd.moods, cd.tags,
         cd.rating, cd.total_duration, cd.format, cd.packaging, cd.status, cd.release_events,
-        cd.recording_quality, cd.cover, cd.back_cover, cd.musicbrainz_release_id, cd.musicbrainz_release_group_id,
+        cd.recording_quality, cd.cover, cd.back_cover, cd.musicbrainz_release_id, cd.discogs_release_id, cd.musicbrainz_release_group_id,
         cd.release_group_first_release_date, cd.release_group_type, cd.release_group_secondary_types,
         cd.condition, cd.ownership_notes, cd.purchased_at, cd.price_chf,
         cd.producer, cd.engineer, cd.recording_location, cd.language, cd.urls, cd.isrc_codes, cd.annotation, cd.title_status,
@@ -348,6 +353,21 @@ const Album = {
           resolve(Album.formatRow(row));
         }
       });
+    });
+  },
+
+  /** Discogs is the primary source, so its id needs the same lookup. */
+  findByDiscogsId: (discogsId: string): Promise<AlbumFormatted | null> => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      db.get(
+        'SELECT * FROM albums WHERE discogs_release_id = ?',
+        [discogsId],
+        (err: Error | null, row: AlbumRow | undefined) => {
+          if (err) reject(err);
+          else resolve(row ? Album.formatRow(row) : null);
+        }
+      );
     });
   },
 
@@ -806,6 +826,7 @@ const Album = {
       urls: JSON.parse(row.urls || '{}'),
       isrcCodes: JSON.parse(row.isrc_codes || '[]'),
       annotation: row.annotation,
+      discogsReleaseId: row.discogs_release_id ?? null,
       titleStatus: row.title_status,
       createdAt: row.created_at,
       updatedAt: row.updated_at

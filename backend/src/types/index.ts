@@ -187,6 +187,7 @@ export interface AlbumRow {
   cover: string | null;
   back_cover: string | null;
   musicbrainz_release_id: string | null;
+  discogs_release_id?: string | null;
   musicbrainz_release_group_id: string | null;
   release_group_first_release_date: number | null;
   release_group_type: string | null;
@@ -230,6 +231,7 @@ export interface AlbumFormatted {
   cover: string | null;
   backCover: string | null;
   musicbrainzReleaseId: string | null;
+  discogsReleaseId?: string | null;
   musicbrainzReleaseGroupId: string | null;
   releaseGroupFirstReleaseDate: number | null;
   releaseGroupType: string | null;
@@ -273,6 +275,7 @@ export interface AlbumCreateData {
   cover?: string | null;
   backCover?: string | null;
   musicbrainzReleaseId?: string | null;
+  discogsReleaseId?: string | null;
   musicbrainzReleaseGroupId?: string | null;
   releaseGroupFirstReleaseDate?: number | null;
   releaseGroupType?: string | null;
