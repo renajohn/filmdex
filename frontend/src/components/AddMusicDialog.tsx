@@ -337,6 +337,17 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
   };
 
   /**
+   * The id a result is tracked by while it is being added.
+   *
+   * Results carry the database they came from; older ones only have an MBID.
+   * The spinner compares against this too, so it has to be the same expression
+   * in both places -- keying the button on the MBID alone left every Discogs
+   * result with no spinner at all.
+   */
+  const releaseKey = (release: MusicRelease): string | undefined =>
+    release?.releaseId || release?.discogsReleaseId || release?.musicbrainzReleaseId || release?.id;
+
+  /**
    * One-tap add: store the release as-is, straight from the result list.
    *
    * The metadata screen has no required field -- the server picks the Cover Art
@@ -344,8 +355,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
    * do want to set a price or pick among several covers.
    */
   const handleQuickAdd = async (release: MusicRelease) => {
-    // Results carry the database they came from; older ones only have an MBID.
-    const releaseId = release?.releaseId || release?.discogsReleaseId || release?.musicbrainzReleaseId || release?.id;
+    const releaseId = releaseKey(release);
     const source = release?.source || (release?.discogsReleaseId ? 'discogs' : 'musicbrainz');
     if (!releaseId || addingReleaseId) return;
 
@@ -728,7 +738,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                                 handleQuickAdd(group.releases[0]);
                               }}
                             >
-                              {addingReleaseId === (group.releases[0]?.musicbrainzReleaseId || group.releases[0]?.id) ? (
+                              {addingReleaseId === releaseKey(group.releases[0]) ? (
                                 <span className="spinner-border spinner-border-sm" />
                               ) : (
                                 <>
@@ -793,7 +803,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                                           handleQuickAdd(release);
                                         }}
                                       >
-                                        {addingReleaseId === (release.musicbrainzReleaseId || release.id) ? (
+                                        {addingReleaseId === releaseKey(release) ? (
                                           <span className="spinner-border spinner-border-sm" />
                                         ) : (
                                           <>

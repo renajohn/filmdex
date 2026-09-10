@@ -49,8 +49,10 @@ const LazyGroupCover: React.FC<LazyGroupCoverProps> = ({ releases, title }) => {
       if (!releases || releases.length === 0) return;
 
       // Discogs results already carry their artwork; Cover Art Archive is keyed
-      // on MusicBrainz ids and would have nothing to say about them.
-      const embedded = releases.find(r => r?.coverArt?.front || r?.coverArt?.back);
+      // on MusicBrainz ids and would have nothing to say about them. Look for a
+      // front across the whole group before settling for a back cover.
+      const embedded =
+        releases.find(r => r?.coverArt?.front) || releases.find(r => r?.coverArt?.back);
       if (embedded) {
         setUrl(embedded.coverArt.front || embedded.coverArt.back);
         return;

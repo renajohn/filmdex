@@ -80,3 +80,34 @@ describe('LazyGroupCover — cover already known', () => {
     await waitFor(() => expect(musicService.getCoverArt).toHaveBeenCalled());
   });
 });
+
+describe('LazyGroupCover — front before back', () => {
+  it('prefers a front cover further down the group over an earlier back cover', async () => {
+    render(
+      <LazyGroupCover
+        releases={[
+          { discogsReleaseId: '1', coverArt: { back: 'https://i.discogs.com/back.jpg' } },
+          { discogsReleaseId: '2', coverArt: { front: 'https://i.discogs.com/front.jpg' } }
+        ] as any}
+        title="Drones"
+      />
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole('img')).toHaveAttribute('src', 'https://i.discogs.com/front.jpg')
+    );
+  });
+
+  it('falls back to a back cover when the group has no front at all', async () => {
+    render(
+      <LazyGroupCover
+        releases={[{ discogsReleaseId: '1', coverArt: { back: 'https://i.discogs.com/back.jpg' } }] as any}
+        title="Drones"
+      />
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole('img')).toHaveAttribute('src', 'https://i.discogs.com/back.jpg')
+    );
+  });
+});

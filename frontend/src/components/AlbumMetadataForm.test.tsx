@@ -170,3 +170,32 @@ describe('AlbumMetadataForm — adds through the release source', () => {
     );
   });
 });
+
+describe('AlbumMetadataForm — artwork a Discogs result carries', () => {
+  const discogsRelease = {
+    title: 'Drones',
+    artist: ['Muse'],
+    discogsReleaseId: '7156458',
+    musicbrainzReleaseId: null,
+    source: 'discogs',
+    releaseId: '7156458',
+    coverArt: {
+      front: 'https://i.discogs.com/front.jpg',
+      back: 'https://i.discogs.com/back.jpg'
+    }
+  };
+
+  it('offers the embedded cover even though Cover Art Archive has nothing', async () => {
+    renderForm(discogsRelease);
+
+    userEvent.click(screen.getByRole('button', { name: 'Add Album' }));
+
+    await waitFor(() => expect(musicService.addAlbumFromSource).toHaveBeenCalled());
+
+    // Keyed on the MusicBrainz id alone, the picker used to come up empty and
+    // the form posted no cover at all.
+    const [, , payload] = (musicService.addAlbumFromSource as any).mock.calls[0];
+    expect(payload.coverArtData.frontCoverUrl).toBe('https://i.discogs.com/front.jpg');
+    expect(payload.coverArtData.backCoverUrl).toBe('https://i.discogs.com/back.jpg');
+  });
+});

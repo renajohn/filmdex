@@ -106,6 +106,26 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
     group.forEach(r => {
       const releaseId = r?.musicbrainzReleaseId || r?.id;
       const meta = releaseId ? releaseCoverMap[releaseId] : null;
+
+      // Discogs results carry their artwork inline and have no MusicBrainz id,
+      // so the fetched map has nothing for them: without this the picker is
+      // empty even though we already hold a usable url.
+      if (!meta) {
+        (['front', 'back'] as const).forEach(type => {
+          const url = r?.coverArt?.[type];
+          if (!url) return;
+          covers.push({
+            url,
+            fullUrl: url,
+            type,
+            release: r,
+            country: r.country,
+            year: r.releaseYear,
+            catalogNumber: r.catalogNumber
+          });
+        });
+      }
+
       if (meta?.front) {
         covers.push({
           url: meta.front.display || '',
