@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Tabs, Tab, Form, Alert, Table, Badge } from 'react-bootstrap';
-import { BsX, BsSearch, BsUpcScan, BsPlus, BsPencil, BsChevronDown, BsChevronRight } from 'react-icons/bs';
+import { BsX, BsSearch, BsUpcScan, BsPlus, BsPencil, BsChevronDown, BsChevronRight, BsCamera } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import LazyGroupCover from './LazyGroupCover';
+import { downscaleImage } from '../utils/downscaleImage';
 import AlbumMetadataForm from './AlbumMetadataForm';
 import './AddMusicDialog.css';
 
@@ -39,6 +40,19 @@ interface CoverArtMeta {
   };
 }
 
+interface ScanSummary {
+  artist?: string | null;
+  title?: string | null;
+  year?: number | null;
+  format?: string | null;
+}
+
+interface ScanResponse {
+  llm_result?: ScanSummary;
+  results?: MusicRelease[];
+  confidence?: 'high' | 'low';
+}
+
 interface AddMusicDialogProps {
   show: boolean;
   onHide: () => void;
@@ -55,7 +69,11 @@ interface AddMusicDialogProps {
 const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCdByBarcode, onReviewMetadata, defaultTitleStatus, onAlbumAdded: onAlbumAddedFromParent, onAddStart, onAddError }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchArtist, setSearchArtist] = useState('');
-  const [searchBy, setSearchBy] = useState('title'); // 'title', 'catalog', 'barcode'
+  const [searchBy, setSearchBy] = useState('title'); // 'title', 'catalog', 'barcode', 'photo'
+  const [scanning, setScanning] = useState(false);
+  const [scanSummary, setScanSummary] = useState<ScanSummary | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [searchValue, setSearchValue] = useState('');
   const [searchResults, setSearchResults] = useState<MusicRelease[]>([]);
   const [groupedResults, setGroupedResults] = useState<GroupedResult[]>([]);
@@ -182,6 +200,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
       }
 
       setSearchResults(results);
+      setHasSearched(true);
 
       // Group results to reduce clutter
       const grouped = groupSearchResults(results);
@@ -197,6 +216,48 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
       setError('Search failed: ' + (err as Error).message);
     } finally {
       setSearching(false);
+    }
+  };
+
+  /**
+   * Photo path: pick (or shoot) a sleeve, downscale it in the browser, and scan.
+   *
+   * The scan starts on selection -- no extra "Scan" tap -- because the whole
+   * point is adding a CD in as few taps as possible. Downscaling client-side
+   * keeps a 4MB phone photo from crossing the network.
+   */
+  const handlePhotoSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setScanning(true);
+    setError('');
+    setScanSummary(null);
+
+    try {
+      const { base64, mimeType } = await downscaleImage(file);
+      const scan = await musicService.scanAlbumCover(base64, mimeType) as ScanResponse;
+
+      const results = scan?.results || [];
+      setSearchResults(results);
+      setGroupedResults(groupSearchResults(results));
+      setHasSearched(true);
+      setScanSummary(scan?.llm_result || null);
+
+      // Prefill the text fields so a failed scan can be corrected by hand
+      // instead of retyping everything.
+      if (scan?.llm_result?.title) setSearchQuery(scan.llm_result.title);
+      if (scan?.llm_result?.artist) setSearchArtist(scan.llm_result.artist);
+
+      const grouped = groupSearchResults(results);
+      setExpandedGroups(grouped.length <= 3 ? new Set(grouped.map((_, idx) => idx)) : new Set());
+    } catch (err) {
+      setError((err as Error).message || 'Could not identify album from the photo');
+    } finally {
+      setScanning(false);
+      // A file input keeps its value, so picking the same photo again would not
+      // fire another change event.
+      if (photoInputRef.current) photoInputRef.current.value = '';
     }
   };
 
@@ -244,6 +305,8 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
     setSearchValue('');
     setSearchResults([]);
     setGroupedResults([]);
+    setHasSearched(false);
+    setScanSummary(null);
     setExpandedGroups(new Set());
     setError('');
     setShowMetadataForm(false);
@@ -313,10 +376,53 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
             >
               Barcode
             </button>
+            <button
+              className={`search-type-btn ${searchBy === 'photo' ? 'active' : ''}`}
+              onClick={() => setSearchBy('photo')}
+            >
+              <BsCamera className="me-1" />
+              Photo
+            </button>
           </div>
           
           {/* Search Inputs */}
-          {searchBy === 'title' ? (
+          {searchBy === 'photo' ? (
+            <div className="photo-scan-section mb-3">
+              <input
+                ref={photoInputRef}
+                data-testid="album-photo-input"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                capture="environment"
+                onChange={handlePhotoSelected}
+                className="photo-scan-input"
+              />
+              <Button
+                onClick={() => photoInputRef.current?.click()}
+                disabled={scanning}
+                className="search-btn w-100 photo-scan-btn"
+              >
+                {scanning ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" />
+                    Reading the cover...
+                  </>
+                ) : (
+                  <>
+                    <BsCamera className="me-2" />
+                    Take a photo of the cover
+                  </>
+                )}
+              </Button>
+              {scanSummary && (
+                <div className="photo-scan-summary mt-2">
+                  Read from the cover:{' '}
+                  <strong>{[scanSummary.artist, scanSummary.title].filter(Boolean).join(' - ')}</strong>
+                  {scanSummary.year ? ` (${scanSummary.year})` : ''}
+                </div>
+              )}
+            </div>
+          ) : searchBy === 'title' ? (
             <div className="row g-2 mb-3">
               <div className="col-12 col-md-5">
                 <Form.Control
@@ -394,6 +500,16 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
           )}
 
           {/* Grouped Search Results */}
+          {hasSearched && !searching && !scanning && groupedResults.length === 0 && (
+            <div className="search-empty-state text-center py-4">
+              <BsSearch size={28} className="mb-2 opacity-50" />
+              <div>No matching release found.</div>
+              <small className="text-muted">
+                Try the artist name as well, or a barcode; you can also add the album by hand.
+              </small>
+            </div>
+          )}
+
           {groupedResults.length > 0 && (
             <div className="grouped-search-results">
               <div className="results-header mb-3">

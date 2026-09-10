@@ -473,3 +473,21 @@
     width: 100%;
   }
 }
+
+/* Photo scan: the file input is driven by the button next to it */
+.photo-scan-input {
+  display: none;
+}
+
+.photo-scan-btn {
+  min-height: 48px; /* comfortable tap target */
+}
+
+.photo-scan-summary {
+  font-size: 0.85rem;
+  color: #cfd4da;
+}
+
+.search-empty-state {
+  color: #cfd4da;
+}

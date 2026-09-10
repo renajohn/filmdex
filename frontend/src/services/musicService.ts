@@ -264,6 +264,32 @@ class MusicService {
     }
   }
 
+  /**
+   * Identify an album from a photo of its sleeve.
+   * `imageBase64` must be raw base64, without the data-url prefix.
+   */
+  async scanAlbumCover(imageBase64: string, mimeType: string = 'image/jpeg'): Promise<unknown> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/scan-cover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: imageBase64, mimeType })
+    });
+
+    if (!response.ok) {
+      let message = `HTTP error! status: ${response.status}`;
+      try {
+        const body = await response.json();
+        if (body?.error) message = body.error;
+      } catch (_) { /* keep the status-based message */ }
+      const error = new Error(message) as Error & { status?: number };
+      error.status = response.status;
+      throw error;
+    }
+
+    return await response.json();
+  }
+
   async searchMusicBrainz(query: string): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();
