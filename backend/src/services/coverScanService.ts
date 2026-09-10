@@ -116,6 +116,15 @@ interface ContentPart {
   };
 }
 
+/**
+ * Where the vision model lives, most specific source first.
+ *
+ * The default host is reached through Traefik, which serves a mkcert
+ * certificate: any deployment whose Node has no such CA -- the Docker image,
+ * for one -- cannot verify it and every scan fails as unreachable. The env var
+ * lets such a deployment point straight at the model instead, the same way
+ * DISCOGS_TOKEN overrides the stored config.
+ */
 function getConfig(): LLMConfig {
   let baseUrl = DEFAULT_BASE_URL;
   let model = DEFAULT_MODEL;
@@ -129,7 +138,10 @@ function getConfig(): LLMConfig {
     // Config not loaded yet, use defaults
   }
 
-  return { baseUrl, model };
+  if (process.env.LLM_BASE_URL) baseUrl = process.env.LLM_BASE_URL;
+  if (process.env.LLM_MODEL) model = process.env.LLM_MODEL;
+
+  return { baseUrl: baseUrl.replace(/\/+$/, ''), model };
 }
 
 /**

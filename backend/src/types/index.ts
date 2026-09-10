@@ -33,6 +33,10 @@ export interface DataConfig {
   tmdb_api_key: string;
   /** Discogs personal access token; prefer the DISCOGS_TOKEN env var. */
   discogs_token?: string;
+  /** Base url of the vision model used by the cover scan; LLM_BASE_URL wins. */
+  llm_base_url?: string;
+  /** Model name sent to that endpoint; LLM_MODEL wins. */
+  llm_model?: string;
   max_upload_mb: number;
   [key: string]: unknown;
 }
