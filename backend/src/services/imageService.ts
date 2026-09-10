@@ -206,28 +206,59 @@ const ImageService = {
   },
 
   // Clean up unused images
-  cleanupUnusedImages: async (usedImagePaths: string[]): Promise<void> => {
-    try {
-      const dirs = ['posters', 'backdrops', 'profiles', 'cd'];
+  /**
+   * Delete stored images that no record references any more.
+   *
+   * The caller must pass EVERY path still in use across the directories walked
+   * below -- this deletes whatever is not listed. Paths are compared in the shape
+   * the database stores them ("/api/images/cd/x.jpg"); the previous version built
+   * "/images/cd/x.jpg" instead, so nothing ever matched and it would have removed
+   * the whole collection had it not crashed on the first subdirectory it met.
+   */
+  cleanupUnusedImages: async (usedImagePaths: string[]): Promise<number> => {
+    if (!Array.isArray(usedImagePaths) || usedImagePaths.length === 0) {
+      throw new Error(
+        'cleanupUnusedImages refuses an empty reference list: it would delete every stored image'
+      );
+    }
 
-      for (const dir of dirs) {
-        const dirPath = path.join(ImageService.getLocalImagesDir(), dir);
-        if (!fs.existsSync(dirPath)) continue;
+    // "/api/images/cd/x.jpg" and "/images/cd/x.jpg" both reduce to "cd/x.jpg"
+    const toKey = (value: string): string =>
+      value
+        .replace(/^\/?api\//, '')
+        .replace(/^\/?images\//, '')
+        .replace(/^\//, '');
 
-        const files = fs.readdirSync(dirPath);
-        for (const file of files) {
-          const filePath = path.join(dirPath, file);
-          const relativePath = `/images/${dir}/${file}`;
+    const used = new Set(usedImagePaths.filter(Boolean).map(toKey));
+    const imagesDir = ImageService.getLocalImagesDir();
+    const dirs = ['posters', 'backdrops', 'profiles', 'cd'];
+    let deleted = 0;
 
-          if (!usedImagePaths.includes(relativePath)) {
-            fs.unlinkSync(filePath);
-            logger.debug(`Deleted unused image: ${file}`);
-          }
+    const walk = (absDir: string): void => {
+      for (const entry of fs.readdirSync(absDir, { withFileTypes: true })) {
+        const absPath = path.join(absDir, entry.name);
+
+        if (entry.isDirectory()) {
+          walk(absPath);
+          continue;
+        }
+
+        const key = path.relative(imagesDir, absPath).split(path.sep).join('/');
+        if (!used.has(key)) {
+          fs.unlinkSync(absPath);
+          deleted += 1;
+          logger.debug(`Deleted unused image: ${key}`);
         }
       }
-    } catch (error) {
-      console.error('Error cleaning up images:', error);
+    };
+
+    for (const dir of dirs) {
+      const dirPath = path.join(imagesDir, dir);
+      if (!fs.existsSync(dirPath)) continue;
+      walk(dirPath);
     }
+
+    return deleted;
   }
 };
 

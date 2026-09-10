@@ -1,10 +1,11 @@
-import { execFileSync } from 'child_process';
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
 import axios, { type AxiosResponse } from 'axios';
+import sharp from 'sharp';
 
 const DEFAULT_BASE_URL = 'https://llm-next.lab.crog.org';
+/** Longest edge sent to the vision model. */
+const LLM_IMAGE_MAX_PX = 1024;
+/** A JPEG at or below this size is forwarded untouched. */
+const MAX_PASSTHROUGH_BYTES = 400 * 1024;
 const DEFAULT_MODEL = 'Qwen3.6-35B-A3B';
 
 interface LLMConfig {
@@ -24,6 +25,23 @@ interface ImageAnalysisResult {
   format: string | null;
 }
 
+interface AlbumAnalysisResult {
+  artist: string | null;
+  title: string;
+  year: number | null;
+  format: string | null;
+}
+
+interface RankableRelease {
+  title?: string;
+  artist?: string[];
+  releaseYear?: number | null;
+  format?: string;
+  status?: string;
+  _score?: number;
+  [key: string]: unknown;
+}
+
 interface BookAnalysisResult {
   title: string;
   authors: string[];
@@ -33,6 +51,7 @@ interface BookAnalysisResult {
 
 interface ParsedResponse {
   title?: string;
+  artist?: string;
   original_title?: string;
   year?: number;
   format?: string;
@@ -181,40 +200,34 @@ async function axiosGetBinary(url: string, timeoutSec: number = 10): Promise<Buf
  * Handles JPEG, PNG, WebP, and HEIC input formats.
  * Returns { base64, mimeType } ready for the vision model.
  */
-function prepareImage(base64Image: string, mimeType: string): PreparedImage {
-  const ts = Date.now();
-  const extMap: Record<string, string> = { 'image/webp': 'webp', 'image/png': 'png', 'image/heic': 'heic', 'image/heif': 'heif' };
-  const ext = extMap[mimeType] || 'jpg';
-  const tmpIn = path.join(os.tmpdir(), `coverscan-${ts}-in.${ext}`);
-  const tmpOut = path.join(os.tmpdir(), `coverscan-${ts}-out.jpg`);
+async function prepareImage(base64Image: string, mimeType: string): Promise<PreparedImage> {
+  const input = Buffer.from(base64Image, 'base64');
 
-  try {
-    fs.writeFileSync(tmpIn, Buffer.from(base64Image, 'base64'));
-
+  // A JPEG already small enough needs no work: the browser side already
+  // downscales to 1024px, and re-encoding would only add a second generation
+  // of JPEG loss plus latency.
+  if (mimeType === 'image/jpeg' && input.length <= MAX_PASSTHROUGH_BYTES) {
     try {
-      // macOS sips: resample to max 1024px on longest side, output as JPEG
-      execFileSync('sips', [
-        '-s', 'format', 'jpeg',
-        '-s', 'formatOptions', '80',
-        '--resampleHeightWidthMax', '1024',
-        tmpIn, '--out', tmpOut
-      ], { stdio: 'pipe' });
+      const meta = await sharp(input).metadata();
+      const withinBounds = (meta.width || 0) <= LLM_IMAGE_MAX_PX && (meta.height || 0) <= LLM_IMAGE_MAX_PX;
+      const uprightAlready = !meta.orientation || meta.orientation === 1;
+      if (withinBounds && uprightAlready) {
+        return { base64: base64Image, mimeType: 'image/jpeg' };
+      }
     } catch (e) {
-      // Fallback to ffmpeg
-      execFileSync('ffmpeg', [
-        '-y', '-i', tmpIn,
-        '-vf', 'scale=1024:1024:force_original_aspect_ratio=decrease',
-        '-q:v', '4',
-        tmpOut
-      ], { stdio: 'pipe' });
+      // fall through to the full conversion below
     }
-
-    const jpgBuffer = fs.readFileSync(tmpOut);
-    return { base64: jpgBuffer.toString('base64'), mimeType: 'image/jpeg' };
-  } finally {
-    try { fs.unlinkSync(tmpIn); } catch (e) { /* ignore */ }
-    try { fs.unlinkSync(tmpOut); } catch (e) { /* ignore */ }
   }
+
+  // .rotate() with no argument bakes in the EXIF orientation; without it a
+  // portrait phone photo reaches the model (and the disk) lying on its side.
+  const output = await sharp(input)
+    .rotate()
+    .resize(LLM_IMAGE_MAX_PX, LLM_IMAGE_MAX_PX, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 80 })
+    .toBuffer();
+
+  return { base64: output.toString('base64'), mimeType: 'image/jpeg' };
 }
 
 /**
@@ -224,7 +237,7 @@ async function analyzeImage(base64Image: string, mimeType: string, mediaType: st
   const { baseUrl, model } = getConfig();
 
   // Convert to JPEG and resize to 1024px max for faster LLM processing
-  ({ base64: base64Image, mimeType } = prepareImage(base64Image, mimeType));
+  ({ base64: base64Image, mimeType } = await prepareImage(base64Image, mimeType));
 
   const prompt = mediaType === 'movie'
     ? 'Look at this movie cover image. Identify the movie and extract: the title exactly as printed on the cover, the original international release title (the title this movie is commonly known by in English on TMDB/IMDb), the release year, and the physical media format (DVD, Blu-ray, or 4K/UHD). Use your knowledge of real movies to identify the correct film — the cover may use a localized, translated, or regional title that differs from the original. Respond with ONLY a JSON object like: {"title": "Jugend ohne Jugend", "original_title": "Youth Without Youth", "year": 2007, "format": "Blu-ray"}. Always include original_title with the well-known English/international title. Only omit original_title if the printed title is already the standard international title. If you cannot determine year, omit it. Do not include any other text.'
@@ -272,6 +285,71 @@ async function analyzeImage(base64Image: string, mimeType: string, mediaType: st
     original_title: parsed.original_title || null,
     year: parsed.year || null,
     format: parsed.format ? normalizeFormat(parsed.format) : null
+  };
+}
+
+/**
+ * Send a CD/vinyl sleeve to the local LLM and extract artist/title/year/format.
+ *
+ * Kept separate from analyzeImage: the movie prompt asks for an international
+ * TMDB/IMDb title and has no notion of an artist, which is the single most
+ * useful field when matching against MusicBrainz.
+ */
+async function analyzeAlbumImage(base64Image: string, mimeType: string): Promise<AlbumAnalysisResult> {
+  const { baseUrl, model } = getConfig();
+
+  ({ base64: base64Image, mimeType } = await prepareImage(base64Image, mimeType));
+
+  const prompt =
+    'Look at this music album cover (a CD, vinyl or box set sleeve). Identify the release and extract: ' +
+    'the main performing artist or band exactly as credited, the album title exactly as printed, ' +
+    'the release year, and the physical format (CD, Vinyl, SACD or Cassette). ' +
+    'Use your knowledge of real albums to identify the record. ' +
+    'Respond with ONLY a JSON object like: ' +
+    '{"artist": "Miles Davis", "title": "Kind of Blue", "year": 1959, "format": "CD"}. ' +
+    'Omit any field you cannot determine. Do not include any other text.';
+
+  const response = await axiosPost(`${baseUrl}/v1/chat/completions`, {
+    model,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image_url',
+            image_url: {
+              url: `data:${mimeType};base64,${base64Image}`
+            }
+          },
+          {
+            type: 'text',
+            text: prompt
+          }
+        ]
+      }
+    ],
+    max_tokens: 256,
+    temperature: 0.1
+  }, 60) as LLMChatResponse;
+
+  const text = response.choices?.[0]?.message?.content;
+  if (!text) {
+    const detail = response.error?.message || response.choices?.[0]?.finish_reason || 'empty content';
+    throw new Error(`No response from LLM (${detail})`);
+  }
+
+  try { require('../logger').debug('LLM raw album response:', text); } catch (e) { /* noop */ }
+
+  const parsed = parseResponse(text);
+  if (!parsed || !parsed.title) {
+    throw new Error('Could not extract an album title from the cover image');
+  }
+
+  return {
+    artist: parsed.artist || null,
+    title: parsed.title,
+    year: parsed.year || null,
+    format: parsed.format || null
   };
 }
 
@@ -329,7 +407,7 @@ async function analyzeBookImage(base64Image: string, mimeType: string): Promise<
   const { baseUrl, model } = getConfig();
 
   // Convert to JPEG and resize to 1024px max for faster LLM processing
-  ({ base64: base64Image, mimeType } = prepareImage(base64Image, mimeType));
+  ({ base64: base64Image, mimeType } = await prepareImage(base64Image, mimeType));
 
   const prompt = 'Look at this book cover image. Identify the book and extract: the title exactly as printed on the cover, the author(s), the type of book (book, graphic-novel, or score/sheet music), and the language of the text on the cover. For graphic novels, manga, and comic books use "graphic-novel". For music scores and sheet music use "score". For everything else use "book". Respond with ONLY a JSON object like: {"title": "Les carnets de Cerise", "authors": ["Joris Chamblain", "Aurélie Neyret"], "book_type": "graphic-novel", "language": "fr"}. If you cannot determine a field, omit it. Do not include any other text.';
 
@@ -532,6 +610,72 @@ function normalizeFormat(llmFormat: string | null): string | null {
 }
 
 /**
+ * Rank MusicBrainz releases by how well they match what the LLM read off the
+ * cover. Unlike films, a CD cover gives us an artist, which is the strongest
+ * signal available: two records can share a title, rarely a title and artist.
+ */
+function rankAlbumResults(
+  releases: RankableRelease[],
+  llmResult: AlbumAnalysisResult | null
+): RankableRelease[] {
+  if (!releases || releases.length === 0) return [];
+  if (!llmResult) return releases;
+
+  const norm = (value: string | null | undefined): string =>
+    (value || '').toLowerCase().replace(/[^a-z0-9\u00C0-\u024F]+/g, ' ').trim();
+
+  const textScore = (expected: string, actual: string): number => {
+    if (!expected || !actual) return 0;
+    if (expected === actual) return 100;
+    if (actual.includes(expected) || expected.includes(actual)) return 50;
+    const expectedWords = expected.split(/\s+/).filter(w => w.length > 2);
+    const actualWords = actual.split(/\s+/).filter(w => w.length > 2);
+    if (expectedWords.length === 0) return 0;
+    const overlap = expectedWords.filter(w => actualWords.includes(w)).length;
+    return overlap * 15;
+  };
+
+  const llmTitle = norm(llmResult.title);
+  const llmArtist = norm(llmResult.artist);
+  const llmYear = llmResult.year;
+
+  const scored = releases.map((release, originalIndex) => {
+    let score = textScore(llmTitle, norm(release.title));
+
+    // Credited artists: take the best match across the whole credit list, so a
+    // collaboration still matches the one name printed largest on the sleeve.
+    const artists = Array.isArray(release.artist) ? release.artist : [];
+    let bestArtistScore = 0;
+    for (const artist of artists) {
+      const s = textScore(llmArtist, norm(artist));
+      if (s > bestArtistScore) bestArtistScore = s;
+    }
+    score += bestArtistScore;
+
+    if (llmYear && release.releaseYear) {
+      const delta = Math.abs(release.releaseYear - llmYear);
+      if (delta === 0) score += 50;
+      else if (delta === 1) score += 20;
+    }
+
+    // We are scanning a physical disc, so prefer physical editions.
+    const format = norm(release.format);
+    if (format === 'cd') score += 10;
+    else if (format.includes('digital')) score -= 10;
+
+    if (norm(release.status) === 'official') score += 5;
+
+    return { ...release, _score: score, _originalIndex: originalIndex };
+  });
+
+  scored.sort((a, b) =>
+    b._score === a._score ? a._originalIndex - b._originalIndex : b._score - a._score
+  );
+
+  return scored.map(({ _originalIndex, ...rest }) => rest as RankableRelease);
+}
+
+/**
  * Rank TMDB results by how well they match the LLM extraction.
  * Returns the results array sorted by match quality (best first).
  */
@@ -710,11 +854,14 @@ async function matchPoster(base64CoverImage: string, posters: TMDBPoster[]): Pro
 }
 
 export default {
+  prepareImage,
   analyzeImage,
+  analyzeAlbumImage,
   analyzeBookImage,
   parseResponse,
   normalizeFormat,
   rankResults,
+  rankAlbumResults,
   rankBookResults,
   getConfidence,
   checkHealth,
