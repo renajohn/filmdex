@@ -52,6 +52,8 @@ interface ScanResponse {
   llm_result?: ScanSummary;
   results?: MusicRelease[];
   confidence?: 'high' | 'low';
+  search_failed?: boolean;
+  error?: string;
 }
 
 interface AddMusicDialogProps {
@@ -74,6 +76,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
   const [scanning, setScanning] = useState(false);
   const [addingReleaseId, setAddingReleaseId] = useState<string | null>(null);
   const [decodingBarcode, setDecodingBarcode] = useState(false);
+  const [scanLookupFailed, setScanLookupFailed] = useState(false);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const [scanSummary, setScanSummary] = useState<ScanSummary | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -264,6 +267,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
     setScanning(true);
     setError('');
     setScanSummary(null);
+    setScanLookupFailed(false);
 
     try {
       const { base64, mimeType } = await downscaleImage(file);
@@ -274,6 +278,13 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
       setGroupedResults(groupSearchResults(results));
       setHasSearched(true);
       setScanSummary(scan?.llm_result || null);
+
+      // The cover was read fine; only the MusicBrainz lookup failed. Say so and
+      // offer a retry, rather than making the sleeve be photographed again.
+      setScanLookupFailed(Boolean(scan?.search_failed));
+      if (scan?.search_failed) {
+        setError(scan.error || 'MusicBrainz is busy or unavailable right now.');
+      }
 
       // Prefill the text fields so a failed scan can be corrected by hand
       // instead of retyping everything.
@@ -526,6 +537,26 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                   <strong>{[scanSummary.artist, scanSummary.title].filter(Boolean).join(' - ')}</strong>
                   {scanSummary.year ? ` (${scanSummary.year})` : ''}
                 </div>
+              )}
+              {scanLookupFailed && scanSummary && (
+                <Button
+                  variant="outline-light"
+                  className="w-100 mt-2"
+                  disabled={searching}
+                  onClick={() => {
+                    setScanLookupFailed(false);
+                    runSearch('title', '', scanSummary.title || '', scanSummary.artist || '');
+                  }}
+                >
+                  {searching ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" />
+                      Searching...
+                    </>
+                  ) : (
+                    'Retry the search'
+                  )}
+                </Button>
               )}
             </div>
           ) : searchBy === 'title' ? (

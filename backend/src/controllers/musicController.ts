@@ -275,12 +275,30 @@ const musicController = {
         terms.push(`artist:${quote(llmResult.artist)}`);
       }
 
-      let rawReleases = await musicbrainzService.searchRelease(terms.join(' AND '), 25);
+      // Reading the cover is the expensive, hard part and it already succeeded.
+      // If the lookup fails -- MusicBrainz answers 503 in waves -- hand back what
+      // the model read anyway, so the sleeve does not have to be photographed
+      // again just to retry a search.
+      let rawReleases;
+      try {
+        rawReleases = await musicbrainzService.searchRelease(terms.join(' AND '), 25);
 
-      // A sleeve often prints a stylised artist name; fall back to the title
-      // alone rather than returning nothing.
-      if (rawReleases.length === 0 && llmResult.artist) {
-        rawReleases = await musicbrainzService.searchRelease(`release:${quote(llmResult.title)}`, 25);
+        // A sleeve often prints a stylised artist name; fall back to the title
+        // alone rather than returning nothing.
+        if (rawReleases.length === 0 && llmResult.artist) {
+          rawReleases = await musicbrainzService.searchRelease(`release:${quote(llmResult.title)}`, 25);
+        }
+      } catch (searchError) {
+        const message = (searchError as Error).message || 'MusicBrainz lookup failed';
+        logger.warn(`Album lookup failed after a successful scan: ${message}`);
+        res.json({
+          llm_result: llmResult,
+          results: [],
+          confidence: 'low',
+          search_failed: true,
+          error: message
+        });
+        return;
       }
 
       const formatted = rawReleases.map(raw => musicbrainzService.formatReleaseData(raw));

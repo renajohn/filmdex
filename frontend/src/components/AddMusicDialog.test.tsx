@@ -346,3 +346,63 @@ describe('AddMusicDialog — barcode by photo', () => {
     expect(musicService.searchByBarcode).not.toHaveBeenCalled();
   });
 });
+
+describe('AddMusicDialog — MusicBrainz unavailable after a good scan', () => {
+  const scanWithFailedLookup = () => {
+    (musicService.scanAlbumCover as any).mockResolvedValue({
+      llm_result: { artist: 'Massive Attack', title: 'Mezzanine', year: 1998 },
+      results: [],
+      confidence: 'low',
+      search_failed: true,
+      error: 'MusicBrainz is busy or unavailable right now.'
+    });
+  };
+
+  it('keeps what was read off the cover in the title and artist fields', async () => {
+    scanWithFailedLookup();
+    renderDialog();
+
+    fireEvent.change(screen.getByTestId('album-photo-input'), {
+      target: { files: [photoFile()] }
+    });
+
+    // Switching to the text tab must show the scan already filled in, so the
+    // search can be retried without photographing the sleeve again.
+    await waitFor(() => expect(musicService.scanAlbumCover).toHaveBeenCalled());
+    userEvent.click(screen.getByRole('button', { name: /album title/i }));
+
+    await waitFor(() => {
+      expect((screen.getByPlaceholderText(/album title/i) as HTMLInputElement).value).toBe('Mezzanine');
+      expect((screen.getByPlaceholderText(/artist/i) as HTMLInputElement).value).toBe('Massive Attack');
+    });
+  });
+
+  it('explains that the lookup failed, not the scan', async () => {
+    scanWithFailedLookup();
+    renderDialog();
+
+    fireEvent.change(screen.getByTestId('album-photo-input'), {
+      target: { files: [photoFile()] }
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText(/busy or unavailable/i)).toBeInTheDocument()
+    );
+  });
+
+  it('offers to retry the search without retaking the photo', async () => {
+    scanWithFailedLookup();
+    renderDialog();
+
+    fireEvent.change(screen.getByTestId('album-photo-input'), {
+      target: { files: [photoFile()] }
+    });
+
+    const retry = await screen.findByRole('button', { name: /retry|try again/i });
+    (musicService.searchMusicBrainz as any).mockResolvedValue([release()]);
+
+    userEvent.click(retry);
+
+    await waitFor(() => expect(musicService.searchMusicBrainz).toHaveBeenCalled());
+  });
+});

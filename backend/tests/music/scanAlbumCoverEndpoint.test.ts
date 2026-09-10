@@ -124,3 +124,33 @@ describe('POST /api/music/scan-cover', () => {
     expect(res.body.llm_result.title).toBe('Nothing');
   });
 });
+
+describe('POST /api/music/scan-cover — when MusicBrainz is down', () => {
+  it('still returns what the model read off the cover', async () => {
+    mockAnalysis({ artist: 'Massive Attack', title: 'Mezzanine', year: 1998 });
+    jest
+      .spyOn(musicbrainzService, 'searchRelease')
+      .mockRejectedValue(new Error('MusicBrainz is busy or unavailable right now.'));
+
+    const res = await post({ image: IMAGE });
+
+    // The cover was read successfully; only the lookup failed. Throwing that
+    // away would force the user to photograph the sleeve all over again.
+    expect(res.body.llm_result.artist).toBe('Massive Attack');
+    expect(res.body.llm_result.title).toBe('Mezzanine');
+    expect(res.body.results).toEqual([]);
+    expect(res.body.search_failed).toBe(true);
+  });
+
+  it('says the lookup is what failed, not the scan', async () => {
+    mockAnalysis({ artist: 'A', title: 'B' });
+    jest
+      .spyOn(musicbrainzService, 'searchRelease')
+      .mockRejectedValue(new Error('MusicBrainz is busy or unavailable right now.'));
+
+    const res = await post({ image: IMAGE });
+
+    expect(res.status).toBe(200);
+    expect(res.body.error).toMatch(/musicbrainz/i);
+  });
+});
