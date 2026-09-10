@@ -500,7 +500,7 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
   console.log('AlbumMetadataForm render - availableCovers:', availableCovers);
 
   return (
-    <Modal show={show} onHide={handleClose} size="lg" centered>
+    <Modal show={show} onHide={handleClose} size="lg" centered className="album-metadata-form" fullscreen="md-down">
       <Modal.Header closeButton>
         <div className="album-info-inline">
                 <div className="album-info-main">

@@ -260,30 +260,30 @@
 }
 
 /* Form controls - exact match to AddMusicDialog */
-.form-control {
+.album-metadata-form .form-control {
   background: rgba(68, 68, 68, 0.6) !important;
   border: 1px solid rgba(68, 68, 68, 0.6) !important;
   color: #f3f4f6 !important;
 }
 
-.form-control:focus {
+.album-metadata-form .form-control:focus {
   background: rgba(68, 68, 68, 0.8) !important;
   border-color: rgba(251, 191, 36, 0.6) !important;
   color: #ffffff !important;
   box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.15) !important;
 }
 
-.form-control::placeholder {
+.album-metadata-form .form-control::placeholder {
   color: #9ca3af !important;
 }
 
-.form-select {
+.album-metadata-form .form-select {
   background: rgba(68, 68, 68, 0.6) !important;
   border: 1px solid rgba(68, 68, 68, 0.6) !important;
   color: #f3f4f6 !important;
 }
 
-.form-select:focus {
+.album-metadata-form .form-select:focus {
   background: rgba(68, 68, 68, 0.8) !important;
   border-color: rgba(251, 191, 36, 0.6) !important;
   color: #ffffff !important;
@@ -291,31 +291,31 @@
 }
 
 /* Modal - exact match to AddMusicDialog */
-.modal-content {
+.album-metadata-form .modal-content {
   background: rgba(42, 42, 42, 0.95);
   border: 1px solid rgba(68, 68, 68, 0.6);
 }
 
-.modal-header {
+.album-metadata-form .modal-header {
   background: rgba(42, 42, 42, 0.95);
   border-bottom: 1px solid rgba(68, 68, 68, 0.6);
 }
 
-.modal-header .btn-close {
+.album-metadata-form .modal-header .btn-close {
   filter: brightness(0) invert(1);
   opacity: 0.8;
 }
 
-.modal-header .btn-close:hover {
+.album-metadata-form .modal-header .btn-close:hover {
   opacity: 1;
 }
 
-.modal-body {
+.album-metadata-form .modal-body {
   max-height: 65vh;
   overflow-y: auto;
 }
 
-.modal-footer {
+.album-metadata-form .modal-footer {
   background: rgba(42, 42, 42, 0.95);
   border-top: 1px solid rgba(68, 68, 68, 0.6);
   position: sticky;
@@ -324,24 +324,24 @@
 
 /* Mobile scrolling adjustments */
 @media (max-width: 768px) {
-  .modal-body {
+  .album-metadata-form .modal-body {
     max-height: 60vh;
     padding: 12px !important;
   }
   
-  .modal-footer {
+  .album-metadata-form .modal-footer {
     padding: 12px;
     gap: 8px;
   }
   
-  .modal-footer .btn {
+  .album-metadata-form .modal-footer .btn {
     flex: 1;
     min-width: 0;
   }
 }
 
 /* Button styling - exact match to AddMusicDialog */
-.btn-primary {
+.album-metadata-form .btn-primary {
   background: rgba(251, 191, 36, 0.2) !important;
   border: 1px solid rgba(251, 191, 36, 0.4) !important;
   color: #fbbf24 !important;
@@ -349,37 +349,37 @@
   transition: all 0.2s ease;
 }
 
-.btn-primary:hover:not(:disabled) {
+.album-metadata-form .btn-primary:hover:not(:disabled) {
   background: rgba(251, 191, 36, 0.3) !important;
   border-color: rgba(251, 191, 36, 0.6) !important;
   color: #ffffff !important;
   transform: translateY(-1px);
 }
 
-.btn-secondary {
+.album-metadata-form .btn-secondary {
   background: rgba(68, 68, 68, 0.6) !important;
   border: 1px solid rgba(68, 68, 68, 0.6) !important;
   color: #d1d5db !important;
   transition: all 0.2s ease;
 }
 
-.btn-secondary:hover:not(:disabled) {
+.album-metadata-form .btn-secondary:hover:not(:disabled) {
   background: rgba(68, 68, 68, 0.8) !important;
   border-color: rgba(68, 68, 68, 0.8) !important;
   color: #f3f4f6 !important;
 }
 
 /* Text colors - exact match */
-.text-light {
+.album-metadata-form .text-light {
   color: #f7fafc !important;
 }
 
-.text-muted {
+.album-metadata-form .text-muted {
   color: #9ca3af !important;
 }
 
 /* Form labels */
-.form-label {
+.album-metadata-form .form-label {
   color: #d1d5db !important;
   font-weight: 500;
 }
