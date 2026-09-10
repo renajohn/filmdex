@@ -243,3 +243,44 @@ describe('POST /api/music/scan-cover — Discogs first', () => {
     expect(res.body.results[0].source).toBe('musicbrainz');
   });
 });
+
+describe('POST /api/music/scan-cover — Discogs search widening', () => {
+  it('retries Discogs with the title alone before falling back', async () => {
+    mockAnalysis({ artist: 'Some Band', title: 'Rare Record', year: 1990 });
+    jest.spyOn(discogsService, 'isConfigured').mockReturnValue(true);
+    const search = jest
+      .spyOn(discogsService, 'search')
+      .mockResolvedValueOnce([] as any)
+      .mockResolvedValueOnce([{ id: 42 }] as any);
+    jest.spyOn(discogsService, 'getRelease').mockResolvedValue({ id: 42 } as any);
+    jest.spyOn(discogsService, 'formatRelease').mockReturnValue({
+      discogsReleaseId: '42',
+      title: 'Rare Record',
+      artist: ['Some Band'],
+      format: 'CD',
+      discs: []
+    } as any);
+    const mbSearch = jest.spyOn(musicbrainzService, 'searchRelease');
+
+    const res = await post({ image: IMAGE });
+
+    expect(search).toHaveBeenCalledTimes(2);
+    expect(search.mock.calls[1][0]).toMatchObject({ artist: null });
+    expect(mbSearch).not.toHaveBeenCalled();
+    expect(res.body.results[0].source).toBe('discogs');
+  });
+
+  it('treats "Various Artists" as no artist, which is how Discogs indexes them', async () => {
+    mockAnalysis({ artist: 'Various Artists', title: 'Baroque Masterpieces', year: 2011 });
+    jest.spyOn(discogsService, 'isConfigured').mockReturnValue(true);
+    const search = jest.spyOn(discogsService, 'search').mockResolvedValue([] as any);
+    jest.spyOn(musicbrainzService, 'searchRelease').mockResolvedValue([] as any);
+    jest.spyOn(musicbrainzService, 'formatReleaseData').mockImplementation((raw: any) => raw);
+
+    await post({ image: IMAGE });
+
+    // A compilation is credited to "Various" on Discogs, so searching the
+    // literal string finds nothing.
+    expect(search.mock.calls[0][0]).toMatchObject({ artist: null });
+  });
+});

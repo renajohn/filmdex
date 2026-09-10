@@ -275,10 +275,21 @@ const musicController = {
 
       if (discogsService.isConfigured()) {
         try {
-          const hits = await discogsService.search({
-            artist: llmResult.artist,
+          // Compilations are credited to "Various" on Discogs, so searching the
+          // literal "Various Artists" the model reads off the sleeve finds nothing.
+          const isCompilation = /^various(\s+artists)?$/i.test((llmResult.artist || '').trim());
+          const searchArtist = isCompilation ? null : llmResult.artist;
+
+          let hits = await discogsService.search({
+            artist: searchArtist,
             title: llmResult.title
           });
+
+          // A stylised or mis-read artist name should widen the search, not send
+          // us straight to the fallback database.
+          if (hits.length === 0 && searchArtist) {
+            hits = await discogsService.search({ artist: null, title: llmResult.title });
+          }
 
           // The search payload is thin; fetch the full release for the ones we
           // will actually show, capped to keep the round trips bounded.
