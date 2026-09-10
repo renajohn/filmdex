@@ -71,6 +71,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
   const [searchArtist, setSearchArtist] = useState('');
   const [searchBy, setSearchBy] = useState('photo'); // 'photo', 'title', 'catalog', 'barcode'
   const [scanning, setScanning] = useState(false);
+  const [addingReleaseId, setAddingReleaseId] = useState<string | null>(null);
   const [scanSummary, setScanSummary] = useState<ScanSummary | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -268,6 +269,35 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
       // A file input keeps its value, so picking the same photo again would not
       // fire another change event.
       if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
+
+  /**
+   * One-tap add: store the release as-is, straight from the result list.
+   *
+   * The metadata screen has no required field -- the server picks the Cover Art
+   * Archive artwork itself -- so it stays available through Review for when you
+   * do want to set a price or pick among several covers.
+   */
+  const handleQuickAdd = async (release: MusicRelease) => {
+    const releaseId = release?.musicbrainzReleaseId || release?.id;
+    if (!releaseId || addingReleaseId) return;
+
+    setAddingReleaseId(releaseId);
+    setError('');
+
+    try {
+      const album = await musicService.addAlbumFromMusicBrainz(releaseId, {
+        titleStatus: defaultTitleStatus || undefined
+      });
+
+      if (onAlbumAddedFromParent) onAlbumAddedFromParent(album);
+      handleClose();
+    } catch (err) {
+      // Keep the result list up so another edition can be tried right away.
+      setError((err as Error).message || 'Failed to add album');
+    } finally {
+      setAddingReleaseId(null);
     }
   };
 
@@ -570,17 +600,39 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                             {isExpanded ? <BsChevronDown size={20} /> : <BsChevronRight size={20} />}
                           </div>
                         ) : (
-                          <Button
-                            size="sm"
-                            className="select-release-btn-header"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSelectRelease(group.releases[0], group.releases);
-                            }}
-                          >
-                            <BsPencil className="me-1" />
-                            Review & Add
-                          </Button>
+                          <div className="release-actions" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              size="sm"
+                              className="quick-add-btn"
+                              disabled={addingReleaseId !== null}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQuickAdd(group.releases[0]);
+                              }}
+                            >
+                              {addingReleaseId === (group.releases[0]?.musicbrainzReleaseId || group.releases[0]?.id) ? (
+                                <span className="spinner-border spinner-border-sm" />
+                              ) : (
+                                <>
+                                  <BsPlus className="me-1" />
+                                  Add
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline-secondary"
+                              className="select-release-btn-header"
+                              disabled={addingReleaseId !== null}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectRelease(group.releases[0], group.releases);
+                              }}
+                            >
+                              <BsPencil className="me-1" />
+                              Review
+                            </Button>
+                          </div>
                         )}
                       </div>
                       
@@ -613,17 +665,39 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                                   </td>
                                   <td>{release.format || 'CD'}</td>
                                   <td>
-                                    <Button
-                                      size="sm"
-                                      className="select-release-btn"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleSelectRelease(release, group.releases);
-                                      }}
-                                    >
-                                      <BsPencil className="me-1" />
-                                      Review & Add
-                                    </Button>
+                                    <div className="release-actions">
+                                      <Button
+                                        size="sm"
+                                        className="quick-add-btn"
+                                        disabled={addingReleaseId !== null}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleQuickAdd(release);
+                                        }}
+                                      >
+                                        {addingReleaseId === (release.musicbrainzReleaseId || release.id) ? (
+                                          <span className="spinner-border spinner-border-sm" />
+                                        ) : (
+                                          <>
+                                            <BsPlus className="me-1" />
+                                            Add
+                                          </>
+                                        )}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline-secondary"
+                                        className="select-release-btn"
+                                        disabled={addingReleaseId !== null}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleSelectRelease(release, group.releases);
+                                        }}
+                                      >
+                                        <BsPencil className="me-1" />
+                                        Review
+                                      </Button>
+                                    </div>
                                   </td>
                                 </tr>
                               ))}

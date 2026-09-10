@@ -218,3 +218,71 @@ describe('AddMusicDialog — barcode entry', () => {
     expect(input).toHaveAttribute('inputmode', 'numeric');
   });
 });
+
+describe('AddMusicDialog — one-tap add alongside review', () => {
+  const showResults = async () => {
+    renderDialog();
+    const input = screen.getByTestId('album-photo-input');
+    fireEvent.change(input, { target: { files: [photoFile()] } });
+    await waitFor(() => expect(screen.getByText('Kind of Blue')).toBeInTheDocument());
+  };
+
+  it('offers both a one-tap Add and the Review path', async () => {
+    await showResults();
+
+    expect(screen.getByRole('button', { name: /^add$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /review/i })).toBeInTheDocument();
+  });
+
+  it('stores the album straight from the result list', async () => {
+    await showResults();
+
+    userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+
+    await waitFor(() =>
+      expect(musicService.addAlbumFromMusicBrainz).toHaveBeenCalledWith('mbid-1', expect.anything())
+    );
+  });
+
+  it('does not open the metadata form on a one-tap add', async () => {
+    await showResults();
+
+    userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+
+    await waitFor(() => expect(musicService.addAlbumFromMusicBrainz).toHaveBeenCalled());
+    expect(screen.queryByText(/ownership information/i)).not.toBeInTheDocument();
+  });
+
+  it('tells the parent an album was added', async () => {
+    const onAlbumAdded = vi.fn();
+    renderDialog({ onAlbumAdded });
+    fireEvent.change(screen.getByTestId('album-photo-input'), { target: { files: [photoFile()] } });
+    await waitFor(() => expect(screen.getByText('Kind of Blue')).toBeInTheDocument());
+
+    userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+
+    await waitFor(() => expect(onAlbumAdded).toHaveBeenCalled());
+  });
+
+  it('keeps the results and shows the reason when the add fails', async () => {
+    (musicService.addAlbumFromMusicBrainz as any).mockRejectedValueOnce(
+      new Error('Album already exists in collection')
+    );
+    await showResults();
+
+    userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+
+    await waitFor(() => expect(screen.getByText(/already exists/i)).toBeInTheDocument());
+    expect(screen.getByText('Kind of Blue')).toBeInTheDocument();
+  });
+
+  it('still opens the metadata form from Review', async () => {
+    await showResults();
+
+    userEvent.click(screen.getByRole('button', { name: /review/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/ownership information/i)).toBeInTheDocument()
+    );
+  });
+});

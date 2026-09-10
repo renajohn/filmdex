@@ -491,3 +491,37 @@
 .search-empty-state {
   color: #cfd4da;
 }
+
+/* Add / Review pair on each result */
+.release-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.quick-add-btn {
+  min-height: 40px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* On a phone the pair takes the full width, Add first and largest */
+@media (max-width: 768px) {
+  .release-actions {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .quick-add-btn {
+    flex: 2 1 0;
+    min-height: 44px;
+  }
+
+  .release-actions .select-release-btn,
+  .release-actions .select-release-btn-header {
+    flex: 1 1 0;
+    min-height: 44px;
+  }
+}
