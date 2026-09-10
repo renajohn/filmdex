@@ -89,3 +89,44 @@ describe('AlbumMetadataForm — state between two consecutive adds', () => {
     });
   });
 });
+
+describe('AlbumMetadataForm — failure keeps the context', () => {
+  it('keeps the dialog open and shows the error when the add fails', async () => {
+    (musicService.addAlbumFromMusicBrainz as any).mockRejectedValueOnce(new Error('Network down'));
+    const onHide = vi.fn();
+    const onAddStart = vi.fn();
+
+    render(
+      <AlbumMetadataForm
+        show={true}
+        onHide={onHide}
+        release={releaseA}
+        allReleasesInGroup={[releaseA]}
+        onAddStart={onAddStart}
+      />
+    );
+
+    userEvent.click(screen.getByRole('button', { name: 'Add Album' }));
+
+    await waitFor(() => expect(screen.getByText(/Network down/)).toBeInTheDocument());
+    expect(onHide).not.toHaveBeenCalled();
+    expect(onAddStart).not.toHaveBeenCalled();
+  });
+
+  it('closes the dialog once the add succeeded', async () => {
+    const onHide = vi.fn();
+
+    render(
+      <AlbumMetadataForm
+        show={true}
+        onHide={onHide}
+        release={releaseA}
+        allReleasesInGroup={[releaseA]}
+      />
+    );
+
+    userEvent.click(screen.getByRole('button', { name: 'Add Album' }));
+
+    await waitFor(() => expect(onHide).toHaveBeenCalled());
+  });
+});

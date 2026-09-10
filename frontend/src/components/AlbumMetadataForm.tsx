@@ -355,15 +355,12 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
     e.preventDefault();
     console.log('AlbumMetadataForm: Starting album submission...');
     setLoading(true);
+    setUploadMessage(null);
 
-    // Notify parent to show overlay and close dialog immediately
-    try {
-      if (onAddStart) onAddStart();
-    } catch (_) {}
-    try {
-      onHide();
-    } catch (_) {}
-
+    // The dialog stays open until the album is actually stored: closing it up
+    // front unmounted this component (release becomes null), which both hid the
+    // failure message and threw away the search and the selected release, so a
+    // flaky connection meant starting over.
     try {
       let albumData = {
         ...release,
@@ -434,6 +431,15 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
 
       // Clear before notifying so the next release starts from a clean form
       resetState();
+
+      // Now that it is stored: collapse the dialog stack and show the overlay
+      // while the parent reloads the collection.
+      try {
+        if (onAddStart) onAddStart();
+      } catch (_) {}
+      try {
+        onHide();
+      } catch (_) {}
 
       // Notify parent that album was added
       if (onAlbumAdded) {
