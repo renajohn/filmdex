@@ -682,7 +682,12 @@ class MusicService {
    * timeouts stood between the user and a saved record -- and a slow CAA made
    * saving impossible even though every piece of metadata was already in hand.
    */
-  async attachCoverArt(albumId: number, releaseId: string, additionalData: AlbumData = {}): Promise<void> {
+  async attachCoverArt(
+    albumId: number,
+    releaseId: string,
+    additionalData: AlbumData = {},
+    source: 'musicbrainz' | 'discogs' = 'musicbrainz'
+  ): Promise<void> {
     const downloadAndResizeCover = async (url: string, type: string): Promise<string | null> => {
       if (!url) return null;
       try {
@@ -718,8 +723,9 @@ class MusicService {
     let frontUrl = fromClient(additionalData?.coverArtData?.frontCoverUrl);
     let backUrl = fromClient(additionalData?.coverArtData?.backCoverUrl);
 
-    // Only ask Cover Art Archive when the client did not already choose.
-    if (!frontUrl || !backUrl) {
+    // Cover Art Archive is keyed on MusicBrainz ids: asking it about a Discogs
+    // release just returns 400, so only try it on the MusicBrainz path.
+    if (source === 'musicbrainz' && (!frontUrl || !backUrl)) {
       const coverArt = await musicbrainzService.getCoverArt(releaseId);
       if (!frontUrl) frontUrl = coverArt?.front?.url || null;
       if (!backUrl) backUrl = coverArt?.back?.url || null;
@@ -766,13 +772,20 @@ class MusicService {
 
       const album = await this.addAlbum(albumData);
 
+      // Individual pressings are often catalogued without any image; the master
+      // that groups them usually has one.
+      let frontUrl = additionalData.coverArtData?.frontCoverUrl || formatted.coverArt.front || undefined;
+      if (!frontUrl) {
+        frontUrl = (await discogsService.getMasterCoverArt(formatted.masterId)) || undefined;
+      }
+
       const coverWork = this.attachCoverArt(album.id, String(releaseId), {
         ...additionalData,
         coverArtData: {
-          frontCoverUrl: additionalData.coverArtData?.frontCoverUrl || formatted.coverArt.front || undefined,
+          frontCoverUrl: frontUrl,
           backCoverUrl: additionalData.coverArtData?.backCoverUrl || formatted.coverArt.back || undefined
         }
-      }).catch((error: unknown) => {
+      }, 'discogs').catch((error: unknown) => {
         const err = error as { message: string };
         logger.error(`Failed to attach cover art for album ${album.id}: ${err.message}`);
       });

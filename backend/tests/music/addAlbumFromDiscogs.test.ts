@@ -2,6 +2,7 @@ import Album from '../../src/models/album';
 import musicService from '../../src/services/musicService';
 import discogsService from '../../src/services/discogsService';
 import imageService from '../../src/services/imageService';
+import musicbrainzService from '../../src/services/musicbrainzService';
 
 const RAW = { id: 999001, title: 'Placeholder' };
 
@@ -83,5 +84,70 @@ describe('musicService.addAlbumFromDiscogs', () => {
       'cd',
       expect.any(String)
     );
+  });
+});
+
+describe('addAlbumFromDiscogs — cover art when the release has none', () => {
+  const mockBare = (id: string) => {
+    jest.spyOn(discogsService, 'getRelease').mockResolvedValue({ id: Number(id), master_id: 555 } as any);
+    jest.spyOn(discogsService, 'formatRelease').mockReturnValue({
+      discogsReleaseId: id,
+      musicbrainzReleaseId: null,
+      title: 'Telling Stories',
+      artist: ['Tracy Chapman'],
+      releaseYear: 2001,
+      format: 'CD',
+      labels: [],
+      catalogNumber: null,
+      barcode: '075596247028',
+      genres: [],
+      editionNotes: null,
+      status: 'Official',
+      coverArt: { front: null, back: null },
+      discs: [],
+      discCount: 0,
+      totalDuration: null,
+      masterId: 555
+    } as any);
+  };
+
+  it('never asks Cover Art Archive about a Discogs id', async () => {
+    mockBare('990101');
+    const caa = jest.spyOn(musicbrainzService, 'getCoverArt').mockResolvedValue(null as any);
+    jest.spyOn(discogsService, 'getMasterCoverArt').mockResolvedValue(null);
+
+    await musicService.addAlbumFromDiscogs('990101');
+
+    // Cover Art Archive is keyed on MusicBrainz ids; a Discogs id gets a 400.
+    expect(caa).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the Discogs master release, which usually has artwork', async () => {
+    mockBare('990102');
+    jest.spyOn(musicbrainzService, 'getCoverArt').mockResolvedValue(null as any);
+    const master = jest
+      .spyOn(discogsService, 'getMasterCoverArt')
+      .mockResolvedValue('https://i.discogs.com/master.jpg');
+    const download = jest
+      .spyOn(imageService, 'downloadImageFromUrl')
+      .mockResolvedValue('/api/images/cd/master.jpg');
+    jest.spyOn(imageService, 'resizeImage').mockResolvedValue(undefined as any);
+
+    const album = await musicService.addAlbumFromDiscogs('990102');
+
+    expect(master).toHaveBeenCalledWith(555);
+    expect(download).toHaveBeenCalledWith('https://i.discogs.com/master.jpg', 'cd', expect.any(String));
+    expect((await Album.findById(album.id))!.cover).toBe('/api/images/cd/master.jpg');
+  });
+
+  it('still stores the album when no artwork exists anywhere', async () => {
+    mockBare('990103');
+    jest.spyOn(musicbrainzService, 'getCoverArt').mockResolvedValue(null as any);
+    jest.spyOn(discogsService, 'getMasterCoverArt').mockResolvedValue(null);
+
+    const album = await musicService.addAlbumFromDiscogs('990103');
+
+    expect(album.id).toBeDefined();
+    expect((await Album.findById(album.id))!.cover).toBeNull();
   });
 });

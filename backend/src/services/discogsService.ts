@@ -37,6 +37,7 @@ interface DiscogsTrack {
 
 export interface DiscogsRelease {
   id: number;
+  master_id?: number;
   title?: string;
   artists?: Array<{ name?: string }>;
   year?: number;
@@ -54,6 +55,9 @@ export interface DiscogsRelease {
 
 export interface FormattedDiscogsRelease {
   discogsReleaseId: string;
+  /** The master groups every pressing; it usually carries artwork when a
+   *  specific pressing does not. */
+  masterId: number | null;
   musicbrainzReleaseId: null;
   title: string;
   artist: string[];
@@ -178,6 +182,7 @@ const formatRelease = (release: DiscogsRelease): FormattedDiscogsRelease => {
 
   return {
     discogsReleaseId: String(release.id),
+    masterId: release.master_id || null,
     musicbrainzReleaseId: null,
     title: release.title || '',
     artist: (release.artists || []).map(a => a.name || '').filter(Boolean),
@@ -230,6 +235,30 @@ const searchByBarcode = async (barcode: string): Promise<DiscogsSearchHit[]> => 
   return data.results || [];
 };
 
+/**
+ * Artwork from the master release.
+ *
+ * Individual pressings are often catalogued with no image at all -- a Tracy
+ * Chapman CD came in with images: [] -- while the master that groups them has
+ * one. Returns null rather than throwing: this is best effort.
+ */
+const getMasterCoverArt = async (masterId: number | null | undefined): Promise<string | null> => {
+  if (!masterId) return null;
+
+  try {
+    const master = await request<{ images?: Array<{ type?: string; uri?: string }> }>(
+      `/masters/${masterId}`,
+      {}
+    );
+    const images = master.images || [];
+    const primary = images.find(i => i.type === 'primary') || images[0];
+    return primary?.uri || null;
+  } catch (error) {
+    logger.warn(`Could not read master ${masterId} for cover art: ${(error as Error).message}`);
+    return null;
+  }
+};
+
 const getRelease = async (releaseId: string | number): Promise<DiscogsRelease> =>
   request<DiscogsRelease>(`/releases/${releaseId}`, {});
 
@@ -239,5 +268,6 @@ export default {
   searchFreeText,
   searchByBarcode,
   getRelease,
+  getMasterCoverArt,
   formatRelease
 };
