@@ -525,6 +525,47 @@ const musicController = {
     }
   },
 
+
+  /**
+   * Read a sleeve from photographs and hand back a draft for the form.
+   *
+   * Nothing is stored: the answer is a proposal the user reviews and submits,
+   * or discards. Deliberately does not identify the release -- the records
+   * this serves are the ones no database knows.
+   */
+  transcribeSleeve: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { front, back } = req.body || {};
+
+      if (!front?.image && !back?.image) {
+        res.status(400).json({ error: 'At least one image is required (front or back)' });
+        return;
+      }
+
+      const result = await musicService.transcribeSleeve({ front, back });
+
+      logger.info(
+        `Sleeve transcribed: front=${result.sources.front} back=${result.sources.back} ` +
+        `discs=${result.draft.discs.length} tracks=${result.draft.discs.reduce((n, d) => n + d.tracks.length, 0)}` +
+        (result.truncated ? ' (track list cut short)' : '')
+      );
+
+      res.json(result);
+    } catch (error) {
+      const message = (error as Error).message || '';
+      // Same taxonomy as scanCover: a model we could not reach is a 503, a
+      // sleeve we could not read is a 422.
+      const unreachable = /network error|no response received|econnrefused|enotfound|timed? ?out|HTTP 5\d\d/i.test(message);
+      logger.error('Sleeve transcription failed:', message);
+
+      if (unreachable) {
+        res.status(503).json({ error: 'Cover scan service is not available', details: message });
+      } else {
+        res.status(422).json({ error: 'Could not read the sleeve', details: message });
+      }
+    }
+  },
+
   // Get autocomplete suggestions
   getAutocompleteSuggestions: async (req: Request, res: Response): Promise<void> => {
     try {

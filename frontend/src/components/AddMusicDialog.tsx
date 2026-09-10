@@ -6,6 +6,7 @@ import LazyGroupCover from './LazyGroupCover';
 import { downscaleImage } from '../utils/downscaleImage';
 import { decodeBarcode } from '../utils/decodeBarcode';
 import AlbumMetadataForm from './AlbumMetadataForm';
+import SleeveCapture, { type SleeveDraftResult } from './SleeveCapture';
 import './AddMusicDialog.css';
 
 interface MusicRelease {
@@ -63,13 +64,19 @@ interface AddMusicDialogProps {
   onAddCdFromMusicBrainz?: (releaseId: string, additionalData: any) => void;
   onAddCdByBarcode?: (barcode: string, additionalData: any) => void;
   onReviewMetadata?: (release: any, allReleasesInGroup?: any) => void;
+  /**
+   * A form pre-filled from a sleeve. Deliberately not onReviewMetadata(draft):
+   * that argument is a sentinel where null means "manual entry", and a payload
+   * falls through to a branch that posts an album the user never confirmed.
+   */
+  onDraftEntry?: (result: SleeveDraftResult) => void;
   defaultTitleStatus?: string;
   onAlbumAdded?: (album: any) => void;
   onAddStart?: () => void;
   onAddError?: (error: Error) => void;
 }
 
-const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCdByBarcode, onReviewMetadata, defaultTitleStatus, onAlbumAdded: onAlbumAddedFromParent, onAddStart, onAddError }) => {
+const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCdByBarcode, onReviewMetadata, onDraftEntry, defaultTitleStatus, onAlbumAdded: onAlbumAddedFromParent, onAddStart, onAddError }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchArtist, setSearchArtist] = useState('');
   const [searchBy, setSearchBy] = useState('photo'); // 'photo', 'title', 'catalog', 'barcode'
@@ -93,6 +100,9 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
 
   // New state for metadata form
   const [showMetadataForm, setShowMetadataForm] = useState(false);
+  const [capturingSleeve, setCapturingSleeve] = useState(false);
+  // Kept from the scan so the capture step need not ask for the front again.
+  const [scannedFront, setScannedFront] = useState<{ base64: string; mimeType: string } | null>(null);
   const [selectedRelease, setSelectedRelease] = useState<MusicRelease | null>(null);
   const [selectedReleaseGroup, setSelectedReleaseGroup] = useState<MusicRelease[]>([]);
 
@@ -271,6 +281,9 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
 
     try {
       const { base64, mimeType } = await downscaleImage(file);
+      // Kept for the sleeve-reading path: when nothing matches, this photo is
+      // the front cover and it would be a waste to ask for it twice.
+      setScannedFront({ base64, mimeType });
       const scan = await musicService.scanAlbumCover(base64, mimeType) as ScanResponse;
 
       const results = scan?.results || [];
@@ -295,6 +308,9 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
       setExpandedGroups(grouped.length <= 3 ? new Set(grouped.map((_, idx) => idx)) : new Set());
     } catch (err) {
       setError((err as Error).message || 'Could not identify album from the photo');
+      // Show the empty state anyway: a scan that failed is exactly when the
+      // user needs the offer to read the sleeve instead.
+      setHasSearched(true);
     } finally {
       setScanning(false);
       // A file input keeps its value, so picking the same photo again would not
@@ -402,8 +418,12 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
   };
 
   const handleManualEntry = () => {
-    console.log('Manual entry button clicked');
-    // For manual entry, we still use the old workflow (MusicForm)
+    // Offer to read the sleeve first: for a record no database knows, the back
+    // cover is the only place the track list exists in typed form.
+    if (onDraftEntry) {
+      setCapturingSleeve(true);
+      return;
+    }
     onHide();
     // Open form with empty data for manual entry
     if (onReviewMetadata) {
@@ -461,10 +481,25 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
     <>
       <Modal show={show} onHide={handleClose} size="lg" centered style={{ zIndex: 10100 }} className="add-music-dialog">
       <Modal.Header closeButton className="add-music-dialog-header">
-        <Modal.Title>Add New Album</Modal.Title>
+        <Modal.Title>{capturingSleeve ? 'Read the sleeve' : 'Add New Album'}</Modal.Title>
       </Modal.Header>
       
       <Modal.Body className="add-music-dialog-body">
+        {capturingSleeve ? (
+          <SleeveCapture
+            initialFront={scannedFront}
+            onDraft={(result) => {
+              setCapturingSleeve(false);
+              onHide();
+              onDraftEntry?.(result);
+            }}
+            onSkip={() => {
+              setCapturingSleeve(false);
+              onHide();
+              onReviewMetadata?.(null);
+            }}
+          />
+        ) : (<>
         {/* Always mounted: openCamera() clicks it from within the user's tap,
             which would be impossible if it appeared only after a state change. */}
         <input
@@ -679,8 +714,25 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
               <BsSearch size={28} className="mb-2 opacity-50" />
               <div>No matching release found.</div>
               <small className="text-muted">
-                Try the artist name as well, or a barcode; you can also add the album by hand.
+                Try the artist name as well, or a barcode.
               </small>
+              {onDraftEntry && (
+                <div className="mt-3">
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    onClick={() => setCapturingSleeve(true)}
+                  >
+                    <BsCamera className="me-2" />
+                    Fill the form from your photos
+                  </Button>
+                  <div className="mt-1">
+                    <small className="text-muted">
+                      Photograph the back and the track list is read for you.
+                    </small>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -858,6 +910,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
             </Button>
           </div>
         </div>
+        </>)}
       </Modal.Body>
     </Modal>
 

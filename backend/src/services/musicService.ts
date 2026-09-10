@@ -11,6 +11,9 @@ import axios, { AxiosResponse } from 'axios';
 import logger from '../logger';
 import path from 'path';
 import type { AlbumFormatted, AlbumCreateData, TrackFormatted } from '../types';
+import coverScanService from './coverScanService';
+import type { SleeveTranscription } from './coverScanService';
+import { toMusicFormDraft, type MusicFormDraft } from './sleeveDraft';
 
 /**
  * How long an add waits for the cover before answering anyway. Long enough that
@@ -951,6 +954,88 @@ class MusicService {
       throw error;
     }
   }
+  /**
+   * Read a sleeve from photographs and hand back a draft for the form.
+   *
+   * The two photographs are read independently and in parallel, so a failure
+   * on one side still fills the form from the other -- the point of the
+   * feature is to save typing, and half a sleeve saves half of it.
+   *
+   * The back wins every field it read. A front is artwork: the title is
+   * stylised, sometimes absent altogether, and on a classical sleeve it names
+   * the composer where the back names the performer. The front only fills what
+   * the back left blank.
+   */
+  async transcribeSleeve(input: {
+    front?: { image: string; mimeType?: string };
+    back?: { image: string; mimeType?: string };
+  }): Promise<{
+    draft: MusicFormDraft;
+    sources: { front: 'ok' | 'failed' | 'absent'; back: 'ok' | 'failed' | 'absent' };
+    truncated: boolean;
+  }> {
+    const read = (
+      side: 'front' | 'back',
+      photo: { image: string; mimeType?: string } | undefined
+    ): Promise<SleeveTranscription | null> => {
+      if (!photo?.image) return Promise.resolve(null);
+      const fn = side === 'back' ? coverScanService.transcribeSleeveBack : coverScanService.transcribeSleeveFront;
+      return fn(photo.image, photo.mimeType || 'image/jpeg');
+    };
+
+    const [frontResult, backResult] = await Promise.allSettled([
+      read('front', input.front),
+      read('back', input.back)
+    ]);
+
+    const settled = (r: PromiseSettledResult<SleeveTranscription | null>, supplied: boolean) => {
+      if (!supplied) return { value: null, state: 'absent' as const };
+      if (r.status === 'fulfilled') return { value: r.value, state: 'ok' as const };
+      logger.warn(`Sleeve transcription failed: ${(r.reason as Error)?.message}`);
+      return { value: null, state: 'failed' as const, error: r.reason as Error };
+    };
+
+    const front = settled(frontResult, Boolean(input.front?.image));
+    const back = settled(backResult, Boolean(input.back?.image));
+
+    if (!front.value && !back.value) {
+      // Surface the underlying message: the controller reads it to tell an
+      // unreachable model from an unreadable photograph.
+      throw (front as { error?: Error }).error
+        || (back as { error?: Error }).error
+        || new Error('Could not read anything from the sleeve');
+    }
+
+    const b = back.value;
+    const f = front.value;
+    const pick = <T>(fromBack: T | null | undefined, fromFront: T | null | undefined, empty: T): T => {
+      const hasBack = Array.isArray(fromBack) ? fromBack.length > 0 : Boolean(fromBack);
+      if (hasBack) return fromBack as T;
+      const hasFront = Array.isArray(fromFront) ? fromFront.length > 0 : Boolean(fromFront);
+      return hasFront ? (fromFront as T) : empty;
+    };
+
+    const merged: SleeveTranscription = {
+      title: pick(b?.title, f?.title, null),
+      artist: pick(b?.artist, f?.artist, [] as string[]),
+      label: b?.label || [],
+      catalogNumber: b?.catalogNumber || null,
+      barcode: b?.barcode || null,
+      year: b?.year ?? null,
+      country: b?.country || null,
+      format: pick(b?.format, f?.format, null),
+      genres: b?.genres || [],
+      tracks: b?.tracks || [],
+      truncated: Boolean(b?.truncated)
+    };
+
+    return {
+      draft: toMusicFormDraft(merged),
+      sources: { front: front.state, back: back.state },
+      truncated: merged.truncated
+    };
+  }
+
 }
 
 export default new MusicService();

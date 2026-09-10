@@ -4,8 +4,14 @@ import sharp from 'sharp';
 const DEFAULT_BASE_URL = 'https://llm-next.lab.crog.org';
 /** Longest edge sent to the vision model. */
 const LLM_IMAGE_MAX_PX = 1024;
-/** A JPEG at or below this size is forwarded untouched. */
-const MAX_PASSTHROUGH_BYTES = 400 * 1024;
+/**
+ * A JPEG at or below this size is forwarded untouched.
+ *
+ * Generous on purpose: a phone photo already downscaled to 1024px by the client
+ * lands around 250-450KB, so a tighter ceiling would re-encode precisely the
+ * images whose 13px-tall track text we are asking the model to read.
+ */
+const MAX_PASSTHROUGH_BYTES = 800 * 1024;
 const DEFAULT_MODEL = 'Qwen3.6-35B-A3B';
 
 interface LLMConfig {
@@ -30,6 +36,35 @@ interface AlbumAnalysisResult {
   title: string;
   year: number | null;
   format: string | null;
+}
+
+/** One track as printed on the sleeve; the duration stays as written. */
+export interface SleeveTrack {
+  disc: number;
+  n: number | null;
+  title: string;
+  duration: string | null;
+}
+
+/**
+ * What a sleeve says about itself.
+ *
+ * Every field is nullable because this is a transcription: a sleeve that does
+ * not print a catalogue number leaves it empty rather than having one guessed.
+ */
+export interface SleeveTranscription {
+  title: string | null;
+  artist: string[];
+  label: string[];
+  catalogNumber: string | null;
+  barcode: string | null;
+  year: number | null;
+  country: string | null;
+  format: string | null;
+  genres: string[];
+  tracks: SleeveTrack[];
+  /** The answer hit the token ceiling; the tracks below are what survived. */
+  truncated: boolean;
 }
 
 interface RankableRelease {
@@ -247,6 +282,205 @@ async function prepareImage(base64Image: string, mimeType: string): Promise<Prep
     .toBuffer();
 
   return { base64: output.toString('base64'), mimeType: 'image/jpeg' };
+}
+
+/** Strip the wrappers the model puts around its JSON: thinking, code fences. */
+function cleanModelText(text: string): string {
+  let cleaned = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  const fence = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fence) cleaned = fence[1].trim();
+  return cleaned;
+}
+
+/**
+ * Salvage JSON that stopped mid-value.
+ *
+ * A long track list is exactly what runs into the token ceiling, and the rows
+ * that did arrive are worth keeping -- retyping four tracks beats retyping
+ * twenty. Cut back to the last complete object and close whatever is open.
+ */
+function repairTruncatedJson(text: string): string | null {
+  const lastComplete = text.lastIndexOf('}');
+  if (lastComplete === -1) return null;
+
+  const head = text.slice(0, lastComplete + 1);
+  const stack: string[] = [];
+  let inString = false;
+  let escaped = false;
+
+  for (const ch of head) {
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{' || ch === '[') stack.push(ch);
+    else if (ch === '}' || ch === ']') stack.pop();
+  }
+
+  const closers = stack.reverse().map(open => (open === '{' ? '}' : ']')).join('');
+  return head + closers;
+}
+
+/** Parse a transcription answer, tolerating fences, thinking and truncation. */
+function parseSleeveJson(text: string): { data: Record<string, unknown>; truncated: boolean } | null {
+  const cleaned = cleanModelText(text);
+
+  try {
+    return { data: JSON.parse(cleaned) as Record<string, unknown>, truncated: false };
+  } catch (_) { /* try harder below */ }
+
+  const repaired = repairTruncatedJson(cleaned);
+  if (repaired) {
+    try {
+      return { data: JSON.parse(repaired) as Record<string, unknown>, truncated: true };
+    } catch (_) { /* give up */ }
+  }
+
+  return null;
+}
+
+const asList = (value: unknown): string[] => {
+  if (Array.isArray(value)) return value.filter(v => typeof v === 'string' && v.trim()) as string[];
+  if (typeof value === 'string' && value.trim()) return [value.trim()];
+  return [];
+};
+
+const asText = (value: unknown): string | null =>
+  typeof value === 'string' && value.trim() ? value.trim() : null;
+
+const asYear = (value: unknown): number | null => {
+  const n = typeof value === 'number' ? value : parseInt(String(value ?? ''), 10);
+  return Number.isFinite(n) && n > 1000 && n < 3000 ? n : null;
+};
+
+/**
+ * The rule every sleeve prompt states, and the reason this feature exists.
+ *
+ * These records are absent from Discogs and MusicBrainz, so the model does not
+ * know them either. A track list it recalls rather than reads is invention
+ * that looks exactly like a transcription, and it survives proofreading.
+ */
+const TRANSCRIPTION_RULE =
+  'Transcribe EXACTLY what is printed. Do not use your knowledge of real albums, ' +
+  'and do not guess: omit any field you cannot read on the image itself.';
+
+async function askVision(
+  prompt: string,
+  base64Image: string,
+  mimeType: string,
+  maxTokens: number
+): Promise<{ text: string; truncated: boolean }> {
+  const { baseUrl, model } = getConfig();
+  ({ base64: base64Image, mimeType } = await prepareImage(base64Image, mimeType));
+
+  const response = await axiosPost(`${baseUrl}/v1/chat/completions`, {
+    model,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Image}` } },
+        { type: 'text', text: prompt }
+      ]
+    }],
+    max_tokens: maxTokens,
+    temperature: 0
+  }, 90) as LLMChatResponse;
+
+  const text = response.choices?.[0]?.message?.content;
+  if (!text) {
+    const detail = response.error?.message || response.choices?.[0]?.finish_reason || 'empty content';
+    throw new Error(`No response from LLM (${detail})`);
+  }
+  // Only the ceiling tells us the list was cut short: a response truncated on a
+  // clean object boundary still parses, and would otherwise be reported as a
+  // complete album that simply had four tracks.
+  return { text, truncated: response.choices?.[0]?.finish_reason === 'length' };
+}
+
+const emptyTranscription = (): SleeveTranscription => ({
+  title: null, artist: [], label: [], catalogNumber: null, barcode: null,
+  year: null, country: null, format: null, genres: [], tracks: [], truncated: false
+});
+
+/**
+ * Read the back of a sleeve: the track list and the pressing details.
+ *
+ * The back carries almost the whole record -- title, artists, label, catalogue
+ * number, barcode and every track -- which is why it is the half worth having
+ * when only one photo is available.
+ */
+async function transcribeSleeveBack(base64Image: string, mimeType: string): Promise<SleeveTranscription> {
+  const prompt =
+    'This is the BACK of a music album sleeve (CD, vinyl or box set).\n' +
+    TRANSCRIPTION_RULE + '\n' +
+    'The release may hold more than one disc: give each track the number of the disc it is ' +
+    'printed under, starting at 1, and keep the track numbers as printed.\n' +
+    'Durations stay exactly as written, for example "3:42".\n' +
+    'Return ONLY this JSON object:\n' +
+    '{"title":"","artist":[],"label":[],"catalogNumber":"","barcode":"","year":0,' +
+    '"country":"","format":"","genres":[],"tracks":[{"disc":1,"n":1,"title":"","duration":""}]}';
+
+  // Twelve tracks cost around 700 tokens, so a thirty-track double album needs
+  // roughly 1800 before the other fifteen fields; and any thinking the model
+  // emits is charged against the same budget.
+  const { text, truncated } = await askVision(prompt, base64Image, mimeType, 2600);
+  const parsed = parseSleeveJson(text);
+  if (!parsed) {
+    throw new Error('Could not parse the sleeve transcription from the model response');
+  }
+
+  const d = parsed.data;
+  const rawTracks = Array.isArray(d.tracks) ? d.tracks : [];
+
+  return {
+    ...emptyTranscription(),
+    title: asText(d.title),
+    artist: asList(d.artist),
+    label: asList(d.label),
+    catalogNumber: asText(d.catalogNumber),
+    barcode: asText(d.barcode) ? asText(d.barcode)!.replace(/[\s-]/g, '') : null,
+    year: asYear(d.year),
+    country: asText(d.country),
+    format: asText(d.format),
+    genres: asList(d.genres),
+    truncated: parsed.truncated || truncated,
+    tracks: (rawTracks as Array<Record<string, unknown>>)
+      .map(t => ({
+        // A single-disc sleeve prints no disc heading at all.
+        disc: Number.isFinite(Number(t.disc)) && Number(t.disc) > 0 ? Number(t.disc) : 1,
+        n: Number.isFinite(Number(t.n)) ? Number(t.n) : null,
+        title: asText(t.title) || '',
+        duration: asText(t.duration)
+      }))
+      .filter(t => t.title)
+  };
+}
+
+/**
+ * Read the front of a sleeve: the identity, as designed.
+ *
+ * Only called when no scan preceded. After a scan, analyzeAlbumImage has
+ * already read these same fields off this same photo.
+ */
+async function transcribeSleeveFront(base64Image: string, mimeType: string): Promise<SleeveTranscription> {
+  const prompt =
+    'This is the FRONT of a music album sleeve.\n' +
+    TRANSCRIPTION_RULE + '\n' +
+    'Return ONLY this JSON object:\n' +
+    '{"title":"","artist":[],"format":""}';
+
+  const { text } = await askVision(prompt, base64Image, mimeType, 300);
+  const parsed = parseSleeveJson(text);
+  if (!parsed) {
+    throw new Error('Could not parse the sleeve transcription from the model response');
+  }
+
+  return {
+    ...emptyTranscription(),
+    title: asText(parsed.data.title),
+    artist: asList(parsed.data.artist),
+    format: asText(parsed.data.format)
+  };
 }
 
 /**
@@ -877,6 +1111,8 @@ export default {
   analyzeImage,
   analyzeAlbumImage,
   analyzeBookImage,
+  transcribeSleeveBack,
+  transcribeSleeveFront,
   parseResponse,
   normalizeFormat,
   rankResults,

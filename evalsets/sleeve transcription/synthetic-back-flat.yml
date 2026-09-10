@@ -1,0 +1,26 @@
+# A rendered CD back cover whose ground truth is known exactly, at the
+# proportions of a real 120mm jewel case (track text 2mm tall). It exists so
+# the transcription can be scored without hunting for a real sleeve whose
+# printing we would have to trust ourselves to read correctly.
+image: synthetic-back-flat.jpg
+
+expected:
+  title: "ATLAS OF SMALL THINGS"
+  artist: "THE PAPER KITES ENSEMBLE"
+  label: "Harmonia Nova"
+  catalogNumber: "HN-4471-2"
+  barcode: "7619931044712"
+  year: 2003
+  tracks:
+    - { n: 1,  title: "Prelude in C Minor",  duration: "3:42" }
+    - { n: 2,  title: "The Longest Winter",  duration: "5:18" }
+    - { n: 3,  title: "Marchand de Sable",   duration: "4:07" }
+    - { n: 4,  title: "Hollow Bones",        duration: "2:55" }
+    - { n: 5,  title: "Nocturne for Elise",  duration: "6:33" }
+    - { n: 6,  title: "Sept Feuilles",       duration: "3:29" }
+    - { n: 7,  title: "Undertow",            duration: "4:51" }
+    - { n: 8,  title: "La Chambre Bleue",    duration: "5:02" }
+    - { n: 9,  title: "Static Bloom",        duration: "3:14" }
+    - { n: 10, title: "Vesper Song",         duration: "7:26" }
+    - { n: 11, title: "Threadbare",          duration: "2:48" }
+    - { n: 12, title: "Coda (Reprise)",      duration: "4:35" }

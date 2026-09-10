@@ -1,4 +1,5 @@
 import axios, { AxiosResponse } from 'axios';
+import { durationToSeconds } from '../utils/duration';
 import configManager from '../config';
 import logger from '../logger';
 
@@ -127,13 +128,7 @@ const request = async <T>(path: string, params: Record<string, unknown>): Promis
   }
 };
 
-/** "4:19" -> 259. Discogs also uses "1:02:30" for long pieces. */
-const durationToSeconds = (value: string | undefined): number | null => {
-  if (!value) return null;
-  const parts = value.split(':').map(p => parseInt(p, 10));
-  if (parts.some(Number.isNaN) || parts.length === 0) return null;
-  return parts.reduce((total, part) => total * 60 + part, 0);
-};
+
 
 /**
  * Discogs positions are "1", "A1" for vinyl sides, "2-5" on multi-disc sets, or

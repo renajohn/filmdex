@@ -4,6 +4,7 @@ export interface DownscaledImage {
 }
 
 /** Longest edge sent to the scan endpoint. */
+/** What the vision model sees; the cover is kept larger. */
 const MAX_EDGE = 1024;
 /** Give up on decoding rather than leaving the spinner running forever. */
 const DECODE_TIMEOUT_MS = 5000;
@@ -29,7 +30,7 @@ const stripDataUrlPrefix = (dataUrl: string): string => dataUrl.replace(/^data:[
  * Falls back to the original bytes whenever the browser cannot decode the file
  * (an iPhone HEIC, typically) -- the server re-encodes with sharp in that case.
  */
-export const downscaleImage = async (file: File): Promise<DownscaledImage> => {
+export const downscaleImage = async (file: File, maxEdge: number = MAX_EDGE): Promise<DownscaledImage> => {
   const dataUrl = await readAsDataUrl(file);
 
   try {
@@ -50,7 +51,7 @@ export const downscaleImage = async (file: File): Promise<DownscaledImage> => {
     const longestEdge = Math.max(image.width, image.height);
     if (!longestEdge) throw new Error('image has no dimensions');
 
-    const scale = Math.min(1, MAX_EDGE / longestEdge);
+    const scale = Math.min(1, maxEdge / longestEdge);
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(image.width * scale);
     canvas.height = Math.round(image.height * scale);
@@ -73,3 +74,17 @@ export const downscaleImage = async (file: File): Promise<DownscaledImage> => {
 };
 
 export default downscaleImage;
+
+/**
+ * Turn a base64 JPEG back into a File for the multipart upload endpoints.
+ *
+ * The capture step re-encodes every photo to JPEG through a canvas, so what
+ * arrives here is never the HEIC an iPhone shot -- which matters, because the
+ * cover upload only accepts JPEG, PNG and WebP.
+ */
+export const base64ToFile = (base64: string, mimeType: string, name: string): File => {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new File([bytes], name, { type: mimeType });
+};

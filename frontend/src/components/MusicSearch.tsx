@@ -1,6 +1,7 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import musicService from '../services/musicService';
+import { base64ToFile } from '../utils/downscaleImage';
 import MusicForm from './MusicForm';
 import MusicThumbnail from './MusicThumbnail';
 import MusicDetailCard from './MusicDetailCard';
@@ -90,6 +91,9 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const [addError, setAddError] = useState('');
   const [editingCd, setEditingCd] = useState<any>(null);
   const [reviewingRelease, setReviewingRelease] = useState<any>(null);
+  // The sleeve photo waits here: the cover endpoint needs an album id, which
+  // only exists once the form has been submitted.
+  const [pendingCover, setPendingCover] = useState<{ base64: string; mimeType: string } | null>(null);
   const [selectedCdDetails, setSelectedCdDetails] = useState<any>(null);
   const [, setLoadingDetails] = useState(false);
   const [cdDetailsBeforeEdit, setCdDetailsBeforeEdit] = useState<any>(null);
@@ -463,6 +467,25 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     }
   };
 
+
+  /**
+   * Store the photographed sleeve as the album cover.
+   *
+   * A record no database knows has no artwork to download, so the user's own
+   * photo is the only cover it will ever have. Failing is not fatal: the album
+   * is already saved and a cover can be added later.
+   */
+  const attachSleevePhoto = async (album: any) => {
+    if (!pendingCover || !album?.id) return;
+    try {
+      const file = base64ToFile(pendingCover.base64, pendingCover.mimeType, 'sleeve.jpg');
+      await musicService.uploadCover(album.id, file);
+    } catch (err) {
+      console.warn('Could not store the sleeve photo as the cover:', err);
+    } finally {
+      setPendingCover(null);
+    }
+  };
 
   const handleReviewMetadata = async (release: any, allReleasesInGroup: any[] | null = null) => {
     try {
@@ -878,6 +901,10 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
         onAddCdFromMusicBrainz={onAddCdFromMusicBrainz}
         onAddCdByBarcode={onAddCdByBarcode}
         onReviewMetadata={handleReviewMetadata}
+        onDraftEntry={(result: any) => {
+          setPendingCover(result.coverPhoto || null);
+          setReviewingRelease(result.draft);
+        }}
         defaultTitleStatus={undefined}
         onAddStart={() => {
           // Close dialog instantly and show overlay
@@ -922,6 +949,9 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
             } else {
               createdAlbum = await onAddCd(cdData);
             }
+            // Before handleFormSave, which unmounts the form and refetches the
+            // album: otherwise the grid paints a coverless record.
+            await attachSleevePhoto(createdAlbum);
             await handleFormSave(createdAlbum);
           }}
           onCancel={handleFormCancel}
