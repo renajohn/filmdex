@@ -493,3 +493,53 @@ describe('AddMusicDialog — results from either source', () => {
     );
   });
 });
+
+describe('AddMusicDialog — reading the sleeve when nothing matched', () => {
+  it('offers to read the sleeve once a scan comes back empty', async () => {
+    (musicService.scanAlbumCover as any).mockResolvedValue({
+      llm_result: { artist: 'Unknown', title: 'Unknown' },
+      results: [],
+      confidence: 'low'
+    });
+    renderDialog({ onDraftEntry: vi.fn() });
+    fireEvent.change(screen.getByTestId('album-photo-input'), { target: { files: [photoFile()] } });
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /fill the form from your photos/i })).toBeInTheDocument()
+    );
+  });
+
+  it('offers it when the scan itself failed, which is when it is most needed', async () => {
+    // A scan that throws never set hasSearched, so the empty state that hosts
+    // the offer used to render nothing in exactly this case.
+    (musicService.scanAlbumCover as any).mockRejectedValue(new Error('Could not read the sleeve'));
+    renderDialog({ onDraftEntry: vi.fn() });
+    fireEvent.change(screen.getByTestId('album-photo-input'), { target: { files: [photoFile()] } });
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /fill the form from your photos/i })).toBeInTheDocument()
+    );
+  });
+
+  it('opens the capture step from manual entry rather than an empty form', async () => {
+    const onDraftEntry = vi.fn();
+    const onReviewMetadata = vi.fn();
+    renderDialog({ onDraftEntry, onReviewMetadata });
+
+    fireEvent.click(screen.getByRole('button', { name: /manual entry/i }));
+
+    await waitFor(() => expect(screen.getByTestId('sleeve-back-input')).toBeInTheDocument());
+    expect(onReviewMetadata).not.toHaveBeenCalled();
+  });
+
+  it('still reaches the empty form for someone who would rather type', async () => {
+    const onReviewMetadata = vi.fn();
+    renderDialog({ onDraftEntry: vi.fn(), onReviewMetadata });
+
+    fireEvent.click(screen.getByRole('button', { name: /manual entry/i }));
+    await waitFor(() => expect(screen.getByTestId('sleeve-back-input')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /by hand/i }));
+
+    await waitFor(() => expect(onReviewMetadata).toHaveBeenCalledWith(null));
+  });
+});

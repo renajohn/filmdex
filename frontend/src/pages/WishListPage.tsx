@@ -74,6 +74,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
   const [showMarkOwnedModal, setShowMarkOwnedModal] = useState<MarkOwnedModalState>({ show: false, item: null, itemType: null });
   const [showAddMusicDialog, setShowAddMusicDialog] = useState(false);
   const [showMusicForm, setShowMusicForm] = useState(false);
+  // A form pre-filled from a photographed sleeve; null means a blank form.
+  const [sleeveDraft, setSleeveDraft] = useState<any>(null);
   const [addingAlbum, setAddingAlbum] = useState(false);
   const [addError, setAddError] = useState('');
   const [showAddBookDialog, setShowAddBookDialog] = useState(false);
@@ -428,6 +430,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
   };
 
   const handleMusicFormClose = () => {
+    setSleeveDraft(null);
     console.log('Closing MusicForm');
     setShowMusicForm(false);
   };
@@ -1521,6 +1524,11 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
           onAddCdFromMusicBrainz={handleAddCdFromMusicBrainz}
           onAddCdByBarcode={handleAddCdByBarcode}
           onReviewMetadata={handleReviewMetadata}
+          onDraftEntry={(result: any) => {
+            setSleeveDraft(result.draft);
+            setShowAddMusicDialog(false);
+            setShowMusicForm(true);
+          }}
           defaultTitleStatus="wish"
           onAlbumAdded={() => {
             // Immediately refresh wishlist when album is added
@@ -1575,6 +1583,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
       {/* Music Form for Manual Entry */}
       {showMusicForm && (
         <MusicForm
+          cd={sleeveDraft || undefined}
           onCancel={handleMusicFormClose}
           onSave={handleMusicFormSave}
         />

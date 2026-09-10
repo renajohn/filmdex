@@ -291,6 +291,38 @@ class MusicService {
   }
 
   /**
+   * Read a sleeve from photographs and get a draft for the form.
+   *
+   * Either photograph may be omitted. Nothing is stored server-side: the answer
+   * is a proposal, and the album exists only once the form is submitted.
+   */
+  async transcribeSleeve(
+    photos: { front?: { base64: string; mimeType: string }; back?: { base64: string; mimeType: string } }
+  ): Promise<unknown> {
+    const baseUrl = await this.getBaseUrl();
+    const body: Record<string, unknown> = {};
+    if (photos.front) body.front = { image: photos.front.base64, mimeType: photos.front.mimeType };
+    if (photos.back) body.back = { image: photos.back.base64, mimeType: photos.back.mimeType };
+
+    const response = await fetch(`${baseUrl}/music/transcribe-sleeve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      let message = `HTTP error! status: ${response.status}`;
+      try {
+        const payload = await response.json();
+        if (payload?.error) message = payload.error;
+      } catch (_) { /* keep the status */ }
+      throw new Error(message);
+    }
+
+    return response.json();
+  }
+
+  /**
    * Add a release from whichever database it was found in.
    * Search results carry `source` and `releaseId`; pass them straight through.
    */
