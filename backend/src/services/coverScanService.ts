@@ -145,6 +145,34 @@ function getConfig(): LLMConfig {
 }
 
 /**
+ * Turn a request failure into an error worth reading.
+ *
+ * Anything that came back without an HTTP response used to be reported as
+ * "Network error: No response received", so a container that cannot verify the
+ * certificate in front of the model said exactly the same thing as a wrong
+ * hostname or a refused connection. The Node error code is what tells those
+ * apart, and it is the first thing you want when a deployment goes quiet.
+ *
+ * The "Network error" wording stays: scanCover matches on it to answer 503
+ * (service down) rather than 422 (could not read the sleeve).
+ */
+function requestFailure(error: unknown): Error {
+  if (axios.isAxiosError(error)) {
+    if (error.response) {
+      return new Error(`HTTP ${error.response.status}: ${error.response.data}`);
+    }
+    if (error.request) {
+      // axios usually carries the code itself; on a TLS failure it is on the
+      // cause instead.
+      const code = error.code || (error.cause as { code?: string } | undefined)?.code;
+      const detail = [code, error.message].filter(Boolean).join(': ');
+      return new Error(`Network error: ${detail || 'No response received'}`);
+    }
+  }
+  return new Error(error instanceof Error ? error.message : String(error));
+}
+
+/**
  * Make an HTTP request using axios.
  * macOS Sequoia blocks Node.js from LAN access, but curl (a system binary)
  * has implicit local network permission.
@@ -159,14 +187,7 @@ async function axiosPost(url: string, body: Record<string, unknown>, timeoutSec:
     });
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response) {
-        throw new Error(`HTTP ${error.response.status}: ${error.response.data}`);
-      } else if (error.request) {
-        throw new Error('Network error: No response received');
-      }
-    }
-    throw new Error(error instanceof Error ? error.message : String(error));
+    throw requestFailure(error);
   }
 }
 
@@ -177,14 +198,7 @@ async function axiosGet(url: string, timeoutSec: number = 5): Promise<unknown> {
     });
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response) {
-        throw new Error(`HTTP ${error.response.status}: ${error.response.data}`);
-      } else if (error.request) {
-        throw new Error('Network error: No response received');
-      }
-    }
-    throw new Error(error instanceof Error ? error.message : String(error));
+    throw requestFailure(error);
   }
 }
 
@@ -196,14 +210,7 @@ async function axiosGetBinary(url: string, timeoutSec: number = 10): Promise<Buf
     });
     return Buffer.from(response.data);
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response) {
-        throw new Error(`HTTP ${error.response.status}: ${error.response.data}`);
-      } else if (error.request) {
-        throw new Error('Network error: No response received');
-      }
-    }
-    throw new Error(error instanceof Error ? error.message : String(error));
+    throw requestFailure(error);
   }
 }
 
