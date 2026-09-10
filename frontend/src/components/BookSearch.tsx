@@ -11,6 +11,7 @@ import { CollectionHeader, EmptyState } from './shared';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { BsChevronDown, BsBook, BsX } from 'react-icons/bs';
 import './BookSearch.css';
+import { readStored, writeStored } from '../utils/safeStorage';
 
 interface BookSearchProps {
   books: any;
@@ -98,7 +99,7 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
   const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
   // Load sort preference from localStorage, default to 'series'
   const [sortBy, setSortBy] = useState(() => {
-    const savedSort = localStorage.getItem('dexvault-bookdex-sort');
+    const savedSort = readStored('dexvault-bookdex-sort');
     return savedSort || 'series';
   });
   const [sortLoading, setSortLoading] = useState(false);
@@ -115,7 +116,7 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
   const expandedSeriesRef = useRef<string | null>(null);
   // Load stack preference from localStorage
   const [stackEnabled, setStackEnabled] = useState(() => {
-    const saved = localStorage.getItem('dexvault-bookdex-stack');
+    const saved = readStored('dexvault-bookdex-stack');
     return saved !== null ? saved === 'true' : true;
   });
 
@@ -132,7 +133,7 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
 
   // Persist stack preference to localStorage
   useEffect(() => {
-    localStorage.setItem('dexvault-bookdex-stack', stackEnabled.toString());
+    writeStored('dexvault-bookdex-stack', stackEnabled.toString());
   }, [stackEnabled]);
 
 
@@ -434,7 +435,7 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
 
   const handleSortChange = async (sortOption: string) => {
     setSortBy(sortOption);
-    localStorage.setItem('dexvault-bookdex-sort', sortOption);
+    writeStored('dexvault-bookdex-sort', sortOption);
     setSortLoading(true);
 
     await new Promise(resolve => setTimeout(resolve, 150));
