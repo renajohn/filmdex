@@ -14,6 +14,7 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -29,13 +30,6 @@ jobs:
         id: version
         run: echo "version=$(node scripts/get-version.js)" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-qemu-action@v3
-        with:
-          # Pin binfmt to a QEMU build that doesn't SIGILL on Node 20 arm64.
-          # The default `tonistiigi/binfmt:latest` ships a QEMU that crashes
-          # with "Illegal instruction" during npm install under emulation.
-          image: tonistiigi/binfmt:qemu-v8.1.5
-
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -47,7 +41,11 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          # p-cloud is x86_64, and the runner is too, so nothing is emulated.
+          # Building linux/arm64 through QEMU used to take over an hour whenever
+          # a lockfile change invalidated the cache, because sqlite3 and sharp
+          # are compiled from source.
+          platforms: linux/amd64
           push: true
           tags: |
             ghcr.io/renajohn/filmdex:latest

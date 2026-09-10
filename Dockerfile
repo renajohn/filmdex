@@ -5,7 +5,7 @@ WORKDIR /build
 
 # Install frontend dependencies
 COPY frontend/package*.json ./frontend/
-RUN cd frontend && npm ci --legacy-peer-deps
+RUN cd frontend && npm ci
 
 # Copy frontend source and build
 COPY frontend/ ./frontend/
@@ -22,7 +22,7 @@ WORKDIR /app
 # Install backend dependencies (include dev deps for tsx)
 COPY backend/package*.json ./backend/
 COPY backend/tsconfig.json ./backend/
-RUN cd backend && npm install
+RUN cd backend && npm ci --omit=dev
 
 # Copy backend source
 COPY backend/index.ts ./backend/
