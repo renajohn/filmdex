@@ -2,139 +2,125 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import MovieImport from './MovieImport';
-import apiService from '../services/api';
 
-// Mock the API service
-vi.mock('../services/api', () => ({
-  default: {
-    importCsv: vi.fn(),
-  },
-}));
+/**
+ * The component picks a file and hands it to the caller; it does not talk to
+ * the API itself, which is why there is no service mock here any more.
+ */
+
+const csv = (name = 'movies.csv') =>
+  new File(['title,format\nHeat,DVD'], name, { type: 'text/csv' });
+
+const fileInput = () => document.getElementById('csv-file') as HTMLInputElement;
+
+const select = (file: File) => fireEvent.change(fileInput(), { target: { files: [file] } });
 
 describe('MovieImport', () => {
-  const mockOnImportStart = vi.fn();
-  const mockOnError = vi.fn();
+  const onFileUpload = vi.fn();
+  const onError = vi.fn();
+
+  const renderImport = () =>
+    render(<MovieImport onFileUpload={onFileUpload} onError={onError} />);
 
   beforeEach(() => {
     vi.clearAllMocks();
+    onFileUpload.mockResolvedValue(undefined);
   });
 
   it('renders the import form', () => {
-    render(<MovieImport onImportStart={mockOnImportStart} onError={mockOnError} />);
-    
+    renderImport();
+
     expect(screen.getByText('Import Movies from CSV')).toBeInTheDocument();
-    expect(screen.getByText('Upload a CSV file to import multiple movies at once.')).toBeInTheDocument();
+    expect(screen.getByText(/Upload a CSV file to import multiple movies at once/)).toBeInTheDocument();
     expect(screen.getByText('Start Import')).toBeInTheDocument();
   });
 
   it('shows file requirements', () => {
-    render(<MovieImport onImportStart={mockOnImportStart} onError={mockOnError} />);
-    
+    renderImport();
+
     expect(screen.getByText('CSV Format Requirements')).toBeInTheDocument();
     expect(screen.getByText('Required columns:')).toBeInTheDocument();
     expect(screen.getByText('Optional columns:')).toBeInTheDocument();
   });
 
+  it('accepts only CSV files from the picker', () => {
+    renderImport();
+
+    expect(fileInput()).toHaveAttribute('accept', '.csv');
+  });
+
   it('handles file selection', () => {
-    render(<MovieImport onImportStart={mockOnImportStart} onError={mockOnError} />);
-    
-    const file = new File(['test content'], 'test.csv', { type: 'text/csv' });
-    const input = screen.getByLabelText(/click to select/i);
-    
-    fireEvent.change(input, { target: { files: [file] } });
-    
-    expect(screen.getByText('test.csv')).toBeInTheDocument();
-    expect(screen.getByText('Start Import')).not.toBeDisabled();
+    renderImport();
+
+    select(csv());
+
+    expect(screen.getByText('movies.csv')).toBeInTheDocument();
   });
 
   it('handles file removal', () => {
-    render(<MovieImport onImportStart={mockOnImportStart} onError={mockOnError} />);
-    
-    const file = new File(['test content'], 'test.csv', { type: 'text/csv' });
-    const input = screen.getByLabelText(/click to select/i);
-    
-    fireEvent.change(input, { target: { files: [file] } });
-    expect(screen.getByText('test.csv')).toBeInTheDocument();
-    
-    const removeButton = screen.getByText('✕');
-    fireEvent.click(removeButton);
-    
-    expect(screen.queryByText('test.csv')).not.toBeInTheDocument();
+    renderImport();
+    select(csv());
+
+    fireEvent.click(screen.getByText('✕'));
+
+    expect(screen.queryByText('movies.csv')).not.toBeInTheDocument();
+    expect(screen.getByText('Click to select')).toBeInTheDocument();
+  });
+
+  it('cannot start an import before a file is chosen', () => {
+    renderImport();
+
     expect(screen.getByText('Start Import')).toBeDisabled();
+
+    select(csv());
+
+    expect(screen.getByText('Start Import')).toBeEnabled();
   });
 
-  it('validates CSV file type', () => {
-    render(<MovieImport onImportStart={mockOnImportStart} onError={mockOnError} />);
-    
-    const file = new File(['test content'], 'test.txt', { type: 'text/plain' });
-    const input = screen.getByLabelText(/click to select/i);
-    
-    fireEvent.change(input, { target: { files: [file] } });
-    
-    expect(mockOnError).toHaveBeenCalledWith('Please select a CSV file');
+  it('hands the chosen file to the caller', async () => {
+    renderImport();
+    const file = csv();
+    select(file);
+
+    fireEvent.click(screen.getByText('Start Import'));
+
+    await waitFor(() => expect(onFileUpload).toHaveBeenCalledWith(file));
   });
 
-  it('handles successful import', async () => {
-    apiService.importCsv.mockResolvedValue({ importId: 'test-import-id' });
-    
-    render(<MovieImport onImportStart={mockOnImportStart} onError={mockOnError} />);
-    
-    const file = new File(['test content'], 'test.csv', { type: 'text/csv' });
-    const input = screen.getByLabelText(/click to select/i);
-    
-    fireEvent.change(input, { target: { files: [file] } });
-    
-    const submitButton = screen.getByText('Start Import');
-    fireEvent.click(submitButton);
-    
-    await waitFor(() => {
-      expect(apiService.importCsv).toHaveBeenCalledWith(file);
-      expect(mockOnImportStart).toHaveBeenCalledWith('test-import-id');
+  it('validates CSV file type', async () => {
+    renderImport();
+    // The picker filters by extension, but a drop does not.
+    const notCsv = new File(['nope'], 'movies.txt', { type: 'text/plain' });
+
+    fireEvent.drop(document.querySelector('.file-drop-zone')!, {
+      dataTransfer: { files: [notCsv] }
     });
-  });
 
-  it('handles import error', async () => {
-    apiService.importCsv.mockRejectedValue(new Error('Import failed'));
-    
-    render(<MovieImport onImportStart={mockOnImportStart} onError={mockOnError} />);
-    
-    const file = new File(['test content'], 'test.csv', { type: 'text/csv' });
-    const input = screen.getByLabelText(/click to select/i);
-    
-    fireEvent.change(input, { target: { files: [file] } });
-    
-    const submitButton = screen.getByText('Start Import');
-    fireEvent.click(submitButton);
-    
-    await waitFor(() => {
-      expect(mockOnError).toHaveBeenCalledWith('Import failed');
-    });
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('Please select a CSV file'));
   });
 
   it('shows loading state during upload', async () => {
-    apiService.importCsv.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
-    
-    render(<MovieImport onImportStart={mockOnImportStart} onError={mockOnError} />);
-    
-    const file = new File(['test content'], 'test.csv', { type: 'text/csv' });
-    const input = screen.getByLabelText(/click to select/i);
-    
-    fireEvent.change(input, { target: { files: [file] } });
-    
-    const submitButton = screen.getByText('Start Import');
-    fireEvent.click(submitButton);
-    
-    expect(screen.getByText('Uploading...')).toBeInTheDocument();
-    expect(submitButton).toBeDisabled();
+    renderImport();
+    let release: () => void = () => {};
+    onFileUpload.mockImplementation(() => new Promise<void>(resolve => { release = resolve; }));
+    select(csv());
+
+    fireEvent.click(screen.getByText('Start Import'));
+
+    await waitFor(() => expect(screen.getByText('Uploading...')).toBeInTheDocument());
+    expect(screen.getByText('Uploading...')).toBeDisabled();
+
+    release();
+    await waitFor(() => expect(screen.getByText('Start Import')).toBeInTheDocument());
   });
 
-  it('prevents submission without file', () => {
-    render(<MovieImport onImportStart={mockOnImportStart} onError={mockOnError} />);
-    
-    const submitButton = screen.getByText('Start Import');
-    expect(submitButton).toBeDisabled();
-    
-    fireEvent.click(submitButton);
-    expect(mockOnError).toHaveBeenCalledWith('Please select a CSV file');
+  it('handles import error', async () => {
+    renderImport();
+    onFileUpload.mockRejectedValue(new Error('Import failed'));
+    select(csv());
+
+    fireEvent.click(screen.getByText('Start Import'));
+
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('Import failed'));
   });
 });
