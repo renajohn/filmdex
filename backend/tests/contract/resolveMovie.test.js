@@ -2,6 +2,41 @@ const request = require('supertest');
 const app = (m => m.default || m)(require('../../index'));
 const MovieImport = (m => m.default || m)(require('../../src/models/movieImport'));
 const UnmatchedMovie = (m => m.default || m)(require('../../src/models/unmatchedMovie'));
+const tmdbService = (m => m.default || m)(require('../../src/services/tmdbService'));
+const omdbService = (m => m.default || m)(require('../../src/services/omdbService'));
+const imageService = (m => m.default || m)(require('../../src/services/imageService'));
+
+// Resolving a row fetches the full record from TMDB, the ratings from OMDB and
+// the artwork from both. None of that is what this contract is about, and
+// hitting them for real makes the suite depend on a network and an API key.
+const TMDB_DETAILS = {
+  id: 603,
+  title: 'Test Movie',
+  original_title: 'Test Movie Original',
+  release_date: '2023-01-01',
+  overview: 'An overview',
+  poster_path: '/poster.jpg',
+  backdrop_path: '/backdrop.jpg',
+  genres: [{ id: 28, name: 'Action' }],
+  runtime: 120,
+  original_language: 'en',
+  vote_average: 7.5,
+  credits: { cast: [], crew: [] },
+  videos: { results: [] },
+  release_dates: { results: [] }
+};
+
+beforeEach(() => {
+  jest.spyOn(tmdbService, 'getMovieDetails').mockResolvedValue(TMDB_DETAILS);
+  jest.spyOn(tmdbService, 'getTVShowDetails').mockResolvedValue(TMDB_DETAILS);
+  jest.spyOn(omdbService, 'searchMovie').mockResolvedValue(null);
+  jest.spyOn(imageService, 'downloadPoster').mockResolvedValue(null);
+  jest.spyOn(imageService, 'downloadBackdrop').mockResolvedValue(null);
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 describe('POST /api/import/resolve', () => {
   let testImportId;
@@ -37,6 +72,7 @@ describe('POST /api/import/resolve', () => {
       importId: testImportId,
       unmatchedMovieTitle: 'Test Movie',
       resolvedMovie: {
+        id: 603,
         title: 'Test Movie',
         original_title: 'Test Movie Original',
         release_date: '2023-01-01',

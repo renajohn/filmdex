@@ -4,10 +4,18 @@
  * Unit tests run standalone. Integration tests require a live LLM server.
  * Pipeline tests require both LLM + TMDB.
  *
+ * Only the unit tests run by default: the evalsets score how well the vision
+ * model reads a sleeve, which is a judgement about the model rather than about
+ * this code, and a plain `npx jest` should not go red because one cover was
+ * misread. Both tiers are opt-in.
+ *
  * Run unit tests only (no database required):
  *   npx jest tests/coverScan.test.js --setupFilesAfterEnv=''
  *
- * Run all including pipeline tests:
+ * Run the evalsets against a live LLM:
+ *   RUN_LLM_TESTS=1 npx jest tests/coverScan.test.js --setupFilesAfterEnv=''
+ *
+ * Run all including pipeline tests (LLM + TMDB):
  *   RUN_PIPELINE_TESTS=1 npx jest tests/coverScan.test.js --setupFilesAfterEnv=''
  */
 
@@ -150,7 +158,9 @@ describe('rankResults', () => {
 
 // ===== Integration Tests (require live LLM) =====
 
-describe('LLM Integration Tests', () => {
+const runLlm = process.env.RUN_LLM_TESTS === '1' || process.env.RUN_PIPELINE_TESTS === '1';
+
+(runLlm ? describe : describe.skip)('LLM Integration Tests', () => {
   let llmAvailable = false;
 
   beforeAll(async () => {
