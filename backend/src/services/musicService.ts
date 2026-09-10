@@ -10,6 +10,13 @@ import logger from '../logger';
 import path from 'path';
 import type { AlbumFormatted, AlbumCreateData, TrackFormatted } from '../types';
 
+/**
+ * How long an add waits for the cover before answering anyway. Long enough that
+ * a healthy Cover Art Archive hands the artwork back with the new album, short
+ * enough that a sick one barely delays the save.
+ */
+const COVER_GRACE_MS = 2000;
+
 const runStatement = (sql: string): Promise<void> =>
   new Promise((resolve, reject) => {
     getDatabase().run(sql, (err: Error | null) => (err ? reject(err) : resolve()));
@@ -643,12 +650,61 @@ class MusicService {
       throw error;
     }
   }
+  /**
+   * Download the cover art for a stored album and attach it afterwards.
+   *
+   * Runs after the album row exists, on purpose: the downloads used to happen
+   * before the first INSERT, so up to ~35s of MusicBrainz + Cover Art Archive
+   * timeouts stood between the user and a saved record -- and a slow CAA made
+   * saving impossible even though every piece of metadata was already in hand.
+   */
+  async attachCoverArt(albumId: number, releaseId: string, additionalData: AlbumData = {}): Promise<void> {
+    const downloadAndResizeCover = async (url: string, type: string): Promise<string | null> => {
+      if (!url) return null;
+      try {
+        const filename = `album_${releaseId}_${type}_${Date.now()}.jpg`;
+        const pathUrl = await imageService.downloadImageFromUrl(url, 'cd', filename);
+        if (pathUrl) {
+          try {
+            const downloadedFilename = pathUrl.split('/').pop()!;
+            const fullPath = path.join(imageService.getLocalImagesDir(), 'cd', downloadedFilename);
+            await imageService.resizeImage(fullPath, fullPath, 1200, 1200);
+          } catch (resizeError: unknown) {
+            const err = resizeError as { message: string };
+            console.warn(`Failed to resize ${type} cover art:`, err.message);
+          }
+        }
+        return pathUrl;
+      } catch (error: unknown) {
+        const err = error as { message: string };
+        console.warn(`Failed to download ${type} cover art from url ${url}:`, err.message);
+        return null;
+      }
+    };
+
+    let frontUrl = additionalData?.coverArtData?.frontCoverUrl || null;
+    let backUrl = additionalData?.coverArtData?.backCoverUrl || null;
+
+    // Only ask Cover Art Archive when the client did not already choose.
+    if (!frontUrl || !backUrl) {
+      const coverArt = await musicbrainzService.getCoverArt(releaseId);
+      if (!frontUrl) frontUrl = coverArt?.front?.url || null;
+      if (!backUrl) backUrl = coverArt?.back?.url || null;
+    }
+
+    const [frontPath, backPath] = await Promise.all([
+      frontUrl ? downloadAndResizeCover(frontUrl, 'front') : Promise.resolve(null),
+      backUrl ? downloadAndResizeCover(backUrl, 'back') : Promise.resolve(null)
+    ]);
+
+    if (frontPath) await Album.updateFrontCover(albumId, frontPath);
+    if (backPath) await Album.updateBackCover(albumId, backPath);
+  }
 
   async addAlbumFromMusicBrainz(releaseId: string, additionalData: AlbumData = {}): Promise<AlbumFormatted> {
     try {
-      // Checked before anything is fetched or written to disk: this used to run
-      // after the cover downloads, so every duplicate attempt left orphan files
-      // in data/images/cd and paid for a Cover Art Archive round trip.
+      // Checked before anything is fetched or written to disk, so a duplicate
+      // attempt leaves no orphan files behind.
       const alreadyInCollection = await Album.findByMusicbrainzId(releaseId);
       if (alreadyInCollection) {
         throw new Error('Album already exists in collection');
@@ -657,89 +713,32 @@ class MusicService {
       const releaseData = await musicbrainzService.getReleaseDetails(releaseId);
       const formattedData = musicbrainzService.formatReleaseData(releaseData);
 
-      const coverArt = await musicbrainzService.getCoverArt(releaseId);
-      console.log('Cover art for release', releaseId, ':', coverArt);
-      let coverPath: string | null = null;
-      let backCoverPath: string | null = null;
-
-      const downloadAndResizeCover = async (url: string, type: string): Promise<string | null> => {
-        if (!url) return null;
-        try {
-          const filename = `album_${releaseId}_${type}_${Date.now()}.jpg`;
-          const pathUrl = await imageService.downloadImageFromUrl(url, 'cd', filename);
-          if (pathUrl) {
-            try {
-              const downloadedFilename = pathUrl.split('/').pop()!;
-              const fullPath = path.join(imageService.getLocalImagesDir(), 'cd', downloadedFilename);
-              await imageService.resizeImage(fullPath, fullPath, 1200, 1200);
-            } catch (resizeError: unknown) {
-              const err = resizeError as { message: string };
-              console.warn(`Failed to resize ${type} cover art:`, err.message);
-            }
-          }
-          return pathUrl;
-        } catch (error: unknown) {
-          const err = error as { message: string };
-          console.warn(`Failed to download ${type} cover art from url ${url}:`, err.message);
-          return null;
-        }
-      };
-
-      const selectedFrontUrl = additionalData?.coverArtData?.frontCoverUrl || null;
-      const selectedBackUrl = additionalData?.coverArtData?.backCoverUrl || null;
-
-      if (selectedFrontUrl && selectedBackUrl) {
-        console.log('Using user-selected front/back covers (parallel download)');
-        const [front, back] = await Promise.all([
-          downloadAndResizeCover(selectedFrontUrl, 'front'),
-          downloadAndResizeCover(selectedBackUrl, 'back')
-        ]);
-        coverPath = front;
-        backCoverPath = back;
-      } else {
-        if (selectedFrontUrl) {
-          console.log('Using user-selected front cover:', selectedFrontUrl);
-          coverPath = await downloadAndResizeCover(selectedFrontUrl, 'front');
-        }
-        if (selectedBackUrl) {
-          console.log('Using user-selected back cover:', selectedBackUrl);
-          backCoverPath = await downloadAndResizeCover(selectedBackUrl, 'back');
-        }
-      }
-
-      if (!coverPath && !backCoverPath && coverArt?.front?.url && coverArt?.back?.url) {
-        const [front, back] = await Promise.all([
-          downloadAndResizeCover(coverArt.front.url, 'front'),
-          downloadAndResizeCover(coverArt.back.url, 'back')
-        ]);
-        coverPath = front;
-        backCoverPath = back;
-      } else {
-        if (!coverPath && coverArt?.front?.url) {
-          coverPath = await downloadAndResizeCover(coverArt.front.url, 'front');
-        }
-        if (!backCoverPath && coverArt?.back?.url) {
-          backCoverPath = await downloadAndResizeCover(coverArt.back.url, 'back');
-        }
-      }
-
       const albumData: AlbumData = {
         ...(formattedData as unknown as AlbumData),
-        ...additionalData,
-        cover: coverPath,
-        backCover: backCoverPath
+        ...additionalData
       };
 
-      console.log('Final album data cover:', albumData.cover);
-
       // Second, late check: narrows the window where two concurrent requests
-      // (a double tap) both pass the guard above and insert the same release.
+      // (a double tap) both pass the guard above.
       const existingAlbum = await Album.findByMusicbrainzId(releaseId);
       if (existingAlbum) {
         throw new Error('Album already exists in collection');
       }
 
-      return await this.addAlbum(albumData);
+      const album = await this.addAlbum(albumData);
+
+      // The record is already safe, so cover art can no longer block the add.
+      // We still give it a short head start: when Cover Art Archive is healthy
+      // the artwork comes back with the new album instead of popping in later.
+      const coverWork = this.attachCoverArt(album.id, releaseId, additionalData).catch((error: unknown) => {
+        const err = error as { message: string };
+        logger.error(`Failed to attach cover art for album ${album.id}: ${err.message}`);
+      });
+
+      const grace = new Promise<void>(resolve => setTimeout(resolve, COVER_GRACE_MS));
+      await Promise.race([coverWork, grace]);
+
+      return (await Album.findById(album.id)) || album;
     } catch (error) {
       console.error('Error adding album from MusicBrainz:', error);
       throw error;

@@ -1,3 +1,4 @@
+import { getDatabase } from '../../src/database';
 import musicService from '../../src/services/musicService';
 import musicbrainzService from '../../src/services/musicbrainzService';
 import imageService from '../../src/services/imageService';
@@ -58,6 +59,22 @@ describe('addAlbumFromMusicBrainz — duplicate guard', () => {
     const album = await musicService.addAlbumFromMusicBrainz('fresh-mbid');
 
     expect(album.id).toBeDefined();
-    expect(album.cover).toBe('/api/images/cd/front.jpg');
+
+    // The cover is attached after the answer, so read it back from the row
+    // rather than from the response.
+    const coverOf = (id: number): Promise<string | null> =>
+      new Promise((resolve, reject) => {
+        getDatabase().get('SELECT cover FROM albums WHERE id = ?', [id], (err, row: any) =>
+          err ? reject(err) : resolve(row?.cover ?? null)
+        );
+      });
+
+    const deadline = Date.now() + 3000;
+    let cover: string | null = null;
+    while (Date.now() < deadline && !cover) {
+      cover = await coverOf(album.id);
+      if (!cover) await new Promise(r => setTimeout(r, 25));
+    }
+    expect(cover).toBe('/api/images/cd/front.jpg');
   });
 });
