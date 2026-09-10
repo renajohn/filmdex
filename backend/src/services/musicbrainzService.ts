@@ -145,6 +145,51 @@ export interface FormattedRelease {
   annotation: string | null;
 }
 
+/**
+ * MusicBrainz answers 503 ("the web server is currently busy") under load, and
+ * 429 when a client exceeds one request per second. Both are transient, so a
+ * single attempt turns a busy minute into a failed scan for the user.
+ */
+const TRANSIENT_STATUSES = [429, 500, 502, 503, 504];
+const MAX_ATTEMPTS = 3;
+const RETRY_BASE_MS = 1000;
+
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+const isTransient = (error: unknown): boolean => {
+  if (!axios.isAxiosError(error)) return false;
+  if (!error.response) return true; // network blip or timeout
+  return TRANSIENT_STATUSES.includes(error.response.status);
+};
+
+const withRetry = async <T>(label: string, request: () => Promise<T>): Promise<T> => {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      return await request();
+    } catch (error) {
+      lastError = error;
+      if (!isTransient(error) || attempt === MAX_ATTEMPTS) break;
+
+      const retryAfter = Number(
+        axios.isAxiosError(error) ? error.response?.headers?.['retry-after'] : undefined
+      );
+      const delay = Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter * 1000
+        : RETRY_BASE_MS * Math.pow(2, attempt - 1);
+
+      console.warn(`${label}: transient failure, retrying in ${delay}ms (attempt ${attempt}/${MAX_ATTEMPTS})`);
+      await sleep(delay);
+    }
+  }
+
+  if (isTransient(lastError)) {
+    throw new Error('MusicBrainz is busy or unavailable right now. Please try again in a moment.');
+  }
+  throw lastError;
+};
+
 const musicbrainzService = {
   baseUrl: 'https://musicbrainz.org/ws/2',
   userAgent: 'FilmDex/1.0 (https://github.com/renajohn/filmdex)',
@@ -152,18 +197,20 @@ const musicbrainzService = {
 
   searchRelease: async function(query: string, limit: number = 10): Promise<MBRawRelease[]> {
     try {
-      const response: AxiosResponse<MBReleaseSearchResponse> = await axios.get(`${this.baseUrl}/release`, {
-        params: {
-          query: query,
-          limit: limit,
-          inc: 'artists+labels+release-groups+tags+genres',
-          fmt: 'json'
-        },
-        headers: {
-          'User-Agent': this.userAgent
-        },
-        timeout: 10000
-      });
+      const response: AxiosResponse<MBReleaseSearchResponse> = await withRetry(
+        'MusicBrainz search',
+        () => axios.get(`${this.baseUrl}/release`, {
+          params: {
+            query: query,
+            limit: limit,
+            fmt: 'json'
+          },
+          headers: {
+            'User-Agent': this.userAgent
+          },
+          timeout: 10000
+        })
+      );
 
       const releases = response.data.releases || [];
       return releases;
@@ -179,16 +226,19 @@ const musicbrainzService = {
 
   getReleaseDetails: async function(releaseId: string): Promise<MBRawRelease> {
     try {
-      const response: AxiosResponse<MBRawRelease> = await axios.get(`${this.baseUrl}/release/${releaseId}`, {
-        params: {
-          inc: 'artists+recordings+release-groups+labels+media+tags+genres+artist-rels+url-rels+work-rels+recording-rels+isrcs+annotation',
-          fmt: 'json'
-        },
-        headers: {
-          'User-Agent': this.userAgent
-        },
-        timeout: 10000
-      });
+      const response: AxiosResponse<MBRawRelease> = await withRetry(
+        'MusicBrainz release lookup',
+        () => axios.get(`${this.baseUrl}/release/${releaseId}`, {
+          params: {
+            inc: 'artists+recordings+release-groups+labels+media+tags+genres+artist-rels+url-rels+work-rels+recording-rels+isrcs+annotation',
+            fmt: 'json'
+          },
+          headers: {
+            'User-Agent': this.userAgent
+          },
+          timeout: 10000
+        })
+      );
 
       return response.data;
     } catch (error: unknown) {
