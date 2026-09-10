@@ -6,6 +6,7 @@ import fs from 'fs';
 import musicService from '../services/musicService';
 import imageService from '../services/imageService';
 import musicbrainzService from '../services/musicbrainzService';
+import coverScanService from '../services/coverScanService';
 import Album from '../models/album';
 import { getDatabase } from '../database';
 import musicCollectionService from '../services/musicCollectionService';
@@ -235,6 +236,75 @@ const musicController = {
   },
 
   // Add album from MusicBrainz
+  /**
+   * Identify an album from a photo of its sleeve.
+   *
+   * Deliberately does NOT call coverScanService.checkHealth() first: that extra
+   * round trip only adds latency on the happy path, and an unreachable model is
+   * already distinguishable from the analysis error.
+   */
+  scanCover: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { image, mimeType } = req.body || {};
+
+      if (!image) {
+        res.status(400).json({ error: 'Image data is required' });
+        return;
+      }
+
+      let llmResult: { artist: string | null; title: string; year: number | null; format: string | null };
+      try {
+        llmResult = await coverScanService.analyzeAlbumImage(image, mimeType || 'image/jpeg');
+      } catch (error) {
+        const message = (error as Error).message || '';
+        const unreachable = /network error|no response received|econnrefused|enotfound|timed? ?out|HTTP 5\d\d/i.test(message);
+        logger.error('Album cover analysis failed:', message);
+        if (unreachable) {
+          res.status(503).json({ error: 'Cover scan service is not available', details: message });
+        } else {
+          res.status(422).json({ error: 'Could not identify album from cover image', details: message });
+        }
+        return;
+      }
+
+      // Quoting the terms keeps Lucene from choking on titles like "AC/DC" or
+      // "Live: 1975"; only the quote and backslash still need escaping.
+      const quote = (value: string): string => `"${value.replace(/["\\]/g, '\\$&')}"`;
+      const terms = [`release:${quote(llmResult.title)}`];
+      if (llmResult.artist) {
+        terms.push(`artist:${quote(llmResult.artist)}`);
+      }
+
+      let rawReleases = await musicbrainzService.searchRelease(terms.join(' AND '), 25);
+
+      // A sleeve often prints a stylised artist name; fall back to the title
+      // alone rather than returning nothing.
+      if (rawReleases.length === 0 && llmResult.artist) {
+        rawReleases = await musicbrainzService.searchRelease(`release:${quote(llmResult.title)}`, 25);
+      }
+
+      const formatted = rawReleases.map(raw => musicbrainzService.formatReleaseData(raw));
+
+      // We are holding a physical disc, so digital-only editions are noise.
+      const physical = formatted.filter(r => !/digital/i.test(r.format || ''));
+
+      const ranked = coverScanService.rankAlbumResults(
+        physical as unknown as Array<Record<string, unknown>>,
+        llmResult
+      );
+      const confidence = coverScanService.getConfidence(ranked as never);
+
+      res.json({
+        llm_result: llmResult,
+        results: ranked,
+        confidence
+      });
+    } catch (error) {
+      logger.error('Error scanning album cover:', error);
+      res.status(500).json({ error: 'Failed to scan album cover' });
+    }
+  },
+
   addAlbumFromMusicBrainz: async (req: Request, res: Response): Promise<void> => {
     try {
       const releaseId = req.params.releaseId as string;
