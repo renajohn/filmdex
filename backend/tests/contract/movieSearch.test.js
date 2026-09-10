@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('../../index');
+const app = (m => m.default || m)(require('../../index'));
 
 describe('GET /api/movies/search/tmdb', () => {
   it('should return 200 status code and array of movies when provided with valid query', async () => {

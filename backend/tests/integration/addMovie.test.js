@@ -1,6 +1,6 @@
 const request = require('supertest');
-const app = require('../../index');
-const Movie = require('../../src/models/movie');
+const app = (m => m.default || m)(require('../../index'));
+const Movie = (m => m.default || m)(require('../../src/models/movie'));
 
 describe('Integration: Add Movie Flow', () => {
   beforeEach(async () => {

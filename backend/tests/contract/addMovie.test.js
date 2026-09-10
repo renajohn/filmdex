@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('../../index');
+const app = (m => m.default || m)(require('../../index'));
 
 describe('POST /api/movies', () => {
   it('should return 201 status code when valid movie object is provided', async () => {

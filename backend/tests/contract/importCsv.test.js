@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('../../index');
+const app = (m => m.default || m)(require('../../index'));
 const path = require('path');
 const fs = require('fs');
 

@@ -1,9 +1,10 @@
 const request = require('supertest');
-const app = require('../../index');
+const app = (m => m.default || m)(require('../../index'));
 const path = require('path');
 const fs = require('fs');
-const Movie = require('../../src/models/movie');
-const MovieImport = require('../../src/models/movieImport');
+const Movie = (m => m.default || m)(require('../../src/models/movie'));
+const MovieImport = (m => m.default || m)(require('../../src/models/movieImport'));
+const UnmatchedMovie = (m => m.default || m)(require('../../src/models/unmatchedMovie'));
 
 describe('CSV Import Integration Flow', () => {
 

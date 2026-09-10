@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const coverScanService = require('../src/services/coverScanService');
+const coverScanService = require('../src/services/coverScanService').default;
 const { expect } = require('@jest/globals');
 
 // Path to the evaluation set

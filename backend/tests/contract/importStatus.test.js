@@ -1,6 +1,6 @@
 const request = require('supertest');
-const app = require('../../index');
-const MovieImport = require('../../src/models/movieImport');
+const app = (m => m.default || m)(require('../../index'));
+const MovieImport = (m => m.default || m)(require('../../src/models/movieImport'));
 
 describe('GET /api/import/:id', () => {
   let testImportId;
