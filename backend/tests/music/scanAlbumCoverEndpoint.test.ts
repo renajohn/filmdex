@@ -336,3 +336,41 @@ describe('POST /api/music/scan-cover — last Discogs attempt', () => {
     expect(res.body.source).toBe('discogs');
   });
 });
+
+describe('POST /api/music/scan-cover — digital-only answers', () => {
+  it('falls back to MusicBrainz when every Discogs hit is a digital edition', async () => {
+    mockAnalysis({ artist: 'Boards Of Canada', title: 'Geogaddi' });
+    jest.spyOn(discogsService, 'isConfigured').mockReturnValue(true);
+    jest.spyOn(discogsService, 'search').mockResolvedValue([{ id: 9 }] as any);
+    jest.spyOn(discogsService, 'getRelease').mockResolvedValue({ id: 9 } as any);
+    jest.spyOn(discogsService, 'formatRelease').mockReturnValue({
+      discogsReleaseId: '9', title: 'Geogaddi', artist: ['Boards Of Canada'], format: 'File', discs: []
+    } as any);
+    jest.spyOn(musicbrainzService, 'searchRelease').mockResolvedValue([
+      release({ musicbrainzReleaseId: 'mb-9', title: 'Geogaddi', artist: ['Boards Of Canada'] })
+    ] as any);
+    jest.spyOn(musicbrainzService, 'formatReleaseData').mockImplementation((raw: any) => raw);
+
+    const res = await post({ image: IMAGE });
+
+    // We are holding a disc: an all-digital answer is no answer at all.
+    expect(res.body.source).toBe('musicbrainz');
+    expect(res.body.results).toHaveLength(1);
+    expect(res.body.results[0].musicbrainzReleaseId).toBe('mb-9');
+  });
+});
+
+describe('POST /api/music/scan-cover — compilations', () => {
+  it('keeps "Various Artists" out of the free-text query too', async () => {
+    mockAnalysis({ artist: 'Various Artists', title: 'Ibiza Chillout 2004' });
+    jest.spyOn(discogsService, 'isConfigured').mockReturnValue(true);
+    jest.spyOn(discogsService, 'search').mockResolvedValue([] as any);
+    const free = jest.spyOn(discogsService, 'searchFreeText').mockResolvedValue([] as any);
+    jest.spyOn(musicbrainzService, 'searchRelease').mockResolvedValue([] as any);
+    jest.spyOn(musicbrainzService, 'formatReleaseData').mockImplementation((raw: any) => raw);
+
+    await post({ image: IMAGE });
+
+    expect(free).toHaveBeenCalledWith('Ibiza Chillout 2004');
+  });
+});

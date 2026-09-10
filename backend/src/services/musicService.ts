@@ -741,6 +741,35 @@ class MusicService {
   }
 
   /**
+   * Move a wish-list row into the collection.
+   *
+   * The stored row carries an empty nested `ownership`, which would win over the
+   * flat fields the form posts, so merge them explicitly: what the user just
+   * entered takes precedence, the rest is kept.
+   */
+  private async promoteFromWishList(existing: AlbumFormatted, additionalData: AlbumData): Promise<AlbumFormatted> {
+    logger.info(`Promoting album ${existing.id} from the wish list to the collection`);
+    await Album.updateStatus(existing.id, 'owned');
+
+    const incoming = normalizeAlbumOwnership(additionalData);
+    const ownership = {
+      condition: incoming.condition ?? existing.ownership?.condition ?? null,
+      notes: incoming.notes ?? existing.ownership?.notes ?? null,
+      purchasedAt: incoming.purchasedAt ?? existing.ownership?.purchasedAt ?? null,
+      priceChf: incoming.priceChf ?? existing.ownership?.priceChf ?? null
+    };
+
+    await Album.update(existing.id, {
+      ...(existing as unknown as AlbumCreateData),
+      ...(additionalData as unknown as AlbumCreateData),
+      ownership,
+      titleStatus: 'owned'
+    });
+
+    return (await Album.findById(existing.id))!;
+  }
+
+  /**
    * Add an album from Discogs, the primary source for physical pressings.
    *
    * Mirrors addAlbumFromMusicBrainz: duplicate check first so a repeat attempt
@@ -753,10 +782,9 @@ class MusicService {
       if (existing) {
         const wantsOwned = (additionalData.titleStatus as string | undefined) !== 'wish';
 
+        // Buying something off the wish list is the normal case, not a conflict.
         if (existing.titleStatus === 'wish' && wantsOwned) {
-          logger.info(`Promoting album ${existing.id} from the wish list to the collection`);
-          await Album.updateStatus(existing.id, 'owned');
-          return (await Album.findById(existing.id))!;
+          return this.promoteFromWishList(existing, additionalData);
         }
 
         throw new Error('Album already exists in collection');
@@ -770,22 +798,33 @@ class MusicService {
         ...additionalData
       };
 
-      const album = await this.addAlbum(albumData);
-
-      // Individual pressings are often catalogued without any image; the master
-      // that groups them usually has one.
-      let frontUrl = additionalData.coverArtData?.frontCoverUrl || formatted.coverArt.front || undefined;
-      if (!frontUrl) {
-        frontUrl = (await discogsService.getMasterCoverArt(formatted.masterId)) || undefined;
+      // Second, late check: narrows the window where two concurrent requests
+      // (a double tap) both pass the guard above and the unique index turns the
+      // second insert into an opaque 500 instead of a duplicate response.
+      if (await Album.findByDiscogsId(String(releaseId))) {
+        throw new Error('Album already exists in collection');
       }
 
-      const coverWork = this.attachCoverArt(album.id, String(releaseId), {
-        ...additionalData,
-        coverArtData: {
-          frontCoverUrl: frontUrl,
-          backCoverUrl: additionalData.coverArtData?.backCoverUrl || formatted.coverArt.back || undefined
+      const album = await this.addAlbum(albumData);
+
+      const clientFront = additionalData.coverArtData?.frontCoverUrl;
+      const coverWork = (async () => {
+        // Individual pressings are often catalogued without any image; the master
+        // that groups them usually has one. Looked up inside the cover work so a
+        // slow Discogs cannot hold up the add past the grace period below.
+        let frontUrl = clientFront || formatted.coverArt.front || undefined;
+        if (!frontUrl) {
+          frontUrl = (await discogsService.getMasterCoverArt(formatted.masterId)) || undefined;
         }
-      }, 'discogs').catch((error: unknown) => {
+
+        return this.attachCoverArt(album.id, String(releaseId), {
+          ...additionalData,
+          coverArtData: {
+            frontCoverUrl: frontUrl,
+            backCoverUrl: additionalData.coverArtData?.backCoverUrl || formatted.coverArt.back || undefined
+          }
+        }, 'discogs');
+      })().catch((error: unknown) => {
         const err = error as { message: string };
         logger.error(`Failed to attach cover art for album ${album.id}: ${err.message}`);
       });
@@ -811,33 +850,14 @@ class MusicService {
         // Buying something off the wish list is the normal case, not a conflict:
         // promote the row in place instead of refusing the add.
         if (existing.titleStatus === 'wish' && wantsOwned) {
-          logger.info(`Promoting album ${existing.id} from the wish list to the collection`);
-          await Album.updateStatus(existing.id, 'owned');
-
-          // The stored row carries an empty nested `ownership`, which would win
-          // over the flat fields the form posts, so merge them explicitly:
-          // what the user just entered takes precedence, the rest is kept.
-          const incoming = normalizeAlbumOwnership(additionalData);
-          const ownership = {
-            condition: incoming.condition ?? existing.ownership?.condition ?? null,
-            notes: incoming.notes ?? existing.ownership?.notes ?? null,
-            purchasedAt: incoming.purchasedAt ?? existing.ownership?.purchasedAt ?? null,
-            priceChf: incoming.priceChf ?? existing.ownership?.priceChf ?? null
-          };
-
-          await Album.update(existing.id, {
-            ...(existing as unknown as AlbumCreateData),
-            ...(additionalData as unknown as AlbumCreateData),
-            ownership,
-            titleStatus: 'owned'
-          });
+          const promoted = await this.promoteFromWishList(existing, additionalData);
 
           this.attachCoverArt(existing.id, releaseId, additionalData).catch((error: unknown) => {
             const err = error as { message: string };
             logger.error(`Failed to attach cover art for album ${existing.id}: ${err.message}`);
           });
 
-          return (await Album.findById(existing.id))!;
+          return promoted;
         }
 
         throw new Error('Album already exists in collection');

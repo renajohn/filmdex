@@ -277,6 +277,12 @@ const musicController = {
       let candidates: Array<Record<string, unknown>> = [];
       let source: 'discogs' | 'musicbrainz' = 'discogs';
 
+      // We are holding a physical disc, so digital-only editions are noise.
+      // Applied to each database's answer before the fallback decision below:
+      // an all-digital Discogs answer has to count as no answer at all.
+      const physicalOnly = (list: Array<Record<string, unknown>>): Array<Record<string, unknown>> =>
+        list.filter(r => !/digital|file/i.test(String(r.format || '')));
+
       if (discogsService.isConfigured()) {
         try {
           // Compilations are credited to "Various" on Discogs, so searching the
@@ -299,7 +305,9 @@ const musicController = {
           // Last resort on Discogs: its general query is more forgiving than the
           // structured fields when a performer is filed differently.
           if (hits.length === 0) {
-            const freeText = [llmResult.artist, llmResult.title].filter(Boolean).join(' ');
+            // searchArtist, not llmResult.artist: putting "Various Artists" back
+            // in the query is exactly what the compilation branch above avoids.
+            const freeText = [searchArtist, llmResult.title].filter(Boolean).join(' ');
             logger.info(`Discogs: still nothing, trying free text "${freeText}"`);
             hits = await discogsService.searchFreeText(freeText);
           }
@@ -317,7 +325,7 @@ const musicController = {
               }
             })
           );
-          candidates = detailed.filter(Boolean) as unknown as Array<Record<string, unknown>>;
+          candidates = physicalOnly(detailed.filter(Boolean) as unknown as Array<Record<string, unknown>>);
         } catch (discogsError) {
           logger.warn(`Discogs lookup failed, falling back to MusicBrainz: ${(discogsError as Error).message}`);
           candidates = [];
@@ -361,18 +369,12 @@ const musicController = {
           return;
         }
 
-        candidates = rawReleases.map(raw =>
+        candidates = physicalOnly(rawReleases.map(raw =>
           musicbrainzService.formatReleaseData(raw)
-        ) as unknown as Array<Record<string, unknown>>;
+        ) as unknown as Array<Record<string, unknown>>);
       }
 
-      // We are holding a physical disc, so digital-only editions are noise.
-      const physical = candidates.filter(r => !/digital|file/i.test(String(r.format || '')));
-
-      const ranked = coverScanService.rankAlbumResults(
-        physical as unknown as Array<Record<string, unknown>>,
-        llmResult
-      );
+      const ranked = coverScanService.rankAlbumResults(candidates, llmResult);
       const confidence = coverScanService.getConfidence(ranked as never);
 
       // A generic id and source let the client add from either database.
@@ -423,7 +425,14 @@ const musicController = {
     } catch (error) {
       logger.error(`Error adding album from ${source}:`, error);
 
-      if ((error as Error).message === 'Album already exists in collection') {
+      // Two taps close enough together both clear the service's duplicate checks
+      // and the unique index on the release id catches the second one. That is
+      // still a duplicate, not a server failure.
+      const isDuplicateRelease =
+        (error as { code?: string }).code === 'SQLITE_CONSTRAINT' &&
+        /release_id/.test((error as Error).message || '');
+
+      if ((error as Error).message === 'Album already exists in collection' || isDuplicateRelease) {
         res.status(409).json({ error: 'Album already exists in collection', code: 'DUPLICATE_ALBUM' });
       } else if (isClientError(error)) {
         res.status(400).json({ error: (error as Error).message });
