@@ -17,6 +17,28 @@ import type { AlbumFormatted, AlbumCreateData, TrackFormatted } from '../types';
  */
 const COVER_GRACE_MS = 2000;
 
+/**
+ * Hosts we will fetch cover art from. The client picks which artwork to use and
+ * sends us its URL, so without this the server would download and then serve
+ * any address it was handed -- including the local network or a cloud metadata
+ * endpoint.
+ */
+const TRUSTED_COVER_HOSTS = ['coverartarchive.org', 'archive.org'];
+
+const isTrustedCoverUrl = (value: string): boolean => {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch (_) {
+    return false;
+  }
+
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+
+  const host = url.hostname.toLowerCase();
+  return TRUSTED_COVER_HOSTS.some(trusted => host === trusted || host.endsWith(`.${trusted}`));
+};
+
 const runStatement = (sql: string): Promise<void> =>
   new Promise((resolve, reject) => {
     getDatabase().run(sql, (err: Error | null) => (err ? reject(err) : resolve()));
@@ -682,8 +704,17 @@ class MusicService {
       }
     };
 
-    let frontUrl = additionalData?.coverArtData?.frontCoverUrl || null;
-    let backUrl = additionalData?.coverArtData?.backCoverUrl || null;
+    // Client-supplied urls are untrusted; archive urls we looked up ourselves
+    // below are not filtered again.
+    const fromClient = (value: string | undefined): string | null => {
+      if (!value) return null;
+      if (isTrustedCoverUrl(value)) return value;
+      logger.warn(`Refusing cover art url from an untrusted host: ${value}`);
+      return null;
+    };
+
+    let frontUrl = fromClient(additionalData?.coverArtData?.frontCoverUrl);
+    let backUrl = fromClient(additionalData?.coverArtData?.backCoverUrl);
 
     // Only ask Cover Art Archive when the client did not already choose.
     if (!frontUrl || !backUrl) {

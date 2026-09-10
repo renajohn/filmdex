@@ -191,10 +191,14 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
       } else if (searchBy === 'barcode') {
         results = await musicService.searchByBarcode(trimmedValue) as MusicRelease[];
       } else {
-        // Title/Artist search
-        const query = trimmedQuery && trimmedArtist
-          ? `${trimmedQuery} AND artist:${trimmedArtist}`
-          : (trimmedQuery || (trimmedArtist ? `artist:${trimmedArtist}` : ''));
+        // Title/Artist search. Quoting the terms keeps Lucene from choking on
+        // names like "AC/DC" or titles like "Live: 1975"; inside quotes only the
+        // quote and the backslash still need escaping.
+        const quote = (value: string) => `"${value.replace(/["\\]/g, '\\$&')}"`;
+        const terms: string[] = [];
+        if (trimmedQuery) terms.push(quote(trimmedQuery));
+        if (trimmedArtist) terms.push(`artist:${quote(trimmedArtist)}`);
+        const query = terms.join(' AND ');
 
         results = await musicService.searchMusicBrainz(query) as MusicRelease[];
       }
@@ -476,6 +480,9 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
               <div className="col-12 col-md-10">
                 <Form.Control
                   type="text"
+                  inputMode={searchBy === 'barcode' ? 'numeric' : 'text'}
+                  autoComplete="off"
+                  autoCapitalize={searchBy === 'barcode' ? 'off' : 'characters'}
                   placeholder={searchBy === 'catalog' ? 'Enter catalog number...' : 'Enter barcode...'}
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}

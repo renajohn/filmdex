@@ -173,3 +173,48 @@ describe('AddMusicDialog — photo is the default path', () => {
     );
   });
 });
+
+describe('AddMusicDialog — text search query building', () => {
+  const searchFor = (title: string, artist?: string) => {
+    renderDialog();
+    userEvent.click(screen.getByRole('button', { name: /album title/i }));
+    userEvent.type(screen.getByPlaceholderText(/album title/i), title);
+    if (artist) userEvent.type(screen.getByPlaceholderText(/artist/i), artist);
+    userEvent.click(screen.getByRole('button', { name: /^search$/i }));
+  };
+
+  const lastQuery = () =>
+    (musicService.searchMusicBrainz as any).mock.calls.at(-1)[0] as string;
+
+  it('quotes a title containing a slash, so "AC/DC" does not break the query', async () => {
+    searchFor('Back in Black', 'AC/DC');
+
+    await waitFor(() => expect(musicService.searchMusicBrainz).toHaveBeenCalled());
+    expect(lastQuery()).toContain('artist:"AC/DC"');
+  });
+
+  it('quotes a title containing a colon', async () => {
+    searchFor('Live: 1975');
+
+    await waitFor(() => expect(musicService.searchMusicBrainz).toHaveBeenCalled());
+    expect(lastQuery()).toContain('"Live: 1975"');
+  });
+
+  it('escapes a double quote instead of producing an unbalanced query', async () => {
+    searchFor('The "Chirping" Crickets');
+
+    await waitFor(() => expect(musicService.searchMusicBrainz).toHaveBeenCalled());
+    expect(lastQuery()).toContain('\\"Chirping\\"');
+  });
+});
+
+describe('AddMusicDialog — barcode entry', () => {
+  it('asks for a numeric keypad on the barcode field', async () => {
+    renderDialog();
+
+    userEvent.click(screen.getByRole('button', { name: /^barcode$/i }));
+
+    const input = await screen.findByPlaceholderText(/barcode/i);
+    expect(input).toHaveAttribute('inputmode', 'numeric');
+  });
+});
