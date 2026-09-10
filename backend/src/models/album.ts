@@ -1,6 +1,7 @@
 import type sqlite3 from 'sqlite3';
 import { getDatabase } from '../database';
 import cacheService from '../services/cacheService';
+import { normalizeAlbumOwnership } from '../services/utils/albumOwnership';
 import type { AlbumRow, AlbumFormatted, AlbumCreateData, AlbumSearchParsed } from '../types';
 
 interface AlbumUpdateResult {
@@ -197,6 +198,7 @@ const Album = {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
       const now = new Date().toISOString();
+      const ownership = normalizeAlbumOwnership(cdData);
 
       const cd = {
         artist: JSON.stringify(cdData.artist || []),
@@ -224,10 +226,10 @@ const Album = {
         release_group_first_release_date: cdData.releaseGroupFirstReleaseDate || null,
         release_group_type: cdData.releaseGroupType || null,
         release_group_secondary_types: JSON.stringify(cdData.releaseGroupSecondaryTypes || []),
-        condition: cdData.ownership?.condition || null,
-        ownership_notes: cdData.ownership?.notes || null,
-        purchased_at: cdData.ownership?.purchasedAt || null,
-        price_chf: cdData.ownership?.priceChf || null,
+        condition: ownership.condition,
+        ownership_notes: ownership.notes,
+        purchased_at: ownership.purchasedAt,
+        price_chf: ownership.priceChf,
         producer: JSON.stringify(cdData.producer || []),
         engineer: JSON.stringify(cdData.engineer || []),
         recording_location: cdData.recordingLocation || null,
@@ -619,6 +621,7 @@ const Album = {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
       const now = new Date().toISOString();
+      const ownership = normalizeAlbumOwnership(cdData);
 
       const sql = `
         UPDATE albums SET
@@ -653,10 +656,10 @@ const Album = {
         cdData.releaseGroupFirstReleaseDate || null,
         cdData.releaseGroupType || null,
         JSON.stringify(cdData.releaseGroupSecondaryTypes || []),
-        cdData.ownership?.condition || null,
-        cdData.ownership?.notes || null,
-        cdData.ownership?.purchasedAt || null,
-        cdData.ownership?.priceChf || null,
+        ownership.condition,
+        ownership.notes,
+        ownership.purchasedAt,
+        ownership.priceChf,
         JSON.stringify(cdData.producer || []),
         JSON.stringify(cdData.engineer || []),
         cdData.recordingLocation || null,
