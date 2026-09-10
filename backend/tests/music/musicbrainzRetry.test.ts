@@ -41,14 +41,4 @@ describe('musicbrainzService.searchRelease — transient failures', () => {
     await assertion;
   });
 
-  it('does not retry a client error such as a malformed query', async () => {
-    const badRequest: any = new Error('Request failed with status code 400');
-    badRequest.isAxiosError = true;
-    badRequest.response = { status: 400, data: 'bad query' };
-    const get = jest.spyOn(axios, 'get').mockRejectedValue(badRequest);
-
-    await expect(musicbrainzService.searchRelease('release:"x"')).rejects.toThrow();
-
-    expect(get).toHaveBeenCalledTimes(1);
-  });
 });

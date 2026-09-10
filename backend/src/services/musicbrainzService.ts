@@ -156,6 +156,29 @@ const RETRY_BASE_MS = 1000;
 
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
+/**
+ * MusicBrainz allows one request per second per client and answers 429 beyond
+ * that, so every call goes through a single queue that keeps them spaced out.
+ * A little over a second, to stay clear of the boundary.
+ */
+const MIN_REQUEST_INTERVAL_MS = 1100;
+let requestChain: Promise<unknown> = Promise.resolve();
+let lastRequestAt = 0;
+
+const paced = <T>(request: () => Promise<T>): Promise<T> => {
+  const run = async (): Promise<T> => {
+    const wait = lastRequestAt + MIN_REQUEST_INTERVAL_MS - Date.now();
+    if (wait > 0) await sleep(wait);
+    lastRequestAt = Date.now();
+    return request();
+  };
+
+  const result = requestChain.then(run, run);
+  // Keep the queue alive regardless of how this call turns out.
+  requestChain = result.then(() => undefined, () => undefined);
+  return result;
+};
+
 const isTransient = (error: unknown): boolean => {
   if (!axios.isAxiosError(error)) return false;
   if (!error.response) return true; // network blip or timeout
@@ -167,7 +190,7 @@ const withRetry = async <T>(label: string, request: () => Promise<T>): Promise<T
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      return await request();
+      return await paced(request);
     } catch (error) {
       lastError = error;
       if (!isTransient(error) || attempt === MAX_ATTEMPTS) break;
