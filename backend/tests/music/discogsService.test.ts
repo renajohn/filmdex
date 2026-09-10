@@ -46,6 +46,21 @@ afterEach(() => {
 
 const mockGet = (data: unknown) => jest.spyOn(axios, 'get').mockResolvedValue({ data } as any);
 
+describe('discogsService.isConfigured', () => {
+  it('sees the token from the environment even before the config is loaded', () => {
+    const previous = process.env.DISCOGS_TOKEN;
+    process.env.DISCOGS_TOKEN = 'from-env';
+    try {
+      // getApiKeys() throws until loadDataConfig() has run, which would
+      // otherwise make the token look absent in any standalone script.
+      expect(discogsService.isConfigured()).toBe(true);
+    } finally {
+      if (previous === undefined) delete process.env.DISCOGS_TOKEN;
+      else process.env.DISCOGS_TOKEN = previous;
+    }
+  });
+});
+
 describe('discogsService.search', () => {
   it('asks Discogs for physical releases matching artist and title', async () => {
     const get = mockGet({ results: [SEARCH_HIT] });
@@ -57,6 +72,17 @@ describe('discogsService.search', () => {
     expect(config.params.artist).toBe('Muse');
     expect(config.params.release_title).toBe('Drones');
     expect(config.params.type).toBe('release');
+  });
+
+  it('sends the token in the Authorization header, never in the URL', async () => {
+    const get = mockGet({ results: [] });
+
+    await discogsService.search({ title: 'Drones' });
+
+    const [, config] = get.mock.calls[0] as [string, any];
+    // A token in the query string leaks into access logs and error messages.
+    expect(config.params.token).toBeUndefined();
+    expect(config.headers.Authorization).toMatch(/^Discogs token=/);
   });
 
   it('identifies itself, as Discogs requires', async () => {

@@ -76,6 +76,10 @@ export interface FormattedDiscogsRelease {
 }
 
 const getToken = (): string | null => {
+  // Read the environment directly first: getApiKeys() throws until the data
+  // config has been loaded, which would hide a perfectly valid token.
+  if (process.env.DISCOGS_TOKEN) return process.env.DISCOGS_TOKEN;
+
   try {
     return configManager.getApiKeys().discogs || null;
   } catch (_) {
@@ -93,14 +97,27 @@ const request = async <T>(path: string, params: Record<string, unknown>): Promis
 
   try {
     const response: AxiosResponse<T> = await axios.get(`${BASE_URL}${path}`, {
-      params: { ...params, token },
-      headers: { 'User-Agent': USER_AGENT },
+      params,
+      // Header rather than a ?token= query param: the query string ends up in
+      // access logs, error messages and stack traces.
+      headers: {
+        'User-Agent': USER_AGENT,
+        Authorization: `Discogs token=${token}`
+      },
       timeout: TIMEOUT_MS
     });
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 429) {
-      throw new Error('Discogs rate limit reached. Please try again in a moment.');
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 429) {
+        throw new Error('Discogs rate limit reached. Please try again in a moment.');
+      }
+      if (status === 401 || status === 403) {
+        throw new Error('Discogs rejected the token. Check DISCOGS_TOKEN.');
+      }
+      // Never surface the raw axios error: it carries the request config.
+      throw new Error(`Discogs request failed${status ? ` (HTTP ${status})` : ''}`);
     }
     throw error;
   }
