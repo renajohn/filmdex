@@ -242,6 +242,7 @@ app.get('/api/music/albums/missing-covers', musicController.getAlbumsMissingCove
 app.get('/api/music/albums/status/:status', musicController.getAlbumsByStatus);
 app.get('/api/music/albums/export/csv', musicController.exportCSV);
 app.post('/api/music/scan-cover', musicController.scanCover);
+app.post('/api/music/transcribe-sleeve', musicController.transcribeSleeve);
 app.post('/api/music/releases/:source/:releaseId', musicController.addAlbumFromSource);
 app.post('/api/music/albums', musicController.addAlbum);
 app.post('/api/music/albums/fill-covers', musicController.fillCovers);
