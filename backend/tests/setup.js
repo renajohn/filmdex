@@ -18,7 +18,9 @@ jest.mock('../src/config', () => ({
 
 // Wait for app initialization (database tables, migrations, etc.)
 beforeAll(async () => {
-  const app = require('../index');
+  // index.ts is an ES module compiled to CJS, so the app lives under `.default`.
+  const mod = require('../index');
+  const app = mod.default || mod;
   if (app.serverReady) {
     await app.serverReady;
   }
