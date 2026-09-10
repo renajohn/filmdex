@@ -627,7 +627,8 @@ const Album = {
         UPDATE albums SET
           artist = ?, title = ?, release_year = ?, labels = ?, catalog_number = ?,
           barcode = ?, country = ?, edition_notes = ?, genres = ?, moods = ?,
-          recording_quality = ?, cover = ?, back_cover = ?, format = ?, musicbrainz_release_id = ?,
+          recording_quality = ?, cover = COALESCE(?, cover), back_cover = COALESCE(?, back_cover),
+          format = ?, musicbrainz_release_id = ?,
           musicbrainz_release_group_id = ?, release_group_first_release_date = ?,
           release_group_type = ?, release_group_secondary_types = ?,
           condition = ?, ownership_notes = ?, purchased_at = ?, price_chf = ?,
@@ -648,6 +649,8 @@ const Album = {
         JSON.stringify(cdData.genres || []),
         JSON.stringify([]), // Keep column but don't populate
         cdData.recordingQuality || null,
+        // COALESCE above: an edit that does not carry a cover must not erase it.
+        // Use updateFrontCover/updateBackCover to change or clear them.
         cdData.cover || null,
         cdData.backCover || null,
         cdData.format || 'CD',

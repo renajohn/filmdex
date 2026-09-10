@@ -255,6 +255,15 @@ class MusicService {
 
       // Update tracks if provided
       if (albumData.discs && albumData.discs.length > 0) {
+        // getAlbumById only hands the form {no, title, durationSec}, so a plain
+        // delete-and-recreate would wipe each track's ISRC, MusicBrainz ids and
+        // TOC. Keep them unless the edit supplies a replacement.
+        const existingTracks = await Track.findByCdId(id);
+        const existingByPosition = new Map<string, typeof existingTracks[number]>();
+        existingTracks.forEach(track => {
+          existingByPosition.set(`${track.discNumber}:${track.trackNumber}`, track);
+        });
+
         console.log(`Deleting existing tracks for album ID: ${id}`);
         await Track.deleteByCdId(id);
 
@@ -263,16 +272,21 @@ class MusicService {
           console.log(`  Disc ${disc.number}: ${disc.tracks?.length || 0} tracks`);
           for (const track of disc.tracks) {
             try {
+              const trackNumber = track.trackNumber ?? track.no ?? 0;
+              const previous = existingByPosition.get(`${disc.number}:${trackNumber}`);
+
               await Track.create({
                 albumId: id,
                 discNumber: disc.number,
-                trackNumber: track.trackNumber ?? track.no ?? 0,
+                trackNumber,
                 title: track.title,
-                durationSec: track.durationSec,
-                isrc: track.isrc,
-                musicbrainzRecordingId: track.musicbrainzRecordingId,
-                musicbrainzTrackId: track.musicbrainzTrackId,
-                toc: track.toc
+                durationSec: track.durationSec ?? previous?.durationSec,
+                isrc: track.isrc ?? previous?.isrc ?? undefined,
+                musicbrainzRecordingId:
+                  track.musicbrainzRecordingId ?? previous?.musicbrainzRecordingId ?? undefined,
+                musicbrainzTrackId:
+                  track.musicbrainzTrackId ?? previous?.musicbrainzTrackId ?? undefined,
+                toc: track.toc ?? previous?.toc ?? undefined
               });
             } catch (trackError) {
               console.error(`Failed to create track ${track.trackNumber || track.no}:`, trackError);
