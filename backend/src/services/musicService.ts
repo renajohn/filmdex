@@ -1,6 +1,7 @@
 
 import Album from '../models/album';
 import Track from '../models/track';
+import { getDatabase } from '../database';
 import musicbrainzService from './musicbrainzService';
 import type { FormattedRelease } from './musicbrainzService';
 import imageService from './imageService';
@@ -8,6 +9,11 @@ import axios, { AxiosResponse } from 'axios';
 import logger from '../logger';
 import path from 'path';
 import type { AlbumFormatted, AlbumCreateData, TrackFormatted } from '../types';
+
+const runStatement = (sql: string): Promise<void> =>
+  new Promise((resolve, reject) => {
+    getDatabase().run(sql, (err: Error | null) => (err ? reject(err) : resolve()));
+  });
 
 interface AlbumData {
   title?: string;
@@ -170,6 +176,11 @@ class MusicService {
   }
 
   async addAlbum(albumData: AlbumData): Promise<AlbumFormatted> {
+    // The album row and its tracks must land together: a failing track used to
+    // leave a coverless, trackless album behind, which then made every retry
+    // fail with "Album already exists in collection".
+    await runStatement('BEGIN IMMEDIATE');
+
     try {
       // Create the album
       let album = await Album.create(albumData as unknown as AlbumCreateData) as unknown as AlbumFormatted;
@@ -226,8 +237,12 @@ class MusicService {
         console.log('No tracks to add for this album');
       }
 
+      await runStatement('COMMIT');
       return album;
     } catch (error) {
+      await runStatement('ROLLBACK').catch((rollbackError) => {
+        logger.error('Failed to roll back album insert:', rollbackError);
+      });
       console.error('Error adding album:', error);
       throw error;
     }
