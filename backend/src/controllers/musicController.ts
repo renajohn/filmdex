@@ -7,6 +7,7 @@ import musicService from '../services/musicService';
 import imageService from '../services/imageService';
 import musicbrainzService from '../services/musicbrainzService';
 import coverScanService from '../services/coverScanService';
+import discogsService from '../services/discogsService';
 import Album from '../models/album';
 import { getDatabase } from '../database';
 import musicCollectionService from '../services/musicCollectionService';
@@ -267,44 +268,76 @@ const musicController = {
         return;
       }
 
-      // Quoting the terms keeps Lucene from choking on titles like "AC/DC" or
-      // "Live: 1975"; only the quote and backslash still need escaping.
-      const quote = (value: string): string => `"${value.replace(/["\\]/g, '\\$&')}"`;
-      const terms = [`release:${quote(llmResult.title)}`];
-      if (llmResult.artist) {
-        terms.push(`artist:${quote(llmResult.artist)}`);
-      }
+      // Discogs first: it is the reference for physical pressings and has been
+      // far more available than MusicBrainz, which stays as the fallback.
+      let candidates: Array<Record<string, unknown>> = [];
+      let source: 'discogs' | 'musicbrainz' = 'discogs';
 
-      // Reading the cover is the expensive, hard part and it already succeeded.
-      // If the lookup fails -- MusicBrainz answers 503 in waves -- hand back what
-      // the model read anyway, so the sleeve does not have to be photographed
-      // again just to retry a search.
-      let rawReleases;
-      try {
-        rawReleases = await musicbrainzService.searchRelease(terms.join(' AND '), 25);
+      if (discogsService.isConfigured()) {
+        try {
+          const hits = await discogsService.search({
+            artist: llmResult.artist,
+            title: llmResult.title
+          });
 
-        // A sleeve often prints a stylised artist name; fall back to the title
-        // alone rather than returning nothing.
-        if (rawReleases.length === 0 && llmResult.artist) {
-          rawReleases = await musicbrainzService.searchRelease(`release:${quote(llmResult.title)}`, 25);
+          // The search payload is thin; fetch the full release for the ones we
+          // will actually show, capped to keep the round trips bounded.
+          const detailed = await Promise.all(
+            hits.slice(0, 8).map(async hit => {
+              try {
+                return discogsService.formatRelease(await discogsService.getRelease(hit.id));
+              } catch (_) {
+                return null;
+              }
+            })
+          );
+          candidates = detailed.filter(Boolean) as unknown as Array<Record<string, unknown>>;
+        } catch (discogsError) {
+          logger.warn(`Discogs lookup failed, falling back to MusicBrainz: ${(discogsError as Error).message}`);
+          candidates = [];
         }
-      } catch (searchError) {
-        const message = (searchError as Error).message || 'MusicBrainz lookup failed';
-        logger.warn(`Album lookup failed after a successful scan: ${message}`);
-        res.json({
-          llm_result: llmResult,
-          results: [],
-          confidence: 'low',
-          search_failed: true,
-          error: message
-        });
-        return;
       }
 
-      const formatted = rawReleases.map(raw => musicbrainzService.formatReleaseData(raw));
+      if (candidates.length === 0) {
+        source = 'musicbrainz';
+
+        // Quoting the terms keeps Lucene from choking on titles like "AC/DC" or
+        // "Live: 1975"; only the quote and backslash still need escaping.
+        const quote = (value: string): string => `"${value.replace(/["\\]/g, '\\$&')}"`;
+        const terms = [`release:${quote(llmResult.title)}`];
+        if (llmResult.artist) {
+          terms.push(`artist:${quote(llmResult.artist)}`);
+        }
+
+        // Reading the cover is the expensive, hard part and it already succeeded.
+        // If the lookup fails too, hand back what the model read anyway.
+        let rawReleases;
+        try {
+          rawReleases = await musicbrainzService.searchRelease(terms.join(' AND '), 25);
+
+          if (rawReleases.length === 0 && llmResult.artist) {
+            rawReleases = await musicbrainzService.searchRelease(`release:${quote(llmResult.title)}`, 25);
+          }
+        } catch (searchError) {
+          const message = (searchError as Error).message || 'MusicBrainz lookup failed';
+          logger.warn(`Album lookup failed after a successful scan: ${message}`);
+          res.json({
+            llm_result: llmResult,
+            results: [],
+            confidence: 'low',
+            search_failed: true,
+            error: message
+          });
+          return;
+        }
+
+        candidates = rawReleases.map(raw =>
+          musicbrainzService.formatReleaseData(raw)
+        ) as unknown as Array<Record<string, unknown>>;
+      }
 
       // We are holding a physical disc, so digital-only editions are noise.
-      const physical = formatted.filter(r => !/digital/i.test(r.format || ''));
+      const physical = candidates.filter(r => !/digital|file/i.test(String(r.format || '')));
 
       const ranked = coverScanService.rankAlbumResults(
         physical as unknown as Array<Record<string, unknown>>,
@@ -312,14 +345,58 @@ const musicController = {
       );
       const confidence = coverScanService.getConfidence(ranked as never);
 
+      // A generic id and source let the client add from either database.
+      const withSource = ranked.map(r => ({
+        ...r,
+        source,
+        releaseId: String(r.discogsReleaseId || r.musicbrainzReleaseId || '')
+      }));
+
       res.json({
         llm_result: llmResult,
-        results: ranked,
+        results: withSource,
         confidence
       });
     } catch (error) {
       logger.error('Error scanning album cover:', error);
       res.status(500).json({ error: 'Failed to scan album cover' });
+    }
+  },
+
+  /**
+   * Add a release from whichever database it was found in.
+   *
+   * The client no longer has to know which service a result came from: each
+   * search result carries `source` and `releaseId`, and posts them straight back.
+   */
+  addAlbumFromSource: async (req: Request, res: Response): Promise<void> => {
+    const source = String(req.params.source || '').toLowerCase();
+    const releaseId = String(req.params.releaseId || '');
+
+    try {
+      const additionalData = req.body || {};
+      let album;
+
+      if (source === 'discogs') {
+        album = await musicService.addAlbumFromDiscogs(releaseId, additionalData);
+      } else if (source === 'musicbrainz') {
+        album = await musicService.addAlbumFromMusicBrainz(releaseId, additionalData);
+      } else {
+        res.status(400).json({ error: `Unknown source "${source}". Expected discogs or musicbrainz.` });
+        return;
+      }
+
+      res.status(201).json(album);
+    } catch (error) {
+      logger.error(`Error adding album from ${source}:`, error);
+
+      if ((error as Error).message === 'Album already exists in collection') {
+        res.status(409).json({ error: 'Album already exists in collection', code: 'DUPLICATE_ALBUM' });
+      } else if (isClientError(error)) {
+        res.status(400).json({ error: (error as Error).message });
+      } else {
+        res.status(500).json({ error: `Failed to add album from ${source}` });
+      }
     }
   },
 

@@ -4,6 +4,7 @@ import Track from '../models/track';
 import { getDatabase } from '../database';
 import { normalizeAlbumOwnership } from './utils/albumOwnership';
 import musicbrainzService from './musicbrainzService';
+import discogsService from './discogsService';
 import type { FormattedRelease } from './musicbrainzService';
 import imageService from './imageService';
 import axios, { AxiosResponse } from 'axios';
@@ -24,7 +25,7 @@ const COVER_GRACE_MS = 2000;
  * any address it was handed -- including the local network or a cloud metadata
  * endpoint.
  */
-const TRUSTED_COVER_HOSTS = ['coverartarchive.org', 'archive.org'];
+const TRUSTED_COVER_HOSTS = ['coverartarchive.org', 'archive.org', 'discogs.com'];
 
 const isTrustedCoverUrl = (value: string): boolean => {
   let url: URL;
@@ -731,6 +732,59 @@ class MusicService {
 
     if (frontPath) await Album.updateFrontCover(albumId, frontPath);
     if (backPath) await Album.updateBackCover(albumId, backPath);
+  }
+
+  /**
+   * Add an album from Discogs, the primary source for physical pressings.
+   *
+   * Mirrors addAlbumFromMusicBrainz: duplicate check first so a repeat attempt
+   * leaves no orphan files, then the album and its tracks in one transaction,
+   * then the cover art with the same short head start.
+   */
+  async addAlbumFromDiscogs(releaseId: string, additionalData: AlbumData = {}): Promise<AlbumFormatted> {
+    try {
+      const existing = await Album.findByDiscogsId(String(releaseId));
+      if (existing) {
+        const wantsOwned = (additionalData.titleStatus as string | undefined) !== 'wish';
+
+        if (existing.titleStatus === 'wish' && wantsOwned) {
+          logger.info(`Promoting album ${existing.id} from the wish list to the collection`);
+          await Album.updateStatus(existing.id, 'owned');
+          return (await Album.findById(existing.id))!;
+        }
+
+        throw new Error('Album already exists in collection');
+      }
+
+      const raw = await discogsService.getRelease(releaseId);
+      const formatted = discogsService.formatRelease(raw);
+
+      const albumData: AlbumData = {
+        ...(formatted as unknown as AlbumData),
+        ...additionalData
+      };
+
+      const album = await this.addAlbum(albumData);
+
+      const coverWork = this.attachCoverArt(album.id, String(releaseId), {
+        ...additionalData,
+        coverArtData: {
+          frontCoverUrl: additionalData.coverArtData?.frontCoverUrl || formatted.coverArt.front || undefined,
+          backCoverUrl: additionalData.coverArtData?.backCoverUrl || formatted.coverArt.back || undefined
+        }
+      }).catch((error: unknown) => {
+        const err = error as { message: string };
+        logger.error(`Failed to attach cover art for album ${album.id}: ${err.message}`);
+      });
+
+      const grace = new Promise<void>(resolve => setTimeout(resolve, COVER_GRACE_MS));
+      await Promise.race([coverWork, grace]);
+
+      return (await Album.findById(album.id)) || album;
+    } catch (error) {
+      console.error('Error adding album from Discogs:', error);
+      throw error;
+    }
   }
 
   async addAlbumFromMusicBrainz(releaseId: string, additionalData: AlbumData = {}): Promise<AlbumFormatted> {
