@@ -13,6 +13,14 @@ import smartPlaylistService from '../services/smartPlaylistService';
 import logger from '../logger';
 import type { AlbumFormatted } from '../types';
 
+/**
+ * Errors raised while normalizing user input (an unsupported condition, a price
+ * that is not a number) carry status 400: they are the caller's fault, and used
+ * to surface as an opaque 500.
+ */
+const isClientError = (error: unknown): boolean =>
+  (error as { status?: number })?.status === 400;
+
 // Configure multer for cover uploads
 const storage = multer.diskStorage({
   destination: (req: Express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
@@ -127,6 +135,10 @@ const musicController = {
       res.status(201).json(album);
     } catch (error) {
       console.error('Error adding album:', error);
+      if (isClientError(error)) {
+        res.status(400).json({ error: (error as Error).message });
+        return;
+      }
       res.status(500).json({ error: 'Failed to add album' });
     }
   },
@@ -233,7 +245,9 @@ const musicController = {
     } catch (error) {
       console.error('Error adding album from MusicBrainz:', error);
       if ((error as Error).message === 'Album already exists in collection') {
-        res.status(409).json({ error: 'Album already exists in collection' });
+        res.status(409).json({ error: 'Album already exists in collection', code: 'DUPLICATE_ALBUM' });
+      } else if (isClientError(error)) {
+        res.status(400).json({ error: (error as Error).message });
       } else {
         res.status(500).json({ error: 'Failed to add album from MusicBrainz' });
       }

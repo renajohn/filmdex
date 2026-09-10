@@ -646,6 +646,14 @@ class MusicService {
 
   async addAlbumFromMusicBrainz(releaseId: string, additionalData: AlbumData = {}): Promise<AlbumFormatted> {
     try {
+      // Checked before anything is fetched or written to disk: this used to run
+      // after the cover downloads, so every duplicate attempt left orphan files
+      // in data/images/cd and paid for a Cover Art Archive round trip.
+      const alreadyInCollection = await Album.findByMusicbrainzId(releaseId);
+      if (alreadyInCollection) {
+        throw new Error('Album already exists in collection');
+      }
+
       const releaseData = await musicbrainzService.getReleaseDetails(releaseId);
       const formattedData = musicbrainzService.formatReleaseData(releaseData);
 
@@ -724,6 +732,8 @@ class MusicService {
 
       console.log('Final album data cover:', albumData.cover);
 
+      // Second, late check: narrows the window where two concurrent requests
+      // (a double tap) both pass the guard above and insert the same release.
       const existingAlbum = await Album.findByMusicbrainzId(releaseId);
       if (existingAlbum) {
         throw new Error('Album already exists in collection');
