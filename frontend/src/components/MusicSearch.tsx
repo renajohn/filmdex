@@ -9,6 +9,7 @@ import AlphabeticalIndex from './AlphabeticalIndex';
 import { NextBanner, CollectionHeader, EmptyState } from './shared';
 import { BsChevronDown, BsMusicNote } from 'react-icons/bs';
 import './MusicSearch.css';
+import { readStored, writeStored } from '../utils/safeStorage';
 
 interface MusicSearchProps {
   cds: any;
@@ -74,7 +75,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const [filteredCds, setFilteredCds] = useState<Album[]>([]);
   // Load sort preference from localStorage, default to 'title'
   const [sortBy, setSortBy] = useState(() => {
-    const savedSort = localStorage.getItem('dexvault-musicdex-sort');
+    const savedSort = readStored('dexvault-musicdex-sort');
     return savedSort || 'title';
   });
   const [sortLoading, setSortLoading] = useState(false);
@@ -317,7 +318,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
 
   const handleSortChange = async (sortOption: string) => {
     setSortBy(sortOption);
-    localStorage.setItem('dexvault-musicdex-sort', sortOption);
+    writeStored('dexvault-musicdex-sort', sortOption);
     setSortLoading(true);
 
     // Add a small delay to show loading state for better UX

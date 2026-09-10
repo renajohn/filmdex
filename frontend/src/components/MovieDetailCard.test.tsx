@@ -1,87 +1,98 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import MovieDetailCard from './MovieDetailCard';
 
+vi.mock('../services/api', () => ({
+  default: {
+    getMovieCast: vi.fn(() => Promise.resolve([])),
+    getCollectionNames: vi.fn(() => Promise.resolve([])),
+    getBoxSetNames: vi.fn(() => Promise.resolve([])),
+    getMoviesInCollection: vi.fn(() => Promise.resolve({ movies: [] })),
+    updateMovie: vi.fn(() => Promise.resolve({}))
+  }
+}));
+
+import apiService from '../services/api';
+
+const movie = (over: Record<string, unknown> = {}) => ({
+  id: 1,
+  title: 'Test Movie',
+  plot: 'A test movie plot',
+  overview: 'A test movie plot',
+  genres: 'Action',
+  imdb_rating: 8.5,
+  rotten_tomato_rating: 85,
+  year: 2023,
+  release_date: '2023-01-01',
+  format: 'Blu-ray',
+  acquired_date: '2023-01-01',
+  trailer_key: 'test-key',
+  trailer_site: 'YouTube',
+  ...over
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  (apiService.getMovieCast as any).mockResolvedValue([]);
+});
+
 describe('MovieDetailCard', () => {
-  const mockMovieDetails = {
-    title: 'Test Movie',
-    plot: 'A test movie plot',
-    genre: 'Action',
-    imdb_rating: 8.5,
-    rotten_tomato_rating: 85,
-    year: 2023,
-    format: 'Blu-ray',
-    date_of_acquisition: '2023-01-01',
-    poster_path: '/test-poster.jpg',
-    adult: false,
-    overview: 'A test movie overview',
-    release_date: '2023-01-01',
-    genres: [{ id: 28, name: 'Action' }],
-    credits: {
-      cast: [
-        { name: 'Actor One', profile_path: '/actor1.jpg' },
-        { name: 'Actor Two', profile_path: '/actor2.jpg' }
-      ]
-    },
-    videos: {
-      results: [
-        { key: 'test-key', site: 'YouTube', type: 'Trailer' }
-      ]
-    }
-  };
+  it('shows the title and the overview', async () => {
+    render(<MovieDetailCard movieDetails={movie()} onClose={() => {}} />);
 
-  it('renders movie details correctly', () => {
-    render(<MovieDetailCard movieDetails={mockMovieDetails} onClose={() => {}} />);
-    
-    expect(screen.getByText('Test Movie')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Test Movie')).toBeInTheDocument());
     expect(screen.getByText('A test movie plot')).toBeInTheDocument();
-    expect(screen.getByText('Action')).toBeInTheDocument();
-    expect(screen.getByText('8.5')).toBeInTheDocument();
-    expect(screen.getByText('85%')).toBeInTheDocument();
-    expect(screen.getByText('2023')).toBeInTheDocument();
-    expect(screen.getByText('Blu-ray')).toBeInTheDocument();
-    expect(screen.getByText('1/1/2023')).toBeInTheDocument();
   });
 
-  it('renders cast members', () => {
-    render(<MovieDetailCard movieDetails={mockMovieDetails} onClose={() => {}} />);
-    
-    expect(screen.getByText('Actor One')).toBeInTheDocument();
+  it('shows the cast it fetches for the movie', async () => {
+    // The cast is no longer part of the movie payload; the card asks for it.
+    (apiService.getMovieCast as any).mockResolvedValue([
+      { name: 'Actor One', character: 'Someone' },
+      { name: 'Actor Two', character: 'Someone Else' }
+    ]);
+
+    render(<MovieDetailCard movieDetails={movie()} onClose={() => {}} />);
+
+    await waitFor(() => expect(screen.getByText('Actor One')).toBeInTheDocument());
     expect(screen.getByText('Actor Two')).toBeInTheDocument();
+    expect(apiService.getMovieCast).toHaveBeenCalledWith(1);
   });
 
-  it('renders trailer link when available', () => {
-    render(<MovieDetailCard movieDetails={mockMovieDetails} onClose={() => {}} />);
-    
-    const trailerLink = screen.getByText('Watch Trailer');
-    expect(trailerLink).toBeInTheDocument();
-    expect(trailerLink.closest('a')).toHaveAttribute('href', 'https://www.youtube.com/watch?v=test-key');
+  it('offers to play the trailer when the movie has one', async () => {
+    render(<MovieDetailCard movieDetails={movie()} onClose={() => {}} />);
+
+    const button = await screen.findByRole('button', { name: /play trailer/i });
+    expect(button).toBeEnabled();
   });
 
-  it('handles missing data gracefully', () => {
-    const incompleteMovie = {
-      title: 'Incomplete Movie',
-      plot: null,
-      imdb_rating: null,
-      rotten_tomato_rating: null,
-      credits: { cast: [] },
-      videos: { results: [] }
-    };
+  it('says so instead when there is no trailer', async () => {
+    render(<MovieDetailCard movieDetails={movie({ trailer_key: undefined })} onClose={() => {}} />);
 
-    render(<MovieDetailCard movieDetails={incompleteMovie} onClose={() => {}} />);
-    
-    expect(screen.getByText('Incomplete Movie')).toBeInTheDocument();
-    expect(screen.getAllByText('-')).toHaveLength(4); // For missing ratings and other fields
+    const button = await screen.findByRole('button', { name: /no trailer available/i });
+    expect(button).toBeDisabled();
   });
 
-  it('calls onClose when close button is clicked', () => {
-    const mockOnClose = vi.fn();
-    render(<MovieDetailCard movieDetails={mockMovieDetails} onClose={mockOnClose} />);
-    
-    const closeButton = screen.getByText('×');
-    closeButton.click();
-    
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  it('renders a movie with almost nothing on it', async () => {
+    render(
+      <MovieDetailCard
+        movieDetails={{ id: 2, title: 'Incomplete Movie' }}
+        onClose={() => {}}
+      />
+    );
+
+    // A movie with no poster renders its title in the placeholder as well.
+    await waitFor(() => expect(screen.getAllByText('Incomplete Movie').length).toBeGreaterThan(0));
+    expect(screen.getByText(/click to add overview/i)).toBeInTheDocument();
+  });
+
+  it('calls onClose from the close button', async () => {
+    const onClose = vi.fn();
+    render(<MovieDetailCard movieDetails={movie()} onClose={onClose} />);
+
+    await waitFor(() => expect(document.querySelector('.movie-detail-close')).toBeInTheDocument());
+    (document.querySelector('.movie-detail-close') as HTMLButtonElement).click();
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

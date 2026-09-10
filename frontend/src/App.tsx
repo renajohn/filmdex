@@ -19,6 +19,7 @@ import bookService from './services/bookService';
 import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsMusicNote, BsArrowLeft, BsBarChart, BsFilm, BsBook } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
+import { readStored, writeStored } from './utils/safeStorage';
 
 interface AutocompleteOption {
   keyword: string;
@@ -55,7 +56,7 @@ function AppContent() {
     const currentPath = window.location.pathname;
     const product = getProductFromPath(currentPath);
     if (product) {
-      const savedText = localStorage.getItem(`dexvault-${product}-search`) || '';
+      const savedText = readStored(`dexvault-${product}-search`) || '';
       return { searchText: savedText };
     }
     return { searchText: '' };
@@ -1046,7 +1047,7 @@ function AppContent() {
     }
     const product = currentProductRef.current;
     if (product) {
-      localStorage.setItem(`dexvault-${product}-search`, searchCriteria.searchText || '');
+      writeStored(`dexvault-${product}-search`, searchCriteria.searchText || '');
     }
   }, [searchCriteria.searchText]);
 
@@ -1074,7 +1075,7 @@ function AppContent() {
         }
       } else if (newProduct) {
         // Otherwise restore from localStorage for this product
-        const savedText = localStorage.getItem(`dexvault-${newProduct}-search`) || '';
+        const savedText = readStored(`dexvault-${newProduct}-search`) || '';
         setSearchCriteria({ searchText: savedText });
         // Update the input field
         if (searchInputRef.current) {
@@ -1100,7 +1101,7 @@ function AppContent() {
       if (hasCheckedBackfill) return;
 
       // Check if user has previously ignored the backfill
-      const hasIgnoredBackfill = localStorage.getItem('dexvault_backfill_ignored') === 'true';
+      const hasIgnoredBackfill = readStored('dexvault_backfill_ignored') === 'true';
       if (hasIgnoredBackfill) {
         setHasCheckedBackfill(true);
         return;

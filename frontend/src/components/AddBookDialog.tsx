@@ -6,6 +6,7 @@ import BookForm from './BookForm';
 import VolumeSelector from './VolumeSelector';
 import apiService from '../services/api';
 import './AddBookDialog.css';
+import { readStored, writeStored } from '../utils/safeStorage';
 
 interface BookData {
   title?: string;
@@ -81,7 +82,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   const [selectedBookGroup, setSelectedBookGroup] = useState<BookData[] | null>(null);
   // Load language preference from localStorage, default to 'any'
   const [searchLanguage, setSearchLanguage] = useState(() => {
-    return localStorage.getItem('bookdex-search-language') || 'any';
+    return readStored('bookdex-search-language') || 'any';
   });
   const [enriching, setEnriching] = useState(false);
   const [enrichingBookIndex, setEnrichingBookIndex] = useState<string | null>(null); // Track which book is being enriched
@@ -153,7 +154,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   // Save language preference when it changes
   const handleLanguageChange = (lang: string) => {
     setSearchLanguage(lang);
-    localStorage.setItem('bookdex-search-language', lang);
+    writeStored('bookdex-search-language', lang);
   };
 
   useEffect(() => {

@@ -5,6 +5,40 @@ const fs = require('fs');
 const Movie = (m => m.default || m)(require('../../src/models/movie'));
 const MovieImport = (m => m.default || m)(require('../../src/models/movieImport'));
 const UnmatchedMovie = (m => m.default || m)(require('../../src/models/unmatchedMovie'));
+const tmdbService = (m => m.default || m)(require('../../src/services/tmdbService'));
+const omdbService = (m => m.default || m)(require('../../src/services/omdbService'));
+const imageService = (m => m.default || m)(require('../../src/services/imageService'));
+
+// Resolving a row fetches the record from TMDB, the ratings from OMDB and the
+// artwork from both; this flow is about the import, not about those services.
+const TMDB_DETAILS = {
+  id: 604,
+  title: 'Test Movie',
+  original_title: 'Test Movie Original',
+  release_date: '2023-01-01',
+  overview: 'An overview',
+  poster_path: '/poster.jpg',
+  backdrop_path: '/backdrop.jpg',
+  genres: [{ id: 28, name: 'Action' }],
+  runtime: 120,
+  original_language: 'en',
+  vote_average: 7.5,
+  credits: { cast: [], crew: [] },
+  videos: { results: [] },
+  release_dates: { results: [] }
+};
+
+beforeEach(() => {
+  jest.spyOn(tmdbService, 'getMovieDetails').mockResolvedValue(TMDB_DETAILS);
+  jest.spyOn(tmdbService, 'getTVShowDetails').mockResolvedValue(TMDB_DETAILS);
+  jest.spyOn(omdbService, 'searchMovie').mockResolvedValue(null);
+  jest.spyOn(imageService, 'downloadPoster').mockResolvedValue(null);
+  jest.spyOn(imageService, 'downloadBackdrop').mockResolvedValue(null);
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 describe('CSV Import Integration Flow', () => {
 
@@ -196,6 +230,7 @@ describe('CSV Import Integration Flow', () => {
       importId: importId,
       unmatchedMovieTitle: 'Test Movie',
       resolvedMovie: {
+        id: 604,
         title: 'Test Movie',
         original_title: 'Test Movie Original',
         release_date: '2023-01-01',

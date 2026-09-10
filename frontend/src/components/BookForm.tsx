@@ -5,6 +5,7 @@ import { BsX, BsUpload, BsBook, BsCloudDownload, BsFileEarmark, BsTrash, BsChevr
 import bookService from '../services/bookService';
 import CoverModal from './CoverModal';
 import './BookForm.css';
+import { readStored, writeStored } from '../utils/safeStorage';
 
 interface MetadataSourceEntry {
   [field: string]: any;
@@ -234,7 +235,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
   });
   // Show/hide advanced fields - remember preference in localStorage
   const [showAdvanced, setShowAdvanced] = useState(() => {
-    return localStorage.getItem('bookdex-show-advanced-form') === 'true';
+    return readStored('bookdex-show-advanced-form') === 'true';
   });
   // Track availableCovers separately to ensure React re-renders when it changes
   const [localAvailableCovers, setLocalAvailableCovers] = useState<BookCover[] | null>(null);
@@ -1908,7 +1909,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 onClick={() => {
                   const newValue = !showAdvanced;
                   setShowAdvanced(newValue);
-                  localStorage.setItem('bookdex-show-advanced-form', newValue.toString());
+                  writeStored('bookdex-show-advanced-form', newValue.toString());
                 }}
                 style={{
                   display: 'flex',
@@ -2723,7 +2724,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 onClick={() => {
                   const newValue = !showAdvanced;
                   setShowAdvanced(newValue);
-                  localStorage.setItem('bookdex-show-advanced-form', newValue.toString());
+                  writeStored('bookdex-show-advanced-form', newValue.toString());
                 }}
                 style={{
                   display: 'flex',

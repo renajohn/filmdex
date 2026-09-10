@@ -1,63 +1,67 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 
-// Mock the API service
+/**
+ * The shell: navigation between the four collections and the one search box
+ * that serves all of them. What each page then renders is covered by that
+ * page's own tests.
+ */
+
 vi.mock('./services/api', () => ({
   default: {
-    getAllMovies: vi.fn(() => Promise.resolve([
-      {
-        id: 1,
-        title: 'Test Movie',
-        plot: 'A test movie plot',
-        genre: 'Action',
-        imdb_rating: 8.5,
-        rotten_tomato_rating: 85,
-        year: 2023,
-        format: 'Blu-ray',
-        acquired_date: '2023-01-01'
-      }
-    ])),
-    getMovieDetails: vi.fn(() => Promise.resolve({
-      title: 'Test Movie',
-      plot: 'A test movie plot',
-      genre: 'Action',
-      imdb_rating: 8.5,
-      rotten_tomatoes_rating: 85,
-      year: 2023,
-      format: 'Blu-ray',
-      date_of_acquisition: '2023-01-01',
-      poster_path: '/test-poster.jpg',
-      adult: false,
-      overview: 'A test movie overview',
-      release_date: '2023-01-01',
-      genres: [{ id: 28, name: 'Action' }],
-      credits: {
-        cast: [
-          { name: 'Actor One', profile_path: '/actor1.jpg' },
-          { name: 'Actor Two', profile_path: '/actor2.jpg' }
-        ]
-      },
-      videos: {
-        results: [
-          { key: 'test-key', site: 'YouTube', type: 'Trailer' }
-        ]
-      }
-    })),
-  },
+    getAllMovies: vi.fn(() => Promise.resolve([])),
+    getMovieDetails: vi.fn(() => Promise.resolve(null)),
+    getAutocompleteSuggestions: vi.fn(() => Promise.resolve([])),
+    getCollectionNames: vi.fn(() => Promise.resolve([])),
+    getBoxSetNames: vi.fn(() => Promise.resolve([])),
+    getWatchNextMovies: vi.fn(() => Promise.resolve([]))
+  }
 }));
 
-test('renders movie collection manager', () => {
-  render(<App />);
-  const headerElement = screen.getByText(/Movie Collection Manager/i);
-  expect(headerElement).toBeInTheDocument();
-});
+vi.mock('./services/musicService', () => ({
+  default: { getAllAlbums: vi.fn(() => Promise.resolve([])) }
+}));
 
-test('renders search form', () => {
-  render(<App />);
-  
-  // Check if search form elements are present
-  expect(screen.getByRole('heading', { name: 'Search Movies' })).toBeInTheDocument();
-  expect(screen.getByLabelText('Title:')).toBeInTheDocument();
-  expect(screen.getByLabelText('Genre:')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Searching...' })).toBeInTheDocument();
+vi.mock('./services/bookService', () => ({
+  default: { getAllBooks: vi.fn(() => Promise.resolve([])) }
+}));
+
+describe('App shell', () => {
+  it('lands on FilmDex rather than an empty route', async () => {
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText(/Search FilmDex by title, director/i)).toBeInTheDocument()
+    );
+  });
+
+  it('offers a way into each collection', async () => {
+    render(<App />);
+
+    // The pills carry an icon, not a label, so the tooltip is what names them.
+    await waitFor(() => expect(document.querySelector('.segmented-control')).toBeInTheDocument());
+
+    const tooltips = Array.from(document.querySelectorAll('.segment')).map(s =>
+      s.getAttribute('data-tooltip')
+    );
+
+    expect(tooltips).toEqual([
+      expect.stringContaining('FilmDex'),
+      expect.stringContaining('MusicDex'),
+      expect.stringContaining('BookDex'),
+      expect.stringContaining('Wish List'),
+      expect.stringContaining('Analytics')
+    ]);
+  });
+
+  it('marks the collection currently being shown', async () => {
+    render(<App />);
+
+    await waitFor(() => expect(document.querySelector('.segment.active')).toBeInTheDocument());
+
+    expect(document.querySelector('.segment.active')).toHaveAttribute(
+      'data-tooltip',
+      expect.stringContaining('FilmDex') as unknown as string
+    );
+  });
 });

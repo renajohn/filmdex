@@ -25,7 +25,14 @@ const testCases = bookFiles.map(file => {
   return { ...file, expected, name: `${file.image} (${expected.title})` };
 });
 
-describe('Book Cover Import', () => {
+/**
+ * An evalset: it scores how well the vision model reads a book cover, so a
+ * failure here is a judgement about the model, not a regression in this code.
+ * Opt in with RUN_LLM_TESTS=1, like the cover scan evalsets.
+ */
+const runLlm = process.env.RUN_LLM_TESTS === '1' || process.env.RUN_PIPELINE_TESTS === '1';
+
+(runLlm ? describe : describe.skip)('Book Cover Import', () => {
   test.each(testCases.map(tc => [tc.name, tc]))(
     '%s',
     async (_name, { image, expected }) => {
