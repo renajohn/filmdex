@@ -31,6 +31,8 @@ export interface DataConfig {
   log_level: string;
   omdb_api_key: string;
   tmdb_api_key: string;
+  /** Discogs personal access token; prefer the DISCOGS_TOKEN env var. */
+  discogs_token?: string;
   max_upload_mb: number;
   [key: string]: unknown;
 }
@@ -38,6 +40,8 @@ export interface DataConfig {
 export interface ApiKeys {
   omdb: string;
   tmdb: string;
+  /** Discogs personal access token; optional, enables the Discogs source. */
+  discogs?: string;
 }
 
 // ============================================================
