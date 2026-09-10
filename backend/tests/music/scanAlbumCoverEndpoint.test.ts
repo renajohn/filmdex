@@ -284,3 +284,30 @@ describe('POST /api/music/scan-cover — Discogs search widening', () => {
     expect(search.mock.calls[0][0]).toMatchObject({ artist: null });
   });
 });
+
+describe('POST /api/music/scan-cover — says which database answered', () => {
+  it('reports the source even when the fallback returned nothing', async () => {
+    mockAnalysis({ artist: 'Nobody', title: 'Nothing' });
+    jest.spyOn(discogsService, 'isConfigured').mockReturnValue(true);
+    jest.spyOn(discogsService, 'search').mockResolvedValue([] as any);
+    jest.spyOn(musicbrainzService, 'searchRelease').mockResolvedValue([] as any);
+    jest.spyOn(musicbrainzService, 'formatReleaseData').mockImplementation((raw: any) => raw);
+
+    const res = await post({ image: IMAGE });
+
+    // Without this there is no way to tell which database came up empty.
+    expect(res.body.source).toBe('musicbrainz');
+    expect(res.body.results).toEqual([]);
+  });
+
+  it('reports discogs when Discogs answered', async () => {
+    mockAnalysis({ artist: 'Muse', title: 'Drones' });
+    mockDiscogsSearch([{ id: 1 }], {
+      discogsReleaseId: '1', title: 'Drones', artist: ['Muse'], format: 'CD', discs: []
+    });
+
+    const res = await post({ image: IMAGE });
+
+    expect(res.body.source).toBe('discogs');
+  });
+});

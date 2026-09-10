@@ -268,6 +268,10 @@ const musicController = {
         return;
       }
 
+      logger.info(
+        `Cover scan read: artist="${llmResult.artist || ''}" title="${llmResult.title}" year=${llmResult.year || '?'}`
+      );
+
       // Discogs first: it is the reference for physical pressings and has been
       // far more available than MusicBrainz, which stays as the fallback.
       let candidates: Array<Record<string, unknown>> = [];
@@ -288,8 +292,11 @@ const musicController = {
           // A stylised or mis-read artist name should widen the search, not send
           // us straight to the fallback database.
           if (hits.length === 0 && searchArtist) {
+            logger.info(`Discogs: no hit for artist+title, retrying on title alone`);
             hits = await discogsService.search({ artist: null, title: llmResult.title });
           }
+
+          logger.info(`Discogs returned ${hits.length} hit(s)`);
 
           // The search payload is thin; fetch the full release for the ones we
           // will actually show, capped to keep the round trips bounded.
@@ -307,9 +314,12 @@ const musicController = {
           logger.warn(`Discogs lookup failed, falling back to MusicBrainz: ${(discogsError as Error).message}`);
           candidates = [];
         }
+      } else {
+        logger.info('Discogs has no token configured, going straight to MusicBrainz');
       }
 
       if (candidates.length === 0) {
+        logger.info('Falling back to MusicBrainz');
         source = 'musicbrainz';
 
         // Quoting the terms keeps Lucene from choking on titles like "AC/DC" or
@@ -337,6 +347,7 @@ const musicController = {
             results: [],
             confidence: 'low',
             search_failed: true,
+            source: 'musicbrainz',
             error: message
           });
           return;
@@ -363,10 +374,13 @@ const musicController = {
         releaseId: String(r.discogsReleaseId || r.musicbrainzReleaseId || '')
       }));
 
+      logger.info(`Cover scan answered from ${source}: ${withSource.length} candidate(s), confidence=${confidence}`);
+
       res.json({
         llm_result: llmResult,
         results: withSource,
-        confidence
+        confidence,
+        source
       });
     } catch (error) {
       logger.error('Error scanning album cover:', error);
