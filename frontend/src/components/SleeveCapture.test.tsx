@@ -79,8 +79,9 @@ describe('SleeveCapture', () => {
     await waitFor(() => expect(onDraft).toHaveBeenCalled());
     const result = onDraft.mock.calls[0][0];
     expect(result.draft.title).toBe('Atlas of Small Things');
-    // Kept at a larger edge than the model needs, for the album cover.
-    expect(result.coverPhoto).toEqual({ base64: 'BIG', mimeType: 'image/jpeg' });
+    // The same image the model read: the upload endpoint resizes to 1000px, so
+    // a second larger encode would have been thrown away.
+    expect(result.coverPhoto).toEqual({ base64: 'SMALL', mimeType: 'image/jpeg' });
   });
 
   it('reuses a front photo the scan already took', async () => {
@@ -125,5 +126,53 @@ describe('SleeveCapture', () => {
 
     expect(screen.getByTestId('sleeve-front-input')).toBeInTheDocument();
     expect(screen.getByTestId('sleeve-back-input')).toBeInTheDocument();
+  });
+});
+
+describe('SleeveCapture — the cover always comes back with the draft', () => {
+  const onDraft = vi.fn();
+  const onSkip = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (musicService.transcribeSleeve as any).mockResolvedValue(draftResponse);
+  });
+
+  const read = async () => {
+    await waitFor(() => expect(screen.getByRole('button', { name: /read the sleeve/i })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: /read the sleeve/i }));
+    await waitFor(() => expect(onDraft).toHaveBeenCalled());
+    return onDraft.mock.calls[0][0];
+  };
+
+  it('keeps the cover when the front was reused from a scan', async () => {
+    // The scan hands over what it sent to the model and nothing else. Without
+    // this, the path the feature was designed around -- scan, nothing matched,
+    // read the sleeve -- saved the album with no cover at all.
+    render(
+      <SleeveCapture
+        initialFront={{ base64: 'FROM-SCAN', mimeType: 'image/jpeg' }}
+        onDraft={onDraft}
+        onSkip={onSkip}
+      />
+    );
+    fireEvent.change(screen.getByTestId('sleeve-back-input'), {
+      target: { files: [new File(['x'], 'b.jpg', { type: 'image/jpeg' })] }
+    });
+
+    const result = await read();
+
+    expect(result.coverPhoto).toEqual({ base64: 'FROM-SCAN', mimeType: 'image/jpeg' });
+  });
+
+  it('sends no cover when there is no front photograph at all', async () => {
+    render(<SleeveCapture onDraft={onDraft} onSkip={onSkip} />);
+    fireEvent.change(screen.getByTestId('sleeve-back-input'), {
+      target: { files: [new File(['x'], 'b.jpg', { type: 'image/jpeg' })] }
+    });
+
+    const result = await read();
+
+    expect(result.coverPhoto).toBeUndefined();
   });
 });
