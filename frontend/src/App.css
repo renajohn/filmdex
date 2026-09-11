@@ -587,10 +587,18 @@
   border: 1px solid #3a3a3a;
   border-radius: 12px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
-  max-width: 90vw;
-  max-height: 90vh;
   overflow-y: auto;
   backdrop-filter: blur(10px);
+}
+
+/* Keep a dialog off the edges of a roomy screen -- but only there. Capping the
+   size at all widths beat Bootstrap's fullscreen breakpoint, because a max-*
+   wins however the dialog is laid out, and left a 10% gap on every phone. */
+@media (min-width: 768px) {
+  .modal-content {
+    max-width: 90vw;
+    max-height: 90vh;
+  }
 }
 
 .modal-header {

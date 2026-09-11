@@ -1208,7 +1208,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   if (showMetadataForm) {
     if (enriching) {
       return (
-        <Modal show={show} onHide={handleClose} size="lg" centered style={{ zIndex: 10100 }} className="add-book-dialog">
+        <Modal show={show} onHide={handleClose} size="lg" centered fullscreen="md-down" style={{ zIndex: 10100 }} className="add-book-dialog">
           <Modal.Body className="text-center py-5">
             <div className="spinner-border text-warning mb-3" role="status" style={{ color: '#fbbf24' }}>
               <span className="visually-hidden">Loading...</span>
@@ -1257,7 +1257,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
 
 
   return (
-    <Modal show={show} onHide={handleClose} size="lg" centered style={{ zIndex: 10100 }} className="add-book-dialog">
+    <Modal show={show} onHide={handleClose} size="lg" centered fullscreen="md-down" style={{ zIndex: 10100 }} className="add-book-dialog">
       <Modal.Header closeButton className="add-book-dialog-header">
         <Modal.Title>Add New Book</Modal.Title>
       </Modal.Header>

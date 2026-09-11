@@ -725,7 +725,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
 
   return (
     <>
-    <Modal show={true} onHide={onCancel} size="lg" centered style={{ zIndex: 10100 }}>
+    <Modal show={true} onHide={onCancel} size="lg" centered fullscreen="md-down" style={{ zIndex: 10100 }} className="music-form-modal">
       {/* Floating Upload Message */}
       {uploadMessage && (
         <Alert
