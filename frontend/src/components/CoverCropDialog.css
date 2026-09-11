@@ -1,5 +1,4 @@
 .cover-crop-frame {
-  position: relative;
   width: 100%;
   max-height: 60vh;
   display: flex;
@@ -14,6 +13,17 @@
   max-width: 100%;
   max-height: 60vh;
   display: block;
+}
+
+/* Wraps the image and nothing else, so a handle at 50% of this element is at
+   50% of the photo. Measuring against the outer frame instead would be wrong
+   by however much a portrait photo is letterboxed -- which is every phone
+   photo. */
+.cover-crop-stage {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  max-width: 100%;
 }
 
 /* Everything outside the quad is dimmed, so the crop reads at a glance. */
@@ -72,4 +82,34 @@
   font-size: 0.8125rem;
   opacity: 0.75;
   text-align: center;
+}
+
+/* A finger hides the point it is placing, so the pixels underneath are shown
+   magnified in the opposite corner -- and it moves out of the way when the
+   finger crosses the middle. */
+.cover-crop-loupe {
+  position: absolute;
+  top: 12px;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  background-repeat: no-repeat;
+  background-color: #000;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.cover-crop-loupe.left { left: 12px; }
+.cover-crop-loupe.right { right: 12px; }
+
+/* Crosshair marking the exact point being placed. */
+.cover-crop-loupe-cross {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to right, transparent calc(50% - 1px), #4da3ff calc(50% - 1px), #4da3ff calc(50% + 1px), transparent calc(50% + 1px)),
+    linear-gradient(to bottom, transparent calc(50% - 1px), #4da3ff calc(50% - 1px), #4da3ff calc(50% + 1px), transparent calc(50% + 1px));
+  border-radius: 50%;
 }

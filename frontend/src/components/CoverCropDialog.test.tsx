@@ -141,3 +141,111 @@ describe('CoverCropDialog — which side is being straightened', () => {
     await waitFor(() => expect(screen.getByText('Straighten the back cover')).toBeInTheDocument());
   });
 });
+
+describe('CoverCropDialog — seeing under your own finger', () => {
+  beforeEach(() => {
+    (detectSleeveQuad as any).mockReturnValue(null);
+  });
+
+  const grab = async (corner: string) => {
+    await waitFor(() => expect(screen.getByTestId(`crop-corner-${corner}`)).toBeInTheDocument());
+    fireEvent.pointerDown(screen.getByTestId(`crop-corner-${corner}`));
+  };
+
+  it('shows nothing while no corner is held', async () => {
+    renderDialog();
+
+    await waitFor(() => expect(screen.getByTestId('crop-corner-topLeft')).toBeInTheDocument());
+    expect(screen.queryByTestId('crop-loupe')).not.toBeInTheDocument();
+  });
+
+  it('magnifies the point as soon as a corner is grabbed', async () => {
+    // Before any movement: the finger is already covering the target.
+    renderDialog();
+    await grab('topLeft');
+
+    await waitFor(() => expect(screen.getByTestId('crop-loupe')).toBeInTheDocument());
+  });
+
+  it('sits opposite the finger, so it is not covered in turn', async () => {
+    renderDialog();
+
+    await grab('topLeft');
+    // A corner on the left half puts the loupe on the right.
+    await waitFor(() => expect(screen.getByTestId('crop-loupe')).toHaveClass('right'));
+
+    fireEvent.pointerUp(window);
+    await grab('bottomRight');
+    await waitFor(() => expect(screen.getByTestId('crop-loupe')).toHaveClass('left'));
+  });
+
+  it('puts the magnified view away once the finger lifts', async () => {
+    renderDialog();
+    await grab('topLeft');
+    await waitFor(() => expect(screen.getByTestId('crop-loupe')).toBeInTheDocument());
+
+    fireEvent.pointerUp(window);
+
+    await waitFor(() => expect(screen.queryByTestId('crop-loupe')).not.toBeInTheDocument());
+  });
+});
+
+describe('CoverCropDialog — corners are fractions of the photo, not of the box around it', () => {
+  beforeEach(() => {
+    (detectSleeveQuad as any).mockReturnValue(null);
+  });
+
+  /**
+   * jsdom ships no PointerEvent, so fireEvent.pointerMove sends a bare Event
+   * with no coordinates. A MouseEvent of the same type carries them, and the
+   * listener does not care which constructor made it.
+   */
+  const dragTo = (clientX: number, clientY: number) =>
+    window.dispatchEvent(new MouseEvent('pointermove', { clientX, clientY, bubbles: true }));
+
+  /** A 400x300 photo whose left edge sits 100px into the dialog. */
+  const stageAt = () => {
+    const stage = document.querySelector('.cover-crop-stage') as HTMLElement;
+    vi.spyOn(stage, 'getBoundingClientRect').mockReturnValue({
+      left: 100, top: 50, width: 400, height: 300,
+      right: 500, bottom: 350, x: 100, y: 50, toJSON: () => ({})
+    } as DOMRect);
+  };
+
+  it('measures a drag against the image itself', async () => {
+    // The photo is centred with a max-width, so a portrait shot -- every phone
+    // photo -- is letterboxed. Measuring against the outer frame would send
+    // the server fractions of the wrong rectangle.
+    const { onConfirm } = renderDialog();
+    await waitFor(() => expect(screen.getByTestId('crop-corner-topLeft')).toBeInTheDocument());
+
+    stageAt();
+
+    fireEvent.pointerDown(screen.getByTestId('crop-corner-topLeft'));
+    // Dropped at the centre of the image: 100 + 200, 50 + 150.
+    dragTo(300, 200);
+    fireEvent.pointerUp(window);
+
+    fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
+
+    const corners = onConfirm.mock.calls[0][0];
+    expect(corners.topLeft[0]).toBeCloseTo(0.5, 3);
+    expect(corners.topLeft[1]).toBeCloseTo(0.5, 3);
+  });
+
+  it('clamps a drag that leaves the photo', async () => {
+    const { onConfirm } = renderDialog();
+    await waitFor(() => expect(screen.getByTestId('crop-corner-topLeft')).toBeInTheDocument());
+
+    stageAt();
+
+    fireEvent.pointerDown(screen.getByTestId('crop-corner-topLeft'));
+    dragTo(-500, -500);
+    fireEvent.pointerUp(window);
+
+    fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
+
+    const corners = onConfirm.mock.calls[0][0];
+    expect(corners.topLeft).toEqual([0, 0]);
+  });
+});
