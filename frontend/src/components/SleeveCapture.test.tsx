@@ -176,3 +176,67 @@ describe('SleeveCapture — the cover always comes back with the draft', () => {
     expect(result.coverPhoto).toBeUndefined();
   });
 });
+
+describe('SleeveCapture — seeing the photo that becomes the cover', () => {
+  const onDraft = vi.fn();
+  const onSkip = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (musicService.transcribeSleeve as any).mockResolvedValue(draftResponse);
+  });
+
+  const renderCapture = () => render(<SleeveCapture onDraft={onDraft} onSkip={onSkip} />);
+
+  it('shows nothing before a photo is taken', () => {
+    renderCapture();
+
+    expect(screen.queryByTestId('sleeve-thumb-front')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('sleeve-thumb-back')).not.toBeInTheDocument();
+  });
+
+  it('shows each photo once taken', async () => {
+    // Going in blind is what made it look as though no cover was attached.
+    renderCapture();
+
+    pick('sleeve-front-input');
+    await waitFor(() => expect(screen.getByTestId('sleeve-thumb-front')).toBeInTheDocument());
+
+    pick('sleeve-back-input');
+    await waitFor(() => expect(screen.getByTestId('sleeve-thumb-back')).toBeInTheDocument());
+  });
+
+  it('says plainly which photo becomes the cover', async () => {
+    renderCapture();
+    pick('sleeve-front-input');
+
+    await waitFor(() => expect(screen.getByText(/this will be the cover/i)).toBeInTheDocument());
+  });
+
+  it('offers to crop or rotate that photo before it is used', async () => {
+    renderCapture();
+    pick('sleeve-front-input');
+
+    await waitFor(() => expect(screen.getByTestId('crop-cover')).toBeInTheDocument());
+  });
+
+  it('offers no cropping for the back, which is only read', async () => {
+    renderCapture();
+    pick('sleeve-back-input');
+
+    await waitFor(() => expect(screen.getByTestId('sleeve-thumb-back')).toBeInTheDocument());
+    expect(screen.queryByTestId('crop-cover')).not.toBeInTheDocument();
+  });
+
+  it('carries the framing through to the caller', async () => {
+    renderCapture();
+    pick('sleeve-back-input');
+    await waitFor(() => expect(screen.getByRole('button', { name: /read the sleeve/i })).toBeEnabled());
+
+    fireEvent.click(screen.getByRole('button', { name: /read the sleeve/i }));
+
+    await waitFor(() => expect(onDraft).toHaveBeenCalled());
+    // No framing was set, so none is claimed.
+    expect(onDraft.mock.calls[0][0].coverCorners).toBeNull();
+  });
+});

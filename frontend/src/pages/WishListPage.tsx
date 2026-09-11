@@ -79,6 +79,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
   const [sleeveDraft, setSleeveDraft] = useState<any>(null);
   // The photographed sleeve waits for an album id, which exists only on save.
   const [pendingCover, setPendingCover] = useState<{ base64: string; mimeType: string } | null>(null);
+  const [pendingCorners, setPendingCorners] = useState<unknown>(null);
   const [addingAlbum, setAddingAlbum] = useState(false);
   const [addError, setAddError] = useState('');
   const [showAddBookDialog, setShowAddBookDialog] = useState(false);
@@ -322,11 +323,12 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
       if (pendingCover && newAlbum?.id) {
         try {
           const file = base64ToFile(pendingCover.base64, pendingCover.mimeType, 'sleeve.jpg');
-          await musicService.uploadCover(newAlbum.id, file);
+          await musicService.uploadCover(newAlbum.id, file, pendingCorners || undefined);
         } catch (err) {
           console.warn('Could not store the sleeve photo as the cover:', err);
         } finally {
           setPendingCover(null);
+          setPendingCorners(null);
         }
       }
 
@@ -1544,6 +1546,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
           onDraftEntry={(result: any) => {
             setSleeveDraft(result.draft);
             setPendingCover(result.coverPhoto || null);
+            setPendingCorners(result.coverCorners || null);
             setShowAddMusicDialog(false);
             setShowMusicForm(true);
           }}

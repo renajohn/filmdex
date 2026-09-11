@@ -46,3 +46,15 @@
   gap: 0.75rem;
   margin-top: 1.5rem;
 }
+
+/* Seeing the photo is the point: going in blind is what made it look as
+   though no cover had been attached at all. */
+.sleeve-capture-thumb {
+  display: block;
+  width: 100%;
+  max-height: 120px;
+  object-fit: contain;
+  margin-top: 0.5rem;
+  border-radius: 4px;
+  background: #111;
+}
