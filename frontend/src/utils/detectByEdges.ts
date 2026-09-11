@@ -149,10 +149,14 @@ const sobel = ({ data, w, h }: Grey): Edges => {
 
 /** The gradient magnitude only the strongest `keepFraction` of pixels reach. */
 const magnitudeCutoff = (magnitude: Float32Array, keepFraction: number): number => {
-  const sorted = Array.from(magnitude).filter(v => v > 0).sort((a, b) => a - b);
-  if (!sorted.length) return Infinity;
-  const index = Math.floor(sorted.length * (1 - keepFraction));
-  return sorted[Math.min(sorted.length - 1, index)];
+  let nonZero = 0;
+  for (let i = 0; i < magnitude.length; i++) if (magnitude[i] > 0) nonZero++;
+  if (!nonZero) return Infinity;
+  const sorted = new Float32Array(nonZero);
+  for (let i = 0, j = 0; i < magnitude.length; i++) if (magnitude[i] > 0) sorted[j++] = magnitude[i];
+  // A typed array sorts numerically, and several times faster than an Array.
+  sorted.sort();
+  return sorted[Math.min(nonZero - 1, Math.floor(nonZero * (1 - keepFraction)))];
 };
 
 /** Smallest angle between two line directions, both folded into [0, pi). */
@@ -424,6 +428,74 @@ const segmentSupport = (
   return samples ? hits / samples : 0;
 };
 
+/** Measures how much of a stretch of one particular line is edge. */
+type Measure = (a: Point, b: Point, unknown: number) => number;
+
+/**
+ * segmentSupport for every stretch of one line at once.
+ *
+ * Thousands of rectangles are built from a few dozen lines, and each asks
+ * about stretches of the same lines over and over. Sampling each line once,
+ * end to end, and keeping running totals answers any stretch in constant time.
+ */
+const lineMeasure = (edges: Edges, threshold: number, line: Line): Measure => {
+  const { magnitude, angle, w, h } = edges;
+  const reach = Math.ceil(Math.hypot(w, h));
+  const count = 2 * reach + 1;
+  const dx = -Math.sin(line.theta);
+  const dy = Math.cos(line.theta);
+  const ox = line.rho * Math.cos(line.theta);
+  const oy = line.rho * Math.sin(line.theta);
+  const normal = Math.atan2(dx, -dy);
+  const nx = -dy;
+  const ny = dx;
+  const hits = new Float32Array(count + 1);
+  const blind = new Float32Array(count + 1);
+
+  for (let k = 0; k < count; k++) {
+    const t = k - reach;
+    const px = ox + dx * t;
+    const py = oy + dy * t;
+    let hit = 0;
+    let unseen = 0;
+    if (px < 3 || py < 3 || px > w - 4 || py > h - 4) {
+      unseen = 1;
+    } else {
+      for (let j = -2; j <= 2; j++) {
+        const x = Math.round(px + nx * j);
+        const y = Math.round(py + ny * j);
+        if (x < 1 || y < 1 || x >= w - 1 || y >= h - 1) continue;
+        const i = y * w + x;
+        if (magnitude[i] < threshold || angleBetween(angle[i], normal) > 20 * DEGREE) continue;
+        hit = 1;
+        break;
+      }
+    }
+    hits[k + 1] = hits[k] + hit;
+    blind[k + 1] = blind[k] + unseen;
+  }
+
+  return (a, b, unknown) => {
+    const ta = (a[0] - ox) * dx + (a[1] - oy) * dy;
+    const tb = (b[0] - ox) * dx + (b[1] - oy) * dy;
+    const lo = Math.min(ta, tb);
+    const hi = Math.max(ta, tb);
+    const length = hi - lo;
+    if (length < 4) return 0;
+    const first = Math.ceil(lo + length * 0.04) + reach;
+    const last = Math.floor(hi - length * 0.04) + reach;
+    const samples = last - first + 1;
+    if (samples <= 0) return 0;
+    // Anything beyond the sampled stretch is beyond the frame too.
+    const from = Math.max(0, Math.min(count, first));
+    const to = Math.max(from, Math.min(count, last + 1));
+    const outside = samples - (to - from);
+    const seen = hits[to] - hits[from];
+    const unseen = blind[to] - blind[from] + outside;
+    return (seen + unknown * unseen) / samples;
+  };
+};
+
 /**
  * The proportions of the flat rectangle four corners are a photograph of.
  *
@@ -517,7 +589,7 @@ export interface Candidate {
   confidence: number;
 }
 
-const scoreQuad = (edges: Edges, threshold: number, pts: Point[]): Candidate | null => {
+const scoreQuad = (edges: Edges, threshold: number, pts: Point[], measures?: Measure[]): Candidate | null => {
   const { w, h } = edges;
   const shape = plausibleShape(pts, w, h);
   if (shape === null) return null;
@@ -537,15 +609,22 @@ const scoreQuad = (edges: Edges, threshold: number, pts: Point[]): Candidate | n
   // small thing in the corner of a picture of something else.
   if (framed && areaOf(pts) / (w * h) < 0.3) return null;
 
+  // Side i runs from corner i to corner i + 1.
+  const measure = (side: number, a: Point, b: Point, unknown: number) =>
+    measures ? measures[side](a, b, unknown) : segmentSupport(edges, threshold, a, b, unknown);
+
   const support = [0, 1, 2, 3].map(i => {
-    if (!onFrame[i]) return segmentSupport(edges, threshold, pts[i], pts[(i + 1) % 4]);
+    if (!onFrame[i]) return measure(i, pts[i], pts[(i + 1) % 4], 0.5);
     // Nothing can be measured along the frame, so judge that side by its
     // neighbours instead: a sleeve cut off there has both of them running
     // right into it, while a rectangle closed off by the frame for want of a
     // fourth side has them stop short.
-    const into = (from: Point, to: Point) =>
-      segmentSupport(edges, threshold, [to[0] + (from[0] - to[0]) * 0.2, to[1] + (from[1] - to[1]) * 0.2], to, 1);
-    return 0.8 * Math.min(into(pts[(i + 3) % 4], pts[i]), into(pts[(i + 2) % 4], pts[(i + 1) % 4]));
+    const into = (side: number, from: Point, to: Point) =>
+      measure(side, [to[0] + (from[0] - to[0]) * 0.2, to[1] + (from[1] - to[1]) * 0.2], to, 1);
+    return 0.8 * Math.min(
+      into((i + 3) % 4, pts[(i + 3) % 4], pts[i]),
+      into((i + 1) % 4, pts[(i + 2) % 4], pts[(i + 1) % 4])
+    );
   });
   const mean = support.reduce((s, v) => s + v, 0) / 4;
   const worst = Math.min(...support);
@@ -559,7 +638,7 @@ const scoreQuad = (edges: Edges, threshold: number, pts: Point[]): Candidate | n
     const b = pts[(i + 1) % 4];
     const ahead: Point = [b[0] + (b[0] - a[0]) * 0.2, b[1] + (b[1] - a[1]) * 0.2];
     const behind: Point = [a[0] - (b[0] - a[0]) * 0.2, a[1] - (b[1] - a[1]) * 0.2];
-    overrun += segmentSupport(edges, threshold, b, ahead, 0) + segmentSupport(edges, threshold, a, behind, 0);
+    overrun += measure(i, b, ahead, 0) + measure(i, a, behind, 0);
   }
   overrun /= 8;
 
@@ -686,9 +765,16 @@ export const detectByEdges = (
     }
   }
 
+  const measures = new Map<Line, Measure>();
+  const measureOf = (line: Line) => {
+    let m = measures.get(line);
+    if (!m) { m = lineMeasure(edges, threshold, line); measures.set(line, m); }
+    return m;
+  };
+
   let best: Candidate | null = null;
-  const consider = (corners: Point[]) => {
-    const candidate = scoreQuad(edges, threshold, corners);
+  const consider = (corners: Point[], sides?: Line[]) => {
+    const candidate = scoreQuad(edges, threshold, corners, sides?.map(measureOf));
     if (!candidate) return;
     inspect?.(candidate, { w, h });
     if (!best || candidate.score > best.score) best = candidate;
@@ -705,7 +791,7 @@ export const detectByEdges = (
         intersect(one.b, two.b), intersect(one.b, two.a)
       ];
       if (corners.some(c => !c)) continue;
-      consider(corners as Point[]);
+      consider(corners as Point[], [one.a, two.b, one.b, two.a]);
     }
   }
 
