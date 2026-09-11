@@ -13,6 +13,7 @@ import { getDatabase } from '../database';
 import musicCollectionService from '../services/musicCollectionService';
 import smartPlaylistService from '../services/smartPlaylistService';
 import logger from '../logger';
+import { warpQuadToSquare, type Quad } from '../services/sleeveGeometry';
 import type { AlbumFormatted } from '../types';
 
 /**
@@ -22,6 +23,32 @@ import type { AlbumFormatted } from '../types';
  */
 const isClientError = (error: unknown): boolean =>
   (error as { status?: number })?.status === 400;
+
+/**
+ * The four corners of the sleeve within the photo, as fractions of its size.
+ *
+ * Multipart carries everything as text, so this arrives JSON-encoded. Anything
+ * malformed is simply ignored: the cover is stored as shot rather than the
+ * upload being refused over a crop hint.
+ */
+const parseCornersField = (raw: unknown): Quad | null => {
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const corner = (key: string): [number, number] | null => {
+      const value = parsed[key];
+      if (!Array.isArray(value) || value.length !== 2) return null;
+      const [x, y] = value.map(Number);
+      return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
+    };
+    const topLeft = corner('topLeft'), topRight = corner('topRight');
+    const bottomRight = corner('bottomRight'), bottomLeft = corner('bottomLeft');
+    if (!topLeft || !topRight || !bottomRight || !bottomLeft) return null;
+    return { topLeft, topRight, bottomRight, bottomLeft };
+  } catch (_) {
+    return null;
+  }
+};
 
 // Configure multer for cover uploads
 const storage = multer.diskStorage({
@@ -605,6 +632,24 @@ const musicController = {
       // Resize the image to max 1000x1000
       let width = 500;
       let height = 500;
+
+      // An optional quad straightens a sleeve photographed at an angle. The
+      // corners were picked in the browser on the displayed image, so
+      // warpQuadToSquare applies EXIF orientation before using them. Without
+      // it nothing changes, which keeps the form's drag-and-drop exactly as it
+      // was.
+      const quad = parseCornersField(req.body?.corners);
+      if (quad) {
+        try {
+          const fs2 = require('fs') as typeof import('fs');
+          const warped = await warpQuadToSquare(fs2.readFileSync(file.path), quad, 1000);
+          fs2.writeFileSync(file.path, warped);
+          logger.info(`Cover straightened from the supplied corners for CD ${id}`);
+        } catch (error) {
+          // The photo is already stored; an un-straightened cover beats none.
+          logger.warn('Could not straighten the cover, keeping it as shot:', (error as Error).message);
+        }
+      }
 
       try {
         await imageService.resizeImage(file.path, file.path, 1000, 1000);

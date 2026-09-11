@@ -486,10 +486,20 @@ class MusicService {
     }
   }
 
-  async uploadCover(albumId: number | string, file: File): Promise<unknown> {
+  /**
+   * Store a cover image, optionally straightening it first.
+   *
+   * `corners` are the four points of the sleeve within the photo, as fractions
+   * of its size, picked on the image as the browser displays it. Omit them and
+   * the photo is stored as shot.
+   */
+  async uploadCover(albumId: number | string, file: File, corners?: unknown): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();
       const formData = new FormData();
+      // Appended before the file: multer streams the parts in order, and a
+      // field arriving after the file would not be readable in the handler.
+      if (corners) formData.append('corners', JSON.stringify(corners));
       formData.append('cover', file);
 
       const response = await fetch(`${baseUrl}/music/albums/${albumId}/upload-cover`, {
