@@ -80,6 +80,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
   // The photographed sleeve waits for an album id, which exists only on save.
   const [pendingCover, setPendingCover] = useState<{ base64: string; mimeType: string } | null>(null);
   const [pendingCorners, setPendingCorners] = useState<unknown>(null);
+  const [pendingBack, setPendingBack] = useState<{ base64: string; mimeType: string } | null>(null);
+  const [pendingBackCorners, setPendingBackCorners] = useState<unknown>(null);
   const [addingAlbum, setAddingAlbum] = useState(false);
   const [addError, setAddError] = useState('');
   const [showAddBookDialog, setShowAddBookDialog] = useState(false);
@@ -320,16 +322,27 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
       // A record no database knows has no artwork to download, so the
       // photographed sleeve is the only cover it will ever have. Stored before
       // the list refreshes, or the grid paints a coverless album.
-      if (pendingCover && newAlbum?.id) {
-        try {
-          const file = base64ToFile(pendingCover.base64, pendingCover.mimeType, 'sleeve.jpg');
-          await musicService.uploadCover(newAlbum.id, file, pendingCorners || undefined);
-        } catch (err) {
-          console.warn('Could not store the sleeve photo as the cover:', err);
-        } finally {
-          setPendingCover(null);
-          setPendingCorners(null);
+      if (newAlbum?.id && (pendingCover || pendingBack)) {
+        if (pendingCover) {
+          try {
+            const file = base64ToFile(pendingCover.base64, pendingCover.mimeType, 'sleeve.jpg');
+            await musicService.uploadCover(newAlbum.id, file, pendingCorners || undefined);
+          } catch (err) {
+            console.warn('Could not store the sleeve photo as the cover:', err);
+          }
         }
+        if (pendingBack) {
+          try {
+            const file = base64ToFile(pendingBack.base64, pendingBack.mimeType, 'sleeve-back.jpg');
+            await musicService.uploadBackCover(newAlbum.id, file, pendingBackCorners || undefined);
+          } catch (err) {
+            console.warn('Could not store the sleeve photo as the back cover:', err);
+          }
+        }
+        setPendingCover(null);
+        setPendingCorners(null);
+        setPendingBack(null);
+        setPendingBackCorners(null);
       }
 
       // Refresh the albums list
@@ -1547,6 +1560,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
             setSleeveDraft(result.draft);
             setPendingCover(result.coverPhoto || null);
             setPendingCorners(result.coverCorners || null);
+            setPendingBack(result.backPhoto || null);
+            setPendingBackCorners(result.backCorners || null);
             setShowAddMusicDialog(false);
             setShowMusicForm(true);
           }}

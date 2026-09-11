@@ -95,6 +95,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   // only exists once the form has been submitted.
   const [pendingCover, setPendingCover] = useState<{ base64: string; mimeType: string } | null>(null);
   const [pendingCorners, setPendingCorners] = useState<unknown>(null);
+  const [pendingBack, setPendingBack] = useState<{ base64: string; mimeType: string } | null>(null);
+  const [pendingBackCorners, setPendingBackCorners] = useState<unknown>(null);
   const [selectedCdDetails, setSelectedCdDetails] = useState<any>(null);
   const [, setLoadingDetails] = useState(false);
   const [cdDetailsBeforeEdit, setCdDetailsBeforeEdit] = useState<any>(null);
@@ -477,16 +479,32 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
    * is already saved and a cover can be added later.
    */
   const attachSleevePhoto = async (album: any) => {
-    if (!pendingCover || !album?.id) return;
-    try {
-      const file = base64ToFile(pendingCover.base64, pendingCover.mimeType, 'sleeve.jpg');
-      await musicService.uploadCover(album.id, file, pendingCorners || undefined);
-    } catch (err) {
-      console.warn('Could not store the sleeve photo as the cover:', err);
-    } finally {
-      setPendingCover(null);
-      setPendingCorners(null);
+    if (!album?.id) return;
+
+    if (pendingCover) {
+      try {
+        const file = base64ToFile(pendingCover.base64, pendingCover.mimeType, 'sleeve.jpg');
+        await musicService.uploadCover(album.id, file, pendingCorners || undefined);
+      } catch (err) {
+        console.warn('Could not store the sleeve photo as the cover:', err);
+      }
     }
+
+    // The back is worth keeping too: it is the side carrying the track list,
+    // and the one to check a transcription against later.
+    if (pendingBack) {
+      try {
+        const file = base64ToFile(pendingBack.base64, pendingBack.mimeType, 'sleeve-back.jpg');
+        await musicService.uploadBackCover(album.id, file, pendingBackCorners || undefined);
+      } catch (err) {
+        console.warn('Could not store the sleeve photo as the back cover:', err);
+      }
+    }
+
+    setPendingCover(null);
+    setPendingCorners(null);
+    setPendingBack(null);
+    setPendingBackCorners(null);
   };
 
   const handleReviewMetadata = async (release: any, allReleasesInGroup: any[] | null = null) => {
@@ -906,6 +924,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
         onDraftEntry={(result: any) => {
           setPendingCover(result.coverPhoto || null);
           setPendingCorners(result.coverCorners || null);
+          setPendingBack(result.backPhoto || null);
+          setPendingBackCorners(result.backCorners || null);
           setReviewingRelease(result.draft);
         }}
         defaultTitleStatus={undefined}

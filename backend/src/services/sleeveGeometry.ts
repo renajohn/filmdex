@@ -78,13 +78,34 @@ const isSaneQuad = (q: Quad): boolean => {
 };
 
 /**
- * Warp the region inside `quad` into a square image of `size` pixels.
+ * The shape of the framed region, in source pixels.
+ *
+ * Opposite sides differ under perspective, so each dimension is the average of
+ * its two. Without this the output was always square, and anything framed as a
+ * rectangle -- a back insert, a digipak panel -- came out squashed.
+ */
+const quadExtent = (quad: Quad, sourceWidth: number, sourceHeight: number) => {
+  const px = ([x, y]: Point): Point => [x * sourceWidth, y * sourceHeight];
+  const span = (a: Point, b: Point) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+
+  const [tl, tr, br, bl] = [quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft].map(px);
+  return {
+    width: (span(tl, tr) + span(bl, br)) / 2,
+    height: (span(tl, bl) + span(tr, br)) / 2
+  };
+};
+
+/**
+ * Warp the region inside `quad` into an upright image, longest edge `maxEdge`.
  *
  * Walks the destination and asks where each pixel came from, sampling the
  * source bilinearly. Going the other way -- pushing source pixels forward --
  * leaves holes wherever the source is stretched.
+ *
+ * The result keeps the proportions of what was framed: a CD front is square
+ * and comes out square, a back insert is wide and stays wide.
  */
-export const warpQuadToSquare = async (input: Buffer, quad: Quad, size: number): Promise<Buffer> => {
+export const warpQuadToSquare = async (input: Buffer, quad: Quad, maxEdge: number): Promise<Buffer> => {
   if (!isSaneQuad(quad)) {
     throw new Error('Degenerate quad: four distinct corners are required');
   }
@@ -99,13 +120,18 @@ export const warpQuadToSquare = async (input: Buffer, quad: Quad, size: number):
 
   const sw = info.width, sh = info.height, channels = info.channels;
   const m = squareToQuad(quad);
-  const out = Buffer.alloc(size * size * channels);
 
-  for (let dy = 0; dy < size; dy++) {
+  const extent = quadExtent(quad, sw, sh);
+  const longest = Math.max(extent.width, extent.height) || 1;
+  const outW = Math.max(1, Math.round((extent.width / longest) * maxEdge));
+  const outH = Math.max(1, Math.round((extent.height / longest) * maxEdge));
+  const out = Buffer.alloc(outW * outH * channels);
+
+  for (let dy = 0; dy < outH; dy++) {
     // Sample pixel centres, so the edges are not half a pixel off.
-    const v = (dy + 0.5) / size;
-    for (let dx = 0; dx < size; dx++) {
-      const u = (dx + 0.5) / size;
+    const v = (dy + 0.5) / outH;
+    for (let dx = 0; dx < outW; dx++) {
+      const u = (dx + 0.5) / outW;
 
       const w = m.g * u + m.h * v + 1;
       const fx = ((m.a * u + m.b * v + m.c) / w) * sw - 0.5;
@@ -119,7 +145,7 @@ export const warpQuadToSquare = async (input: Buffer, quad: Quad, size: number):
       const x1 = clampX(x0 + 1), y1 = clampY(y0 + 1);
       const cx0 = clampX(x0), cy0 = clampY(y0);
 
-      const di = (dy * size + dx) * channels;
+      const di = (dy * outW + dx) * channels;
       for (let c = 0; c < channels; c++) {
         const p00 = data[(cy0 * sw + cx0) * channels + c];
         const p10 = data[(cy0 * sw + x1) * channels + c];
@@ -133,7 +159,7 @@ export const warpQuadToSquare = async (input: Buffer, quad: Quad, size: number):
     }
   }
 
-  return sharp(out, { raw: { width: size, height: size, channels: channels as 1 | 2 | 3 | 4 } })
+  return sharp(out, { raw: { width: outW, height: outH, channels: channels as 1 | 2 | 3 | 4 } })
     .jpeg({ quality: 92 })
     .toBuffer();
 };

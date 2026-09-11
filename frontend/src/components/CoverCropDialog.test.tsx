@@ -8,7 +8,7 @@ vi.mock('../utils/detectSleeveQuad', async () => {
   return { ...actual, detectSleeveQuad: vi.fn(), default: vi.fn() };
 });
 
-import { detectSleeveQuad, DEFAULT_QUAD } from '../utils/detectSleeveQuad';
+import { detectSleeveQuad, defaultQuad } from '../utils/detectSleeveQuad';
 
 const DETECTED = {
   topLeft: [0.2, 0.15] as [number, number],
@@ -99,7 +99,9 @@ describe('CoverCropDialog', () => {
     await waitFor(() => expect(screen.getByText(/could not pick out the sleeve/i)).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
 
-    expect(onConfirm).toHaveBeenCalledWith(DEFAULT_QUAD, expect.any(File));
+    // A square sized to the photo's shorter side -- the stub is 800x600 --
+    // rather than a slab of the frame.
+    expect(onConfirm).toHaveBeenCalledWith(defaultQuad(800 / 600), expect.any(File));
   });
 
   it('lets the photo through untouched', async () => {
@@ -296,8 +298,9 @@ describe('CoverCropDialog — turning a sleeve photographed on its side', () => 
 
     await waitFor(() => expect(onConfirm).toHaveBeenCalled());
     const [corners] = onConfirm.mock.calls[0];
-    // The default inset is symmetric, so a quarter turn maps it onto itself.
-    expect(corners.topLeft[0]).toBeCloseTo(0.1, 5);
-    expect(corners.bottomRight[0]).toBeCloseTo(0.9, 5);
+    // Turning a centred square keeps it centred; the axes swap with the photo.
+    const seeded = defaultQuad(800 / 600);
+    expect(corners.topLeft[0]).toBeCloseTo(1 - seeded.bottomLeft[1], 3);
+    expect(corners.topLeft[1]).toBeCloseTo(seeded.bottomLeft[0], 3);
   });
 });

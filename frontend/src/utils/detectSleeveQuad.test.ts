@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectSleeveQuad, DEFAULT_QUAD, type Quad } from './detectSleeveQuad';
+import { detectSleeveQuad, defaultQuad, DEFAULT_QUAD, type Quad } from './detectSleeveQuad';
 
 /**
  * Scenes built pixel by pixel, so the corners are known exactly rather than
@@ -121,8 +121,20 @@ describe('detectSleeveQuad', () => {
     expect(found === null || found.confidence < 0.6).toBe(true);
   });
 
-  it('offers a draggable starting rectangle for when it declines', () => {
+  it('offers a centred square to start from when it declines', () => {
+    // A square photo: the default covers 80% of it, centred.
     expect(DEFAULT_QUAD.topLeft).toEqual([0.1, 0.1]);
     expect(DEFAULT_QUAD.bottomRight).toEqual([0.9, 0.9]);
+  });
+
+  it('keeps that starting square square on a photo that is not', () => {
+    // A fixed inset of a portrait frame is a tall rectangle, which looks
+    // nothing like the sleeve it is meant to land on.
+    const portrait = defaultQuad(3 / 4);
+    const width = portrait.topRight[0] - portrait.topLeft[0];
+    const height = portrait.bottomLeft[1] - portrait.topLeft[1];
+
+    // Equal in pixels: width fractions span a narrower axis.
+    expect(width * 3).toBeCloseTo(height * 4, 2);
   });
 });

@@ -28,13 +28,34 @@ export interface Detection {
   confidence: number;
 }
 
-/** What to offer when nothing was found: a generous inset the user drags. */
-export const DEFAULT_QUAD: Quad = {
-  topLeft: [0.1, 0.1],
-  topRight: [0.9, 0.1],
-  bottomRight: [0.9, 0.9],
-  bottomLeft: [0.1, 0.9]
+/**
+ * What to offer when nothing was found.
+ *
+ * A fixed inset of the frame is a rectangle on a portrait photo, which looks
+ * nothing like the square sleeve it is meant to land on. Given the photo's
+ * proportions this returns a centred square instead, so the first guess is at
+ * least the right shape and usually needs only nudging.
+ */
+export const defaultQuad = (aspect = 1): Quad => {
+  // aspect = width / height of the photo. The square covers 80% of the
+  // shorter side, expressed as fractions of each axis.
+  const w = aspect >= 1 ? 0.8 / aspect : 0.8;
+  const h = aspect >= 1 ? 0.8 : 0.8 * aspect;
+  // Rounded: these end up in a request body, and 0.09999999999999998 helps
+  // nobody reading it.
+  const r = (v: number) => Math.round(v * 1e4) / 1e4;
+  const x0 = r((1 - w) / 2);
+  const y0 = r((1 - h) / 2);
+  return {
+    topLeft: [x0, y0],
+    topRight: [r(x0 + w), y0],
+    bottomRight: [r(x0 + w), r(y0 + h)],
+    bottomLeft: [x0, r(y0 + h)]
+  };
 };
+
+/** The square-photo case, kept for callers with nothing better to go on. */
+export const DEFAULT_QUAD: Quad = defaultQuad(1);
 
 const WORK_SIZE = 200;
 

@@ -128,3 +128,58 @@ describe('warpQuadToSquare', () => {
     await expect(warpQuadToSquare(source, degenerate, 200)).rejects.toThrow(/quad|corner/i);
   });
 });
+
+describe('warpQuadToSquare — the shape of what was framed', () => {
+  it('keeps a wide frame wide', async () => {
+    // A back insert is wider than it is tall. Forcing it square squashes it.
+    const source = await quadrants(400);
+    const wide: Quad = {
+      topLeft: [0.1, 0.3], topRight: [0.9, 0.3],
+      bottomRight: [0.9, 0.7], bottomLeft: [0.1, 0.7]
+    };
+
+    const out = await warpQuadToSquare(source, wide, 1000);
+    const meta = await sharp(out).metadata();
+
+    // The frame is 0.8 x 0.4 of a square photo, so twice as wide as tall.
+    expect(meta.width! / meta.height!).toBeCloseTo(2, 1);
+    expect(Math.max(meta.width!, meta.height!)).toBe(1000);
+  });
+
+  it('keeps a tall frame tall', async () => {
+    const source = await quadrants(400);
+    const tall: Quad = {
+      topLeft: [0.3, 0.1], topRight: [0.7, 0.1],
+      bottomRight: [0.7, 0.9], bottomLeft: [0.3, 0.9]
+    };
+
+    const out = await warpQuadToSquare(source, tall, 1000);
+    const meta = await sharp(out).metadata();
+
+    expect(meta.height! / meta.width!).toBeCloseTo(2, 1);
+  });
+
+  it('still squares a square frame', async () => {
+    const out = await warpQuadToSquare(await quadrants(400), FULL_FRAME, 1000);
+    const meta = await sharp(out).metadata();
+
+    expect(meta.width).toBe(1000);
+    expect(meta.height).toBe(1000);
+  });
+
+  it('reads the shape from the photo, not from the fractions', async () => {
+    // The same fractions on a 2:1 photo describe a square region.
+    const source = await sharp({ create: { width: 800, height: 400, channels: 3, background: '#3070c0' } })
+      .jpeg().toBuffer();
+    const halfWidth: Quad = {
+      topLeft: [0.25, 0], topRight: [0.75, 0],
+      bottomRight: [0.75, 1], bottomLeft: [0.25, 1]
+    };
+
+    const out = await warpQuadToSquare(source, halfWidth, 1000);
+    const meta = await sharp(out).metadata();
+
+    // 0.5 * 800 = 400 wide, 1.0 * 400 = 400 tall: square.
+    expect(meta.width! / meta.height!).toBeCloseTo(1, 1);
+  });
+});

@@ -42,9 +42,10 @@ describe('SleeveCapture', () => {
     renderCapture();
 
     const labels = screen.getAllByRole('button').map(b => b.textContent);
-    // The back carries the track list, which is the reason to be here at all.
-    expect(labels[0]).toMatch(/back cover/i);
-    expect(labels[1]).toMatch(/front cover/i);
+    // The front leads: it is the one that becomes the artwork, and the one
+    // whose absence used to mean no cover was stored at all.
+    expect(labels[0]).toMatch(/front cover/i);
+    expect(labels[1]).toMatch(/back cover/i);
   });
 
   it('cannot read a sleeve before a photo is taken', () => {
@@ -213,19 +214,22 @@ describe('SleeveCapture — seeing the photo that becomes the cover', () => {
     await waitFor(() => expect(screen.getByText(/this will be the cover/i)).toBeInTheDocument());
   });
 
-  it('offers to crop or rotate that photo before it is used', async () => {
+  it('offers to crop or rotate either side before it is used', async () => {
     renderCapture();
-    pick('sleeve-front-input');
 
-    await waitFor(() => expect(screen.getByTestId('crop-cover')).toBeInTheDocument());
+    pick('sleeve-front-input');
+    await waitFor(() => expect(screen.getByTestId('crop-front')).toBeInTheDocument());
+
+    // The back leans just as much, and is kept as the back cover.
+    pick('sleeve-back-input');
+    await waitFor(() => expect(screen.getByTestId('crop-back')).toBeInTheDocument());
   });
 
-  it('offers no cropping for the back, which is only read', async () => {
+  it('says which cover each photo becomes', async () => {
     renderCapture();
-    pick('sleeve-back-input');
 
-    await waitFor(() => expect(screen.getByTestId('sleeve-thumb-back')).toBeInTheDocument());
-    expect(screen.queryByTestId('crop-cover')).not.toBeInTheDocument();
+    pick('sleeve-back-input');
+    await waitFor(() => expect(screen.getByText(/this will be the back cover/i)).toBeInTheDocument());
   });
 
   it('carries the framing through to the caller', async () => {
@@ -238,5 +242,7 @@ describe('SleeveCapture — seeing the photo that becomes the cover', () => {
     await waitFor(() => expect(onDraft).toHaveBeenCalled());
     // No framing was set, so none is claimed.
     expect(onDraft.mock.calls[0][0].coverCorners).toBeNull();
+    // The back travels too, or it would be lost at save time.
+    expect(onDraft.mock.calls[0][0].backPhoto).toEqual({ base64: 'SMALL', mimeType: 'image/jpeg' });
   });
 });

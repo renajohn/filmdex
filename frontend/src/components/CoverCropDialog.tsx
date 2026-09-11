@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Button, Spinner } from 'react-bootstrap';
 import { BsArrowCounterclockwise, BsArrowClockwise } from 'react-icons/bs';
-import { detectSleeveQuad, DEFAULT_QUAD, type Quad, type Point } from '../utils/detectSleeveQuad';
+import { detectSleeveQuad, defaultQuad, DEFAULT_QUAD, type Quad, type Point } from '../utils/detectSleeveQuad';
 import './CoverCropDialog.css';
 
 const CORNERS: Array<keyof Quad> = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
@@ -85,7 +85,9 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
           setQuad(found.quad);
           setAutoFound(true);
         } else {
-          // No canvas, or nothing convincing: the corners are a starting point.
+          // No canvas, or nothing convincing. Fall back to a square the size
+          // of the photo's shorter side rather than a slab of the frame.
+          setQuad(defaultQuad(image.naturalWidth / image.naturalHeight));
           setAutoFound(false);
         }
       } catch (_) {
@@ -271,7 +273,7 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
 
         <div className="cover-crop-tools">
           <Button
-            variant="outline-secondary"
+            variant="secondary"
             size="sm"
             data-testid="rotate-left"
             disabled={!src || rotating || detecting}
@@ -281,7 +283,7 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
             Rotate left
           </Button>
           <Button
-            variant="outline-secondary"
+            variant="secondary"
             size="sm"
             data-testid="rotate-right"
             disabled={!src || rotating || detecting}
