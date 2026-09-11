@@ -1,0 +1,75 @@
+.cover-crop-frame {
+  position: relative;
+  width: 100%;
+  max-height: 60vh;
+  display: flex;
+  justify-content: center;
+  background: #111;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+}
+
+.cover-crop-image {
+  max-width: 100%;
+  max-height: 60vh;
+  display: block;
+}
+
+/* Everything outside the quad is dimmed, so the crop reads at a glance. */
+.cover-crop-shade {
+  position: absolute;
+  inset: 0;
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.cover-crop-outline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.cover-crop-outline polygon {
+  fill: none;
+  stroke: #4da3ff;
+  stroke-width: 2;
+}
+
+.cover-crop-handle {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: rgba(77, 163, 255, 0.85);
+  padding: 0;
+  cursor: grab;
+  touch-action: none;
+}
+
+.cover-crop-handle.dragging {
+  cursor: grabbing;
+  transform: scale(1.15);
+}
+
+.cover-crop-detecting {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 0.875rem;
+}
+
+.cover-crop-status {
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  opacity: 0.75;
+  text-align: center;
+}
