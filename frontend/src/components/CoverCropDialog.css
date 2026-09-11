@@ -113,3 +113,10 @@
     linear-gradient(to bottom, transparent calc(50% - 1px), #4da3ff calc(50% - 1px), #4da3ff calc(50% + 1px), transparent calc(50% + 1px));
   border-radius: 50%;
 }
+
+.cover-crop-tools {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}

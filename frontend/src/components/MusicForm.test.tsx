@@ -24,7 +24,14 @@ vi.mock('./CoverCropDialog', () => ({
   default: ({ show, slot, onConfirm }: any) =>
     show ? (
       <div data-testid="crop-dialog" data-slot={slot}>
-        <button onClick={() => onConfirm({ topLeft: [0, 0], topRight: [1, 0], bottomRight: [1, 1], bottomLeft: [0, 1] })}>
+        <button
+          onClick={() =>
+            onConfirm(
+              { topLeft: [0, 0], topRight: [1, 0], bottomRight: [1, 1], bottomLeft: [0, 1] },
+              new File(['x'], 'confirmed.jpg', { type: 'image/jpeg' })
+            )
+          }
+        >
           confirm crop
         </button>
       </div>
