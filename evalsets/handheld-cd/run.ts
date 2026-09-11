@@ -85,6 +85,63 @@ const cornerError = (found: Corners, expected: Corners, width: number, height: n
  * The crop the app would store, for looking at: the same square-to-quad
  * mapping warpQuad uses in the browser, sampled nearest-pixel.
  */
+/** Area of a polygon given in pixels. */
+const polygonArea = (pts: number[][]): number => {
+  let area = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const [x1, y1] = pts[i];
+    const [x2, y2] = pts[(i + 1) % pts.length];
+    area += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(area) / 2;
+};
+
+/** Sutherland-Hodgman: the part of `subject` inside the convex polygon `clip`. */
+const intersection = (subject: number[][], clip: number[][]): number[][] => {
+  const clockwise = (() => {
+    let a = 0;
+    for (let i = 0; i < clip.length; i++) a += clip[i][0] * clip[(i + 1) % clip.length][1] - clip[(i + 1) % clip.length][0] * clip[i][1];
+    return a > 0;
+  })();
+  let out = subject;
+  for (let i = 0; i < clip.length && out.length; i++) {
+    const [ax, ay] = clip[i];
+    const [bx, by] = clip[(i + 1) % clip.length];
+    const inside = ([x, y]: number[]) => ((bx - ax) * (y - ay) - (by - ay) * (x - ax)) * (clockwise ? 1 : -1) >= 0;
+    const cross = (p: number[], q: number[]) => {
+      const a1 = by - ay, b1 = ax - bx, c1 = a1 * ax + b1 * ay;
+      const a2 = q[1] - p[1], b2 = p[0] - q[0], c2 = a2 * p[0] + b2 * p[1];
+      const d = a1 * b2 - a2 * b1;
+      return d ? [(b2 * c1 - b1 * c2) / d, (a1 * c2 - a2 * c1) / d] : p;
+    };
+    const input = out;
+    out = [];
+    for (let j = 0; j < input.length; j++) {
+      const cur = input[j];
+      const prev = input[(j + input.length - 1) % input.length];
+      if (inside(cur)) {
+        if (!inside(prev)) out.push(cross(prev, cur));
+        out.push(cur);
+      } else if (inside(prev)) {
+        out.push(cross(prev, cur));
+      }
+    }
+  }
+  return out;
+};
+
+/**
+ * How much of a crop is not the sleeve, and how much of the sleeve it misses,
+ * both as fractions of the sleeve's area.
+ */
+const framing = (found: Corners, expected: Corners, width: number, height: number) => {
+  const px = (q: Corners) => q.map(([x, y]) => [x * width, y * height]);
+  const f = px(found), e = px(expected);
+  const shared = polygonArea(intersection(f, e));
+  const sleeve = polygonArea(e);
+  return { border: (polygonArea(f) - shared) / sleeve, clipped: (sleeve - shared) / sleeve };
+};
+
 const crop = async (image: Buffer, width: number, height: number, quad: Corners, name: string) => {
   const [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = quad.map(([x, y]) => [x * width, y * height]);
   const sx = x0 - x1 + x2 - x3, sy = y0 - y1 + y2 - y3;
@@ -131,6 +188,8 @@ const overlay = async (image: Buffer, width: number, height: number, photo: Phot
 const main = async () => {
   const photos: Photo[] = manifest.photos.filter((p: Photo) => !only.length || only.includes(p.name));
   let failures = 0;
+  const borders: number[] = [];
+  const clips: number[] = [];
   let found = 0;
   let wanted = 0;
 
@@ -165,6 +224,17 @@ const main = async () => {
     }
 
     const matches = bestError <= tolerance;
+    if (corners && matches && detection!.confidence >= CONFIDENT) {
+      // Measured against the tightest right answer: a crop that keeps a
+      // case's spine when the artwork alone was acceptable has kept a border.
+      const tightest = Object.values(photo.quads)
+        .filter(q => cornerError(corners, q, info.width, info.height) <= tolerance)
+        .sort((a, b) => polygonArea(a.map(([x, y]) => [x * info.width, y * info.height])) - polygonArea(b.map(([x, y]) => [x * info.width, y * info.height])))[0];
+      const { border, clipped } = framing(corners, tightest, info.width, info.height);
+      borders.push(border);
+      clips.push(clipped);
+      if (verbose) console.log(`    border ${(border * 100).toFixed(1)}%  clipped ${(clipped * 100).toFixed(1)}%`);
+    }
     let verdict: string;
     if (photo.expect === 'sleeve') {
       wanted++;
@@ -185,7 +255,10 @@ const main = async () => {
     if (crops && corners && confident) await crop(data, info.width, info.height, corners, photo.name);
   }
 
+  const mean = (v: number[]) => (v.length ? (v.reduce((a, b) => a + b, 0) / v.length) * 100 : 0);
+  const sorted = [...borders].sort((a, b) => a - b);
   console.log(`\n${found}/${wanted} sleeves found, ${failures} failure(s) in ${photos.length} photos`);
+  console.log(`framing over ${borders.length} right answers: border ${mean(borders).toFixed(1)}% (worst ${((sorted[sorted.length - 1] || 0) * 100).toFixed(1)}%), clipped ${mean(clips).toFixed(1)}%`);
   process.exitCode = failures ? 1 : 0;
 };
 

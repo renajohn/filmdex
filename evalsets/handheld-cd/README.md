@@ -36,7 +36,7 @@ without asking. A decline only means the user frames the photo by hand.
 
 ## Where it stands
 
-68 photos, 42 of which must be found. 37 are found as downloaded and 36 at
+68 photos, 42 of which must be found. 36 are found both as downloaded and at
 4032 px. None of the 26 traps gets a confident answer. The last 16 photos
 were added after the tuning stopped, as a check. 5 of their 6 sleeves were
 found straight away. The sixth was a right answer that hadn't been annotated
@@ -51,6 +51,12 @@ still fails, after further attempts (corner evidence, far-only overrun, pulling 
 | `dark-was-the-night-wood-tilt` | thick box and its shadow on wood of the same colour |
 | `iridescent-case-black-tilt` | empty clear case in steep perspective; its thickness shows |
 | `telaphones-floor`, `adrienne-rich-case-mailer` | one side on the shadow or rim rather than the case, just outside tolerance at one resolution |
+
+Each run also reports framing over the right answers: how much of the crop
+is not the sleeve (border) and how much of the sleeve it misses (clipped), as
+fractions of the sleeve's area, against the tightest acceptable annotation.
+Hand annotation is good to a percent or so per side, so neither gets much
+below 2%. Currently: border 1.7%, clipped 2.3%.
 
 Run with `--crops` and look at `.cache/crops` before trusting the numbers:
 most of the near misses above still make a usable cover.
