@@ -261,10 +261,11 @@
       "name": "starboy-case-handheld-cafe",
       "source": "https://unsplash.com/photos/A4YZ1RsIIYw/download?w=1600",
       "license": "Unsplash License",
-      "notes": "Jewel case held up at 45 degrees in a blurred cafe, about 15% of the frame.",
+      "notes": "Jewel case held up at 45 degrees in a blurred cafe, about 15% of the frame. Like revolver-carpet, the case without its clear hinge strip is also a right answer.",
       "expect": "sleeve",
       "quads": {
-        "case": [[0.45, 0.305], [0.768, 0.495], [0.42, 0.728], [0.108, 0.538]]
+        "case": [[0.45, 0.305], [0.768, 0.495], [0.42, 0.728], [0.108, 0.538]],
+        "without-hinge": [[0.459, 0.297], [0.762, 0.493], [0.437, 0.717], [0.138, 0.517]]
       }
     },
     {
