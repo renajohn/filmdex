@@ -1658,10 +1658,17 @@
   background: #1a1a1a;
   border-radius: 12px;
   padding: 0;
-  max-width: 90vw;
-  max-height: 90vh;
   overflow: auto;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* See App.css: the same cap, from a second stylesheet. Both had to go for a
+   dialog to reach the edges of a phone. */
+@media (min-width: 768px) {
+  .modal-content {
+    max-width: 90vw;
+    max-height: 90vh;
+  }
 }
 
 .modal-header {
