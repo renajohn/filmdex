@@ -1369,6 +1369,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
         }} 
         size={"md" as any}
         centered 
+        fullscreen="md-down"
         style={{ zIndex: 10100 }}
         className="book-detail-modal"
         backdrop={true}

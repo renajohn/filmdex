@@ -226,6 +226,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
       onHide={handleClose}
       size={"md" as any}
       centered
+      fullscreen="md-down"
       style={{ zIndex: 10100 }}
       className="music-detail-modal"
     >

@@ -479,7 +479,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
 
   return (
     <>
-      <Modal show={show} onHide={handleClose} size="lg" centered style={{ zIndex: 10100 }} className="add-music-dialog">
+      <Modal show={show} onHide={handleClose} size="lg" centered fullscreen="md-down" style={{ zIndex: 10100 }} className="add-music-dialog">
       <Modal.Header closeButton className="add-music-dialog-header">
         <Modal.Title>{capturingSleeve ? 'Read the sleeve' : 'Add New Album'}</Modal.Title>
       </Modal.Header>

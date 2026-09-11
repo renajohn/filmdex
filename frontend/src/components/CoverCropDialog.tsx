@@ -189,7 +189,7 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
   const polygon = CORNERS.map(c => `${quad[c][0] * 100}% ${quad[c][1] * 100}%`).join(', ');
 
   return (
-    <Modal show={show} onHide={onCancel} centered size="lg" className="cover-crop-dialog" style={{ zIndex: 10200 }}>
+    <Modal show={show} onHide={onCancel} centered size="lg" fullscreen="md-down" className="cover-crop-dialog" style={{ zIndex: 10200 }}>
       <Modal.Header closeButton>
         <Modal.Title>{slot === 'back' ? 'Straighten the back cover' : 'Straighten the cover'}</Modal.Title>
       </Modal.Header>

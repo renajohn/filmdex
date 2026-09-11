@@ -3373,6 +3373,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
       onHide={onCancel} 
       size="lg" 
       centered 
+      fullscreen="md-down"
       style={{ zIndex: 10100 }}
       className="book-form-modal"
     >
