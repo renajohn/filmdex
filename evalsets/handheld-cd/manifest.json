@@ -526,6 +526,162 @@
       "quads": {
         "sleeve": [[0.148, 0.132], [0.848, 0.132], [0.858, 0.862], [0.148, 0.865]]
       }
+    },
+    {
+      "name": "pulp-case-over-laptop",
+      "source": "https://live.staticflickr.com/7298/12920914154_6742fc55fb.jpg",
+      "license": "CC BY-NC-ND 2.0",
+      "notes": "Jewel case held up at an angle over a laptop, running off the left and bottom of the frame.",
+      "expect": "optional",
+      "quads": {}
+    },
+    {
+      "name": "allison-miller-digipak-handheld",
+      "source": "https://live.staticflickr.com/8125/8656079394_19855ba8ba_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "Digipak held up by a thumb, filling the frame edge to edge.",
+      "expect": "optional",
+      "quads": {
+        "visible": [[0.01, 0.075], [1, 0.08], [1, 1], [0.01, 1]]
+      }
+    },
+    {
+      "name": "glee-case-steep",
+      "source": "https://live.staticflickr.com/4135/4754111752_68b78f0b0f_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "Jewel case in steep perspective and shallow focus, running off the frame.",
+      "expect": "optional",
+      "quads": {}
+    },
+    {
+      "name": "celtic-woman-case-carpet",
+      "source": "https://live.staticflickr.com/7011/6855016241_9d4d402f90_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "Signed jewel case on a beige carpet.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.2, 0.127], [0.805, 0.127], [0.905, 0.873], [0.15, 0.887]],
+        "artwork": [[0.265, 0.14], [0.795, 0.14], [0.855, 0.853], [0.225, 0.853]]
+      }
+    },
+    {
+      "name": "angela-sheik-sleeve-black",
+      "source": "https://live.staticflickr.com/2825/11900181484_68fd71d58c_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "White card sleeve on black.",
+      "expect": "sleeve",
+      "quads": {
+        "sleeve": [[0.158, 0.051], [0.9, 0.04], [0.915, 0.927], [0.138, 0.92]]
+      }
+    },
+    {
+      "name": "rufus-case-on-tshirt",
+      "source": "https://live.staticflickr.com/2046/2397858925_2875c4ae1f_b.jpg",
+      "license": "CC BY-NC-ND 2.0",
+      "notes": "Jewel case rotated on a printed T-shirt, its bottom corner near the frame.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.3, 0.393], [0.795, 0.187], [0.96, 0.767], [0.47, 0.987]],
+        "artwork": [[0.355, 0.376], [0.785, 0.2], [0.94, 0.765], [0.48, 0.953]]
+      }
+    },
+    {
+      "name": "guster-sleeve-sheet",
+      "source": "https://live.staticflickr.com/62/189194910_0831c6d609_b.jpg",
+      "license": "CC BY 2.0",
+      "notes": "Signed card sleeve on a creased white sheet.",
+      "expect": "sleeve",
+      "quads": {
+        "sleeve": [[0.225, 0.12], [0.765, 0.12], [0.8, 0.923], [0.195, 0.938]]
+      }
+    },
+    {
+      "name": "tutu-case-closeup",
+      "source": "https://live.staticflickr.com/8351/8287260554_e721c30ba5.jpg",
+      "license": "CC BY-NC 2.0",
+      "notes": "Jewel case close up in black and white, nearly filling the frame.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.05, 0.095], [0.965, 0.075], [0.985, 0.905], [0.05, 0.915]],
+        "artwork": [[0.16, 0.1], [0.945, 0.095], [0.975, 0.89], [0.16, 0.9]]
+      }
+    },
+    {
+      "name": "street-case-handheld",
+      "source": "https://live.staticflickr.com/7237/7319051884_266bb17cb4.jpg",
+      "license": "CC BY-NC 2.0",
+      "notes": "Jewel case held up in a street, its left side beyond the frame.",
+      "expect": "optional",
+      "quads": {
+        "visible": [[0, 0.135], [0.605, 0.185], [0.555, 0.835], [0, 0.8]]
+      }
+    },
+    {
+      "name": "shaz-case-handheld",
+      "source": "https://live.staticflickr.com/65/195124594_9010175d2c_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "A woman holding a CD-R case up beside her face.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.02, 0.467], [0.405, 0.388], [0.46, 0.841], [0.07, 0.9]],
+        "insert": [[0.06, 0.47], [0.405, 0.405], [0.457, 0.845], [0.111, 0.888]]
+      }
+    },
+    {
+      "name": "brian-lynch-instagram",
+      "source": "https://live.staticflickr.com/5215/5465096649_7f7af12f64.jpg",
+      "license": "CC BY-NC 2.0",
+      "notes": "Signed sleeve filling an Instagram frame.",
+      "expect": "optional",
+      "quads": {
+        "inner": [[0.04, 0.04], [0.96, 0.04], [0.96, 0.96], [0.04, 0.96]]
+      }
+    },
+    {
+      "name": "bastion-instagram",
+      "source": "https://live.staticflickr.com/6146/6191732066_0ef5f10926.jpg",
+      "license": "CC BY-NC-ND 2.0",
+      "notes": "Signed card sleeve filling an Instagram frame.",
+      "expect": "optional",
+      "quads": {
+        "inner": [[0.03, 0.04], [0.97, 0.03], [0.97, 0.96], [0.03, 0.96]]
+      }
+    },
+    {
+      "name": "apj-sleeve-under-photos",
+      "source": "https://live.staticflickr.com/3601/3618836011_55cdf195d3_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "Sleeve on a keyboard, half covered by photographs and cut by the frame.",
+      "expect": "optional",
+      "quads": {}
+    },
+    {
+      "name": "sparkle-sleeve-cut",
+      "source": "https://live.staticflickr.com/7141/6665487341_cae93fa685_b.jpg",
+      "license": "CC BY-NC 2.0",
+      "notes": "Sleeve on patterned fabric, cut off by the bottom of the frame.",
+      "expect": "optional",
+      "quads": {}
+    },
+    {
+      "name": "open-case-handheld",
+      "source": "https://live.staticflickr.com/3042/3267717416_f34fbf8683_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "Open jewel case held flat: signed booklet on one side, disc on the other.",
+      "expect": "optional",
+      "quads": {
+        "booklet": [[0.17, 0.32], [0.51, 0.26], [0.51, 0.8], [0.13, 0.79]]
+      }
+    },
+    {
+      "name": "folded-digipak-standing",
+      "source": "https://live.staticflickr.com/5123/5263653713_2dbdba7222.jpg",
+      "license": "CC BY-NC-ND 2.0",
+      "notes": "Digipak standing half open on a wooden table.",
+      "expect": "optional",
+      "quads": {
+        "front": [[0.075, 0.355], [0.925, 0.215], [0.82, 0.745], [0.195, 0.87]]
+      }
     }
   ]
 }

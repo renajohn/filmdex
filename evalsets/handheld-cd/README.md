@@ -36,14 +36,21 @@ without asking. A decline only means the user frames the photo by hand.
 
 ## Where it stands
 
-52 photos, 36 of which must be found. 30 are found as downloaded and 31 at
-4032 px. None of the 16 traps gets a confident answer. What still fails:
+68 photos, 42 of which must be found. 36 are found both as downloaded and at
+4032 px. None of the 26 traps gets a confident answer. The last 16 photos
+were added after the tuning stopped, as a check. 5 of their 6 sleeves were
+found straight away. The sixth was a right answer that hadn't been annotated
+(the insert rather than the case). Every trap among them was declined. What
+still fails:
 
 | photo | why |
 | --- | --- |
-| `jon-hopkins-sleeve-handheld` | dark sleeve on a dark background, a corner under the thumb: declined |
+| `jon-hopkins-sleeve-handheld` | dark sleeve on a dark background, a corner under the thumb: declined, which is right, since two of its sides barely show |
 | `mika-sleeve-blue-leather` | declined at 4032 px: the right edge barely differs from the sofa |
 | `billy-bragg-sleeve-white` | white sleeve on white; the tilted red print inside wins |
 | `dark-was-the-night-wood-tilt` | thick box and its shadow on wood of the same colour |
 | `iridescent-case-black-tilt` | empty clear case in steep perspective; its thickness shows |
-| `telaphones-floor`, `starboy-case-handheld-cafe` | a mix of case rim and booklet, just outside tolerance |
+| `telaphones-floor`, `starboy-case-handheld-cafe`, `adrienne-rich-case-mailer` | a mix of case rim and booklet, just outside tolerance at one resolution |
+
+Run with `--crops` and look at `.cache/crops` before trusting the numbers:
+most of the near misses above still make a usable cover.
