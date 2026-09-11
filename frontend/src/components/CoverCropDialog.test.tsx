@@ -121,3 +121,23 @@ describe('CoverCropDialog', () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 });
+
+describe('CoverCropDialog — which side is being straightened', () => {
+  beforeEach(() => {
+    (detectSleeveQuad as any).mockReturnValue(null);
+  });
+
+  it('names the front by default', async () => {
+    renderDialog();
+
+    await waitFor(() => expect(screen.getByText('Straighten the cover')).toBeInTheDocument());
+  });
+
+  it('says so when it is the back', async () => {
+    // The back leans exactly as much as the front; the only difference the
+    // user should notice is the title.
+    renderDialog({ slot: 'back' });
+
+    await waitFor(() => expect(screen.getByText('Straighten the back cover')).toBeInTheDocument());
+  });
+});

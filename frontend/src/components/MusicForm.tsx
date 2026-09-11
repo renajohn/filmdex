@@ -540,7 +540,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
    * Only the cover picked through the form goes via the crop step -- the back
    * cover and every other upload keep their existing path untouched.
    */
-  const [croppingFile, setCroppingFile] = useState<File | null>(null);
+  const [cropping, setCropping] = useState<{ file: File; slot: 'front' | 'back' } | null>(null);
 
   const uploadCoverFile = async (file: File, corners?: Quad | null) => {
     if (!file) return;
@@ -596,7 +596,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
     }
   };
 
-  const uploadBackCoverFile = async (file: File) => {
+  const uploadBackCoverFile = async (file: File, corners?: Quad | null) => {
     if (!file) return;
 
     // Clear any previous messages
@@ -625,7 +625,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
     setUploadingCover(true);
 
     try {
-      const result = await musicService.uploadBackCover(cd.id, file) as any;
+      const result = await musicService.uploadBackCover(cd.id, file, corners || undefined) as any;
 
       // Update the back cover preview
       setBackCoverPreview(result.backCoverPath);
@@ -650,13 +650,15 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
     const file = event.target.files?.[0];
     // Cleared so the same photo can be picked again after a cancel.
     event.target.value = '';
-    if (file) setCroppingFile(file);
+    if (file) setCropping({ file, slot: 'front' });
   };
 
   const handleBackCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    // Cleared so the same photo can be picked again after a cancel.
+    event.target.value = '';
     if (file && cd && cd.id) {
-      await uploadBackCoverFile(file);
+      setCropping({ file, slot: 'back' });
     }
   };
 
@@ -687,7 +689,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
     if (cd && cd.id) {
       const files = e.dataTransfer.files;
       if (files && files.length > 0) {
-        setCroppingFile(files[0]);
+        setCropping({ file: files[0], slot: 'front' });
       }
     }
   };
@@ -1668,13 +1670,19 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
     )}
 
       <CoverCropDialog
-        show={Boolean(croppingFile)}
-        file={croppingFile}
-        onCancel={() => setCroppingFile(null)}
+        show={Boolean(cropping)}
+        file={cropping?.file || null}
+        slot={cropping?.slot || 'front'}
+        onCancel={() => setCropping(null)}
         onConfirm={async (corners) => {
-          const file = croppingFile;
-          setCroppingFile(null);
-          if (file) await uploadCoverFile(file, corners);
+          const pending = cropping;
+          setCropping(null);
+          if (!pending) return;
+          if (pending.slot === 'back') {
+            await uploadBackCoverFile(pending.file, corners);
+          } else {
+            await uploadCoverFile(pending.file, corners);
+          }
         }}
       />
   </>
