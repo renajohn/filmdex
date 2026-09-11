@@ -238,6 +238,30 @@ const detectByColour = (image: ImageData): Detection | null => {
   return confidence > 0 ? { quad, confidence } : null;
 };
 
+/**
+ * Push the corners out from the centre by a hair.
+ *
+ * A gradient peaks on the transition itself, and the search works on a
+ * downscaled copy, so the quad lands a little inside the true border. Applied
+ * blind that clips the artwork, which is worse than leaving a sliver of
+ * background: one is a cover with a corner missing, the other is a cover.
+ */
+const expandQuad = (quad: Quad, by = 0.02): Quad => {
+  const pts = [quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft];
+  const cx = pts.reduce((s, p) => s + p[0], 0) / 4;
+  const cy = pts.reduce((s, p) => s + p[1], 0) / 4;
+  const out = (p: Point): Point => [
+    Math.min(1, Math.max(0, cx + (p[0] - cx) * (1 + by))),
+    Math.min(1, Math.max(0, cy + (p[1] - cy) * (1 + by)))
+  ];
+  return {
+    topLeft: out(quad.topLeft),
+    topRight: out(quad.topRight),
+    bottomRight: out(quad.bottomRight),
+    bottomLeft: out(quad.bottomLeft)
+  };
+};
+
 /** The area a quad covers, as a fraction of the frame. */
 const coverageOf = (quad: Quad): number => {
   const pts = [quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft];
@@ -266,7 +290,9 @@ export const detectSleeveQuad = (image: ImageData): Detection | null => {
   // Colour first: when the sleeve does stand out from what it lies on, it
   // places the corners within about a percent, which edges do not match.
   const byColour = detectByColour(image);
-  if (byColour && byColour.confidence >= CONFIDENT) return byColour;
+  if (byColour && byColour.confidence >= CONFIDENT) {
+    return { ...byColour, quad: expandQuad(byColour.quad) };
+  }
 
   // It did not, so look for the rectangle instead. This is the case colour
   // cannot do at all: a sleeve over a floor, a blanket and a hand.
@@ -274,13 +300,13 @@ export const detectSleeveQuad = (image: ImageData): Detection | null => {
     const byEdges = detectByEdges(image);
     if (byEdges) {
       const confidence = shapeConfidence(byEdges, coverageOf(byEdges), image.width / image.height);
-      if (confidence > 0) return { quad: byEdges, confidence };
+      if (confidence > 0) return { quad: expandQuad(byEdges), confidence };
     }
   } catch (_) {
     // An edge search that blows up must not cost us the colour answer.
   }
 
-  return byColour;
+  return byColour ? { ...byColour, quad: expandQuad(byColour.quad) } : null;
 };
 
 export default detectSleeveQuad;
