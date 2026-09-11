@@ -24,14 +24,7 @@ vi.mock('./CoverCropDialog', () => ({
   default: ({ show, slot, onConfirm }: any) =>
     show ? (
       <div data-testid="crop-dialog" data-slot={slot}>
-        <button
-          onClick={() =>
-            onConfirm(
-              { topLeft: [0, 0], topRight: [1, 0], bottomRight: [1, 1], bottomLeft: [0, 1] },
-              new File(['x'], 'confirmed.jpg', { type: 'image/jpeg' })
-            )
-          }
-        >
+        <button onClick={() => onConfirm(new File(['x'], 'confirmed.jpg', { type: 'image/jpeg' }))}>
           confirm crop
         </button>
       </div>
@@ -100,8 +93,9 @@ describe('MusicForm — adjusting a cover already stored', () => {
     await waitFor(() => expect(musicService.uploadBackCover).toHaveBeenCalled());
     // The front must not be touched by adjusting the back.
     expect(musicService.uploadCover).not.toHaveBeenCalled();
-    const [, , corners] = (musicService.uploadBackCover as any).mock.calls[0];
-    expect(corners.bottomRight).toEqual([1, 1]);
+    // Already-straightened pixels, so no second argument to interpret.
+    const [, photo] = (musicService.uploadBackCover as any).mock.calls[0];
+    expect(photo.name).toBe('confirmed.jpg');
   });
 
   it('says so when the stored cover cannot be read', async () => {

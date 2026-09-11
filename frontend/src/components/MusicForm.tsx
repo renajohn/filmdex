@@ -4,7 +4,6 @@ import { BsX, BsUpload, BsMusicNote, BsPlus, BsTrash, BsPencil, BsGripVertical }
 import apiService from '../services/api';
 import musicService from '../services/musicService';
 import CoverCropDialog from './CoverCropDialog';
-import type { Quad } from '../utils/detectSleeveQuad';
 
 interface TrackData {
   trackNumber?: number;
@@ -114,11 +113,17 @@ interface DragTrackState {
 
 interface MusicFormProps {
   cd?: AlbumData | null;
+  /**
+   * Photographs captured before the album exists, shown so the details screen
+   * is not silent about whether they were taken. They are stored by the caller
+   * once there is an id to attach them to.
+   */
+  pendingPhotos?: { front?: { base64: string; mimeType: string } | null; back?: { base64: string; mimeType: string } | null };
   onSave: (data: any) => Promise<void>;
   onCancel: () => void;
 }
 
-const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) => {
+const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave, onCancel }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backCoverInputRef = useRef<HTMLInputElement>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -542,7 +547,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
    */
   const [cropping, setCropping] = useState<{ file: File; slot: 'front' | 'back' } | null>(null);
 
-  const uploadCoverFile = async (file: File, corners?: Quad | null) => {
+  const uploadCoverFile = async (file: File) => {
     if (!file) return;
 
     // Clear any previous messages
@@ -571,7 +576,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
     setUploadingCover(true);
 
     try {
-      const result = await musicService.uploadCover(cd.id, file, corners || undefined) as any;
+      const result = await musicService.uploadCover(cd.id, file) as any;
 
       // Update the cover preview and form data
       setCoverPreview(result.coverPath);
@@ -596,7 +601,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
     }
   };
 
-  const uploadBackCoverFile = async (file: File, corners?: Quad | null) => {
+  const uploadBackCoverFile = async (file: File) => {
     if (!file) return;
 
     // Clear any previous messages
@@ -625,7 +630,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
     setUploadingCover(true);
 
     try {
-      const result = await musicService.uploadBackCover(cd.id, file, corners || undefined) as any;
+      const result = await musicService.uploadBackCover(cd.id, file) as any;
 
       // Update the back cover preview
       setBackCoverPreview(result.backCoverPath);
@@ -720,7 +725,12 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
   const getCoverImageUrl = (type = 'front') => {
     // Use coverPreview if available, otherwise fall back to cd.cover
     const coverPath = type === 'front' ? (coverPreview || cd?.cover) : (backCoverPreview || cd?.backCover);
-    return musicService.getImageUrl(coverPath);
+    if (coverPath) return musicService.getImageUrl(coverPath);
+
+    // Nothing stored yet. A photograph taken moments ago is still worth
+    // showing: without it this screen says nothing about whether it worked.
+    const pending = type === 'front' ? pendingPhotos?.front : pendingPhotos?.back;
+    return pending ? `data:${pending.mimeType};base64,${pending.base64}` : musicService.getImageUrl(coverPath);
   };
 
   return (
@@ -1081,6 +1091,10 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
                               <>
                                 <BsUpload size={12} className="me-1" />
                                 Click or drop to upload
+                              </>
+                            ) : (pendingPhotos?.front || pendingPhotos?.back) ? (
+                              <>
+                                Your photographs are kept and stored when you save
                               </>
                             ) : (
                               <>
@@ -1738,16 +1752,15 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
         file={cropping?.file || null}
         slot={cropping?.slot || 'front'}
         onCancel={() => setCropping(null)}
-        onConfirm={async (corners, photo) => {
+        onConfirm={async (photo) => {
           const pending = cropping;
           setCropping(null);
           if (!pending) return;
-          // `photo`, not `pending.file`: a rotation in the dialog produces a
-          // new image, and the corners belong to that one.
+          // Already straightened: the dialog hands back pixels, not corners.
           if (pending.slot === 'back') {
-            await uploadBackCoverFile(photo, corners);
+            await uploadBackCoverFile(photo);
           } else {
-            await uploadCoverFile(photo, corners);
+            await uploadCoverFile(photo);
           }
         }}
       />

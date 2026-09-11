@@ -13,7 +13,6 @@ import { getDatabase } from '../database';
 import musicCollectionService from '../services/musicCollectionService';
 import smartPlaylistService from '../services/smartPlaylistService';
 import logger from '../logger';
-import { warpQuadToSquare, type Quad } from '../services/sleeveGeometry';
 import type { AlbumFormatted } from '../types';
 
 /**
@@ -23,52 +22,6 @@ import type { AlbumFormatted } from '../types';
  */
 const isClientError = (error: unknown): boolean =>
   (error as { status?: number })?.status === 400;
-
-/**
- * The four corners of the sleeve within the photo, as fractions of its size.
- *
- * Multipart carries everything as text, so this arrives JSON-encoded. Anything
- * malformed is simply ignored: the cover is stored as shot rather than the
- * upload being refused over a crop hint.
- */
-/**
- * Straighten a photographed sleeve in place, if corners came with it.
- *
- * Both covers are shot the same way and lean the same way, so both get the
- * same treatment. Failing is not fatal: the photo is already on disk, and an
- * un-straightened cover beats none.
- */
-const straightenIfRequested = async (filePath: string, raw: unknown, what: string): Promise<void> => {
-  const quad = parseCornersField(raw);
-  if (!quad) return;
-
-  try {
-    const warped = await warpQuadToSquare(fs.readFileSync(filePath), quad, 1000);
-    fs.writeFileSync(filePath, warped);
-    logger.info(`Straightened the ${what} from the supplied corners`);
-  } catch (error) {
-    logger.warn(`Could not straighten the ${what}, keeping it as shot:`, (error as Error).message);
-  }
-};
-
-const parseCornersField = (raw: unknown): Quad | null => {
-  if (typeof raw !== 'string' || !raw.trim()) return null;
-  try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const corner = (key: string): [number, number] | null => {
-      const value = parsed[key];
-      if (!Array.isArray(value) || value.length !== 2) return null;
-      const [x, y] = value.map(Number);
-      return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
-    };
-    const topLeft = corner('topLeft'), topRight = corner('topRight');
-    const bottomRight = corner('bottomRight'), bottomLeft = corner('bottomLeft');
-    if (!topLeft || !topRight || !bottomRight || !bottomLeft) return null;
-    return { topLeft, topRight, bottomRight, bottomLeft };
-  } catch (_) {
-    return null;
-  }
-};
 
 // Configure multer for cover uploads
 const storage = multer.diskStorage({
@@ -572,7 +525,6 @@ const musicController = {
     }
   },
 
-
   /**
    * Read a sleeve from photographs and hand back a draft for the form.
    *
@@ -653,8 +605,6 @@ const musicController = {
       let width = 500;
       let height = 500;
 
-      await straightenIfRequested(file.path, req.body?.corners, `cover of CD ${id}`);
-
       try {
         await imageService.resizeImage(file.path, file.path, 1000, 1000);
 
@@ -711,8 +661,6 @@ const musicController = {
       }
 
       logger.info(`Uploading custom back cover for CD ${id}: ${file.filename}`);
-
-      await straightenIfRequested(file.path, req.body?.corners, `back cover of CD ${id}`);
 
       // Resize the image to max 1200x1200
       let width = 500;

@@ -3,9 +3,10 @@ import { Button, Alert, Spinner } from 'react-bootstrap';
 import { BsCamera, BsCheckCircleFill, BsArrowRepeat } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverCropDialog from './CoverCropDialog';
-import type { Quad } from '../utils/detectSleeveQuad';
 import { downscaleImage } from '../utils/downscaleImage';
 import './SleeveCapture.css';
+
+type Side = 'front' | 'back';
 
 interface Photo {
   base64: string;
@@ -16,10 +17,10 @@ export interface SleeveDraftResult {
   draft: Record<string, unknown>;
   sources: { front: string; back: string };
   truncated: boolean;
-  /** Kept so the caller can upload it once the album has an id. */
-  coverPhoto?: { base64: string; mimeType: string };
-  /** Straightening for that photo, if the user set it here. */
-  coverCorners?: Quad | null;
+  /** Becomes the album cover once it has an id. */
+  coverPhoto?: Photo;
+  /** Becomes the back cover -- the side carrying the list you will proofread. */
+  backPhoto?: Photo;
 }
 
 interface SleeveCaptureProps {
@@ -32,64 +33,75 @@ interface SleeveCaptureProps {
 /**
  * Photograph a sleeve and let the model do the typing.
  *
- * For records no database knows, which is the only reason to be here: the back
- * carries the track list, and reading twelve titles and twelve durations off it
- * is the whole point. The front is optional and only supplies the identity and
- * the cover.
+ * Both sides are treated alike: each is kept as its cover and each can be
+ * straightened here, because a case held in the hand is rarely square to the
+ * camera. The front comes first, since it is the one that becomes the artwork
+ * and the one whose absence used to mean no cover at all.
  */
 const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, onSkip }) => {
-  const [front, setFront] = useState<Photo | null>(initialFront || null);
-  const [back, setBack] = useState<Photo | null>(null);
+  const [photos, setPhotos] = useState<Record<Side, Photo | null>>({
+    front: initialFront || null,
+    back: null
+  });
+  // Which sides the user straightened, for the caption only: the photo itself
+  // already carries the result.
+  const [straightened, setStraightened] = useState<Record<Side, boolean>>({ front: false, back: false });
+  const [cropping, setCropping] = useState<Side | null>(null);
   const [reading, setReading] = useState(false);
   const [error, setError] = useState('');
-  // The photo that will become the cover, and the framing set for it.
-  const [croppingFront, setCroppingFront] = useState<File | null>(null);
-  const [coverCorners, setCoverCorners] = useState<Quad | null>(null);
 
-  // Always mounted: openCamera() clicks these from inside the user's tap, and
-  // iOS refuses that if the input only appears after a state change.
+  // Always mounted: the camera opens by clicking these from inside the user's
+  // tap, and iOS refuses that if the input appears after a state change.
   const frontInput = useRef<HTMLInputElement>(null);
   const backInput = useRef<HTMLInputElement>(null);
-  const photoFile = useRef<File | null>(null);
+  const inputs: Record<Side, React.RefObject<HTMLInputElement | null>> = {
+    front: frontInput,
+    back: backInput
+  };
+  // The originals, full resolution, for the straightening step to work on.
+  const files = useRef<Record<Side, File | null>>({ front: null, back: null });
 
-  const capture = async (file: File, set: (p: Photo) => void) => {
+  const setPhoto = (side: Side, photo: Photo) =>
+    setPhotos(current => ({ ...current, [side]: photo }));
+
+  const capture = async (side: Side, file: File) => {
     setError('');
+    files.current[side] = file;
     try {
-      set(await downscaleImage(file));
+      setPhoto(side, await downscaleImage(file));
     } catch (err) {
       setError(`Could not read that photo: ${(err as Error).message}`);
     }
   };
 
-  const onPick = (
-    event: React.ChangeEvent<HTMLInputElement>,
-    set: (p: Photo) => void
-  ) => {
+  const onPick = (side: Side) => (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     // Cleared so the same photo can be picked again after a retake.
     event.target.value = '';
     if (file) {
-      if (set === setFront) photoFile.current = file;
-      void capture(file, set);
+      setStraightened(current => ({ ...current, [side]: false }));
+      void capture(side, file);
     }
   };
 
   const read = async () => {
-    if (!front && !back) return;
+    if (!photos.front && !photos.back) return;
     setReading(true);
     setError('');
     try {
       const result = await musicService.transcribeSleeve({
-        front: front ? { base64: front.base64, mimeType: front.mimeType } : undefined,
-        back: back ? { base64: back.base64, mimeType: back.mimeType } : undefined
+        front: photos.front ? { base64: photos.front.base64, mimeType: photos.front.mimeType } : undefined,
+        back: photos.back ? { base64: photos.back.base64, mimeType: photos.back.mimeType } : undefined
       }) as SleeveDraftResult;
 
-      // The front photograph is the cover, whether it was taken here or handed
-      // over by a scan that found nothing. A record no database knows has no
-      // artwork to download, so this is the only cover it will ever have --
-      // and the upload endpoint resizes to 1000px anyway, so the image the
-      // model read is already the right size.
-      onDraft({ ...result, coverPhoto: front || undefined, coverCorners });
+      // A record no database knows has no artwork to download, so these photos
+      // are the only covers it will ever have. Both travel, with whatever
+      // framing was set for them.
+      onDraft({
+        ...result,
+        coverPhoto: photos.front || undefined,
+        backPhoto: photos.back || undefined
+      });
     } catch (err) {
       setError((err as Error).message || 'Could not read the sleeve');
     } finally {
@@ -97,55 +109,53 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
     }
   };
 
-  const slot = (
-    label: string,
-    hint: string,
-    photo: Photo | null,
-    inputRef: React.RefObject<HTMLInputElement | null>,
-    isFront = false
-  ) => (
-    <div className="sleeve-capture-slot">
-      <Button
-        variant={photo ? 'outline-success' : 'outline-secondary'}
-        className="sleeve-capture-btn"
-        disabled={reading}
-        onClick={() => inputRef.current?.click()}
-      >
-        {photo ? <BsCheckCircleFill className="me-2" /> : <BsCamera className="me-2" />}
-        {label}
-        {photo && <BsArrowRepeat className="ms-2" title="Take another" />}
-      </Button>
+  const slot = (side: Side, label: string, hint: string) => {
+    const photo = photos[side];
+    const framed = straightened[side];
+    const what = side === 'front' ? 'cover' : 'back cover';
 
-      {photo && (
-        <img
-          className="sleeve-capture-thumb"
-          data-testid={`sleeve-thumb-${isFront ? 'front' : 'back'}`}
-          src={`data:${photo.mimeType};base64,${photo.base64}`}
-          alt={label}
-        />
-      )}
-
-      <div className="sleeve-capture-hint">
-        {photo
-          ? isFront
-            ? coverCorners ? 'This will be the cover, straightened' : 'This will be the cover'
-            : 'Photographed'
-          : hint}
-      </div>
-
-      {photo && isFront && photoFile.current && (
+    return (
+      <div className="sleeve-capture-slot">
         <Button
-          variant="link"
-          size="sm"
-          data-testid="crop-cover"
+          variant={photo ? 'outline-success' : 'outline-secondary'}
+          className="sleeve-capture-btn"
           disabled={reading}
-          onClick={() => setCroppingFront(photoFile.current)}
+          onClick={() => inputs[side].current?.click()}
         >
-          Crop or rotate
+          {photo ? <BsCheckCircleFill className="me-2" /> : <BsCamera className="me-2" />}
+          {label}
+          {photo && <BsArrowRepeat className="ms-2" title="Take another" />}
         </Button>
-      )}
-    </div>
-  );
+
+        {photo && (
+          <img
+            className="sleeve-capture-thumb"
+            data-testid={`sleeve-thumb-${side}`}
+            src={`data:${photo.mimeType};base64,${photo.base64}`}
+            alt={label}
+          />
+        )}
+
+        <div className="sleeve-capture-hint">
+          {photo
+            ? framed ? `The ${what}, straightened` : `This will be the ${what}`
+            : hint}
+        </div>
+
+        {photo && files.current[side] && (
+          <Button
+            variant="link"
+            size="sm"
+            data-testid={`crop-${side}`}
+            disabled={reading}
+            onClick={() => setCropping(side)}
+          >
+            Crop or rotate
+          </Button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="sleeve-capture">
@@ -156,7 +166,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
         capture="environment"
         style={{ display: 'none' }}
         data-testid="sleeve-front-input"
-        onChange={(e) => onPick(e, setFront)}
+        onChange={onPick('front')}
       />
       <input
         ref={backInput}
@@ -165,34 +175,38 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
         capture="environment"
         style={{ display: 'none' }}
         data-testid="sleeve-back-input"
-        onChange={(e) => onPick(e, setBack)}
+        onChange={onPick('back')}
       />
 
       <h6 className="sleeve-capture-title">Fill the form from the sleeve</h6>
       <p className="sleeve-capture-lead">
-        Photograph the back and the track list is read for you. Nothing is saved until you
-        review it.
+        Both photographs are kept as the covers, and the back is where the track list is
+        read from. Nothing is saved until you review it.
       </p>
 
       <div className="sleeve-capture-slots">
-        {slot('Back cover', 'Where the track list is', back, backInput)}
-        {slot('Front cover', 'Optional — for the artwork', front, frontInput, true)}
+        {slot('front', 'Front cover', 'The artwork')}
+        {slot('back', 'Back cover', 'Where the track list is')}
       </div>
 
       {error && <Alert variant="warning" className="mt-3 mb-0">{error}</Alert>}
 
       <CoverCropDialog
-        show={Boolean(croppingFront)}
-        file={croppingFront}
-        onCancel={() => setCroppingFront(null)}
-        onConfirm={async (corners, photo) => {
-          setCroppingFront(null);
-          photoFile.current = photo;
-          setCoverCorners(corners);
-          // The model reads the straightened photo too: a sleeve the right way
-          // up is easier to transcribe than one on its side.
+        show={Boolean(cropping)}
+        file={cropping ? files.current[cropping] : null}
+        slot={cropping || 'front'}
+        onCancel={() => setCropping(null)}
+        onConfirm={async (photo) => {
+          const side = cropping;
+          setCropping(null);
+          if (!side) return;
+
+          files.current[side] = photo;
+          setStraightened(current => ({ ...current, [side]: true }));
+          // The straightened photo replaces the original everywhere: it is the
+          // thumbnail shown, what the model reads, and what gets stored.
           try {
-            setFront(await downscaleImage(photo));
+            setPhoto(side, await downscaleImage(photo));
           } catch (_) { /* keep what we had */ }
         }}
       />
@@ -201,7 +215,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
         <Button variant="link" onClick={onSkip} disabled={reading}>
           Enter it by hand instead
         </Button>
-        <Button onClick={read} disabled={reading || (!front && !back)}>
+        <Button onClick={read} disabled={reading || (!photos.front && !photos.back)}>
           {reading ? (
             <>
               <Spinner as="span" animation="border" size="sm" className="me-2" />
