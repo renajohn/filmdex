@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BsTrash, BsCurrencyDollar, BsClipboard, BsMusicNote, BsFilm, BsBook, BsFileEarmark } from 'react-icons/bs';
 import apiService from '../services/api';
 import musicService from '../services/musicService';
+import { base64ToFile } from '../utils/downscaleImage';
 import bookService from '../services/bookService';
 import MovieThumbnail from '../components/MovieThumbnail';
 import MovieDetailCard from '../components/MovieDetailCard';
@@ -76,6 +77,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
   const [showMusicForm, setShowMusicForm] = useState(false);
   // A form pre-filled from a photographed sleeve; null means a blank form.
   const [sleeveDraft, setSleeveDraft] = useState<any>(null);
+  // The photographed sleeve waits for an album id, which exists only on save.
+  const [pendingCover, setPendingCover] = useState<{ base64: string; mimeType: string } | null>(null);
   const [addingAlbum, setAddingAlbum] = useState(false);
   const [addError, setAddError] = useState('');
   const [showAddBookDialog, setShowAddBookDialog] = useState(false);
@@ -312,6 +315,20 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
       // Set the album status to 'wish' for wish list, preserving all other data
       const albumData = { ...cdData, titleStatus: 'wish' };
       const newAlbum = await musicService.addAlbum(albumData) as any;
+
+      // A record no database knows has no artwork to download, so the
+      // photographed sleeve is the only cover it will ever have. Stored before
+      // the list refreshes, or the grid paints a coverless album.
+      if (pendingCover && newAlbum?.id) {
+        try {
+          const file = base64ToFile(pendingCover.base64, pendingCover.mimeType, 'sleeve.jpg');
+          await musicService.uploadCover(newAlbum.id, file);
+        } catch (err) {
+          console.warn('Could not store the sleeve photo as the cover:', err);
+        } finally {
+          setPendingCover(null);
+        }
+      }
 
       // Refresh the albums list
       loadWishListItems();
@@ -1526,6 +1543,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
           onReviewMetadata={handleReviewMetadata}
           onDraftEntry={(result: any) => {
             setSleeveDraft(result.draft);
+            setPendingCover(result.coverPhoto || null);
             setShowAddMusicDialog(false);
             setShowMusicForm(true);
           }}

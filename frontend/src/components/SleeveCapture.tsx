@@ -5,14 +5,9 @@ import musicService from '../services/musicService';
 import { downscaleImage } from '../utils/downscaleImage';
 import './SleeveCapture.css';
 
-/** The cover is kept larger than the 1024px the vision model reads. */
-const COVER_MAX_EDGE = 1600;
-
 interface Photo {
   base64: string;
   mimeType: string;
-  /** Re-encoded larger, for the album cover. Always JPEG, whatever the camera shot. */
-  cover?: { base64: string; mimeType: string };
 }
 
 export interface SleeveDraftResult {
@@ -52,11 +47,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
   const capture = async (file: File, set: (p: Photo) => void) => {
     setError('');
     try {
-      const [forModel, forCover] = await Promise.all([
-        downscaleImage(file),
-        downscaleImage(file, COVER_MAX_EDGE)
-      ]);
-      set({ ...forModel, cover: forCover });
+      set(await downscaleImage(file));
     } catch (err) {
       setError(`Could not read that photo: ${(err as Error).message}`);
     }
@@ -82,7 +73,12 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
         back: back ? { base64: back.base64, mimeType: back.mimeType } : undefined
       }) as SleeveDraftResult;
 
-      onDraft({ ...result, coverPhoto: front?.cover });
+      // The front photograph is the cover, whether it was taken here or handed
+      // over by a scan that found nothing. A record no database knows has no
+      // artwork to download, so this is the only cover it will ever have --
+      // and the upload endpoint resizes to 1000px anyway, so the image the
+      // model read is already the right size.
+      onDraft({ ...result, coverPhoto: front || undefined });
     } catch (err) {
       setError((err as Error).message || 'Could not read the sleeve');
     } finally {
