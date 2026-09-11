@@ -1738,14 +1738,16 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
         file={cropping?.file || null}
         slot={cropping?.slot || 'front'}
         onCancel={() => setCropping(null)}
-        onConfirm={async (corners) => {
+        onConfirm={async (corners, photo) => {
           const pending = cropping;
           setCropping(null);
           if (!pending) return;
+          // `photo`, not `pending.file`: a rotation in the dialog produces a
+          // new image, and the corners belong to that one.
           if (pending.slot === 'back') {
-            await uploadBackCoverFile(pending.file, corners);
+            await uploadBackCoverFile(photo, corners);
           } else {
-            await uploadCoverFile(pending.file, corners);
+            await uploadCoverFile(photo, corners);
           }
         }}
       />

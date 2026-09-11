@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Button, Spinner } from 'react-bootstrap';
+import { BsArrowCounterclockwise, BsArrowClockwise } from 'react-icons/bs';
 import { detectSleeveQuad, DEFAULT_QUAD, type Quad, type Point } from '../utils/detectSleeveQuad';
 import './CoverCropDialog.css';
 
@@ -18,8 +19,12 @@ interface CoverCropDialogProps {
   /** Which side is being straightened; only changes what the title says. */
   slot?: 'front' | 'back';
   onCancel: () => void;
-  /** The corners as fractions of the displayed image, or null to use it whole. */
-  onConfirm: (corners: Quad | null) => void;
+  /**
+   * The corners as fractions of the displayed image (null to use it whole),
+   * and the photo they belong to -- which is not the one handed in if it was
+   * rotated here.
+   */
+  onConfirm: (corners: Quad | null, photo: File) => void;
 }
 
 /**
@@ -31,25 +36,35 @@ interface CoverCropDialogProps {
  * never fails, and the reason an imperfect detector is safe to ship.
  */
 const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'front', onCancel, onConfirm }) => {
+  // The photo as it currently stands: the one picked, or the one a rotation
+  // produced from it. Everything downstream -- detection, corners, upload --
+  // refers to this and not to the original.
+  const [working, setWorking] = useState<File | null>(null);
   const [src, setSrc] = useState<string | null>(null);
   const [quad, setQuad] = useState<Quad>(DEFAULT_QUAD);
   const [detecting, setDetecting] = useState(false);
   const [autoFound, setAutoFound] = useState<boolean | null>(null);
   const [dragging, setDragging] = useState<keyof Quad | null>(null);
+  const [rotating, setRotating] = useState(false);
   // Hugs the image exactly, so a corner's fraction of this element is the same
   // fraction of the photo -- which is what the server is told to expect.
   const stageRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
-  // Read the file once per dialog opening, detect, and show.
+  // A fresh photo resets everything; a rotation of it does not reopen.
   useEffect(() => {
-    if (!show || !file) return;
+    setWorking(file);
+    setQuad(DEFAULT_QUAD);
+  }, [file]);
+
+  // Read the working file, detect, and show.
+  useEffect(() => {
+    if (!show || !working) return;
     let cancelled = false;
-    const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(working);
     setSrc(url);
     setDetecting(true);
     setAutoFound(null);
-    setQuad(DEFAULT_QUAD);
 
     const image = new Image();
     image.onload = () => {
@@ -89,7 +104,61 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
       cancelled = true;
       URL.revokeObjectURL(url);
     };
-  }, [show, file]);
+  }, [show, working]);
+
+  /**
+   * Turn the photo a quarter turn, pixels and all.
+   *
+   * A sleeve photographed on its side stays on its side however it is cropped,
+   * so this has to happen before the corners mean anything. Redrawing through
+   * a canvas keeps every coordinate in the image's own frame -- a CSS
+   * transform would leave the layout box unrotated and every corner mapping to
+   * undo by hand.
+   */
+  const rotate = useCallback(async (quarterTurns: 1 | -1) => {
+    const image = imageRef.current;
+    if (!image || rotating) return;
+    setRotating(true);
+
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalHeight;
+      canvas.height = image.naturalWidth;
+      const context = canvas.getContext('2d');
+      if (!context) return;
+
+      context.translate(canvas.width / 2, canvas.height / 2);
+      context.rotate((quarterTurns * Math.PI) / 2);
+      context.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
+
+      const turned = await new Promise<Blob | null>(resolve =>
+        canvas.toBlob(resolve, 'image/jpeg', 0.92)
+      );
+      if (!turned) return;
+
+      // The corners turn with the picture, so a crop already placed survives.
+      setQuad(current => {
+        const turn = ([x, y]: Point): Point => (quarterTurns === 1 ? [1 - y, x] : [y, 1 - x]);
+        return quarterTurns === 1
+          ? {
+              topLeft: turn(current.bottomLeft),
+              topRight: turn(current.topLeft),
+              bottomRight: turn(current.topRight),
+              bottomLeft: turn(current.bottomRight)
+            }
+          : {
+              topLeft: turn(current.topRight),
+              topRight: turn(current.bottomRight),
+              bottomRight: turn(current.bottomLeft),
+              bottomLeft: turn(current.topLeft)
+            };
+      });
+
+      setWorking(new File([turned], 'rotated.jpg', { type: 'image/jpeg' }));
+    } finally {
+      setRotating(false);
+    }
+  }, [rotating]);
 
   const moveCorner = useCallback((corner: keyof Quad, clientX: number, clientY: number) => {
     const stage = stageRef.current;
@@ -200,6 +269,29 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
           </div>
         </div>
 
+        <div className="cover-crop-tools">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            data-testid="rotate-left"
+            disabled={!src || rotating || detecting}
+            onClick={() => void rotate(-1)}
+          >
+            <BsArrowCounterclockwise className="me-1" />
+            Rotate left
+          </Button>
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            data-testid="rotate-right"
+            disabled={!src || rotating || detecting}
+            onClick={() => void rotate(1)}
+          >
+            <BsArrowClockwise className="me-1" />
+            Rotate right
+          </Button>
+        </div>
+
         <div className="cover-crop-status">
           {detecting
             ? null
@@ -210,13 +302,13 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
       </Modal.Body>
 
       <Modal.Footer>
-        <Button variant="link" onClick={() => onConfirm(null)}>
+        <Button variant="link" onClick={() => working && onConfirm(null, working)}>
           Use the photo as it is
         </Button>
         <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
-        <Button onClick={() => onConfirm(quad)} disabled={detecting}>
+        <Button onClick={() => working && onConfirm(quad, working)} disabled={detecting || rotating}>
           Straighten and use
         </Button>
       </Modal.Footer>

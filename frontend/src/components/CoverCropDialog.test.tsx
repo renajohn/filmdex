@@ -39,6 +39,9 @@ const photo = () => new File(['x'], 'cover.jpg', { type: 'image/jpeg' });
 const stubCanvas = () => {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
     drawImage: vi.fn(),
+    // Used by the quarter-turn redraw.
+    translate: vi.fn(),
+    rotate: vi.fn(),
     getImageData: () => ({
       data: new Uint8ClampedArray(4),
       width: 1,
@@ -85,7 +88,7 @@ describe('CoverCropDialog', () => {
     await waitFor(() => expect(screen.getByText(/found the sleeve/i)).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
 
-    expect(onConfirm).toHaveBeenCalledWith(DETECTED);
+    expect(onConfirm).toHaveBeenCalledWith(DETECTED, expect.any(File));
   });
 
   it('falls back to a draggable rectangle when it is not sure', async () => {
@@ -96,7 +99,7 @@ describe('CoverCropDialog', () => {
     await waitFor(() => expect(screen.getByText(/could not pick out the sleeve/i)).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
 
-    expect(onConfirm).toHaveBeenCalledWith(DEFAULT_QUAD);
+    expect(onConfirm).toHaveBeenCalledWith(DEFAULT_QUAD, expect.any(File));
   });
 
   it('lets the photo through untouched', async () => {
@@ -107,7 +110,7 @@ describe('CoverCropDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: /use the photo as it is/i }));
 
     // null means "store it as shot", which is the old behaviour.
-    expect(onConfirm).toHaveBeenCalledWith(null);
+    expect(onConfirm).toHaveBeenCalledWith(null, expect.any(File));
   });
 
   it('uploads nothing when cancelled', async () => {
@@ -247,5 +250,54 @@ describe('CoverCropDialog — corners are fractions of the photo, not of the box
 
     const corners = onConfirm.mock.calls[0][0];
     expect(corners.topLeft).toEqual([0, 0]);
+  });
+});
+
+describe('CoverCropDialog — turning a sleeve photographed on its side', () => {
+  beforeEach(() => {
+    (detectSleeveQuad as any).mockReturnValue(null);
+    // A canvas that yields a blob, so a rotation can complete.
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (cb: any) {
+      cb(new Blob(['rotated'], { type: 'image/jpeg' }));
+    } as any);
+  });
+
+  it('offers a quarter turn each way', async () => {
+    renderDialog();
+
+    await waitFor(() => expect(screen.getByTestId('rotate-left')).toBeEnabled());
+    expect(screen.getByTestId('rotate-right')).toBeEnabled();
+  });
+
+  it('uploads the turned photo, not the one it was handed', async () => {
+    // A sleeve shot sideways stays sideways however it is cropped, so the
+    // rotation has to reach the server as pixels.
+    const { onConfirm } = renderDialog();
+    await waitFor(() => expect(screen.getByTestId('rotate-right')).toBeEnabled());
+
+    fireEvent.click(screen.getByTestId('rotate-right'));
+    await waitFor(() => expect(HTMLCanvasElement.prototype.toBlob).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
+
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled());
+    const [, photo] = onConfirm.mock.calls[0];
+    expect(photo.name).toBe('rotated.jpg');
+  });
+
+  it('turns the corners with the picture', async () => {
+    // A crop already placed must still sit on the sleeve after a quarter turn.
+    const { onConfirm } = renderDialog();
+    await waitFor(() => expect(screen.getByTestId('rotate-right')).toBeEnabled());
+
+    fireEvent.click(screen.getByTestId('rotate-right'));
+    await waitFor(() => expect(HTMLCanvasElement.prototype.toBlob).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
+
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled());
+    const [corners] = onConfirm.mock.calls[0];
+    // The default inset is symmetric, so a quarter turn maps it onto itself.
+    expect(corners.topLeft[0]).toBeCloseTo(0.1, 5);
+    expect(corners.bottomRight[0]).toBeCloseTo(0.9, 5);
   });
 });
