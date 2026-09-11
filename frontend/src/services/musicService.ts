@@ -517,10 +517,13 @@ class MusicService {
     }
   }
 
-  async uploadBackCover(albumId: number | string, file: File): Promise<unknown> {
+  /** As uploadCover, for the back. `corners` straighten a photographed sleeve. */
+  async uploadBackCover(albumId: number | string, file: File, corners?: unknown): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();
       const formData = new FormData();
+      // Appended before the file: multer streams the parts in order.
+      if (corners) formData.append('corners', JSON.stringify(corners));
       // Backend middleware expects the field name 'cover' for both endpoints
       formData.append('cover', file);
 

@@ -11,6 +11,8 @@ const CONFIDENT = 0.6;
 interface CoverCropDialogProps {
   show: boolean;
   file: File | null;
+  /** Which side is being straightened; only changes what the title says. */
+  slot?: 'front' | 'back';
   onCancel: () => void;
   /** The corners as fractions of the displayed image, or null to use it whole. */
   onConfirm: (corners: Quad | null) => void;
@@ -24,7 +26,7 @@ interface CoverCropDialogProps {
  * confirmation rather than applied silently. Dragging is the fallback that
  * never fails, and the reason an imperfect detector is safe to ship.
  */
-const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, onCancel, onConfirm }) => {
+const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'front', onCancel, onConfirm }) => {
   const [src, setSrc] = useState<string | null>(null);
   const [quad, setQuad] = useState<Quad>(DEFAULT_QUAD);
   const [detecting, setDetecting] = useState(false);
@@ -113,7 +115,7 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, onCancel,
   return (
     <Modal show={show} onHide={onCancel} centered size="lg" className="cover-crop-dialog" style={{ zIndex: 10200 }}>
       <Modal.Header closeButton>
-        <Modal.Title>Straighten the cover</Modal.Title>
+        <Modal.Title>{slot === 'back' ? 'Straighten the back cover' : 'Straighten the cover'}</Modal.Title>
       </Modal.Header>
 
       <Modal.Body>
