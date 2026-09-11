@@ -100,11 +100,13 @@ describe('detectSleeveQuad', () => {
     expect(maxError(found!.quad, uprightQuad())).toBeLessThan(0.05);
   });
 
-  it('declines a dark sleeve on a dark table instead of guessing', () => {
-    // The case it genuinely cannot do. Saying so is the correct answer.
+  it('finds a dark sleeve on a dark table, which colour alone cannot', () => {
+    // Separating by brightness fails here -- 20 against 26 is noise. The edges
+    // are still there, and they are what a rectangle is made of.
     const found = detectSleeveQuad(scene({ background: [26, 26, 30], sleeve: [20, 20, 24] }));
 
-    expect(found === null || found.confidence < 0.6).toBe(true);
+    expect(found).not.toBeNull();
+    expect(maxError(found!.quad, uprightQuad())).toBeLessThan(0.03);
   });
 
   it('declines a photo with no sleeve in it at all', () => {
@@ -136,5 +138,42 @@ describe('detectSleeveQuad', () => {
 
     // Equal in pixels: width fractions span a narrower axis.
     expect(width * 3).toBeCloseTo(height * 4, 2);
+  });
+});
+
+describe('detectSleeveQuad on a photo that is not square', () => {
+  /** A sleeve filling most of a 3:4 frame, as a phone photograph gives. */
+  const portraitScene = (): ImageData => {
+    const W = 750, H = 1000;
+    const data = new Uint8ClampedArray(W * H * 4);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        // A true square: 600px on both sides, centred.
+        const inside = x > 75 && x < 675 && y > 200 && y < 800;
+        const v = inside ? 30 : 190;
+        const i = (y * W + x) * 4;
+        data[i] = v; data[i + 1] = v; data[i + 2] = v; data[i + 3] = 255;
+      }
+    }
+    return { data, width: W, height: H, colorSpace: 'srgb' } as ImageData;
+  };
+
+  it('does not mark a square sleeve down for the shape of the photo', () => {
+    // Judged in fractions, this square spans 0.8 of the width against 0.6 of
+    // the height and looks half again too wide. Every phone photo is 3:4, so
+    // every honest detection was being scored as doubtful.
+    const found = detectSleeveQuad(portraitScene());
+
+    expect(found).not.toBeNull();
+    expect(found!.confidence).toBeGreaterThan(0.6);
+  });
+
+  it('places the corners where the sleeve actually is', () => {
+    const found = detectSleeveQuad(portraitScene());
+
+    expect(found!.quad.topLeft[0]).toBeCloseTo(0.1, 1);
+    expect(found!.quad.topLeft[1]).toBeCloseTo(0.2, 1);
+    expect(found!.quad.bottomRight[0]).toBeCloseTo(0.9, 1);
+    expect(found!.quad.bottomRight[1]).toBeCloseTo(0.8, 1);
   });
 });

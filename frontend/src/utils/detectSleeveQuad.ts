@@ -1,17 +1,20 @@
 /**
  * Finding the sleeve in a photograph.
  *
- * A sleeve is a rectangle lying on something else, so the search is: separate
- * it from its background, keep the one region that is plausibly the sleeve,
- * and read its corners off as the extreme points along the four diagonals --
- * which is where the corners of a rotated rectangle sit.
+ * Two ways of looking. Colour separation -- the region that differs from the
+ * border of the frame, cornered by its extremes along the diagonals -- is
+ * exact on a plain table and hopeless on a busy one. The edge search in
+ * detectByEdges does not care what is behind, only that a rectangle has four
+ * straight sides. Colour's answer is handed to the edge search as one more
+ * candidate, and every candidate is judged the same way: by whether the
+ * picture really has an edge along each of its sides.
  *
- * It works when the sleeve and the surface differ, and fails when they do not:
- * a black jewel case on a dark table is the case it cannot do. Measured on
- * rendered scenes, corners land within about 1% of truth on a light table and
- * nowhere near on a dark one. So it reports a confidence and declines rather
- * than guessing, and the caller shows the result for confirmation either way.
+ * Measured on real photographs in evalsets/handheld-cd. It reports a
+ * confidence and declines rather than guessing, and the caller shows the
+ * result for confirmation either way.
  */
+
+import { detectByEdges } from './detectByEdges';
 
 export type Point = [number, number];
 
@@ -58,6 +61,9 @@ export const defaultQuad = (aspect = 1): Quad => {
 export const DEFAULT_QUAD: Quad = defaultQuad(1);
 
 const WORK_SIZE = 200;
+
+/** Above this a detection is trustworthy enough to use without asking again. */
+export const CONFIDENT = 0.6;
 
 /** Greyscale at a reduced size: detail only slows this down and adds noise. */
 const toGrey = (image: ImageData): { grey: Uint8Array; w: number; h: number } => {
@@ -160,9 +166,19 @@ const cornersOf = (mask: Uint8Array, w: number, h: number): Quad | null => {
   return found as Quad;
 };
 
-/** How much this looks like a rectangle photographed straight-ish on. */
-const shapeConfidence = (quad: Quad, coverage: number): number => {
-  const pts = [quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft];
+/**
+ * How much this looks like a rectangle photographed straight-ish on.
+ *
+ * Measured in pixels, not in fractions of the frame. On a 3:4 photograph -- so
+ * on every photograph a phone takes -- a true square spans 0.8 of the width
+ * against 0.6 of the height, and judging that shape by its fractions scores it
+ * as half again too wide. Every honest detection was being marked down for the
+ * shape of the photo it came from.
+ */
+const shapeConfidence = (quad: Quad, coverage: number, aspect = 1): number => {
+  // Back into proportional pixels: x spans `aspect` for every 1 of y.
+  const pts = [quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft]
+    .map(([x, y]) => [x * aspect, y] as Point);
 
   const sides: number[] = [];
   for (let i = 0; i < 4; i++) {
@@ -195,13 +211,8 @@ const shapeConfidence = (quad: Quad, coverage: number): number => {
   return squareness * cornersScore * framing;
 };
 
-/**
- * Locate the sleeve, or say it could not.
- *
- * Returns null rather than a poor guess; the caller falls back to DEFAULT_QUAD
- * so there is always something on screen to drag.
- */
-export const detectSleeveQuad = (image: ImageData): Detection | null => {
+/** Separating the sleeve from its background by colour. */
+const detectByColour = (image: ImageData): Detection | null => {
   const { grey, w, h } = toGrey(image);
   if (w < 16 || h < 16) return null;
 
@@ -218,8 +229,61 @@ export const detectSleeveQuad = (image: ImageData): Detection | null => {
   const quad = cornersOf(mask, w, h);
   if (!quad) return null;
 
-  const confidence = shapeConfidence(quad, size / (w * h));
+  const confidence = shapeConfidence(quad, size / (w * h), w / h);
   return confidence > 0 ? { quad, confidence } : null;
+};
+
+/**
+ * Push the corners out from the centre by a hair.
+ *
+ * For the colour answer only, whose corners are the outermost pixels of a
+ * blob on a coarse grid and land a little inside the true border. The edge
+ * search settles each side onto the edge itself, and padding that outwards
+ * only put a band of table round every cover.
+ */
+const expandQuad = (quad: Quad, by = 0.02): Quad => {
+  const pts = [quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft];
+  const cx = pts.reduce((s, p) => s + p[0], 0) / 4;
+  const cy = pts.reduce((s, p) => s + p[1], 0) / 4;
+  const out = (p: Point): Point => [
+    Math.min(1, Math.max(0, cx + (p[0] - cx) * (1 + by))),
+    Math.min(1, Math.max(0, cy + (p[1] - cy) * (1 + by)))
+  ];
+  return {
+    topLeft: out(quad.topLeft),
+    topRight: out(quad.topRight),
+    bottomRight: out(quad.bottomRight),
+    bottomLeft: out(quad.bottomLeft)
+  };
+};
+
+/**
+ * Locate the sleeve, or say it could not.
+ *
+ * Returns null, or a low confidence, rather than a poor guess; the caller
+ * falls back to a centred square so there is always something to drag.
+ */
+export const detectSleeveQuad = (image: ImageData): Detection | null => {
+  const byColour = detectByColour(image);
+
+  // Whatever colour found is only a proposal. Judged by its shape alone it
+  // passed for a sleeve when it was a sleeve and a gadget merged into one
+  // blob; judged by whether the picture has an edge along each of its sides,
+  // it does not.
+  try {
+    const byEdges = detectByEdges(image, byColour ? [byColour.quad] : []);
+    // Used as found: its sides already sit on the sleeve's edges. Measured on
+    // the evalset, 2% of padding tripled the table left round each cover
+    // (4.5% of its area against 1.7%) to spare a clipping that did not show.
+    if (byEdges) return byEdges;
+  } catch (_) {
+    // An edge search that blows up must not cost us the colour answer.
+  }
+
+  // Unconfirmed, so never confident: a starting point for dragging at most.
+  return byColour
+    ? { quad: expandQuad(byColour.quad), confidence: Math.min(byColour.confidence, CONFIDENT / 2) }
+    : null;
 };
 
 export default detectSleeveQuad;

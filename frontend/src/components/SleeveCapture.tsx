@@ -1,9 +1,11 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button, Alert, Spinner } from 'react-bootstrap';
 import { BsCamera, BsCheckCircleFill, BsArrowRepeat } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverCropDialog from './CoverCropDialog';
-import { downscaleImage } from '../utils/downscaleImage';
+import { downscaleImage, base64ToFile } from '../utils/downscaleImage';
+import { detectSleeveQuad, CONFIDENT } from '../utils/detectSleeveQuad';
+import { warpQuad } from '../utils/warpQuad';
 import './SleeveCapture.css';
 
 type Side = 'front' | 'back';
@@ -60,17 +62,117 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
   };
   // The originals, full resolution, for the straightening step to work on.
   const files = useRef<Record<Side, File | null>>({ front: null, back: null });
+  // A ref write does not redraw, and the crop button depends on there being a
+  // file. Without this the button never appeared for a photo whose detection
+  // declined, because nothing else changed to trigger a render.
+  const [hasFile, setHasFile] = useState<Record<Side, boolean>>({ front: false, back: false });
+
+  // Which sides have had a photo taken on this screen, as opposed to handed
+  // over by the scan.
+  const takenHere = useRef<Record<Side, boolean>>({ front: false, back: false });
+
+  const keepFile = (side: Side, file: File) => {
+    files.current[side] = file;
+    setHasFile(current => (current[side] ? current : { ...current, [side]: true }));
+  };
 
   const setPhoto = (side: Side, photo: Photo) =>
     setPhotos(current => ({ ...current, [side]: photo }));
 
+  /**
+   * A front handed over by a scan that found nothing gets the same treatment
+   * as one taken here.
+   *
+   * It arrives as base64 rather than a file, straight into state, so it used
+   * to reach neither the detector nor the crop button -- the one photograph
+   * already on screen was the one photograph nothing could be done with.
+   */
+  useEffect(() => {
+    // Not "is there a file already": React mounts this twice in development,
+    // and the first run both keeps a file and is cancelled, so the second
+    // found the file and gave up -- the scanned photo was never straightened.
+    // Only a photo taken here should stop it.
+    if (!initialFront?.base64 || takenHere.current.front) return;
+
+    const file = base64ToFile(initialFront.base64, initialFront.mimeType, 'scanned-front.jpg');
+    keepFile('front', file);
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const straightenedFile = await autoStraighten(file);
+        if (cancelled || takenHere.current.front || !straightenedFile) return;
+        keepFile('front', straightenedFile);
+        setStraightened(current => ({ ...current, front: true }));
+        setPhoto('front', await downscaleImage(straightenedFile));
+      } catch (_) {
+        // The photo is already on screen; failing to improve it is not worth
+        // interrupting anyone over.
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFront?.base64]);
+
+  /**
+   * Take a photograph, and straighten it if the sleeve can be found in it.
+   *
+   * Done here rather than waiting for the crop dialog to be opened: a detector
+   * nothing triggers is a detector that never runs, and the whole point is that
+   * the common case should need no taps at all. Anything less than convincing
+   * is left alone for the user to frame by hand.
+   */
   const capture = async (side: Side, file: File) => {
     setError('');
-    files.current[side] = file;
+    takenHere.current[side] = true;
+    keepFile(side, file);
+
     try {
       setPhoto(side, await downscaleImage(file));
     } catch (err) {
       setError(`Could not read that photo: ${(err as Error).message}`);
+      return;
+    }
+
+    try {
+      const straightenedFile = await autoStraighten(file);
+      if (straightenedFile) {
+        keepFile(side, straightenedFile);
+        setStraightened(current => ({ ...current, [side]: true }));
+        setPhoto(side, await downscaleImage(straightenedFile));
+      }
+    } catch (_) {
+      // The untouched photo is already shown; failing to improve it is not
+      // worth interrupting anyone over.
+    }
+  };
+
+  /** The sleeve cut out of a photograph, or null if it could not be found. */
+  const autoStraighten = async (file: File): Promise<File | null> => {
+    const url = URL.createObjectURL(file);
+    try {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('decode failed'));
+        img.src = url;
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) return null;
+      context.drawImage(image, 0, 0);
+
+      const found = detectSleeveQuad(context.getImageData(0, 0, canvas.width, canvas.height));
+      if (!found || found.confidence < CONFIDENT) return null;
+
+      const cropped = await warpQuad(image, found.quad);
+      return new File([cropped], 'sleeve.jpg', { type: 'image/jpeg' });
+    } finally {
+      URL.revokeObjectURL(url);
     }
   };
 
@@ -138,11 +240,11 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
 
         <div className="sleeve-capture-hint">
           {photo
-            ? framed ? `The ${what}, straightened` : `This will be the ${what}`
+            ? framed ? `The ${what}, straightened for you` : `This will be the ${what}`
             : hint}
         </div>
 
-        {photo && files.current[side] && (
+        {photo && hasFile[side] && (
           <Button
             variant="link"
             size="sm"
@@ -201,7 +303,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
           setCropping(null);
           if (!side) return;
 
-          files.current[side] = photo;
+          keepFile(side, photo);
           setStraightened(current => ({ ...current, [side]: true }));
           // The straightened photo replaces the original everywhere: it is the
           // thumbnail shown, what the model reads, and what gets stored.

@@ -1,14 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Button, Spinner } from 'react-bootstrap';
 import { BsArrowCounterclockwise, BsArrowClockwise } from 'react-icons/bs';
-import { detectSleeveQuad, defaultQuad, DEFAULT_QUAD, type Quad, type Point } from '../utils/detectSleeveQuad';
+import { detectSleeveQuad, defaultQuad, DEFAULT_QUAD, CONFIDENT, type Quad, type Point } from '../utils/detectSleeveQuad';
 import { warpQuad } from '../utils/warpQuad';
 import './CoverCropDialog.css';
 
 const CORNERS: Array<keyof Quad> = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
-
-/** Above this the corners are trustworthy enough to say so on screen. */
-const CONFIDENT = 0.6;
 
 /** The magnified view shown while a corner is held under a finger. */
 const LOUPE_SIZE = 128;
