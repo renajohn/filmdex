@@ -161,36 +161,53 @@ const ImageService = {
   },
 
   /**
-   * Resize an image to max dimensions while maintaining aspect ratio
+   * Resize an image to max dimensions while maintaining aspect ratio.
+   *
+   * A phone writes the sensor's pixels plus an EXIF tag saying which way up
+   * they go, and resizing drops that tag. So the rotation is baked into the
+   * pixels first -- otherwise every cover photographed in portrait is stored,
+   * and shown, lying on its side. That applies even when the photo is small
+   * enough to need no resizing at all, which is why this no longer returns
+   * early on the size check alone.
    */
   resizeImage: async (sourcePath: string, destPath: string, maxWidth: number = 1200, maxHeight: number = 1200): Promise<boolean> => {
     try {
       const image = sharp(sourcePath);
       const metadata = await image.metadata();
 
-      // Only resize if image is larger than max dimensions
-      if ((metadata.width ?? 0) > maxWidth || (metadata.height ?? 0) > maxHeight) {
-        logger.debug(`Resizing image from ${metadata.width}x${metadata.height} to max ${maxWidth}x${maxHeight}`);
+      const needsResize = (metadata.width ?? 0) > maxWidth || (metadata.height ?? 0) > maxHeight;
+      // Orientation 1 (and an absent tag) means the pixels are already upright.
+      const needsRotation = Boolean(metadata.orientation) && metadata.orientation !== 1;
 
-        // Create a temporary file for the resize operation
-        const tempPath = destPath + '.tmp';
-
-        await image
-          .resize(maxWidth, maxHeight, {
-            fit: 'inside',
-            withoutEnlargement: true
-          })
-          .jpeg({ quality: 90 })
-          .toFile(tempPath);
-
-        // Replace the original file with the resized version
-        fs.renameSync(tempPath, destPath);
-
-        return true; // Image was resized
-      } else {
-        logger.debug(`Image ${metadata.width}x${metadata.height} is within limits, no resize needed`);
-        return false; // Image was not resized
+      if (!needsResize && !needsRotation) {
+        logger.debug(`Image ${metadata.width}x${metadata.height} is within limits and upright, nothing to do`);
+        return false;
       }
+
+      if (needsResize) {
+        logger.debug(`Resizing image from ${metadata.width}x${metadata.height} to max ${maxWidth}x${maxHeight}`);
+      }
+      if (needsRotation) {
+        logger.debug(`Baking EXIF orientation ${metadata.orientation} into ${sourcePath}`);
+      }
+
+      // Written aside first: sharp cannot read and overwrite the same file.
+      const tempPath = destPath + '.tmp';
+
+      await image
+        // No argument: apply whatever the EXIF tag says, before resizing, so
+        // the max dimensions apply to the image the right way up.
+        .rotate()
+        .resize(needsResize ? maxWidth : null, needsResize ? maxHeight : null, {
+          fit: 'inside',
+          withoutEnlargement: true
+        })
+        .jpeg({ quality: 90 })
+        .toFile(tempPath);
+
+      fs.renameSync(tempPath, destPath);
+
+      return needsResize;
     } catch (error) {
       logger.error(`Error resizing image ${sourcePath}:`, error);
       throw error;
