@@ -8,6 +8,10 @@ const CORNERS: Array<keyof Quad> = ['topLeft', 'topRight', 'bottomRight', 'botto
 /** Above this the corners are trustworthy enough to say so on screen. */
 const CONFIDENT = 0.6;
 
+/** The magnified view shown while a corner is held under a finger. */
+const LOUPE_SIZE = 128;
+const LOUPE_ZOOM = 3;
+
 interface CoverCropDialogProps {
   show: boolean;
   file: File | null;
@@ -32,7 +36,10 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
   const [detecting, setDetecting] = useState(false);
   const [autoFound, setAutoFound] = useState<boolean | null>(null);
   const [dragging, setDragging] = useState<keyof Quad | null>(null);
-  const frameRef = useRef<HTMLDivElement>(null);
+  // Hugs the image exactly, so a corner's fraction of this element is the same
+  // fraction of the photo -- which is what the server is told to expect.
+  const stageRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
 
   // Read the file once per dialog opening, detect, and show.
   useEffect(() => {
@@ -85,9 +92,9 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
   }, [show, file]);
 
   const moveCorner = useCallback((corner: keyof Quad, clientX: number, clientY: number) => {
-    const frame = frameRef.current;
-    if (!frame) return;
-    const box = frame.getBoundingClientRect();
+    const stage = stageRef.current;
+    if (!stage) return;
+    const box = stage.getBoundingClientRect();
     const x = Math.min(1, Math.max(0, (clientX - box.left) / box.width));
     const y = Math.min(1, Math.max(0, (clientY - box.top) / box.height));
     setQuad(current => ({ ...current, [corner]: [x, y] as Point }));
@@ -119,8 +126,17 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
       </Modal.Header>
 
       <Modal.Body>
-        <div className="cover-crop-frame" ref={frameRef}>
-          {src && <img src={src} alt="Cover to straighten" className="cover-crop-image" draggable={false} />}
+        <div className="cover-crop-frame">
+          <div className="cover-crop-stage" ref={stageRef}>
+          {src && (
+            <img
+              ref={imageRef}
+              src={src}
+              alt="Cover to straighten"
+              className="cover-crop-image"
+              draggable={false}
+            />
+          )}
 
           {src && (
             <>
@@ -148,12 +164,40 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
             </>
           )}
 
+          {dragging && src && (() => {
+            // A finger covers the very point it is placing, so show what is
+            // underneath it, magnified, in whichever corner the finger is not.
+            const [cx, cy] = quad[dragging];
+            const box = imageRef.current?.getBoundingClientRect();
+            if (!box) return null;
+
+            const width = box.width * LOUPE_ZOOM;
+            const height = box.height * LOUPE_ZOOM;
+            const px = cx * box.width;
+            const py = cy * box.height;
+
+            return (
+              <div
+                className={`cover-crop-loupe ${cx < 0.5 ? 'right' : 'left'}`}
+                data-testid="crop-loupe"
+                style={{
+                  backgroundImage: `url(${src})`,
+                  backgroundSize: `${width}px ${height}px`,
+                  backgroundPosition: `${LOUPE_SIZE / 2 - px * LOUPE_ZOOM}px ${LOUPE_SIZE / 2 - py * LOUPE_ZOOM}px`
+                }}
+              >
+                <div className="cover-crop-loupe-cross" />
+              </div>
+            );
+          })()}
+
           {detecting && (
             <div className="cover-crop-detecting">
               <Spinner animation="border" size="sm" className="me-2" />
               Looking for the sleeve…
             </div>
           )}
+          </div>
         </div>
 
         <div className="cover-crop-status">
