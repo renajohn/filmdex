@@ -1,0 +1,531 @@
+{
+  "about": "Real photographs of CD sleeves, for detectSleeveQuad. Images are not committed: run.ts downloads them into .cache/img from `source`. Corners are image fractions [x, y], annotated by eye on a 5% grid, clockwise from the sleeve's top left. `expect: sleeve` must be found and match one of `quads`; `expect: optional` may be declined, but a confident answer must still match one of `quads` (none listed: any confident answer is wrong).",
+  "tolerance": 0.07,
+  "photos": [
+    {
+      "name": "winger-hand",
+      "source": "https://live.staticflickr.com/154/437196494_0f4de156e0_b.jpg",
+      "license": "CC BY",
+      "notes": "Double jewel case held in a hand, tilted, desk and books behind.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.305, 0.02], [0.945, 0.245], [0.83, 0.995], [0.16, 0.835]],
+        "artwork": [[0.355, 0.04], [0.945, 0.245], [0.83, 0.995], [0.235, 0.82]]
+      }
+    },
+    {
+      "name": "revolver-carpet",
+      "source": "https://live.staticflickr.com/142/342363690_b551bb87a1_b.jpg",
+      "license": "CC BY",
+      "notes": "Jewel case on a beige carpet below a dark LCD gadget.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.09, 0.4], [0.853, 0.4], [0.853, 0.895], [0.09, 0.895]],
+        "artwork": [[0.187, 0.405], [0.835, 0.405], [0.835, 0.89], [0.187, 0.89]]
+      }
+    },
+    {
+      "name": "telaphones-floor",
+      "source": "https://live.staticflickr.com/3336/3500025227_f7c76d5de5_b.jpg",
+      "license": "CC BY",
+      "notes": "Jewel case rotated ~30 degrees on a parquet floor, a second case behind it.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.4, 0.295], [0.98, 0.51], [0.787, 0.96], [0.04, 0.66]],
+        "booklet": [[0.416, 0.326], [0.932, 0.515], [0.75, 0.937], [0.076, 0.69]]
+      }
+    },
+    {
+      "name": "empty-case-black",
+      "source": "https://live.staticflickr.com/2226/3540043003_e7308abd71.jpg",
+      "license": "CC BY",
+      "notes": "Empty transparent jewel case, rotated, lit on black.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.178, 0.049], [0.965, 0.224], [0.815, 0.972], [0.035, 0.786]]
+      }
+    },
+    {
+      "name": "iridescent-black",
+      "source": "https://live.staticflickr.com/2488/5722381735_7bede390a8_b.jpg",
+      "license": "CC BY",
+      "notes": "Jewel case in polarised light on black, bottom edge on the frame.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.215, 0.09], [0.8, 0.09], [0.8, 0.995], [0.215, 0.995]]
+      }
+    },
+    {
+      "name": "lynda-carter",
+      "source": "https://live.staticflickr.com/5184/5625829563_413b0d4cd5_b.jpg",
+      "license": "CC BY-ND",
+      "notes": "White card sleeve nearly filling the frame on a wooden table.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.095, 0.027], [0.87, 0.033], [0.905, 0.993], [0.045, 0.993]]
+      }
+    },
+    {
+      "name": "dvd-and-cd",
+      "source": "https://live.staticflickr.com/5102/5626416324_7c9b7ac8e6_b.jpg",
+      "license": "CC BY-ND",
+      "notes": "Card CD sleeve beside a taller DVD box on a wooden table. The DVD is not a sleeve.",
+      "expect": "optional",
+      "quads": {
+        "cd": [[0.54, 0.22], [0.945, 0.233], [0.962, 0.72], [0.533, 0.713]]
+      }
+    },
+    {
+      "name": "two-cds-desk",
+      "source": "https://live.staticflickr.com/5/6068901_3928ed1654.jpg",
+      "license": "CC BY-NC",
+      "notes": "Two jewel cases side by side on a desk, each under a tenth of the frame.",
+      "expect": "optional",
+      "quads": {
+        "right": [[0.495, 0.48], [0.84, 0.513], [0.9, 0.867], [0.47, 0.82]],
+        "left": [[0.11, 0.6], [0.455, 0.493], [0.495, 0.833], [0.15, 0.96]],
+        "right-booklet": [[0.52, 0.482], [0.834, 0.504], [0.901, 0.837], [0.524, 0.802]]
+      }
+    },
+    {
+      "name": "bubble-wrap",
+      "source": "https://live.staticflickr.com/3270/2851276170_4470f3cf79_b.jpg",
+      "license": "CC BY-SA",
+      "notes": "Two cases on bubble wrap next to a keyboard.",
+      "expect": "optional",
+      "quads": {
+        "black": [[0.38, 0.493], [0.655, 0.287], [0.88, 0.687], [0.525, 0.953]],
+        "white": [[0.16, 0.1], [0.465, 0.12], [0.395, 0.5], [0.07, 0.453]]
+      }
+    },
+    {
+      "name": "garbage-closeup",
+      "source": "https://live.staticflickr.com/7275/13286686795_7256857956.jpg",
+      "license": "CC BY-NC-SA",
+      "notes": "Scan of a jewel case running off the frame; only the artwork has four edges.",
+      "expect": "optional",
+      "quads": {
+        "artwork": [[0.1, 0.01], [0.955, 0.01], [0.955, 0.985], [0.1, 0.985]]
+      }
+    },
+    {
+      "name": "last-kiss",
+      "source": "https://live.staticflickr.com/3042/2615144220_00a801fd66_b.jpg",
+      "license": "CC BY",
+      "notes": "Jewel case photographed square on, filling the frame.",
+      "expect": "optional",
+      "quads": {
+        "artwork": [[0.1, 0.0], [0.97, 0.0], [0.97, 0.99], [0.1, 0.99]]
+      }
+    },
+    {
+      "name": "storm-studio",
+      "source": "https://live.staticflickr.com/4068/4548643301_5c305ac45b_b.jpg",
+      "license": "CC BY",
+      "notes": "Tall CD-single case on dark cloth; the square insert is the cover.",
+      "expect": "optional",
+      "quads": {
+        "insert": [[0.205, 0.12], [0.815, 0.12], [0.815, 0.49], [0.205, 0.49]]
+      }
+    },
+    {
+      "name": "uncut-scan",
+      "source": "https://live.staticflickr.com/7106/7649961026_2e3f707917_b.jpg",
+      "license": "CC BY",
+      "notes": "A flat scan of a cover, edge to edge. Nothing to straighten.",
+      "expect": "optional",
+      "quads": {
+        "whole": [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
+      }
+    },
+    {
+      "name": "hold-it-against",
+      "source": "https://live.staticflickr.com/5174/5390539668_3ca1132fae.jpg",
+      "license": "CC BY-NC-ND",
+      "notes": "Digital cover art, no physical sleeve.",
+      "expect": "optional",
+      "quads": {
+        "whole": [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
+      }
+    },
+    {
+      "name": "celtic-hand",
+      "source": "https://live.staticflickr.com/7431/16220738867_1869afc66f.jpg",
+      "license": "CC BY",
+      "notes": "Three sleeves fanned in a hand, all running off the bottom of the frame.",
+      "expect": "optional",
+      "quads": {}
+    },
+    {
+      "name": "man-digipak",
+      "source": "https://live.staticflickr.com/231/511333720_ed683c017d.jpg",
+      "license": "CC BY-NC-SA",
+      "notes": "Selfie holding a sleeve whose bottom is cut off by the frame.",
+      "expect": "optional",
+      "quads": {}
+    },
+    {
+      "name": "sedaka-small",
+      "source": "https://live.staticflickr.com/188/484254119_f9a801aa29_b.jpg",
+      "license": "CC BY-NC-SA",
+      "notes": "A man holding a jewel case that covers about 4% of the frame.",
+      "expect": "optional",
+      "quads": {
+        "case": [[0.258, 0.31], [0.465, 0.293], [0.478, 0.521], [0.298, 0.539]]
+      }
+    },
+    {
+      "name": "girl-small-cd",
+      "source": "https://live.staticflickr.com/250/3163837816_9c23d46559_b.jpg",
+      "license": "CC BY-ND",
+      "notes": "A small red card sleeve held up in a bar.",
+      "expect": "optional",
+      "quads": {
+        "case": [[0.428, 0.5], [0.655, 0.5], [0.655, 0.735], [0.435, 0.735]]
+      }
+    },
+    {
+      "name": "woman-small-cd",
+      "source": "https://live.staticflickr.com/209/473407427_acb596aa60_b.jpg",
+      "license": "CC BY",
+      "notes": "A woman in a shop holding a small card sleeve.",
+      "expect": "optional",
+      "quads": {}
+    },
+    {
+      "name": "pile-three",
+      "source": "https://live.staticflickr.com/175/375512888_bb4e75aee9_b.jpg",
+      "license": "CC BY-NC-SA",
+      "notes": "Three overlapping cases, none fully visible.",
+      "expect": "optional",
+      "quads": {}
+    },
+    {
+      "name": "pile-four",
+      "source": "https://live.staticflickr.com/3594/3533564520_da2d3fff68_b.jpg",
+      "license": "CC BY",
+      "notes": "Four overlapping sleeves.",
+      "expect": "optional",
+      "quads": {}
+    },
+    {
+      "name": "record-spines",
+      "source": "https://unsplash.com/photos/EuMVFkzkYuU/download?w=1200",
+      "license": "Unsplash",
+      "notes": "Shelf of record spines. No sleeve face at all.",
+      "expect": "optional",
+      "quads": {}
+    },
+    {
+      "name": "user-haydn-front",
+      "source": null,
+      "license": "private, not distributed",
+      "notes": "The user's own photo: jewel case held over a desk with a mug and laptop.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.053, 0.248], [0.927, 0.245], [0.913, 0.8], [0.053, 0.8]],
+        "artwork": [[0.157, 0.255], [0.905, 0.255], [0.905, 0.795], [0.157, 0.795]]
+      }
+    },
+    {
+      "name": "user-haydn-back",
+      "source": null,
+      "license": "private, not distributed",
+      "notes": "The user's own photo: back of the same case, held in a hand.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.047, 0.175], [0.953, 0.172], [0.95, 0.765], [0.05, 0.765]]
+      }
+    },
+    {
+      "name": "record-store-case-handheld",
+      "source": "https://unsplash.com/photos/xcAMzC81K5E/download?w=1600",
+      "license": "Unsplash License",
+      "notes": "Shrink-wrapped jewel case with an obi strip, held in a gloved hand in a dim record shop, tilted.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.365, 0.063], [0.822, 0.337], [0.65, 0.952], [0.2, 0.652]]
+      }
+    },
+    {
+      "name": "jon-hopkins-sleeve-handheld",
+      "source": "https://live.staticflickr.com/3404/3272317675_492baff303_b.jpg",
+      "license": "CC BY-NC-ND 2.0",
+      "notes": "Black card sleeve held up in front of a monitor and mixing desk; the thumb covers its top left corner.",
+      "expect": "sleeve",
+      "quads": {
+        "sleeve": [[0.335, 0.213], [0.84, 0.171], [0.832, 0.787], [0.34, 0.833]]
+      }
+    },
+    {
+      "name": "starboy-case-handheld-cafe",
+      "source": "https://unsplash.com/photos/A4YZ1RsIIYw/download?w=1600",
+      "license": "Unsplash License",
+      "notes": "Jewel case held up at 45 degrees in a blurred cafe, about 15% of the frame.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.45, 0.305], [0.768, 0.495], [0.42, 0.728], [0.108, 0.538]]
+      }
+    },
+    {
+      "name": "jann-arden-shrinkwrap-dark",
+      "source": "https://live.staticflickr.com/569/22298965013_d12d49011a_b.jpg",
+      "license": "CC BY-SA 2.0",
+      "notes": "Shrink-wrapped sleeve with a sticker on a dark fabric seat.",
+      "expect": "sleeve",
+      "quads": {
+        "sleeve": [[0.105, 0.122], [0.93, 0.125], [0.955, 0.87], [0.105, 0.895]]
+      }
+    },
+    {
+      "name": "route-planner-digipak-white",
+      "source": "https://live.staticflickr.com/6113/6336166163_804804eefc_b.jpg",
+      "license": "CC BY-ND 2.0",
+      "notes": "Dark digipak lying on white, in perspective.",
+      "expect": "sleeve",
+      "quads": {
+        "sleeve": [[0.048, 0.103], [0.88, 0.048], [0.965, 0.863], [0.065, 0.927]]
+      }
+    },
+    {
+      "name": "dark-was-the-night-wood-tilt",
+      "source": "https://live.staticflickr.com/3304/3295620841_7098402f0f_b.jpg",
+      "license": "CC BY-NC-ND 2.0",
+      "notes": "Thick brown card box on a wood-grain desk of much the same colour, rotated.",
+      "expect": "sleeve",
+      "quads": {
+        "top": [[0.152, 0.287], [0.655, 0.14], [0.78, 0.68], [0.29, 0.933]]
+      }
+    },
+    {
+      "name": "groom-lake-pink-case-tilt",
+      "source": "https://live.staticflickr.com/7605/16809783940_752a1e11f7_b.jpg",
+      "license": "CC BY 2.0",
+      "notes": "Pink-edged slim case on a speckled counter, rotated with perspective.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.16, 0.029], [0.815, 0.149], [0.775, 0.913], [0.085, 0.833]],
+        "artwork": [[0.215, 0.053], [0.8, 0.145], [0.765, 0.893], [0.165, 0.837]]
+      }
+    },
+    {
+      "name": "dirty-diegos-glare-wood",
+      "source": "https://live.staticflickr.com/3016/3014853677_668c038d6c_b.jpg",
+      "license": "CC BY-NC-ND 2.0",
+      "notes": "Slim case on the edge of a wooden table with flash glare, dark floor below.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.165, 0.107], [0.815, 0.053], [0.935, 0.793], [0.155, 0.887]]
+      }
+    },
+    {
+      "name": "adrienne-rich-case-mailer",
+      "source": "https://live.staticflickr.com/2827/11919813933_f974223b43_b.jpg",
+      "license": "CC BY-NC-ND 2.0",
+      "notes": "Dark jewel case on a crumpled padded mailer with print and a barcode.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.175, 0.125], [0.875, 0.115], [0.96, 0.695], [0.08, 0.695]],
+        "artwork": [[0.245, 0.135], [0.865, 0.125], [0.925, 0.655], [0.17, 0.66]]
+      }
+    },
+    {
+      "name": "varsity-drag-case-bedsheet",
+      "source": "https://live.staticflickr.com/507/20095715499_67c8f88609_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "Jewel case with a dark spine on a crumpled white sheet.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.03, 0.095], [0.935, 0.085], [0.965, 0.895], [0.015, 0.9]],
+        "artwork": [[0.11, 0.1], [0.9, 0.095], [0.925, 0.885], [0.105, 0.89]]
+      }
+    },
+    {
+      "name": "chloe-signed-case-carpet",
+      "source": "https://live.staticflickr.com/7069/6855016195_1aa4ddbe22_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "Signed jewel case on a textured beige carpet.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.215, 0.173], [0.795, 0.151], [0.878, 0.813], [0.19, 0.853]],
+        "artwork": [[0.27, 0.173], [0.78, 0.16], [0.855, 0.8], [0.265, 0.84]]
+      }
+    },
+    {
+      "name": "rafter-sleeve-disc-black",
+      "source": "https://live.staticflickr.com/1385/533522039_a5ebe7e973_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "Pale card sleeve rotated 30 degrees on black, the disc sliding out of it.",
+      "expect": "sleeve",
+      "quads": {
+        "sleeve": [[0.504, 0.077], [0.922, 0.386], [0.641, 0.961], [0.189, 0.54]]
+      }
+    },
+    {
+      "name": "syupro-case-white-tilt",
+      "source": "https://live.staticflickr.com/8697/29189639036_4b618cdaa4_b.jpg",
+      "license": "CC BY-SA 2.0",
+      "notes": "Double jewel case on white, rotated with perspective; the clear rim barely shows.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.295, 0.05], [0.92, 0.206], [0.85, 0.968], [0.07, 0.749]],
+        "booklet": [[0.31, 0.056], [0.89, 0.206], [0.8, 0.943], [0.145, 0.762]]
+      }
+    },
+    {
+      "name": "tdk-shrinkwrap-case-soil",
+      "source": "https://upload.wikimedia.org/wikipedia/commons/3/3c/TDK_CD-R_white_jewel_case_in_shrinkwrap%2C_around_2000.jpg",
+      "license": "CC0",
+      "notes": "White CD-R case in loose shrink-wrap on dark gritty soil, from above.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.105, 0.15], [0.89, 0.155], [0.89, 0.84], [0.105, 0.84]],
+        "artwork": [[0.19, 0.17], [0.852, 0.17], [0.852, 0.83], [0.19, 0.83]]
+      }
+    },
+    {
+      "name": "iridescent-case-black-tilt",
+      "source": "https://unsplash.com/photos/PZ7HxI8tW_E/download?w=1600",
+      "license": "Unsplash License",
+      "notes": "Empty clear case in polarised colours on black, strong perspective.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.108, 0.382], [0.66, 0.218], [0.905, 0.57], [0.27, 0.775]]
+      }
+    },
+    {
+      "name": "blank-cd-case-marble",
+      "source": "https://unsplash.com/photos/iYG4d2Lxrs8/download?w=1600",
+      "license": "Unsplash License",
+      "notes": "Black-tray jewel case with a blank disc on grey marble, from above; its shadow falls to the left.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.243, 0.19], [0.725, 0.188], [0.73, 0.815], [0.24, 0.81]]
+      }
+    },
+    {
+      "name": "britney-crazy-case-dark-cover",
+      "source": "https://live.staticflickr.com/3164/3068383716_568523210b_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "Dark-cover slim case standing against a red wall on an orange shelf.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.12, 0.087], [0.8, 0.093], [0.795, 0.867], [0.13, 0.88]],
+        "booklet": [[0.145, 0.11], [0.785, 0.11], [0.785, 0.85], [0.145, 0.86]]
+      }
+    },
+    {
+      "name": "britney-digipak-back-red-wall",
+      "source": "https://live.staticflickr.com/3245/3068948350_4b3f58ff07_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "Back of a pale card sleeve standing against a red wall.",
+      "expect": "sleeve",
+      "quads": {
+        "sleeve": [[0.195, 0.087], [0.818, 0.113], [0.825, 0.853], [0.178, 0.847]]
+      }
+    },
+    {
+      "name": "britney-oops-case-red-wall",
+      "source": "https://live.staticflickr.com/3021/3067636971_56b4bfff09_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "Red-cover slim case standing against a red wall.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.21, 0.193], [0.765, 0.167], [0.785, 0.827], [0.215, 0.847]]
+      }
+    },
+    {
+      "name": "femme-fatale-case-green-wall",
+      "source": "https://live.staticflickr.com/7174/6800589501_d55c74f51b_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "Pale-cover jewel case standing on a light shelf against a green wall.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.145, 0.037], [0.8, 0.033], [0.8, 0.8], [0.16, 0.807]],
+        "artwork": [[0.225, 0.053], [0.78, 0.05], [0.78, 0.787], [0.235, 0.793]]
+      }
+    },
+    {
+      "name": "snowflakes-sleeve-standing",
+      "source": "https://live.staticflickr.com/5125/5269128882_e080168554_b.jpg",
+      "license": "CC BY-NC 2.0",
+      "notes": "Card sleeve standing on a table, a stack of cases behind, inside an Instagram black border.",
+      "expect": "sleeve",
+      "quads": {
+        "sleeve": [[0.178, 0.105], [0.9, 0.1], [0.895, 0.735], [0.225, 0.795]]
+      }
+    },
+    {
+      "name": "cuatro-jewel-case-white",
+      "source": "https://live.staticflickr.com/4145/5079905489_737bcdff8f_b.jpg",
+      "license": "CC BY-NC-ND 2.0",
+      "notes": "Clear jewel case with a white insert on white, from the front.",
+      "expect": "sleeve",
+      "quads": {
+        "case": [[0.118, 0.12], [0.882, 0.12], [0.882, 0.857], [0.118, 0.869]],
+        "artwork": [[0.2, 0.13], [0.87, 0.13], [0.87, 0.85], [0.2, 0.85]]
+      }
+    },
+    {
+      "name": "steinman-sleeve-black",
+      "source": "https://live.staticflickr.com/7768/17392335162_fde578ef2b_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "Signed card sleeve on black, its top nearly touching the frame.",
+      "expect": "sleeve",
+      "quads": {
+        "sleeve": [[0.185, 0.027], [0.785, 0.045], [0.818, 0.967], [0.15, 0.975]]
+      }
+    },
+    {
+      "name": "mika-sleeve-blue-leather",
+      "source": "https://live.staticflickr.com/125/323956269_82feb43b8f_b.jpg",
+      "license": "CC BY-NC 2.0",
+      "notes": "Busy card sleeve on a dark blue leather sofa, top edge right against the frame.",
+      "expect": "sleeve",
+      "quads": {
+        "sleeve": [[0.175, 0.013], [0.835, 0.027], [0.83, 0.96], [0.15, 0.933]]
+      }
+    },
+    {
+      "name": "marc-cohn-sleeve-beige",
+      "source": "https://live.staticflickr.com/2359/2126085108_0da487845c_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "Pale grey card sleeve on beige wood: very little contrast.",
+      "expect": "sleeve",
+      "quads": {
+        "sleeve": [[0.297, 0.296], [0.757, 0.296], [0.768, 0.84], [0.285, 0.843]]
+      }
+    },
+    {
+      "name": "angel-snow-sleeve-black",
+      "source": "https://live.staticflickr.com/8381/8469174247_afc00c3438_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "White-bordered card sleeve on black.",
+      "expect": "sleeve",
+      "quads": {
+        "sleeve": [[0.207, 0.067], [0.848, 0.064], [0.845, 0.927], [0.207, 0.929]],
+        "artwork": [[0.23, 0.1], [0.825, 0.1], [0.825, 0.893], [0.23, 0.893]]
+      }
+    },
+    {
+      "name": "billy-bragg-sleeve-white",
+      "source": "https://live.staticflickr.com/8055/8085522178_f309181a89_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "Worn white-bordered card sleeve on a white surface, lit from the side.",
+      "expect": "sleeve",
+      "quads": {
+        "sleeve": [[0.15, 0.047], [0.855, 0.04], [0.862, 0.9], [0.135, 0.907]]
+      }
+    },
+    {
+      "name": "striped-paper-sleeve-slate",
+      "source": "https://live.staticflickr.com/3864/15116352986_395f2b51c0_b.jpg",
+      "license": "CC BY-NC-SA 2.0",
+      "notes": "Handmade striped paper sleeve with a flap on dark slate.",
+      "expect": "sleeve",
+      "quads": {
+        "sleeve": [[0.148, 0.132], [0.848, 0.132], [0.858, 0.862], [0.148, 0.865]]
+      }
+    }
+  ]
+}
