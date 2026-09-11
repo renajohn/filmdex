@@ -6,6 +6,9 @@ import SleeveCapture from './SleeveCapture';
 vi.mock('../utils/downscaleImage', () => ({
   downscaleImage: vi.fn((_file: File, maxEdge?: number) =>
     Promise.resolve({ base64: maxEdge ? 'BIG' : 'SMALL', mimeType: 'image/jpeg' })
+  ),
+  base64ToFile: vi.fn((_b64: string, mimeType: string, name: string) =>
+    new File(['x'], name, { type: mimeType })
   )
 }));
 
@@ -13,7 +16,19 @@ vi.mock('../services/musicService', () => ({
   default: { transcribeSleeve: vi.fn() }
 }));
 
+vi.mock('../utils/detectSleeveQuad', async () => {
+  const actual = await vi.importActual<any>('../utils/detectSleeveQuad');
+  return { ...actual, detectSleeveQuad: vi.fn(() => null) };
+});
+
+vi.mock('../utils/warpQuad', () => ({
+  warpQuad: vi.fn(async () => new Blob(['cut'], { type: 'image/jpeg' })),
+  default: vi.fn()
+}));
+
 import musicService from '../services/musicService';
+import { detectSleeveQuad } from '../utils/detectSleeveQuad';
+import { warpQuad } from '../utils/warpQuad';
 
 const photo = () => new File(['x'], 'sleeve.jpg', { type: 'image/jpeg' });
 
@@ -242,5 +257,78 @@ describe('SleeveCapture — seeing the photo that becomes the cover', () => {
     await waitFor(() => expect(onDraft).toHaveBeenCalled());
     // The back travels too, or it would be lost at save time.
     expect(onDraft.mock.calls[0][0].backPhoto).toEqual({ base64: 'SMALL', mimeType: 'image/jpeg' });
+  });
+});
+
+describe('SleeveCapture — a front handed over by a scan', () => {
+  const onDraft = vi.fn();
+  const onSkip = vi.fn();
+  const FOUND = {
+    quad: { topLeft: [0.1, 0.1], topRight: [0.9, 0.1], bottomRight: [0.9, 0.9], bottomLeft: [0.1, 0.9] },
+    confidence: 0.9
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (musicService.transcribeSleeve as any).mockResolvedValue(draftResponse);
+    // jsdom has no canvas, so the detection path needs one that answers.
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage: vi.fn(),
+      getImageData: () => ({ data: new Uint8ClampedArray(4), width: 1, height: 1, colorSpace: 'srgb' })
+    } as unknown as CanvasRenderingContext2D);
+    (globalThis as any).URL.createObjectURL = vi.fn(() => 'blob:scanned');
+    (globalThis as any).URL.revokeObjectURL = vi.fn();
+    class FakeImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 750;
+      naturalHeight = 1000;
+      set src(_v: string) { setTimeout(() => this.onload?.(), 0); }
+    }
+    (globalThis as any).Image = FakeImage as unknown as typeof Image;
+  });
+
+  const withScannedFront = () =>
+    render(
+      <SleeveCapture
+        initialFront={{ base64: 'RlJPTS1TQ0FO', mimeType: 'image/jpeg' }}
+        onDraft={onDraft}
+        onSkip={onSkip}
+      />
+    );
+
+  it('looks for the sleeve in it, like any other photograph', async () => {
+    // It arrives as base64 straight into state, so it used to reach neither
+    // the detector nor the crop button.
+    (detectSleeveQuad as any).mockReturnValue(FOUND);
+    withScannedFront();
+
+    await waitFor(() => expect(detectSleeveQuad).toHaveBeenCalled());
+    await waitFor(() => expect(warpQuad).toHaveBeenCalled());
+  });
+
+  it('says it straightened it', async () => {
+    (detectSleeveQuad as any).mockReturnValue(FOUND);
+    withScannedFront();
+
+    await waitFor(() => expect(screen.getByText(/straightened for you/i)).toBeInTheDocument());
+  });
+
+  it('offers to crop it by hand as well', async () => {
+    (detectSleeveQuad as any).mockReturnValue(null);
+    withScannedFront();
+
+    // Without a File kept for it, this button never appeared for the one
+    // photograph already on screen.
+    await waitFor(() => expect(screen.getByTestId('crop-front')).toBeInTheDocument());
+  });
+
+  it('leaves it alone when the sleeve cannot be found', async () => {
+    (detectSleeveQuad as any).mockReturnValue(null);
+    withScannedFront();
+
+    await waitFor(() => expect(detectSleeveQuad).toHaveBeenCalled());
+    expect(warpQuad).not.toHaveBeenCalled();
+    expect(screen.getByText(/this will be the cover/i)).toBeInTheDocument();
   });
 });

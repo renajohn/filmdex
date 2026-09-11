@@ -1,9 +1,9 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button, Alert, Spinner } from 'react-bootstrap';
 import { BsCamera, BsCheckCircleFill, BsArrowRepeat } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverCropDialog from './CoverCropDialog';
-import { downscaleImage } from '../utils/downscaleImage';
+import { downscaleImage, base64ToFile } from '../utils/downscaleImage';
 import { detectSleeveQuad, CONFIDENT } from '../utils/detectSleeveQuad';
 import { warpQuad } from '../utils/warpQuad';
 import './SleeveCapture.css';
@@ -62,9 +62,50 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
   };
   // The originals, full resolution, for the straightening step to work on.
   const files = useRef<Record<Side, File | null>>({ front: null, back: null });
+  // A ref write does not redraw, and the crop button depends on there being a
+  // file. Without this the button never appeared for a photo whose detection
+  // declined, because nothing else changed to trigger a render.
+  const [hasFile, setHasFile] = useState<Record<Side, boolean>>({ front: false, back: false });
+
+  const keepFile = (side: Side, file: File) => {
+    files.current[side] = file;
+    setHasFile(current => (current[side] ? current : { ...current, [side]: true }));
+  };
 
   const setPhoto = (side: Side, photo: Photo) =>
     setPhotos(current => ({ ...current, [side]: photo }));
+
+  /**
+   * A front handed over by a scan that found nothing gets the same treatment
+   * as one taken here.
+   *
+   * It arrives as base64 rather than a file, straight into state, so it used
+   * to reach neither the detector nor the crop button -- the one photograph
+   * already on screen was the one photograph nothing could be done with.
+   */
+  useEffect(() => {
+    if (!initialFront?.base64 || files.current.front) return;
+
+    const file = base64ToFile(initialFront.base64, initialFront.mimeType, 'scanned-front.jpg');
+    keepFile('front', file);
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const straightenedFile = await autoStraighten(file);
+        if (cancelled || !straightenedFile) return;
+        keepFile('front', straightenedFile);
+        setStraightened(current => ({ ...current, front: true }));
+        setPhoto('front', await downscaleImage(straightenedFile));
+      } catch (_) {
+        // The photo is already on screen; failing to improve it is not worth
+        // interrupting anyone over.
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFront?.base64]);
 
   /**
    * Take a photograph, and straighten it if the sleeve can be found in it.
@@ -76,7 +117,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
    */
   const capture = async (side: Side, file: File) => {
     setError('');
-    files.current[side] = file;
+    keepFile(side, file);
 
     try {
       setPhoto(side, await downscaleImage(file));
@@ -88,7 +129,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
     try {
       const straightenedFile = await autoStraighten(file);
       if (straightenedFile) {
-        files.current[side] = straightenedFile;
+        keepFile(side, straightenedFile);
         setStraightened(current => ({ ...current, [side]: true }));
         setPhoto(side, await downscaleImage(straightenedFile));
       }
@@ -194,7 +235,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
             : hint}
         </div>
 
-        {photo && files.current[side] && (
+        {photo && hasFile[side] && (
           <Button
             variant="link"
             size="sm"
@@ -253,7 +294,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
           setCropping(null);
           if (!side) return;
 
-          files.current[side] = photo;
+          keepFile(side, photo);
           setStraightened(current => ({ ...current, [side]: true }));
           // The straightened photo replaces the original everywhere: it is the
           // thumbnail shown, what the model reads, and what gets stored.
