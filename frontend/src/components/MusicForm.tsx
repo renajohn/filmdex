@@ -646,6 +646,29 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
     }
   };
 
+  /**
+   * Re-open the straightening step on a cover already stored.
+   *
+   * Works on the stored image, which is the one that looks wrong -- so it can
+   * tighten a crop that kept too much table, but cannot bring back anything an
+   * earlier crop cut away. For that, upload the photo again.
+   */
+  const reframeStoredCover = async (slot: 'front' | 'back') => {
+    const url = getCoverImageUrl(slot);
+    if (!url) return;
+
+    setUploadMessage(null);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`could not read the stored cover (${response.status})`);
+      const blob = await response.blob();
+      setCropping({ file: new File([blob], 'cover.jpg', { type: blob.type || 'image/jpeg' }), slot });
+    } catch (err) {
+      setUploadMessageType('danger');
+      setUploadMessage(`Could not open that cover for adjusting: ${(err as Error).message}`);
+    }
+  };
+
   const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     // Cleared so the same photo can be picked again after a cancel.
@@ -1014,6 +1037,27 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
                       >
                         <BsUpload size={12} />
                         {uploadingCover ? 'Uploading...' : 'Change Cover'}
+                        {!uploadingCover && (
+                          <button
+                            type="button"
+                            data-testid="reframe-front"
+                            onClick={(e) => {
+                              // Or the click reaches the tile and opens the picker.
+                              e.stopPropagation();
+                              void reframeStoredCover('front');
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'rgba(96, 165, 250, 0.95)',
+                              padding: '0 0 0 8px',
+                              font: 'inherit',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Adjust framing
+                          </button>
+                        )}
                       </div>
                     </>
                   ) : (
@@ -1127,6 +1171,26 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, onSave, onCancel }) =>
                       >
                         <BsUpload size={12} />
                         {uploadingCover ? 'Uploading...' : 'Change Back Cover'}
+                        {!uploadingCover && (
+                          <button
+                            type="button"
+                            data-testid="reframe-back"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void reframeStoredCover('back');
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'rgba(96, 165, 250, 0.95)',
+                              padding: '0 0 0 8px',
+                              font: 'inherit',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Adjust framing
+                          </button>
+                        )}
                       </div>
                     </>
                   ) : (
