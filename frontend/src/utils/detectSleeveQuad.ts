@@ -13,6 +13,8 @@
  * than guessing, and the caller shows the result for confirmation either way.
  */
 
+import { detectByEdges } from './detectByEdges';
+
 export type Point = [number, number];
 
 export interface Quad {
@@ -58,6 +60,9 @@ export const defaultQuad = (aspect = 1): Quad => {
 export const DEFAULT_QUAD: Quad = defaultQuad(1);
 
 const WORK_SIZE = 200;
+
+/** Above this a detection is trustworthy enough to use without asking again. */
+export const CONFIDENT = 0.6;
 
 /** Greyscale at a reduced size: detail only slows this down and adds noise. */
 const toGrey = (image: ImageData): { grey: Uint8Array; w: number; h: number } => {
@@ -201,7 +206,8 @@ const shapeConfidence = (quad: Quad, coverage: number): number => {
  * Returns null rather than a poor guess; the caller falls back to DEFAULT_QUAD
  * so there is always something on screen to drag.
  */
-export const detectSleeveQuad = (image: ImageData): Detection | null => {
+/** Separating the sleeve from its background by colour. */
+const detectByColour = (image: ImageData): Detection | null => {
   const { grey, w, h } = toGrey(image);
   if (w < 16 || h < 16) return null;
 
@@ -220,6 +226,51 @@ export const detectSleeveQuad = (image: ImageData): Detection | null => {
 
   const confidence = shapeConfidence(quad, size / (w * h));
   return confidence > 0 ? { quad, confidence } : null;
+};
+
+/** The area a quad covers, as a fraction of the frame. */
+const coverageOf = (quad: Quad): number => {
+  const pts = [quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft];
+  let area = 0;
+  for (let i = 0; i < 4; i++) {
+    const [x1, y1] = pts[i];
+    const [x2, y2] = pts[(i + 1) % 4];
+    area += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(area) / 2;
+};
+
+/**
+ * Locate the sleeve, or say it could not.
+ *
+ * Two ways of looking, because they fail on opposite things. Colour separation
+ * is exact when the sleeve stands out from what it lies on, and hopeless when
+ * it does not. Edges do not care about the background but are confused by
+ * strong lines printed inside the sleeve. Both are asked, and whichever
+ * describes the better rectangle wins.
+ *
+ * Returns null rather than a poor guess; the caller falls back to a centred
+ * square so there is always something on screen to drag.
+ */
+export const detectSleeveQuad = (image: ImageData): Detection | null => {
+  // Colour first: when the sleeve does stand out from what it lies on, it
+  // places the corners within about a percent, which edges do not match.
+  const byColour = detectByColour(image);
+  if (byColour && byColour.confidence >= CONFIDENT) return byColour;
+
+  // It did not, so look for the rectangle instead. This is the case colour
+  // cannot do at all: a sleeve over a floor, a blanket and a hand.
+  try {
+    const byEdges = detectByEdges(image);
+    if (byEdges) {
+      const confidence = shapeConfidence(byEdges, coverageOf(byEdges));
+      if (confidence > 0) return { quad: byEdges, confidence };
+    }
+  } catch (_) {
+    // An edge search that blows up must not cost us the colour answer.
+  }
+
+  return byColour;
 };
 
 export default detectSleeveQuad;

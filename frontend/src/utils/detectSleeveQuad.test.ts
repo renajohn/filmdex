@@ -100,11 +100,13 @@ describe('detectSleeveQuad', () => {
     expect(maxError(found!.quad, uprightQuad())).toBeLessThan(0.05);
   });
 
-  it('declines a dark sleeve on a dark table instead of guessing', () => {
-    // The case it genuinely cannot do. Saying so is the correct answer.
+  it('finds a dark sleeve on a dark table, which colour alone cannot', () => {
+    // Separating by brightness fails here -- 20 against 26 is noise. The edges
+    // are still there, and they are what a rectangle is made of.
     const found = detectSleeveQuad(scene({ background: [26, 26, 30], sleeve: [20, 20, 24] }));
 
-    expect(found === null || found.confidence < 0.6).toBe(true);
+    expect(found).not.toBeNull();
+    expect(maxError(found!.quad, uprightQuad())).toBeLessThan(0.03);
   });
 
   it('declines a photo with no sleeve in it at all', () => {
