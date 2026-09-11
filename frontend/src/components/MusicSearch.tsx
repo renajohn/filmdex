@@ -94,9 +94,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   // The sleeve photo waits here: the cover endpoint needs an album id, which
   // only exists once the form has been submitted.
   const [pendingCover, setPendingCover] = useState<{ base64: string; mimeType: string } | null>(null);
-  const [pendingCorners, setPendingCorners] = useState<unknown>(null);
   const [pendingBack, setPendingBack] = useState<{ base64: string; mimeType: string } | null>(null);
-  const [pendingBackCorners, setPendingBackCorners] = useState<unknown>(null);
   const [selectedCdDetails, setSelectedCdDetails] = useState<any>(null);
   const [, setLoadingDetails] = useState(false);
   const [cdDetailsBeforeEdit, setCdDetailsBeforeEdit] = useState<any>(null);
@@ -484,7 +482,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     if (pendingCover) {
       try {
         const file = base64ToFile(pendingCover.base64, pendingCover.mimeType, 'sleeve.jpg');
-        await musicService.uploadCover(album.id, file, pendingCorners || undefined);
+        await musicService.uploadCover(album.id, file);
       } catch (err) {
         console.warn('Could not store the sleeve photo as the cover:', err);
       }
@@ -495,16 +493,14 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     if (pendingBack) {
       try {
         const file = base64ToFile(pendingBack.base64, pendingBack.mimeType, 'sleeve-back.jpg');
-        await musicService.uploadBackCover(album.id, file, pendingBackCorners || undefined);
+        await musicService.uploadBackCover(album.id, file);
       } catch (err) {
         console.warn('Could not store the sleeve photo as the back cover:', err);
       }
     }
 
     setPendingCover(null);
-    setPendingCorners(null);
     setPendingBack(null);
-    setPendingBackCorners(null);
   };
 
   const handleReviewMetadata = async (release: any, allReleasesInGroup: any[] | null = null) => {
@@ -923,9 +919,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
         onReviewMetadata={handleReviewMetadata}
         onDraftEntry={(result: any) => {
           setPendingCover(result.coverPhoto || null);
-          setPendingCorners(result.coverCorners || null);
           setPendingBack(result.backPhoto || null);
-          setPendingBackCorners(result.backCorners || null);
           setReviewingRelease(result.draft);
         }}
         defaultTitleStatus={undefined}
@@ -964,6 +958,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
       {reviewingRelease && (
         <MusicForm
           cd={reviewingRelease}
+          pendingPhotos={{ front: pendingCover, back: pendingBack }}
           onSave={async (cdData: any) => {
             let createdAlbum;
             // If this came from MusicBrainz search, use the proper method to download covers

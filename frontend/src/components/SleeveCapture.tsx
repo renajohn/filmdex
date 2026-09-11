@@ -3,7 +3,6 @@ import { Button, Alert, Spinner } from 'react-bootstrap';
 import { BsCamera, BsCheckCircleFill, BsArrowRepeat } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverCropDialog from './CoverCropDialog';
-import type { Quad } from '../utils/detectSleeveQuad';
 import { downscaleImage } from '../utils/downscaleImage';
 import './SleeveCapture.css';
 
@@ -20,10 +19,8 @@ export interface SleeveDraftResult {
   truncated: boolean;
   /** Becomes the album cover once it has an id. */
   coverPhoto?: Photo;
-  coverCorners?: Quad | null;
   /** Becomes the back cover -- the side carrying the list you will proofread. */
   backPhoto?: Photo;
-  backCorners?: Quad | null;
 }
 
 interface SleeveCaptureProps {
@@ -46,7 +43,9 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
     front: initialFront || null,
     back: null
   });
-  const [corners, setCorners] = useState<Record<Side, Quad | null>>({ front: null, back: null });
+  // Which sides the user straightened, for the caption only: the photo itself
+  // already carries the result.
+  const [straightened, setStraightened] = useState<Record<Side, boolean>>({ front: false, back: false });
   const [cropping, setCropping] = useState<Side | null>(null);
   const [reading, setReading] = useState(false);
   const [error, setError] = useState('');
@@ -80,7 +79,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
     // Cleared so the same photo can be picked again after a retake.
     event.target.value = '';
     if (file) {
-      setCorners(current => ({ ...current, [side]: null }));
+      setStraightened(current => ({ ...current, [side]: false }));
       void capture(side, file);
     }
   };
@@ -101,9 +100,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
       onDraft({
         ...result,
         coverPhoto: photos.front || undefined,
-        coverCorners: corners.front,
-        backPhoto: photos.back || undefined,
-        backCorners: corners.back
+        backPhoto: photos.back || undefined
       });
     } catch (err) {
       setError((err as Error).message || 'Could not read the sleeve');
@@ -114,7 +111,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
 
   const slot = (side: Side, label: string, hint: string) => {
     const photo = photos[side];
-    const framed = Boolean(corners[side]);
+    const framed = straightened[side];
     const what = side === 'front' ? 'cover' : 'back cover';
 
     return (
@@ -199,15 +196,15 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
         file={cropping ? files.current[cropping] : null}
         slot={cropping || 'front'}
         onCancel={() => setCropping(null)}
-        onConfirm={async (framing, photo) => {
+        onConfirm={async (photo) => {
           const side = cropping;
           setCropping(null);
           if (!side) return;
 
           files.current[side] = photo;
-          setCorners(current => ({ ...current, [side]: framing }));
-          // The straightened photo is what the model reads too: a sleeve the
-          // right way up transcribes better than one on its side.
+          setStraightened(current => ({ ...current, [side]: true }));
+          // The straightened photo replaces the original everywhere: it is the
+          // thumbnail shown, what the model reads, and what gets stored.
           try {
             setPhoto(side, await downscaleImage(photo));
           } catch (_) { /* keep what we had */ }

@@ -3,12 +3,20 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import CoverCropDialog from './CoverCropDialog';
 
+vi.mock('../utils/warpQuad', () => ({
+  // The mapping has no business being re-run here; it is a pure function with
+  // its own tests. What matters is that the dialog hands back what it returns.
+  warpQuad: vi.fn(async () => new Blob(['cropped'], { type: 'image/jpeg' })),
+  default: vi.fn()
+}));
+
 vi.mock('../utils/detectSleeveQuad', async () => {
   const actual = await vi.importActual<any>('../utils/detectSleeveQuad');
   return { ...actual, detectSleeveQuad: vi.fn(), default: vi.fn() };
 });
 
 import { detectSleeveQuad, defaultQuad } from '../utils/detectSleeveQuad';
+import { warpQuad } from '../utils/warpQuad';
 
 const DETECTED = {
   topLeft: [0.2, 0.15] as [number, number],
@@ -88,7 +96,8 @@ describe('CoverCropDialog', () => {
     await waitFor(() => expect(screen.getByText(/found the sleeve/i)).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
 
-    expect(onConfirm).toHaveBeenCalledWith(DETECTED, expect.any(File));
+    // Pixels, not corners: what was shown is what gets stored.
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledWith(expect.any(File)));
   });
 
   it('falls back to a draggable rectangle when it is not sure', async () => {
@@ -99,9 +108,7 @@ describe('CoverCropDialog', () => {
     await waitFor(() => expect(screen.getByText(/could not pick out the sleeve/i)).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
 
-    // A square sized to the photo's shorter side -- the stub is 800x600 --
-    // rather than a slab of the frame.
-    expect(onConfirm).toHaveBeenCalledWith(defaultQuad(800 / 600), expect.any(File));
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledWith(expect.any(File)));
   });
 
   it('lets the photo through untouched', async () => {
@@ -111,8 +118,8 @@ describe('CoverCropDialog', () => {
     await waitFor(() => expect(screen.getByTestId('crop-corner-topLeft')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /use the photo as it is/i }));
 
-    // null means "store it as shot", which is the old behaviour.
-    expect(onConfirm).toHaveBeenCalledWith(null, expect.any(File));
+    // The photo untouched, which is the old behaviour.
+    expect(onConfirm).toHaveBeenCalledWith(expect.any(File));
   });
 
   it('uploads nothing when cancelled', async () => {
@@ -233,7 +240,7 @@ describe('CoverCropDialog — corners are fractions of the photo, not of the box
 
     fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
 
-    const corners = onConfirm.mock.calls[0][0];
+    const corners = (warpQuad as any).mock.calls[0][1];
     expect(corners.topLeft[0]).toBeCloseTo(0.5, 3);
     expect(corners.topLeft[1]).toBeCloseTo(0.5, 3);
   });
@@ -250,7 +257,7 @@ describe('CoverCropDialog — corners are fractions of the photo, not of the box
 
     fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
 
-    const corners = onConfirm.mock.calls[0][0];
+    const corners = (warpQuad as any).mock.calls[0][1];
     expect(corners.topLeft).toEqual([0, 0]);
   });
 });
@@ -283,8 +290,10 @@ describe('CoverCropDialog — turning a sleeve photographed on its side', () => 
     fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
 
     await waitFor(() => expect(onConfirm).toHaveBeenCalled());
-    const [, photo] = onConfirm.mock.calls[0];
-    expect(photo.name).toBe('rotated.jpg');
+    // The rotation is baked in before the cut: warpQuad is handed the image
+    // currently on screen, which after a turn is the redrawn one.
+    expect(warpQuad).toHaveBeenCalled();
+    expect((warpQuad as any).mock.calls[0][0].tagName).toBe('IMG');
   });
 
   it('turns the corners with the picture', async () => {
@@ -297,10 +306,10 @@ describe('CoverCropDialog — turning a sleeve photographed on its side', () => 
     fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
 
     await waitFor(() => expect(onConfirm).toHaveBeenCalled());
-    const [corners] = onConfirm.mock.calls[0];
     // Turning a centred square keeps it centred; the axes swap with the photo.
+    const quad = (warpQuad as any).mock.calls[0][1];
     const seeded = defaultQuad(800 / 600);
-    expect(corners.topLeft[0]).toBeCloseTo(1 - seeded.bottomLeft[1], 3);
-    expect(corners.topLeft[1]).toBeCloseTo(seeded.bottomLeft[0], 3);
+    expect(quad.topLeft[0]).toBeCloseTo(1 - seeded.bottomLeft[1], 3);
+    expect(quad.topLeft[1]).toBeCloseTo(seeded.bottomLeft[0], 3);
   });
 });

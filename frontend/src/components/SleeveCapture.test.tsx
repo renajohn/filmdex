@@ -232,7 +232,7 @@ describe('SleeveCapture — seeing the photo that becomes the cover', () => {
     await waitFor(() => expect(screen.getByText(/this will be the back cover/i)).toBeInTheDocument());
   });
 
-  it('carries the framing through to the caller', async () => {
+  it('carries both photographs through to the caller', async () => {
     renderCapture();
     pick('sleeve-back-input');
     await waitFor(() => expect(screen.getByRole('button', { name: /read the sleeve/i })).toBeEnabled());
@@ -240,8 +240,6 @@ describe('SleeveCapture — seeing the photo that becomes the cover', () => {
     fireEvent.click(screen.getByRole('button', { name: /read the sleeve/i }));
 
     await waitFor(() => expect(onDraft).toHaveBeenCalled());
-    // No framing was set, so none is claimed.
-    expect(onDraft.mock.calls[0][0].coverCorners).toBeNull();
     // The back travels too, or it would be lost at save time.
     expect(onDraft.mock.calls[0][0].backPhoto).toEqual({ base64: 'SMALL', mimeType: 'image/jpeg' });
   });

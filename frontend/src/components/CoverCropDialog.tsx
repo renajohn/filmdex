@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Button, Spinner } from 'react-bootstrap';
 import { BsArrowCounterclockwise, BsArrowClockwise } from 'react-icons/bs';
 import { detectSleeveQuad, defaultQuad, DEFAULT_QUAD, type Quad, type Point } from '../utils/detectSleeveQuad';
+import { warpQuad } from '../utils/warpQuad';
 import './CoverCropDialog.css';
 
 const CORNERS: Array<keyof Quad> = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
@@ -20,11 +21,11 @@ interface CoverCropDialogProps {
   slot?: 'front' | 'back';
   onCancel: () => void;
   /**
-   * The corners as fractions of the displayed image (null to use it whole),
-   * and the photo they belong to -- which is not the one handed in if it was
-   * rotated here.
+   * The finished photograph: straightened if a frame was set, or as it stands
+   * if it was used whole. Pixels rather than corners, so what was shown is
+   * exactly what gets stored and the caller has something to display at once.
    */
-  onConfirm: (corners: Quad | null, photo: File) => void;
+  onConfirm: (photo: File) => void;
 }
 
 /**
@@ -46,6 +47,8 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
   const [autoFound, setAutoFound] = useState<boolean | null>(null);
   const [dragging, setDragging] = useState<keyof Quad | null>(null);
   const [rotating, setRotating] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [error, setError] = useState('');
   // Hugs the image exactly, so a corner's fraction of this element is the same
   // fraction of the photo -- which is what the server is told to expect.
   const stageRef = useRef<HTMLDivElement>(null);
@@ -188,6 +191,27 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
     };
   }, [dragging, moveCorner]);
 
+  /**
+   * Cut the framed region out for real.
+   *
+   * Done here rather than by handing corners to the server: the caller needs
+   * the result on screen straight away, and an upload that happens only after
+   * the album exists is far too late to show anything.
+   */
+  const apply = async () => {
+    const image = imageRef.current;
+    if (!image || !working) return;
+    setApplying(true);
+    try {
+      const cropped = await warpQuad(image, quad);
+      onConfirm(new File([cropped], 'cover.jpg', { type: 'image/jpeg' }));
+    } catch (err) {
+      setError(`Could not straighten that photo: ${(err as Error).message}`);
+    } finally {
+      setApplying(false);
+    }
+  };
+
   const polygon = CORNERS.map(c => `${quad[c][0] * 100}% ${quad[c][1] * 100}%`).join(', ');
 
   return (
@@ -294,6 +318,8 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
           </Button>
         </div>
 
+        {error && <div className="cover-crop-error">{error}</div>}
+
         <div className="cover-crop-status">
           {detecting
             ? null
@@ -304,14 +330,21 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
       </Modal.Body>
 
       <Modal.Footer>
-        <Button variant="link" onClick={() => working && onConfirm(null, working)}>
+        <Button variant="link" disabled={applying} onClick={() => working && onConfirm(working)}>
           Use the photo as it is
         </Button>
-        <Button variant="secondary" onClick={onCancel}>
+        <Button variant="secondary" disabled={applying} onClick={onCancel}>
           Cancel
         </Button>
-        <Button onClick={() => working && onConfirm(quad, working)} disabled={detecting || rotating}>
-          Straighten and use
+        <Button onClick={apply} disabled={detecting || rotating || applying || !src}>
+          {applying ? (
+            <>
+              <Spinner as="span" animation="border" size="sm" className="me-2" />
+              Straightening…
+            </>
+          ) : (
+            'Straighten and use'
+          )}
         </Button>
       </Modal.Footer>
     </Modal>
