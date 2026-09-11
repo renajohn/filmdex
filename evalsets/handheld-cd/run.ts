@@ -8,7 +8,8 @@
  * to .cache/out: green is the annotation, red what was detected.
  *
  * --long resizes each photo so its longer side is that many pixels first, to
- * see the detector at the resolution a phone actually hands it.
+ * see the detector at the resolution a phone actually hands it. --crops also
+ * writes the straightened cover for every confident detection to .cache/crops.
  */
 import { createRequire } from 'node:module';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -36,6 +37,7 @@ const args = process.argv.slice(2);
 const longIndex = args.indexOf('--long');
 const long = longIndex >= 0 ? Number(args[longIndex + 1]) : 0;
 const verbose = args.includes('--verbose');
+const crops = args.includes('--crops');
 const only = args.filter((a, i) => !a.startsWith('--') && (longIndex < 0 || i !== longIndex + 1));
 
 const cache = join(here, '.cache');
@@ -77,6 +79,38 @@ const cornerError = (found: Corners, expected: Corners, width: number, height: n
     best = Math.min(best, worst);
   }
   return best / side;
+};
+
+/**
+ * The crop the app would store, for looking at: the same square-to-quad
+ * mapping warpQuad uses in the browser, sampled nearest-pixel.
+ */
+const crop = async (image: Buffer, width: number, height: number, quad: Corners, name: string) => {
+  const [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = quad.map(([x, y]) => [x * width, y * height]);
+  const sx = x0 - x1 + x2 - x3, sy = y0 - y1 + y2 - y3;
+  const dx1 = x1 - x2, dx2 = x3 - x2, dy1 = y1 - y2, dy2 = y3 - y2;
+  const den = dx1 * dy2 - dx2 * dy1;
+  const g = den ? (sx * dy2 - dx2 * sy) / den : 0;
+  const h = den ? (dx1 * sy - sx * dy1) / den : 0;
+  const a = x1 - x0 + g * x1, b = x3 - x0 + h * x3, d = y1 - y0 + g * y1, e = y3 - y0 + h * y3;
+  const span = (p: number, q: number, r: number, t: number) => Math.hypot(r - p, t - q);
+  const qw = (span(x0, y0, x1, y1) + span(x3, y3, x2, y2)) / 2;
+  const qh = (span(x0, y0, x3, y3) + span(x1, y1, x2, y2)) / 2;
+  const scale = 400 / Math.max(qw, qh);
+  const ow = Math.max(1, Math.round(qw * scale)), oh = Math.max(1, Math.round(qh * scale));
+  const out = Buffer.alloc(ow * oh * 3);
+  for (let v = 0; v < oh; v++) {
+    for (let u = 0; u < ow; u++) {
+      const U = (u + 0.5) / ow, V = (v + 0.5) / oh;
+      const z = g * U + h * V + 1;
+      const px = Math.min(width - 1, Math.max(0, Math.round((a * U + b * V + x0) / z)));
+      const py = Math.min(height - 1, Math.max(0, Math.round((d * U + e * V + y0) / z)));
+      const i = (py * width + px) * 4, o = (v * ow + u) * 3;
+      out[o] = image[i]; out[o + 1] = image[i + 1]; out[o + 2] = image[i + 2];
+    }
+  }
+  mkdirSync(join(cache, 'crops'), { recursive: true });
+  await sharp(out, { raw: { width: ow, height: oh, channels: 3 } }).jpeg({ quality: 85 }).toFile(join(cache, 'crops', `${name}.jpg`));
 };
 
 const overlay = async (image: Buffer, width: number, height: number, photo: Photo, found: Corners | null, label: string) => {
@@ -148,6 +182,7 @@ const main = async () => {
     if (verbose && corners) console.log(`    found ${JSON.stringify(corners.map(([x, y]) => [+x.toFixed(3), +y.toFixed(3)]))}`);
 
     await overlay(data, info.width, info.height, photo, corners, `${photo.name} conf ${conf} err ${err} ${verdict}`);
+    if (crops && corners && confident) await crop(data, info.width, info.height, corners, photo.name);
   }
 
   console.log(`\n${found}/${wanted} sleeves found, ${failures} failure(s) in ${photos.length} photos`);

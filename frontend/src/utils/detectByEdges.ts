@@ -644,7 +644,7 @@ const scoreQuad = (edges: Edges, threshold: number, pts: Point[], measures?: Mea
 
   // One side may be half hidden by the thumb holding it; a side that is not
   // there at all means this is not a rectangle anyone photographed.
-  const evidence = 0.6 * mean + 0.4 * worst - 0.5 * overrun;
+  const evidence = 0.6 * mean + 0.4 * worst - 0.75 * overrun;
 
   return {
     corners: pts,
