@@ -4,6 +4,8 @@ import { BsCamera, BsCheckCircleFill, BsArrowRepeat } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverCropDialog from './CoverCropDialog';
 import { downscaleImage } from '../utils/downscaleImage';
+import { detectSleeveQuad, CONFIDENT } from '../utils/detectSleeveQuad';
+import { warpQuad } from '../utils/warpQuad';
 import './SleeveCapture.css';
 
 type Side = 'front' | 'back';
@@ -64,13 +66,63 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
   const setPhoto = (side: Side, photo: Photo) =>
     setPhotos(current => ({ ...current, [side]: photo }));
 
+  /**
+   * Take a photograph, and straighten it if the sleeve can be found in it.
+   *
+   * Done here rather than waiting for the crop dialog to be opened: a detector
+   * nothing triggers is a detector that never runs, and the whole point is that
+   * the common case should need no taps at all. Anything less than convincing
+   * is left alone for the user to frame by hand.
+   */
   const capture = async (side: Side, file: File) => {
     setError('');
     files.current[side] = file;
+
     try {
       setPhoto(side, await downscaleImage(file));
     } catch (err) {
       setError(`Could not read that photo: ${(err as Error).message}`);
+      return;
+    }
+
+    try {
+      const straightenedFile = await autoStraighten(file);
+      if (straightenedFile) {
+        files.current[side] = straightenedFile;
+        setStraightened(current => ({ ...current, [side]: true }));
+        setPhoto(side, await downscaleImage(straightenedFile));
+      }
+    } catch (_) {
+      // The untouched photo is already shown; failing to improve it is not
+      // worth interrupting anyone over.
+    }
+  };
+
+  /** The sleeve cut out of a photograph, or null if it could not be found. */
+  const autoStraighten = async (file: File): Promise<File | null> => {
+    const url = URL.createObjectURL(file);
+    try {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('decode failed'));
+        img.src = url;
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) return null;
+      context.drawImage(image, 0, 0);
+
+      const found = detectSleeveQuad(context.getImageData(0, 0, canvas.width, canvas.height));
+      if (!found || found.confidence < CONFIDENT) return null;
+
+      const cropped = await warpQuad(image, found.quad);
+      return new File([cropped], 'sleeve.jpg', { type: 'image/jpeg' });
+    } finally {
+      URL.revokeObjectURL(url);
     }
   };
 
@@ -138,7 +190,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
 
         <div className="sleeve-capture-hint">
           {photo
-            ? framed ? `The ${what}, straightened` : `This will be the ${what}`
+            ? framed ? `The ${what}, straightened for you` : `This will be the ${what}`
             : hint}
         </div>
 

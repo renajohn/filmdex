@@ -165,9 +165,19 @@ const cornersOf = (mask: Uint8Array, w: number, h: number): Quad | null => {
   return found as Quad;
 };
 
-/** How much this looks like a rectangle photographed straight-ish on. */
-const shapeConfidence = (quad: Quad, coverage: number): number => {
-  const pts = [quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft];
+/**
+ * How much this looks like a rectangle photographed straight-ish on.
+ *
+ * Measured in pixels, not in fractions of the frame. On a 3:4 photograph -- so
+ * on every photograph a phone takes -- a true square spans 0.8 of the width
+ * against 0.6 of the height, and judging that shape by its fractions scores it
+ * as half again too wide. Every honest detection was being marked down for the
+ * shape of the photo it came from.
+ */
+const shapeConfidence = (quad: Quad, coverage: number, aspect = 1): number => {
+  // Back into proportional pixels: x spans `aspect` for every 1 of y.
+  const pts = [quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft]
+    .map(([x, y]) => [x * aspect, y] as Point);
 
   const sides: number[] = [];
   for (let i = 0; i < 4; i++) {
@@ -224,7 +234,7 @@ const detectByColour = (image: ImageData): Detection | null => {
   const quad = cornersOf(mask, w, h);
   if (!quad) return null;
 
-  const confidence = shapeConfidence(quad, size / (w * h));
+  const confidence = shapeConfidence(quad, size / (w * h), w / h);
   return confidence > 0 ? { quad, confidence } : null;
 };
 
@@ -263,7 +273,7 @@ export const detectSleeveQuad = (image: ImageData): Detection | null => {
   try {
     const byEdges = detectByEdges(image);
     if (byEdges) {
-      const confidence = shapeConfidence(byEdges, coverageOf(byEdges));
+      const confidence = shapeConfidence(byEdges, coverageOf(byEdges), image.width / image.height);
       if (confidence > 0) return { quad: byEdges, confidence };
     }
   } catch (_) {
