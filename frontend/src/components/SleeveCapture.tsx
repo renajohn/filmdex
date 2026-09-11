@@ -67,6 +67,10 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
   // declined, because nothing else changed to trigger a render.
   const [hasFile, setHasFile] = useState<Record<Side, boolean>>({ front: false, back: false });
 
+  // Which sides have had a photo taken on this screen, as opposed to handed
+  // over by the scan.
+  const takenHere = useRef<Record<Side, boolean>>({ front: false, back: false });
+
   const keepFile = (side: Side, file: File) => {
     files.current[side] = file;
     setHasFile(current => (current[side] ? current : { ...current, [side]: true }));
@@ -84,7 +88,11 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
    * already on screen was the one photograph nothing could be done with.
    */
   useEffect(() => {
-    if (!initialFront?.base64 || files.current.front) return;
+    // Not "is there a file already": React mounts this twice in development,
+    // and the first run both keeps a file and is cancelled, so the second
+    // found the file and gave up -- the scanned photo was never straightened.
+    // Only a photo taken here should stop it.
+    if (!initialFront?.base64 || takenHere.current.front) return;
 
     const file = base64ToFile(initialFront.base64, initialFront.mimeType, 'scanned-front.jpg');
     keepFile('front', file);
@@ -93,7 +101,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
     void (async () => {
       try {
         const straightenedFile = await autoStraighten(file);
-        if (cancelled || !straightenedFile) return;
+        if (cancelled || takenHere.current.front || !straightenedFile) return;
         keepFile('front', straightenedFile);
         setStraightened(current => ({ ...current, front: true }));
         setPhoto('front', await downscaleImage(straightenedFile));
@@ -117,6 +125,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
    */
   const capture = async (side: Side, file: File) => {
     setError('');
+    takenHere.current[side] = true;
     keepFile(side, file);
 
     try {

@@ -323,6 +323,25 @@ describe('SleeveCapture — a front handed over by a scan', () => {
     await waitFor(() => expect(screen.getByTestId('crop-front')).toBeInTheDocument());
   });
 
+  it('straightens it even when the screen is mounted twice', async () => {
+    // React's strict mode mounts, unmounts and mounts again, as a remount after
+    // navigating does. The first attempt is cancelled with the first mount,
+    // and the second used to skip the photo as already dealt with -- so on
+    // the development server it was never straightened at all.
+    (detectSleeveQuad as any).mockReturnValue(FOUND);
+    render(
+      <React.StrictMode>
+        <SleeveCapture
+          initialFront={{ base64: 'RlJPTS1TQ0FO', mimeType: 'image/jpeg' }}
+          onDraft={onDraft}
+          onSkip={onSkip}
+        />
+      </React.StrictMode>
+    );
+
+    await waitFor(() => expect(screen.getByText(/straightened for you/i)).toBeInTheDocument());
+  });
+
   it('leaves it alone when the sleeve cannot be found', async () => {
     (detectSleeveQuad as any).mockReturnValue(null);
     withScannedFront();
