@@ -9,6 +9,7 @@ import { getDatabase } from '../database';
 import logger from '../logger';
 import collectionService from './collectionService';
 import ageRecommendationService from './ageRecommendationService';
+import warningsService from './warningsService';
 import type { MovieRow, MovieData, MovieSearchCriteria } from '../types';
 
 interface ThumbnailResult {
@@ -223,7 +224,9 @@ const movieService = {
         }
       }
 
-      return await Movie.create(movieData as unknown as MovieData);
+      const created = await Movie.create(movieData as unknown as MovieData);
+      warningsService.scheduleRefresh(created.id);
+      return created;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error('Error creating movie with ratings:', message);

@@ -11,6 +11,7 @@ import collectionService from '../services/collectionService';
 import cacheService from '../services/cacheService';
 import coverScanService from '../services/coverScanService';
 import ageRecommendationService from '../services/ageRecommendationService';
+import warningsService from '../services/warningsService';
 import Movie from '../models/movie';
 import MovieCast from '../models/movieCast';
 import MovieCrew from '../models/movieCrew';
@@ -522,6 +523,7 @@ const movieController = {
 
       // Create movie in database
       const createdMovie = await Movie.create(movieData as unknown as MovieData);
+      warningsService.scheduleRefresh(createdMovie.id);
 
       // Process cast and crew
       await importService.processCastAndCrew(createdMovie.id, tmdbDetails.credits as unknown as Parameters<typeof importService.processCastAndCrew>[1], tmdbDetails.id);
@@ -668,6 +670,7 @@ const movieController = {
         // Exact edition already exists with same status - this will trigger the unique constraint
         logger.debug('Exact edition already exists:', exactMatch.id);
         const createdMovie = await Movie.create(movieData as unknown as MovieData);
+        warningsService.scheduleRefresh(createdMovie.id);
         await importService.processCastAndCrew(createdMovie.id, tmdbDetails.credits as unknown as Parameters<typeof importService.processCastAndCrew>[1], tmdbDetails.id);
         result = createdMovie as unknown as Record<string, unknown>;
       } else {
@@ -695,6 +698,7 @@ const movieController = {
 
         // Create new movie in database
         const createdMovie = await Movie.create(movieData as unknown as MovieData);
+        warningsService.scheduleRefresh(createdMovie.id);
 
         // Process cast and crew
         await importService.processCastAndCrew(createdMovie.id, tmdbDetails.credits as unknown as Parameters<typeof importService.processCastAndCrew>[1], tmdbDetails.id);

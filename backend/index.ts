@@ -17,6 +17,7 @@ import bookService from './src/services/bookService';
 import backupController from './src/controllers/backupController';
 import bookCommentController from './src/controllers/bookCommentController';
 import warningsController from './src/controllers/warningsController';
+import warningsService from './src/services/warningsService';
 import { mountMcp } from './src/mcp/mount';
 import Movie from './src/models/movie';
 import MovieImport from './src/models/movieImport';
@@ -569,6 +570,8 @@ const serverReady = startServer().then(() => {
     server.timeout = 30 * 60 * 1000;
     server.keepAliveTimeout = 30 * 60 * 1000;
     server.headersTimeout = 31 * 60 * 1000;
+
+    warningsService.startDailyRefresh();
   }
 }).catch((error: Error) => {
   logger.error('Failed to start server:', error);
