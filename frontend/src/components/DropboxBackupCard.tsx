@@ -21,6 +21,7 @@ const DropboxBackupCard: React.FC = () => {
   const load = async () => {
     try {
       setStatus(await backupService.getDropboxStatus());
+      setRequestError(null);
     } catch (err) {
       setRequestError((err as Error).message);
     }

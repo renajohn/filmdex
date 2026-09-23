@@ -78,6 +78,31 @@ describe('DropboxBackupCard', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  it("efface l'erreur de requête après un rechargement réussi", async () => {
+    const initial = status();
+    let resolveSecondLoad: (s: DropboxStatus) => void = () => {};
+    let callCount = 0;
+    vi.mocked(backupService.getDropboxStatus).mockImplementation(() => {
+      callCount += 1;
+      if (callCount === 1) return Promise.resolve(initial);
+      return new Promise(resolve => { resolveSecondLoad = resolve; });
+    });
+    vi.mocked(backupService.runDropboxBackup).mockRejectedValue(new Error('Network error'));
+
+    render(<DropboxBackupCard />);
+    await screen.findByText('Dropbox backup');
+
+    const button = screen.getByRole('button', { name: 'Back up now' });
+    fireEvent.click(button);
+
+    // handleRun's catch sets the error, then reloads; the reload is still pending here.
+    await waitFor(() => expect(screen.getByText('Network error')).toBeInTheDocument());
+
+    // The pending reload now succeeds: the stale error must be cleared.
+    resolveSecondLoad(initial);
+    await waitFor(() => expect(screen.queryByText('Network error')).not.toBeInTheDocument());
+  });
+
   it("désactive le bouton quand l'exécution nocturne tourne déjà", async () => {
     await show(status({ running: true }));
     expect(screen.getByRole('button', { name: /Backing up/ })).toBeDisabled();
