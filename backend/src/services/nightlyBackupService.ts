@@ -36,6 +36,29 @@ export const remoteName = (now: Date): string =>
 export const pickToDelete = (names: string[], keep = KEEP): string[] =>
   names.filter(n => NAME_PATTERN.test(n)).sort().reverse().slice(keep);
 
+export const BACKUP_HOUR = 3;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+const CATCH_UP_DELAY_MS = 5 * 60 * 1000;
+
+// setHours works in local time, so the result follows the TZ of the container across
+// daylight saving changes; setHours again after moving a day for the same reason.
+export const nextRunAt = (hour: number, now: Date): Date => {
+  const next = new Date(now);
+  next.setHours(hour, 0, 0, 0);
+  if (next.getTime() <= now.getTime()) {
+    next.setDate(next.getDate() + 1);
+    next.setHours(hour, 0, 0, 0);
+  }
+  return next;
+};
+
+export const msUntilNext = (hour: number, now: Date): number =>
+  nextRunAt(hour, now).getTime() - now.getTime();
+
+export const isStale = (status: BackupStatus, now: Date, maxAgeMs: number): boolean =>
+  !status.lastSuccessAt || now.getTime() - new Date(status.lastSuccessAt).getTime() > maxAgeMs;
+
 const statusPath = () => path.join(backupService.getBackupDir(), 'dropbox-status.json');
 
 let running = false;
@@ -109,6 +132,30 @@ const nightlyBackupService = {
       running = false;
     }
   },
+};
+
+const runLogged = (): void => {
+  nightlyBackupService.runOnce().catch(error => {
+    // Only BackupAlreadyRunningError can land here: a manual run is in progress.
+    logger.info(`Dropbox backup skipped: ${(error as Error).message}`);
+  });
+};
+
+// A fresh setTimeout for every night rather than a 24 h setInterval, which would drift
+// with the time of the last restart and with daylight saving changes.
+export const startNightlyBackup = (): void => {
+  if (process.env.NODE_ENV === 'test' || !dropbox.isConfigured()) return;
+
+  const schedule = () => {
+    setTimeout(() => { runLogged(); schedule(); }, msUntilNext(BACKUP_HOUR, new Date())).unref();
+  };
+  schedule();
+
+  // The server was off at 3 a.m., or has never backed up: do not wait for tomorrow night.
+  if (isStale(nightlyBackupService.readStatus(), new Date(), DAY_MS)) {
+    setTimeout(runLogged, CATCH_UP_DELAY_MS).unref();
+  }
+  logger.info(`Dropbox backup scheduled, next run at ${nextRunAt(BACKUP_HOUR, new Date()).toISOString()}`);
 };
 
 export default nightlyBackupService;
