@@ -34,7 +34,9 @@ export class BackupAlreadyRunningError extends Error {
 // backup: an empty collection, or a zip far smaller than the last one on Dropbox.
 export class BackupRefusedError extends Error {}
 
-const mb = (bytes: number): number => Math.round(bytes / 1024 / 1024);
+// One decimal: whole-MiB rounding made the refusal message meaningless for small backups
+// ("0 MB vs 0 MB").
+const mb = (bytes: number): string => (bytes / 1024 / 1024).toFixed(1);
 
 const pad = (n: number) => String(n).padStart(2, '0');
 

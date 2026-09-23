@@ -94,7 +94,7 @@ const DropboxBackupCard: React.FC = () => {
         </p>
       )}
       {showError && status.lastRefused && (
-        <button className="btn btn-outline-danger" onClick={() => handleRun(true)} disabled={running}>
+        <button className="btn btn-outline-danger mb-3" onClick={() => handleRun(true)} disabled={running}>
           Back up anyway
         </button>
       )}

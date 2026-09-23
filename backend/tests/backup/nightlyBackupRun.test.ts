@@ -220,11 +220,15 @@ describe('runOnce', () => {
       expect(createBackup).not.toHaveBeenCalled();
       expect(upload).not.toHaveBeenCalled();
       expect(del).not.toHaveBeenCalled();
+      const localZips = fs.readdirSync(backupService.getBackupDir()).filter(f => /^dexvault_\d{4}-\d{2}-\d{2}\.zip$/.test(f));
+      expect(localZips).toEqual([]);
     });
 
     it('refuse quand le zip fait moins de la moitie du plus recent distant', async () => {
-      const zip = fakeZip(3);
-      jest.spyOn(dropbox, 'listFiles').mockResolvedValue([{ name: 'dexvault_2026-09-23.zip', size: 100 }]);
+      // Sizes chosen to round to a readable one-decimal MB in the message (0.4 MB / 1.2 MB),
+      // rather than 3 vs 100 bytes, which both round to "0 MB".
+      const zip = fakeZip(0.4 * 1024 * 1024);
+      jest.spyOn(dropbox, 'listFiles').mockResolvedValue([{ name: 'dexvault_2026-09-23.zip', size: 1.2 * 1024 * 1024 }]);
       const upload = jest.spyOn(dropbox, 'uploadFile');
       const del = jest.spyOn(dropbox, 'deleteFile');
 
@@ -232,7 +236,7 @@ describe('runOnce', () => {
 
       expect(ok).toBe(false);
       expect(status.lastRefused).toBe(true);
-      expect(status.lastError).toBe('Refused: backup is 0 MB vs 0 MB for dexvault_2026-09-23.zip. Nothing was uploaded.');
+      expect(status.lastError).toBe('Refused: backup is 0.4 MB vs 1.2 MB for dexvault_2026-09-23.zip. Nothing was uploaded.');
       expect(upload).not.toHaveBeenCalled();
       expect(del).not.toHaveBeenCalled();
       expect(fs.existsSync(zip)).toBe(false);
