@@ -44,6 +44,28 @@ describe('createBackup', () => {
     expect(snapshots()).toEqual([]);
   });
 
+  it("rejette et nettoie sans uncaughtException quand le flux d'ecriture echoue", async () => {
+    const originalCreateWriteStream = fs.createWriteStream.bind(fs);
+    jest.spyOn(fs, 'createWriteStream').mockImplementation((...args: Parameters<typeof fs.createWriteStream>) => {
+      const stream = originalCreateWriteStream(...args);
+      process.nextTick(() => stream.emit('error', new Error('ENOSPC: no space left on device')));
+      return stream;
+    });
+
+    const uncaught = jest.fn();
+    process.on('uncaughtException', uncaught);
+    try {
+      await expect(backupService.createBackup()).rejects.toThrow('ENOSPC');
+    } finally {
+      process.off('uncaughtException', uncaught);
+    }
+
+    expect(uncaught).not.toHaveBeenCalled();
+    expect(snapshots()).toEqual([]);
+    const leftoverZips = fs.readdirSync(backupService.getBackupDir()).filter(f => f.endsWith('.zip'));
+    expect(leftoverZips).toEqual([]);
+  });
+
   it('supprime le snapshot partiel si VACUUM INTO échoue', async () => {
     const runSpy = jest.spyOn(getDatabase(), 'run').mockImplementation((sql: string, params: unknown[], callback: (err: Error | null) => void) => {
       if (sql.includes('VACUUM INTO')) {

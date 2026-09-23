@@ -47,6 +47,27 @@ const BackupService = {
     return backupDir;
   },
 
+  // Delete leftover .snapshot-*.sqlite files: if the process died mid-backup, one of these
+  // stays in the backups dir forever, invisible in the UI, each as big as the database.
+  removeStaleSnapshots(maxAgeMs: number = 60 * 60 * 1000): void {
+    const backupDir = this.getBackupDir();
+    const now = Date.now();
+    for (const file of fs.readdirSync(backupDir)) {
+      if (!file.startsWith('.snapshot-') || !file.endsWith('.sqlite')) continue;
+      const filePath = path.join(backupDir, file);
+      try {
+        const { mtimeMs } = fs.statSync(filePath);
+        if (now - mtimeMs > maxAgeMs) {
+          fs.rmSync(filePath, { force: true });
+          logger.info(`Removed stale backup snapshot: ${file}`);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        logger.warn(`Failed to check/remove stale snapshot ${file}:`, message);
+      }
+    }
+  },
+
   // Copy the live database through SQLite itself: zipping db.sqlite while the
   // server writes to it can capture a half-written page.
   async snapshotDatabase(): Promise<string> {
@@ -84,7 +105,13 @@ const BackupService = {
       const output = fs.createWriteStream(backupPath);
       const archive = archiver('zip', { zlib: { level: 9 } });
 
+      // Settle the promise exactly once: a write error (disk full, ENOENT) otherwise
+      // becomes an uncaughtException instead of a rejection.
+      let settled = false;
+
       output.on('close', () => {
+        if (settled) return;
+        settled = true;
         const sizeMB = (archive.pointer() / 1024 / 1024).toFixed(2);
         logger.info(`Backup created: ${backupFilename} (${sizeMB} MB)`);
         resolve({
@@ -95,15 +122,29 @@ const BackupService = {
         });
       });
 
+      output.on('error', (err: Error) => {
+        if (settled) return;
+        settled = true;
+        logger.error('Backup output stream error:', err);
+        archive.abort();
+        fs.rmSync(backupPath, { force: true });
+        reject(err);
+      });
+
       // Catch warnings (e.g. stat failures and other non-blocking errors)
       archive.on('warning', (err: NodeJS.ErrnoException) => {
         if (err.code === 'ENOENT') {
           logger.warn('Archive warning:', err);
-        } else {
+        } else if (!settled) {
+          settled = true;
           reject(err);
         }
       });
-      archive.on('error', (err: Error) => reject(err));
+      archive.on('error', (err: Error) => {
+        if (settled) return;
+        settled = true;
+        reject(err);
+      });
 
       archive.pipe(output);
       archive.file(dbSnapshotPath, { name: 'db.sqlite' });
