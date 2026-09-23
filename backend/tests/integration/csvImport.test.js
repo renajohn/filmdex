@@ -90,8 +90,13 @@ describe('CSV Import Integration Flow', () => {
       expect(statusResponse.body).toHaveProperty('status');
       expect(['PENDING', 'PROCESSING', 'COMPLETED', 'PENDING_RESOLUTION']).toContain(statusResponse.body.status);
 
-      // Step 3: Wait a bit for processing to complete (in real scenario, this would be async)
-      // For testing, we'll just verify the import session was created
+      // Let the background import finish: left running, it creates "The Matrix"
+      // with TMDB id 604 while later tests resolve that same id.
+      const settled = ['COMPLETED', 'PENDING_RESOLUTION', 'FAILED'];
+      for (let i = 0; i < 100 && !settled.includes((await MovieImport.findById(importId)).status); i++) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
       const importSession = await MovieImport.findById(importId);
       expect(importSession).toBeTruthy();
       expect(importSession.id).toBe(importId);
@@ -201,6 +206,9 @@ describe('CSV Import Integration Flow', () => {
   });
 
   it('should handle movie resolution flow', async () => {
+    // Its own TMDB id: the CSV import above already created a movie for 604.
+    tmdbService.getMovieDetails.mockResolvedValue({ ...TMDB_DETAILS, id: 605 });
+
     // Create an import session
     const importSession = await MovieImport.create();
     const importId = importSession.id;
@@ -230,7 +238,7 @@ describe('CSV Import Integration Flow', () => {
       importId: importId,
       unmatchedMovieTitle: 'Test Movie',
       resolvedMovie: {
-        id: 604,
+        id: 605,
         title: 'Test Movie',
         original_title: 'Test Movie Original',
         release_date: '2023-01-01',
