@@ -14,6 +14,7 @@ import Track from '../../src/models/track';
 import AlbumCollection from '../../src/models/albumCollection';
 import Book from '../../src/models/book';
 import BookComment from '../../src/models/bookComment';
+import MovieWarning from '../../src/models/movieWarning';
 import { createMcpServer } from '../../src/mcp/server';
 
 // We bypass the standard initDatabase() (which uses dynamic await import() and
@@ -53,6 +54,7 @@ const setupDatabase = async (): Promise<void> => {
   await AlbumCollection.createTable();
   await Book.createTable();
   await BookComment.createTable();
+  await MovieWarning.createTable();
 
   // Apply the migrations our fixtures rely on (last_watched, watch_count,
   // book_type already created by Book.createTable). The book table already

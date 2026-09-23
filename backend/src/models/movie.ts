@@ -2,6 +2,7 @@ import { getDatabase } from '../database';
 import cacheService from '../services/cacheService';
 import type { RunResult } from 'sqlite3';
 import type { MovieRow, MovieData, MovieSearchCriteria, MovieUpdateResult, MovieWatchResult } from '../types';
+import { statusSql, warningStatusColumnsSql, Topic, WarningStatus } from '../warnings/rules';
 
 interface TextFilter {
   values: string[];
@@ -67,6 +68,7 @@ interface SearchFilters {
   hasComments: boolean[];
   watched: WatchedFilter[];
   lastWatched: LastWatchedFilter[];
+  warnings: Array<{ topic: Topic; status: WarningStatus }>;
 }
 
 interface ExtractResult {
@@ -287,6 +289,7 @@ const Movie = {
       const db = getDatabase();
       let sql = `
         SELECT m.*,
+          ${warningStatusColumnsSql()},
           MAX(CASE WHEN c.type = 'box_set' THEN mc.collection_order END) as collection_order,
           GROUP_CONCAT(
             CASE WHEN c.type = 'box_set'
@@ -339,7 +342,8 @@ const Movie = {
           prices: [],
           hasComments: [],
           watched: [],
-          lastWatched: []
+          lastWatched: [],
+          warnings: []
         };
 
         // Helper: parse comma-separated values respecting quotes
@@ -561,6 +565,14 @@ const Movie = {
         }
         searchText = searchText.replace(hasCommentsRegex, '').trim();
 
+        // Extract spiders:/snakes: filters (with | without | unknown)
+        const warningRegex = /\b(spiders|snakes):(with|without|unknown)\b/g;
+        let warningMatch: RegExpExecArray | null;
+        while ((warningMatch = warningRegex.exec(searchText)) !== null) {
+          filters.warnings.push({ topic: warningMatch[1] as Topic, status: warningMatch[2] as WarningStatus });
+        }
+        searchText = searchText.replace(warningRegex, '').trim();
+
         // Extract watched: filters (boolean or numeric with operators)
         // Supports: watched:true, watched:false, watched:yes, watched:no
         //           watched:1, watched:>1, watched:>=2, watched:<3, watched:<=5
@@ -633,7 +645,7 @@ const Movie = {
 
         // Remove incomplete predicates (predicates without values) from search text
         // This prevents them from being treated as generic search terms
-        const incompletePredicateRegex = /\b(actor|director|title|collection|box_set|genre|format|original_language|media_type|year|imdb_rating|tmdb_rating|rotten_tomato_rating|recommended_age|price|has_comments|watched|last_watched):\s*$/g;
+        const incompletePredicateRegex = /\b(actor|director|title|collection|box_set|genre|format|original_language|media_type|year|imdb_rating|tmdb_rating|rotten_tomato_rating|recommended_age|price|has_comments|watched|last_watched|spiders|snakes):\s*$/g;
         searchText = searchText.replace(incompletePredicateRegex, '').trim();
 
         // Also remove predicates with operators but no values (e.g., "imdb_rating:>", "year:<=")
@@ -930,6 +942,12 @@ const Movie = {
             // No comments: comments is null or empty
             sql += ` AND (m.comments IS NULL OR m.comments = '')`;
           }
+        });
+
+        // Apply spiders:/snakes: filters (AND logic); the topic comes from a closed regex
+        filters.warnings.forEach(({ topic, status }) => {
+          sql += ` AND ${statusSql(topic)} = ?`;
+          params.push(status);
         });
 
         // Apply watched filters (AND logic)
@@ -1495,6 +1513,7 @@ const Movie = {
       const db = getDatabase();
       const sql = `
         SELECT m.*,
+          ${warningStatusColumnsSql()},
           MAX(CASE WHEN c.type = 'box_set' THEN mc.collection_order END) as collection_order,
           GROUP_CONCAT(
             CASE WHEN c.type = 'box_set'
