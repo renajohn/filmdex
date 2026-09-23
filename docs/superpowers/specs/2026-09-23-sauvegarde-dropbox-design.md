@@ -185,3 +185,28 @@ Backend, `fetch` simulé :
 
 Frontend, Vitest : l'encart dans ses quatre états (non configuré, à jour, en erreur, plus de 48 h) et
 le bouton désactivé pendant l'exécution.
+
+## Garde-fou contre une sauvegarde vide (ajout du 2026-09-23)
+
+Scénario : le volume est perdu, DexVault redémarre sur une base neuve, le fichier d'état a disparu
+avec lui, et le rattrapage envoie une sauvegarde vide 5 minutes plus tard. Elle écrase le zip du jour ;
+chaque nuit suivante ajoute une sauvegarde vide et en fait sortir une bonne de la rotation. En 7 jours,
+plus rien d'utile, sans aucune erreur visible.
+
+Avant tout envoi, l'exécution **refuse** de continuer si :
+
+- la base ne contient aucun élément (somme des lignes de `movies`, `albums`, `books` égale à 0) ;
+- ou le zip produit fait **moins de 50 %** de la taille du `dexvault_*.zip` le plus récent sur Dropbox.
+  La référence est lue sur Dropbox, pas dans le fichier d'état local, qui a pu disparaître avec le
+  volume. Sans fichier distant, pas de comparaison.
+
+Un refus n'envoie rien, n'écrase rien et ne fait pas tourner la rotation. Il est consigné comme une
+erreur (`lastError` explique la cause : « 0 items » ou « 12 MB vs 68 MB »), avec `lastRefused: true`.
+Une réussite remet `lastRefused` à `false`.
+
+Échappatoire : `POST /api/backup/dropbox/run` accepte `{ "force": true }`, qui saute les deux
+vérifications. L'encart affiche un bouton « Back up anyway » quand la dernière erreur est un refus.
+L'exécution nocturne ne force jamais.
+
+Filet supplémentaire, hors DexVault : Dropbox conserve 30 jours les fichiers supprimés et les versions
+écrasées.

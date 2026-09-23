@@ -1632,3 +1632,77 @@ Ces étapes demandent le compte Dropbox et p-cloud ; elles ne font pas partie de
 2. publier (`make publish`), attendre Watchtower ;
 3. cliquer « Back up now » : le zip apparaît dans `Dropbox/Apps/<app>/`, l'encart affiche la réussite ;
 4. le lendemain matin, vérifier la présence de `dexvault_<date>.zip` de la nuit.
+
+---
+
+### Task 8: Garde-fou contre une sauvegarde vide
+
+Spec : section « Garde-fou contre une sauvegarde vide » de la spec. Cette tâche part du code **après**
+la vague de corrections de la relecture finale (le zip local nocturne s'appelle déjà
+`dexvault_<date>.zip`) : lire l'état actuel des fichiers avant de modifier.
+
+**Files:**
+- Modify: `backend/src/services/backupService.ts` (nouvelle méthode `countCollectionItems`)
+- Modify: `backend/src/services/dropboxService.ts` (`listFiles` renvoie aussi la taille)
+- Modify: `backend/src/services/nightlyBackupService.ts` (vérifications, option `force`, `lastRefused`)
+- Modify: `backend/src/controllers/dropboxBackupController.ts` (lit `force` dans le corps)
+- Modify: `frontend/src/services/backupService.ts`, `frontend/src/components/DropboxBackupCard.tsx`
+- Tests: les fichiers existants de `backend/tests/backup/` et `DropboxBackupCard.test.tsx`
+
+**Interfaces:**
+- `backupService.countCollectionItems(): Promise<number>` —
+  `SELECT (SELECT COUNT(*) FROM movies) + (SELECT COUNT(*) FROM albums) + (SELECT COUNT(*) FROM books) AS n`
+  via `getDatabase().get`.
+- `dropboxService.listFiles(folder): Promise<{ name: string; size: number }[]>` (au lieu de `string[]`) ;
+  la taille vient de l'entrée `size` de `list_folder`. Adapter l'appel de la rotation
+  (`pickToDelete(files.map(f => f.name))`) et le test de pagination.
+- `export const MIN_SIZE_RATIO = 0.5` dans `nightlyBackupService.ts`.
+- `export class BackupRefusedError extends Error` dans `nightlyBackupService.ts`.
+- `BackupStatus` gagne `lastRefused: boolean` (défaut `false` dans `EMPTY_STATUS`).
+- `runOnce(now: Date = new Date(), options: { force?: boolean } = {})`.
+- Route : `POST /api/backup/dropbox/run` lit `req.body?.force === true`.
+- Frontend : `DropboxStatus.lastRefused: boolean` ; `runDropboxBackup(force = false)` envoie
+  `{ force }` en JSON (`Content-Type: application/json`).
+
+**Comportement de `runOnce` (dans le `try`, avant l'envoi) :**
+
+1. si `!options.force` et `await backupService.countCollectionItems() === 0` → lever
+   `new BackupRefusedError('Refused: the collection is empty (0 items). Nothing was uploaded.')` ;
+2. `createBackup()` puis renommage local comme aujourd'hui ;
+3. si `!options.force` : lister le dossier distant, prendre le `dexvault_*.zip` le plus récent par nom
+   (même motif que la rotation) ; s'il existe et que `backup.size < MIN_SIZE_RATIO * latest.size` →
+   lever `new BackupRefusedError(`Refused: backup is ${mb(backup.size)} MB vs ${mb(latest.size)} MB for ${latest.name}. Nothing was uploaded.`)`
+   (`mb` = arrondi à l'entier des Mio) ;
+4. envoi et rotation inchangés.
+
+Dans le `catch`, un `BackupRefusedError` produit le même état d'échec qu'une autre erreur, avec en plus
+`lastRefused: true` ; toute autre erreur met `lastRefused: false`. Une réussite met `lastRefused: false`.
+Le zip local est supprimé dans tous les cas (le `finally` existant).
+
+**Interface :** quand `status.lastRefused` et que l'erreur est affichée (plus récente que la dernière
+réussite), afficher sous l'erreur un bouton `btn btn-outline-danger` « Back up anyway », désactivé
+pendant une exécution, qui appelle `runDropboxBackup(true)` par le même chemin que « Back up now ».
+
+- [ ] **Step 1: Tests backend qui échouent** — dans `nightlyBackupRun.test.ts` (espionner
+  `backupService.countCollectionItems`, `dropbox.listFiles` qui renvoie maintenant des objets) :
+  - refuse sans rien envoyer ni supprimer quand la collection est vide ; `ok: false`,
+    `lastRefused: true`, `lastError` contient « 0 items », zip local absent ;
+  - refuse quand le zip fait moins de la moitié du plus récent distant (zip de 3 octets contre un
+    distant `dexvault_2026-09-23.zip` de 100 octets) ; aucun `uploadFile`, aucun `deleteFile` ;
+  - accepte à exactement 50 % (zip de 50 octets contre 100) ;
+  - ignore les fichiers distants hors motif pour la référence (`notes.txt` énorme) ;
+  - n'effectue aucune vérification avec `{ force: true }` : envoie malgré 0 éléments ;
+  - une réussite après un refus remet `lastRefused` à `false`.
+  Dans `dropboxService.test.ts` : `listFiles` renvoie `{ name, size }`. Dans
+  `dropboxBackupRoutes.test.ts` : `POST` avec `{ force: true }` appelle `runOnce(undefined? , { force: true })`
+  (vérifier le second argument), sans corps appelle avec `{ force: false }`.
+  Le test `createBackup.test.ts` gagne un cas pour `countCollectionItems` (insère un film, compte ≥ 1).
+- [ ] **Step 2:** les lancer, constater l'échec.
+- [ ] **Step 3:** implémenter le backend.
+- [ ] **Step 4:** `cd backend && npm test && npx tsc --noEmit` — tout passe.
+- [ ] **Step 5: Tests frontend qui échouent** — « Back up anyway » visible seulement quand
+  `lastRefused` et erreur récente ; un clic appelle `runDropboxBackup(true)` ; absent sinon.
+- [ ] **Step 6:** implémenter le frontend ; `cd frontend && npx vitest --run && npx tsc --noEmit`.
+- [ ] **Step 7:** ajouter au README, section « Dropbox backup », un paragraphe « Safety check » qui
+  décrit les deux refus, le bouton « Back up anyway » et la rétention de 30 jours de Dropbox.
+- [ ] **Step 8: Commit** — `git commit -m "Refuse to upload an empty or shrunken backup unless forced"`
