@@ -190,6 +190,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const [editValue, setEditValue] = useState('');
   const [saving, setSaving] = useState(false);
   const [refreshingRatings, setRefreshingRatings] = useState(false);
+  // Bumped after a ratings refresh, which also refreshes the spider/snake votes server-side.
+  const [warningsVersion, setWarningsVersion] = useState(0);
   const [localMovieData, setLocalMovieData] = useState<MovieData | null>(movieDetails);
   const [showCopyIcon, setShowCopyIcon] = useState(false);
   const [showPosterSelector, setShowPosterSelector] = useState(false);
@@ -966,6 +968,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
         ...prev!,
         ...updatedMovie
       }));
+      setWarningsVersion(v => v + 1);
       
     } catch (error) {
       console.error('Error refreshing ratings:', error);
@@ -1787,6 +1790,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
 
                 {movieDetails?.id != null && (
                   <MovieWarnings
+                    key={warningsVersion}
                     movieId={Number(movieDetails.id)}
                     onSearch={onSearch ? (query) => { onSearch(query); onClose(); } : undefined}
                   />
