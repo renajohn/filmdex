@@ -131,6 +131,8 @@ function AppContent() {
             'recommended_age:', 'recommended_age:>', 'recommended_age:<', 'recommended_age:>=', 'recommended_age:<=',
             'price:', 'price:>', 'price:<', 'price:>=', 'price:<=',
             'has_comments:true', 'has_comments:false',
+            'spiders:with', 'spiders:without', 'spiders:unknown',
+            'snakes:with', 'snakes:without', 'snakes:unknown',
             'watched:true', 'watched:false',
             'watched:', 'watched:>', 'watched:<', 'watched:>=', 'watched:<=',
             'last_watched:today', 'last_watched:yesterday', 'last_watched:week', 'last_watched:month', 'last_watched:year',
@@ -513,6 +515,15 @@ function AppContent() {
       case 'comments':
         predicate = 'has_comments:true';
         break;
+      case 'no_spiders':
+        predicate = 'spiders:without';
+        break;
+      case 'no_snakes':
+        predicate = 'snakes:without';
+        break;
+      case 'no_spiders_snakes':
+        predicate = 'spiders:without snakes:without';
+        break;
       case 'owner':
         predicate = `owner:"${filterValue}"`;
         break;
@@ -656,6 +667,12 @@ function AppContent() {
             'price:<=': 'Price less or equal',
             'has_comments:true': 'Movies with comments',
             'has_comments:false': 'Movies without comments',
+            'spiders:with': 'Movies showing spiders',
+            'spiders:without': 'Movies without spiders',
+            'spiders:unknown': 'Spiders not reported yet',
+            'snakes:with': 'Movies showing snakes',
+            'snakes:without': 'Movies without snakes',
+            'snakes:unknown': 'Snakes not reported yet',
             'watched:true': 'Movies you have watched',
             'watched:false': 'Movies you haven\'t watched',
             'watched:': 'Exact watch count (e.g. watched:2)',
@@ -1498,6 +1515,19 @@ function AppContent() {
                           >
                             Has Comments
                           </button>
+                          {([['no_spiders', 'No spiders'], ['no_snakes', 'No snakes'], ['no_spiders_snakes', 'No spiders or snakes']] as const).map(([type, label]) => (
+                            <button
+                              key={type}
+                              className="filter-option"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleFilterSelection(type, '');
+                              }}
+                            >
+                              {label}
+                            </button>
+                          ))}
                         </div>
 
                         {collections.length > 0 && (

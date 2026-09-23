@@ -6,6 +6,7 @@ import MovieDetailCard from './MovieDetailCard';
 import BoxSetStack from './BoxSetStack';
 import AlphabeticalIndex from './AlphabeticalIndex';
 import { NextBanner, CollectionHeader, EmptyState } from './shared';
+import WarningBadges from './WarningBadges';
 import {
   BsChevronDown,
   BsFilm,
@@ -417,6 +418,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
               {movie.recommended_age != null && (
                 <span className="age-badge-large">{movie.recommended_age}+</span>
               )}
+              <WarningBadges movie={movie} />
               {combinedScore && (
                 <span className="score-badge-large" style={{ color: getRatingColor(combinedScore, 10) }}>
                   {combinedScore.toFixed(1)}
