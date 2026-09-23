@@ -4,6 +4,7 @@ import CompactRatingsWidget from './CompactRatingsWidget';
 import InlinePosterSelector from './InlinePosterSelector';
 import CollectionTagsInput from './CollectionTagsInput';
 import CollectionRenameDialog from './CollectionRenameDialog';
+import MovieWarnings from './MovieWarnings';
 import apiService from '../services/api';
 import { getLanguageName } from '../services/languageCountryUtils';
 import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsCopy, BsFilm, BsGripVertical, BsEye } from 'react-icons/bs';
@@ -1783,6 +1784,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                     {renderGenres(genres)} | {formatRuntime(runtime)} | {renderClickableAge(recommended_age)}
                   </span>
                 </div>
+
+                {movieDetails?.id != null && (
+                  <MovieWarnings
+                    movieId={Number(movieDetails.id)}
+                    onSearch={onSearch ? (query) => { onSearch(query); onClose(); } : undefined}
+                  />
+                )}
 
                 {/* Ratings Section */}
                 <CompactRatingsWidget
