@@ -29,9 +29,8 @@ COPY backend/index.ts ./backend/
 COPY backend/src/ ./backend/src/
 COPY backend/migrations/ ./backend/migrations/
 
-# Copy frontend builds from stage 1 (identical for normal and ingress)
+# Copy frontend build from stage 1
 COPY --from=frontend-builder /build/frontend/build/ ./frontend/
-COPY --from=frontend-builder /build/frontend/build/ ./frontend-ingress/
 
 # Copy deployment config
 COPY deployment.prod.json ./deployment.json

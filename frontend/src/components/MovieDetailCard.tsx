@@ -614,10 +614,9 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
 
   const getPosterUrl = (posterPath: string | undefined) => {
     if (!posterPath) return null;
-    // If it's already a local path, return as is with ingress support
+    // If it's already a local path, return as is
     if (posterPath.startsWith('/images/') || posterPath.startsWith('/api/images/')) {
-      const baseUrl = apiService.getImageBaseUrl();
-      return `${baseUrl}${posterPath}`; // Use dynamic base URL for ingress
+      return posterPath;
     }
    
     // If it's already a full URL, return as is
@@ -632,15 +631,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       return backdropPath;
     }
     
-    // If it's already a local path, return as is with ingress support
+    // If it's already a local path, return as is
     if (backdropPath.startsWith('/images/') || backdropPath.startsWith('/api/images/')) {
-      const baseUrl = apiService.getImageBaseUrl();
-      return `${baseUrl}${backdropPath}`;
+      return backdropPath;
     }
     
     // Default: prepend /api/images/
-    const baseUrl = apiService.getImageBaseUrl();
-    return `${baseUrl}/api/images/${backdropPath}`;
+    return `/api/images/${backdropPath}`;
   };
 
   const getProfileUrl = (profilePath: string | undefined) => {
@@ -651,15 +648,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       return profilePath;
     }
     
-    // If it's already a local path, return as is with ingress support
+    // If it's already a local path, return as is
     if (profilePath.startsWith('/images/') || profilePath.startsWith('/api/images/')) {
-      const baseUrl = apiService.getImageBaseUrl();
-      return `${baseUrl}${profilePath}`;
+      return profilePath;
     }
     
     // Default: prepend /api/images/
-    const baseUrl = apiService.getImageBaseUrl();
-    return `${baseUrl}/api/images/${profilePath}`;
+    return `/api/images/${profilePath}`;
   };
 
 
@@ -1282,7 +1277,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     
     // For custom posters, use the file_path directly; for TMDB posters, construct full URL
     const posterUrl = isCustomPoster 
-      ? `${apiService.getImageBaseUrl()}${poster.file_path}`
+      ? poster.file_path
       : `https://image.tmdb.org/t/p/original${poster.file_path}`;
     
     // Show loading spinner immediately

@@ -1,41 +1,5 @@
 class MusicService {
-  private baseUrl: string | null;
-  private configPromise: Promise<string> | null;
-
-  constructor() {
-    this.baseUrl = null;
-    this.configPromise = null;
-  }
-
   async getBaseUrl(): Promise<string> {
-    // If we already have the base URL, return it
-    if (this.baseUrl) {
-      return this.baseUrl;
-    }
-
-    // If we're already loading the config, wait for it
-    if (!this.configPromise) {
-      this.configPromise = this.loadConfig();
-    }
-
-    this.baseUrl = await this.configPromise;
-    return this.baseUrl;
-  }
-
-  async loadConfig(): Promise<string> {
-    // Detect if we're running in Home Assistant ingress mode
-    const pathname = window.location.pathname;
-
-    if (pathname.includes('/api/hassio_ingress/')) {
-      // Extract the ingress path from the current URL
-      const match = pathname.match(/\/api\/hassio_ingress\/[^/]+/);
-      if (match) {
-        const ingressPath = match[0];
-        return `${ingressPath}/api`;
-      }
-    }
-
-    // Default to /api for normal mode
     return '/api';
   }
 
@@ -192,7 +156,6 @@ class MusicService {
       const platform = navigator.platform || '';
       const isIOS = /iPad|iPhone|iPod/.test(ua) || (/Mac/.test(platform) && 'ontouchend' in document);
       const isMac = /Mac/.test(platform) && !isIOS;
-      const isHassApp = /HomeAssistant/i.test(ua) || (window.location.pathname || '').includes('/api/hassio_ingress/');
 
       const normalizeToUniversal = (u: string): string => {
         try {
@@ -211,14 +174,14 @@ class MusicService {
       // It should deep-link to the Music app without opening the App Store when the app is installed.
       const universalUrl = normalizeToUniversal(url);
 
-      // macOS (regular browser): navigate in the same window to avoid blank tabs
-      if (isMac && !isHassApp) {
+      // macOS: navigate in the same window to avoid blank tabs
+      if (isMac) {
         window.location.href = universalUrl;
         return;
       }
 
-      // iOS and HA mobile: try deep-link schemes in sequence to wake app and select album
-      if (isIOS && !isHassApp) {
+      // iOS: try deep-link schemes in sequence to wake app and select album
+      if (isIOS) {
         const hostless = universalUrl.replace(/^https?:\/\//i, '');
         const candidates = [
           `music://${hostless}`,
@@ -233,26 +196,6 @@ class MusicService {
           setTimeout(tryNext, 600);
         };
         tryNext();
-        return;
-      }
-
-      // HA ingress (macOS or iOS): avoid ingress rewriting by opening an external absolute link via a temporary anchor
-      if (isHassApp) {
-        try {
-          // Try to foreground app quickly on iOS
-          if (isIOS) {
-            try { window.location.assign('music://'); } catch (_) { /* ignore */ }
-          }
-          const a = document.createElement('a');
-          a.href = universalUrl;
-          a.target = '_blank';
-          a.rel = 'noreferrer noopener';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        } catch (_) {
-          window.open(universalUrl, '_blank', 'noopener');
-        }
         return;
       }
 
@@ -532,7 +475,7 @@ class MusicService {
   }
 
   /**
-   * Get the full URL for an image path, handling Home Assistant ingress mode
+   * Get the full URL for an image path
    */
   getImageUrl(imagePath: string | null | undefined): string | null {
     if (!imagePath) return null;
@@ -542,26 +485,7 @@ class MusicService {
       return imagePath;
     }
 
-    // Detect if we're in Home Assistant ingress mode
-    const pathname = window.location.pathname;
-    if (pathname.includes('/api/hassio_ingress/')) {
-      const match = pathname.match(/\/api\/hassio_ingress\/[^/]+/);
-      if (match) {
-        const ingressPath = match[0];
-        // If path starts with /api/images/, prepend ingress path
-        if (imagePath.startsWith('/api/images/')) {
-          return `${ingressPath}${imagePath}`;
-        }
-        // If path starts with /images/, convert to /api/images/ and prepend ingress
-        if (imagePath.startsWith('/images/')) {
-          return `${ingressPath}/api${imagePath}`;
-        }
-        // Otherwise, assume it needs /api/images/ prefix
-        return `${ingressPath}/api/images/${imagePath}`;
-      }
-    }
-
-    // Normal mode - just return the path as-is if it starts with /api/images/
+    // Local paths are served as-is
     if (imagePath.startsWith('/api/images/') || imagePath.startsWith('/images/')) {
       return imagePath;
     }

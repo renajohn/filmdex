@@ -619,7 +619,7 @@ const musicController = {
         logger.warn('Failed to resize cover image:', (error as Error).message);
       }
 
-      // Construct the cover path using API endpoint (works with Home Assistant ingress)
+      // Construct the cover path using API endpoint
       const coverPath = `/api/images/cd/custom/${file.filename}`;
 
       // Update only the cover field without affecting other data
@@ -680,7 +680,7 @@ const musicController = {
         logger.warn('Failed to resize back cover image:', (error as Error).message);
       }
 
-      // Construct the back cover path using API endpoint (works with Home Assistant ingress)
+      // Construct the back cover path using API endpoint
       const backCoverPath = `/api/images/cd/custom/${file.filename}`;
 
       // Update only the back_cover field without affecting other data
