@@ -15,6 +15,7 @@ import musicService from './src/services/musicService';
 import bookController from './src/controllers/bookController';
 import bookService from './src/services/bookService';
 import backupController from './src/controllers/backupController';
+import dropboxBackupController from './src/controllers/dropboxBackupController';
 import bookCommentController from './src/controllers/bookCommentController';
 import warningsController from './src/controllers/warningsController';
 import warningsService from './src/services/warningsService';
@@ -328,6 +329,8 @@ app.get('/api/backup/list', backupController.listBackups);
 app.get('/api/backup/download/:filename', backupController.downloadBackup);
 app.post('/api/backup/restore', backupController.restoreBackup);
 app.post('/api/backup/upload-restore', backupController.uploadMiddleware, backupController.uploadAndRestoreBackup);
+app.get('/api/backup/dropbox/status', dropboxBackupController.getStatus);
+app.post('/api/backup/dropbox/run', dropboxBackupController.run);
 app.delete('/api/backup/:filename', backupController.deleteBackup);
 app.post('/api/backup/cleanup-restore', backupController.cleanupRestoreBackups);
 
