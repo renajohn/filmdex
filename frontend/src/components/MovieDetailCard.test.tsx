@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import MovieDetailCard from './MovieDetailCard';
 
@@ -10,6 +10,7 @@ vi.mock('../services/api', () => ({
     getBoxSetNames: vi.fn(() => Promise.resolve([])),
     getMoviesInCollection: vi.fn(() => Promise.resolve({ movies: [] })),
     updateMovie: vi.fn(() => Promise.resolve({})),
+    refreshMovieRatings: vi.fn(() => Promise.resolve({ id: 1 })),
     getMovieWarnings: vi.fn(() => Promise.resolve({
       movieId: 1, dddId: null, dddUrl: null, matchedBy: null, checkedAt: null, topics: []
     })),
@@ -97,5 +98,15 @@ describe('MovieDetailCard', () => {
     (document.querySelector('.movie-detail-close') as HTMLButtonElement).click();
 
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('reloads the spider and snake votes after refreshing the ratings', async () => {
+    render(<MovieDetailCard movieDetails={movie()} onClose={() => {}} />);
+    await waitFor(() => expect(apiService.getMovieWarnings).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTitle('Refresh ratings from external sources'));
+
+    await waitFor(() => expect(apiService.refreshMovieRatings).toHaveBeenCalledWith(1));
+    await waitFor(() => expect(apiService.getMovieWarnings).toHaveBeenCalledTimes(2));
   });
 });

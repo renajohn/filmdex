@@ -924,6 +924,12 @@
   height: 270px;
 }
 
+/* Badges position themselves against .next-banner__image; the wrapper adds no box. */
+.next-banner__badges {
+  display: contents;
+  border-radius: inherit;
+}
+
 .next-banner__image--music {
   height: 180px;
 }

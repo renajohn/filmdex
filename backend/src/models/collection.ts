@@ -1,6 +1,7 @@
 import type sqlite3 from 'sqlite3';
 import { getDatabase } from '../database';
 import type { CollectionRow, CollectionData, MovieRow, AlbumFormatted } from '../types';
+import { warningStatusColumnsSql } from '../warnings/rules';
 
 interface CollectionCreateResult {
   id: number;
@@ -208,7 +209,8 @@ const Collection = {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
       const sql = `
-        SELECT m.*, mc.collection_order
+        SELECT m.*, mc.collection_order,
+          ${warningStatusColumnsSql()}
         FROM movies m
         JOIN movie_collections mc ON m.id = mc.movie_id
         WHERE mc.collection_id = ?
