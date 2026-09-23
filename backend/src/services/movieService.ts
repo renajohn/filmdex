@@ -620,6 +620,14 @@ const movieService = {
       // Update in database - use updateFields to preserve existing data
       await Movie.updateFields(movieId, updateData);
 
+      // Spider and snake votes ride along; a refusal there must not fail the ratings.
+      try {
+        await warningsService.refreshMovie(movieId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.warn(`Spider/snake warnings not refreshed for movie ${movieId}: ${message}`);
+      }
+
       // Return updated movie data
       const updatedMovie = await Movie.findById(movieId);
       return updatedMovie!;
