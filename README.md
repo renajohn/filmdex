@@ -221,6 +221,37 @@ services:
       - OMDB_API_KEY=your_key_here
 ```
 
+## Dropbox backup
+
+Every night at 3 a.m. (container time, `TZ=Europe/Zurich` in `docker-compose.yml`), DexVault uploads a
+full backup (database, images, ebooks) to Dropbox as `dexvault_YYYY-MM-DD.zip` and keeps the seven most
+recent. The Backup page shows the last success, the last error and a "Back up now" button.
+
+### Setup (once)
+
+1. On <https://www.dropbox.com/developers/apps>, create an app with **Scoped access** and
+   **App folder** access. In *Permissions*, tick `files.content.write`, `files.content.read` and
+   `files.metadata.read`, then *Submit*.
+2. Copy the *App key* and *App secret* from the *Settings* tab.
+3. Run `node scripts/dropbox-auth.js <app key> <app secret>`, open the URL, allow access and paste the
+   code. The script prints `DROPBOX_REFRESH_TOKEN=…`.
+4. Put the three values in the `.env` next to `docker-compose.yml`:
+
+   ```
+   DROPBOX_APP_KEY=…
+   DROPBOX_APP_SECRET=…
+   DROPBOX_REFRESH_TOKEN=…
+   ```
+
+5. `docker compose up -d`, then click **Back up now** on the Backup page to check the setup.
+
+Backups land in `Dropbox/Apps/<app name>/`. Other files in that folder are never deleted.
+
+### Restore
+
+Download a `dexvault_*.zip` from Dropbox, then use **Restore from file** on the Backup page. On a new
+server, start DexVault with an empty volume first, then restore.
+
 ## Database Schema
 
 The application uses SQLite with the following main tables:

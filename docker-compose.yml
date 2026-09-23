@@ -21,6 +21,13 @@ services:
       # CA store Node ships with, which made every cover scan fail as
       # "Cover scan service is not available".
       - LLM_BASE_URL=${LLM_BASE_URL:-http://next-mtp:8080}
+      # Nightly backup to Dropbox (see README, "Dropbox backup"). Without these three,
+      # nothing is scheduled and the Backup page says so.
+      - DROPBOX_APP_KEY=${DROPBOX_APP_KEY:-}
+      - DROPBOX_APP_SECRET=${DROPBOX_APP_SECRET:-}
+      - DROPBOX_REFRESH_TOKEN=${DROPBOX_REFRESH_TOKEN:-}
+      # The backup runs at 3 a.m. local time: without TZ the container runs on UTC.
+      - TZ=Europe/Zurich
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
