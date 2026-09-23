@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Popover, Overlay } from 'react-bootstrap';
 import MovieThumbnail from './MovieThumbnail';
+import WarningBadges from './WarningBadges';
 import './BoxSetStack.css';
 
 interface Movie {
@@ -15,6 +16,8 @@ interface Movie {
   rotten_tomato_rating?: string | number;
   format?: string;
   collection_order?: number | null;
+  spiders_status?: string;
+  snakes_status?: string;
   [key: string]: any;
 }
 
@@ -299,6 +302,7 @@ const BoxSetStack: React.FC<BoxSetStackProps> = ({ boxSetName, movies, onMovieCl
                             {movie.recommended_age != null && (
                               <span className="age-badge-large">{movie.recommended_age}+</span>
                             )}
+                            <WarningBadges movie={movie} />
                             {combinedScore && (
                               <span className="score-badge-large" style={{ color: getRatingColor(combinedScore, 10) }}>
                                 {combinedScore.toFixed(1)}

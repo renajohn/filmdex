@@ -12,6 +12,7 @@ import omdbService from './omdbService';
 import imageService from './imageService';
 import logger from '../logger';
 import ageRecommendationService from './ageRecommendationService';
+import warningsService from './warningsService';
 import type { MovieRow, MovieData, MovieImportRow, UnmatchedMovieFormatted, MovieCastData, MovieCrewData } from '../types';
 
 interface CsvRow {
@@ -443,6 +444,7 @@ const ImportService = {
         title: movieData.title
       });
       const createdMovie = await Movie.create(movieData as unknown as MovieData);
+      warningsService.scheduleRefresh(createdMovie.id);
       logger.debug(`Successfully created movie: "${createdMovie.title}"`);
 
       // Process cast and crew
@@ -664,6 +666,7 @@ const ImportService = {
 
       // Create movie in database
       const createdMovie = await Movie.create(movieData as unknown as MovieData);
+      warningsService.scheduleRefresh(createdMovie.id);
       logger.debug(`Successfully created resolved movie: "${createdMovie.title}"`);
 
       // Process cast and crew

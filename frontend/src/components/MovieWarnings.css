@@ -1,0 +1,84 @@
+.movie-warnings {
+  margin: 6px 0 10px;
+}
+
+.movie-warning-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.movie-warning-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  overflow: hidden;
+  font-size: 0.85rem;
+  border: 1px solid currentColor;
+}
+
+.movie-warning-chip button {
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.movie-warning-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.movie-warning-summary {
+  border-left: 1px solid currentColor !important;
+}
+
+.movie-warning-chip.status-with { color: #e5534b; }
+.movie-warning-chip.status-without { color: #46954a; }
+.movie-warning-chip.status-unknown { color: #8b949e; }
+
+.movie-warning-panel {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.85rem;
+  display: grid;
+  gap: 6px;
+}
+
+.movie-warning-panel fieldset {
+  display: flex;
+  gap: 12px;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.movie-warning-panel fieldset label {
+  white-space: nowrap;
+}
+
+.movie-warning-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.movie-warning-panel legend {
+  font-weight: 600;
+  margin-right: 8px;
+  float: left;
+}
+
+.movie-warning-input input {
+  margin-left: 6px;
+  width: 8em;
+}
+
+.movie-warning-meta { opacity: 0.7; }
+.movie-warning-error { color: #e5534b; }

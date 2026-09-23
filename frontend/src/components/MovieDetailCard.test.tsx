@@ -9,7 +9,10 @@ vi.mock('../services/api', () => ({
     getCollectionNames: vi.fn(() => Promise.resolve([])),
     getBoxSetNames: vi.fn(() => Promise.resolve([])),
     getMoviesInCollection: vi.fn(() => Promise.resolve({ movies: [] })),
-    updateMovie: vi.fn(() => Promise.resolve({}))
+    updateMovie: vi.fn(() => Promise.resolve({})),
+    getMovieWarnings: vi.fn(() => Promise.resolve({
+      movieId: 1, dddId: null, dddUrl: null, matchedBy: null, checkedAt: null, topics: []
+    })),
   }
 }));
 

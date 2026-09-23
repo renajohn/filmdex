@@ -1,6 +1,9 @@
 // Set test environment
 process.env.NODE_ENV = 'test';
 
+// The developer's shell may export the real key; tests must never reach the API.
+delete process.env.DOES_DOG_DIE;
+
 jest.mock('../src/config', () => ({
   loadDeploymentConfig: () => ({}),
   loadDataConfig: () => ({}),
@@ -10,7 +13,7 @@ jest.mock('../src/config', () => ({
   getDataPath: () => '/tmp/dexvault-test',
   getImagesPath: () => '/tmp/dexvault-test/images',
   getEbooksPath: () => '/tmp/dexvault-test/ebooks',
-  getApiKeys: () => ({ omdb: '', tmdb: '', discogs: 'test-token' }),
+  getApiKeys: () => ({ omdb: '', tmdb: '', discogs: 'test-token', doesthedogdie: '' }),
   getLogLevel: () => 'error',
   getMaxUploadMb: () => 20,
   getMaxUploadBytes: () => 20 * 1024 * 1024,

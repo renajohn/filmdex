@@ -33,6 +33,8 @@ export interface DataConfig {
   tmdb_api_key: string;
   /** Discogs personal access token; prefer the DISCOGS_TOKEN env var. */
   discogs_token?: string;
+  /** DoesTheDogDie API key; the DOES_DOG_DIE env var wins. */
+  doesthedogdie_api_key?: string;
   /** Base url of the vision model used by the cover scan; LLM_BASE_URL wins. */
   llm_base_url?: string;
   /** Model name sent to that endpoint; LLM_MODEL wins. */
@@ -46,6 +48,8 @@ export interface ApiKeys {
   tmdb: string;
   /** Discogs personal access token; optional, enables the Discogs source. */
   discogs?: string;
+  /** DoesTheDogDie API key; optional, enables spider and snake warnings. */
+  doesthedogdie?: string;
 }
 
 // ============================================================

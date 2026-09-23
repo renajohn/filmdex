@@ -144,6 +144,32 @@ class ApiService {
     return await response.json();
   }
 
+  async getMovieWarnings(id: number | string): Promise<unknown> {
+    const response = await this.makeRequest(`/movies/${id}/warnings`);
+    return await response.json();
+  }
+
+  async setWarningOverride(id: number | string, topic: string, override: 'with' | 'without' | null): Promise<unknown> {
+    const response = await this.makeRequest(`/movies/${id}/warnings/${topic}/override`, {
+      method: 'PUT',
+      body: JSON.stringify({ override }),
+    });
+    return await response.json();
+  }
+
+  async setDddLink(id: number | string, dddId: number): Promise<unknown> {
+    const response = await this.makeRequest(`/movies/${id}/ddd-link`, {
+      method: 'PUT',
+      body: JSON.stringify({ dddId }),
+    });
+    return await response.json();
+  }
+
+  async refreshMovieWarnings(id: number | string): Promise<unknown> {
+    const response = await this.makeRequest(`/movies/${id}/warnings/refresh`, { method: 'POST' });
+    return await response.json();
+  }
+
   async deleteMovie(id: number | string): Promise<unknown> {
     const response = await this.makeRequest(`/movies/${id}`, {
       method: 'DELETE',
