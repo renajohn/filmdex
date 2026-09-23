@@ -28,6 +28,12 @@ const DropboxBackupCard: React.FC = () => {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    if (!status?.running || busy) return;
+    const interval = setInterval(load, 10000);
+    return () => clearInterval(interval);
+  }, [status?.running, busy]);
+
   const handleRun = async () => {
     setBusy(true);
     setRequestError(null);
@@ -78,7 +84,7 @@ const DropboxBackupCard: React.FC = () => {
 
       <p>
         {lastSuccess !== null
-          ? `Last backup: ${formatAge(now - lastSuccess)} (${formatSize(status.lastSuccessSize || 0)})`
+          ? `Last backup: ${formatAge(now - lastSuccess)}${status.lastSuccessSize !== null ? ` (${formatSize(status.lastSuccessSize)})` : ''}`
           : 'No backup uploaded yet.'}
       </p>
       {showError && (

@@ -23,7 +23,10 @@ const show = async (s: DropboxStatus) => {
   await screen.findByText('Dropbox backup');
 };
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  vi.clearAllTimers();
+});
 
 describe('formatAge', () => {
   it('parle en minutes, puis en heures, puis en jours', () => {
@@ -78,5 +81,25 @@ describe('DropboxBackupCard', () => {
   it("désactive le bouton quand l'exécution nocturne tourne déjà", async () => {
     await show(status({ running: true }));
     expect(screen.getByRole('button', { name: /Backing up/ })).toBeDisabled();
+  });
+
+  it('recharge l\'état toutes les 10 secondes pendant l\'exécution nocturne', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const calls: number[] = [];
+      vi.mocked(backupService.getDropboxStatus).mockImplementation(() => {
+        calls.push(Date.now());
+        if (calls.length === 1) return Promise.resolve(status({ running: true }));
+        return Promise.resolve(status());
+      });
+      render(<DropboxBackupCard />);
+      await screen.findByText('Dropbox backup');
+      expect(screen.getByRole('button', { name: /Backing up/ })).toBeDisabled();
+
+      vi.advanceTimersByTime(10000);
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Back up now' })).toBeEnabled());
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
