@@ -1,3 +1,4 @@
+const previousTz = process.env.TZ;
 // Must be set before any Date is built: the schedule is computed in local time.
 process.env.TZ = 'Europe/Zurich';
 
@@ -7,7 +8,6 @@ const DAY = 24 * 3600 * 1000;
 const at = (iso: string) => new Date(iso);
 
 // Jest may reuse this worker for other files: give them back their time zone.
-const previousTz = process.env.TZ;
 afterAll(() => { if (previousTz === undefined) delete process.env.TZ; else process.env.TZ = previousTz; });
 
 describe('nextRunAt', () => {
