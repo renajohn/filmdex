@@ -60,11 +60,13 @@ const MovieWarning = {
   getLink: (movieId: number): Promise<DddLinkRow | null> =>
     get<DddLinkRow>(`SELECT movie_id, ddd_id, matched_by, checked_at FROM movie_ddd WHERE movie_id = ?`, [movieId]),
 
+  /** A manual link always wins; any other write leaves an existing manual link alone. */
   saveLink: (movieId: number, dddId: number | null, matchedBy: MatchedBy | null, checkedAt: string | null): Promise<void> =>
     run(
       `INSERT INTO movie_ddd (movie_id, ddd_id, matched_by, checked_at) VALUES (?, ?, ?, ?)
        ON CONFLICT(movie_id) DO UPDATE SET
-         ddd_id = excluded.ddd_id, matched_by = excluded.matched_by, checked_at = excluded.checked_at`,
+         ddd_id = excluded.ddd_id, matched_by = excluded.matched_by, checked_at = excluded.checked_at
+       WHERE excluded.matched_by = 'manual' OR movie_ddd.matched_by IS NOT 'manual'`,
       [movieId, dddId, matchedBy, checkedAt]
     ),
 

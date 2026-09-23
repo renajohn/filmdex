@@ -34,6 +34,17 @@ describe('MovieWarning', () => {
     });
   });
 
+  it('une écriture automatique ne remplace jamais un lien manuel, une manuelle toujours', async () => {
+    const id = await insertMovie();
+    await MovieWarning.saveLink(id, 22644, 'manual', null);
+    await MovieWarning.saveLink(id, 10812, 'imdb', '2026-09-23T00:00:00.000Z');
+    await MovieWarning.saveLink(id, null, null, '2026-09-23T00:00:00.000Z');
+    expect(await MovieWarning.getLink(id)).toMatchObject({ ddd_id: 22644, matched_by: 'manual', checked_at: null });
+
+    await MovieWarning.saveLink(id, 7, 'manual', '2026-09-24T00:00:00.000Z');
+    expect(await MovieWarning.getLink(id)).toMatchObject({ ddd_id: 7, matched_by: 'manual' });
+  });
+
   it('liste les films jamais vérifiés ou vérifiés avant la date donnée', async () => {
     const never = await insertMovie();
     const old = await insertMovie();
