@@ -16,6 +16,7 @@ import bookController from './src/controllers/bookController';
 import bookService from './src/services/bookService';
 import backupController from './src/controllers/backupController';
 import bookCommentController from './src/controllers/bookCommentController';
+import warningsController from './src/controllers/warningsController';
 import { mountMcp } from './src/mcp/mount';
 import Movie from './src/models/movie';
 import MovieImport from './src/models/movieImport';
@@ -161,6 +162,12 @@ app.put('/api/movies/:movieId/collections/:collectionId/order', movieController.
 app.post('/api/collections/handle-name-change', movieController.handleCollectionNameChange);
 app.get('/api/movies/check-status', movieController.checkMovieStatus);
 app.get('/api/movies/check-editions', movieController.checkMovieEditions);
+// Spider and snake warnings (DoesTheDogDie)
+app.get('/api/movies/:id/warnings', warningsController.get);
+app.put('/api/movies/:id/warnings/:topic/override', warningsController.setOverride);
+app.put('/api/movies/:id/ddd-link', warningsController.setLink);
+app.post('/api/movies/:id/warnings/refresh', warningsController.refresh);
+app.post('/api/warnings/import', warningsController.importSnapshot);
 app.get('/api/movies/:id', movieController.getMovieById);
 app.get('/api/movies/:id/details', movieController.getMovieDetails);
 app.get('/api/movies/:id/cast', movieController.getMovieCast);
