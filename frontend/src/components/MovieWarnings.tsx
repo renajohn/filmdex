@@ -46,6 +46,11 @@ const MovieWarnings: React.FC<Props> = ({ movieId, onSearch }) => {
 
   useEffect(() => {
     let cancelled = false;
+    // Forget the previous movie at once, so its chips never show under the new one.
+    setData(null);
+    setOpen(null);
+    setLinkInput('');
+    setError(null);
     apiService.getMovieWarnings(movieId)
       .then(result => { if (!cancelled) setData(result as MovieWarningsData); })
       .catch(() => { if (!cancelled) setData(null); });
@@ -70,14 +75,16 @@ const MovieWarnings: React.FC<Props> = ({ movieId, onSearch }) => {
     apply(apiService.setDddLink(movieId, dddId));
   };
 
+  const openWarning = data.topics.find(warning => warning.topic === open);
+
   return (
     <div className="movie-warnings">
-      {data.topics.map(warning => {
-        const { name, Icon } = LABELS[warning.topic];
-        const summary = `${STATUS_TEXT[warning.status]}${warning.override ? ' (manual)' : ''} · ${warning.yes} yes / ${warning.no} no`;
-        return (
-          <div key={warning.topic} className="movie-warning">
-            <span className={`movie-warning-chip status-${warning.status}`}>
+      <div className="movie-warning-chips">
+        {data.topics.map(warning => {
+          const { name, Icon } = LABELS[warning.topic];
+          const summary = `${STATUS_TEXT[warning.status]}${warning.override ? ' (manual)' : ''} · ${warning.yes} yes / ${warning.no} no`;
+          return (
+            <span key={warning.topic} className={`movie-warning-chip status-${warning.status}`}>
               <button
                 type="button"
                 className="movie-warning-name"
@@ -94,53 +101,61 @@ const MovieWarnings: React.FC<Props> = ({ movieId, onSearch }) => {
                 {summary}
               </button>
             </span>
+          );
+        })}
+      </div>
 
-            {open === warning.topic && (
-              <div className="movie-warning-panel">
-                <fieldset>
-                  <legend>{name}</legend>
-                  {([['Follow votes', null], ['With', 'with'], ['Without', 'without']] as Array<[string, Override]>).map(([label, value]) => (
-                    <label key={label}>
-                      <input
-                        type="radio"
-                        name={`override-${warning.topic}`}
-                        checked={warning.override === value}
-                        onChange={() => apply(apiService.setWarningOverride(movieId, warning.topic, value))}
-                      />
-                      {label}
-                    </label>
-                  ))}
-                </fieldset>
+      {openWarning && (
+        <div className="movie-warning-panel">
+          <fieldset>
+            <legend>{LABELS[openWarning.topic].name}</legend>
+            {([['Follow votes', null], ['With', 'with'], ['Without', 'without']] as Array<[string, Override]>).map(([label, value]) => (
+              <label key={label}>
+                <input
+                  type="radio"
+                  name={`override-${openWarning.topic}`}
+                  checked={openWarning.override === value}
+                  onChange={() => apply(apiService.setWarningOverride(movieId, openWarning.topic, value))}
+                />
+                {label}
+              </label>
+            ))}
+          </fieldset>
 
-                <div className="movie-warning-link">
-                  {data.dddUrl
-                    ? <a href={data.dddUrl} target="_blank" rel="noreferrer">DoesTheDogDie #{data.dddId}</a>
-                    : <span>Not found on DoesTheDogDie</span>}
-                  {data.matchedBy && <span className="movie-warning-meta"> · matched by {data.matchedBy}</span>}
-                </div>
-
-                <label className="movie-warning-input">
-                  DoesTheDogDie ID
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={linkInput}
-                    placeholder={data.dddId ? String(data.dddId) : ''}
-                    onChange={e => setLinkInput(e.target.value)}
-                  />
-                </label>
-                <button type="button" onClick={saveLink}>Save link</button>
-                <button type="button" onClick={() => apply(apiService.refreshMovieWarnings(movieId))}>Refresh</button>
-
-                <div className="movie-warning-meta">
-                  {data.checkedAt ? `Checked ${new Date(data.checkedAt).toLocaleDateString()}` : 'Never checked'}
-                </div>
-                {error && <div className="movie-warning-error">{error}</div>}
-              </div>
-            )}
+          <div className="movie-warning-link">
+            {data.dddUrl
+              ? <a href={data.dddUrl} target="_blank" rel="noreferrer">DoesTheDogDie #{data.dddId}</a>
+              : <span>Not found on DoesTheDogDie</span>}
+            {data.matchedBy && <span className="movie-warning-meta"> · matched by {data.matchedBy}</span>}
           </div>
-        );
-      })}
+
+          <div className="movie-warning-actions">
+            <label className="movie-warning-input">
+              DoesTheDogDie ID
+              <input
+                type="text"
+                inputMode="numeric"
+                value={linkInput}
+                placeholder={data.dddId ? String(data.dddId) : ''}
+                onChange={e => setLinkInput(e.target.value)}
+              />
+            </label>
+            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={saveLink}>Save link</button>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary"
+              onClick={() => apply(apiService.refreshMovieWarnings(movieId))}
+            >
+              Refresh
+            </button>
+          </div>
+
+          <div className="movie-warning-meta">
+            {data.checkedAt ? `Checked ${new Date(data.checkedAt).toLocaleDateString()}` : 'Never checked'}
+          </div>
+          {error && <div className="movie-warning-error">{error}</div>}
+        </div>
+      )}
     </div>
   );
 };

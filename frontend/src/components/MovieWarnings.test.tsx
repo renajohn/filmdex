@@ -82,6 +82,31 @@ describe('MovieWarnings', () => {
     await waitFor(() => expect(apiService.setDddLink).toHaveBeenCalledWith(214, 12345));
   });
 
+  it('efface le film précédent dès que le film change', async () => {
+    const { rerender } = render(<MovieWarnings movieId={214} />);
+    fireEvent.click(await screen.findByText('With · 1 yes / 1 no'));
+    expect(screen.getByRole('button', { name: 'Save link' })).toBeInTheDocument();
+
+    (apiService.getMovieWarnings as any).mockReturnValue(new Promise(() => {}));
+    rerender(<MovieWarnings movieId={215} />);
+
+    expect(apiService.getMovieWarnings).toHaveBeenLastCalledWith(215);
+    expect(screen.queryByText('With · 1 yes / 1 no')).not.toBeInTheDocument();
+    expect(screen.queryByText('Without · 0 yes / 1 no')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save link' })).not.toBeInTheDocument();
+  });
+
+  it('ouvre le panneau sous la rangée de pastilles, pas dans la première', async () => {
+    const { container } = render(<MovieWarnings movieId={214} />);
+    fireEvent.click(await screen.findByText('With · 1 yes / 1 no'));
+    const panel = container.querySelector('.movie-warning-panel');
+    const chips = container.querySelector('.movie-warning-chips');
+    expect(chips).not.toBeNull();
+    expect(chips!.contains(panel)).toBe(false);
+    expect(chips!.nextElementSibling).toBe(panel);
+    expect(container.querySelectorAll('.movie-warning-panel')).toHaveLength(1);
+  });
+
   it('reste discret si le chargement échoue', async () => {
     (apiService.getMovieWarnings as any).mockRejectedValue(new Error('boom'));
     const { container } = render(<MovieWarnings movieId={214} />);

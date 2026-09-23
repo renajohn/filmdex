@@ -1,8 +1,11 @@
 .movie-warnings {
+  margin: 6px 0 10px;
+}
+
+.movie-warning-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 6px 0 10px;
 }
 
 .movie-warning-chip {
@@ -53,6 +56,17 @@
   border: none;
   margin: 0;
   padding: 0;
+}
+
+.movie-warning-panel fieldset label {
+  white-space: nowrap;
+}
+
+.movie-warning-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .movie-warning-panel legend {
