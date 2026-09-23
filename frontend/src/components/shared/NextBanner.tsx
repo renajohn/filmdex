@@ -20,6 +20,8 @@ interface NextBannerProps {
   getSubtitle?: (item: NextBannerItem) => string;
   getYear?: (item: NextBannerItem) => string | number | null;
   getFormat?: (item: NextBannerItem) => string | null;
+  /** Always-visible markers laid over each image (the hover overlay stays for title/meta). */
+  renderBadges?: (item: NextBannerItem) => React.ReactNode;
   onSmartFill?: () => void;
   smartFillLoading?: boolean;
   onShuffle?: (item: NextBannerItem) => void;
@@ -38,6 +40,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
   getSubtitle,
   getYear,
   getFormat,
+  renderBadges,
   onSmartFill,
   smartFillLoading = false,
   onShuffle,
@@ -182,6 +185,8 @@ const NextBanner: React.FC<NextBannerProps> = ({
                     <PlaceholderIcon size={40} />
                   </div>
                 )}
+
+                {renderBadges && <div className="next-banner__badges">{renderBadges(item)}</div>}
 
                 {/* Movie-style hover overlay */}
                 {type === 'movie' && (

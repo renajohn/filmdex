@@ -7,6 +7,7 @@ import BoxSetStack from './BoxSetStack';
 import AlphabeticalIndex from './AlphabeticalIndex';
 import { NextBanner, CollectionHeader, EmptyState } from './shared';
 import WarningBadges from './WarningBadges';
+import WarningStrip from './WarningStrip';
 import {
   BsChevronDown,
   BsFilm,
@@ -979,6 +980,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
           getTitle={(movie: any) => movie.title}
           getYear={(movie: any) => movie.release_date ? new Date(movie.release_date).getFullYear() : null}
           getFormat={(movie: any) => movie.format}
+          renderBadges={(movie: any) => <WarningStrip movie={movie} />}
         />
       )}
 
