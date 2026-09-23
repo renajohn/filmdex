@@ -3,6 +3,9 @@ process.env.NODE_ENV = 'test';
 
 // The developer's shell may export the real key; tests must never reach the API.
 delete process.env.DOES_DOG_DIE;
+delete process.env.DROPBOX_APP_KEY;
+delete process.env.DROPBOX_APP_SECRET;
+delete process.env.DROPBOX_REFRESH_TOKEN;
 
 jest.mock('../src/config', () => ({
   loadDeploymentConfig: () => ({}),
