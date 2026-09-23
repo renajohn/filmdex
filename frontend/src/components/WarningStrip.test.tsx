@@ -17,10 +17,9 @@ describe('WarningStrip', () => {
     expect(screen.getByText('Snakes')).toBeInTheDocument();
   });
 
-  it('marque un film vérifié sans l’animal, sans cadre rouge', () => {
+  it('ne montre rien pour un film vérifié sans l’animal : rien veut dire sûr', () => {
     const { container } = render(<WarningStrip movie={{ spiders_status: 'without', snakes_status: 'without' }} />);
-    expect(screen.getByTitle('No spiders')).toHaveClass('warning-strip__pill--without');
-    expect(screen.getByTitle('No snakes')).toHaveClass('warning-strip__pill--without');
+    expect(container.querySelector('.warning-strip__pill')).not.toBeInTheDocument();
     expect(container.querySelector('.warning-strip__frame')).not.toBeInTheDocument();
   });
 

@@ -23,19 +23,12 @@
 }
 
 .warning-strip__pill--with {
-  gap: 5px;
-  padding: 4px 10px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: #fff;
-  background: #d73a31;
-}
-
-.warning-strip__pill--without {
-  color: #fff;
-  background: rgba(46, 125, 50, 0.9);
+  background: rgba(200, 60, 52, 0.85);
 }
 
 .warning-strip__pill--unknown {
@@ -47,7 +40,7 @@
   position: absolute;
   inset: 0;
   z-index: 2;
-  border: 4px solid #d73a31;
+  border: 2px solid rgba(200, 60, 52, 0.85);
   border-radius: inherit;
   pointer-events: none;
 }

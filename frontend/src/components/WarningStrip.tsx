@@ -1,6 +1,6 @@
 import React from 'react';
 import { GiSpiderAlt, GiSnake } from 'react-icons/gi';
-import { BsCheck, BsQuestion } from 'react-icons/bs';
+import { BsQuestion } from 'react-icons/bs';
 import './WarningStrip.css';
 
 type Status = 'with' | 'without' | 'unknown';
@@ -10,8 +10,8 @@ interface Props {
 }
 
 const TOPICS = [
-  { key: 'spiders_status', name: 'Spiders', none: 'No spiders', Icon: GiSpiderAlt },
-  { key: 'snakes_status', name: 'Snakes', none: 'No snakes', Icon: GiSnake },
+  { key: 'spiders_status', name: 'Spiders', Icon: GiSpiderAlt },
+  { key: 'snakes_status', name: 'Snakes', Icon: GiSnake },
 ] as const;
 
 const statusOf = (value: string | undefined): Status =>
@@ -19,33 +19,31 @@ const statusOf = (value: string | undefined): Status =>
 
 /**
  * Always-visible spider and snake markers for a poster, meant for the place
- * where tonight's movie is picked: a present animal is spelled out in red and
- * frames the poster, so it cannot be missed even at thumbnail size.
+ * where tonight's movie is picked. Nothing means safe; a present animal is
+ * named and frames the poster; an unchecked movie gets a discreet "?".
  */
 const WarningStrip: React.FC<Props> = ({ movie }) => {
-  const statuses = TOPICS.map(topic => ({ ...topic, status: statusOf(movie[topic.key]) }));
-  const anyPresent = statuses.some(t => t.status === 'with');
+  const shown = TOPICS
+    .map(topic => ({ ...topic, status: statusOf(movie[topic.key]) }))
+    .filter(topic => topic.status !== 'without');
+  if (shown.length === 0) return null;
 
   return (
     <>
-      {anyPresent && <div className="warning-strip__frame" aria-hidden="true" />}
+      {shown.some(t => t.status === 'with') && <div className="warning-strip__frame" aria-hidden="true" />}
       <div className="warning-strip">
-        {statuses.map(({ key, name, none, Icon, status }) => {
-          if (status === 'with') {
-            return (
-              <span key={key} className="warning-strip__pill warning-strip__pill--with" title={name}>
-                <Icon size={16} /> {name}
-              </span>
-            );
-          }
-          const title = status === 'without' ? none : `${name} not reported yet`;
-          return (
-            <span key={key} className={`warning-strip__pill warning-strip__pill--${status}`} title={title}>
-              <Icon size={12} />
-              {status === 'without' ? <BsCheck size={14} /> : <BsQuestion size={14} />}
+        {shown.map(({ key, name, Icon, status }) =>
+          status === 'with' ? (
+            <span key={key} className="warning-strip__pill warning-strip__pill--with" title={name}>
+              <Icon size={13} /> {name}
             </span>
-          );
-        })}
+          ) : (
+            <span key={key} className="warning-strip__pill warning-strip__pill--unknown" title={`${name} not reported yet`}>
+              <Icon size={12} />
+              <BsQuestion size={14} />
+            </span>
+          )
+        )}
       </div>
     </>
   );
