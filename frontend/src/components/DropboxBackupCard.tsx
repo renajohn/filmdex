@@ -140,7 +140,7 @@ const DropboxBackupCard: React.FC = () => {
       <button className="btn btn-primary" onClick={() => handleRun()} disabled={running}>
         {running ? 'Backing up…' : 'Back up now'}
       </button>
-      {status.progress && <ProgressDisplay progress={status.progress} />}
+      {status.progress && <div className="mt-3"><ProgressDisplay progress={status.progress} /></div>}
     </div>
   );
 };
