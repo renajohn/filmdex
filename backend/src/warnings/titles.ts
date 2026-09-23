@@ -19,7 +19,7 @@ export const normalizeTitle = (title: string): string =>
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
-    .replace(/['']/g, '')
+    .replace(/['’]/g, '')
     .replace(/&/g, ' ')
     .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\b(et|and)\b/g, ' ')

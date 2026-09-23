@@ -26,4 +26,9 @@ describe('normalizeTitle', () => {
   it('distingue des titres réellement différents', () => {
     expect(normalizeTitle('La Cité de la peur')).not.toBe(normalizeTitle('La Cité de La Peur Suédé'));
   });
+
+  it('handles both straight and curly apostrophes', () => {
+    // U+2019 (curly right single quote) vs U+0027 (straight apostrophe)
+    expect(normalizeTitle('Ocean’s Thirteen')).toBe(normalizeTitle('Oceans Thirteen'));
+  });
 });
