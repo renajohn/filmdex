@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import backupService from '../services/backupService';
 import { BsDownload, BsTrash, BsArrowClockwise, BsPlus, BsUpload, BsCheckCircle, BsXCircle, BsClock } from 'react-icons/bs';
+import DropboxBackupCard from '../components/DropboxBackupCard';
 import './BackupPage.css';
 
 interface Backup {
@@ -204,6 +205,8 @@ const BackupPage: React.FC = () => {
           ></button>
         </div>
       )}
+
+      <DropboxBackupCard />
 
       <div className="backup-actions">
         <div className="backup-action-card">

@@ -1,3 +1,15 @@
+export interface DropboxStatus {
+  configured: boolean;
+  running: boolean;
+  nextRunAt: string | null;
+  lastSuccessAt: string | null;
+  lastSuccessFile: string | null;
+  lastSuccessSize: number | null;
+  lastErrorAt: string | null;
+  lastError: string | null;
+  lastWarning: string | null;
+}
+
 class BackupService {
   async getBaseUrl(): Promise<string> {
     return '/api';
@@ -31,6 +43,25 @@ class BackupService {
 
     const data = await response.json() as Record<string, unknown>;
     return (data.backups as unknown[]) || [];
+  }
+
+  async getDropboxStatus(): Promise<DropboxStatus> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/backup/dropbox/status`);
+    if (!response.ok) {
+      throw new Error('Failed to load the Dropbox backup status');
+    }
+    return await response.json() as DropboxStatus;
+  }
+
+  async runDropboxBackup(): Promise<{ ok: boolean; status: DropboxStatus }> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/backup/dropbox/run`, { method: 'POST' });
+    const data = await response.json() as Record<string, unknown>;
+    if (!response.ok) {
+      throw new Error((data.error as string) || 'Failed to run the Dropbox backup');
+    }
+    return data as unknown as { ok: boolean; status: DropboxStatus };
   }
 
   async downloadBackup(filename: string): Promise<void> {
