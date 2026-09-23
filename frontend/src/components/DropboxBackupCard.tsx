@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BsCloudUpload, BsExclamationTriangle } from 'react-icons/bs';
-import backupService, { DropboxStatus } from '../services/backupService';
+import backupService, { BackupProgress, DropboxStatus } from '../services/backupService';
 
 const HOUR = 3600 * 1000;
 const STALE_AFTER = 48 * HOUR;
@@ -12,6 +12,41 @@ export const formatAge = (ms: number): string => {
 };
 
 const formatSize = (bytes: number): string => `${Math.round(bytes / 1024 / 1024)} MB`;
+
+// One decimal, same MiB-based math as formatSize, for the finer-grained upload readout.
+const formatSizeDecimal = (bytes: number): string => (bytes / 1024 / 1024).toFixed(1);
+
+const ProgressDisplay: React.FC<{ progress: BackupProgress }> = ({ progress }) => {
+  switch (progress.phase) {
+    case 'checking':
+      return <p>Checking…</p>;
+    case 'archiving':
+      return <p>Creating archive…</p>;
+    case 'rotating':
+      return <p>Removing old backups…</p>;
+    case 'uploading': {
+      if (!progress.totalBytes) return <p>Uploading…</p>;
+      const pct = Math.round(((progress.uploadedBytes ?? 0) / progress.totalBytes) * 100);
+      return (
+        <>
+          <p>{`Uploading ${formatSizeDecimal(progress.uploadedBytes ?? 0)} / ${formatSizeDecimal(progress.totalBytes)} MB`}</p>
+          <div className="progress">
+            <div
+              className="progress-bar"
+              role="progressbar"
+              style={{ width: `${pct}%` }}
+              aria-valuenow={pct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            />
+          </div>
+        </>
+      );
+    }
+    default:
+      return null;
+  }
+};
 
 const DropboxBackupCard: React.FC = () => {
   const [status, setStatus] = useState<DropboxStatus | null>(null);
@@ -30,8 +65,8 @@ const DropboxBackupCard: React.FC = () => {
   useEffect(() => { load(); }, []);
 
   useEffect(() => {
-    if (!status?.running || busy) return;
-    const interval = setInterval(load, 10000);
+    if (!busy && !status?.running) return;
+    const interval = setInterval(load, 2000);
     return () => clearInterval(interval);
   }, [status?.running, busy]);
 
@@ -105,6 +140,7 @@ const DropboxBackupCard: React.FC = () => {
       <button className="btn btn-primary" onClick={() => handleRun()} disabled={running}>
         {running ? 'Backing up…' : 'Back up now'}
       </button>
+      {status.progress && <ProgressDisplay progress={status.progress} />}
     </div>
   );
 };

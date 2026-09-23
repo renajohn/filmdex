@@ -1,3 +1,9 @@
+export interface BackupProgress {
+  phase: 'checking' | 'archiving' | 'uploading' | 'rotating';
+  uploadedBytes: number | null;
+  totalBytes: number | null;
+}
+
 export interface DropboxStatus {
   configured: boolean;
   running: boolean;
@@ -9,6 +15,7 @@ export interface DropboxStatus {
   lastError: string | null;
   lastWarning: string | null;
   lastRefused: boolean;
+  progress: BackupProgress | null;
 }
 
 class BackupService {

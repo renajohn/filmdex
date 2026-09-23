@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import DropboxBackupCard, { formatAge } from './DropboxBackupCard';
-import backupService, { DropboxStatus } from '../services/backupService';
+import backupService, { BackupProgress, DropboxStatus } from '../services/backupService';
 
 vi.mock('../services/backupService', () => ({
   default: { getDropboxStatus: vi.fn(), runDropboxBackup: vi.fn() },
@@ -14,7 +14,7 @@ const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
 const status = (over: Partial<DropboxStatus> = {}): DropboxStatus => ({
   configured: true, running: false, nextRunAt: new Date(Date.now() + 10 * HOUR).toISOString(),
   lastSuccessAt: ago(5 * HOUR), lastSuccessFile: 'dexvault_2026-09-24.zip', lastSuccessSize: 68 * 1024 * 1024,
-  lastErrorAt: null, lastError: null, lastWarning: null, lastRefused: false, ...over,
+  lastErrorAt: null, lastError: null, lastWarning: null, lastRefused: false, progress: null, ...over,
 });
 
 const show = async (s: DropboxStatus) => {
@@ -144,7 +144,7 @@ describe('DropboxBackupCard', () => {
     expect(screen.getByRole('button', { name: /Backing up/ })).toBeDisabled();
   });
 
-  it('recharge l\'état toutes les 10 secondes pendant l\'exécution nocturne', async () => {
+  it('recharge l\'état toutes les 2 secondes pendant l\'exécution nocturne', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const calls: number[] = [];
@@ -157,10 +157,98 @@ describe('DropboxBackupCard', () => {
       await screen.findByText('Dropbox backup');
       expect(screen.getByRole('button', { name: /Backing up/ })).toBeDisabled();
 
-      vi.advanceTimersByTime(10000);
+      vi.advanceTimersByTime(2000);
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Back up now' })).toBeEnabled());
+      expect(calls.length).toBeGreaterThanOrEqual(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("interroge toutes les 2 secondes pendant que la requête locale de lancement est en attente", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let finish: (v: { ok: boolean; status: DropboxStatus }) => void = () => {};
+      vi.mocked(backupService.runDropboxBackup).mockImplementation(() => new Promise(r => { finish = r; }));
+      vi.mocked(backupService.getDropboxStatus).mockResolvedValue(status());
+
+      render(<DropboxBackupCard />);
+      await screen.findByText('Dropbox backup');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Back up now' }));
+      expect(screen.getByRole('button', { name: /Backing up/ })).toBeDisabled();
+
+      vi.mocked(backupService.getDropboxStatus).mockClear();
+      vi.advanceTimersByTime(2000);
+      await waitFor(() => expect(backupService.getDropboxStatus).toHaveBeenCalled());
+
+      finish({ ok: true, status: status() });
       await waitFor(() => expect(screen.getByRole('button', { name: 'Back up now' })).toBeEnabled());
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("n'interroge plus une fois que rien ne tourne", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      vi.mocked(backupService.getDropboxStatus).mockResolvedValue(status({ running: true }));
+      render(<DropboxBackupCard />);
+      await screen.findByText('Dropbox backup');
+
+      vi.mocked(backupService.getDropboxStatus).mockResolvedValue(status({ running: false }));
+      vi.advanceTimersByTime(2000);
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Back up now' })).toBeEnabled());
+
+      const callsBefore = vi.mocked(backupService.getDropboxStatus).mock.calls.length;
+      vi.advanceTimersByTime(4000);
+      expect(vi.mocked(backupService.getDropboxStatus).mock.calls.length).toBe(callsBefore);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  const uploading = (uploadedBytes: number | null, totalBytes: number | null): BackupProgress =>
+    ({ phase: 'uploading', uploadedBytes, totalBytes });
+
+  it("n'affiche rien quand il n'y a pas de progression", async () => {
+    await show(status({ progress: null }));
+    expect(screen.queryByText(/Checking|Creating archive|Uploading|Removing old backups/)).not.toBeInTheDocument();
+  });
+
+  it('affiche "Checking…" pendant la phase checking', async () => {
+    await show(status({ running: true, progress: { phase: 'checking', uploadedBytes: null, totalBytes: null } }));
+    expect(screen.getByText('Checking…')).toBeInTheDocument();
+  });
+
+  it('affiche "Creating archive…" pendant la phase archiving', async () => {
+    await show(status({ running: true, progress: { phase: 'archiving', uploadedBytes: null, totalBytes: null } }));
+    expect(screen.getByText('Creating archive…')).toBeInTheDocument();
+  });
+
+  it('affiche "Removing old backups…" pendant la phase rotating', async () => {
+    await show(status({ running: true, progress: { phase: 'rotating', uploadedBytes: null, totalBytes: null } }));
+    expect(screen.getByText('Removing old backups…')).toBeInTheDocument();
+  });
+
+  it('affiche la progression du téléversement avec la barre', async () => {
+    await show(status({ running: true, progress: uploading(25 * 1024 * 1024, 50 * 1024 * 1024) }));
+    expect(screen.getByText('Uploading 25.0 / 50.0 MB')).toBeInTheDocument();
+    const bar = document.querySelector('.progress-bar') as HTMLElement;
+    expect(bar).toBeInTheDocument();
+    expect(bar).toHaveStyle({ width: '50%' });
+    expect(bar).toHaveAttribute('aria-valuenow', '50');
+  });
+
+  it('affiche "Uploading…" sans barre quand la taille totale est inconnue', async () => {
+    await show(status({ running: true, progress: uploading(0, null) }));
+    expect(screen.getByText('Uploading…')).toBeInTheDocument();
+    expect(document.querySelector('.progress-bar')).not.toBeInTheDocument();
+  });
+
+  it('affiche "Uploading…" sans barre quand la taille totale vaut 0', async () => {
+    await show(status({ running: true, progress: uploading(0, 0) }));
+    expect(screen.getByText('Uploading…')).toBeInTheDocument();
+    expect(document.querySelector('.progress-bar')).not.toBeInTheDocument();
   });
 });
