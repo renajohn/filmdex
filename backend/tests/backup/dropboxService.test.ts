@@ -100,6 +100,24 @@ describe('uploadFile', () => {
     await expect(dropbox.uploadFile(file, '/a.zip'))
       .rejects.toThrow('Dropbox 409: path/insufficient_space/..');
   });
+
+  // Formats observed on the real API: the token endpoint answers a bad key or secret with
+  // `error` alone, the other endpoints answer a malformed request in plain text.
+  it('garde le champ error seul du point d’accès au jeton', async () => {
+    jest.spyOn(axios, 'post').mockRejectedValue({
+      isAxiosError: true, response: { status: 400, data: { error: 'invalid_client: Invalid client_id or client_secret' } },
+    });
+    await expect(dropbox.getAccessToken())
+      .rejects.toThrow('Dropbox 400: invalid_client: Invalid client_id or client_secret');
+  });
+
+  it('garde une réponse en texte brut', async () => {
+    mockPost(() => {
+      throw { isAxiosError: true, response: { status: 400, data: 'Error in call to API function "files/list_folder": Invalid authorization value' } };
+    });
+    await expect(dropbox.listFiles(''))
+      .rejects.toThrow('Dropbox 400: Error in call to API function "files/list_folder": Invalid authorization value');
+  });
 });
 
 describe('listFiles et deleteFile', () => {

@@ -16,10 +16,16 @@ const isConfigured = (): boolean =>
 // Dropbox explains every failure in error_summary ("path/insufficient_space/.."): keep it in the
 // message, it is what the Backup page will show.
 const toDropboxError = (error: unknown): Error => {
-  const response = (error as { response?: { status?: number; data?: { error_summary?: string; error_description?: string } } }).response;
+  type Body = string | { error_summary?: string; error_description?: string; error?: unknown };
+  const response = (error as { response?: { status?: number; data?: Body } }).response;
   if (!response) return error instanceof Error ? error : new Error(String(error));
-  const detail = response.data?.error_summary || response.data?.error_description || 'unknown error';
-  return new Error(`Dropbox ${response.status}: ${detail}`);
+  const data = response.data;
+  // The token endpoint sometimes sends `error` alone ("invalid_client: …"), and malformed
+  // API calls get a plain-text body: both carry the only useful explanation.
+  const detail = typeof data === 'string'
+    ? data.trim()
+    : data?.error_summary || data?.error_description || (typeof data?.error === 'string' ? data.error : '');
+  return new Error(`Dropbox ${response.status}: ${detail || 'unknown error'}`);
 };
 
 const getAccessToken = async (): Promise<string> => {
