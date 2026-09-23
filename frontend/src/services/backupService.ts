@@ -1,40 +1,5 @@
 class BackupService {
-  private baseUrl: string | null;
-  private configPromise: Promise<string> | null;
-
-  constructor() {
-    this.baseUrl = null;
-    this.configPromise = null;
-  }
-
   async getBaseUrl(): Promise<string> {
-    if (this.baseUrl) {
-      return this.baseUrl;
-    }
-
-    if (this.configPromise) {
-      return await this.configPromise;
-    }
-
-    this.configPromise = this.loadConfig();
-    this.baseUrl = await this.configPromise;
-    return this.baseUrl;
-  }
-
-  async loadConfig(): Promise<string> {
-    // Detect if we're running in Home Assistant ingress mode
-    const pathname = window.location.pathname;
-
-    if (pathname.includes('/api/hassio_ingress/')) {
-      // Extract the ingress path from the current URL
-      const match = pathname.match(/\/api\/hassio_ingress\/[^/]+/);
-      if (match) {
-        const ingressPath = match[0];
-        return `${ingressPath}/api`;
-      }
-    }
-
-    // Default to /api for normal mode
     return '/api';
   }
 
@@ -73,19 +38,7 @@ class BackupService {
     const url = `${baseUrl}/backup/download/${encodeURIComponent(filename)}`;
 
     try {
-      // Check if we're in ingress mode
-      const pathname = window.location.pathname;
-      const isIngressMode = pathname.includes('/api/hassio_ingress/');
-
-      if (isIngressMode) {
-        // In ingress mode, use direct navigation for immediate download
-        // This allows the browser to handle streaming and starts download immediately
-        console.log('Using direct download for ingress mode:', url);
-        window.location.href = url;
-        return;
-      }
-
-      // Normal mode: use fetch() and blob approach
+      // Use fetch() and blob approach
       console.log('Downloading backup from URL:', url);
 
       const response = await fetch(url, {

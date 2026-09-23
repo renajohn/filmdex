@@ -3,9 +3,8 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 
-function sanitizeForHomeAssistant(version) {
-  // Home Assistant only allows: a-z, 0-9, dots, hyphens, underscores, braces
-  // Convert to lowercase and replace invalid characters
+function sanitizeVersion(version) {
+  // Keep the version usable as a Docker image tag: lowercase, a-z, 0-9, dots, hyphens, underscores
   return version
     .toLowerCase()
     .replace(/[^a-z0-9.\-_]/g, '-')  // Replace invalid chars with hyphens
@@ -77,12 +76,12 @@ function getVersion() {
       version = `${baseVersion}-${cleanBranch}-${commitCount}-${commitHash}`;
     }
     
-    // Sanitize for Home Assistant compatibility
-    return sanitizeForHomeAssistant(version);
+    // Sanitize for use as a Docker image tag
+    return sanitizeVersion(version);
   } catch (error) {
     // Fallback to package.json version if git is not available
     const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-    return sanitizeForHomeAssistant(packageJson.version);
+    return sanitizeVersion(packageJson.version);
   }
 }
 

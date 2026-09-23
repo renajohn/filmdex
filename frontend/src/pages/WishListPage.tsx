@@ -748,7 +748,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
       console.log('Modern clipboard API failed, trying fallback method:', err);
     }
 
-    // Fallback method for iframe/restricted contexts (like Home Assistant)
+    // Fallback method for contexts where the Clipboard API is unavailable
     try {
       // Save the current active element to restore focus later
       const activeElement = document.activeElement as HTMLElement;

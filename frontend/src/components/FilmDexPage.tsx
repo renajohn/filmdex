@@ -947,10 +947,9 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
   // Helper function to get poster URL
   const getPosterUrl = (posterPath: string | null | undefined) => {
     if (!posterPath) return null;
-    // If it's already a local path, return as is with ingress support
+    // If it's already a local path, return as is
     if (posterPath.startsWith('/images/') || posterPath.startsWith('/api/images/')) {
-      const baseUrl = apiService.getImageBaseUrl();
-      return `${baseUrl}${posterPath}`;
+      return posterPath;
     }
     // If it's already a full URL, return as is
     return posterPath;

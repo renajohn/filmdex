@@ -399,7 +399,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
   const handlePosterSelect = (poster: Poster) => {
     const isCustomPoster = poster.isCustom || poster.file_path.startsWith('/images/') || poster.file_path.startsWith('/api/images/');
     const posterUrl = isCustomPoster
-      ? `${apiService.getImageBaseUrl()}${poster.file_path}`
+      ? poster.file_path
       : `https://image.tmdb.org/t/p/original${poster.file_path}`;
 
     setPosterLoading(true);

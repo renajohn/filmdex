@@ -420,7 +420,7 @@ const bookController = {
         logger.warn('Failed to resize cover image:', (error as Error).message);
       }
 
-      // Construct the cover path using API endpoint (works with Home Assistant ingress)
+      // Construct the cover path using API endpoint
       const coverPath = `/api/images/book/custom/${file.filename}`;
 
       // Update only the cover field

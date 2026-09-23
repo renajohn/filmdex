@@ -362,156 +362,58 @@ app.use('/images', (req: Request, res: Response, next: NextFunction) => {
   });
 });
 
-// Check if running in Home Assistant ingress mode
-const isIngressMode = process.env.INGRESS_PORT || process.env.HASSIO_TOKEN;
-
-// Serve frontend from /app/ path (or root for ingress)
+// Serve the frontend build
 // Check for frontend in both development and production locations
 let frontendPath: string | null = null;
 
-if (isIngressMode) {
-  // Ingress mode: use frontend-ingress build
-  const ingressPaths = [
-    path.join(__dirname, '../frontend-ingress'), // Production ingress build
-    path.join(__dirname, '../frontend/build'), // Development fallback
-    path.join(__dirname, '../frontend'), // Production fallback
-    path.join(process.cwd(), 'frontend-ingress') // Alternative location
-  ];
+const frontendPaths = [
+  path.join(__dirname, '../frontend'), // Production (from dist)
+  path.join(__dirname, '../frontend/build'), // Development
+  path.join(process.cwd(), 'frontend') // Fallback
+];
 
-  for (const testPath of ingressPaths) {
-    if (fs.existsSync(testPath)) {
-      frontendPath = testPath;
-      break;
-    }
-  }
-} else {
-  // Normal mode: use regular frontend build
-  const normalPaths = [
-    path.join(__dirname, '../frontend'), // Production (from dist)
-    path.join(__dirname, '../frontend/build'), // Development
-    path.join(process.cwd(), 'frontend') // Fallback
-  ];
-
-  for (const testPath of normalPaths) {
-    if (fs.existsSync(testPath)) {
-      frontendPath = testPath;
-      break;
-    }
+for (const testPath of frontendPaths) {
+  if (fs.existsSync(testPath)) {
+    frontendPath = testPath;
+    break;
   }
 }
 
 if (frontendPath) {
   logger.info(`Serving frontend from: ${frontendPath}`);
-  logger.info(`Ingress mode: ${isIngressMode ? 'enabled' : 'disabled'}`);
 
-  if (isIngressMode) {
-    // Ingress mode: serve frontend at root path with dynamic path rewriting
-    logger.info('Running in Home Assistant ingress mode - serving frontend at root path');
+  // Add root redirect to /filmdex
+  app.get('/', (req: Request, res: Response) => {
+    res.redirect('/filmdex');
+  });
 
-    // Serve static files from frontend build (CSS, JS, images, etc.)
-    // Note: In ingress mode, static files are served by Home Assistant's ingress proxy
-    // We still need to serve them locally for development/testing
-    app.use('/static', express.static(path.join(frontendPath, 'static')));
+  // Serve static files from frontend build (CSS, JS, images, etc.)
+  // Vite hashes filenames, so we can cache them aggressively
+  app.use('/static', express.static(path.join(frontendPath, 'static'), {
+    maxAge: '1y',
+    immutable: true,
+  }));
+  app.use('/assets', express.static(path.join(frontendPath, 'assets'), {
+    maxAge: '1y',
+    immutable: true,
+  }));
+  app.use('/', express.static(frontendPath, { index: false }));
 
-    // Function to rewrite HTML content for ingress paths
-    const rewriteHtmlForIngress = (htmlContent: string, req: Request): string => {
-      // Check for X-Ingress-Path header from Home Assistant
-      const ingressPath = req.headers['x-ingress-path'] as string | undefined;
+  // Helper to send index.html with no-cache headers
+  // This ensures browsers (especially iOS Safari / home screen PWAs)
+  // always check for the latest version of the app shell
+  const sendIndexHtml = (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.sendFile(path.join(frontendPath as string, 'index.html'));
+  };
 
-      if (ingressPath) {
-        logger.info(`Detected ingress path: ${ingressPath}`);
+  // Handle /filmdex route
+  app.get('/filmdex', sendIndexHtml);
 
-        // Rewrite static asset paths to include ingress path
-        return htmlContent
-          .replace(/href="\/static\//g, `href="${ingressPath}/static/`)
-          .replace(/src="\/static\//g, `src="${ingressPath}/static/`)
-          .replace(/href="\/favicon/g, `href="${ingressPath}/favicon`)
-          .replace(/href="\/logo/g, `href="${ingressPath}/logo`)
-          .replace(/href="\/manifest/g, `href="${ingressPath}/manifest`);
-      }
-
-      return htmlContent;
-    };
-
-    // Helper to send index.html with no-cache headers and ingress rewriting
-    const sendIngressIndexHtml = (req: Request, res: Response) => {
-      // Debug: Log ingress headers
-      logger.debug('Request headers:', {
-        'x-ingress-path': req.headers['x-ingress-path'],
-        'x-forwarded-for': req.headers['x-forwarded-for'],
-        'x-forwarded-proto': req.headers['x-forwarded-proto'],
-        'x-forwarded-host': req.headers['x-forwarded-host'],
-        'host': req.headers['host'],
-        'referer': req.headers['referer']
-      });
-
-      const htmlPath = path.join(frontendPath as string, 'index.html');
-      let htmlContent = fs.readFileSync(htmlPath, 'utf8');
-
-      // Rewrite HTML for ingress if needed
-      htmlContent = rewriteHtmlForIngress(htmlContent, req);
-
-      res.setHeader('Content-Type', 'text/html');
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      res.send(htmlContent);
-    };
-
-    // Handle root route
-    app.get('/', sendIngressIndexHtml);
-
-    // Handle all other routes for React Router (catch-all)
-    // But exclude API routes, images, static files, and health check
-    app.use((req: Request, res: Response, next: NextFunction) => {
-      // Skip catch-all for API routes, images, static files, and health check
-      if (req.path.startsWith('/api/') ||
-          req.path.startsWith('/images/') ||
-          req.path.startsWith('/static/') ||
-          req.path === '/health') {
-        return next(); // Let Express continue to 404 handler if route not found
-      }
-
-      // For all other routes, serve the React app
-      sendIngressIndexHtml(req, res);
-    });
-  } else {
-    // Normal mode: serve frontend with /filmdex routing
-    logger.info('Running in normal mode - serving frontend with /filmdex routing');
-
-    // Add root redirect to /filmdex
-    app.get('/', (req: Request, res: Response) => {
-      res.redirect('/filmdex');
-    });
-
-    // Serve static files from frontend build (CSS, JS, images, etc.)
-    // Vite hashes filenames, so we can cache them aggressively
-    app.use('/static', express.static(path.join(frontendPath, 'static'), {
-      maxAge: '1y',
-      immutable: true,
-    }));
-    app.use('/assets', express.static(path.join(frontendPath, 'assets'), {
-      maxAge: '1y',
-      immutable: true,
-    }));
-    app.use('/', express.static(frontendPath, { index: false }));
-
-    // Helper to send index.html with no-cache headers
-    // This ensures browsers (especially iOS Safari / home screen PWAs)
-    // always check for the latest version of the app shell
-    const sendIndexHtml = (req: Request, res: Response) => {
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      res.sendFile(path.join(frontendPath as string, 'index.html'));
-    };
-
-    // Handle /filmdex route
-    app.get('/filmdex', sendIndexHtml);
-
-    // Handle all other routes for React Router (catch-all)
-    app.use('/', sendIndexHtml);
-  }
+  // Handle all other routes for React Router (catch-all)
+  app.use('/', sendIndexHtml);
 
 // Handle Chrome DevTools request to silence warning
 app.get('/.well-known/appspecific/com.chrome.devtools.json', (req: Request, res: Response) => {

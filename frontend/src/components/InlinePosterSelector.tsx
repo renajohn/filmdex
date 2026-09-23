@@ -247,7 +247,7 @@ const InlinePosterSelector = ({ movie, isOpen, onSelectPoster, currentPosterPath
                 onClick={() => handlePosterSelect(uploadedPoster)}
               >
                 <img
-                  src={`${apiService.getImageBaseUrl()}${uploadedPoster.file_path}`}
+                  src={uploadedPoster.file_path}
                   alt="Custom poster"
                   loading="lazy"
                 />

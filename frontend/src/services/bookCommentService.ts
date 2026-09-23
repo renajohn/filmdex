@@ -1,36 +1,5 @@
 class BookCommentService {
-  private baseUrl: string | null;
-  private configPromise: Promise<string> | null;
-
-  constructor() {
-    this.baseUrl = null;
-    this.configPromise = null;
-  }
-
   async getBaseUrl(): Promise<string> {
-    if (this.baseUrl) {
-      return this.baseUrl;
-    }
-
-    if (!this.configPromise) {
-      this.configPromise = this.loadConfig();
-    }
-
-    this.baseUrl = await this.configPromise;
-    return this.baseUrl;
-  }
-
-  async loadConfig(): Promise<string> {
-    const pathname = window.location.pathname;
-
-    if (pathname.includes('/api/hassio_ingress/')) {
-      const match = pathname.match(/\/api\/hassio_ingress\/[^/]+/);
-      if (match) {
-        const ingressPath = match[0];
-        return `${ingressPath}/api`;
-      }
-    }
-
     return '/api';
   }
 

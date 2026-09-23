@@ -44,8 +44,7 @@ class BuildSystem {
   buildFrontend() {
     console.log('🎨 Building frontend...');
     
-    // Build frontend for normal mode (root path)
-    const envNormal = {
+    const env = {
       ...process.env,
       NODE_ENV: this.deploymentTarget === 'prod' ? 'production' : 'development',
       GENERATE_SOURCEMAP: this.deploymentTarget === 'dev' ? 'true' : 'false',
@@ -54,37 +53,15 @@ class BuildSystem {
 
     execSync('npm run build', {
       cwd: path.join(this.projectRoot, 'frontend'),
-      env: envNormal,
+      env,
       stdio: 'inherit'
     });
 
-    // Copy normal frontend build to dist
+    // Copy frontend build to dist
     const frontendBuildDir = path.join(this.projectRoot, 'frontend', 'build');
     const distFrontendDir = path.join(this.distDir, 'frontend');
     this.copyDirectory(frontendBuildDir, distFrontendDir);
 
-    // Clean frontend build directory for ingress build
-    if (fs.existsSync(frontendBuildDir)) {
-      fs.rmSync(frontendBuildDir, { recursive: true, force: true });
-    }
-
-    // Build frontend for ingress mode (/)
-    const envIngress = {
-      ...process.env,
-      NODE_ENV: this.deploymentTarget === 'prod' ? 'production' : 'development',
-      GENERATE_SOURCEMAP: this.deploymentTarget === 'dev' ? 'true' : 'false',
-      PUBLIC_URL: '/'
-    };
-
-    execSync('npm run build', {
-      cwd: path.join(this.projectRoot, 'frontend'),
-      env: envIngress,
-      stdio: 'inherit'
-    });
-
-    // Copy ingress frontend build to dist
-    const distFrontendIngressDir = path.join(this.distDir, 'frontend-ingress');
-    this.copyDirectory(frontendBuildDir, distFrontendIngressDir);
     console.log('✅ Frontend built successfully');
   }
 

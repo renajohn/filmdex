@@ -48,12 +48,10 @@ cd frontend && npx vitest --run ComponentName  # single test file
 - Pages: FilmDexPage (movies), MusicDexPage, BookDexPage, WishListPage, AnalyticsPage, BackupPage, ImportPage
 - Shared collection components in `components/shared/` (CollectionGrid, CollectionHeader, NextBanner, EmptyState)
 - Service layer in `services/` — `api.ts` (movies/general), `musicService.ts`, `bookService.ts`, `bookCommentService.ts`, `backupService.ts`
-- Supports Home Assistant ingress mode (detected via URL path in `api.ts`)
 - Frontend proxies API calls to backend via Vite proxy config in dev mode
 
 ### Build System
 - `build.js` — custom Node.js build script that assembles `dist/` with frontend build, backend source, Dockerfile, start script, and version info
-- Produces two frontend builds: normal and ingress (for Home Assistant)
 
 ### Key Patterns
 - Each media type (movie, music, book) follows the same layered pattern: controller → service → model, with a corresponding frontend page, detail card, search component, and API service

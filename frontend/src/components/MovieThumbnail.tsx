@@ -32,10 +32,9 @@ const MovieThumbnail: React.FC<MovieThumbnailProps> = ({ imdbLink, title, year, 
 
   const getPosterUrl = (posterPath: string | null | undefined): string | null => {
     if (!posterPath) return null;
-    // If it's already a local path, return as is with ingress support
+    // If it's already a local path, return as is
     if (posterPath.startsWith('/images/') || posterPath.startsWith('/api/images/')) {
-      const baseUrl = apiService.getImageBaseUrl();
-      return `${baseUrl}${posterPath}`; // Use dynamic base URL for ingress
+      return posterPath;
     }
     // If it's a TMDB path, use TMDB URL
     if (posterPath.startsWith('/')) {
