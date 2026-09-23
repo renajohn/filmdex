@@ -4,6 +4,7 @@ import nightly, { BackupAlreadyRunningError } from '../../src/services/nightlyBa
 
 const EMPTY = {
   lastSuccessAt: null, lastSuccessFile: null, lastSuccessSize: null, lastErrorAt: null, lastError: null, lastWarning: null,
+  lastRefused: false,
 };
 
 const configure = () => {
@@ -61,5 +62,19 @@ describe('POST /api/backup/dropbox/run', () => {
     const res = await request(app).post('/api/backup/dropbox/run');
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ ok: false, status: { configured: true, lastError: 'Dropbox 401: expired' } });
+  });
+
+  it('force la sauvegarde quand le corps le demande', async () => {
+    configure();
+    const run = jest.spyOn(nightly, 'runOnce').mockResolvedValue({ ok: true, status: EMPTY });
+    await request(app).post('/api/backup/dropbox/run').send({ force: true });
+    expect(run.mock.calls[0][1]).toEqual({ force: true });
+  });
+
+  it('ne force pas sans corps', async () => {
+    configure();
+    const run = jest.spyOn(nightly, 'runOnce').mockResolvedValue({ ok: true, status: EMPTY });
+    await request(app).post('/api/backup/dropbox/run');
+    expect(run.mock.calls[0][1]).toEqual({ force: false });
   });
 });

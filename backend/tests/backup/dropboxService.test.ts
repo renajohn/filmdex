@@ -103,14 +103,14 @@ describe('uploadFile', () => {
 });
 
 describe('listFiles et deleteFile', () => {
-  it('suit la pagination et ne garde que les fichiers', async () => {
+  it('suit la pagination, ne garde que les fichiers et renvoie leur taille', async () => {
     const spy = mockPost(url => ({
       data: url.endsWith('/list_folder')
-        ? { entries: [{ '.tag': 'file', name: 'a.zip' }, { '.tag': 'folder', name: 'sub' }], cursor: 'C', has_more: true }
-        : { entries: [{ '.tag': 'file', name: 'b.zip' }], cursor: 'D', has_more: false },
+        ? { entries: [{ '.tag': 'file', name: 'a.zip', size: 10 }, { '.tag': 'folder', name: 'sub' }], cursor: 'C', has_more: true }
+        : { entries: [{ '.tag': 'file', name: 'b.zip', size: 20 }], cursor: 'D', has_more: false },
     }));
 
-    expect(await dropbox.listFiles('')).toEqual(['a.zip', 'b.zip']);
+    expect(await dropbox.listFiles('')).toEqual([{ name: 'a.zip', size: 10 }, { name: 'b.zip', size: 20 }]);
     expect(spy).toHaveBeenCalledWith(`${API}/list_folder`, { path: '' }, expect.anything());
     expect(spy).toHaveBeenCalledWith(`${API}/list_folder/continue`, { cursor: 'C' }, expect.anything());
   });

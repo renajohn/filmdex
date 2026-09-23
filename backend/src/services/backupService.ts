@@ -47,6 +47,17 @@ const BackupService = {
     return backupDir;
   },
 
+  // Total rows across the three collections: the reference used to refuse uploading an
+  // empty backup (see nightlyBackupService's guard against an empty or shrunken backup).
+  countCollectionItems(): Promise<number> {
+    return new Promise((resolve, reject) => {
+      getDatabase().get(
+        'SELECT (SELECT COUNT(*) FROM movies) + (SELECT COUNT(*) FROM albums) + (SELECT COUNT(*) FROM books) AS n',
+        (err: Error | null, row: { n: number }) => (err ? reject(err) : resolve(row.n))
+      );
+    });
+  },
+
   // Delete leftover .snapshot-*.sqlite files: if the process died mid-backup, one of these
   // stays in the backups dir forever, invisible in the UI, each as big as the database.
   removeStaleSnapshots(maxAgeMs: number = 60 * 60 * 1000): void {

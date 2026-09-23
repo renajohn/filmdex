@@ -86,3 +86,14 @@ describe('createBackup', () => {
     expect(snapshots()).toEqual([]);
   });
 });
+
+describe('countCollectionItems', () => {
+  it('compte les films, albums et livres', async () => {
+    const title = `Count ${Math.random()}`;
+    await run(`INSERT INTO movies (title, title_status) VALUES (?, 'owned')`, [title]);
+
+    const n = await backupService.countCollectionItems();
+
+    expect(n).toBeGreaterThanOrEqual(1);
+  });
+});

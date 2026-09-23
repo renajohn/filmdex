@@ -7,6 +7,10 @@ import logger from '../logger';
 export const KEEP = 7;
 const NAME_PATTERN = /^dexvault_\d{4}-\d{2}-\d{2}\.zip$/;
 
+// Below this fraction of the most recent remote backup's size, the new backup is refused
+// rather than uploaded: see the "empty or shrunken backup" guard in runOnce.
+export const MIN_SIZE_RATIO = 0.5;
+
 export interface BackupStatus {
   lastSuccessAt: string | null;
   lastSuccessFile: string | null;
@@ -14,16 +18,23 @@ export interface BackupStatus {
   lastErrorAt: string | null;
   lastError: string | null;
   lastWarning: string | null;
+  lastRefused: boolean;
 }
 
 const EMPTY_STATUS: BackupStatus = {
   lastSuccessAt: null, lastSuccessFile: null, lastSuccessSize: null,
-  lastErrorAt: null, lastError: null, lastWarning: null,
+  lastErrorAt: null, lastError: null, lastWarning: null, lastRefused: false,
 };
 
 export class BackupAlreadyRunningError extends Error {
   constructor() { super('A Dropbox backup is already running'); }
 }
+
+// Raised instead of uploading when the backup looks like data loss rather than a real
+// backup: an empty collection, or a zip far smaller than the last one on Dropbox.
+export class BackupRefusedError extends Error {}
+
+const mb = (bytes: number): number => Math.round(bytes / 1024 / 1024);
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -91,24 +102,50 @@ const nightlyBackupService = {
     return running;
   },
 
-  async runOnce(now: Date = new Date()): Promise<{ ok: boolean; status: BackupStatus }> {
+  async runOnce(now: Date = new Date(), options: { force?: boolean } = {}): Promise<{ ok: boolean; status: BackupStatus }> {
     if (running) throw new BackupAlreadyRunningError();
     running = true;
     const previous = nightlyBackupService.readStatus();
     let localZip: string | null = null;
     try {
+      // Guard against an empty or shrunken backup: the volume was lost, the server restarted
+      // on a fresh database, and the catch-up run would otherwise upload nothing useful,
+      // silently pushing every good backup out of the 7-day rotation.
+      if (!options.force && await backupService.countCollectionItems() === 0) {
+        throw new BackupRefusedError('Refused: the collection is empty (0 items). Nothing was uploaded.');
+      }
+
       const backup = await backupService.createBackup();
+      // Track the file to clean up from its actual path first: if the rename below throws,
+      // the finally block still removes the original backup_*.zip instead of leaking it.
+      localZip = backup.path;
       const name = remoteName(now);
       // Rename to the nightly-only name so a crash mid-run leaves something the startup
       // cleanup can recognise and remove, without touching a user's manual backups.
-      localZip = path.join(backupService.getBackupDir(), name);
-      fs.renameSync(backup.path, localZip);
+      const renamedZip = path.join(backupService.getBackupDir(), name);
+      fs.renameSync(backup.path, renamedZip);
+      localZip = renamedZip;
+
+      if (!options.force) {
+        const remoteFiles = await dropbox.listFiles('');
+        // Same pattern and ordering as the rotation below: the most recent dexvault_*.zip by name.
+        const latest = remoteFiles
+          .filter(f => NAME_PATTERN.test(f.name))
+          .sort((a, b) => (a.name < b.name ? 1 : a.name > b.name ? -1 : 0))[0];
+        if (latest && backup.size < MIN_SIZE_RATIO * latest.size) {
+          throw new BackupRefusedError(
+            `Refused: backup is ${mb(backup.size)} MB vs ${mb(latest.size)} MB for ${latest.name}. Nothing was uploaded.`
+          );
+        }
+      }
+
       await dropbox.uploadFile(localZip, `/${name}`);
 
       // The backup of the day is safe from here on: a failed rotation is only a warning.
       let lastWarning: string | null = null;
       try {
-        for (const old of pickToDelete(await dropbox.listFiles(''))) {
+        const remoteFiles = await dropbox.listFiles('');
+        for (const old of pickToDelete(remoteFiles.map(f => f.name))) {
           await dropbox.deleteFile(`/${old}`);
         }
       } catch (error) {
@@ -118,14 +155,17 @@ const nightlyBackupService = {
 
       const status: BackupStatus = {
         lastSuccessAt: now.toISOString(), lastSuccessFile: name, lastSuccessSize: backup.size,
-        lastErrorAt: null, lastError: null, lastWarning,
+        lastErrorAt: null, lastError: null, lastWarning, lastRefused: false,
       };
       persistStatus(status);
       logger.info(`Dropbox backup uploaded: ${name} (${backup.sizeMB} MB)`);
       return { ok: true, status };
     } catch (error) {
       const message = (error as Error).message || String(error);
-      const status: BackupStatus = { ...previous, lastErrorAt: now.toISOString(), lastError: message };
+      const status: BackupStatus = {
+        ...previous, lastErrorAt: now.toISOString(), lastError: message,
+        lastRefused: error instanceof BackupRefusedError,
+      };
       persistStatus(status);
       logger.error(`Dropbox backup failed: ${message}`);
       return { ok: false, status };

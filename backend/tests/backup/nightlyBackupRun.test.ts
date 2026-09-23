@@ -9,14 +9,19 @@ const statusFile = () => path.join(backupService.getBackupDir(), 'dropbox-status
 const NOW = new Date(2026, 8, 24, 3, 0, 0); // 24 septembre 2026, 3 h locale
 
 // createBackup is replaced by a fake that writes a small zip, so each test can check it is removed.
-const fakeZip = () => {
+const fakeZip = (size = 3) => {
   const file = path.join(backupService.getBackupDir(), `backup_test_${Math.random()}.zip`);
   fs.writeFileSync(file, 'zip');
-  jest.spyOn(backupService, 'createBackup').mockResolvedValue({ filename: path.basename(file), path: file, size: 3, sizeMB: 0 });
+  jest.spyOn(backupService, 'createBackup').mockResolvedValue({ filename: path.basename(file), path: file, size, sizeMB: 0 });
   return file;
 };
 
-beforeEach(() => fs.rmSync(statusFile(), { force: true }));
+beforeEach(() => {
+  fs.rmSync(statusFile(), { force: true });
+  // The collection is non-empty by default so existing scenarios keep exercising upload/rotation;
+  // tests for the empty-collection refusal override this explicitly.
+  jest.spyOn(backupService, 'countCollectionItems').mockResolvedValue(1);
+});
 afterEach(() => jest.restoreAllMocks());
 
 describe('remoteName', () => {
@@ -65,7 +70,10 @@ describe('runOnce', () => {
     const renamedZip = path.join(backupService.getBackupDir(), 'dexvault_2026-09-24.zip');
     const upload = jest.spyOn(dropbox, 'uploadFile').mockResolvedValue();
     const existing = ['16', '17', '18', '19', '20', '21', '22', '23', '24'].map(d => `dexvault_2026-09-${d}.zip`);
-    jest.spyOn(dropbox, 'listFiles').mockResolvedValue([...existing, 'notes.txt']);
+    jest.spyOn(dropbox, 'listFiles').mockResolvedValue([
+      ...existing.map(name => ({ name, size: 1 })),
+      { name: 'notes.txt', size: 999999999 },
+    ]);
     const del = jest.spyOn(dropbox, 'deleteFile').mockResolvedValue();
 
     const { ok, status } = await nightly.runOnce(NOW);
@@ -77,7 +85,7 @@ describe('runOnce', () => {
     expect(del.mock.calls.map(c => c[0]).sort()).toEqual(['/dexvault_2026-09-16.zip', '/dexvault_2026-09-17.zip']);
     expect(status).toMatchObject({
       lastSuccessAt: NOW.toISOString(), lastSuccessFile: 'dexvault_2026-09-24.zip', lastSuccessSize: 3,
-      lastError: null, lastErrorAt: null, lastWarning: null,
+      lastError: null, lastErrorAt: null, lastWarning: null, lastRefused: false,
     });
     expect(nightly.readStatus()).toEqual(status);
     expect(fs.existsSync(zip)).toBe(false);
@@ -88,15 +96,17 @@ describe('runOnce', () => {
     const zip = fakeZip();
     const renamedZip = path.join(backupService.getBackupDir(), 'dexvault_2026-09-24.zip');
     jest.spyOn(dropbox, 'uploadFile').mockRejectedValue(new Error('Dropbox 409: path/insufficient_space/..'));
-    const list = jest.spyOn(dropbox, 'listFiles');
+    const list = jest.spyOn(dropbox, 'listFiles').mockResolvedValue([]);
     const del = jest.spyOn(dropbox, 'deleteFile');
 
     const { ok, status } = await nightly.runOnce(NOW);
 
     expect(ok).toBe(false);
-    expect(list).not.toHaveBeenCalled();
+    // listFiles is still consulted once, for the pre-upload size check; rotation (a second
+    // call) never runs since the upload itself failed.
+    expect(list).toHaveBeenCalledTimes(1);
     expect(del).not.toHaveBeenCalled();
-    expect(status).toMatchObject({ lastErrorAt: NOW.toISOString(), lastError: 'Dropbox 409: path/insufficient_space/..' });
+    expect(status).toMatchObject({ lastErrorAt: NOW.toISOString(), lastError: 'Dropbox 409: path/insufficient_space/..', lastRefused: false });
     expect(fs.existsSync(zip)).toBe(false);
     expect(fs.existsSync(renamedZip)).toBe(false);
   });
@@ -108,17 +118,20 @@ describe('runOnce', () => {
     await nightly.runOnce(NOW);
     jest.restoreAllMocks();
 
+    jest.spyOn(backupService, 'countCollectionItems').mockResolvedValue(1);
     jest.spyOn(backupService, 'createBackup').mockRejectedValue(new Error('disque plein'));
     const later = new Date(NOW.getTime() + 24 * 3600 * 1000);
     const { status } = await nightly.runOnce(later);
 
-    expect(status).toMatchObject({ lastSuccessAt: NOW.toISOString(), lastError: 'disque plein', lastErrorAt: later.toISOString() });
+    expect(status).toMatchObject({ lastSuccessAt: NOW.toISOString(), lastError: 'disque plein', lastErrorAt: later.toISOString(), lastRefused: false });
   });
 
   it('compte comme reussie execution dont seule rotation echoue', async () => {
     fakeZip();
     jest.spyOn(dropbox, 'uploadFile').mockResolvedValue();
-    jest.spyOn(dropbox, 'listFiles').mockRejectedValue(new Error('Dropbox 500: internal'));
+    jest.spyOn(dropbox, 'listFiles')
+      .mockResolvedValueOnce([]) // pre-upload size check: nothing to compare against
+      .mockRejectedValueOnce(new Error('Dropbox 500: internal')); // rotation listing fails
 
     const { ok, status } = await nightly.runOnce(NOW);
 
@@ -145,7 +158,7 @@ describe('runOnce', () => {
   it('renvoie un etat vide avant toute execution', () => {
     expect(nightly.readStatus()).toEqual({
       lastSuccessAt: null, lastSuccessFile: null, lastSuccessSize: null,
-      lastErrorAt: null, lastError: null, lastWarning: null,
+      lastErrorAt: null, lastError: null, lastWarning: null, lastRefused: false,
     });
   });
 
@@ -167,6 +180,7 @@ describe('runOnce', () => {
   it('reste ok false quand upload echoue et ecriture etat echoue', async () => {
     const zip = fakeZip();
     jest.spyOn(dropbox, 'uploadFile').mockRejectedValue(new Error('Dropbox error'));
+    jest.spyOn(dropbox, 'listFiles').mockResolvedValue([]);
     const writeStatus = jest.spyOn(nightly, 'writeStatus').mockImplementation(() => { throw new Error('EACCES'); });
     jest.spyOn(logger, 'error').mockImplementation(() => {});
 
@@ -176,5 +190,104 @@ describe('runOnce', () => {
     expect(writeStatus).toHaveBeenCalled();
     expect(nightly.isRunning()).toBe(false);
     expect(fs.existsSync(zip)).toBe(false);
+  });
+
+  it('supprime le zip original si le renommage echoue', async () => {
+    // Regression test: localZip used to be set to the renamed path before fs.renameSync ran,
+    // so a throwing rename left the original backup_*.zip on disk forever.
+    const zip = fakeZip();
+    jest.spyOn(fs, 'renameSync').mockImplementation(() => { throw new Error('EXDEV: cross-device link'); });
+
+    const { ok, status } = await nightly.runOnce(NOW);
+
+    expect(ok).toBe(false);
+    expect(status.lastError).toBe('EXDEV: cross-device link');
+    expect(fs.existsSync(zip)).toBe(false);
+  });
+
+  describe('garde-fou contre une sauvegarde vide', () => {
+    it('refuse sans rien envoyer ni supprimer quand la collection est vide', async () => {
+      jest.spyOn(backupService, 'countCollectionItems').mockResolvedValue(0);
+      const createBackup = jest.spyOn(backupService, 'createBackup');
+      const upload = jest.spyOn(dropbox, 'uploadFile');
+      const del = jest.spyOn(dropbox, 'deleteFile');
+
+      const { ok, status } = await nightly.runOnce(NOW);
+
+      expect(ok).toBe(false);
+      expect(status.lastRefused).toBe(true);
+      expect(status.lastError).toBe('Refused: the collection is empty (0 items). Nothing was uploaded.');
+      expect(createBackup).not.toHaveBeenCalled();
+      expect(upload).not.toHaveBeenCalled();
+      expect(del).not.toHaveBeenCalled();
+    });
+
+    it('refuse quand le zip fait moins de la moitie du plus recent distant', async () => {
+      const zip = fakeZip(3);
+      jest.spyOn(dropbox, 'listFiles').mockResolvedValue([{ name: 'dexvault_2026-09-23.zip', size: 100 }]);
+      const upload = jest.spyOn(dropbox, 'uploadFile');
+      const del = jest.spyOn(dropbox, 'deleteFile');
+
+      const { ok, status } = await nightly.runOnce(NOW);
+
+      expect(ok).toBe(false);
+      expect(status.lastRefused).toBe(true);
+      expect(status.lastError).toBe('Refused: backup is 0 MB vs 0 MB for dexvault_2026-09-23.zip. Nothing was uploaded.');
+      expect(upload).not.toHaveBeenCalled();
+      expect(del).not.toHaveBeenCalled();
+      expect(fs.existsSync(zip)).toBe(false);
+    });
+
+    it('accepte a exactement 50 pourcent', async () => {
+      fakeZip(50);
+      jest.spyOn(dropbox, 'listFiles').mockResolvedValue([{ name: 'dexvault_2026-09-23.zip', size: 100 }]);
+      const upload = jest.spyOn(dropbox, 'uploadFile').mockResolvedValue();
+      jest.spyOn(dropbox, 'deleteFile').mockResolvedValue();
+
+      const { ok, status } = await nightly.runOnce(NOW);
+
+      expect(ok).toBe(true);
+      expect(status.lastRefused).toBe(false);
+      expect(upload).toHaveBeenCalled();
+    });
+
+    it('ignore les fichiers distants hors motif pour la reference', async () => {
+      fakeZip(3);
+      jest.spyOn(dropbox, 'listFiles').mockResolvedValue([{ name: 'notes.txt', size: 999999999 }]);
+      const upload = jest.spyOn(dropbox, 'uploadFile').mockResolvedValue();
+
+      const { ok } = await nightly.runOnce(NOW);
+
+      expect(ok).toBe(true);
+      expect(upload).toHaveBeenCalled();
+    });
+
+    it("n'effectue aucune verification avec force true et envoie malgre 0 elements", async () => {
+      jest.spyOn(backupService, 'countCollectionItems').mockResolvedValue(0);
+      fakeZip(3);
+      jest.spyOn(dropbox, 'listFiles').mockResolvedValue([]);
+      const upload = jest.spyOn(dropbox, 'uploadFile').mockResolvedValue();
+
+      const { ok, status } = await nightly.runOnce(NOW, { force: true });
+
+      expect(ok).toBe(true);
+      expect(status.lastRefused).toBe(false);
+      expect(upload).toHaveBeenCalled();
+    });
+
+    it('une reussite apres un refus remet lastRefused a false', async () => {
+      jest.spyOn(backupService, 'countCollectionItems').mockResolvedValue(0);
+      const { status: refused } = await nightly.runOnce(NOW);
+      expect(refused.lastRefused).toBe(true);
+
+      jest.spyOn(backupService, 'countCollectionItems').mockResolvedValue(1);
+      fakeZip();
+      jest.spyOn(dropbox, 'listFiles').mockResolvedValue([]);
+      jest.spyOn(dropbox, 'uploadFile').mockResolvedValue();
+      const later = new Date(NOW.getTime() + 1000);
+      const { status } = await nightly.runOnce(later);
+
+      expect(status.lastRefused).toBe(false);
+    });
   });
 });

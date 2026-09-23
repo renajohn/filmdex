@@ -105,19 +105,22 @@ const uploadFile = async (localPath: string, remotePath: string): Promise<void> 
 };
 
 interface ListFolderResult {
-  entries: { '.tag': string; name: string }[];
+  entries: { '.tag': string; name: string; size?: number }[];
   cursor: string;
   has_more: boolean;
 }
 
-const listFiles = async (folder: string): Promise<string[]> => {
+const listFiles = async (folder: string): Promise<{ name: string; size: number }[]> => {
+  const asFiles = (entries: ListFolderResult['entries']) =>
+    entries.filter(e => e['.tag'] === 'file').map(e => ({ name: e.name, size: e.size ?? 0 }));
+
   let page = await rpc<ListFolderResult>('list_folder', { path: folder });
-  const names = page.entries.filter(e => e['.tag'] === 'file').map(e => e.name);
+  const files = asFiles(page.entries);
   while (page.has_more) {
     page = await rpc<ListFolderResult>('list_folder/continue', { cursor: page.cursor });
-    names.push(...page.entries.filter(e => e['.tag'] === 'file').map(e => e.name));
+    files.push(...asFiles(page.entries));
   }
-  return names;
+  return files;
 };
 
 const deleteFile = async (remotePath: string): Promise<void> => {

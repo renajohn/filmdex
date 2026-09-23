@@ -24,7 +24,8 @@ const dropboxBackupController = {
       return;
     }
     try {
-      const { ok } = await nightly.runOnce();
+      const force = req.body?.force === true;
+      const { ok } = await nightly.runOnce(undefined, { force });
       res.json({ ok, status: currentStatus() });
     } catch (error) {
       if (error instanceof BackupAlreadyRunningError) {

@@ -44,6 +44,7 @@ describe('msUntilNext', () => {
 describe('isStale', () => {
   const status = (lastSuccessAt: string | null) => ({
     lastSuccessAt, lastSuccessFile: null, lastSuccessSize: null, lastErrorAt: null, lastError: null, lastWarning: null,
+    lastRefused: false,
   });
 
   it('est vrai sans aucune reussite', () => {
