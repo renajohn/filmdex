@@ -21,6 +21,12 @@ export interface BackupStatus {
   lastRefused: boolean;
 }
 
+export interface BackupProgress {
+  phase: 'checking' | 'archiving' | 'uploading' | 'rotating';
+  uploadedBytes: number | null;
+  totalBytes: number | null;
+}
+
 const EMPTY_STATUS: BackupStatus = {
   lastSuccessAt: null, lastSuccessFile: null, lastSuccessSize: null,
   lastErrorAt: null, lastError: null, lastWarning: null, lastRefused: false,
@@ -75,6 +81,7 @@ export const isStale = (status: BackupStatus, now: Date, maxAgeMs: number): bool
 const statusPath = () => path.join(backupService.getBackupDir(), 'dropbox-status.json');
 
 let running = false;
+let progress: BackupProgress | null = null;
 
 // Helper to persist status non-throwing; logs instead of rejecting.
 // Ensures runOnce never rejects except for BackupAlreadyRunningError.
@@ -104,12 +111,17 @@ const nightlyBackupService = {
     return running;
   },
 
+  getProgress(): BackupProgress | null {
+    return progress;
+  },
+
   async runOnce(now: Date = new Date(), options: { force?: boolean } = {}): Promise<{ ok: boolean; status: BackupStatus }> {
     if (running) throw new BackupAlreadyRunningError();
     running = true;
     const previous = nightlyBackupService.readStatus();
     let localZip: string | null = null;
     try {
+      progress = { phase: 'checking', uploadedBytes: null, totalBytes: null };
       // Guard against an empty or shrunken backup: the volume was lost, the server restarted
       // on a fresh database, and the catch-up run would otherwise upload nothing useful,
       // silently pushing every good backup out of the 7-day rotation.
@@ -117,6 +129,7 @@ const nightlyBackupService = {
         throw new BackupRefusedError('Refused: the collection is empty (0 items). Nothing was uploaded.');
       }
 
+      progress = { phase: 'archiving', uploadedBytes: null, totalBytes: null };
       const backup = await backupService.createBackup();
       // Track the file to clean up from its actual path first: if the rename below throws,
       // the finally block still removes the original backup_*.zip instead of leaking it.
@@ -129,6 +142,7 @@ const nightlyBackupService = {
       localZip = renamedZip;
 
       if (!options.force) {
+        progress = { phase: 'checking', uploadedBytes: null, totalBytes: null };
         const remoteFiles = await dropbox.listFiles('');
         // Same pattern and ordering as the rotation below: the most recent dexvault_*.zip by name.
         const latest = remoteFiles
@@ -141,11 +155,15 @@ const nightlyBackupService = {
         }
       }
 
-      await dropbox.uploadFile(localZip, `/${name}`);
+      progress = { phase: 'uploading', uploadedBytes: null, totalBytes: null };
+      await dropbox.uploadFile(localZip, `/${name}`, (uploadedBytes, totalBytes) => {
+        progress = { phase: 'uploading', uploadedBytes, totalBytes };
+      });
 
       // The backup of the day is safe from here on: a failed rotation is only a warning.
       let lastWarning: string | null = null;
       try {
+        progress = { phase: 'rotating', uploadedBytes: null, totalBytes: null };
         const remoteFiles = await dropbox.listFiles('');
         for (const old of pickToDelete(remoteFiles.map(f => f.name))) {
           await dropbox.deleteFile(`/${old}`);
@@ -175,6 +193,7 @@ const nightlyBackupService = {
       // On the same volume as the database, the local zip protects from nothing.
       if (localZip) fs.rmSync(localZip, { force: true });
       running = false;
+      progress = null;
     }
   },
 };

@@ -8,6 +8,7 @@ const currentStatus = () => {
     configured,
     running: nightly.isRunning(),
     nextRunAt: configured ? nextRunAt(BACKUP_HOUR, new Date()).toISOString() : null,
+    progress: nightly.getProgress(),
     ...nightly.readStatus(),
   };
 };

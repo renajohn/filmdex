@@ -81,7 +81,7 @@ describe('runOnce', () => {
     expect(ok).toBe(true);
     // The local zip is renamed to the nightly-only name before upload, so a crash mid-run
     // leaves something the startup cleanup can tell apart from a user's manual backup.
-    expect(upload).toHaveBeenCalledWith(renamedZip, '/dexvault_2026-09-24.zip');
+    expect(upload).toHaveBeenCalledWith(renamedZip, '/dexvault_2026-09-24.zip', expect.any(Function));
     expect(del.mock.calls.map(c => c[0]).sort()).toEqual(['/dexvault_2026-09-16.zip', '/dexvault_2026-09-17.zip']);
     expect(status).toMatchObject({
       lastSuccessAt: NOW.toISOString(), lastSuccessFile: 'dexvault_2026-09-24.zip', lastSuccessSize: 3,
@@ -295,3 +295,57 @@ describe('runOnce', () => {
     });
   });
 });
+
+describe('getProgress', () => {
+  it("renvoie null en dehors de toute execution", () => {
+    expect(nightly.getProgress()).toBeNull();
+  });
+
+  it('passe par les phases attendues et transmet les octets envoyes pendant le televersement', async () => {
+    const dir = backupService.getBackupDir();
+    const zipPath = path.join(dir, `backup_test_${Math.random()}.zip`);
+    fs.writeFileSync(zipPath, 'zip');
+    const phases: string[] = [];
+
+    jest.spyOn(backupService, 'createBackup').mockImplementation(async () => {
+      phases.push(nightly.getProgress()!.phase);
+      return { filename: path.basename(zipPath), path: zipPath, size: 3, sizeMB: 0 };
+    });
+    const uploadProgress: { uploadedBytes: number | null; totalBytes: number | null }[] = [];
+    jest.spyOn(dropbox, 'uploadFile').mockImplementation(async (_local, _remote, onProgress) => {
+      phases.push(nightly.getProgress()!.phase);
+      onProgress?.(0, 10);
+      uploadProgress.push({ ...nightly.getProgress()! });
+      onProgress?.(10, 10);
+      uploadProgress.push({ ...nightly.getProgress()! });
+    });
+    jest.spyOn(dropbox, 'listFiles').mockImplementation(async () => {
+      phases.push(nightly.getProgress()!.phase);
+      return [];
+    });
+    const del = jest.spyOn(dropbox, 'deleteFile').mockResolvedValue();
+
+    const { ok } = await nightly.runOnce(NOW);
+
+    expect(ok).toBe(true);
+    expect(phases).toEqual(['archiving', 'checking', 'uploading', 'rotating']);
+    expect(uploadProgress).toEqual([
+      { phase: 'uploading', uploadedBytes: 0, totalBytes: 10 },
+      { phase: 'uploading', uploadedBytes: 10, totalBytes: 10 },
+    ]);
+    expect(del).not.toHaveBeenCalled();
+    expect(nightly.getProgress()).toBeNull();
+  });
+
+  it('redevient null apres un echec', async () => {
+    fakeZip();
+    jest.spyOn(dropbox, 'uploadFile').mockRejectedValue(new Error('boom'));
+    jest.spyOn(dropbox, 'listFiles').mockResolvedValue([]);
+
+    const { ok } = await nightly.runOnce(NOW);
+
+    expect(ok).toBe(false);
+    expect(nightly.getProgress()).toBeNull();
+  });
+});
+

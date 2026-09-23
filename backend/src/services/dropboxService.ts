@@ -80,7 +80,11 @@ const content = async <T>(endpoint: string, arg: unknown, chunk: Buffer): Promis
   }
 };
 
-const uploadFile = async (localPath: string, remotePath: string): Promise<void> => {
+const uploadFile = async (
+  localPath: string,
+  remotePath: string,
+  onProgress?: (uploadedBytes: number, totalBytes: number) => void,
+): Promise<void> => {
   const handle = await fs.promises.open(localPath, 'r');
   try {
     const { size } = await handle.stat();
@@ -90,15 +94,19 @@ const uploadFile = async (localPath: string, remotePath: string): Promise<void> 
       return buffer;
     };
 
+    onProgress?.(0, size);
+
     let offset = 0;
     const first = await readChunk(0);
     const { session_id } = await content<{ session_id: string }>('upload_session/start', { close: false }, first);
     offset += first.length;
+    onProgress?.(offset, size);
 
     while (offset < size) {
       const chunk = await readChunk(offset);
       await content('upload_session/append_v2', { cursor: { session_id, offset }, close: false }, chunk);
       offset += chunk.length;
+      onProgress?.(offset, size);
     }
 
     await content('upload_session/finish', {

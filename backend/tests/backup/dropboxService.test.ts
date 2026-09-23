@@ -90,6 +90,32 @@ describe('uploadFile', () => {
     expect(calls.every(c => c.auth === 'Bearer short')).toBe(true);
   });
 
+  it('signale la progression a chaque morceau envoye', async () => {
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'dbx-')), 'big.zip');
+    fs.writeFileSync(file, Buffer.alloc(20 * 1024 * 1024, 1));
+    mockPost(url => ({ data: url.endsWith('/start') ? { session_id: 'S' } : {} }));
+
+    const progress: [number, number][] = [];
+    await dropbox.uploadFile(file, '/dexvault_2026-09-24.zip', (uploadedBytes, totalBytes) => {
+      progress.push([uploadedBytes, totalBytes]);
+    });
+
+    expect(progress).toEqual([
+      [0, 20 * 1024 * 1024],
+      [CHUNK_SIZE, 20 * 1024 * 1024],
+      [2 * CHUNK_SIZE, 20 * 1024 * 1024],
+      [20 * 1024 * 1024, 20 * 1024 * 1024],
+    ]);
+  });
+
+  it('fonctionne toujours sans callback de progression', async () => {
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'dbx-')), 'small.zip');
+    fs.writeFileSync(file, Buffer.alloc(1024, 1));
+    mockPost(url => ({ data: url.endsWith('/start') ? { session_id: 'S' } : {} }));
+
+    await expect(dropbox.uploadFile(file, '/a.zip')).resolves.toBeUndefined();
+  });
+
   it('transforme une erreur Dropbox en message lisible', async () => {
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'dbx-')), 'small.zip');
     fs.writeFileSync(file, 'x');

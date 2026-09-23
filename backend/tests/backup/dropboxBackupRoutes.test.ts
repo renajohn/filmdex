@@ -25,7 +25,7 @@ describe('GET /api/backup/dropbox/status', () => {
     jest.spyOn(nightly, 'readStatus').mockReturnValue(EMPTY);
     const res = await request(app).get('/api/backup/dropbox/status');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ configured: false, running: false, nextRunAt: null, ...EMPTY });
+    expect(res.body).toEqual({ configured: false, running: false, nextRunAt: null, progress: null, ...EMPTY });
   });
 
   it("donne l'état et la prochaine exécution une fois configuré", async () => {
@@ -33,8 +33,17 @@ describe('GET /api/backup/dropbox/status', () => {
     const saved = { ...EMPTY, lastSuccessAt: '2026-09-24T01:00:00.000Z', lastSuccessFile: 'dexvault_2026-09-24.zip', lastSuccessSize: 3 };
     jest.spyOn(nightly, 'readStatus').mockReturnValue(saved);
     const res = await request(app).get('/api/backup/dropbox/status');
-    expect(res.body).toMatchObject({ configured: true, running: false, ...saved });
+    expect(res.body).toMatchObject({ configured: true, running: false, progress: null, ...saved });
     expect(new Date(res.body.nextRunAt).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('inclut la progression en cours quand une execution tourne', async () => {
+    configure();
+    jest.spyOn(nightly, 'readStatus').mockReturnValue(EMPTY);
+    jest.spyOn(nightly, 'isRunning').mockReturnValue(true);
+    jest.spyOn(nightly, 'getProgress').mockReturnValue({ phase: 'uploading', uploadedBytes: 1024, totalBytes: 2048 });
+    const res = await request(app).get('/api/backup/dropbox/status');
+    expect(res.body.progress).toEqual({ phase: 'uploading', uploadedBytes: 1024, totalBytes: 2048 });
   });
 });
 
