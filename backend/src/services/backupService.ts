@@ -51,9 +51,14 @@ const BackupService = {
   // server writes to it can capture a half-written page.
   async snapshotDatabase(): Promise<string> {
     const snapshotPath = path.join(this.getBackupDir(), `.snapshot-${Date.now()}.sqlite`);
-    await new Promise<void>((resolve, reject) =>
-      getDatabase().run('VACUUM INTO ?', [snapshotPath], (err: Error | null) => (err ? reject(err) : resolve())));
-    return snapshotPath;
+    try {
+      await new Promise<void>((resolve, reject) =>
+        getDatabase().run('VACUUM INTO ?', [snapshotPath], (err: Error | null) => (err ? reject(err) : resolve())));
+      return snapshotPath;
+    } catch (err) {
+      fs.rmSync(snapshotPath, { force: true });
+      throw err;
+    }
   },
 
   // Create a backup zip file

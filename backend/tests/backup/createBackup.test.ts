@@ -33,6 +33,7 @@ describe('createBackup', () => {
 
     expect(row.n).toBe(1);
     expect(snapshots()).toEqual([]);
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 
   it('supprime le snapshot même quand l\'archivage échoue', async () => {
@@ -40,6 +41,26 @@ describe('createBackup', () => {
 
     await expect(backupService.createBackup()).rejects.toThrow('disque plein');
     expect(archiveSpy).toHaveBeenCalled();
+    expect(snapshots()).toEqual([]);
+  });
+
+  it('supprime le snapshot partiel si VACUUM INTO échoue', async () => {
+    const runSpy = jest.spyOn(getDatabase(), 'run').mockImplementation((sql: string, params: unknown[], callback: (err: Error | null) => void) => {
+      if (sql.includes('VACUUM INTO')) {
+        const snapshotPath = (params as unknown[])[0] as string;
+        // Write a partial file to simulate a failed VACUUM INTO
+        fs.writeFileSync(snapshotPath, Buffer.alloc(100));
+        // Then call the callback with an error
+        callback(new Error('disque plein'));
+      } else {
+        // For other queries, use the original implementation
+        getDatabase().run(sql, params as unknown[], callback);
+      }
+      return { changes: 0 } as any;
+    });
+
+    await expect(backupService.createBackup()).rejects.toThrow('disque plein');
+    expect(runSpy).toHaveBeenCalled();
     expect(snapshots()).toEqual([]);
   });
 });
