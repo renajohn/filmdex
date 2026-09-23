@@ -4,6 +4,7 @@ import archiver from 'archiver';
 import AdmZip from 'adm-zip';
 import configManager from '../config';
 import logger from '../logger';
+import { getDatabase } from '../database';
 
 interface BackupResult {
   filename: string;
@@ -46,85 +47,70 @@ const BackupService = {
     return backupDir;
   },
 
+  // Copy the live database through SQLite itself: zipping db.sqlite while the
+  // server writes to it can capture a half-written page.
+  async snapshotDatabase(): Promise<string> {
+    const snapshotPath = path.join(this.getBackupDir(), `.snapshot-${Date.now()}.sqlite`);
+    await new Promise<void>((resolve, reject) =>
+      getDatabase().run('VACUUM INTO ?', [snapshotPath], (err: Error | null) => (err ? reject(err) : resolve())));
+    return snapshotPath;
+  },
+
   // Create a backup zip file
   async createBackup(): Promise<BackupResult> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0] + '_' +
-                        new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
-        const backupDir = this.getBackupDir();
-        const backupFilename = `backup_${timestamp}.zip`;
-        const backupPath = path.join(backupDir, backupFilename);
+    const snapshotPath = await this.snapshotDatabase();
+    try {
+      return await this.writeArchive(snapshotPath);
+    } finally {
+      fs.rmSync(snapshotPath, { force: true });
+    }
+  },
 
-        // Get paths
-        const dbPath = configManager.getDatabasePath();
-        const imagesPath = configManager.getImagesPath();
-        const ebooksPath = configManager.getEbooksPath();
+  // Zip the database snapshot with the images and ebooks directories
+  writeArchive(dbSnapshotPath: string): Promise<BackupResult> {
+    return new Promise((resolve, reject) => {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0] + '_' +
+                      new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
+      const backupFilename = `backup_${timestamp}.zip`;
+      const backupPath = path.join(this.getBackupDir(), backupFilename);
+      const imagesPath = configManager.getImagesPath();
+      const ebooksPath = configManager.getEbooksPath();
 
-        // Check if files/directories exist
-        if (!fs.existsSync(dbPath)) {
-          return reject(new Error('Database file not found'));
-        }
+      const output = fs.createWriteStream(backupPath);
+      const archive = archiver('zip', { zlib: { level: 9 } });
 
-        // Create a file to stream archive data to
-        const output = fs.createWriteStream(backupPath);
-        const archive = archiver('zip', {
-          zlib: { level: 9 } // Sets the compression level
+      output.on('close', () => {
+        const sizeMB = (archive.pointer() / 1024 / 1024).toFixed(2);
+        logger.info(`Backup created: ${backupFilename} (${sizeMB} MB)`);
+        resolve({
+          filename: backupFilename,
+          path: backupPath,
+          size: archive.pointer(),
+          sizeMB: parseFloat(sizeMB)
         });
+      });
 
-        // Listen for all archive data to be written
-        output.on('close', () => {
-          const sizeMB = (archive.pointer() / 1024 / 1024).toFixed(2);
-          logger.info(`Backup created: ${backupFilename} (${sizeMB} MB)`);
-          resolve({
-            filename: backupFilename,
-            path: backupPath,
-            size: archive.pointer(),
-            sizeMB: parseFloat(sizeMB)
-          });
-        });
-
-        // Catch warnings (e.g. stat failures and other non-blocking errors)
-        archive.on('warning', (err: NodeJS.ErrnoException) => {
-          if (err.code === 'ENOENT') {
-            logger.warn('Archive warning:', err);
-          } else {
-            reject(err);
-          }
-        });
-
-        // Catch errors
-        archive.on('error', (err: Error) => {
+      // Catch warnings (e.g. stat failures and other non-blocking errors)
+      archive.on('warning', (err: NodeJS.ErrnoException) => {
+        if (err.code === 'ENOENT') {
+          logger.warn('Archive warning:', err);
+        } else {
           reject(err);
-        });
-
-        // Pipe archive data to the file
-        archive.pipe(output);
-
-        // Add database file
-        if (fs.existsSync(dbPath)) {
-          archive.file(dbPath, { name: 'db.sqlite' });
-          logger.debug('Added database to backup');
         }
+      });
+      archive.on('error', (err: Error) => reject(err));
 
-        // Add images directory
-        if (fs.existsSync(imagesPath)) {
-          archive.directory(imagesPath, 'images');
-          logger.debug('Added images directory to backup');
-        }
+      archive.pipe(output);
+      archive.file(dbSnapshotPath, { name: 'db.sqlite' });
 
-        // Add ebooks directory
-        if (fs.existsSync(ebooksPath)) {
-          archive.directory(ebooksPath, 'ebooks');
-          logger.debug('Added ebooks directory to backup');
-        }
-
-        // Finalize the archive
-        archive.finalize();
-      } catch (error) {
-        logger.error('Error creating backup:', error);
-        reject(error);
+      if (fs.existsSync(imagesPath)) {
+        archive.directory(imagesPath, 'images');
       }
+      if (fs.existsSync(ebooksPath)) {
+        archive.directory(ebooksPath, 'ebooks');
+      }
+
+      archive.finalize();
     });
   },
 
