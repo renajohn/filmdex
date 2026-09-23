@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import Movie from '../models/movie';
 import ddd, { DddQuotaError } from '../services/doesTheDogDieService';
-import warningsService from '../services/warningsService';
+import warningsService, { isValidSnapshotDate } from '../services/warningsService';
 import { isOverride, isTopic } from '../warnings/rules';
 import logger from '../logger';
 
@@ -65,8 +65,8 @@ const warningsController = {
   },
 
   importSnapshot: async (req: Request, res: Response): Promise<void> => {
-    if (!Array.isArray(req.body?.movies) || typeof req.body?.fetched_at !== 'string') {
-      res.status(400).json({ error: 'Expected { fetched_at, movies: [...] }' });
+    if (!Array.isArray(req.body?.movies) || !isValidSnapshotDate(req.body?.fetched_at)) {
+      res.status(400).json({ error: 'Expected { fetched_at: <date>, movies: [...] }' });
       return;
     }
     res.json(await warningsService.importSnapshot(req.body));

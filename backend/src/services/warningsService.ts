@@ -39,7 +39,7 @@ export interface Snapshot {
   movies: SnapshotEntry[];
 }
 
-type SkipReason = 'missing' | 'mismatch' | 'manual' | 'no_link';
+type SkipReason = 'invalid' | 'missing' | 'mismatch' | 'manual' | 'no_link';
 
 const TOPIC_LIST = Object.keys(TOPICS) as Topic[];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -68,18 +68,16 @@ const getMovieWarnings = async (movieId: number): Promise<MovieWarnings> => {
   };
 };
 
-const refreshMovie = async (movieId: number): Promise<RefreshOutcome> => {
-  if (!ddd.isConfigured()) return 'skipped';
-  const movie = await Movie.findById(movieId);
-  if (!movie) return 'skipped';
+type MatchInput = Parameters<typeof ddd.findMatch>[0];
 
+const fetchAndSave = async (movieId: number, movie: MatchInput): Promise<RefreshOutcome> => {
   const now = new Date().toISOString();
   const link = await MovieWarning.getLink(movieId);
   let dddId = link?.ddd_id ?? null;
   let matchedBy = link?.matched_by ?? null;
 
   if (dddId === null) {
-    const match = await ddd.findMatch(movie as unknown as Parameters<typeof ddd.findMatch>[0]);
+    const match = await ddd.findMatch(movie);
     if (!match) {
       await MovieWarning.saveLink(movieId, null, null, now);
       return 'not_found';
@@ -89,11 +87,35 @@ const refreshMovie = async (movieId: number): Promise<RefreshOutcome> => {
   }
 
   const votes = await ddd.getVotes(dddId);
+  // A manual link saved while DoesTheDogDie answered wins: these votes belong to another entry.
+  const current = await MovieWarning.getLink(movieId);
+  if (current?.matched_by === 'manual' && current.ddd_id !== dddId) return 'skipped';
   for (const topic of TOPIC_LIST) {
     await MovieWarning.saveVotes(movieId, topic, votes[topic].yes, votes[topic].no, now);
   }
   await MovieWarning.saveLink(movieId, dddId, matchedBy, now);
   return 'updated';
+};
+
+// After a quota refusal, DoesTheDogDie is left alone for a day: without this, every
+// movie still waiting in the create-time queue would send its own refused request.
+const QUOTA_PAUSE_MS = DAY_MS;
+let quotaBlocked: { until: number; status: number } | null = null;
+
+/** Test helper: forget a quota refusal so the next refresh talks to DoesTheDogDie again. */
+export const resetQuotaLatch = (): void => { quotaBlocked = null; };
+
+const refreshMovie = async (movieId: number): Promise<RefreshOutcome> => {
+  if (!ddd.isConfigured()) return 'skipped';
+  if (quotaBlocked && Date.now() < quotaBlocked.until) throw new DddQuotaError(quotaBlocked.status);
+  const movie = await Movie.findById(movieId);
+  if (!movie) return 'skipped';
+  try {
+    return await fetchAndSave(movieId, movie as unknown as MatchInput);
+  } catch (error) {
+    if (error instanceof DddQuotaError) quotaBlocked = { until: Date.now() + QUOTA_PAUSE_MS, status: error.status };
+    throw error;
+  }
 };
 
 // One refresh at a time, so a CSV import of 200 movies does not fire 800 requests at once.
@@ -126,12 +148,37 @@ const setManualLink = async (movieId: number, dddId: number): Promise<MovieWarni
 const identifiersAgree = (entry: SnapshotEntry, movie: { imdb_id?: string | null; tmdb_id?: number | null }): boolean =>
   Boolean((entry.tmdb_id && entry.tmdb_id === movie.tmdb_id) || (entry.imdb_id && entry.imdb_id === movie.imdb_id));
 
+const isPositiveInteger = (value: unknown): value is number => Number.isInteger(value) && (value as number) > 0;
+const isCount = (value: unknown): boolean => Number.isInteger(value) && (value as number) >= 0;
+const SNAPSHOT_MATCHES: Array<MatchedBy | null> = ['imdb', 'tmdb', 'title_year', null];
+
+const isValidEntry = (entry: SnapshotEntry): boolean => {
+  if (typeof entry !== 'object' || entry === null) return false;
+  if (!isPositiveInteger(entry.movie_id)) return false;
+  if (!(entry.ddd_id === null || isPositiveInteger(entry.ddd_id))) return false;
+  if (!SNAPSHOT_MATCHES.includes(entry.matched_by)) return false;
+  return TOPIC_LIST.every(topic => {
+    const votes = entry[topic];
+    return votes === undefined || votes === null ||
+      (typeof votes === 'object' && isCount(votes.yes) && isCount(votes.no));
+  });
+};
+
+export const isValidSnapshotDate = (value: unknown): value is string =>
+  typeof value === 'string' && !Number.isNaN(Date.parse(value));
+
 const importSnapshot = async (snapshot: Snapshot) => {
+  if (!isValidSnapshotDate(snapshot.fetched_at)) throw new RangeError(`Invalid fetched_at: ${snapshot.fetched_at}`);
   const checkedAt = new Date(snapshot.fetched_at).toISOString();
-  const skipped: Array<{ movie_id: number; reason: SkipReason }> = [];
+  const skipped: Array<{ movie_id: number | null; reason: SkipReason }> = [];
   let imported = 0;
 
   for (const entry of snapshot.movies) {
+    if (!isValidEntry(entry)) {
+      const movieId = (entry as { movie_id?: unknown } | null)?.movie_id;
+      skipped.push({ movie_id: Number.isInteger(movieId) ? movieId as number : null, reason: 'invalid' });
+      continue;
+    }
     const movie = await Movie.findById(entry.movie_id);
     if (!movie) { skipped.push({ movie_id: entry.movie_id, reason: 'missing' }); continue; }
     if (!identifiersAgree(entry, movie as { imdb_id?: string | null; tmdb_id?: number | null })) {
@@ -157,6 +204,8 @@ const runDailyRefresh = async (
 ): Promise<{ refreshed: number; stoppedByQuota: boolean }> => {
   if (!ddd.isConfigured()) return { refreshed: 0, stoppedByQuota: false };
 
+  // maxRequests is a budget per run, not per calendar day: besides the daily tick,
+  // every backend start triggers a run after 60 s, so a restart spends a fresh budget.
   const cutoff = new Date(now.getTime() - staleDays * DAY_MS).toISOString();
   const ids = await MovieWarning.listDueForRefresh(cutoff, maxRequests);
   const start = ddd.getRequestCount();

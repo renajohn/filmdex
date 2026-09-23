@@ -77,4 +77,9 @@ describe('routes des avertissements', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ imported: 0, skipped: [] });
   });
+
+  it.each(['yesterday', '', 42])('refuse un snapshot daté %j', async fetchedAt => {
+    const res = await request(app).post('/api/warnings/import').send({ fetched_at: fetchedAt, movies: [] });
+    expect(res.status).toBe(400);
+  });
 });

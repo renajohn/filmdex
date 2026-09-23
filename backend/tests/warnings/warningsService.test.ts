@@ -1,7 +1,7 @@
 import { getDatabase } from '../../src/database';
 import MovieWarning from '../../src/models/movieWarning';
 import ddd, { DddQuotaError } from '../../src/services/doesTheDogDieService';
-import warningsService from '../../src/services/warningsService';
+import warningsService, { resetQuotaLatch, SnapshotEntry } from '../../src/services/warningsService';
 
 const run = (sql: string, params: unknown[] = []) =>
   new Promise<number>((resolve, reject) =>
@@ -23,7 +23,10 @@ const VOTES = { spiders: { yes: 125, no: 0 }, snakes: { yes: 1, no: 13 } };
 beforeEach(() => {
   jest.spyOn(ddd, 'isConfigured').mockReturnValue(true);
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  jest.restoreAllMocks();
+  resetQuotaLatch();
+});
 
 describe('refreshMovie', () => {
   it('trouve la fiche, enregistre les votes et classe', async () => {
@@ -84,6 +87,46 @@ describe('refreshMovie', () => {
     const id = await insertMovie();
     jest.spyOn(ddd, 'findMatch').mockRejectedValue(new DddQuotaError(429));
     await expect(warningsService.refreshMovie(id)).rejects.toBeInstanceOf(DddQuotaError);
+  });
+
+  it('après un refus de quota, n’envoie plus aucune requête', async () => {
+    const find = jest.spyOn(ddd, 'findMatch').mockRejectedValue(new DddQuotaError(429));
+    const votes = jest.spyOn(ddd, 'getVotes').mockResolvedValue(VOTES);
+    await expect(warningsService.refreshMovie(await insertMovie())).rejects.toBeInstanceOf(DddQuotaError);
+
+    const linked = await insertMovie();
+    await MovieWarning.saveLink(linked, 9880, 'tmdb', '2026-01-01T00:00:00.000Z');
+    await expect(warningsService.refreshMovie(await insertMovie())).rejects.toBeInstanceOf(DddQuotaError);
+    await expect(warningsService.refreshMovie(linked)).rejects.toBeInstanceOf(DddQuotaError);
+    expect(find).toHaveBeenCalledTimes(1);
+    expect(votes).not.toHaveBeenCalled();
+
+    resetQuotaLatch();
+    find.mockResolvedValue({ dddId: 9880, matchedBy: 'tmdb' });
+    expect(await warningsService.refreshMovie(await insertMovie())).toBe('updated');
+  });
+
+  it('un lien manuel posé pendant le rafraîchissement l’emporte, votes compris', async () => {
+    const id = await insertMovie();
+    const MANUAL_VOTES = { spiders: { yes: 0, no: 7 }, snakes: { yes: 0, no: 7 } };
+    jest.spyOn(ddd, 'findMatch').mockResolvedValue({ dddId: 9880, matchedBy: 'tmdb' });
+    jest.spyOn(ddd, 'getVotes').mockImplementation(async dddId => {
+      if (dddId === 9880) {
+        // The user saves a manual link while the automatic refresh waits for DoesTheDogDie.
+        await warningsService.setManualLink(id, 22644);
+        return VOTES;
+      }
+      return MANUAL_VOTES;
+    });
+
+    await warningsService.refreshMovie(id);
+
+    const w = await warningsService.getMovieWarnings(id);
+    expect(w).toMatchObject({ dddId: 22644, matchedBy: 'manual' });
+    expect(w.topics).toEqual([
+      expect.objectContaining({ topic: 'spiders', yes: 0, no: 7 }),
+      expect.objectContaining({ topic: 'snakes', yes: 0, no: 7 }),
+    ]);
   });
 });
 
@@ -160,6 +203,36 @@ describe('importSnapshot', () => {
     const w = await warningsService.getMovieWarnings(id);
     expect(w).toMatchObject({ dddId: 42, matchedBy: 'manual' });
     expect(w.topics[0]).toMatchObject({ override: 'without', yes: 0 });
+  });
+});
+
+describe('importSnapshot, entrées invalides', () => {
+  it('ignore une entrée aux votes non numériques sans rien écrire', async () => {
+    const id = await insertMovie({ imdb_id: 'tt4444444', tmdb_id: 444 });
+    const result = await warningsService.importSnapshot({
+      fetched_at: '2026-09-23',
+      movies: [{ movie_id: id, imdb_id: 'tt4444444', tmdb_id: 444, ddd_id: 8, matched_by: 'tmdb',
+                 spiders: { yes: '3', no: 0 }, snakes: { yes: 0, no: 1 } } as unknown as SnapshotEntry],
+    });
+    expect(result).toEqual({ imported: 0, skipped: [{ movie_id: id, reason: 'invalid' }] });
+    const w = await warningsService.getMovieWarnings(id);
+    expect(w.dddId).toBeNull();
+    expect(w.topics.map(t => [t.yes, t.no])).toEqual([[0, 0], [0, 0]]);
+  });
+
+  it.each([
+    { movie_id: -1 },
+    { ddd_id: 1.5 },
+    { matched_by: 'manual' },
+    { spiders: { yes: -1, no: 0 } },
+    { snakes: { yes: 1 } },
+  ])('ignore l’entrée %j', async patch => {
+    const id = await insertMovie({ imdb_id: 'tt5555555', tmdb_id: 555 });
+    const entry = { movie_id: id, imdb_id: 'tt5555555', tmdb_id: 555, ddd_id: 8, matched_by: 'tmdb',
+                    spiders: { yes: 1, no: 0 }, snakes: { yes: 0, no: 1 }, ...patch } as unknown as SnapshotEntry;
+    const result = await warningsService.importSnapshot({ fetched_at: '2026-09-23', movies: [entry] });
+    expect(result.imported).toBe(0);
+    expect(result.skipped).toEqual([expect.objectContaining({ reason: 'invalid' })]);
   });
 });
 
