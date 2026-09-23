@@ -1,12 +1,16 @@
+// Only trailing groups are DexVault suffixes: "(500) Days of Summer" keeps its "(500)".
+const TRAILING_GROUPS = /(\s*(\[[^\]]*\]|\([^)]*\)))+\s*$/;
+
 /**
  * Strip what DexVault adds to a title and DoesTheDogDie does not know about:
- * "[fr]", "(zone A)", "- FINAL CUT", "- Director's Cut", ", the complete series".
+ * "[fr]", "(zone A)" at the end, "- FINAL CUT", "- Director's Cut", ", the complete series".
  */
 export const cleanTitle = (title: string): string =>
   title
-    .replace(/\[[^\]]*\]|\([^)]*\)/g, ' ')
+    .replace(TRAILING_GROUPS, '')
     .replace(/\s+-\s+(final cut|director'?s cut)\b.*$/i, '')
     .replace(/,?\s*the complete series$/i, '')
+    .replace(TRAILING_GROUPS, '')
     .replace(/\s+/g, ' ')
     .replace(/^[\s\-:,]+|[\s\-:,]+$/g, '');
 

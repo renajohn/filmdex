@@ -9,6 +9,10 @@ describe('cleanTitle', () => {
     ["Hellboy - Director's Cut", 'Hellboy'],
     ['The Big Bang Theory, the complete series', 'The Big Bang Theory'],
     ['Top Gun : Maverick', 'Top Gun : Maverick'],
+    ['(500) Days of Summer', '(500) Days of Summer'],
+    ['(500) Days of Summer [fr]', '(500) Days of Summer'],
+    ['Alien (zone A) [fr]', 'Alien'],
+    ['Blade Runner [fr] - FINAL CUT', 'Blade Runner'],
   ])('%s → %s', (input, expected) => {
     expect(cleanTitle(input)).toBe(expected);
   });
