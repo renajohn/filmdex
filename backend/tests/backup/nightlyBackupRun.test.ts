@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import backupService from '../../src/services/backupService';
 import dropbox from '../../src/services/dropboxService';
+import logger from '../../src/logger';
 import nightly, { BackupAlreadyRunningError, pickToDelete, remoteName } from '../../src/services/nightlyBackupService';
 
 const statusFile = () => path.join(backupService.getBackupDir(), 'dropbox-status.json');
@@ -118,5 +119,34 @@ describe('runOnce', () => {
       lastSuccessAt: null, lastSuccessFile: null, lastSuccessSize: null,
       lastErrorAt: null, lastError: null, lastWarning: null,
     });
+  });
+
+  it('reste ok true quand upload reussit mais ecriture etat echoue', async () => {
+    fakeZip();
+    jest.spyOn(dropbox, 'uploadFile').mockResolvedValue();
+    jest.spyOn(dropbox, 'listFiles').mockResolvedValue([]);
+    const writeStatus = jest.spyOn(nightly, 'writeStatus').mockImplementation(() => { throw new Error('EACCES'); });
+    jest.spyOn(logger, 'error').mockImplementation(() => {});
+
+    const { ok, status } = await nightly.runOnce(NOW);
+
+    expect(ok).toBe(true);
+    expect(status.lastSuccessAt).toBe(NOW.toISOString());
+    expect(writeStatus).toHaveBeenCalled();
+    expect(nightly.isRunning()).toBe(false);
+  });
+
+  it('reste ok false quand upload echoue et ecriture etat echoue', async () => {
+    const zip = fakeZip();
+    jest.spyOn(dropbox, 'uploadFile').mockRejectedValue(new Error('Dropbox error'));
+    const writeStatus = jest.spyOn(nightly, 'writeStatus').mockImplementation(() => { throw new Error('EACCES'); });
+    jest.spyOn(logger, 'error').mockImplementation(() => {});
+
+    const { ok } = await nightly.runOnce(NOW);
+
+    expect(ok).toBe(false);
+    expect(writeStatus).toHaveBeenCalled();
+    expect(nightly.isRunning()).toBe(false);
+    expect(fs.existsSync(zip)).toBe(false);
   });
 });

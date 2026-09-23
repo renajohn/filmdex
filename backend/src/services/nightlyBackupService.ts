@@ -40,6 +40,17 @@ const statusPath = () => path.join(backupService.getBackupDir(), 'dropbox-status
 
 let running = false;
 
+// Helper to persist status non-throwing; logs instead of rejecting.
+// Ensures runOnce never rejects except for BackupAlreadyRunningError.
+const persistStatus = (status: BackupStatus): void => {
+  try {
+    nightlyBackupService.writeStatus(status);
+  } catch (error) {
+    const message = (error as Error).message || String(error);
+    logger.error(`Dropbox backup: could not write status: ${message}`);
+  }
+};
+
 const nightlyBackupService = {
   readStatus(): BackupStatus {
     try {
@@ -83,13 +94,13 @@ const nightlyBackupService = {
         lastSuccessAt: now.toISOString(), lastSuccessFile: name, lastSuccessSize: backup.size,
         lastErrorAt: null, lastError: null, lastWarning,
       };
-      nightlyBackupService.writeStatus(status);
+      persistStatus(status);
       logger.info(`Dropbox backup uploaded: ${name} (${backup.sizeMB} MB)`);
       return { ok: true, status };
     } catch (error) {
       const message = (error as Error).message || String(error);
       const status: BackupStatus = { ...previous, lastErrorAt: now.toISOString(), lastError: message };
-      nightlyBackupService.writeStatus(status);
+      persistStatus(status);
       logger.error(`Dropbox backup failed: ${message}`);
       return { ok: false, status };
     } finally {
