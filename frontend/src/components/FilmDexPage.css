@@ -1925,7 +1925,8 @@
 .age-badge-large,
 .format-badge-large,
 .collection-badge-large,
-.score-badge-large {
+.score-badge-large,
+.warning-badge-large {
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -1972,25 +1973,7 @@
 }
 
 .warning-badge-large {
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  padding: 4px 6px;
-  border-radius: 4px;
-  color: #fff;
   background: rgba(229, 83, 75, 0.9);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  white-space: nowrap;
-  width: 36px;
-  min-width: 36px;
-  box-sizing: border-box;
 }
 
 .warning-badge-large svg {
