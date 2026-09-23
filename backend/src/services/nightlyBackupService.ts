@@ -98,9 +98,12 @@ const nightlyBackupService = {
     let localZip: string | null = null;
     try {
       const backup = await backupService.createBackup();
-      localZip = backup.path;
       const name = remoteName(now);
-      await dropbox.uploadFile(backup.path, `/${name}`);
+      // Rename to the nightly-only name so a crash mid-run leaves something the startup
+      // cleanup can recognise and remove, without touching a user's manual backups.
+      localZip = path.join(backupService.getBackupDir(), name);
+      fs.renameSync(backup.path, localZip);
+      await dropbox.uploadFile(localZip, `/${name}`);
 
       // The backup of the day is safe from here on: a failed rotation is only a warning.
       let lastWarning: string | null = null;
@@ -134,6 +137,23 @@ const nightlyBackupService = {
   },
 };
 
+// Only the nightly job ever creates dexvault_*.zip locally, and it always removes it
+// before returning (see runOnce's finally). One still there at startup means the process
+// died mid-run; it is never a user's manual backup (backup_*, pre_restore_*, uploaded_*).
+export const removeLeftoverLocalZips = (): void => {
+  const dir = backupService.getBackupDir();
+  for (const file of fs.readdirSync(dir)) {
+    if (!NAME_PATTERN.test(file)) continue;
+    try {
+      fs.rmSync(path.join(dir, file), { force: true });
+      logger.info(`Removed leftover local backup: ${file}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.warn(`Failed to remove leftover local backup ${file}:`, message);
+    }
+  }
+};
+
 const runLogged = (): void => {
   nightlyBackupService.runOnce().catch(error => {
     // Only BackupAlreadyRunningError can land here: a manual run is in progress.
@@ -146,16 +166,28 @@ const runLogged = (): void => {
 export const startNightlyBackup = (): void => {
   if (process.env.NODE_ENV === 'test' || !dropbox.isConfigured()) return;
 
+  // A process that died mid-backup leaves a .snapshot-*.sqlite or a dexvault_*.zip
+  // behind forever otherwise.
+  backupService.removeStaleSnapshots();
+  removeLeftoverLocalZips();
+
+  const now = new Date();
+
   const schedule = () => {
     setTimeout(() => { runLogged(); schedule(); }, msUntilNext(BACKUP_HOUR, new Date())).unref();
   };
   schedule();
 
   // The server was off at 3 a.m., or has never backed up: do not wait for tomorrow night.
-  if (isStale(nightlyBackupService.readStatus(), new Date(), DAY_MS)) {
-    setTimeout(runLogged, CATCH_UP_DELAY_MS).unref();
+  if (isStale(nightlyBackupService.readStatus(), now, DAY_MS)) {
+    // Re-check staleness once the delay elapses: if the scheduled 3 a.m. run already
+    // happened in the meantime (e.g. server started at 02:57), skip the catch-up.
+    setTimeout(() => {
+      if (isStale(nightlyBackupService.readStatus(), new Date(), DAY_MS)) runLogged();
+    }, CATCH_UP_DELAY_MS).unref();
   }
-  logger.info(`Dropbox backup scheduled, next run at ${nextRunAt(BACKUP_HOUR, new Date()).toISOString()}`);
+  const next = nextRunAt(BACKUP_HOUR, now);
+  logger.info(`Dropbox backup scheduled, next run at ${next.toISOString()} (${next.toString()})`);
 };
 
 export default nightlyBackupService;

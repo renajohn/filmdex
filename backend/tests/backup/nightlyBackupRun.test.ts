@@ -3,7 +3,7 @@ import path from 'path';
 import backupService from '../../src/services/backupService';
 import dropbox from '../../src/services/dropboxService';
 import logger from '../../src/logger';
-import nightly, { BackupAlreadyRunningError, pickToDelete, remoteName } from '../../src/services/nightlyBackupService';
+import nightly, { BackupAlreadyRunningError, pickToDelete, remoteName, removeLeftoverLocalZips } from '../../src/services/nightlyBackupService';
 
 const statusFile = () => path.join(backupService.getBackupDir(), 'dropbox-status.json');
 const NOW = new Date(2026, 8, 24, 3, 0, 0); // 24 septembre 2026, 3 h locale
@@ -25,6 +25,28 @@ describe('remoteName', () => {
   });
 });
 
+describe('removeLeftoverLocalZips', () => {
+  it('supprime un dexvault_*.zip oublie mais garde les sauvegardes manuelles', () => {
+    const dir = backupService.getBackupDir();
+    const leftover = path.join(dir, 'dexvault_2026-09-20.zip');
+    const manual = path.join(dir, 'backup_x.zip');
+    const preRestore = path.join(dir, 'pre_restore_1.zip');
+    const uploaded = path.join(dir, 'uploaded_1_x.zip');
+    [leftover, manual, preRestore, uploaded].forEach(f => fs.writeFileSync(f, 'zip'));
+
+    try {
+      removeLeftoverLocalZips();
+
+      expect(fs.existsSync(leftover)).toBe(false);
+      expect(fs.existsSync(manual)).toBe(true);
+      expect(fs.existsSync(preRestore)).toBe(true);
+      expect(fs.existsSync(uploaded)).toBe(true);
+    } finally {
+      [manual, preRestore, uploaded].forEach(f => fs.rmSync(f, { force: true }));
+    }
+  });
+});
+
 describe('pickToDelete', () => {
   it('garde les 7 plus recents et ignore les fichiers etrangers', () => {
     const days = ['16', '17', '18', '19', '20', '21', '22', '23', '24'].map(d => `dexvault_2026-09-${d}.zip`);
@@ -40,6 +62,7 @@ describe('pickToDelete', () => {
 describe('runOnce', () => {
   it('envoie, fait tourner, ecrit etat et supprime le zip local', async () => {
     const zip = fakeZip();
+    const renamedZip = path.join(backupService.getBackupDir(), 'dexvault_2026-09-24.zip');
     const upload = jest.spyOn(dropbox, 'uploadFile').mockResolvedValue();
     const existing = ['16', '17', '18', '19', '20', '21', '22', '23', '24'].map(d => `dexvault_2026-09-${d}.zip`);
     jest.spyOn(dropbox, 'listFiles').mockResolvedValue([...existing, 'notes.txt']);
@@ -48,7 +71,9 @@ describe('runOnce', () => {
     const { ok, status } = await nightly.runOnce(NOW);
 
     expect(ok).toBe(true);
-    expect(upload).toHaveBeenCalledWith(zip, '/dexvault_2026-09-24.zip');
+    // The local zip is renamed to the nightly-only name before upload, so a crash mid-run
+    // leaves something the startup cleanup can tell apart from a user's manual backup.
+    expect(upload).toHaveBeenCalledWith(renamedZip, '/dexvault_2026-09-24.zip');
     expect(del.mock.calls.map(c => c[0]).sort()).toEqual(['/dexvault_2026-09-16.zip', '/dexvault_2026-09-17.zip']);
     expect(status).toMatchObject({
       lastSuccessAt: NOW.toISOString(), lastSuccessFile: 'dexvault_2026-09-24.zip', lastSuccessSize: 3,
@@ -56,10 +81,12 @@ describe('runOnce', () => {
     });
     expect(nightly.readStatus()).toEqual(status);
     expect(fs.existsSync(zip)).toBe(false);
+    expect(fs.existsSync(renamedZip)).toBe(false);
   });
 
   it('ne supprime rien et consigne erreur si envoi echoue', async () => {
     const zip = fakeZip();
+    const renamedZip = path.join(backupService.getBackupDir(), 'dexvault_2026-09-24.zip');
     jest.spyOn(dropbox, 'uploadFile').mockRejectedValue(new Error('Dropbox 409: path/insufficient_space/..'));
     const list = jest.spyOn(dropbox, 'listFiles');
     const del = jest.spyOn(dropbox, 'deleteFile');
@@ -71,6 +98,7 @@ describe('runOnce', () => {
     expect(del).not.toHaveBeenCalled();
     expect(status).toMatchObject({ lastErrorAt: NOW.toISOString(), lastError: 'Dropbox 409: path/insufficient_space/..' });
     expect(fs.existsSync(zip)).toBe(false);
+    expect(fs.existsSync(renamedZip)).toBe(false);
   });
 
   it('garde la derniere reussite quand execution suivante echoue', async () => {
