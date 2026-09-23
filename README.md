@@ -247,6 +247,15 @@ recent. The Backup page shows the last success, the last error and a "Back up no
 
 Backups land in `Dropbox/Apps/<app name>/`. Other files in that folder are never deleted.
 
+### Safety check
+
+Before uploading, DexVault refuses to run when the backup looks like data loss rather than a real
+backup: an empty collection (no movies, albums or books), or a zip less than half the size of the
+most recent `dexvault_*.zip` already on Dropbox. A refusal changes nothing on Dropbox and is shown
+on the Backup page as an error, with a **Back up anyway** button to upload despite the check. The
+nightly run never forces it. As an extra safety net outside DexVault, Dropbox itself keeps deleted
+files and overwritten versions for 30 days.
+
 ### Restore
 
 Download a `dexvault_*.zip` from Dropbox, then use **Restore from file** on the Backup page. On a new

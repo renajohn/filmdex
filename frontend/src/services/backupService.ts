@@ -8,6 +8,7 @@ export interface DropboxStatus {
   lastErrorAt: string | null;
   lastError: string | null;
   lastWarning: string | null;
+  lastRefused: boolean;
 }
 
 class BackupService {
@@ -54,9 +55,13 @@ class BackupService {
     return await response.json() as DropboxStatus;
   }
 
-  async runDropboxBackup(): Promise<{ ok: boolean; status: DropboxStatus }> {
+  async runDropboxBackup(force = false): Promise<{ ok: boolean; status: DropboxStatus }> {
     const baseUrl = await this.getBaseUrl();
-    const response = await fetch(`${baseUrl}/backup/dropbox/run`, { method: 'POST' });
+    const response = await fetch(`${baseUrl}/backup/dropbox/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force }),
+    });
     const data = await response.json() as Record<string, unknown>;
     if (!response.ok) {
       throw new Error((data.error as string) || 'Failed to run the Dropbox backup');

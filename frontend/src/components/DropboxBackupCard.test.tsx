@@ -14,7 +14,7 @@ const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
 const status = (over: Partial<DropboxStatus> = {}): DropboxStatus => ({
   configured: true, running: false, nextRunAt: new Date(Date.now() + 10 * HOUR).toISOString(),
   lastSuccessAt: ago(5 * HOUR), lastSuccessFile: 'dexvault_2026-09-24.zip', lastSuccessSize: 68 * 1024 * 1024,
-  lastErrorAt: null, lastError: null, lastWarning: null, ...over,
+  lastErrorAt: null, lastError: null, lastWarning: null, lastRefused: false, ...over,
 });
 
 const show = async (s: DropboxStatus) => {
@@ -52,6 +52,42 @@ describe('DropboxBackupCard', () => {
   it("affiche l'erreur plus récente que la dernière réussite", async () => {
     await show(status({ lastErrorAt: ago(HOUR), lastError: 'Dropbox 401: expired_access_token' }));
     expect(screen.getByText(/Dropbox 401: expired_access_token/)).toBeInTheDocument();
+  });
+
+  it("n'affiche pas le bouton Back up anyway quand l'erreur n'est pas un refus", async () => {
+    await show(status({ lastErrorAt: ago(HOUR), lastError: 'Dropbox 401: expired_access_token', lastRefused: false }));
+    expect(screen.queryByRole('button', { name: 'Back up anyway' })).not.toBeInTheDocument();
+  });
+
+  it("affiche le bouton Back up anyway quand la dernière erreur est un refus", async () => {
+    await show(status({ lastErrorAt: ago(HOUR), lastError: 'Refused: the collection is empty (0 items). Nothing was uploaded.', lastRefused: true }));
+    expect(screen.getByRole('button', { name: 'Back up anyway' })).toBeInTheDocument();
+  });
+
+  it("n'affiche pas Back up anyway quand le refus est plus ancien que la dernière réussite", async () => {
+    await show(status({ lastSuccessAt: ago(HOUR), lastErrorAt: ago(2 * HOUR), lastError: 'Refused: the collection is empty (0 items). Nothing was uploaded.', lastRefused: true }));
+    expect(screen.queryByRole('button', { name: 'Back up anyway' })).not.toBeInTheDocument();
+  });
+
+  it('force la sauvegarde quand on clique sur Back up anyway', async () => {
+    vi.mocked(backupService.runDropboxBackup).mockResolvedValue({ ok: true, status: status() });
+    await show(status({ lastErrorAt: ago(HOUR), lastError: 'Refused: the collection is empty (0 items). Nothing was uploaded.', lastRefused: true }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back up anyway' }));
+
+    await waitFor(() => expect(backupService.runDropboxBackup).toHaveBeenCalledWith(true));
+  });
+
+  it("désactive Back up anyway pendant une exécution", async () => {
+    let finish: (v: { ok: boolean; status: DropboxStatus }) => void = () => {};
+    vi.mocked(backupService.runDropboxBackup).mockImplementation(() => new Promise(r => { finish = r; }));
+    await show(status({ lastErrorAt: ago(HOUR), lastError: 'Refused: the collection is empty (0 items). Nothing was uploaded.', lastRefused: true }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back up anyway' }));
+    expect(screen.getByRole('button', { name: 'Back up anyway' })).toBeDisabled();
+
+    finish({ ok: true, status: status() });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Back up now' })).toBeEnabled());
   });
 
   it('alerte quand la dernière réussite a plus de 48 h', async () => {

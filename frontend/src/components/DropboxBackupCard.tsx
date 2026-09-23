@@ -35,11 +35,11 @@ const DropboxBackupCard: React.FC = () => {
     return () => clearInterval(interval);
   }, [status?.running, busy]);
 
-  const handleRun = async () => {
+  const handleRun = async (force = false) => {
     setBusy(true);
     setRequestError(null);
     try {
-      const result = await backupService.runDropboxBackup();
+      const result = await backupService.runDropboxBackup(force);
       setStatus(result.status);
     } catch (err) {
       setRequestError((err as Error).message);
@@ -93,11 +93,16 @@ const DropboxBackupCard: React.FC = () => {
           Last error ({new Date(status.lastErrorAt as string).toLocaleString()}): {status.lastError}
         </p>
       )}
+      {showError && status.lastRefused && (
+        <button className="btn btn-outline-danger" onClick={() => handleRun(true)} disabled={running}>
+          Back up anyway
+        </button>
+      )}
       {status.lastWarning && <p className="text-warning">{status.lastWarning}</p>}
       {requestError && <p className="text-danger">{requestError}</p>}
       {status.nextRunAt && <p>Next run: {new Date(status.nextRunAt).toLocaleString()}</p>}
 
-      <button className="btn btn-primary" onClick={handleRun} disabled={running}>
+      <button className="btn btn-primary" onClick={() => handleRun()} disabled={running}>
         {running ? 'Backing up…' : 'Back up now'}
       </button>
     </div>
