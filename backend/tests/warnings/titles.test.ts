@@ -1,0 +1,29 @@
+import { cleanTitle, normalizeTitle } from '../../src/warnings/titles';
+
+describe('cleanTitle', () => {
+  it.each([
+    ["Pan's Labyrinth (zone A)", "Pan's Labyrinth"],
+    ['le parfum [fr]', 'le parfum'],
+    ['Robots [fr]', 'Robots'],
+    ['Blade Runner - FINAL CUT', 'Blade Runner'],
+    ["Hellboy - Director's Cut", 'Hellboy'],
+    ['The Big Bang Theory, the complete series', 'The Big Bang Theory'],
+    ['Top Gun : Maverick', 'Top Gun : Maverick'],
+  ])('%s → %s', (input, expected) => {
+    expect(cleanTitle(input)).toBe(expected);
+  });
+});
+
+describe('normalizeTitle', () => {
+  it('ignore casse, accents, ponctuation et « et »/« & »/« and »', () => {
+    expect(normalizeTitle('Astérix et Obélix mission Cléopatre'))
+      .toBe(normalizeTitle('Astérix & Obélix: Mission Cléopâtre'));
+    expect(normalizeTitle('Le prénom')).toBe(normalizeTitle('Le Prenom'));
+    expect(normalizeTitle('La cité de la peur')).toBe(normalizeTitle('La Cité De La Peur'));
+    expect(normalizeTitle("Ocean's Thirteen")).toBe(normalizeTitle('Oceans Thirteen'));
+  });
+
+  it('distingue des titres réellement différents', () => {
+    expect(normalizeTitle('La Cité de la peur')).not.toBe(normalizeTitle('La Cité de La Peur Suédé'));
+  });
+});
