@@ -280,17 +280,21 @@ const Collection = {
   isEmpty: (collectionId: number): Promise<boolean> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
+      // Albums count too: counting movies alone made every album box set, and
+      // Listen Next, look empty to the cleanup that runs after a movie is deleted.
+      // System collections are never empty, so that cleanup can't remove them.
       const sql = `
-        SELECT COUNT(*) as count
-        FROM movie_collections
-        WHERE collection_id = ?
+        SELECT
+          (SELECT COUNT(*) FROM movie_collections WHERE collection_id = ?)
+          + (SELECT COUNT(*) FROM album_collections WHERE collection_id = ?) AS count,
+          (SELECT is_system FROM collections WHERE id = ?) AS is_system
       `;
 
-      db.get(sql, [collectionId], (err: Error | null, row: CountRow | undefined) => {
+      db.get(sql, [collectionId, collectionId, collectionId], (err: Error | null, row: (CountRow & { is_system: number | null }) | undefined) => {
         if (err) {
           reject(err);
         } else {
-          resolve(row!.count === 0);
+          resolve(!row!.is_system && row!.count === 0);
         }
       });
     });
