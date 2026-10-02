@@ -959,7 +959,10 @@ const musicController = {
           // Get cover art from MusicBrainz
           const coverArt = await musicbrainzService.getCoverArt(album.musicbrainzReleaseId);
 
-          const coverData = type === 'front' ? coverArt?.front : coverArt?.back;
+          let coverData = type === 'front' ? coverArt?.front : coverArt?.back;
+          if (!coverData && type === 'front' && album.musicbrainzReleaseGroupId) {
+            coverData = (await musicbrainzService.getReleaseGroupCoverArt(album.musicbrainzReleaseGroupId))?.front;
+          }
           const existingCover = type === 'front' ? album.cover : album.backCover;
 
           // Skip if cover already exists

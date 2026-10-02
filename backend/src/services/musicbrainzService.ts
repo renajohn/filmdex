@@ -364,8 +364,21 @@ const musicbrainzService = {
   },
 
   getCoverArt: async function(releaseId: string): Promise<CoverArtResult | null> {
+    return this.fetchCoverArt(`release/${releaseId}`);
+  },
+
+  /**
+   * Cover art of a release group: Cover Art Archive answers with the images of
+   * the release it picked to represent the group. Many individual editions have
+   * no image of their own while the group does.
+   */
+  getReleaseGroupCoverArt: async function(releaseGroupId: string): Promise<CoverArtResult | null> {
+    return this.fetchCoverArt(`release-group/${releaseGroupId}`);
+  },
+
+  fetchCoverArt: async function(resourcePath: string): Promise<CoverArtResult | null> {
     try {
-      const response: AxiosResponse<MBCoverArtResponse | string> = await axios.get(`${this.coverArtBaseUrl}/release/${releaseId}`, {
+      const response: AxiosResponse<MBCoverArtResponse | string> = await axios.get(`${this.coverArtBaseUrl}/${resourcePath}`, {
         headers: {
           'User-Agent': this.userAgent
         },
@@ -378,7 +391,7 @@ const musicbrainzService = {
 
       // Handle redirect responses that point to archive.org
       if (typeof response.data === 'string' && response.data.includes('archive.org')) {
-        console.log(`Cover Art Archive redirected to archive.org for release ${releaseId}`);
+        console.log(`Cover Art Archive redirected to archive.org for ${resourcePath}`);
         const archiveMatch = response.data.match(/https?:\/\/archive\.org\/download\/[^"'\s]+/);
         if (archiveMatch) {
           const archiveUrl = archiveMatch[0];

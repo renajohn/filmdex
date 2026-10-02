@@ -732,6 +732,17 @@ class MusicService {
       const coverArt = await musicbrainzService.getCoverArt(releaseId);
       if (!frontUrl) frontUrl = coverArt?.front?.url || null;
       if (!backUrl) backUrl = coverArt?.back?.url || null;
+
+      // An edition is often catalogued without any image while its release group
+      // has one, the way a Discogs pressing falls back on its master. Only the
+      // front: another edition's back cover would list the wrong tracks.
+      if (!frontUrl) {
+        const releaseGroupId = (await Album.findById(albumId))?.musicbrainzReleaseGroupId;
+        if (releaseGroupId) {
+          const groupArt = await musicbrainzService.getReleaseGroupCoverArt(releaseGroupId);
+          frontUrl = groupArt?.front?.url || null;
+        }
+      }
     }
 
     const [frontPath, backPath] = await Promise.all([
