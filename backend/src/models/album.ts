@@ -741,6 +741,17 @@ const Album = {
     });
   },
 
+  /** Fills in a release group id found after the fact; never overwrites one. */
+  setReleaseGroupId: (id: number, releaseGroupId: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      getDatabase().run(
+        'UPDATE albums SET musicbrainz_release_group_id = ? WHERE id = ? AND musicbrainz_release_group_id IS NULL',
+        [releaseGroupId, id],
+        (err: Error | null) => (err ? reject(err) : resolve())
+      );
+    });
+  },
+
   updateUrls: (id: number, newUrls: Record<string, string>): Promise<AlbumUrlsResult> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();

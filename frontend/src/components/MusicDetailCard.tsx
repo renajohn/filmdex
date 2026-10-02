@@ -3,6 +3,7 @@ import { Modal, Button, Row, Col, Badge } from 'react-bootstrap';
 import { BsPencil, BsTrash, BsMusicNote, BsCalendar, BsFlag, BsDisc, BsApple } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
+import AlbumStory from './AlbumStory';
 import './MusicDetailCard.css';
 
 interface CdOwnership {
@@ -614,6 +615,8 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
             )}
           </div>
         )}
+
+        <AlbumStory albumId={cd.id} />
 
         {/* Ownership Information */}
         {(cd.ownership?.condition || cd.ownership?.purchasedAt || cd.ownership?.priceChf || cd.ownership?.notes) && (

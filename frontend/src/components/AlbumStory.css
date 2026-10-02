@@ -1,0 +1,64 @@
+.album-story p {
+  color: #e0e0e0;
+  line-height: 1.6;
+}
+
+.album-story h5 {
+  margin-top: 1rem;
+  font-size: 1rem;
+  color: #fff;
+}
+
+.album-story h6 {
+  margin-top: 0.75rem;
+  color: #ccc;
+}
+
+.album-story-refresh {
+  color: #888;
+  padding: 0 0 0 0.5rem;
+  vertical-align: baseline;
+}
+
+.album-story-refresh:hover {
+  color: #fff;
+}
+
+.album-story-refresh .spinning {
+  animation: album-story-spin 1s linear infinite;
+}
+
+@keyframes album-story-spin {
+  to { transform: rotate(360deg); }
+}
+
+.album-story .album-story-source {
+  margin-top: 0.75rem;
+  margin-bottom: 0;
+  color: #9a9a9a;
+}
+
+.album-story .album-story-muted {
+  color: #9a9a9a;
+}
+
+.album-story-source a {
+  color: inherit;
+}
+
+.album-story-work + .album-story-work {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.album-story .album-story-work > h5 {
+  margin-top: 0;
+}
+
+.album-story-tracks {
+  margin-left: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: normal;
+  color: #9a9a9a;
+}

@@ -86,10 +86,34 @@ interface MBRawRelease {
 
 interface MBRelation {
   type: string;
+  direction?: 'forward' | 'backward';
   artist?: { name: string };
   place?: { name: string };
   url?: { resource: string };
+  work?: MBRawWork;
 }
+
+interface MBRawWork {
+  id: string;
+  title: string;
+  relations?: MBRelation[];
+}
+
+/** A work, and the works it is a part of ("Atto I" of "Madama Butterfly"). */
+export interface MBWorkRef {
+  id: string;
+  title: string;
+  parentIds: string[];
+}
+
+const workRef = (work: MBRawWork): MBWorkRef => ({
+  id: work.id,
+  title: work.title,
+  // "parts" read backward: this work is a part of the related one.
+  parentIds: (work.relations || [])
+    .filter(relation => relation.type === 'parts' && relation.direction === 'backward' && relation.work)
+    .map(relation => relation.work!.id),
+});
 
 interface FormattedTrack {
   trackNumber: string;
@@ -374,6 +398,106 @@ const musicbrainzService = {
    */
   getReleaseGroupCoverArt: async function(releaseGroupId: string): Promise<CoverArtResult | null> {
     return this.fetchCoverArt(`release-group/${releaseGroupId}`);
+  },
+
+  /**
+   * Wikidata and Wikipedia links of a release group. MusicBrainz attaches them
+   * to the album as a work of art, not to the individual editions, so a release
+   * lookup never carries them.
+   */
+  /**
+   * What MusicBrainz links to a Discogs page: a Discogs release maps to
+   * MusicBrainz releases, a Discogs master to release groups. Empty when the
+   * page is linked to nothing, which MusicBrainz answers with a 404.
+   */
+  findByDiscogsUrl: async function(discogsUrl: string): Promise<{ releaseIds: string[]; releaseGroupIds: string[] }> {
+    try {
+      const response: AxiosResponse<{ relations?: Array<{ release?: { id: string }; release_group?: { id: string } }> }> = await withRetry(
+        'MusicBrainz URL lookup',
+        () => axios.get(`${this.baseUrl}/url`, {
+          params: { resource: discogsUrl, inc: 'release-rels+release-group-rels', fmt: 'json' },
+          headers: { 'User-Agent': this.userAgent },
+          timeout: 10000
+        })
+      );
+      const relations = response.data.relations || [];
+      return {
+        releaseIds: relations.flatMap(relation => relation.release ? [relation.release.id] : []),
+        releaseGroupIds: relations.flatMap(relation => relation.release_group ? [relation.release_group.id] : []),
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        return { releaseIds: [], releaseGroupIds: [] };
+      }
+      throw error;
+    }
+  },
+
+  /** A release of the group, for when the album only knows its release group. */
+  getFirstReleaseOfGroup: async function(releaseGroupId: string): Promise<string | null> {
+    const response: AxiosResponse<{ releases?: Array<{ id: string }> }> = await withRetry(
+      'MusicBrainz release group releases',
+      () => axios.get(`${this.baseUrl}/release-group/${releaseGroupId}`, {
+        params: { inc: 'releases', fmt: 'json' },
+        headers: { 'User-Agent': this.userAgent },
+        timeout: 10000
+      })
+    );
+    return response.data.releases?.[0]?.id ?? null;
+  },
+
+  /**
+   * The works each track performs, with the works they are part of when
+   * MusicBrainz says so: an aria is part of an act, a movement of a suite.
+   */
+  getReleaseTrackWorks: async function(releaseId: string): Promise<MBWorkRef[][]> {
+    const response: AxiosResponse<MBRawRelease> = await withRetry(
+      'MusicBrainz release works lookup',
+      () => axios.get(`${this.baseUrl}/release/${releaseId}`, {
+        params: { inc: 'recordings+recording-level-rels+work-rels+work-level-rels', fmt: 'json' },
+        headers: { 'User-Agent': this.userAgent },
+        timeout: 15000
+      })
+    );
+    return (response.data.media || []).flatMap(medium => (medium.tracks || []).map(track =>
+      (track.recording?.relations || [])
+        .filter(relation => relation.type === 'performance' && relation.work)
+        .map(relation => workRef(relation.work!))
+    ));
+  },
+
+  /** A work with the works it is part of and its Wikidata id. */
+  getWork: async function(workId: string): Promise<MBWorkRef & { wikidata: string | null }> {
+    const response: AxiosResponse<MBRawWork> = await withRetry(
+      'MusicBrainz work lookup',
+      () => axios.get(`${this.baseUrl}/work/${workId}`, {
+        params: { inc: 'work-rels+url-rels', fmt: 'json' },
+        headers: { 'User-Agent': this.userAgent },
+        timeout: 10000
+      })
+    );
+    const wikidata = (response.data.relations || [])
+      .find(relation => relation.type === 'wikidata' && relation.url?.resource)
+      ?.url!.resource.match(/Q\d+$/)?.[0] ?? null;
+    return { ...workRef(response.data), wikidata };
+  },
+
+  getReleaseGroupWikiLinks: async function(releaseGroupId: string): Promise<{ wikidata: string | null; wikipedia: string[] }> {
+    const response: AxiosResponse<{ relations?: Array<{ type: string; url?: { resource: string } }> }> = await withRetry(
+      'MusicBrainz release group lookup',
+      () => axios.get(`${this.baseUrl}/release-group/${releaseGroupId}`, {
+        params: { inc: 'url-rels', fmt: 'json' },
+        headers: { 'User-Agent': this.userAgent },
+        timeout: 10000
+      })
+    );
+
+    const relations = response.data.relations || [];
+    const resources = (type: string) => relations
+      .filter(relation => relation.type === type && relation.url?.resource)
+      .map(relation => relation.url!.resource);
+    const wikidata = resources('wikidata')[0]?.match(/Q\d+$/)?.[0] ?? null;
+    return { wikidata, wikipedia: resources('wikipedia') };
   },
 
   fetchCoverArt: async function(resourcePath: string): Promise<CoverArtResult | null> {

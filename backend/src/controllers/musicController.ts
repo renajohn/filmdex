@@ -12,6 +12,7 @@ import Album from '../models/album';
 import { getDatabase } from '../database';
 import musicCollectionService from '../services/musicCollectionService';
 import smartPlaylistService from '../services/smartPlaylistService';
+import musicbrainzLinkService from '../services/musicbrainzLinkService';
 import logger from '../logger';
 import type { AlbumFormatted } from '../types';
 
@@ -514,6 +515,20 @@ const musicController = {
   },
 
   // Get or resolve Apple Music URL for an album
+  /**
+   * Links every album that has no MusicBrainz release group yet: those added
+   * from Discogs or by hand. Slow on purpose, MusicBrainz allows one request a second.
+   */
+  linkMusicBrainz: async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const results = await musicbrainzLinkService.linkAll();
+      res.json({ linked: results.filter(r => r.releaseGroupId).length, results });
+    } catch (error) {
+      logger.error('Error linking albums to MusicBrainz:', error);
+      res.status(500).json({ error: 'Failed to link albums to MusicBrainz' });
+    }
+  },
+
   getAppleMusicUrl: async (req: Request, res: Response): Promise<void> => {
     try {
       const id = parseInt(req.params.id as string, 10);

@@ -1,3 +1,33 @@
+export interface AlbumStorySection {
+  heading: string;
+  level: number;
+  text: string;
+}
+
+export interface AlbumWorkStory {
+  workTitle: string;
+  tracks: number;
+  lang: string;
+  title: string;
+  url: string;
+  intro: string;
+  sections: AlbumStorySection[];
+}
+
+export interface AlbumStory {
+  albumId: number;
+  found: boolean;
+  reason: 'no_musicbrainz' | 'no_article' | null;
+  lang: string | null;
+  title: string | null;
+  url: string | null;
+  intro: string | null;
+  sections: AlbumStorySection[];
+  /** Only when the album has no article of its own. */
+  works: AlbumWorkStory[];
+  fetchedAt: string;
+}
+
 class MusicService {
   async getBaseUrl(): Promise<string> {
     return '/api';
@@ -147,6 +177,19 @@ class MusicService {
       console.error('Error getting Apple Music URL:', error);
       throw error;
     }
+  }
+
+  /** The album's story from Wikipedia; cached by the backend, refreshed on demand. */
+  async getAlbumStory(albumId: number | string, refresh = false): Promise<AlbumStory> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/albums/${albumId}/story${refresh ? '/refresh' : ''}`, {
+      method: refresh ? 'POST' : 'GET',
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
   }
 
   // Try to open native Apple Music app on macOS when possible, fallback to web
