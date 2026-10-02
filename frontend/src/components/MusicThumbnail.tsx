@@ -113,7 +113,7 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onEdit, on
         <div className="thumbnail-listen-next-toggle">
           <ListenNextToggle
             isActive={isInListenNext}
-            onClick={() => { handleListenNextToggle(); }}
+            onClick={handleListenNextToggle}
             disabled={togglingListenNext}
           />
         </div>

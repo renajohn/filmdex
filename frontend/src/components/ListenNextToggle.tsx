@@ -26,7 +26,7 @@ const ICON_CONFIG: IconConfig = {
 
 interface ListenNextToggleProps {
   isActive: boolean;
-  onClick: () => void;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
 }
 
