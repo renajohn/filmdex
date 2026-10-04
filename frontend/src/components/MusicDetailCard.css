@@ -81,6 +81,10 @@
   .track-duration {
     font-size: 0.8rem;
   }
+
+  .track-credits {
+    padding-left: 41px;
+  }
 }
 
 .modal-title {
@@ -343,6 +347,18 @@
   font-variant-numeric: tabular-nums;
   min-width: 50px;
   text-align: right;
+}
+
+/* Who wrote and who plays, above the tracks where it changes */
+.track-credits {
+  color: #9aa4b2;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  padding: 10px 12px 2px 59px;
+}
+
+.track-credits:first-child {
+  padding-top: 0;
 }
 
 /* Cover Modal Styles */
