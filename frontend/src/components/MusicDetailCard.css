@@ -82,7 +82,8 @@
     font-size: 0.8rem;
   }
 
-  .track-credits {
+  .track-credits,
+  .track-musicians {
     padding-left: 41px;
   }
 }
@@ -357,6 +358,26 @@
   padding: 0 12px 8px;
   margin-bottom: 4px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Session musicians, under a track, only when asked for */
+.track-musicians {
+  color: #8a929d;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  padding: 0 12px 6px 59px;
+}
+
+.track-listing-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.musicians-toggle {
+  padding: 0;
+  font-size: 0.8rem;
 }
 
 /* …and above a track for the rest, where it changes */

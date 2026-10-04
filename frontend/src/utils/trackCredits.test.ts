@@ -36,6 +36,7 @@ describe('discCredits', () => {
     expect(discCredits(tracks, [])).toEqual({
       common: 'Giacomo Puccini — Giuseppe Sinopoli (conductor), Philharmonia Orchestra (orchestra)',
       perTrack: ['José Carreras (tenor vocals)', null, 'Mirella Freni (soprano vocals)'],
+      musicians: [null, null, null],
     });
   });
 
@@ -45,6 +46,7 @@ describe('discCredits', () => {
     expect(discCredits([boccherini, boccherini, vivaldi, vivaldi], [])).toEqual({
       common: 'Paul Sacher (conductor), Mstislav Rostropovich (cello)',
       perTrack: ['Luigi Boccherini', null, 'Antonio Vivaldi', null],
+      musicians: [null, null, null, null],
     });
   });
 
@@ -54,6 +56,27 @@ describe('discCredits', () => {
   });
 
   it('se tait sans crédits', () => {
-    expect(discCredits([{ artist: ['Massive Attack'] }], ['Massive Attack'])).toEqual({ common: null, perTrack: [null] });
+    expect(discCredits([{ artist: ['Massive Attack'] }], ['Massive Attack'])).toEqual({ common: null, perTrack: [null], musicians: [null] });
+  });
+
+  it('range les musiciens d’un groupe à part, une personne avec tous ses instruments', () => {
+    const track = { artist: ['Adele'], performers: [
+      { name: 'Ryan Tedder', role: 'drums (drum set)' }, { name: 'Ryan Tedder', role: 'piano' },
+      { name: 'Adele Laurie Blue Adkins', role: 'lead vocals' },
+      { name: 'Oren Waters', role: 'chorus master' },
+    ] };
+
+    expect(discCredits([track], ['Adele'])).toEqual({
+      common: null,
+      perTrack: [null],
+      musicians: ['Ryan Tedder (drums (drum set), piano), Adele Laurie Blue Adkins (lead vocals), Oren Waters (chorus master)'],
+    });
+  });
+
+  it('garde les solistes d’un concerto, mais pas l’orchestre entier pupitre par pupitre', () => {
+    const sections = ['violin', 'viola', 'cello', 'double bass'].map((role, i) => ({ name: `Player ${i}`, role }));
+    const [many] = [discCredits([{ performers: [{ name: 'Karajan', role: 'conductor' }, ...sections] }], [])];
+    expect(many.common).toBe('Karajan (conductor)');
+    expect(many.musicians[0]).toContain('Player 3 (double bass)');
   });
 });

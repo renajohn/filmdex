@@ -83,6 +83,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const [appleUrl, setAppleUrl] = useState<string | null>(null);
   const [isInListenNext, setIsInListenNext] = useState<boolean>(false);
   const [togglingListenNext, setTogglingListenNext] = useState<boolean>(false);
+  const [showMusicians, setShowMusicians] = useState<boolean>(false);
 
   // Only initialize from an already-cached Apple link; do not resolve automatically on open
   useEffect(() => {
@@ -224,6 +225,9 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
     document.addEventListener('click', handleDocClick, true);
     return () => document.removeEventListener('click', handleDocClick, true);
   }, [confirmDelete]);
+
+  const discsCredits = (cd.discs || []).map((disc: CdDisc) =>
+    discCredits(disc.tracks, Array.isArray(cd.artist) ? cd.artist : [cd.artist]));
 
   return (
     <Modal
@@ -705,9 +709,16 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
         {/* Track Listing */}
         {cd.discs && cd.discs.length > 0 && (
           <div className="info-section">
-            <h4>Track Listing</h4>
+            <div className="track-listing-header">
+              <h4>Track Listing</h4>
+              {discsCredits.some(credits => credits.musicians.some(Boolean)) && (
+                <Button variant="link" size="sm" className="musicians-toggle" onClick={() => setShowMusicians(shown => !shown)}>
+                  {showMusicians ? 'Hide musicians' : 'Show musicians'}
+                </Button>
+              )}
+            </div>
             {cd.discs.map((disc: CdDisc, discIndex: number) => {
-              const credits = discCredits(disc.tracks, Array.isArray(cd.artist) ? cd.artist : [cd.artist]);
+              const credits = discsCredits[discIndex];
               return (
                 <div key={discIndex} className="disc-tracks mb-3">
                   {cd.discs!.length > 1 && (
@@ -731,6 +742,9 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                             </span>
                           )}
                         </div>
+                        {showMusicians && credits.musicians[trackIndex] && (
+                          <div className="track-musicians">{credits.musicians[trackIndex]}</div>
+                        )}
                       </React.Fragment>
                     ))}
                   </div>
