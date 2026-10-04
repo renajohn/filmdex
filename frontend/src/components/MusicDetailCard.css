@@ -349,7 +349,17 @@
   text-align: right;
 }
 
-/* Who wrote and who plays, above the tracks where it changes */
+/* Who wrote and who plays: once per disc for what all tracks share… */
+.disc-credits {
+  color: #b8c0cc;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  padding: 0 12px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+/* …and above a track for the rest, where it changes */
 .track-credits {
   color: #9aa4b2;
   font-size: 0.8rem;

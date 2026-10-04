@@ -26,16 +26,36 @@ export const trackCredits = (track: CreditedTrack, albumArtists: string[]): stri
   return parts.length > 0 ? parts.join(' — ') : null;
 };
 
+const performerKey = (performer: TrackPerformer) => `${performer.name}|${performer.role}`;
+
+/** What every track shares: kept when present on all of them, in the first track's order. */
+const shared = <T>(lists: T[][], key: (item: T) => string): T[] => {
+  if (lists.length === 0) return [];
+  return lists[0].filter(item => lists.every(list => list.some(other => key(other) === key(item))));
+};
+
 /**
- * The credits to print above each track: only where they change, so the
- * movements of one concerto share a single line instead of repeating it.
+ * The credits of a disc, printed once at its head for what all tracks share
+ * (the composer of a recital, the conductor and orchestra of an opera), and
+ * above a track only for the rest, and only where it changes: the movements
+ * of one concerto share a line, a singer shows up where they start singing.
  */
-export const creditHeadings = (tracks: CreditedTrack[], albumArtists: string[]): Array<string | null> => {
+export const discCredits = (tracks: CreditedTrack[], albumArtists: string[]): { common: string | null; perTrack: Array<string | null> } => {
+  const composers = shared(tracks.map(track => track.composers || []), name => name);
+  const performers = shared(tracks.map(track => track.performers || []), performerKey);
+  const common = trackCredits({ composers, performers }, albumArtists);
+
   let previous: string | null = null;
-  return tracks.map(track => {
-    const credits = trackCredits(track, albumArtists);
+  const perTrack = tracks.map(track => {
+    const credits = trackCredits({
+      // A classical track's artist is its composer, already named.
+      artist: track.composers?.length ? [] : track.artist,
+      composers: composers.length > 0 ? [] : track.composers,
+      performers: (track.performers || []).filter(performer => !performers.some(p => performerKey(p) === performerKey(performer))),
+    }, albumArtists);
     const heading = credits !== previous ? credits : null;
     previous = credits;
     return heading;
   });
+  return { common, perTrack };
 };

@@ -4,7 +4,7 @@ import { BsPencil, BsTrash, BsMusicNote, BsCalendar, BsFlag, BsDisc, BsApple } f
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
 import AlbumStory from './AlbumStory';
-import { creditHeadings, type TrackPerformer } from '../utils/trackCredits';
+import { discCredits, type TrackPerformer } from '../utils/trackCredits';
 import './MusicDetailCard.css';
 
 interface CdOwnership {
@@ -707,17 +707,20 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
           <div className="info-section">
             <h4>Track Listing</h4>
             {cd.discs.map((disc: CdDisc, discIndex: number) => {
-              const headings = creditHeadings(disc.tracks, Array.isArray(cd.artist) ? cd.artist : [cd.artist]);
+              const credits = discCredits(disc.tracks, Array.isArray(cd.artist) ? cd.artist : [cd.artist]);
               return (
                 <div key={discIndex} className="disc-tracks mb-3">
                   {cd.discs!.length > 1 && (
                     <h6 className="disc-title">Disc {disc.number}</h6>
                   )}
+                  {credits.common && (
+                    <div className="disc-credits">{credits.common}</div>
+                  )}
                   <div className="track-list">
                     {disc.tracks.map((track: CdTrack, trackIndex: number) => (
                       <React.Fragment key={trackIndex}>
-                        {headings[trackIndex] && (
-                          <div className="track-credits">{headings[trackIndex]}</div>
+                        {credits.perTrack[trackIndex] && (
+                          <div className="track-credits">{credits.perTrack[trackIndex]}</div>
                         )}
                         <div className="track-item">
                           <span className="track-number">{track.no}.</span>
