@@ -64,7 +64,7 @@
   
   .track-item {
     flex-direction: row;
-    align-items: center;
+    align-items: baseline;
     padding: 6px 4px;
   }
   
@@ -82,10 +82,6 @@
     font-size: 0.8rem;
   }
 
-  .track-credits,
-  .track-musicians {
-    padding-left: 41px;
-  }
 }
 
 .modal-title {
@@ -316,7 +312,7 @@
 
 .track-item {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   padding: 8px 12px;
   border-radius: 6px;
   transition: background-color 0.15s ease;
@@ -362,10 +358,11 @@
 
 /* Session musicians, under a track, only when asked for */
 .track-musicians {
+  display: block;
+  margin-top: 2px;
   color: #8a929d;
   font-size: 0.75rem;
   line-height: 1.4;
-  padding: 0 12px 6px 59px;
 }
 
 .track-listing-header {
@@ -380,16 +377,13 @@
   font-size: 0.8rem;
 }
 
-/* …and above a track for the rest, where it changes */
+/* …and under the title of each track that differs, inside its row */
 .track-credits {
+  display: block;
+  margin-top: 2px;
   color: #9aa4b2;
   font-size: 0.8rem;
   line-height: 1.4;
-  padding: 10px 12px 2px 59px;
-}
-
-.track-credits:first-child {
-  padding-top: 0;
 }
 
 /* Cover Modal Styles */

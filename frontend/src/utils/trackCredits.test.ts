@@ -26,7 +26,7 @@ describe('discCredits', () => {
   const carreras = { name: 'José Carreras', role: 'tenor vocals' };
   const freni = { name: 'Mirella Freni', role: 'soprano vocals' };
 
-  it('écrit une fois en tête ce que toutes les pistes partagent, puis les chanteurs au changement', () => {
+  it('écrit une fois en tête ce que toutes les pistes partagent, puis les chanteurs sous chaque piste', () => {
     const tracks = [
       { composers: ['Giacomo Puccini'], performers: [...sinopoli, carreras] },
       { composers: ['Giacomo Puccini'], performers: [...sinopoli, carreras] },
@@ -35,17 +35,17 @@ describe('discCredits', () => {
 
     expect(discCredits(tracks, [])).toEqual({
       common: 'Giacomo Puccini — Giuseppe Sinopoli (conductor), Philharmonia Orchestra (orchestra)',
-      perTrack: ['José Carreras (tenor vocals)', null, 'Mirella Freni (soprano vocals)'],
+      perTrack: ['José Carreras (tenor vocals)', 'José Carreras (tenor vocals)', 'Mirella Freni (soprano vocals)'],
       musicians: [null, null, null],
     });
   });
 
-  it('nomme le compositeur au premier mouvement de chaque concerto', () => {
+  it('nomme le compositeur sous chaque mouvement quand aucun ne domine le disque', () => {
     const boccherini = { ...vivaldi, composers: ['Luigi Boccherini'] };
 
     expect(discCredits([boccherini, boccherini, vivaldi, vivaldi], [])).toEqual({
       common: 'Paul Sacher (conductor), Mstislav Rostropovich (cello)',
-      perTrack: ['Luigi Boccherini', null, 'Antonio Vivaldi', null],
+      perTrack: ['Luigi Boccherini', 'Luigi Boccherini', 'Antonio Vivaldi', 'Antonio Vivaldi'],
       musicians: [null, null, null, null],
     });
   });
@@ -53,6 +53,15 @@ describe('discCredits', () => {
   it('ne répète pas sous chaque piste le compositeur déjà nommé en tête', () => {
     const sonata = { artist: ['Ludwig van Beethoven'], composers: ['Ludwig van Beethoven'], performers: [{ name: 'Wilhelm Kempff', role: 'piano' }] };
     expect(discCredits([sonata, sonata], ['Wilhelm Kempff']).perTrack).toEqual([null, null]);
+  });
+
+  it('met en tête l’auteur de la plupart des pistes, et l’autre sous la sienne', () => {
+    const lennon = { artist: ['The Beatles'], composers: ['John Lennon', 'Paul McCartney'] };
+    const harrison = { artist: ['The Beatles'], composers: ['George Harrison'] };
+
+    expect(discCredits([lennon, harrison, lennon], ['The Beatles'])).toMatchObject({
+      common: 'John Lennon / Paul McCartney', perTrack: [null, 'George Harrison', null],
+    });
   });
 
   it('ne prend pas une piste sans crédits pour un autre compositeur', () => {

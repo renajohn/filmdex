@@ -729,23 +729,23 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                   )}
                   <div className="track-list">
                     {disc.tracks.map((track: CdTrack, trackIndex: number) => (
-                      <React.Fragment key={trackIndex}>
-                        {credits.perTrack[trackIndex] && (
-                          <div className="track-credits">{credits.perTrack[trackIndex]}</div>
-                        )}
-                        <div className="track-item">
-                          <span className="track-number">{track.no}.</span>
-                          <span className="track-title">{track.title}</span>
-                          {track.durationSec && (
-                            <span className="track-duration">
-                              {formatDuration(track.durationSec)}
-                            </span>
+                      <div key={trackIndex} className="track-item">
+                        <span className="track-number">{track.no}.</span>
+                        <span className="track-title">
+                          {track.title}
+                          {credits.perTrack[trackIndex] && (
+                            <span className="track-credits">{credits.perTrack[trackIndex]}</span>
                           )}
-                        </div>
-                        {showMusicians && credits.musicians[trackIndex] && (
-                          <div className="track-musicians">{credits.musicians[trackIndex]}</div>
+                          {showMusicians && credits.musicians[trackIndex] && (
+                            <span className="track-musicians">{credits.musicians[trackIndex]}</span>
+                          )}
+                        </span>
+                        {track.durationSec && (
+                          <span className="track-duration">
+                            {formatDuration(track.durationSec)}
+                          </span>
                         )}
-                      </React.Fragment>
+                      </div>
                     ))}
                   </div>
                 </div>

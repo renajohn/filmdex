@@ -69,9 +69,21 @@ const shared = <T>(lists: T[][], key: (item: T) => string): T[] => {
   return credited[0].filter(item => credited.every(list => list.some(other => key(other) === key(item))));
 };
 
-/** Keeps a line only where it differs from the track before. */
-const onChange = (lines: Array<string | null>): Array<string | null> =>
-  lines.map((line, index) => (index > 0 && line === lines[index - 1] ? null : line));
+/**
+ * The composers most tracks share, when they are more than half of the
+ * credited ones: Lennon / McCartney head Abbey Road, Harrison stays under
+ * "Something". A Vivaldi, Boccherini and Tartini disc has no head composer.
+ */
+const usualComposers = (lists: string[][]): string[] => {
+  const credited = lists.filter(list => list.length > 0);
+  const counts = new Map<string, { names: string[]; count: number }>();
+  for (const names of credited) {
+    const key = names.join('|');
+    counts.set(key, { names, count: (counts.get(key)?.count ?? 0) + 1 });
+  }
+  const best = [...counts.values()].sort((a, b) => b.count - a.count)[0];
+  return best && best.count * 2 > credited.length ? best.names : [];
+};
 
 export interface DiscCredits {
   common: string | null;
@@ -80,25 +92,26 @@ export interface DiscCredits {
 }
 
 /**
- * The credits of a disc, printed once at its head for what all tracks share
- * (the composer of a recital, the conductor and orchestra of an opera), and
- * above a track only for the rest, and only where it changes: the movements
- * of one concerto share a line, a singer shows up where they start singing.
- * Session musicians come apart, for a page that shows them on demand.
+ * The credits of a disc: once at its head for what the tracks share (the
+ * composer of a recital, the conductor and orchestra of an opera), then under
+ * each track that differs, on that track and no other, so a line never leaves
+ * a doubt about which track it belongs to. Session musicians come apart, for
+ * a page that shows them on demand.
  */
 export const discCredits = (tracks: CreditedTrack[], albumArtists: string[]): DiscCredits => {
   const split = tracks.map(track => splitPerformers(track.performers || []));
-  const composers = shared(tracks.map(track => track.composers || []), name => name);
+  const composers = usualComposers(tracks.map(track => track.composers || []));
   const performers = shared(split.map(parts => parts.featured), performerKey);
   const common = trackCredits({ composers, performers }, albumArtists);
+  const usual = composers.join('|');
 
-  const perTrack = onChange(tracks.map((track, index) => trackCredits({
+  const perTrack = tracks.map((track, index) => trackCredits({
     // A classical track's artist is its composer, already named.
     artist: track.composers?.length ? [] : track.artist,
-    composers: composers.length > 0 ? [] : track.composers,
+    composers: (track.composers || []).join('|') === usual ? [] : track.composers,
     performers: split[index].featured.filter(performer => !performers.some(p => performerKey(p) === performerKey(performer))),
-  }, albumArtists)));
-  const musicians = onChange(split.map(parts => formatPerformers(parts.musicians) || null));
+  }, albumArtists));
+  const musicians = split.map(parts => formatPerformers(parts.musicians) || null);
 
   return { common, perTrack, musicians };
 };
