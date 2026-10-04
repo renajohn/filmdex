@@ -84,7 +84,9 @@ const toTracks = (release: RawRelease): TrackCreateData[] => {
     const relations = track.recording?.relations || [];
     const performances = relations.filter(relation => relation.type === 'performance' && relation.work);
     const composers = performances.flatMap(performance => (performance.work!.relations || [])
-      .filter(relation => relation.type === 'composer' && relation.artist)
+      // Songs credit their "writer", Lennon and McCartney's among them; a
+      // lyricist is left out, or Puccini's librettists would share his line.
+      .filter(relation => (relation.type === 'composer' || relation.type === 'writer') && relation.artist)
       .map(relation => displayName(relation.artist, relation['target-credit'], creditedById)));
     const performers: TrackPerformer[] = relations
       .filter(relation => relation.artist && PERFORMER_ROLES[relation.type])

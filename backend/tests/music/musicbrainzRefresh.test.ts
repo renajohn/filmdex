@@ -66,6 +66,16 @@ describe('toTracks', () => {
     ]);
   });
 
+  it('compte l’auteur-compositeur d’une chanson, pas le parolier d’un opéra', () => {
+    const data = release(1);
+    data.media[0].tracks[0].recording.relations[0].work!.relations = [
+      { type: 'writer', 'target-type': 'artist', artist: { id: 'a-lennon', name: 'John Lennon' } },
+      { type: 'lyricist', 'target-type': 'artist', artist: { id: 'a-illica', name: 'Luigi Illica' } },
+    ] as any;
+
+    expect(musicbrainzRefreshService.toTracks(data)[0].composers).toEqual(['John Lennon']);
+  });
+
   it('préfère le nom crédité en alphabet latin au nom canonique', () => {
     const data = release(1);
     data.media[0].tracks[0]['artist-credit'].push({ name: 'Mstislav Rostropovich', artist: rostropovich } as any);
