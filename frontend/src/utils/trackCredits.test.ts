@@ -55,6 +55,15 @@ describe('discCredits', () => {
     expect(discCredits([sonata, sonata], ['Wilhelm Kempff']).perTrack).toEqual([null, null]);
   });
 
+  it('ne prend pas une piste sans crédits pour un autre compositeur', () => {
+    const song = { artist: ['Steely Dan'], composers: ['Walter Becker', 'Donald Fagen'] };
+    const blackCow = { artist: ['Steely Dan'], composers: [] };
+
+    expect(discCredits([blackCow, song, song], ['Steely Dan'])).toEqual({
+      common: 'Walter Becker / Donald Fagen', perTrack: [null, null, null], musicians: [null, null, null],
+    });
+  });
+
   it('se tait sans crédits', () => {
     expect(discCredits([{ artist: ['Massive Attack'] }], ['Massive Attack'])).toEqual({ common: null, perTrack: [null], musicians: [null] });
   });

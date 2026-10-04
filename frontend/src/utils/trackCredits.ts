@@ -58,10 +58,15 @@ const splitPerformers = (performers: TrackPerformer[]): { featured: TrackPerform
   return players <= 3 ? { featured: performers, musicians: [] } : { featured, musicians: others };
 };
 
-/** What every track shares: kept when present on all of them, in the first track's order. */
+/**
+ * What every credited track shares, in the first one's order. A track
+ * MusicBrainz left without credits is a gap in its data, not another
+ * composer: Aja's "Black Cow" has none, the six others are Becker / Fagen.
+ */
 const shared = <T>(lists: T[][], key: (item: T) => string): T[] => {
-  if (lists.length === 0) return [];
-  return lists[0].filter(item => lists.every(list => list.some(other => key(other) === key(item))));
+  const credited = lists.filter(list => list.length > 0);
+  if (credited.length === 0) return [];
+  return credited[0].filter(item => credited.every(list => list.some(other => key(other) === key(item))));
 };
 
 /** Keeps a line only where it differs from the track before. */
