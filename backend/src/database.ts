@@ -326,6 +326,7 @@ const initDatabase = async (): Promise<sqlite3.Database> => {
           const PlaylistHistory = (await import('./models/playlistHistory')).default;
           const MovieWarning = (await import('./models/movieWarning')).default;
           const AlbumStory = (await import('./models/albumStory')).default;
+          const ReleaseGroupLookup = (await import('./models/releaseGroupLookup')).default;
 
           // Create all tables with their final schema
           await Movie.createTable();
@@ -343,6 +344,7 @@ const initDatabase = async (): Promise<sqlite3.Database> => {
           await PlaylistHistory.createTable();
           await MovieWarning.createTable();
           await AlbumStory.createTable();
+          await ReleaseGroupLookup.createTable();
 
           // Run auto-migrations for schema updates
           await runAutoMigrations();

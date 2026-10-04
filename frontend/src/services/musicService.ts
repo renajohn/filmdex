@@ -41,6 +41,15 @@ export interface RipStatusAlbum {
   matches: Array<{ name: string; artist: string; match: 'musicbrainz' | 'title'; state: RipState }>;
 }
 
+/** An edition DexVault took from a rip tagged by Picard, or why it left the album alone. */
+export interface EditionAdoption {
+  albumId: number | null;
+  title: string;
+  releaseId: string;
+  previousReleaseId?: string | null;
+  skipped?: 'no_release_group' | 'no_album' | 'several_albums' | 'edition_taken' | 'failed';
+}
+
 export interface RipStatus {
   configured: boolean;
   error?: string;
@@ -57,6 +66,16 @@ class MusicService {
   async getRipStatus(refresh = false): Promise<RipStatus> {
     const baseUrl = await this.getBaseUrl();
     const response = await fetch(`${baseUrl}/music/rip-status${refresh ? '?refresh=1' : ''}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  }
+
+  /** Rereads Navidrome and takes the editions Picard identified the ripped CDs as. */
+  async syncRipStatus(): Promise<{ editions: EditionAdoption[]; status: RipStatus }> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/rip-status/sync`, { method: 'POST' });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }

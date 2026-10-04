@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Form, ProgressBar } from 'react-bootstrap';
 import { BsArrowClockwise, BsTags } from 'react-icons/bs';
-import musicService, { type RipState, type RipStatus } from '../services/musicService';
+import musicService, { type EditionAdoption, type RipState, type RipStatus } from '../services/musicService';
 import { canUsePicard, openInPicard } from '../utils/picard';
 import './RipProgressPage.css';
 
@@ -35,13 +35,15 @@ const RipProgressPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('todo');
   const [query, setQuery] = useState('');
+  const [editions, setEditions] = useState<EditionAdoption[]>([]);
+  const [syncing, setSyncing] = useState(false);
   const picard = canUsePicard();
 
-  const load = useCallback(async (refresh = false) => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setStatus(await musicService.getRipStatus(refresh));
+      setStatus(await musicService.getRipStatus());
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -49,7 +51,24 @@ const RipProgressPage: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  /**
+   * Shows the status at once, then rereads Navidrome: CDs ripped since, and
+   * the editions Picard identified them as, which DexVault takes over.
+   */
+  const sync = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const result = await musicService.syncRipStatus();
+      setStatus(result.status);
+      setEditions(result.editions.filter(edition => !edition.skipped));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
+
+  useEffect(() => { load().then(sync); }, [load, sync]);
 
   const albums = useMemo(() => {
     const words = normalize(query).split(/\s+/).filter(Boolean);
@@ -77,10 +96,14 @@ const RipProgressPage: React.FC = () => {
           <p className="rip-progress-subtitle">
             Every CD, ripped again to lossless. Navidrome tells which ones are done.
           </p>
+          <p className="rip-progress-subtitle">
+            In Picard, <strong>Lookup CD</strong> with the disc still in the drive finds the exact pressing, and DexVault
+            takes it from the tags. The Picard button loads the edition DexVault has, for when the disc is unknown.
+          </p>
         </div>
-        <Button variant="outline-secondary" size="sm" onClick={() => load(true)} disabled={loading}>
+        <Button variant="outline-secondary" size="sm" onClick={sync} disabled={loading || syncing}>
           <BsArrowClockwise className="me-1" />
-          {loading ? 'Reading Navidrome…' : 'Refresh'}
+          {syncing ? 'Reading Navidrome…' : 'Refresh'}
         </Button>
       </div>
 
@@ -88,6 +111,15 @@ const RipProgressPage: React.FC = () => {
         <div className="rip-progress-notice">
           Navidrome is not configured: add <code>NAVIDROME_USER</code> and <code>NAVIDROME_PASSWORD</code> to the
           DexVault stack. Until then every CD shows as not ripped.
+        </div>
+      )}
+      {editions.length > 0 && (
+        <div className="rip-progress-notice rip-progress-editions">
+          Edition taken from your rip, as Picard identified the disc:
+          <ul>
+            {editions.map(edition => <li key={edition.releaseId}>{edition.title}</li>)}
+          </ul>
+          Tracks and credits now follow that pressing.
         </div>
       )}
       {(error || status?.error) && (

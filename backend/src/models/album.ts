@@ -771,6 +771,21 @@ const Album = {
     });
   },
 
+  /**
+   * Replaces the edition with the one the CD itself was identified as, by its
+   * disc ID in Picard: the edition picked when adding the album was often
+   * just the first of its pressings.
+   */
+  replaceReleaseId: (id: number, releaseId: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      getDatabase().run(
+        'UPDATE albums SET musicbrainz_release_id = ?, updated_at = ? WHERE id = ?',
+        [releaseId, new Date().toISOString(), id],
+        (err: Error | null) => (err ? reject(err) : resolve())
+      );
+    });
+  },
+
   /** Fills in the exact edition found after the fact; never overwrites one. */
   setReleaseId: (id: number, releaseId: string): Promise<void> => {
     return new Promise((resolve, reject) => {

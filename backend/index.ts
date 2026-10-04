@@ -258,6 +258,7 @@ app.post('/api/music/releases/:source/:releaseId', musicController.addAlbumFromS
 app.post('/api/music/albums', musicController.addAlbum);
 app.post('/api/music/albums/fill-covers', musicController.fillCovers);
 app.get('/api/music/rip-status', musicController.getRipStatus);
+app.post('/api/music/rip-status/sync', musicController.syncRipStatus);
 app.post('/api/music/albums/link-musicbrainz', musicController.linkMusicBrainz);
 app.post('/api/music/albums/refresh-musicbrainz', musicController.refreshAllFromMusicBrainz);
 app.post('/api/music/albums/:id/refresh-musicbrainz', musicController.refreshFromMusicBrainz);

@@ -581,6 +581,25 @@ const musicController = {
     }
   },
 
+  /**
+   * Rereads Navidrome, takes from the rips the editions Picard identified the
+   * CDs as, and answers with the status that follows.
+   */
+  syncRipStatus: async (_req: Request, res: Response): Promise<void> => {
+    try {
+      ripStatusService.clearCache();
+      // Navidrome out of reach must not hide the collection: getStatus reports it.
+      const editions = await ripStatusService.adoptEditions().catch(error => {
+        logger.warn(`Could not take editions from the rips: ${(error as Error).message}`);
+        return [];
+      });
+      res.json({ editions, status: await ripStatusService.getStatus() });
+    } catch (error) {
+      logger.error('Error syncing the rip status:', error);
+      res.status(500).json({ error: 'Failed to sync the rip status' });
+    }
+  },
+
   getAppleMusicUrl: async (req: Request, res: Response): Promise<void> => {
     try {
       const id = parseInt(req.params.id as string, 10);
