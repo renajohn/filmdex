@@ -4,20 +4,48 @@ import musicbrainzService from './musicbrainzService';
 import logger from '../logger';
 
 export type LinkMethod = 'discogs_release' | 'discogs_master' | 'barcode' | 'title';
+export type ReleaseLinkMethod = 'discogs_release' | 'barcode' | 'catalog_number';
 
 export interface LinkResult {
   releaseGroupId: string;
   method: LinkMethod;
 }
 
+export interface ReleaseLinkResult {
+  releaseId: string;
+  releaseGroupId: string | null;
+  method: ReleaseLinkMethod;
+}
+
 export interface AlbumToLink {
   title: string;
   artist: string[];
   barcode?: string | null;
+  catalogNumber?: string | null;
+  labels?: string[];
   discogsReleaseId?: string | null;
+  musicbrainzReleaseGroupId?: string | null;
 }
 
-type Release = { id: string; title: string; barcode?: string; 'release-group'?: { id?: string }; 'artist-credit'?: Array<{ name?: string; artist?: { name?: string } }> };
+export interface LinkAllResult {
+  id: number;
+  title: string;
+  releaseGroupId: string | null;
+  method: LinkMethod | null;
+  releaseId: string | null;
+  releaseMethod: ReleaseLinkMethod | null;
+  error?: string;
+}
+
+type Release = {
+  id: string;
+  title: string;
+  barcode?: string;
+  'release-group'?: { id?: string };
+  'artist-credit'?: Array<{ name?: string; artist?: { name?: string } }>;
+  'label-info'?: Array<{ 'catalog-number'?: string; label?: { name?: string } }>;
+  media?: Array<{ format?: string }>;
+};
 
 /** "MADAMA BUTTERFLY" and "Madama Butterfly", "Händel" and "Handel" compare equal. */
 const normalize = (text: string): string =>
@@ -84,6 +112,59 @@ const fromTitle = async (title: string, artists: string[]): Promise<string | nul
   return best[0];
 };
 
+/** "429 098-2" and "4290982" are the same catalogue number. */
+const catalogKey = (text: string): string => text.toLowerCase().replace(/[\s\-./]/g, '');
+
+/**
+ * Reissues and digital editions often reuse the CD's barcode: only CDs are
+ * candidates. A release whose media formats are unknown is kept, MusicBrainz
+ * leaves the format blank on many old entries.
+ */
+const isCd = (release: Release): boolean =>
+  !release.media?.length || release.media.every(medium => !medium.format || /CD/i.test(medium.format));
+
+const sameLabel = (labels: string[], release: Release): boolean => {
+  const wanted = labels.map(normalize).filter(Boolean);
+  return (release['label-info'] || []).some(info => {
+    const name = normalize(info.label?.name || '');
+    return Boolean(name) && wanted.some(label => label.includes(name) || name.includes(label));
+  });
+};
+
+/** The one edition left, or null when there is none or several. */
+const onlyRelease = (releases: Release[]): Release | null => (releases.length === 1 ? releases[0] : null);
+
+const releaseFromDiscogs = async (discogsReleaseId: string): Promise<Release | null> => {
+  const { releaseIds } = await musicbrainzService.findByDiscogsUrl(`https://www.discogs.com/release/${discogsReleaseId}`);
+  if (releaseIds.length !== 1) return null;
+  const release = await musicbrainzService.getReleaseDetails(releaseIds[0]);
+  return { ...release, id: releaseIds[0] } as Release;
+};
+
+const releaseFromBarcode = async (barcode: string): Promise<Release | null> => {
+  const wanted = digits(barcode);
+  if (wanted.length < 8) return null;
+  const releases = await musicbrainzService.searchRelease(`barcode:${wanted}`, 25) as Release[];
+  return onlyRelease(releases.filter(release => release.barcode && digits(release.barcode) === wanted && isCd(release)));
+};
+
+/**
+ * Catalogue numbers are short and labels reuse each other's patterns ("CD-210"
+ * exists at a dozen labels), so the label must agree too, unless the release
+ * group already known vouches for the edition.
+ */
+const releaseFromCatalogNumber = async (album: AlbumToLink): Promise<Release | null> => {
+  const wanted = catalogKey(album.catalogNumber || '');
+  if (wanted.length < 4) return null;
+  const query = `catno:"${album.catalogNumber!.replace(/["\\]/g, ' ')}"`;
+  const releases = await musicbrainzService.searchRelease(query, 25) as Release[];
+  return onlyRelease(releases.filter(release =>
+    isCd(release)
+    && (release['label-info'] || []).some(info => catalogKey(info['catalog-number'] || '') === wanted)
+    && (release['release-group']?.id === album.musicbrainzReleaseGroupId || sameLabel(album.labels || [], release))
+  ));
+};
+
 const musicbrainzLinkService = {
   normalize,
 
@@ -104,6 +185,40 @@ const musicbrainzLinkService = {
     return null;
   },
 
+  /**
+   * The exact edition: Discogs's own link first, then the barcode, then the
+   * catalogue number. Only a single CD answer counts, and it must belong to
+   * the release group the album already has, if any.
+   */
+  findRelease: async (album: AlbumToLink): Promise<ReleaseLinkResult | null> => {
+    const attempts: Array<[ReleaseLinkMethod, () => Promise<Release | null>]> = [];
+    if (album.discogsReleaseId) attempts.push(['discogs_release', () => releaseFromDiscogs(album.discogsReleaseId!)]);
+    if (album.barcode) attempts.push(['barcode', () => releaseFromBarcode(album.barcode!)]);
+    if (album.catalogNumber) attempts.push(['catalog_number', () => releaseFromCatalogNumber(album)]);
+
+    for (const [method, attempt] of attempts) {
+      const release = await attempt();
+      if (!release) continue;
+      const releaseGroupId = release['release-group']?.id ?? null;
+      if (album.musicbrainzReleaseGroupId && releaseGroupId !== album.musicbrainzReleaseGroupId) continue;
+      return { releaseId: release.id, releaseGroupId, method };
+    }
+    return null;
+  },
+
+  /** Links one album to its exact edition, and to the release group that comes with it. */
+  linkRelease: async (albumId: number): Promise<ReleaseLinkResult | null> => {
+    const album = await Album.findById(albumId);
+    if (!album || album.musicbrainzReleaseId) return null;
+    const result = await musicbrainzLinkService.findRelease(album as AlbumToLink);
+    if (result) {
+      await Album.setReleaseId(albumId, result.releaseId);
+      if (result.releaseGroupId) await Album.setReleaseGroupId(albumId, result.releaseGroupId);
+      logger.info(`Album ${albumId} "${album.title}" linked to MusicBrainz release ${result.releaseId} by ${result.method}`);
+    }
+    return result;
+  },
+
   /** Links one album that has no release group yet, and keeps what was found. */
   linkAlbum: async (albumId: number): Promise<LinkResult | null> => {
     const album = await Album.findById(albumId);
@@ -116,17 +231,31 @@ const musicbrainzLinkService = {
     return result;
   },
 
-  /** Every album without a release group, one after the other: MusicBrainz allows one request a second. */
-  linkAll: async (): Promise<Array<{ id: number; title: string; releaseGroupId: string | null; method: LinkMethod | null; error?: string }>> => {
-    const albums = (await Album.findAll()).filter(album => !album.musicbrainzReleaseGroupId);
-    const results = [];
+  /**
+   * Every album missing its edition or its release group, one after the other:
+   * MusicBrainz allows one request a second. The edition comes first, since it
+   * brings its release group with more certainty than a search by title.
+   */
+  linkAll: async (): Promise<LinkAllResult[]> => {
+    const albums = (await Album.findAll()).filter(album => !album.musicbrainzReleaseId || !album.musicbrainzReleaseGroupId);
+    const results: LinkAllResult[] = [];
     for (const album of albums) {
+      const entry: LinkAllResult = { id: album.id, title: album.title, releaseGroupId: null, method: null, releaseId: null, releaseMethod: null };
       try {
-        const result = await musicbrainzLinkService.linkAlbum(album.id);
-        results.push({ id: album.id, title: album.title, releaseGroupId: result?.releaseGroupId ?? null, method: result?.method ?? null });
+        const release = await musicbrainzLinkService.linkRelease(album.id);
+        entry.releaseId = release?.releaseId ?? null;
+        entry.releaseMethod = release?.method ?? null;
+        // A release group that came with the edition is reported by releaseMethod.
+        if (!album.musicbrainzReleaseGroupId) entry.releaseGroupId = release?.releaseGroupId ?? null;
+        const group = await musicbrainzLinkService.linkAlbum(album.id);
+        if (group) {
+          entry.releaseGroupId = group.releaseGroupId;
+          entry.method = group.method;
+        }
       } catch (error) {
-        results.push({ id: album.id, title: album.title, releaseGroupId: null, method: null, error: (error as Error).message });
+        entry.error = (error as Error).message;
       }
+      results.push(entry);
     }
     return results;
   },

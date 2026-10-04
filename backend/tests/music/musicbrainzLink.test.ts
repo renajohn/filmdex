@@ -14,12 +14,18 @@ const release = (title: string, releaseGroupId: string, artists: string[], barco
   'artist-credit': artists.map(name => ({ name, artist: { name } })),
 });
 
-const insertAlbum = (fields: { title: string; artist: string[]; barcode?: string; discogs?: string; releaseGroupId?: string }) =>
+const edition = (id: string, releaseGroupId: string, fields: { barcode?: string; format?: string; catno?: string; label?: string } = {}) => ({
+  id, title: 'Edition', barcode: fields.barcode, 'release-group': { id: releaseGroupId },
+  media: [{ format: fields.format ?? 'CD' }],
+  'label-info': fields.catno ? [{ 'catalog-number': fields.catno, label: { name: fields.label ?? 'Deutsche Grammophon' } }] : [],
+});
+
+const insertAlbum = (fields: { title: string; artist: string[]; barcode?: string; discogs?: string; releaseGroupId?: string; releaseId?: string }) =>
   new Promise<number>((resolve, reject) =>
     getDatabase().run(
-      `INSERT INTO albums (title, artist, barcode, discogs_release_id, musicbrainz_release_group_id, title_status)
-       VALUES (?, ?, ?, ?, ?, 'owned')`,
-      [fields.title, JSON.stringify(fields.artist), fields.barcode ?? null, fields.discogs ?? `${Math.random()}`, fields.releaseGroupId ?? null],
+      `INSERT INTO albums (title, artist, barcode, discogs_release_id, musicbrainz_release_group_id, musicbrainz_release_id, title_status)
+       VALUES (?, ?, ?, ?, ?, ?, 'owned')`,
+      [fields.title, JSON.stringify(fields.artist), fields.barcode ?? null, fields.discogs ?? `${Math.random()}`, fields.releaseGroupId ?? null, fields.releaseId ?? null],
       function (this: { lastID: number }, err: Error | null) { if (err) reject(err); else resolve(this.lastID); }
     ));
 
@@ -121,10 +127,63 @@ describe('findReleaseGroup', () => {
   });
 });
 
+describe('findRelease', () => {
+  const dg = { title: 'Cello Concertos', artist: ['Vivaldi'], labels: ['Deutsche Grammophon'] };
+
+  it('suit le lien de l’édition Discogs vers l’édition exacte', async () => {
+    jest.spyOn(musicbrainzService, 'findByDiscogsUrl').mockResolvedValue({ releaseIds: ['mb-rel'], releaseGroupIds: [] });
+    jest.spyOn(musicbrainzService, 'getReleaseDetails').mockResolvedValue({ 'release-group': { id: 'rg-1' } } as any);
+
+    expect(await musicbrainzLinkService.findRelease({ ...dg, discogsReleaseId: '1' }))
+      .toEqual({ releaseId: 'mb-rel', releaseGroupId: 'rg-1', method: 'discogs_release' });
+  });
+
+  it('trouve l’édition par code-barres quand une seule est un CD', async () => {
+    jest.spyOn(musicbrainzService, 'searchRelease').mockResolvedValue([
+      edition('rel-cd', 'rg-1', { barcode: '028942909823' }),
+      edition('rel-digital', 'rg-1', { barcode: '028942909823', format: 'Digital Media' }),
+    ] as any);
+
+    expect(await musicbrainzLinkService.findRelease({ ...dg, barcode: '28942909823', musicbrainzReleaseGroupId: 'rg-1' }))
+      .toEqual({ releaseId: 'rel-cd', releaseGroupId: 'rg-1', method: 'barcode' });
+  });
+
+  it('laisse le choix au rippage quand plusieurs CD partagent le code-barres', async () => {
+    jest.spyOn(musicbrainzService, 'searchRelease').mockResolvedValue([
+      edition('rel-de', 'rg-1', { barcode: '028941459626' }),
+      edition('rel-gb', 'rg-1', { barcode: '028941459626' }),
+    ] as any);
+
+    expect(await musicbrainzLinkService.findRelease({ ...dg, barcode: '028941459626' })).toBeNull();
+  });
+
+  it('refuse une édition d’un autre release group que celui de l’album', async () => {
+    jest.spyOn(musicbrainzService, 'searchRelease').mockResolvedValue([edition('rel-x', 'rg-other', { barcode: '12345678' })] as any);
+
+    expect(await musicbrainzLinkService.findRelease({ ...dg, barcode: '12345678', musicbrainzReleaseGroupId: 'rg-1' })).toBeNull();
+  });
+
+  it('trouve par numéro de catalogue quand le label concorde, espaces compris', async () => {
+    jest.spyOn(musicbrainzService, 'searchRelease').mockImplementation(async (query: string) =>
+      query.startsWith('catno:') ? [edition('rel-haydn', 'rg-haydn', { catno: '4292192', label: 'Deutsche Grammophon' })] as any : []);
+
+    expect(await musicbrainzLinkService.findRelease({ ...dg, catalogNumber: '429 219-2' }))
+      .toEqual({ releaseId: 'rel-haydn', releaseGroupId: 'rg-haydn', method: 'catalog_number' });
+  });
+
+  it('refuse un numéro de catalogue d’un autre label', async () => {
+    jest.spyOn(musicbrainzService, 'searchRelease').mockResolvedValue([
+      edition('rel-cuba', 'rg-cuba', { catno: 'CD-210', label: 'EGREM' }),
+    ] as any);
+
+    expect(await musicbrainzLinkService.findRelease({ ...dg, labels: ['Gallo'], catalogNumber: 'CD-210' })).toBeNull();
+  });
+});
+
 describe('linkAll et l’histoire', () => {
   it('lie les albums sans release group et laisse les autres', async () => {
     const linked = await insertAlbum({ title: `Linkable ${Math.random()}`, artist: ['A'], discogs: '777' });
-    const already = await insertAlbum({ title: 'Linked', artist: ['B'], releaseGroupId: 'rg-kept' });
+    const already = await insertAlbum({ title: 'Linked', artist: ['B'], releaseGroupId: 'rg-kept', releaseId: 'rel-kept' });
     jest.spyOn(musicbrainzService, 'findByDiscogsUrl').mockImplementation(async (url: string) =>
       url.endsWith('/release/777') ? { releaseIds: ['mb-777'], releaseGroupIds: [] } : NOTHING);
     jest.spyOn(musicbrainzService, 'getReleaseDetails').mockResolvedValue({ 'release-group': { id: 'rg-777' } } as any);
@@ -132,9 +191,22 @@ describe('linkAll et l’histoire', () => {
     const res = await request(app).post('/api/music/albums/link-musicbrainz');
 
     expect(res.status).toBe(200);
-    expect(res.body.results).toContainEqual({ id: linked, title: expect.any(String), releaseGroupId: 'rg-777', method: 'discogs_release' });
+    expect(res.body.results).toContainEqual(expect.objectContaining({ id: linked, releaseGroupId: 'rg-777', releaseId: 'mb-777', releaseMethod: 'discogs_release' }));
     expect(res.body.results.map((r: { id: number }) => r.id)).not.toContain(already);
-    expect((await Album.findById(linked))!.musicbrainzReleaseGroupId).toBe('rg-777');
+    const album = (await Album.findById(linked))!;
+    expect(album.musicbrainzReleaseGroupId).toBe('rg-777');
+    expect(album.musicbrainzReleaseId).toBe('mb-777');
+  });
+
+  it('complète l’édition d’un album qui a déjà son release group, sans le remplacer', async () => {
+    const id = await insertAlbum({ title: `Grouped ${Math.random()}`, artist: ['D'], barcode: '028940001826', releaseGroupId: 'rg-mozart' });
+    jest.spyOn(musicbrainzService, 'searchRelease').mockResolvedValue([edition('rel-mozart', 'rg-mozart', { barcode: '028940001826' })] as any);
+
+    await request(app).post('/api/music/albums/link-musicbrainz');
+
+    const album = (await Album.findById(id))!;
+    expect(album.musicbrainzReleaseId).toBe('rel-mozart');
+    expect(album.musicbrainzReleaseGroupId).toBe('rg-mozart');
   });
 
   it('relance une histoire « pas de MusicBrainz » dès que l’album est lié', async () => {

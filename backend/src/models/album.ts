@@ -752,6 +752,17 @@ const Album = {
     });
   },
 
+  /** Fills in the exact edition found after the fact; never overwrites one. */
+  setReleaseId: (id: number, releaseId: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      getDatabase().run(
+        'UPDATE albums SET musicbrainz_release_id = ? WHERE id = ? AND musicbrainz_release_id IS NULL',
+        [releaseId, id],
+        (err: Error | null) => (err ? reject(err) : resolve())
+      );
+    });
+  },
+
   updateUrls: (id: number, newUrls: Record<string, string>): Promise<AlbumUrlsResult> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();

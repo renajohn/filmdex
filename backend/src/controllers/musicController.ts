@@ -516,13 +516,18 @@ const musicController = {
 
   // Get or resolve Apple Music URL for an album
   /**
-   * Links every album that has no MusicBrainz release group yet: those added
-   * from Discogs or by hand. Slow on purpose, MusicBrainz allows one request a second.
+   * Links every album that lacks its MusicBrainz edition or release group:
+   * those added from Discogs or by hand. Slow on purpose, MusicBrainz allows
+   * one request a second.
    */
   linkMusicBrainz: async (_req: Request, res: Response): Promise<void> => {
     try {
       const results = await musicbrainzLinkService.linkAll();
-      res.json({ linked: results.filter(r => r.releaseGroupId).length, results });
+      res.json({
+        linked: results.filter(r => r.releaseGroupId).length,
+        releasesLinked: results.filter(r => r.releaseId).length,
+        results,
+      });
     } catch (error) {
       logger.error('Error linking albums to MusicBrainz:', error);
       res.status(500).json({ error: 'Failed to link albums to MusicBrainz' });
