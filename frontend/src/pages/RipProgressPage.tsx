@@ -21,6 +21,13 @@ const FILTERS: Array<{ key: Filter; label: string }> = [
   { key: 'all', label: 'All' },
 ];
 
+/** What DexVault did with the editions Picard wrote into the rips; tracks and credits follow each time. */
+const EDITION_NOTICES: Array<{ action: NonNullable<EditionAdoption['action']>; intro: string }> = [
+  { action: 'added', intro: 'Ripped but not yet in DexVault, now added to your collection:' },
+  { action: 'promoted', intro: 'Ripped from your wish list, now in your collection:' },
+  { action: 'edition', intro: 'Edition taken from your rip, as Picard identified the disc:' },
+];
+
 const ORDER: Record<RipState, number> = { none: 0, lossy: 1, lossless: 2 };
 
 const normalize = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -113,15 +120,17 @@ const RipProgressPage: React.FC = () => {
           DexVault stack. Until then every CD shows as not ripped.
         </div>
       )}
-      {editions.length > 0 && (
-        <div className="rip-progress-notice rip-progress-editions">
-          Edition taken from your rip, as Picard identified the disc:
-          <ul>
-            {editions.map(edition => <li key={edition.releaseId}>{edition.title}</li>)}
-          </ul>
-          Tracks and credits now follow that pressing.
-        </div>
-      )}
+      {EDITION_NOTICES.map(({ action, intro }) => {
+        const done = editions.filter(edition => edition.action === action);
+        return done.length > 0 && (
+          <div key={action} className="rip-progress-notice rip-progress-editions">
+            {intro}
+            <ul>
+              {done.map(edition => <li key={edition.releaseId}>{edition.title}</li>)}
+            </ul>
+          </div>
+        );
+      })}
       {(error || status?.error) && (
         <div className="rip-progress-notice rip-progress-error">Could not read Navidrome: {error || status?.error}</div>
       )}

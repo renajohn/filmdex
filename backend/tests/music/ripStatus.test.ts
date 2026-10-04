@@ -122,6 +122,7 @@ describe('adoption des éditions depuis les rips', () => {
   const musicbrainzService = require('../../src/services/musicbrainzService').default;
   const musicbrainzRefreshService = require('../../src/services/musicbrainzRefreshService').default;
   const Album = require('../../src/models/album').default;
+  const musicService = require('../../src/services/musicService').default;
 
   const insertGrouped = (releaseId: string | null, releaseGroupId: string, title = `CD ${Math.random()}`) =>
     new Promise<number>((resolve, reject) =>
@@ -150,7 +151,7 @@ describe('adoption des éditions depuis les rips', () => {
     const res = await request(app).post('/api/music/rip-status/sync');
 
     expect(res.status).toBe(200);
-    expect(res.body.editions).toContainEqual(expect.objectContaining({ albumId: id, releaseId: exact }));
+    expect(res.body.editions).toContainEqual(expect.objectContaining({ albumId: id, releaseId: exact, action: 'edition' }));
     expect((await Album.findById(id)).musicbrainzReleaseId).toBe(exact);
     expect(musicbrainzRefreshService.refreshAlbum).toHaveBeenCalledWith(id);
     expect(res.body.status.albums.find((a: { id: number }) => a.id === id)).toMatchObject({ state: 'lossless' });
@@ -189,6 +190,50 @@ describe('adoption des éditions depuis les rips', () => {
     expect(await ripStatusService.adoptEditions()).toEqual([]);
     expect(lookup).not.toHaveBeenCalled();
     expect((await Album.findById(id)).musicbrainzReleaseId).toMatch(/^first-/);
+  });
+
+  it('ajoute à la collection un CD rippé que DexVault ne connaît pas encore', async () => {
+    const exact = `new-${Math.random()}`;
+    library(exact);
+    jest.spyOn(musicbrainzService, 'getReleaseDetails').mockResolvedValue({ 'release-group': { id: `rg-new-${Math.random()}` }, media: [{ format: 'CD' }] });
+    const add = jest.spyOn(musicService, 'addAlbumFromMusicBrainz').mockResolvedValue({ id: 4242, title: 'Aja' } as any);
+
+    const [result] = await ripStatusService.adoptEditions();
+
+    expect(add).toHaveBeenCalledWith(exact, { titleStatus: 'owned' });
+    expect(result).toMatchObject({ albumId: 4242, action: 'added' });
+    expect(musicbrainzRefreshService.refreshAlbum).toHaveBeenCalledWith(4242);
+  });
+
+  it('n’ajoute pas un album acheté en téléchargement lossless', async () => {
+    library(`bandcamp-${Math.random()}`);
+    jest.spyOn(musicbrainzService, 'getReleaseDetails').mockResolvedValue({ 'release-group': { id: `rg-dl-${Math.random()}` }, media: [{ format: 'Digital Media' }] });
+    const add = jest.spyOn(musicService, 'addAlbumFromMusicBrainz');
+
+    const [result] = await ripStatusService.adoptEditions();
+
+    expect(result).toMatchObject({ skipped: 'not_a_cd' });
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  it('passe dans la collection un album de la wish list qu’on vient de ripper', async () => {
+    const group = `rg-${Math.random()}`;
+    const id = await new Promise<number>((resolve, reject) =>
+      getDatabase().run(
+        `INSERT INTO albums (title, artist, musicbrainz_release_id, musicbrainz_release_group_id, format, title_status) VALUES ('Wished', '["X"]', ?, ?, 'CD', 'wish')`,
+        [`wish-${Math.random()}`, group],
+        function (this: { lastID: number }, err: Error | null) { if (err) reject(err); else resolve(this.lastID); }
+      ));
+    const exact = `bought-${Math.random()}`;
+    library(exact);
+    jest.spyOn(musicbrainzService, 'getReleaseDetails').mockResolvedValue({ 'release-group': { id: group }, media: [{ format: 'CD' }] });
+
+    const [result] = await ripStatusService.adoptEditions();
+
+    expect(result).toMatchObject({ albumId: id, action: 'promoted' });
+    const album = await Album.findById(id);
+    expect(album.titleStatus).toBe('owned');
+    expect(album.musicbrainzReleaseId).toBe(exact);
   });
 
   it('n’adopte pas une édition déjà portée par un autre album', async () => {

@@ -46,8 +46,9 @@ export interface EditionAdoption {
   albumId: number | null;
   title: string;
   releaseId: string;
+  action?: 'edition' | 'promoted' | 'added';
   previousReleaseId?: string | null;
-  skipped?: 'no_release_group' | 'no_album' | 'several_albums' | 'edition_taken' | 'failed';
+  skipped?: 'no_release_group' | 'not_a_cd' | 'several_albums' | 'edition_taken' | 'failed';
 }
 
 export interface RipStatus {

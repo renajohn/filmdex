@@ -3,7 +3,8 @@ import navidromeService, { type NavidromeAlbum, type NavidromeSong } from './nav
 import musicbrainzLinkService from './musicbrainzLinkService';
 import musicbrainzService from './musicbrainzService';
 import musicbrainzRefreshService from './musicbrainzRefreshService';
-import ReleaseGroupLookup from '../models/releaseGroupLookup';
+import ReleaseGroupLookup, { type ReleaseInfo } from '../models/releaseGroupLookup';
+import musicService from './musicService';
 import logger from '../logger';
 
 /**
@@ -27,13 +28,18 @@ export interface RipStatusAlbum {
   matches: Array<{ name: string; artist: string; match: RipMatch; state: RipState }>;
 }
 
-/** An edition DexVault took from a rip, or why it left the album alone. */
+/**
+ * What DexVault did with an edition found in a rip: took it for a CD of the
+ * collection, moved the album off the wish list, or added the CD; or why it
+ * left everything alone.
+ */
 export interface EditionAdoption {
   albumId: number | null;
   title: string;
   releaseId: string;
+  action?: 'edition' | 'promoted' | 'added';
   previousReleaseId?: string | null;
-  skipped?: 'no_release_group' | 'no_album' | 'several_albums' | 'edition_taken' | 'failed';
+  skipped?: 'no_release_group' | 'not_a_cd' | 'several_albums' | 'edition_taken' | 'failed';
 }
 
 export interface RipStatus {
@@ -90,14 +96,18 @@ const albumState = (album: NavidromeAlbum, songsByAlbum: Map<string, NavidromeSo
   return songs.length > 0 && songs.every(isLossless) ? 'lossless' : 'lossy';
 };
 
-/** The release group of an edition, asked of MusicBrainz once and remembered. */
-const releaseGroupOf = async (releaseId: string): Promise<string | null> => {
+/** The release group of an edition and whether it is a CD, asked of MusicBrainz once and remembered. */
+const releaseInfo = async (releaseId: string): Promise<ReleaseInfo> => {
   const known = await ReleaseGroupLookup.find(releaseId);
-  if (known !== undefined) return known;
+  if (known) return known;
   const release = await musicbrainzService.getReleaseDetails(releaseId);
-  const releaseGroupId = release['release-group']?.id ?? null;
-  await ReleaseGroupLookup.save(releaseId, releaseGroupId);
-  return releaseGroupId;
+  const media = release.media || [];
+  const info = {
+    releaseGroupId: release['release-group']?.id ?? null,
+    isCd: media.length > 0 && media.every(medium => /CD/i.test(medium.format || '')),
+  };
+  await ReleaseGroupLookup.save(releaseId, info);
+  return info;
 };
 
 const CACHE_MS = 60_000;
@@ -117,16 +127,21 @@ const ripStatusService = {
   /**
    * Takes from the rips the edition Picard identified each CD as. A lossless
    * album in Navidrome carries the MusicBrainz edition its files were tagged
-   * with; when DexVault does not know it, it belongs to the CD of the
-   * collection with the same release group, the only one, and replaces the
-   * edition picked when the album was added. Tracks and credits then follow.
+   * with; when the collection does not have it, it goes to the album of the
+   * same release group, the only one: a CD of the collection takes it in
+   * place of the edition picked when it was added, an album of the wish list
+   * also moves into the collection, and a CD DexVault does not know yet is
+   * added. Tracks and credits then follow.
    */
   adoptEditions: async (): Promise<EditionAdoption[]> => {
     if (!navidromeService.isConfigured()) return [];
     const navidrome = await library();
     const songsByAlbum = groupSongs(navidrome.songs);
-    const owned = (await Album.findAll()).filter(album => album.titleStatus === 'owned');
-    const known = new Set(owned.map(album => album.musicbrainzReleaseId).filter(Boolean));
+    // findAll is the collection only; the wish list comes on top.
+    const all = [...await Album.findAll(), ...await Album.findByStatus('wish')];
+    const known = new Set(all.filter(album => album.titleStatus !== 'wish').map(album => album.musicbrainzReleaseId).filter(Boolean));
+    const refresh = (albumId: number, releaseId: string) => musicbrainzRefreshService.refreshAlbum(albumId).catch(error =>
+      logger.warn(`Album ${albumId} took edition ${releaseId} but could not be refreshed: ${(error as Error).message}`));
     const editions = [...new Set(navidrome.albums
       .filter(album => album.musicBrainzId && !known.has(album.musicBrainzId) && albumState(album, songsByAlbum) === 'lossless')
       .map(album => album.musicBrainzId!))];
@@ -135,27 +150,46 @@ const ripStatusService = {
     for (const releaseId of editions) {
       const name = navidrome.albums.find(album => album.musicBrainzId === releaseId)?.name || releaseId;
       try {
-        const releaseGroupId = await releaseGroupOf(releaseId);
+        const { releaseGroupId, isCd } = await releaseInfo(releaseId);
         if (!releaseGroupId) { results.push({ albumId: null, title: name, releaseId, skipped: 'no_release_group' }); continue; }
-        const candidates = owned.filter(album => album.musicbrainzReleaseGroupId === releaseGroupId);
-        if (candidates.length !== 1) {
-          results.push({ albumId: null, title: name, releaseId, skipped: candidates.length === 0 ? 'no_album' : 'several_albums' });
+        const sameGroup = all.filter(album => album.musicbrainzReleaseGroupId === releaseGroupId);
+        const inCollection = sameGroup.filter(album => album.titleStatus !== 'wish');
+        const wished = sameGroup.filter(album => album.titleStatus === 'wish');
+        if (inCollection.length > 1 || (inCollection.length === 0 && wished.length > 1)) {
+          results.push({ albumId: null, title: name, releaseId, skipped: 'several_albums' });
           continue;
         }
-        const [album] = candidates;
-        try {
-          await Album.replaceReleaseId(album.id, releaseId);
-        } catch (error) {
-          // The unique index: another album of the collection already has this edition.
-          results.push({ albumId: album.id, title: album.title, releaseId, skipped: 'edition_taken' });
+
+        const [album] = inCollection.length === 1 ? inCollection : wished;
+        if (!album) {
+          // Not in DexVault at all: a CD ripped before being catalogued is added,
+          // a download bought in lossless is not a CD of the collection.
+          if (!isCd) { results.push({ albumId: null, title: name, releaseId, skipped: 'not_a_cd' }); continue; }
+          const added = await musicService.addAlbumFromMusicBrainz(releaseId, { titleStatus: 'owned' } as never);
+          logger.info(`Album ${added.id} "${added.title}" added from its rip, edition ${releaseId}`);
+          results.push({ albumId: added.id, title: added.title, releaseId, action: 'added' });
+          // A second rip of the same album, later in this run, finds it instead of adding it again.
+          all.push({ ...added, musicbrainzReleaseGroupId: releaseGroupId, titleStatus: 'owned' });
+          await refresh(added.id, releaseId);
           continue;
         }
-        logger.info(`Album ${album.id} "${album.title}" takes edition ${releaseId} from its rip (was ${album.musicbrainzReleaseId ?? 'none'})`);
-        results.push({ albumId: album.id, title: album.title, releaseId, previousReleaseId: album.musicbrainzReleaseId ?? null });
-        await musicbrainzRefreshService.refreshAlbum(album.id).catch(error =>
-          logger.warn(`Album ${album.id} took edition ${releaseId} but could not be refreshed: ${(error as Error).message}`));
+
+        if (album.musicbrainzReleaseId !== releaseId) {
+          try {
+            await Album.replaceReleaseId(album.id, releaseId);
+          } catch (error) {
+            // The unique index: another album already has this edition.
+            results.push({ albumId: album.id, title: album.title, releaseId, skipped: 'edition_taken' });
+            continue;
+          }
+        }
+        const promoted = album.titleStatus === 'wish';
+        if (promoted) await Album.updateStatus(album.id, 'owned');
+        logger.info(`Album ${album.id} "${album.title}" takes edition ${releaseId} from its rip (was ${album.musicbrainzReleaseId ?? 'none'})${promoted ? ', moved off the wish list' : ''}`);
+        results.push({ albumId: album.id, title: album.title, releaseId, action: promoted ? 'promoted' : 'edition', previousReleaseId: album.musicbrainzReleaseId ?? null });
+        await refresh(album.id, releaseId);
       } catch (error) {
-        logger.warn(`Could not look up the edition ${releaseId} found in Navidrome: ${(error as Error).message}`);
+        logger.warn(`Could not take the edition ${releaseId} found in Navidrome: ${(error as Error).message}`);
         results.push({ albumId: null, title: name, releaseId, skipped: 'failed' });
       }
     }
@@ -164,7 +198,7 @@ const ripStatusService = {
 
   getStatus: async (): Promise<RipStatus> => {
     const counts: Record<RipState, number> = { none: 0, lossy: 0, lossless: 0 };
-    const owned = (await Album.findAll()).filter(album => album.titleStatus === 'owned' && /CD|Unknown/i.test(album.format || 'Unknown'));
+    const owned = (await Album.findAll()).filter(album => /CD|Unknown/i.test(album.format || 'Unknown'));
 
     let navidrome: { albums: NavidromeAlbum[]; songs: NavidromeSong[] } = { albums: [], songs: [] };
     let error: string | undefined;
