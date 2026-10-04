@@ -466,6 +466,25 @@ const musicbrainzService = {
     ));
   },
 
+  /**
+   * A release with everything needed to credit each track: its artists, the
+   * work it performs and that work's composer, and who plays on the recording.
+   */
+  getReleaseWithCredits: async function(releaseId: string): Promise<unknown> {
+    const response: AxiosResponse<unknown> = await withRetry(
+      'MusicBrainz release credits lookup',
+      () => axios.get(`${this.baseUrl}/release/${releaseId}`, {
+        params: {
+          inc: 'artist-credits+recordings+isrcs+genres+annotation+artist-rels+url-rels+place-rels+recording-level-rels+work-rels+work-level-rels',
+          fmt: 'json'
+        },
+        headers: { 'User-Agent': this.userAgent },
+        timeout: 20000
+      })
+    );
+    return response.data;
+  },
+
   /** A work with the works it is part of and its Wikidata id. */
   getWork: async function(workId: string): Promise<MBWorkRef & { wikidata: string | null }> {
     const response: AxiosResponse<MBRawWork> = await withRetry(

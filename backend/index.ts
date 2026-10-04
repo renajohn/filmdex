@@ -258,6 +258,8 @@ app.post('/api/music/releases/:source/:releaseId', musicController.addAlbumFromS
 app.post('/api/music/albums', musicController.addAlbum);
 app.post('/api/music/albums/fill-covers', musicController.fillCovers);
 app.post('/api/music/albums/link-musicbrainz', musicController.linkMusicBrainz);
+app.post('/api/music/albums/refresh-musicbrainz', musicController.refreshAllFromMusicBrainz);
+app.post('/api/music/albums/:id/refresh-musicbrainz', musicController.refreshFromMusicBrainz);
 app.get('/api/music/albums/:id', musicController.getAlbumById);
 app.put('/api/music/albums/:id', musicController.updateAlbum);
 app.put('/api/music/albums/:id/status', musicController.updateAlbumStatus);

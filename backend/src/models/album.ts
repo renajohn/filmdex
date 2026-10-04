@@ -752,6 +752,25 @@ const Album = {
     });
   },
 
+  /**
+   * Writes a few columns as they are given, for the refresh from MusicBrainz:
+   * the caller decides what is missing, this only refuses unknown columns.
+   */
+  setColumns: (id: number, columns: Record<string, string | number | null>): Promise<void> => {
+    const allowed = ['producer', 'engineer', 'recording_location', 'isrc_codes', 'total_duration', 'annotation', 'genres', 'urls'];
+    const names = Object.keys(columns);
+    const unknown = names.filter(name => !allowed.includes(name));
+    if (unknown.length > 0) return Promise.reject(new Error(`Unknown album columns: ${unknown.join(', ')}`));
+    if (names.length === 0) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      getDatabase().run(
+        `UPDATE albums SET ${names.map(name => `${name} = ?`).join(', ')}, updated_at = ? WHERE id = ?`,
+        [...names.map(name => columns[name]), new Date().toISOString(), id],
+        (err: Error | null) => (err ? reject(err) : resolve())
+      );
+    });
+  },
+
   /** Fills in the exact edition found after the fact; never overwrites one. */
   setReleaseId: (id: number, releaseId: string): Promise<void> => {
     return new Promise((resolve, reject) => {

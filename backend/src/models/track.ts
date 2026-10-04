@@ -1,7 +1,7 @@
 import type sqlite3 from 'sqlite3';
 import { getDatabase } from '../database';
 import cacheService from '../services/cacheService';
-import type { TrackRow, TrackFormatted, TrackCreateData } from '../types';
+import type { TrackRow, TrackFormatted, TrackCreateData, TrackPerformer } from '../types';
 
 interface TrackDbRecord {
   album_id: number;
@@ -13,9 +13,23 @@ interface TrackDbRecord {
   musicbrainz_recording_id: string | null;
   musicbrainz_track_id: string | null;
   toc: string | null;
+  artist: string;
+  work: string | null;
+  composers: string;
+  performers: string;
   created_at: string;
   updated_at: string;
 }
+
+const parseList = <T>(text: string | null): T[] => {
+  if (!text) return [];
+  try {
+    const value = JSON.parse(text);
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+};
 
 interface TrackDeleteResult {
   deleted: number | boolean;
@@ -37,15 +51,24 @@ const Track = {
           musicbrainz_recording_id TEXT,
           musicbrainz_track_id TEXT,
           toc TEXT,
+          artist TEXT,
+          work TEXT,
+          composers TEXT,
+          performers TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (album_id) REFERENCES albums (id) ON DELETE CASCADE
         )
       `;
-      db.run(sql, (err: Error | null) => {
+      db.run(sql, async (err: Error | null) => {
         if (err) {
           reject(err);
         } else {
+          // Credits per track, for the classical albums MusicBrainz details
+          // movement by movement. Errors only say the column already exists.
+          for (const column of ['artist', 'work', 'composers', 'performers']) {
+            await new Promise<void>(done => db.run(`ALTER TABLE tracks ADD COLUMN ${column} TEXT`, () => done()));
+          }
           // Create indexes for better performance
           const indexPromises: Promise<void>[] = [
             new Promise((resolve, reject) => {
@@ -93,6 +116,10 @@ const Track = {
         musicbrainz_recording_id: trackData.musicbrainzRecordingId || null,
         musicbrainz_track_id: trackData.musicbrainzTrackId || null,
         toc: trackData.toc || null,
+        artist: JSON.stringify(trackData.artist || []),
+        work: trackData.work || null,
+        composers: JSON.stringify(trackData.composers || []),
+        performers: JSON.stringify(trackData.performers || []),
         created_at: now,
         updated_at: now
       };
@@ -101,15 +128,17 @@ const Track = {
         INSERT INTO tracks (
           album_id, disc_number, track_number, title, duration_sec,
           isrc, musicbrainz_recording_id, musicbrainz_track_id, toc,
+          artist, work, composers, performers,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const params = [
         track.album_id, track.disc_number, track.track_number,
         track.title, track.duration_sec, track.isrc,
         track.musicbrainz_recording_id, track.musicbrainz_track_id,
-        track.toc, track.created_at, track.updated_at
+        track.toc, track.artist, track.work, track.composers, track.performers,
+        track.created_at, track.updated_at
       ];
 
       db.run(sql, params, async function(this: sqlite3.RunResult, err: Error | null) {
@@ -288,6 +317,10 @@ const Track = {
       musicbrainzRecordingId: row.musicbrainz_recording_id,
       musicbrainzTrackId: row.musicbrainz_track_id,
       toc: row.toc,
+      artist: parseList<string>(row.artist),
+      work: row.work,
+      composers: parseList<string>(row.composers),
+      performers: parseList<TrackPerformer>(row.performers),
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };

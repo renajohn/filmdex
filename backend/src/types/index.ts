@@ -327,8 +327,18 @@ export interface TrackRow {
   musicbrainz_recording_id: string | null;
   musicbrainz_track_id: string | null;
   toc: string | null;
+  artist: string | null;
+  work: string | null;
+  composers: string | null;
+  performers: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Who plays on a track: "conductor", "orchestra", "cello", "soprano vocals"… */
+export interface TrackPerformer {
+  name: string;
+  role: string;
 }
 
 export interface TrackFormatted {
@@ -343,6 +353,10 @@ export interface TrackFormatted {
   musicbrainzRecordingId: string | null;
   musicbrainzTrackId: string | null;
   toc: string | null;
+  artist: string[];
+  work: string | null;
+  composers: string[];
+  performers: TrackPerformer[];
   createdAt: string;
   updatedAt: string;
 }
@@ -358,6 +372,10 @@ export interface TrackCreateData {
   musicbrainzRecordingId?: string | null;
   musicbrainzTrackId?: string | null;
   toc?: string | null;
+  artist?: string[];
+  work?: string | null;
+  composers?: string[];
+  performers?: TrackPerformer[];
 }
 
 // ============================================================

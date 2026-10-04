@@ -13,6 +13,7 @@ import { getDatabase } from '../database';
 import musicCollectionService from '../services/musicCollectionService';
 import smartPlaylistService from '../services/smartPlaylistService';
 import musicbrainzLinkService from '../services/musicbrainzLinkService';
+import musicbrainzRefreshService from '../services/musicbrainzRefreshService';
 import logger from '../logger';
 import type { AlbumFormatted } from '../types';
 
@@ -531,6 +532,40 @@ const musicController = {
     } catch (error) {
       logger.error('Error linking albums to MusicBrainz:', error);
       res.status(500).json({ error: 'Failed to link albums to MusicBrainz' });
+    }
+  },
+
+  /** Tracks and credits from the album's MusicBrainz edition; see musicbrainzRefreshService. */
+  refreshFromMusicBrainz: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const id = parseInt(req.params.id as string, 10);
+      res.json(await musicbrainzRefreshService.refreshAlbum(id));
+    } catch (error) {
+      const message = (error as Error).message;
+      if (message === 'Album not found') {
+        res.status(404).json({ error: message });
+      } else if (message === 'Album has no MusicBrainz edition') {
+        res.status(409).json({ error: message });
+      } else {
+        logger.error('Error refreshing album from MusicBrainz:', error);
+        res.status(500).json({ error: 'Failed to refresh album from MusicBrainz' });
+      }
+    }
+  },
+
+  /** Every album with an edition, or only the ids given in the body. Slow: one request a second. */
+  refreshAllFromMusicBrainz: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const ids = Array.isArray(req.body?.ids) ? (req.body.ids as unknown[]).map(Number).filter(Number.isInteger) : undefined;
+      const results = await musicbrainzRefreshService.refreshAll(ids);
+      res.json({
+        refreshed: results.filter(r => !r.error).length,
+        tracksReplaced: results.filter(r => r.tracksReplaced).length,
+        results,
+      });
+    } catch (error) {
+      logger.error('Error refreshing albums from MusicBrainz:', error);
+      res.status(500).json({ error: 'Failed to refresh albums from MusicBrainz' });
     }
   },
 

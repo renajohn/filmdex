@@ -10,7 +10,7 @@ import imageService from './imageService';
 import axios, { AxiosResponse } from 'axios';
 import logger from '../logger';
 import path from 'path';
-import type { AlbumFormatted, AlbumCreateData, TrackFormatted } from '../types';
+import type { AlbumFormatted, AlbumCreateData, TrackFormatted, TrackPerformer } from '../types';
 import coverScanService from './coverScanService';
 import type { SleeveTranscription } from './coverScanService';
 import { toMusicFormDraft, type MusicFormDraft } from './sleeveDraft';
@@ -76,6 +76,17 @@ interface AlbumData {
   [key: string]: unknown;
 }
 
+/** A track as the album page shows it, with its credits when MusicBrainz gave them. */
+interface AlbumTrack {
+  no: number;
+  title: string;
+  durationSec: number | null;
+  artist: string[];
+  work: string | null;
+  composers: string[];
+  performers: TrackPerformer[];
+}
+
 interface DiscData {
   number: number;
   tracks: TrackData[];
@@ -90,6 +101,10 @@ interface TrackData {
   musicbrainzRecordingId?: string | null;
   musicbrainzTrackId?: string | null;
   toc?: string | null;
+  artist?: string[];
+  work?: string | null;
+  composers?: string[];
+  performers?: TrackPerformer[];
 }
 
 interface DataQualityResult {
@@ -168,7 +183,7 @@ class MusicService {
     }
   }
 
-  async getAlbumById(id: number): Promise<AlbumFormatted & { discs: Array<{ number: number; tracks: Array<{ no: number; title: string; durationSec: number | null }> }> }> {
+  async getAlbumById(id: number): Promise<AlbumFormatted & { discs: Array<{ number: number; tracks: AlbumTrack[] }> }> {
     try {
       const album = await Album.findById(id);
       if (!album) {
@@ -195,7 +210,11 @@ class MusicService {
         tracks: discs[parseInt(discNumber)].map(track => ({
           no: track.trackNumber,
           title: track.title,
-          durationSec: track.durationSec
+          durationSec: track.durationSec,
+          artist: track.artist,
+          work: track.work,
+          composers: track.composers,
+          performers: track.performers
         }))
       }));
 
@@ -258,7 +277,11 @@ class MusicService {
                 isrc: track.isrc,
                 musicbrainzRecordingId: track.musicbrainzRecordingId,
                 musicbrainzTrackId: track.musicbrainzTrackId,
-                toc: track.toc
+                toc: track.toc,
+                artist: track.artist,
+                work: track.work,
+                composers: track.composers,
+                performers: track.performers
               });
             } catch (trackError) {
               console.error(`Failed to create track ${track.trackNumber || track.no}:`, trackError);
@@ -320,7 +343,11 @@ class MusicService {
                   track.musicbrainzRecordingId ?? previous?.musicbrainzRecordingId ?? undefined,
                 musicbrainzTrackId:
                   track.musicbrainzTrackId ?? previous?.musicbrainzTrackId ?? undefined,
-                toc: track.toc ?? previous?.toc ?? undefined
+                toc: track.toc ?? previous?.toc ?? undefined,
+                artist: track.artist ?? previous?.artist,
+                work: track.work ?? previous?.work,
+                composers: track.composers ?? previous?.composers,
+                performers: track.performers ?? previous?.performers
               });
             } catch (trackError) {
               console.error(`Failed to create track ${track.trackNumber || track.no}:`, trackError);
