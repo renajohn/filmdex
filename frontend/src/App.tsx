@@ -9,6 +9,7 @@ import MusicDexPage from './pages/MusicDexPage';
 import BookDexPage from './pages/BookDexPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import BackupPage from './pages/BackupPage';
+import RipProgressPage from './pages/RipProgressPage';
 import CogDropdown from './components/CogDropdown';
 import CsvExportDialog from './components/CsvExportDialog';
 import AlbumCsvExportDialog from './components/AlbumCsvExportDialog';
@@ -91,7 +92,7 @@ function AppContent() {
   const showSearchBar = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/bookdex' || location.pathname === '/wishlist';
 
   // Check if we should show the navigation pills (all main sections)
-  const showNavigationPills = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/bookdex' || location.pathname === '/wishlist' || location.pathname === '/analytics' || location.pathname === '/backup';
+  const showNavigationPills = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/musicdex/rip' || location.pathname === '/bookdex' || location.pathname === '/wishlist' || location.pathname === '/analytics' || location.pathname === '/backup';
 
   // Get the page title based on current route
   const getPageTitle = (): string => {
@@ -100,6 +101,8 @@ function AppContent() {
         return 'DexVault';
       case '/musicdex':
         return 'MusicDex';
+      case '/musicdex/rip':
+        return 'MusicDex - Ripping';
       case '/bookdex':
         return 'BookDex';
       case '/filmdex/import':
@@ -1154,7 +1157,7 @@ function AppContent() {
                   <BsFilm className="segment-icon" />
                 </button>
                 <button
-                  className={`segment ${location.pathname === '/musicdex' ? 'active' : ''}`}
+                  className={`segment ${location.pathname.startsWith('/musicdex') ? 'active' : ''}`}
                   onClick={handleMusicDex}
                   data-tooltip="MusicDex - My precious albums"
                 >
@@ -1600,6 +1603,7 @@ function AppContent() {
           />
           <Route path="/filmdex/import" element={<ImportPage />} />
           <Route path="/musicdex" element={<MusicDexPage ref={musicDexRef} searchCriteria={searchCriteria} />} />
+          <Route path="/musicdex/rip" element={<RipProgressPage />} />
           <Route path="/bookdex" element={<BookDexPage ref={bookDexRef} searchCriteria={searchCriteria} />} />
           <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onAddAlbum={handleWishListAddAlbum} onAddBook={handleWishListAddBook} onMovieMovedToCollection={handleMovieMovedToCollection} onAlbumMovedToCollection={handleAlbumMovedToCollection} onBookMovedToCollection={handleBookMovedToCollection} onShowAlert={handleShowAlert} onMovieAdded={handleMovieAdded} onAlbumAdded={handleAlbumAdded} onBookAdded={handleBookAdded} onSearch={handleSearchFromMovieDetail} />} />
           <Route path="/analytics" element={<AnalyticsPage />} />

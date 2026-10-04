@@ -26,6 +26,13 @@ services:
       - DROPBOX_APP_KEY=${DROPBOX_APP_KEY:-}
       - DROPBOX_APP_SECRET=${DROPBOX_APP_SECRET:-}
       - DROPBOX_REFRESH_TOKEN=${DROPBOX_REFRESH_TOKEN:-}
+      # Navidrome, for the ripping progress: which CDs are already in the library,
+      # and in which format. Reached over the shared "web" network, not through
+      # Traefik, whose mkcert certificate Node cannot verify. Without a user and
+      # password, the Ripping page says Navidrome is not configured.
+      - NAVIDROME_URL=${NAVIDROME_URL:-http://navidrome:4533}
+      - NAVIDROME_USER=${NAVIDROME_USER:-}
+      - NAVIDROME_PASSWORD=${NAVIDROME_PASSWORD:-}
       # The backup runs at 3 a.m. local time: without TZ the container runs on UTC.
       - TZ=Europe/Zurich
     restart: unless-stopped

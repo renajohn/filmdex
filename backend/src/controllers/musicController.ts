@@ -14,6 +14,7 @@ import musicCollectionService from '../services/musicCollectionService';
 import smartPlaylistService from '../services/smartPlaylistService';
 import musicbrainzLinkService from '../services/musicbrainzLinkService';
 import musicbrainzRefreshService from '../services/musicbrainzRefreshService';
+import ripStatusService from '../services/ripStatusService';
 import logger from '../logger';
 import type { AlbumFormatted } from '../types';
 
@@ -566,6 +567,17 @@ const musicController = {
     } catch (error) {
       logger.error('Error refreshing albums from MusicBrainz:', error);
       res.status(500).json({ error: 'Failed to refresh albums from MusicBrainz' });
+    }
+  },
+
+  /** Each CD of the collection and how it stands in Navidrome; ?refresh=1 rereads the library. */
+  getRipStatus: async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (req.query.refresh) ripStatusService.clearCache();
+      res.json(await ripStatusService.getStatus());
+    } catch (error) {
+      logger.error('Error reading the rip status:', error);
+      res.status(500).json({ error: 'Failed to read the rip status' });
     }
   },
 

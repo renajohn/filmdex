@@ -28,9 +28,39 @@ export interface AlbumStory {
   fetchedAt: string;
 }
 
+export type RipState = 'none' | 'lossy' | 'lossless';
+
+export interface RipStatusAlbum {
+  id: number;
+  title: string;
+  artist: string[];
+  cover: string | null;
+  musicbrainzReleaseId: string | null;
+  state: RipState;
+  formats: string[];
+  matches: Array<{ name: string; artist: string; match: 'musicbrainz' | 'title'; state: RipState }>;
+}
+
+export interface RipStatus {
+  configured: boolean;
+  error?: string;
+  counts: Record<RipState, number>;
+  albums: RipStatusAlbum[];
+}
+
 class MusicService {
   async getBaseUrl(): Promise<string> {
     return '/api';
+  }
+
+  /** Each CD and how it stands in Navidrome; refresh rereads the library instead of the minute-old copy. */
+  async getRipStatus(refresh = false): Promise<RipStatus> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/rip-status${refresh ? '?refresh=1' : ''}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
   }
 
   async getAllAlbums(): Promise<unknown> {

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Row, Col, Badge } from 'react-bootstrap';
-import { BsPencil, BsTrash, BsMusicNote, BsCalendar, BsFlag, BsDisc, BsApple } from 'react-icons/bs';
+import { BsPencil, BsTrash, BsMusicNote, BsCalendar, BsFlag, BsDisc, BsApple, BsTags } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
 import AlbumStory from './AlbumStory';
 import { discCredits, type TrackPerformer } from '../utils/trackCredits';
+import { canUsePicard, openInPicard } from '../utils/picard';
 import './MusicDetailCard.css';
 
 interface CdOwnership {
@@ -29,6 +30,7 @@ interface CdDisc {
 }
 
 interface CdData {
+  musicbrainzReleaseId?: string | null;
   id: number | string;
   title: string;
   artist: string | string[];
@@ -812,6 +814,16 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
           </span>
           {isInListenNext ? 'Remove from Listen Next' : 'Add to Listen Next'}
         </Button>
+        {cd.musicbrainzReleaseId && canUsePicard() && (
+          <Button
+            variant="outline-secondary"
+            onClick={() => openInPicard(cd.musicbrainzReleaseId!)}
+            title="Load this exact edition in MusicBrainz Picard, open on this computer"
+          >
+            <BsTags className="me-1" />
+            Tag in Picard
+          </Button>
+        )}
         {onEdit && (
           <Button variant="outline-primary" onClick={onEdit}>
             <BsPencil className="me-1" />

@@ -8,7 +8,7 @@ import MusicDetailCard from './MusicDetailCard';
 import AddMusicDialog from './AddMusicDialog';
 import AlphabeticalIndex from './AlphabeticalIndex';
 import { NextBanner, CollectionHeader, EmptyState } from './shared';
-import { BsChevronDown, BsMusicNote } from 'react-icons/bs';
+import { BsChevronDown, BsMusicNote, BsDisc } from 'react-icons/bs';
 import './MusicSearch.css';
 import { readStored, writeStored } from '../utils/safeStorage';
 
@@ -903,6 +903,12 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           addButtonLabel="Add Album"
           onAdd={() => setShowAddDialog(true)}
           loading={loading}
+          extraControls={
+            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => navigate('/musicdex/rip')}>
+              <BsDisc className="me-1" />
+              Ripping
+            </button>
+          }
         />
 
         {/* Album Grid or Grouped Albums */}
