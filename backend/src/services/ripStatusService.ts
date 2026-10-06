@@ -1,4 +1,5 @@
 import Album from '../models/album';
+import type { AlbumFormatted } from '../types';
 import navidromeService, { type NavidromeAlbum, type NavidromeSong } from './navidromeService';
 import musicbrainzLinkService from './musicbrainzLinkService';
 import musicbrainzService from './musicbrainzService';
@@ -110,6 +111,18 @@ const releaseInfo = async (releaseId: string): Promise<ReleaseInfo> => {
   return info;
 };
 
+/** The Navidrome albums that are this CD: same MusicBrainz edition, else same title and artist. */
+const matchesOf = (album: AlbumFormatted, candidates: NavidromeAlbum[]): Array<{ candidate: NavidromeAlbum; match: RipMatch }> => {
+  const variants = titleVariants(album.title);
+  return candidates.flatMap(candidate => {
+    if (album.musicbrainzReleaseId && candidate.musicBrainzId === album.musicbrainzReleaseId) {
+      return [{ candidate, match: 'musicbrainz' as RipMatch }];
+    }
+    return variants.has(cleanTitle(candidate.name)) && sameArtist(album.artist, candidate.artist)
+      ? [{ candidate, match: 'title' as RipMatch }] : [];
+  });
+};
+
 const CACHE_MS = 60_000;
 let cache: { at: number; albums: NavidromeAlbum[]; songs: NavidromeSong[] } | null = null;
 
@@ -196,6 +209,21 @@ const ripStatusService = {
     return results;
   },
 
+  /**
+   * The copy of a CD in Navidrome whose cover to take: the lossless rip, the
+   * one tagged in Picard, before an old MP3. Null when Navidrome has none.
+   */
+  navidromeAlbumFor: async (albumId: number): Promise<NavidromeAlbum | null> => {
+    const album = await Album.findById(albumId);
+    if (!album) return null;
+    const navidrome = await library();
+    const songsByAlbum = groupSongs(navidrome.songs);
+    const matches = matchesOf(album, navidrome.albums)
+      .sort((a, b) => Number(albumState(b.candidate, songsByAlbum) === 'lossless') - Number(albumState(a.candidate, songsByAlbum) === 'lossless')
+        || Number(b.match === 'musicbrainz') - Number(a.match === 'musicbrainz'));
+    return matches[0]?.candidate ?? null;
+  },
+
   getStatus: async (): Promise<RipStatus> => {
     const counts: Record<RipState, number> = { none: 0, lossy: 0, lossless: 0 };
     const owned = (await Album.findAll()).filter(album => /CD|Unknown/i.test(album.format || 'Unknown'));
@@ -215,14 +243,7 @@ const ripStatusService = {
     const stateOf = (album: NavidromeAlbum) => albumState(album, songsByAlbum);
 
     const albums = owned.map(album => {
-      const variants = titleVariants(album.title);
-      const matches = navidrome.albums.flatMap(candidate => {
-        if (album.musicbrainzReleaseId && candidate.musicBrainzId === album.musicbrainzReleaseId) {
-          return [{ candidate, match: 'musicbrainz' as RipMatch }];
-        }
-        return variants.has(cleanTitle(candidate.name)) && sameArtist(album.artist, candidate.artist)
-          ? [{ candidate, match: 'title' as RipMatch }] : [];
-      });
+      const matches = matchesOf(album, navidrome.albums);
 
       // A CD ripped again sits next to its old MP3 copy until that one is deleted: the best copy counts.
       const states = matches.map(({ candidate }) => stateOf(candidate));

@@ -19,7 +19,7 @@ XLD ──► ~/Music/Rips ──► Picard ──► ~/Music/Library ──► 
   - déplacer et renommer les fichiers à l'enregistrement, vers `~/Music/Library/Artiste/Album/` ;
   - emporter le journal XLD (`*.log *.cue`) avec l'album et supprimer les dossiers vidés ;
   - pochette intégrée aux fichiers **et** `cover.jpg` à côté (pour Navidrome) ;
-  - pour garder aussi le dos (et le livret) : **Options > Cover Art**, décocher *Save only a single front image as separate file*, cocher *Use the image type as filename* (`front.jpg`, `back.jpg`), laisser *Embed only a single front image* coché ; puis **Cover Art Archive > Select types…**, ajouter *Back* (et *Booklet*). Le Cover Art Archive n'a souvent que la pochette avant ;
+  - pour garder aussi le dos (et le livret) : **Options > Cover Art**, laisser cochés *Embed only a single front image* **et** *Save only a single front image as separate file* (ils ne limitent que l'image avant : sans eux, une édition à deux images « front » donne `cover.jpg` et `cover (1).jpg`), cocher *Use the image type as filename* (`back.jpg`, `booklet.jpg` ; l'avant reste `cover.jpg`) ; puis **Cover Art Archive > Select types…**, ajouter *Back* (et *Booklet*). Le Cover Art Archive n'a souvent que la pochette avant ;
   - **Use release relationships** et **Use track relationships** cochés (compositeur, chef, interprètes dans les tags) ;
   - intégration navigateur active sur le port 8000 (pour le bouton « Picard » de DexVault).
 - **`sync-music`** est dans `~/.local/bin`. Il envoie `~/Music/Library` vers `p-cloud:/home/rjl/Music/FLAC/` par rsync, puis supprime la copie locale. Un fichier local n'est supprimé qu'une fois arrivé intact, et rien n'est jamais supprimé sur p-cloud.
@@ -66,6 +66,13 @@ Puis il rafraîchit pistes et crédits depuis l'édition exacte.
 - Seule une édition que MusicBrainz liste comme **CD** est ajoutée : un album acheté en téléchargement FLAC (Bandcamp…) n'est pas un CD de la collection.
 - Si **deux albums** de DexVault ont le même release group, ou si l'édition appartient déjà à un autre album, DexVault ne touche à rien.
 - Les **pochettes** de DexVault (avant et dos) ne sont jamais remplacées : DexVault ne lit aucune image dans Navidrome, et ni l'adoption d'une édition ni le rafraîchissement n'écrivent les pochettes. Elles ne sont téléchargées qu'à l'ajout d'un CD absent de DexVault.
+
+## Mettre sa propre photo comme pochette
+
+1. Dans Picard, avant ⌘S, glisser sa photo sur l'album (panneau de droite) : elle remplace l'image de MusicBrainz dans les tags et dans `cover.jpg`.
+2. Après `sync-music`, dans DexVault : fiche de l'album > **Edit** > sous la pochette, **Use the cover from Navidrome**.
+
+DexVault ne fait cet import que sur demande. Navidrome ne fournit que la pochette **avant** : le dos se change toujours avec **Change Back Cover** dans DexVault. Si Navidrome n'a aucune image pour l'album, il renvoie une image générique : vérifier le résultat, et recharger l'ancienne au besoin.
 
 ## États de la page Ripping
 

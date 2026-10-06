@@ -544,6 +544,17 @@ class MusicService {
     }
   }
 
+  /** Takes the cover Navidrome shows for this CD, the one in the rip, as the album's front cover. */
+  async importNavidromeCover(albumId: number | string): Promise<{ coverPath: string }> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/albums/${albumId}/import-navidrome-cover`, { method: 'POST' });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.error || `HTTP error! status: ${response.status}`);
+    }
+    return body;
+  }
+
   /** As uploadCover, for the back. */
   async uploadBackCover(albumId: number | string, file: File): Promise<unknown> {
     try {

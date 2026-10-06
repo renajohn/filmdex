@@ -272,3 +272,61 @@ describe('adoption des éditions depuis les rips', () => {
     expect((await Album.findById(id)).musicbrainzReleaseId).toMatch(/^first-/);
   });
 });
+
+describe('import de la pochette depuis Navidrome', () => {
+  const imageService = require('../../src/services/imageService').default;
+  const Album = require('../../src/models/album').default;
+
+  const insertWithCover = (title: string) =>
+    new Promise<number>((resolve, reject) =>
+      getDatabase().run(
+        `INSERT INTO albums (title, artist, format, title_status, cover, back_cover) VALUES (?, '["Massive Attack"]', 'CD', 'owned', '/images/cd/old.jpg', '/images/cd/my-back.jpg')`,
+        [title],
+        function (this: { lastID: number }, err: Error | null) { if (err) reject(err); else resolve(this.lastID); }
+      ));
+
+  beforeEach(() => {
+    jest.spyOn(imageService, 'saveImage').mockImplementation(async (_d: unknown, type: unknown, name: unknown) => `/api/images/${type}/${name}`);
+    jest.spyOn(imageService, 'resizeImage').mockResolvedValue(true);
+  });
+
+  it('prend la pochette du rip lossless, pas celle du vieux MP3, et garde le dos', async () => {
+    const title = `Mezzanine ${Math.random().toString(36).slice(2, 8)}`;
+    const id = await insertWithCover(title);
+    jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([album('mp3', title, 'Massive Attack'), album('flac', title, 'Massive Attack')]);
+    jest.spyOn(navidromeService, 'getSongs').mockResolvedValue([...songs('mp3', 'mp3'), ...songs('flac', 'flac')]);
+    const cover = jest.spyOn(navidromeService, 'getCoverArt').mockResolvedValue({ data: Buffer.from('jpeg'), contentType: 'image/jpeg' });
+
+    const res = await request(app).post(`/api/music/albums/${id}/import-navidrome-cover`);
+
+    expect(res.status).toBe(200);
+    expect(cover).toHaveBeenCalledWith('flac');
+    const saved = await Album.findById(id);
+    expect(saved.cover).toMatch(/^\/api\/images\/cd\/custom\/navidrome_\d+_\d+\.jpg$/);
+    expect(saved.backCover).toBe('/images/cd/my-back.jpg');
+  });
+
+  it('répond 404 pour un CD absent de Navidrome, sans rien changer', async () => {
+    const id = await insertWithCover(`Unripped ${Math.random()}`);
+    jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([]);
+    jest.spyOn(navidromeService, 'getSongs').mockResolvedValue([]);
+
+    const res = await request(app).post(`/api/music/albums/${id}/import-navidrome-cover`);
+
+    expect(res.status).toBe(404);
+    expect((await Album.findById(id)).cover).toBe('/images/cd/old.jpg');
+  });
+
+  it('garde l’ancienne pochette quand Navidrome n’en donne pas', async () => {
+    const title = `No art ${Math.random().toString(36).slice(2, 8)}`;
+    const id = await insertWithCover(title);
+    jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([album('nd', title, 'Massive Attack')]);
+    jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(songs('nd', 'flac'));
+    jest.spyOn(navidromeService, 'getCoverArt').mockRejectedValue(new Error('Navidrome has no cover for this album'));
+
+    const res = await request(app).post(`/api/music/albums/${id}/import-navidrome-cover`);
+
+    expect(res.status).toBe(502);
+    expect((await Album.findById(id)).cover).toBe('/images/cd/old.jpg');
+  });
+});

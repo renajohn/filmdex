@@ -127,6 +127,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backCoverInputRef = useRef<HTMLInputElement>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [importingNavidromeCover, setImportingNavidromeCover] = useState(false);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [backCoverPreview, setBackCoverPreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -674,6 +675,25 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
     }
   };
 
+  /** Replaces the front cover with the one of the rip in Navidrome; the back is left as it is. */
+  const handleImportNavidromeCover = async () => {
+    if (!cd?.id) return;
+    setImportingNavidromeCover(true);
+    try {
+      const result = await musicService.importNavidromeCover(cd.id);
+      setCoverPreview(result.coverPath);
+      setFormData(prev => ({ ...prev, cover: result.coverPath }));
+      setUploadMessageType('success');
+      setUploadMessage('Cover taken from Navidrome');
+      setTimeout(() => setUploadMessage(null), 3000);
+    } catch (error) {
+      setUploadMessageType('danger');
+      setUploadMessage('Could not take the cover from Navidrome: ' + (error as Error).message);
+    } finally {
+      setImportingNavidromeCover(false);
+    }
+  };
+
   const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     // Cleared so the same photo can be picked again after a cancel.
@@ -1110,6 +1130,19 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                 <Form.Text className="text-muted d-block mt-2" style={{ fontSize: '0.75rem' }}>
                   JPEG, PNG, WebP (max 10MB)
                 </Form.Text>
+                {cd && cd.id && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="p-0 mt-1"
+                    style={{ fontSize: '0.75rem' }}
+                    disabled={importingNavidromeCover}
+                    onClick={handleImportNavidromeCover}
+                    title="Take the cover Navidrome shows for this CD: the one Picard put in your rip, your own photo if you dropped it there"
+                  >
+                    {importingNavidromeCover ? 'Importing…' : 'Use the cover from Navidrome'}
+                  </Button>
+                )}
               </Form.Group>
             </Col>
 

@@ -39,16 +39,22 @@ const isConfigured = (): boolean => {
 };
 
 /** Token authentication: the password itself never travels, only md5(password + salt). */
-const request = async <T>(endpoint: string, params: Record<string, string | number> = {}): Promise<T> => {
-  const { url, user, password } = config();
+const authParams = (): Record<string, string> => {
+  const { user, password } = config();
   if (!user || !password) throw new Error('Navidrome is not configured: set NAVIDROME_USER and NAVIDROME_PASSWORD');
   const salt = crypto.randomBytes(8).toString('hex');
   const token = crypto.createHash('md5').update(password + salt).digest('hex');
+  return { u: user, t: token, s: salt, v: '1.16.1', c: 'dexvault', f: 'json' };
+};
+
+const request = async <T>(endpoint: string, params: Record<string, string | number> = {}): Promise<T> => {
+  const { url } = config();
+  const auth = authParams();
 
   let data: SubsonicResponse<T>;
   try {
     const response = await axios.get<SubsonicResponse<T>>(`${url}/rest/${endpoint}`, {
-      params: { ...params, u: user, t: token, s: salt, v: '1.16.1', c: 'dexvault', f: 'json' },
+      params: { ...params, ...auth },
       timeout: TIMEOUT_MS,
     });
     data = response.data;
@@ -86,6 +92,29 @@ const navidromeService = {
       albums.push(...page.map(toAlbum));
       if (page.length < PAGE_SIZE) return albums;
     }
+  },
+
+  /**
+   * An album's cover as Navidrome shows it: cover.jpg or front.jpg beside the
+   * files, else the image embedded in them. Navidrome does not serve the back.
+   */
+  getCoverArt: async (albumId: string): Promise<{ data: Buffer; contentType: string }> => {
+    const { url } = config();
+    let response;
+    try {
+      response = await axios.get<ArrayBuffer>(`${url}/rest/getCoverArt`, {
+        params: { id: albumId, ...authParams() },
+        responseType: 'arraybuffer',
+        timeout: TIMEOUT_MS,
+      });
+    } catch (error) {
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      throw new Error(`Navidrome cover request failed${status ? ` (HTTP ${status})` : ''}`);
+    }
+    const contentType = String(response.headers['content-type'] || '');
+    // A refusal comes back as a Subsonic error document, not as an image.
+    if (!contentType.startsWith('image/')) throw new Error('Navidrome has no cover for this album');
+    return { data: Buffer.from(response.data), contentType };
   },
 
   /** Every song with its format: an empty search3 query lists the whole library in Navidrome. */

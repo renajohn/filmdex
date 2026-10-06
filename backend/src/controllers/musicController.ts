@@ -15,6 +15,7 @@ import smartPlaylistService from '../services/smartPlaylistService';
 import musicbrainzLinkService from '../services/musicbrainzLinkService';
 import musicbrainzRefreshService from '../services/musicbrainzRefreshService';
 import ripStatusService from '../services/ripStatusService';
+import navidromeService from '../services/navidromeService';
 import logger from '../logger';
 import type { AlbumFormatted } from '../types';
 
@@ -597,6 +598,41 @@ const musicController = {
     } catch (error) {
       logger.error('Error syncing the rip status:', error);
       res.status(500).json({ error: 'Failed to sync the rip status' });
+    }
+  },
+
+  /**
+   * Takes the cover Navidrome shows for this CD as its DexVault cover: a photo
+   * of one's own, dropped on the album in Picard, comes back this way. Only
+   * ever on request; the synchronisation with the rips never writes a cover.
+   */
+  importNavidromeCover: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const id = parseInt(req.params.id as string, 10);
+      if (!navidromeService.isConfigured()) {
+        res.status(409).json({ error: 'Navidrome is not configured' });
+        return;
+      }
+      const navidromeAlbum = await ripStatusService.navidromeAlbumFor(id);
+      if (!navidromeAlbum) {
+        res.status(404).json({ error: 'This CD is not in Navidrome' });
+        return;
+      }
+      const { data } = await navidromeService.getCoverArt(navidromeAlbum.id);
+      const filename = `navidrome_${id}_${Date.now()}.jpg`;
+      const coverPath = await imageService.saveImage(data, 'cd/custom', filename);
+      try {
+        const fullPath = imageService.getLocalImagePath('cd/custom', filename);
+        await imageService.resizeImage(fullPath, fullPath, 1000, 1000);
+      } catch (error) {
+        logger.warn('Failed to resize the cover taken from Navidrome:', (error as Error).message);
+      }
+      await Album.updateFrontCover(id, coverPath);
+      logger.info(`Album ${id} takes its cover from Navidrome album ${navidromeAlbum.id}`);
+      res.json({ success: true, coverPath });
+    } catch (error) {
+      logger.error('Error importing the cover from Navidrome:', error);
+      res.status(502).json({ error: (error as Error).message || 'Failed to import the cover from Navidrome' });
     }
   },
 
