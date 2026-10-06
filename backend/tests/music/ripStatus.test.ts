@@ -236,6 +236,29 @@ describe('adoption des éditions depuis les rips', () => {
     expect(album.musicbrainzReleaseId).toBe(exact);
   });
 
+  it('garde la pochette et le dos de DexVault quand un rip change l’édition ou sort l’album de la wish list', async () => {
+    const covers = async (status: string) => {
+      const group = `rg-${Math.random()}`;
+      const id = await new Promise<number>((resolve, reject) =>
+        getDatabase().run(
+          `INSERT INTO albums (title, artist, musicbrainz_release_id, musicbrainz_release_group_id, format, title_status, cover, back_cover)
+           VALUES ('With covers', '["X"]', ?, ?, 'CD', ?, '/images/cd/my-front.jpg', '/images/cd/my-back.jpg')`,
+          [`first-${Math.random()}`, group, status],
+          function (this: { lastID: number }, err: Error | null) { if (err) reject(err); else resolve(this.lastID); }
+        ));
+      // The rip in Navidrome has no back cover at all: DexVault never reads images from it.
+      library(`exact-${Math.random()}`);
+      jest.spyOn(musicbrainzService, 'getReleaseDetails').mockResolvedValue({ 'release-group': { id: group }, media: [{ format: 'CD' }] });
+      ripStatusService.clearCache();
+      await ripStatusService.adoptEditions();
+      const album = await Album.findById(id);
+      return [album.cover, album.backCover];
+    };
+
+    expect(await covers('owned')).toEqual(['/images/cd/my-front.jpg', '/images/cd/my-back.jpg']);
+    expect(await covers('wish')).toEqual(['/images/cd/my-front.jpg', '/images/cd/my-back.jpg']);
+  });
+
   it('n’adopte pas une édition déjà portée par un autre album', async () => {
     const group = `rg-${Math.random()}`;
     const exact = `taken-${Math.random()}`;

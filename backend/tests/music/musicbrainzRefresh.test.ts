@@ -117,6 +117,24 @@ describe('refreshAlbum', () => {
     expect((await Album.findById(id))!.producer).toEqual(['Hand Entered']);
   });
 
+  it('ne touche jamais à la pochette ni au dos', async () => {
+    const id = await insertAlbum();
+    await new Promise<void>((resolve, reject) => getDatabase().run(
+      `UPDATE albums SET cover = '/images/cd/my-front.jpg', back_cover = '/images/cd/my-back.jpg' WHERE id = ?`, [id],
+      (err: Error | null) => (err ? reject(err) : resolve())));
+    jest.spyOn(musicbrainzService, 'getReleaseWithCredits').mockResolvedValue(release(3));
+
+    await musicbrainzRefreshService.refreshAlbum(id);
+
+    const album = (await Album.findById(id))!;
+    expect(album.cover).toBe('/images/cd/my-front.jpg');
+    expect(album.backCover).toBe('/images/cd/my-back.jpg');
+  });
+
+  it('refuse d’écrire une colonne de pochette', async () => {
+    await expect(Album.setColumns(1, { back_cover: null })).rejects.toThrow(/Unknown album columns: back_cover/);
+  });
+
   it('répond 409 pour un album sans édition MusicBrainz', async () => {
     const id = await insertAlbum({ releaseId: null });
     const res = await request(app).post(`/api/music/albums/${id}/refresh-musicbrainz`);

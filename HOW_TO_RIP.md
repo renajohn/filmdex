@@ -11,11 +11,15 @@ XLD ──► ~/Music/Rips ──► Picard ──► ~/Music/Library ──► 
 - **Portainer** : dans la stack DexVault, ajouter `NAVIDROME_USER` et `NAVIDROME_PASSWORD` (un compte Navidrome dédié, sans droits d'admin), puis redéployer. Ne pas renseigner `NAVIDROME_URL` : la valeur par défaut, `http://navidrome:4533`, passe par le réseau Docker `web` (par Traefik, le certificat mkcert n'est pas vérifiable par Node).
 - **XLD** (dans `/Applications`) : au premier lancement, macOS le bloque car il n'est pas notarié. Aller dans **Réglages Système > Confidentialité et sécurité** et cliquer sur **Ouvrir quand même**. Puis, dans **XLD > Préférences** :
   - **Général** : format de sortie **FLAC**, dossier de sortie `~/Music/Rips`.
-  - **Rip CD** : **XLD Secure Ripper**, **Query AccurateRip** coché, **Save log file** coché, **Test before copy** décoché. Détecter une fois le **read offset** de son lecteur (bouton **Detect** avec un CD courant).
+  - **File Naming** : **Custom** `%T/%n %t`, pour un sous-dossier par CD dans `~/Music/Rips`.
+  - **Rip CD** : **XLD Secure Ripper**, **Query AccurateRip** coché, **Save log file** coché, **Test before copy** décoché, pre-gap **Include pre-gap except HTOA** (le défaut, celui d'AccurateRip). Détecter une fois le **read offset** de son lecteur (bouton **Detect** avec un CD courant).
+  - Ne pas ajouter les rips à l'app Musique : ils seraient copiés en plus dans `~/Music/Music`.
+- **`~/Music/Rips`** contient un fichier caché `.keep` : sans lui, Picard supprime le dossier dès qu'il est vide. Ne pas l'effacer.
 - **Picard** : déjà réglé dans `~/.config/MusicBrainz/Picard.ini` (à refaire seulement si on le réinstalle) :
   - déplacer et renommer les fichiers à l'enregistrement, vers `~/Music/Library/Artiste/Album/` ;
   - emporter le journal XLD (`*.log *.cue`) avec l'album et supprimer les dossiers vidés ;
   - pochette intégrée aux fichiers **et** `cover.jpg` à côté (pour Navidrome) ;
+  - pour garder aussi le dos (et le livret) : **Options > Cover Art**, décocher *Save only a single front image as separate file*, cocher *Use the image type as filename* (`front.jpg`, `back.jpg`), laisser *Embed only a single front image* coché ; puis **Cover Art Archive > Select types…**, ajouter *Back* (et *Booklet*). Le Cover Art Archive n'a souvent que la pochette avant ;
   - **Use release relationships** et **Use track relationships** cochés (compositeur, chef, interprètes dans les tags) ;
   - intégration navigateur active sur le port 8000 (pour le bouton « Picard » de DexVault).
 - **`sync-music`** est dans `~/.local/bin`. Il envoie `~/Music/Library` vers `p-cloud:/home/rjl/Music/FLAC/` par rsync, puis supprime la copie locale. Un fichier local n'est supprimé qu'une fois arrivé intact, et rien n'est jamais supprimé sur p-cloud.
@@ -28,8 +32,9 @@ XLD ──► ~/Music/Rips ──► Picard ──► ~/Music/Library ──► 
 3. **Picard > Lookup CD** (bouton à disque de la barre d'outils).
    - **Disque trouvé** : l'album apparaît à droite. Si Picard propose plusieurs éditions, prendre celle du boîtier : label, numéro de catalogue, pays.
    - **Disque non trouvé** : Picard ouvre une page MusicBrainz « Disc ID not found ». La fermer, puis cliquer sur **« Picard »** sur la ligne du CD dans DexVault : Picard charge l'édition que DexVault connaît.
-4. **Glisser le dossier du rip** depuis `~/Music/Rips` (Finder) sur l'album, à droite dans Picard. Les pistes deviennent vertes ; vérifier que les numéros correspondent.
-5. **Enregistrer : ⌘S.** Picard tague les fichiers, puis les déplace dans `~/Music/Library`.
+4. **Glisser le dossier du rip** depuis `~/Music/Rips` (Finder) sur la ligne de l'album, **dans le panneau de droite** de Picard. Déplier l'album : chaque piste montre son fichier, l'album indique 11/11 (par exemple), et le panneau de gauche est vide.
+5. **Sélectionner l'album dans le panneau de droite**, puis **⌘S**. Picard tague les fichiers, puis les déplace dans `~/Music/Library/Artiste/Album/`.
+   Enregistrer des fichiers restés dans le panneau de gauche les range sans tags MusicBrainz, dans `Artiste/Titre.flac`, sans dossier d'album ni numéro : les recharger dans Picard et recommencer.
 6. Éjecter le CD. Dans le Terminal : **`sync-music`**, tout de suite ou après plusieurs CD.
 7. Quelques minutes plus tard, **DexVault > Ripping > Refresh**. Le CD passe en « Lossless ». Si Picard a reconnu un autre pressage que celui qu'avait DexVault, un encart vert l'indique : DexVault a pris l'édition du rip, et pistes et crédits suivent ce pressage.
 
@@ -38,7 +43,7 @@ XLD ──► ~/Music/Rips ──► Picard ──► ~/Music/Library ──► 
 1. **XLD** : insérer le CD, **Rip**, **ne pas éjecter**.
 2. **Picard > Lookup CD.** C'est ici le seul moyen d'identifier le pressage exact : DexVault n'a pas d'édition à proposer.
    - **Disque non trouvé** : utiliser le champ de recherche de Picard (en haut à droite, mode « Album »), chercher par titre et artiste, puis choisir l'édition du boîtier : code-barres, label, pays.
-3. **Glisser le dossier** du rip sur l'album, vérifier que tout est vert, puis **⌘S**.
+3. **Glisser le dossier** du rip sur l'album dans le panneau de droite, vérifier que tout est rattaché, sélectionner l'album, puis **⌘S**.
 4. **`sync-music`**.
 5. **DexVault > Ripping > Refresh.** Un encart indique « now added to your collection » : l'album est créé avec la pochette, les pistes et les crédits de l'édition rippée. Ses titres sont ceux de MusicBrainz, comme dans les tags.
 6. Ouvrir la fiche dans DexVault pour vérifier, et compléter ce qui ne vient pas de MusicBrainz : état, prix, notes.
@@ -60,6 +65,7 @@ Puis il rafraîchit pistes et crédits depuis l'édition exacte.
 - Seul un rip **lossless** compte : les anciens MP3, même tagués, ne décident rien.
 - Seule une édition que MusicBrainz liste comme **CD** est ajoutée : un album acheté en téléchargement FLAC (Bandcamp…) n'est pas un CD de la collection.
 - Si **deux albums** de DexVault ont le même release group, ou si l'édition appartient déjà à un autre album, DexVault ne touche à rien.
+- Les **pochettes** de DexVault (avant et dos) ne sont jamais remplacées : DexVault ne lit aucune image dans Navidrome, et ni l'adoption d'une édition ni le rafraîchissement n'écrivent les pochettes. Elles ne sont téléchargées qu'à l'ajout d'un CD absent de DexVault.
 
 ## États de la page Ripping
 
