@@ -589,3 +589,26 @@
   outline: 1px solid rgba(251, 191, 36, 0.75);
   outline-offset: 2px;
 }
+
+/*
+ * On a phone the dialog fills the screen. Edit and Delete are rarely wanted
+ * there, so they end the dialog instead of staying pinned under the tracks:
+ * the whole dialog scrolls, and only its title stays in view.
+ */
+@media (max-width: 767.98px) {
+  .music-detail-modal .modal-fullscreen-md-down .modal-content {
+    overflow-y: auto;
+  }
+
+  .music-detail-modal .modal-fullscreen-md-down .modal-body {
+    flex: 0 0 auto;
+    overflow-y: visible;
+  }
+
+  .music-detail-modal .modal-fullscreen-md-down .modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: inherit;
+  }
+}
