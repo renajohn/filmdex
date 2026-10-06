@@ -15,8 +15,14 @@ export const isAppleMobile = (): boolean => {
   return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
 };
 
-export const amperfyUrl = (albumId: string): string =>
-  `amperfy://x-callback-url/playID?id=${encodeURIComponent(albumId)}&libraryElementType=album`;
+export const amperfyUrl = (id: string, type: 'album' | 'song' = 'album'): string =>
+  `amperfy://x-callback-url/playID?id=${encodeURIComponent(id)}&libraryElementType=${type}`;
+
+/** A track: Amperfy plays it on an iPhone, Navidrome shows it elsewhere. */
+export const trackListenUrl = (
+  track: { id?: string | null; url?: string | null },
+  appleMobile: boolean = isAppleMobile(),
+): string | null => (appleMobile ? (track.id ? amperfyUrl(track.id, 'song') : null) : track.url || null);
 
 export const listenUrl = (album: NavidromeAlbumLink, appleMobile: boolean = isAppleMobile()): string | null =>
   appleMobile ? amperfyUrl(album.id) : album.url || null;

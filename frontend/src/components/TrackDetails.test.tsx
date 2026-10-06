@@ -11,6 +11,7 @@ const credited: DetailedTrack = {
 
 const rip = {
   configured: true, found: true, tracks: [{
+    id: 'song-1', url: 'https://music.example/app/#/song?filter=x',
     discNumber: 1, track: 1, title: 'Danseuses de Delphes', durationSec: 149, suffix: 'flac', bitRate: 900,
     bitDepth: 16, samplingRate: 44100, channelCount: 2, size: 20_000_000, path: 'Debussy/01.flac',
   }],
@@ -25,7 +26,8 @@ describe('TrackDetails', () => {
     expect(screen.getByText('Ruth Schmid-Gagnebin', { exact: false })).toBeInTheDocument();
     expect(screen.getByText('piano')).toBeInTheDocument();
     expect(screen.getByText('CHA000300001')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Recording' })).toHaveAttribute('href', 'https://musicbrainz.org/recording/rec-1');
+    expect(screen.getByRole('link', { name: 'Navidrome' })).toHaveAttribute('href', 'https://music.example/app/#/song?filter=x');
+    expect(screen.queryByRole('link', { name: 'Recording' })).not.toBeInTheDocument();
     expect(screen.getByText('FLAC · 16-bit · 44.1 kHz · stereo', { exact: false })).toBeInTheDocument();
     expect(screen.getByText('Debussy/01.flac')).toBeInTheDocument();
   });

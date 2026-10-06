@@ -10,6 +10,7 @@ import crypto from 'crypto';
 const DEFAULT_URL = 'http://navidrome:4533';
 /** Where a browser reaches Navidrome, through Traefik: the links DexVault hands out. */
 const DEFAULT_PUBLIC_URL = 'https://music.lab.crog.org';
+const publicUrl = (): string => (process.env.NAVIDROME_PUBLIC_URL || DEFAULT_PUBLIC_URL).replace(/\/+$/, '');
 const PAGE_SIZE = 500;
 const TIMEOUT_MS = 20000;
 
@@ -73,6 +74,9 @@ const request = async <T>(endpoint: string, params: Record<string, string | numb
 
 /** One file of a rip, as the track panel shows it. */
 export interface NavidromeTrackFile {
+  id: string | null;
+  /** The track alone in Navidrome's song list: its web player has no page of a song's own. */
+  url: string | null;
   discNumber: number;
   track: number;
   title: string;
@@ -88,7 +92,7 @@ export interface NavidromeTrackFile {
 
 type RawAlbum = { id: string; name: string; artist?: string; musicBrainzId?: string; songCount?: number };
 type RawAlbumSong = {
-  title?: string; track?: number; discNumber?: number; duration?: number; suffix?: string; bitRate?: number;
+  id?: string; title?: string; track?: number; discNumber?: number; duration?: number; suffix?: string; bitRate?: number;
   bitDepth?: number; samplingRate?: number; channelCount?: number; size?: number; path?: string;
 };
 type RawSong = { albumId?: string; suffix?: string; bitDepth?: number };
@@ -105,8 +109,11 @@ const navidromeService = {
   isConfigured,
 
   /** The album's page in Navidrome's web player. */
-  albumUrl: (albumId: string): string =>
-    `${(process.env.NAVIDROME_PUBLIC_URL || DEFAULT_PUBLIC_URL).replace(/\/+$/, '')}/app/#/album/${encodeURIComponent(albumId)}/show`,
+  albumUrl: (albumId: string): string => `${publicUrl()}/app/#/album/${encodeURIComponent(albumId)}/show`,
+
+  /** A song in Navidrome's web player: its song list filtered down to that title on that album. */
+  songUrl: (albumId: string, title: string): string =>
+    `${publicUrl()}/app/#/song?filter=${encodeURIComponent(JSON.stringify({ album_id: albumId, title }))}`,
 
   /** Every album, page by page. */
   getAlbums: async (): Promise<NavidromeAlbum[]> => {
@@ -146,6 +153,8 @@ const navidromeService = {
   getAlbumSongs: async (albumId: string): Promise<NavidromeTrackFile[]> => {
     const body = await request<{ album?: { song?: RawAlbumSong[] } }>('getAlbum', { id: albumId });
     return (body.album?.song || []).map(song => ({
+      id: song.id || null,
+      url: song.title ? navidromeService.songUrl(albumId, song.title) : null,
       discNumber: song.discNumber || 1,
       track: song.track || 0,
       title: song.title || '',

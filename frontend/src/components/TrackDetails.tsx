@@ -3,6 +3,7 @@ import { BsBoxArrowUpRight } from 'react-icons/bs';
 import type { RipTracks } from '../services/musicService';
 import type { TrackPerformer } from '../utils/trackCredits';
 import { performersByPerson, ripFileFor, ripFormat, ripSize } from '../utils/trackDetail';
+import { isAppleMobile, trackListenUrl } from '../utils/navidrome';
 import './TrackDetails.css';
 
 export interface DetailedTrack {
@@ -45,6 +46,8 @@ const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumArtists = [], i
   const key = (names: string[]) => names.map(name => name.toLocaleLowerCase()).sort().join('|');
   const artists = key(track.artist || []) === key(albumArtists) ? [] : track.artist || [];
   const file = rip?.found ? ripFileFor(rip.tracks, track.disc, Number(track.no)) : null;
+  const appleMobile = isAppleMobile();
+  const listenUrl = file ? trackListenUrl(file, appleMobile) : null;
   const credited = Boolean(track.work || composers.length || people.length);
 
   let ripText: React.ReactNode = null;
@@ -79,15 +82,14 @@ const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumArtists = [], i
           </Field>
         )}
         {track.isrc && <Field label="ISRC"><code className="track-details-isrc">{track.isrc}</code></Field>}
-        {track.musicbrainzRecordingId && (
-          <Field label="MusicBrainz">
+        {listenUrl && (
+          <Field label="Listen">
             <a
               className="track-details-link"
-              href={`https://musicbrainz.org/recording/${track.musicbrainzRecordingId}`}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={listenUrl}
+              {...(appleMobile ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
             >
-              Recording
+              {appleMobile ? 'Amperfy' : 'Navidrome'}
               <BsBoxArrowUpRight aria-hidden="true" />
             </a>
           </Field>

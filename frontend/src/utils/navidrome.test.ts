@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { amperfyUrl, listenUrl, openListen } from './navidrome';
+import { amperfyUrl, listenUrl, openListen, trackListenUrl } from './navidrome';
 
 const album = { id: 'nd-1', url: 'https://music.lab.crog.org/app/#/album/nd-1/show' };
 
@@ -9,6 +9,13 @@ describe('navidrome', () => {
   it('asks Amperfy to play the album on an iPhone', () => {
     expect(amperfyUrl('nd 1')).toBe('amperfy://x-callback-url/playID?id=nd%201&libraryElementType=album');
     expect(listenUrl(album, true)).toBe('amperfy://x-callback-url/playID?id=nd-1&libraryElementType=album');
+  });
+
+  it('plays a track in Amperfy on an iPhone, and shows it in Navidrome elsewhere', () => {
+    const track = { id: 'song 1', url: 'https://music.example/app/#/song?filter=x' };
+    expect(trackListenUrl(track, true)).toBe('amperfy://x-callback-url/playID?id=song%201&libraryElementType=song');
+    expect(trackListenUrl(track, false)).toBe('https://music.example/app/#/song?filter=x');
+    expect(trackListenUrl({ id: null, url: null }, true)).toBeNull();
   });
 
   it('opens the album in Navidrome elsewhere', () => {

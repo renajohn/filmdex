@@ -352,7 +352,7 @@ describe('fichiers du rip pour le panneau de piste', () => {
     jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([album('nd-f', title, 'Donald Fagen')]);
     jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(songs('nd-f', 'flac', 16));
     const get = jest.spyOn(axios, 'get').mockResolvedValue({ data: { 'subsonic-response': { status: 'ok', album: { song: [
-      { title: 'I.G.Y.', track: 1, discNumber: 1, duration: 363, suffix: 'FLAC', bitRate: 900, bitDepth: 16, samplingRate: 44100, channelCount: 2, size: 40000000, path: 'Donald Fagen/The Nightfly/01 I.G.Y..flac' },
+      { id: 'song-1', title: 'I.G.Y.', track: 1, discNumber: 1, duration: 363, suffix: 'FLAC', bitRate: 900, bitDepth: 16, samplingRate: 44100, channelCount: 2, size: 40000000, path: 'Donald Fagen/The Nightfly/01 I.G.Y..flac' },
     ] } } } });
     jest.spyOn(navidromeService, 'isConfigured').mockReturnValue(true);
     process.env.NAVIDROME_USER = 'dexvault';
@@ -363,7 +363,8 @@ describe('fichiers du rip pour le panneau de piste', () => {
     expect(res.status).toBe(200);
     expect(get.mock.calls[0][0]).toMatch(/\/rest\/getAlbum$/);
     expect(res.body).toMatchObject({ found: true, album: { id: 'nd-f', url: 'https://music.lab.crog.org/app/#/album/nd-f/show' } });
-    expect(res.body.tracks[0]).toMatchObject({ track: 1, discNumber: 1, suffix: 'flac', bitDepth: 16, samplingRate: 44100 });
+    expect(res.body.tracks[0]).toMatchObject({ id: 'song-1', track: 1, discNumber: 1, suffix: 'flac', bitDepth: 16, samplingRate: 44100 });
+    expect(res.body.tracks[0].url).toBe('https://music.lab.crog.org/app/#/song?filter=%7B%22album_id%22%3A%22nd-f%22%2C%22title%22%3A%22I.G.Y.%22%7D');
   });
 
   it('répond sans erreur pour un CD pas encore rippé', async () => {

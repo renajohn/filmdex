@@ -53,6 +53,9 @@ export interface EditionAdoption {
 
 /** One file of a CD's rip in Navidrome, matched to its track by disc and number. */
 export interface RipTrackFile {
+  id?: string | null;
+  /** The track in Navidrome's web player. */
+  url?: string | null;
   discNumber: number;
   track: number;
   title: string;
