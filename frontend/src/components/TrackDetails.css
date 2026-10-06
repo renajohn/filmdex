@@ -1,33 +1,37 @@
-/* A track's details, opened under its row: aligned with the title, on a slightly lighter ground. */
+/*
+ * A track's details, opened under its row. The row and its details share one
+ * rounded ground, so they read as a single card in the list; inside, the label
+ * column starts where the title does, and the values hang off it.
+ */
 .track-details {
-  margin: 0 0 6px 59px;
-  padding: 10px 12px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.04);
+  margin: 0 0 6px;
+  padding: 4px 12px 12px 59px;
+  border-radius: 0 0 8px 8px;
+  background: rgba(255, 255, 255, 0.05);
   font-size: 0.85rem;
-  line-height: 1.4;
+  line-height: 1.45;
   animation: track-details-in 0.15s ease-out;
 }
 
 @keyframes track-details-in {
-  from { opacity: 0; transform: translateY(-4px); }
+  from { opacity: 0; transform: translateY(-3px); }
   to { opacity: 1; transform: none; }
 }
 
 .track-details dl {
   display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 6px 16px;
+  grid-template-columns: 6.5rem 1fr;
+  align-items: baseline;
+  gap: 7px 12px;
   margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .track-details dt {
-  color: #8a929d;
-  font-size: 0.72rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding-top: 2px;
+  color: #8f98a3;
+  font-size: 0.78rem;
+  font-weight: 400;
 }
 
 .track-details dd {
@@ -36,26 +40,84 @@
   overflow-wrap: anywhere;
 }
 
+/* The people, one a line: the name carries the weight, the role follows in a murmur. */
 .track-details-people {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
+.track-details-people li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+}
+
+.track-details-role {
+  color: #9aa4b2;
+  font-size: 0.78rem;
+}
+
 .track-details-muted {
   color: #9aa4b2;
 }
 
+.track-details-isrc {
+  color: #c3cad3;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+}
+
+/* A quiet external link: the row's own grey, gold under the pointer. */
+.track-details-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #d6dbe1;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.3);
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+
+.track-details-link svg {
+  font-size: 0.7em;
+  color: #9aa4b2;
+}
+
+.track-details-link:hover,
+.track-details-link:focus-visible {
+  color: #fbbf24;
+  text-decoration-color: currentColor;
+  outline: none;
+}
+
+.track-details-link:hover svg,
+.track-details-link:focus-visible svg {
+  color: inherit;
+}
+
+/* The rip: its format in one line, the file's path under it in small type. */
+.track-details-format {
+  font-variant-numeric: tabular-nums;
+}
+
+.track-details-size {
+  white-space: nowrap;
+}
+
 .track-details-path {
   display: block;
-  margin-top: 2px;
-  color: #8a929d;
+  margin-top: 3px;
+  color: #9aa4b2;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
+  line-height: 1.5;
 }
 
 .track-details-empty {
-  margin: 6px 0 0;
+  margin: 10px 0 0;
 }
 
 /* The row whose details are open */
@@ -63,19 +125,33 @@
   cursor: pointer;
 }
 
-.track-item.track-selected {
-  background: rgba(240, 183, 60, 0.1);
+.track-item.track-selectable:focus-visible {
+  outline: 2px solid rgba(251, 191, 36, 0.75);
+  outline-offset: -2px;
 }
 
-/* On a phone: labels above their values, the full width of the list. */
+.track-item.track-selected {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px 8px 0 0;
+}
+
+.track-item.track-selected .track-number {
+  color: #fbbf24;
+}
+
+.track-item.track-selected .track-title {
+  color: #fff;
+}
+
+/* On a phone: labels above their values, still hanging off the title column. */
 @media (max-width: 768px) {
   .track-details {
-    margin-left: 12px;
+    padding: 2px 8px 10px 59px;
   }
 
   .track-details dl {
     grid-template-columns: 1fr;
-    gap: 0;
+    gap: 2px;
   }
 
   .track-details dt:not(:first-child) {

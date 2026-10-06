@@ -1,4 +1,5 @@
 import React from 'react';
+import { BsBoxArrowUpRight } from 'react-icons/bs';
 import type { RipTracks } from '../services/musicService';
 import type { TrackPerformer } from '../utils/trackCredits';
 import { performersByPerson, ripFileFor, ripFormat, ripSize } from '../utils/trackDetail';
@@ -53,8 +54,8 @@ const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumArtists = [], i
   else if (!file) ripText = <span className="track-details-muted">No file at this position in the rip.</span>;
   else ripText = (
     <>
-      {ripFormat(file)}
-      {ripSize(file) && <span className="track-details-muted"> · {ripSize(file)}</span>}
+      <span className="track-details-format">{ripFormat(file)}</span>
+      {ripSize(file) && <span className="track-details-muted"> · <span className="track-details-size">{ripSize(file)}</span></span>}
       {file.path && <span className="track-details-path">{file.path}</span>}
     </>
   );
@@ -70,17 +71,24 @@ const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumArtists = [], i
             <ul className="track-details-people">
               {people.map(person => (
                 <li key={person.name}>
-                  {person.name} <span className="track-details-muted">{person.roles.join(', ')}</span>
+                  <span className="track-details-person">{person.name}</span>
+                  <span className="track-details-role">{person.roles.join(', ')}</span>
                 </li>
               ))}
             </ul>
           </Field>
         )}
-        {track.isrc && <Field label="ISRC"><code>{track.isrc}</code></Field>}
+        {track.isrc && <Field label="ISRC"><code className="track-details-isrc">{track.isrc}</code></Field>}
         {track.musicbrainzRecordingId && (
           <Field label="MusicBrainz">
-            <a href={`https://musicbrainz.org/recording/${track.musicbrainzRecordingId}`} target="_blank" rel="noopener noreferrer">
+            <a
+              className="track-details-link"
+              href={`https://musicbrainz.org/recording/${track.musicbrainzRecordingId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               Recording
+              <BsBoxArrowUpRight aria-hidden="true" />
             </a>
           </Field>
         )}
