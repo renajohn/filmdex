@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Dropdown } from 'react-bootstrap';
-import { BsMusicNote, BsThreeDots, BsApple, BsPencil, BsTrash } from 'react-icons/bs';
+import { BsMusicNote, BsThreeDots, BsPlayFill, BsPencil, BsTrash } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import ListenNextToggle from './ListenNextToggle';
+import { isAppleMobile, openListen } from '../utils/navidrome';
 import './MusicThumbnail.css';
 
 interface CdData {
@@ -143,27 +144,33 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onEdit, on
             <Dropdown.Menu>
               <Dropdown.Item
                 onClick={async () => {
+                  // The tab opens during the click: one opened after the lookup would be blocked as a pop-up.
+                  const tab = isAppleMobile() ? null : window.open('', '_blank');
                   try {
                     setOpeningApple(true);
-                    // Try immediate open if URL cached and is an Apple Music link
-                    const cached = cd?.urls?.appleMusic;
-                    const isAppleLink = typeof cached === 'string' && /https?:\/\/(music|itunes)\.apple\.com\//.test(cached);
-                    if (isAppleLink) {
-                      musicService.openAppleMusic(cached as string);
-                      setOpeningApple(false);
+                    // The rip in Navidrome when there is one, Apple Music otherwise.
+                    const rip = await musicService.getNavidromeTracks(cd.id).catch(() => null);
+                    if (rip?.found && rip.album) {
+                      openListen(rip.album, tab);
                       return;
                     }
-                    // Otherwise fetch asynchronously, then open
-                    const { url } = await musicService.getAppleMusicUrl(cd.id) as { url: string };
-                    musicService.openAppleMusic(url);
+                    const cached = cd?.urls?.appleMusic;
+                    const isAppleLink = typeof cached === 'string' && /https?:\/\/(music|itunes)\.apple\.com\//.test(cached);
+                    const url = isAppleLink ? cached as string : (await musicService.getAppleMusicUrl(cd.id) as { url: string }).url;
+                    if (tab) {
+                      tab.location.href = url;
+                    } else {
+                      musicService.openAppleMusic(url);
+                    }
                   } catch (e) {
-                    console.error('Failed to open Apple Music:', e);
+                    tab?.close();
+                    console.error('Failed to open the album:', e);
                   } finally {
                     setOpeningApple(false);
                   }
                 }}
               >
-                <BsApple className="me-2" /> Open in Apple Music
+                <BsPlayFill className="me-2" /> Listen
               </Dropdown.Item>
               <Dropdown.Item onClick={handleEditClick}>
                 <BsPencil className="me-2" /> Edit

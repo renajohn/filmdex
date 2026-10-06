@@ -69,7 +69,7 @@ export interface RipTrackFile {
 export interface RipTracks {
   configured: boolean;
   found: boolean;
-  album?: { id: string; name: string };
+  album?: { id: string; name: string; url?: string };
   tracks: RipTrackFile[];
 }
 

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Row, Col, Badge } from 'react-bootstrap';
-import { BsPencil, BsTrash, BsMusicNote, BsCalendar, BsFlag, BsDisc, BsApple, BsTags } from 'react-icons/bs';
+import { BsPencil, BsTrash, BsMusicNote, BsCalendar, BsFlag, BsDisc, BsApple, BsTags, BsPlayFill } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
 import AlbumStory from './AlbumStory';
 import { discCredits, type TrackPerformer } from '../utils/trackCredits';
 import { canUsePicard, openInPicard } from '../utils/picard';
+import { openListen } from '../utils/navidrome';
 import TrackDetails from './TrackDetails';
 import type { RipTracks } from '../services/musicService';
 import './MusicDetailCard.css';
@@ -93,7 +94,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const [showMusicians, setShowMusicians] = useState<boolean>(false);
   // The track whose details are open under its row, as "disc-position".
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
-  // Undefined until the details first ask Navidrome for this CD's rip.
+  // Undefined while Navidrome is asked for this CD's rip, read as the album opens.
   const [rip, setRip] = useState<RipTracks | null | undefined>(undefined);
   const [ripError, setRipError] = useState<string | null>(null);
 
@@ -238,24 +239,24 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
     return () => document.removeEventListener('click', handleDocClick, true);
   }, [confirmDelete]);
 
+  // The rip, for the Listen button and the tracks' details.
   useEffect(() => {
+    let current = true;
     setSelectedTrack(null);
     setRip(undefined);
     setRipError(null);
+    musicService.getNavidromeTracks(cd.id)
+      .then(result => { if (current) setRip(result); })
+      .catch((error: Error) => { if (current) setRipError(error.message); });
+    return () => { current = false; };
   }, [cd.id]);
 
-  /** Opens a track's details, or closes them when they are open; the rip is read once, on the first one. */
+  /** Opens a track's details, or closes them when they are open. */
   const toggleTrack = (key: string) => {
-    if (selectedTrack === key) {
-      setSelectedTrack(null);
-      return;
-    }
-    setSelectedTrack(key);
-    if (rip !== undefined || ripError) return;
-    musicService.getNavidromeTracks(cd.id)
-      .then(setRip)
-      .catch((error: Error) => setRipError(error.message));
+    setSelectedTrack(selectedTrack === key ? null : key);
   };
+
+  const ripAlbum = rip?.found ? rip.album : undefined;
 
   const discsCredits = (cd.discs || []).map((disc: CdDisc) =>
     discCredits(disc.tracks, Array.isArray(cd.artist) ? cd.artist : [cd.artist]));
@@ -825,42 +826,54 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
       </Modal.Body>
 
       <Modal.Footer>
-        <Button
-          variant="primary"
-          disabled={openingApple}
-          onClick={() => {
-            try {
-              setOpeningApple(true);
-              const cached = cd?.urls?.appleMusic;
-              const isAppleLink = typeof cached === 'string' && /https?:\/\/(music|itunes)\.apple\.com\//.test(cached);
-              const urlToOpen = appleUrl || (isAppleLink ? cached : null);
-              if (urlToOpen) {
-                musicService.openAppleMusic(urlToOpen);
+        {ripAlbum ? (
+          <Button variant="primary" onClick={() => openListen(ripAlbum)}>
+            <BsPlayFill className="me-1" />
+            Listen
+          </Button>
+        ) : rip === undefined && !ripError ? (
+          <Button variant="primary" disabled>
+            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            Listen
+          </Button>
+        ) : (
+          <Button
+            variant="primary"
+            disabled={openingApple}
+            onClick={() => {
+              try {
+                setOpeningApple(true);
+                const cached = cd?.urls?.appleMusic;
+                const isAppleLink = typeof cached === 'string' && /https?:\/\/(music|itunes)\.apple\.com\//.test(cached);
+                const urlToOpen = appleUrl || (isAppleLink ? cached : null);
+                if (urlToOpen) {
+                  musicService.openAppleMusic(urlToOpen);
+                  setOpeningApple(false);
+                } else {
+                  // Fallback: fire async fetch but don't await to keep gesture; open when ready
+                  musicService.getAppleMusicUrl(cd.id)
+                    .then((result: unknown) => musicService.openAppleMusic((result as { url: string }).url))
+                    .finally(() => setOpeningApple(false));
+                }
+              } catch (e) {
+                console.error('Failed to open Apple Music:', e);
                 setOpeningApple(false);
-              } else {
-                // Fallback: fire async fetch but don't await to keep gesture; open when ready
-                musicService.getAppleMusicUrl(cd.id)
-                  .then((result: unknown) => musicService.openAppleMusic((result as { url: string }).url))
-                  .finally(() => setOpeningApple(false));
               }
-            } catch (e) {
-              console.error('Failed to open Apple Music:', e);
-              setOpeningApple(false);
-            }
-          }}
-        >
-          {openingApple ? (
-            <>
-              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-              Opening Apple Music...
-            </>
-          ) : (
-            <>
-              <BsApple className="me-1" />
-              Open in Apple Music
-            </>
-          )}
-        </Button>
+            }}
+          >
+            {openingApple ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Opening Apple Music...
+              </>
+            ) : (
+              <>
+                <BsApple className="me-1" />
+                Open in Apple Music
+              </>
+            )}
+          </Button>
+        )}
         <Button
           variant={isInListenNext ? "warning" : "outline-warning"}
           onClick={handleListenNextToggle}

@@ -362,7 +362,7 @@ describe('fichiers du rip pour le panneau de piste', () => {
 
     expect(res.status).toBe(200);
     expect(get.mock.calls[0][0]).toMatch(/\/rest\/getAlbum$/);
-    expect(res.body).toMatchObject({ found: true, album: { id: 'nd-f' } });
+    expect(res.body).toMatchObject({ found: true, album: { id: 'nd-f', url: 'https://music.lab.crog.org/app/#/album/nd-f/show' } });
     expect(res.body.tracks[0]).toMatchObject({ track: 1, discNumber: 1, suffix: 'flac', bitDepth: 16, samplingRate: 44100 });
   });
 

@@ -653,7 +653,7 @@ const musicController = {
         return;
       }
       const tracks = await navidromeService.getAlbumSongs(navidromeAlbum.id);
-      res.json({ configured: true, found: true, album: { id: navidromeAlbum.id, name: navidromeAlbum.name }, tracks });
+      res.json({ configured: true, found: true, album: { id: navidromeAlbum.id, name: navidromeAlbum.name, url: navidromeService.albumUrl(navidromeAlbum.id) }, tracks });
     } catch (error) {
       logger.error('Error reading the rip from Navidrome:', error);
       res.status(502).json({ error: (error as Error).message || 'Failed to read the rip from Navidrome' });

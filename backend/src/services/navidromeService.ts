@@ -8,6 +8,8 @@ import crypto from 'crypto';
  * Node can verify.
  */
 const DEFAULT_URL = 'http://navidrome:4533';
+/** Where a browser reaches Navidrome, through Traefik: the links DexVault hands out. */
+const DEFAULT_PUBLIC_URL = 'https://music.lab.crog.org';
 const PAGE_SIZE = 500;
 const TIMEOUT_MS = 20000;
 
@@ -101,6 +103,10 @@ const toAlbum = (raw: RawAlbum): NavidromeAlbum => ({
 
 const navidromeService = {
   isConfigured,
+
+  /** The album's page in Navidrome's web player. */
+  albumUrl: (albumId: string): string =>
+    `${(process.env.NAVIDROME_PUBLIC_URL || DEFAULT_PUBLIC_URL).replace(/\/+$/, '')}/app/#/album/${encodeURIComponent(albumId)}/show`,
 
   /** Every album, page by page. */
   getAlbums: async (): Promise<NavidromeAlbum[]> => {

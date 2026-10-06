@@ -33,6 +33,8 @@ services:
       - NAVIDROME_URL=${NAVIDROME_URL:-http://navidrome:4533}
       - NAVIDROME_USER=${NAVIDROME_USER:-}
       - NAVIDROME_PASSWORD=${NAVIDROME_PASSWORD:-}
+      # Where a browser opens an album in Navidrome, from an album's Listen button.
+      - NAVIDROME_PUBLIC_URL=${NAVIDROME_PUBLIC_URL:-https://music.lab.crog.org}
       # The backup runs at 3 a.m. local time: without TZ the container runs on UTC.
       - TZ=Europe/Zurich
     restart: unless-stopped
