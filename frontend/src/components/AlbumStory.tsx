@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from 'react-bootstrap';
-import { BsArrowClockwise, BsBoxArrowUpRight } from 'react-icons/bs';
+import { BsArrowClockwise, BsBoxArrowUpRight, BsChevronRight } from 'react-icons/bs';
 import musicService, { AlbumStory as Story, AlbumStorySection } from '../services/musicService';
 import './AlbumStory.css';
 
@@ -35,20 +35,23 @@ const Article: React.FC<ArticleProps> = ({ intro, sections, lang, title, url, ne
       {intro && <Paragraphs text={intro} />}
 
       {sections.length > 0 && (
-        expanded ? (
-          sections.map((section, i) => (
-            <div key={i} className="album-story-section">
-              {section.level <= 2 && !nested ? <h5>{section.heading}</h5> : <h6>{section.heading}</h6>}
-              <Paragraphs text={section.text} />
-            </div>
-          ))
-        ) : (
-          <Button variant="outline-light" size="sm" onClick={() => setExpanded(true)}>
-            Read the full story ({sections.map(s => s.heading).slice(0, 3).join(', ')}
-            {sections.length > 3 ? '…' : ''})
-          </Button>
-        )
+        <button
+          type="button"
+          className="album-story-toggle"
+          aria-expanded={expanded}
+          onClick={() => setExpanded(open => !open)}
+        >
+          <BsChevronRight aria-hidden="true" className={expanded ? 'album-story-chevron-open' : undefined} />
+          {expanded ? 'Hide full story' : 'Read full story…'}
+        </button>
       )}
+
+      {expanded && sections.map((section, i) => (
+        <div key={i} className="album-story-section">
+          {section.level <= 2 && !nested ? <h5>{section.heading}</h5> : <h6>{section.heading}</h6>}
+          <Paragraphs text={section.text} />
+        </div>
+      ))}
 
       <p className="album-story-source small">
         <a href={url ?? undefined} target="_blank" rel="noopener noreferrer">

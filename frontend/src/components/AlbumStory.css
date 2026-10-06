@@ -62,3 +62,41 @@
   font-weight: normal;
   color: #9a9a9a;
 }
+
+/* The rest of the article, folded like the album's IDs: a quiet line, gold under the pointer. */
+.album-story-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #d6dbe1;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.3);
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+
+.album-story-toggle svg {
+  font-size: 0.7em;
+  color: #9aa4b2;
+  transition: transform 0.15s ease;
+}
+
+.album-story-toggle:hover,
+.album-story-toggle:focus-visible {
+  color: #fbbf24;
+  text-decoration-color: currentColor;
+  outline: none;
+}
+
+.album-story-toggle:hover svg,
+.album-story-toggle:focus-visible svg {
+  color: inherit;
+}
+
+.album-story-toggle .album-story-chevron-open {
+  transform: rotate(90deg);
+}

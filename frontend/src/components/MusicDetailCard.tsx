@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, Row, Col, Badge } from 'react-bootstrap';
-import { BsPencil, BsTrash, BsMusicNote, BsCalendar, BsFlag, BsDisc, BsApple, BsTags, BsPlayFill } from 'react-icons/bs';
+import { Modal, Button } from 'react-bootstrap';
+import { BsPencil, BsTrash, BsMusicNote, BsApple, BsTags, BsPlayFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
 import AlbumStory from './AlbumStory';
 import { discCredits, type TrackPerformer } from '../utils/trackCredits';
 import { canUsePicard, openInPicard } from '../utils/picard';
 import { openListen } from '../utils/navidrome';
+import { playingTime, ripSummary, urlLabel } from '../utils/albumHead';
 import TrackDetails from './TrackDetails';
 import type { RipTracks } from '../services/musicService';
 import './MusicDetailCard.css';
@@ -45,7 +46,7 @@ interface CdData {
   releaseYear?: string | number;
   country?: string;
   format?: string;
-  releaseGroupFirstReleaseDate?: string;
+  releaseGroupFirstReleaseDate?: string | number;
   editionNotes?: string;
   genres?: string[];
   producer?: string[];
@@ -82,6 +83,20 @@ interface MusicDetailCardProps {
   onListenNextChange?: (() => void) | null;
 }
 
+const CONDITIONS: Record<string, string> = {
+  'M': 'Mint',
+  'NM': 'Near Mint',
+  'VG+': 'Very Good Plus',
+  'VG': 'Very Good'
+};
+
+const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <>
+    <dt>{label}</dt>
+    <dd>{children}</dd>
+  </>
+);
+
 const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, onDelete, onSearch, onListenNextChange }) => {
   const [showCoverModal, setShowCoverModal] = useState<boolean>(false);
   const [coverModalData, setCoverModalData] = useState<CoverModalData>({ coverUrl: '', title: '', artist: '', coverType: '' });
@@ -92,6 +107,10 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const [isInListenNext, setIsInListenNext] = useState<boolean>(false);
   const [togglingListenNext, setTogglingListenNext] = useState<boolean>(false);
   const [showMusicians, setShowMusicians] = useState<boolean>(false);
+  const [showIds, setShowIds] = useState<boolean>(false);
+  const [showEdition, setShowEdition] = useState<boolean>(false);
+  // A front cover whose file would not load: the placeholder takes its place.
+  const [coverBroken, setCoverBroken] = useState<boolean>(false);
   // The track whose details are open under its row, as "disc-position".
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
   // Undefined while Navidrome is asked for this CD's rip, read as the album opens.
@@ -151,26 +170,6 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  const getConditionBadge = (condition: string): string => {
-    const variants: Record<string, string> = {
-      'M': 'success',
-      'NM': 'primary',
-      'VG+': 'warning',
-      'VG': 'secondary'
-    };
-    return variants[condition] || 'secondary';
-  };
-
-  const getConditionText = (condition: string): string => {
-    const texts: Record<string, string> = {
-      'M': 'Mint',
-      'NM': 'Near Mint',
-      'VG+': 'Very Good Plus',
-      'VG': 'Very Good'
-    };
-    return texts[condition] || condition;
-  };
-
   const handleSearch = (searchType: string, value: string) => {
     if (onSearch) {
       // Format as predicate based on search type
@@ -217,6 +216,27 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
     }
   };
 
+  const handleOpenAppleMusic = () => {
+    try {
+      setOpeningApple(true);
+      const cached = cd?.urls?.appleMusic;
+      const isAppleLink = typeof cached === 'string' && /https?:\/\/(music|itunes)\.apple\.com\//.test(cached);
+      const urlToOpen = appleUrl || (isAppleLink ? cached : null);
+      if (urlToOpen) {
+        musicService.openAppleMusic(urlToOpen);
+        setOpeningApple(false);
+      } else {
+        // Fallback: fire async fetch but don't await to keep gesture; open when ready
+        musicService.getAppleMusicUrl(cd.id)
+          .then((result: unknown) => musicService.openAppleMusic((result as { url: string }).url))
+          .finally(() => setOpeningApple(false));
+      }
+    } catch (e) {
+      console.error('Failed to open Apple Music:', e);
+      setOpeningApple(false);
+    }
+  };
+
   const handleCloseCoverModal = () => {
     setShowCoverModal(false);
   };
@@ -243,6 +263,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   useEffect(() => {
     let current = true;
     setSelectedTrack(null);
+    setCoverBroken(false);
     setRip(undefined);
     setRipError(null);
     musicService.getNavidromeTracks(cd.id)
@@ -260,6 +281,56 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
 
   const discsCredits = (cd.discs || []).map((disc: CdDisc) =>
     discCredits(disc.tracks, Array.isArray(cd.artist) ? cd.artist : [cd.artist]));
+
+  // What the head says of the CD as an object: its format, size and length in one murmur…
+  const discs = cd.discs || [];
+  const trackCount = discs.reduce((count, disc) => count + disc.tracks.length, 0);
+  const length = playingTime(discs.reduce((total, disc) =>
+    total + disc.tracks.reduce((sum, track) => sum + (track.durationSec || 0), 0), 0));
+  const shape = [
+    cd.format,
+    discs.length > 1 ? `${discs.length} discs` : null,
+    trackCount > 0 ? `${trackCount} ${trackCount === 1 ? 'track' : 'tracks'}` : null,
+    length || null,
+  ].filter(Boolean).join(' · ');
+
+  // …and of its edition: the year and country together, the first release only when it is another year.
+  const released = [cd.releaseYear, cd.country].filter(Boolean).join(' · ');
+  // The date can come back as a bare year, a number, from older imports.
+  const firstRelease = cd.releaseGroupFirstReleaseDate ? String(cd.releaseGroupFirstReleaseDate) : '';
+  const original = firstRelease && firstRelease.slice(0, 4) !== String(cd.releaseYear ?? '') ? firstRelease : null;
+
+  const ownership = cd.ownership || {};
+  const added = new Date(cd.createdAt as string).toLocaleDateString();
+  const updated = cd.updatedAt ? new Date(cd.updatedAt as string).toLocaleDateString() : null;
+  const owned = [
+    ownership.condition ? CONDITIONS[ownership.condition] || ownership.condition : null,
+    ownership.purchasedAt ? `bought ${new Date(ownership.purchasedAt).toLocaleDateString()}` : null,
+    ownership.priceChf ? `CHF ${ownership.priceChf}` : null,
+  ].filter(Boolean).join(' · ');
+
+  const links = Object.entries(cd.urls || {}).filter((entry): entry is [string, string] => Boolean(entry[1]));
+  const summary = rip?.found ? ripSummary(rip) : null;
+
+  // The rip as Navidrome holds it: its state first, the format and the count of files in a murmur.
+  let ripText: React.ReactNode;
+  if (ripError) ripText = <span className="album-head-muted">Could not read Navidrome: {ripError}</span>;
+  else if (rip === undefined) ripText = <span className="album-head-muted">Reading Navidrome…</span>;
+  else if (!summary) ripText = <span className="album-head-muted">Not ripped yet.</span>;
+  else ripText = (
+    <>
+      <span className={summary.state === 'lossless' ? 'album-head-lossless' : 'album-head-lossy'}>
+        {summary.state === 'lossless' ? 'Lossless' : 'Lossy'}
+      </span>
+      <span className="album-head-muted">
+        {' · '}{summary.format}
+        {trackCount > 0 && ` · ${summary.files} of ${trackCount} tracks`}
+      </span>
+    </>
+  );
+
+  const frontCover = coverBroken ? null : getCoverImage();
+  const backCover = getBackCoverImage();
 
   return (
     <Modal
@@ -279,454 +350,194 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
       </Modal.Header>
 
       <Modal.Body>
-        {getCoverImage() || getBackCoverImage() ? (
-          <Row>
-            <Col md={3}>
-              <div className="cd-covers-container">
-                {/* Front Cover */}
-                <div className="cd-cover-container">
-                  <h6 className="cover-label">Front Cover</h6>
-                  {getCoverImage() ? (
-                    <img
-                      src={getCoverImage()!}
-                      alt={`${cd.title} front cover`}
-                      className="cd-cover-image cd-cover-clickable"
-                      onClick={() => handleCoverClick(getCoverImage(), 'Front')}
-                      onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        if (target.nextSibling) {
-                          (target.nextSibling as HTMLElement).style.display = 'flex';
-                        }
-                      }}
-                    />
-                  ) : null}
-                  <div
-                    className="cd-cover-placeholder"
-                    style={{ display: getCoverImage() ? 'none' : 'flex' }}
-                  >
-                    <BsMusicNote size={64} />
-                  </div>
-                </div>
-
-                {/* Back Cover */}
-                {getBackCoverImage() && (
-                  <div className="cd-cover-container">
-                    <h6 className="cover-label">Back Cover</h6>
-                    <img
-                      src={getBackCoverImage()!}
-                      alt={`${cd.title} back cover`}
-                      className="cd-cover-image cd-cover-clickable"
-                      onClick={() => handleCoverClick(getBackCoverImage(), 'Back')}
-                      onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                  </div>
-                )}
+        {/* The head: the cover, who and what, how to listen, then the facts of this edition. */}
+        <div className="album-head">
+          <div className="album-head-covers">
+            {frontCover ? (
+              <img
+                src={frontCover}
+                alt={`${cd.title} front cover`}
+                className="album-head-cover"
+                onClick={() => handleCoverClick(frontCover, 'Front')}
+                onError={() => setCoverBroken(true)}
+              />
+            ) : (
+              <div className="album-head-cover album-head-cover-empty" aria-hidden="true">
+                <BsMusicNote size={40} />
               </div>
-            </Col>
+            )}
+            {backCover && (
+              <img
+                src={backCover}
+                alt={`${cd.title} back cover`}
+                title="Back cover"
+                className="album-head-back"
+                onClick={() => handleCoverClick(backCover, 'Back')}
+                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            )}
+          </div>
 
-            <Col md={9}>
-              <div className="cd-details">
-                <p className="cd-artist clickable-artist" onClick={() => handleSearch('artist', getArtistDisplay())}>
-                  <strong>Artist:</strong> {getArtistDisplay()}
-                </p>
+          <div className="album-head-identity">
+            <button type="button" className="album-head-artist album-head-filter" onClick={() => handleSearch('artist', getArtistDisplay())}>
+              {getArtistDisplay()}
+            </button>
+            {shape && <div className="album-head-shape">{shape}</div>}
 
-              {/* Compact metadata grid */}
-              <div className="metadata-section">
-                <Row>
-                  {cd.releaseYear && (
-                    <Col xs={6} md={4}>
-                      <div className="metadata-item">
-                        <BsCalendar className="metadata-icon" />
-                        <span className="metadata-label">Year:</span>
-                        <span className="metadata-value">{cd.releaseYear}</span>
-                      </div>
-                    </Col>
+            <div className="album-head-actions">
+              {ripAlbum ? (
+                <Button variant="primary" size="sm" onClick={() => openListen(ripAlbum)}>
+                  <BsPlayFill className="me-1" />
+                  Listen
+                </Button>
+              ) : rip === undefined && !ripError ? (
+                <Button variant="primary" size="sm" disabled>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Listen
+                </Button>
+              ) : (
+                <Button variant="outline-light" size="sm" disabled={openingApple} onClick={handleOpenAppleMusic}>
+                  {openingApple ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Opening Apple Music…
+                    </>
+                  ) : (
+                    <>
+                      <BsApple className="me-1" />
+                      Apple Music
+                    </>
                   )}
-
-                  {cd.country && (
-                    <Col xs={6} md={4}>
-                      <div className="metadata-item">
-                        <BsFlag className="metadata-icon" />
-                        <span className="metadata-label">Country:</span>
-                        <span className="metadata-value">{cd.country}</span>
-                      </div>
-                    </Col>
-                  )}
-
-                  {cd.format && (
-                    <Col xs={6} md={4}>
-                      <div className="metadata-item">
-                        <BsDisc className="metadata-icon" />
-                        <span className="metadata-label">Format:</span>
-                        <span className="metadata-value">{cd.format}</span>
-                      </div>
-                    </Col>
-                  )}
-
-                  {cd.releaseGroupFirstReleaseDate && (
-                    <Col xs={12} md={4}>
-                      <div className="metadata-item">
-                        <BsCalendar className="metadata-icon" />
-                        <span className="metadata-label">Original:</span>
-                        <span className="metadata-value">{cd.releaseGroupFirstReleaseDate}</span>
-                      </div>
-                    </Col>
-                  )}
-                </Row>
-              </div>
-
-              {cd.editionNotes && (
-                <div className="edition-notes">
-                  <strong>Edition Notes:</strong> {cd.editionNotes}
-                </div>
+                </Button>
               )}
-
-              {cd.genres && cd.genres.length > 0 && (
-                <div className="tags-section">
-                  <div className="tags-label">Genres:</div>
-                  <div className="tags-container">
-                    {cd.genres.map((genre: string, index: number) => (
-                      <Badge
-                        key={index}
-                        bg="secondary"
-                        className="clickable-badge"
-                        onClick={() => handleSearch('genre', genre)}
-                      >
-                        {genre}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Additional Information - moved to right side when covers are present */}
-              {(cd.producer && cd.producer.length > 0 || cd.engineer && cd.engineer.length > 0 || cd.recordingLocation || cd.labels && cd.labels.length > 0 || cd.catalogNumber || cd.barcode || cd.recordingQuality) && (
-                <div className="info-section">
-                  <h4>Additional Information</h4>
-                  <Row>
-                    {cd.labels && cd.labels.length > 0 && (
-                      <Col md={6}>
-                        <div className="info-item">
-                          <strong>Label{cd.labels.length > 1 ? 's' : ''}:</strong> {cd.labels.join(', ')}
-                        </div>
-                      </Col>
-                    )}
-
-                    {cd.catalogNumber && (
-                      <Col md={6}>
-                        <div className="info-item">
-                          <strong>Catalog #:</strong> {cd.catalogNumber}
-                        </div>
-                      </Col>
-                    )}
-
-                    {cd.barcode && (
-                      <Col md={6}>
-                        <div className="info-item">
-                          <strong>Barcode:</strong> {cd.barcode}
-                        </div>
-                      </Col>
-                    )}
-
-                    {cd.recordingQuality && (
-                      <Col md={6}>
-                        <div className="info-item">
-                          <strong>Quality:</strong>
-                          <Badge bg="info" className="ms-2">
-                            {cd.recordingQuality}
-                          </Badge>
-                        </div>
-                      </Col>
-                    )}
-
-                    {cd.producer && cd.producer.length > 0 && (
-                      <Col md={6}>
-                        <div className="info-item">
-                          <strong>Producer{cd.producer.length > 1 ? 's' : ''}:</strong> {cd.producer.join(', ')}
-                        </div>
-                      </Col>
-                    )}
-
-                    {cd.engineer && cd.engineer.length > 0 && (
-                      <Col md={6}>
-                        <div className="info-item">
-                          <strong>Engineer{cd.engineer.length > 1 ? 's' : ''}:</strong> {cd.engineer.join(', ')}
-                        </div>
-                      </Col>
-                    )}
-
-                    {cd.recordingLocation && (
-                      <Col md={12}>
-                        <div className="info-item">
-                          <strong>Recording Location:</strong> {cd.recordingLocation}
-                        </div>
-                      </Col>
-                    )}
-                  </Row>
-                </div>
-              )}
-
-              {/* External Links */}
-              {cd.urls && Object.keys(cd.urls).length > 0 && (
-                <div className="info-section">
-                  <h4>External Links</h4>
-                  <div className="external-links">
-                    {Object.entries(cd.urls).map(([label, url], index) => (
-                      <a
-                        key={index}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-outline-light btn-sm me-2 mb-2"
-                      >
-                        {label}
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <Button
+                variant={isInListenNext ? 'warning' : 'outline-secondary'}
+                size="sm"
+                onClick={handleListenNextToggle}
+                disabled={togglingListenNext}
+              >
+                <BsHeadphones className="me-1" />
+                {isInListenNext ? 'In Listen Next' : 'Listen Next'}
+              </Button>
             </div>
-          </Col>
-        </Row>
-        ) : (
-          // No cover images - full width layout
-          <div className="cd-details">
-            <p className="cd-artist clickable-artist" onClick={() => handleSearch('artist', getArtistDisplay())}>
-              <strong>Artist:</strong> {getArtistDisplay()}
-            </p>
+          </div>
 
-            {/* Compact metadata grid */}
-            <div className="metadata-section">
-              <Row>
-                {cd.releaseYear && (
-                  <Col xs={6} md={4}>
-                    <div className="metadata-item">
-                      <BsCalendar className="metadata-icon" />
-                      <span className="metadata-label">Year:</span>
-                      <span className="metadata-value">{cd.releaseYear}</span>
-                    </div>
-                  </Col>
-                )}
-
-                {cd.country && (
-                  <Col xs={6} md={4}>
-                    <div className="metadata-item">
-                      <BsFlag className="metadata-icon" />
-                      <span className="metadata-label">Country:</span>
-                      <span className="metadata-value">{cd.country}</span>
-                    </div>
-                  </Col>
-                )}
-
-                {cd.format && (
-                  <Col xs={6} md={4}>
-                    <div className="metadata-item">
-                      <BsDisc className="metadata-icon" />
-                      <span className="metadata-label">Format:</span>
-                      <span className="metadata-value">{cd.format}</span>
-                    </div>
-                  </Col>
-                )}
-
-                {cd.releaseGroupFirstReleaseDate && (
-                  <Col xs={12} md={4}>
-                    <div className="metadata-item">
-                      <BsCalendar className="metadata-icon" />
-                      <span className="metadata-label">Original:</span>
-                      <span className="metadata-value">{cd.releaseGroupFirstReleaseDate}</span>
-                    </div>
-                  </Col>
-                )}
-              </Row>
-            </div>
-
+          <dl className="album-head-facts">
+            {released && <Field label="Released">{released}</Field>}
+            {original && <Field label="First release">{original}</Field>}
+            {cd.labels && cd.labels.length > 0 && (
+              <Field label={cd.labels.length > 1 ? 'Labels' : 'Label'}>{cd.labels.join(', ')}</Field>
+            )}
             {cd.editionNotes && (
-              <div className="edition-notes">
-                <strong>Edition Notes:</strong> {cd.editionNotes}
-              </div>
+              <Field label="Edition">
+                <button
+                  type="button"
+                  className={`album-head-clamp${showEdition ? '' : ' album-head-clamped'}`}
+                  aria-expanded={showEdition}
+                  title={showEdition ? undefined : 'Show the whole note'}
+                  onClick={() => setShowEdition(open => !open)}
+                >
+                  {cd.editionNotes}
+                </button>
+              </Field>
             )}
-
+            {rip?.configured !== false && <Field label="Navidrome">{ripText}</Field>}
             {cd.genres && cd.genres.length > 0 && (
-              <div className="tags-section">
-                <div className="tags-label">Genres:</div>
-                <div className="tags-container">
-                  {cd.genres.map((genre: string, index: number) => (
-                    <Badge
-                      key={index}
-                      bg="secondary"
-                      className="clickable-badge"
-                      onClick={() => handleSearch('genre', genre)}
-                    >
-                      {genre}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+              <Field label="Genres">
+                {cd.genres.map((genre: string, index: number) => (
+                  <React.Fragment key={genre}>
+                    {index > 0 && ', '}
+                    <button type="button" className="album-head-filter" onClick={() => handleSearch('genre', genre)}>{genre}</button>
+                  </React.Fragment>
+                ))}
+              </Field>
             )}
-
-            {/* Additional Information - full width when no covers */}
-            {(cd.producer && cd.producer.length > 0 || cd.engineer && cd.engineer.length > 0 || cd.recordingLocation || cd.labels && cd.labels.length > 0 || cd.catalogNumber || cd.barcode || cd.recordingQuality) && (
-              <div className="info-section">
-                <h4>Additional Information</h4>
-                <Row>
-                  {cd.labels && cd.labels.length > 0 && (
-                    <Col md={6}>
-                      <div className="info-item">
-                        <strong>Label{cd.labels.length > 1 ? 's' : ''}:</strong> {cd.labels.join(', ')}
-                      </div>
-                    </Col>
-                  )}
-
-                  {cd.catalogNumber && (
-                    <Col md={6}>
-                      <div className="info-item">
-                        <strong>Catalog #:</strong> {cd.catalogNumber}
-                      </div>
-                    </Col>
-                  )}
-
-                  {cd.barcode && (
-                    <Col md={6}>
-                      <div className="info-item">
-                        <strong>Barcode:</strong> {cd.barcode}
-                      </div>
-                    </Col>
-                  )}
-
-                  {cd.recordingQuality && (
-                    <Col md={6}>
-                      <div className="info-item">
-                        <strong>Quality:</strong>
-                        <Badge bg="info" className="ms-2">
-                          {cd.recordingQuality}
-                        </Badge>
-                      </div>
-                    </Col>
-                  )}
-
-                  {cd.producer && cd.producer.length > 0 && (
-                    <Col md={6}>
-                      <div className="info-item">
-                        <strong>Producer{cd.producer.length > 1 ? 's' : ''}:</strong> {cd.producer.join(', ')}
-                      </div>
-                    </Col>
-                  )}
-
-                  {cd.engineer && cd.engineer.length > 0 && (
-                    <Col md={6}>
-                      <div className="info-item">
-                        <strong>Engineer{cd.engineer.length > 1 ? 's' : ''}:</strong> {cd.engineer.join(', ')}
-                      </div>
-                    </Col>
-                  )}
-
-                  {cd.recordingLocation && (
-                    <Col md={12}>
-                      <div className="info-item">
-                        <strong>Recording Location:</strong> {cd.recordingLocation}
-                      </div>
-                    </Col>
-                  )}
-                </Row>
-              </div>
+            {cd.producer && cd.producer.length > 0 && (
+              <Field label={cd.producer.length > 1 ? 'Producers' : 'Producer'}>{cd.producer.join(', ')}</Field>
             )}
-
-            {/* External Links - full width when no covers */}
-            {cd.urls && Object.keys(cd.urls).length > 0 && (
-              <div className="info-section">
-                <h4>External Links</h4>
-                <div className="external-links">
-                  {Object.entries(cd.urls).map(([label, url], index) => (
+            {cd.engineer && cd.engineer.length > 0 && (
+              <Field label={cd.engineer.length > 1 ? 'Engineers' : 'Engineer'}>{cd.engineer.join(', ')}</Field>
+            )}
+            {cd.recordingLocation && <Field label="Recorded at">{cd.recordingLocation}</Field>}
+            {cd.recordingQuality && <Field label="Quality">{cd.recordingQuality}</Field>}
+            {cd.language && <Field label="Language">{cd.language.toUpperCase()}</Field>}
+            {(owned || ownership.notes) && (
+              <Field label="Owned">
+                {owned}
+                {ownership.notes && <span className="album-head-note">{ownership.notes}</span>}
+              </Field>
+            )}
+            {(cd.musicbrainzReleaseId || links.length > 0) && (
+              <Field label="Links">
+                <span className="album-head-links">
+                  {cd.musicbrainzReleaseId && (
                     <a
-                      key={index}
-                      href={url}
+                      className="album-head-link"
+                      href={`https://musicbrainz.org/release/${cd.musicbrainzReleaseId}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="btn btn-outline-light btn-sm me-2 mb-2"
                     >
-                      {label}
+                      MusicBrainz
+                      <BsBoxArrowUpRight aria-hidden="true" />
+                    </a>
+                  )}
+                  {links.map(([key, url]) => (
+                    <a key={key} className="album-head-link" href={url} target="_blank" rel="noopener noreferrer">
+                      {urlLabel(key)}
+                      <BsBoxArrowUpRight aria-hidden="true" />
                     </a>
                   ))}
-                </div>
+                  {cd.musicbrainzReleaseId && canUsePicard() && (
+                    <button
+                      type="button"
+                      className="album-head-link"
+                      onClick={() => openInPicard(cd.musicbrainzReleaseId!)}
+                      title="Load this exact edition in MusicBrainz Picard, open on this computer"
+                    >
+                      <BsTags aria-hidden="true" />
+                      Tag in Picard
+                    </button>
+                  )}
+                </span>
+              </Field>
+            )}
+            <Field label="In DexVault">
+              <span className="album-head-muted">
+                added {added}
+                {updated && updated !== added && ` · updated ${updated}`}
+              </span>
+            </Field>
+            <dt>IDs</dt>
+            <dd>
+              <button
+                type="button"
+                className="album-head-link album-head-toggle"
+                aria-expanded={showIds}
+                aria-controls={`album-ids-${cd.id}`}
+                onClick={() => setShowIds(open => !open)}
+              >
+                <BsChevronRight aria-hidden="true" className={showIds ? 'album-head-chevron-open' : undefined} />
+                {showIds ? 'Hide' : 'Show'}
+              </button>
+            </dd>
+            {showIds && (
+              <div className="album-head-ids" id={`album-ids-${cd.id}`}>
+                {cd.catalogNumber && <Field label="Catalogue no."><code className="album-head-code">{cd.catalogNumber}</code></Field>}
+                {cd.barcode && <Field label="Barcode"><code className="album-head-code">{cd.barcode}</code></Field>}
+                {cd.isrcCodes && cd.isrcCodes.length > 0 && (
+                  <Field label="ISRC"><code className="album-head-code">{cd.isrcCodes.join(', ')}</code></Field>
+                )}
+                {cd.musicbrainzReleaseId && (
+                  <Field label="MusicBrainz"><code className="album-head-code">{cd.musicbrainzReleaseId}</code></Field>
+                )}
               </div>
             )}
-          </div>
-        )}
+          </dl>
+        </div>
 
         <AlbumStory albumId={cd.id} />
-
-        {/* Ownership Information */}
-        {(cd.ownership?.condition || cd.ownership?.purchasedAt || cd.ownership?.priceChf || cd.ownership?.notes) && (
-          <div className="mt-4">
-            <h4>Ownership Information</h4>
-            <Row>
-              {cd.ownership?.condition && (
-                <Col md={3}>
-                  <p className="cd-info">
-                    <strong>Condition:</strong>
-                    <Badge bg={getConditionBadge(cd.ownership.condition)} className="ms-1">
-                      {getConditionText(cd.ownership.condition)}
-                    </Badge>
-                  </p>
-                </Col>
-              )}
-
-              {cd.ownership?.purchasedAt && (
-                <Col md={3}>
-                  <p className="cd-info">
-                    <strong>Purchased:</strong> {new Date(cd.ownership.purchasedAt).toLocaleDateString()}
-                  </p>
-                </Col>
-              )}
-
-              {cd.ownership?.priceChf && (
-                <Col md={3}>
-                  <p className="cd-info">
-                    <strong>Price:</strong> CHF {cd.ownership.priceChf}
-                  </p>
-                </Col>
-              )}
-
-              {cd.ownership?.notes && (
-                <Col md={12}>
-                  <p className="cd-info">
-                    <strong>Notes:</strong> {cd.ownership.notes}
-                  </p>
-                </Col>
-              )}
-            </Row>
-          </div>
-        )}
-
-        {/* Technical Details */}
-        {(cd.language || (cd.isrcCodes && cd.isrcCodes.length > 0)) && (
-          <div className="info-section">
-            <h4>Technical Details</h4>
-            <Row>
-              {cd.language && (
-                <Col md={6}>
-                  <div className="info-item">
-                    <strong>Language:</strong> {cd.language.toUpperCase()}
-                  </div>
-                </Col>
-              )}
-
-              {cd.isrcCodes && cd.isrcCodes.length > 0 && (
-                <Col md={12}>
-                  <div className="info-item">
-                    <strong>ISRC Codes:</strong> {cd.isrcCodes.slice(0, 5).join(', ')}
-                    {cd.isrcCodes.length > 5 && ` (+${cd.isrcCodes.length - 5} more)`}
-                  </div>
-                </Col>
-              )}
-            </Row>
-          </div>
-        )}
-
-
 
         {/* Annotation */}
         {cd.annotation && (
@@ -814,86 +625,9 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
           </div>
         )}
 
-        {/* Metadata */}
-        <div className="info-section">
-          <div className="text-muted small">
-            <p className="mb-1">Added: {new Date(cd.createdAt as string).toLocaleDateString()}</p>
-            {cd.updatedAt !== cd.createdAt && (
-              <p className="mb-0">Updated: {new Date(cd.updatedAt as string).toLocaleDateString()}</p>
-            )}
-          </div>
-        </div>
       </Modal.Body>
 
       <Modal.Footer>
-        {ripAlbum ? (
-          <Button variant="primary" onClick={() => openListen(ripAlbum)}>
-            <BsPlayFill className="me-1" />
-            Listen
-          </Button>
-        ) : rip === undefined && !ripError ? (
-          <Button variant="primary" disabled>
-            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-            Listen
-          </Button>
-        ) : (
-          <Button
-            variant="primary"
-            disabled={openingApple}
-            onClick={() => {
-              try {
-                setOpeningApple(true);
-                const cached = cd?.urls?.appleMusic;
-                const isAppleLink = typeof cached === 'string' && /https?:\/\/(music|itunes)\.apple\.com\//.test(cached);
-                const urlToOpen = appleUrl || (isAppleLink ? cached : null);
-                if (urlToOpen) {
-                  musicService.openAppleMusic(urlToOpen);
-                  setOpeningApple(false);
-                } else {
-                  // Fallback: fire async fetch but don't await to keep gesture; open when ready
-                  musicService.getAppleMusicUrl(cd.id)
-                    .then((result: unknown) => musicService.openAppleMusic((result as { url: string }).url))
-                    .finally(() => setOpeningApple(false));
-                }
-              } catch (e) {
-                console.error('Failed to open Apple Music:', e);
-                setOpeningApple(false);
-              }
-            }}
-          >
-            {openingApple ? (
-              <>
-                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                Opening Apple Music...
-              </>
-            ) : (
-              <>
-                <BsApple className="me-1" />
-                Open in Apple Music
-              </>
-            )}
-          </Button>
-        )}
-        <Button
-          variant={isInListenNext ? "warning" : "outline-warning"}
-          onClick={handleListenNextToggle}
-          disabled={togglingListenNext}
-        >
-          <span style={{ fontSize: '16px', marginRight: '4px' }}>
-            {isInListenNext ? '\uD83C\uDFA7' : '\uD83C\uDFA7'}
-          </span>
-          {isInListenNext ? 'Remove from Listen Next' : 'Add to Listen Next'}
-        </Button>
-        {cd.musicbrainzReleaseId && canUsePicard() && (
-          <Button
-            variant="outline-secondary"
-            onClick={() => openInPicard(cd.musicbrainzReleaseId!)}
-            title="Load this exact edition in MusicBrainz Picard, open on this computer"
-          >
-            <BsTags className="me-1" />
-            Tag in Picard
-          </Button>
-        )}
         {onEdit && (
           <Button variant="outline-primary" onClick={onEdit}>
             <BsPencil className="me-1" />
