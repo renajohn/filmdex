@@ -52,7 +52,7 @@ Si l'album attendait dans la **wish list**, il passe dans la collection avec l'�
 
 ## Ce que DexVault fait des rips, et ses garde-fous
 
-À l'ouverture de la page Ripping et à chaque **Refresh**, DexVault relit Navidrome. Pour chaque album **lossless** dont l'édition MusicBrainz (écrite par Picard dans les tags) lui est inconnue, il cherche le même album (release group) :
+À l'ouverture de la page Ripping et à chaque **Refresh**, DexVault relit Navidrome. Pour chaque album **FLAC** dont l'édition MusicBrainz (écrite par Picard dans les tags) lui est inconnue, il cherche le même album (release group) :
 
 | Dans DexVault | Ce qu'il fait |
 |---|---|
@@ -62,7 +62,7 @@ Si l'album attendait dans la **wish list**, il passe dans la collection avec l'�
 
 Puis il rafraîchit pistes et crédits depuis l'édition exacte.
 
-- Seul un rip **lossless** compte : les anciens MP3, même tagués, ne décident rien.
+- Seul un rip **FLAC** compte, celui de ce circuit : les anciens MP3 et les anciennes copies ALAC d'iTunes, même tagués, ne décident rien (ils sont pourtant comptés en « Lossless » pour l'ALAC).
 - Seule une édition que MusicBrainz liste comme **CD** est ajoutée : un album acheté en téléchargement FLAC (Bandcamp…) n'est pas un CD de la collection.
 - Si **deux albums** de DexVault ont le même release group, ou si l'édition appartient déjà à un autre album, DexVault ne touche à rien.
 - Les **pochettes** de DexVault (avant et dos) ne sont jamais remplacées : DexVault ne lit aucune image dans Navidrome, et ni l'adoption d'une édition ni le rafraîchissement n'écrivent les pochettes. Elles ne sont téléchargées qu'à l'ajout d'un CD absent de DexVault.
