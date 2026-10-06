@@ -138,7 +138,7 @@ const ripStatusService = {
   clearCache: (): void => { cache = null; },
 
   /**
-   * Takes from the rips the edition Picard identified each CD as. A lossless
+   * Takes from the rips the edition Picard identified each CD as. A FLAC
    * album in Navidrome carries the MusicBrainz edition its files were tagged
    * with; when the collection does not have it, it goes to the album of the
    * same release group, the only one: a CD of the collection takes it in
@@ -155,8 +155,15 @@ const ripStatusService = {
     const known = new Set(all.filter(album => album.titleStatus !== 'wish').map(album => album.musicbrainzReleaseId).filter(Boolean));
     const refresh = (albumId: number, releaseId: string) => musicbrainzRefreshService.refreshAlbum(albumId).catch(error =>
       logger.warn(`Album ${albumId} took edition ${releaseId} but could not be refreshed: ${(error as Error).message}`));
+    // Only a FLAC rip speaks for a CD: the rips of this workflow are FLAC,
+    // while the library also holds older lossless copies (ALAC from iTunes,
+    // tagged at some point) of CDs that may not be in the collection at all.
+    const isFlacRip = (album: NavidromeAlbum) => {
+      const songs = songsByAlbum.get(album.id) || [];
+      return songs.length > 0 && songs.every(song => song.suffix === 'flac');
+    };
     const editions = [...new Set(navidrome.albums
-      .filter(album => album.musicBrainzId && !known.has(album.musicBrainzId) && albumState(album, songsByAlbum) === 'lossless')
+      .filter(album => album.musicBrainzId && !known.has(album.musicBrainzId) && isFlacRip(album))
       .map(album => album.musicBrainzId!))];
 
     const results: EditionAdoption[] = [];

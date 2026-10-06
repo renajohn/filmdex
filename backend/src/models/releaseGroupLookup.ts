@@ -12,24 +12,30 @@ export interface ReleaseInfo {
  * library every time.
  */
 const ReleaseGroupLookup = {
-  createTable: (): Promise<void> =>
-    new Promise((resolve, reject) => {
-      getDatabase().run(
+  createTable: async (): Promise<void> => {
+    const db = getDatabase();
+    await new Promise<void>((resolve, reject) => {
+      db.run(
         `CREATE TABLE IF NOT EXISTS release_group_lookups (
           release_id TEXT PRIMARY KEY,
           release_group_id TEXT,
-          is_cd INTEGER NOT NULL DEFAULT 0,
+          is_cd INTEGER,
           looked_up_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`,
         (err: Error | null) => (err ? reject(err) : resolve())
       );
-    }),
+    });
+    // The first version of the table had no is_cd, and CREATE TABLE IF NOT
+    // EXISTS leaves an existing table as it is: every read then failed. The
+    // error only says the column is already there.
+    await new Promise<void>(resolve => db.run('ALTER TABLE release_group_lookups ADD COLUMN is_cd INTEGER', () => resolve()));
+  },
 
-  /** undefined when never asked. */
+  /** undefined when never asked, or asked before DexVault noted whether it is a CD. */
   find: (releaseId: string): Promise<ReleaseInfo | undefined> =>
     new Promise((resolve, reject) => {
       getDatabase().get(
-        'SELECT release_group_id, is_cd FROM release_group_lookups WHERE release_id = ?',
+        'SELECT release_group_id, is_cd FROM release_group_lookups WHERE release_id = ? AND is_cd IS NOT NULL',
         [releaseId],
         (err: Error | null, row?: { release_group_id: string | null; is_cd: number }) =>
           (err ? reject(err) : resolve(row ? { releaseGroupId: row.release_group_id, isCd: row.is_cd === 1 } : undefined))

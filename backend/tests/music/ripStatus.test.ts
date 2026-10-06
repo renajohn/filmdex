@@ -259,6 +259,17 @@ describe('adoption des éditions depuis les rips', () => {
     expect(await covers('wish')).toEqual(['/images/cd/my-front.jpg', '/images/cd/my-back.jpg']);
   });
 
+  it('ne fait rien d’un ancien rip ALAC tagué : seuls les rips FLAC de ce circuit comptent', async () => {
+    library(`old-alac-${Math.random()}`, 'm4a');
+    jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(songs('nd-x', 'm4a', 16));
+    const lookup = jest.spyOn(musicbrainzService, 'getReleaseDetails');
+    const add = jest.spyOn(musicService, 'addAlbumFromMusicBrainz');
+
+    expect(await ripStatusService.adoptEditions()).toEqual([]);
+    expect(lookup).not.toHaveBeenCalled();
+    expect(add).not.toHaveBeenCalled();
+  });
+
   it('n’adopte pas une édition déjà portée par un autre album', async () => {
     const group = `rg-${Math.random()}`;
     const exact = `taken-${Math.random()}`;
@@ -328,5 +339,23 @@ describe('import de la pochette depuis Navidrome', () => {
 
     expect(res.status).toBe(502);
     expect((await Album.findById(id)).cover).toBe('/images/cd/old.jpg');
+  });
+});
+
+describe('table des éditions déjà demandées', () => {
+  const ReleaseGroupLookup = require('../../src/models/releaseGroupLookup').default;
+  const run = (sql: string) => new Promise<void>((resolve, reject) => getDatabase().run(sql, (err: Error | null) => (err ? reject(err) : resolve())));
+
+  it('reprend la table de sa première version, sans colonne is_cd, et redemande ce qu’elle ignore', async () => {
+    await run('DROP TABLE release_group_lookups');
+    await run('CREATE TABLE release_group_lookups (release_id TEXT PRIMARY KEY, release_group_id TEXT, looked_up_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+    await run("INSERT INTO release_group_lookups (release_id, release_group_id) VALUES ('old-row', 'rg-old')");
+
+    await ReleaseGroupLookup.createTable();
+
+    // Whether the old row is a CD was never noted: it is asked again.
+    expect(await ReleaseGroupLookup.find('old-row')).toBeUndefined();
+    await ReleaseGroupLookup.save('new-row', { releaseGroupId: 'rg-new', isCd: true });
+    expect(await ReleaseGroupLookup.find('new-row')).toEqual({ releaseGroupId: 'rg-new', isCd: true });
   });
 });
