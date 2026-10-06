@@ -1,0 +1,85 @@
+/* A track's details, opened under its row: aligned with the title, on a slightly lighter ground. */
+.track-details {
+  margin: 0 0 6px 59px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 2px solid rgba(240, 183, 60, 0.6);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  animation: track-details-in 0.15s ease-out;
+}
+
+@keyframes track-details-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.track-details dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0;
+}
+
+.track-details dt {
+  color: #8a929d;
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-top: 2px;
+}
+
+.track-details dd {
+  margin: 0;
+  color: #d6dbe1;
+  overflow-wrap: anywhere;
+}
+
+.track-details-people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.track-details-muted {
+  color: #9aa4b2;
+}
+
+.track-details-path {
+  display: block;
+  margin-top: 2px;
+  color: #8a929d;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+}
+
+.track-details-empty {
+  margin: 6px 0 0;
+}
+
+/* The row whose details are open */
+.track-item.track-selectable {
+  cursor: pointer;
+}
+
+.track-item.track-selected {
+  background: rgba(240, 183, 60, 0.1);
+}
+
+/* On a phone: labels above their values, the full width of the list. */
+@media (max-width: 768px) {
+  .track-details {
+    margin-left: 12px;
+  }
+
+  .track-details dl {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .track-details dt:not(:first-child) {
+    margin-top: 8px;
+  }
+}

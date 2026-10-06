@@ -6,7 +6,7 @@ import CoverModal from './CoverModal';
 import AlbumStory from './AlbumStory';
 import { discCredits, type TrackPerformer } from '../utils/trackCredits';
 import { canUsePicard, openInPicard } from '../utils/picard';
-import TrackDetailPanel, { type PanelTrack } from './TrackDetailPanel';
+import TrackDetails from './TrackDetails';
 import type { RipTracks } from '../services/musicService';
 import './MusicDetailCard.css';
 
@@ -91,9 +91,9 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const [isInListenNext, setIsInListenNext] = useState<boolean>(false);
   const [togglingListenNext, setTogglingListenNext] = useState<boolean>(false);
   const [showMusicians, setShowMusicians] = useState<boolean>(false);
-  // The track open in the side panel, as an index over all discs.
-  const [selectedTrack, setSelectedTrack] = useState<number | null>(null);
-  // Undefined until the panel first asks Navidrome for this CD's rip.
+  // The track whose details are open under its row, as "disc-position".
+  const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
+  // Undefined until the details first ask Navidrome for this CD's rip.
   const [rip, setRip] = useState<RipTracks | null | undefined>(undefined);
   const [ripError, setRipError] = useState<string | null>(null);
 
@@ -238,19 +238,19 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
     return () => document.removeEventListener('click', handleDocClick, true);
   }, [confirmDelete]);
 
-  const panelTracks: PanelTrack[] = (cd.discs || []).flatMap((disc: CdDisc) =>
-    disc.tracks.map(track => ({ ...track, disc: disc.number })));
-  const discOffsets = (cd.discs || []).map((_, discIndex) =>
-    (cd.discs || []).slice(0, discIndex).reduce((count, disc) => count + disc.tracks.length, 0));
-
   useEffect(() => {
     setSelectedTrack(null);
     setRip(undefined);
     setRipError(null);
   }, [cd.id]);
 
-  const openTrack = (index: number) => {
-    setSelectedTrack(index);
+  /** Opens a track's details, or closes them when they are open; the rip is read once, on the first one. */
+  const toggleTrack = (key: string) => {
+    if (selectedTrack === key) {
+      setSelectedTrack(null);
+      return;
+    }
+    setSelectedTrack(key);
     if (rip !== undefined || ripError) return;
     musicService.getNavidromeTracks(cd.id)
       .then(setRip)
@@ -268,11 +268,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
       centered
       fullscreen="md-down"
       style={{ zIndex: 10100 }}
-      className={`music-detail-modal${selectedTrack !== null ? ' track-panel-open' : ''}`}
-      // Esc closes the track panel first, the album after.
-      keyboard={selectedTrack === null}
-      // The panel lives outside the dialog: its buttons must keep the focus.
-      enforceFocus={selectedTrack === null}
+      className="music-detail-modal"
     >
       <Modal.Header closeButton>
         <Modal.Title>
@@ -764,19 +760,21 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                   )}
                   <div className="track-list">
                     {disc.tracks.map((track: CdTrack, trackIndex: number) => {
-                      const index = discOffsets[discIndex] + trackIndex;
+                      const key = `${disc.number}-${trackIndex}`;
+                      const open = selectedTrack === key;
                       return (
+                      <React.Fragment key={trackIndex}>
                       <div
-                        key={trackIndex}
-                        className={`track-item track-selectable${selectedTrack === index ? ' track-selected' : ''}`}
+                        className={`track-item track-selectable${open ? ' track-selected' : ''}`}
                         role="button"
                         tabIndex={0}
-                        aria-label={`Details of ${track.title}`}
-                        onClick={() => (selectedTrack === index ? setSelectedTrack(null) : openTrack(index))}
+                        aria-expanded={open}
+                        aria-controls={open ? `track-details-${key}` : undefined}
+                        onClick={() => toggleTrack(key)}
                         onKeyDown={(event: React.KeyboardEvent) => {
                           if (event.key === 'Enter' || event.key === ' ') {
                             event.preventDefault();
-                            openTrack(index);
+                            toggleTrack(key);
                           }
                         }}
                       >
@@ -796,6 +794,16 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                           </span>
                         )}
                       </div>
+                      {open && (
+                        <TrackDetails
+                          id={`track-details-${key}`}
+                          track={{ ...track, disc: disc.number }}
+                          albumArtists={Array.isArray(cd.artist) ? cd.artist : [cd.artist]}
+                          rip={rip}
+                          ripError={ripError}
+                        />
+                      )}
+                      </React.Fragment>
                       );
                     })}
                   </div>
@@ -888,18 +896,6 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
           {confirmDelete ? 'Are you sure?' : 'Delete'}
         </Button>
       </Modal.Footer>
-
-      {selectedTrack !== null && (
-        <TrackDetailPanel
-          tracks={panelTracks}
-          index={selectedTrack}
-          multiDisc={(cd.discs || []).length > 1}
-          rip={rip}
-          ripError={ripError}
-          onSelect={setSelectedTrack}
-          onClose={() => setSelectedTrack(null)}
-        />
-      )}
 
       {/* Cover Zoom Modal */}
       <CoverModal
