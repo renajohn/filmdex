@@ -342,6 +342,42 @@ describe('import de la pochette depuis Navidrome', () => {
   });
 });
 
+describe('fichiers du rip pour le panneau de piste', () => {
+  const env = { ...process.env };
+  afterEach(() => { process.env = { ...env }; });
+
+  it('lit les pistes de l’album Navidrome du CD', async () => {
+    const title = `Nightfly ${Math.random().toString(36).slice(2, 8)}`;
+    const id = await insertAlbum({ title, artist: ['Donald Fagen'] });
+    jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([album('nd-f', title, 'Donald Fagen')]);
+    jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(songs('nd-f', 'flac', 16));
+    const get = jest.spyOn(axios, 'get').mockResolvedValue({ data: { 'subsonic-response': { status: 'ok', album: { song: [
+      { title: 'I.G.Y.', track: 1, discNumber: 1, duration: 363, suffix: 'FLAC', bitRate: 900, bitDepth: 16, samplingRate: 44100, channelCount: 2, size: 40000000, path: 'Donald Fagen/The Nightfly/01 I.G.Y..flac' },
+    ] } } } });
+    jest.spyOn(navidromeService, 'isConfigured').mockReturnValue(true);
+    process.env.NAVIDROME_USER = 'dexvault';
+    process.env.NAVIDROME_PASSWORD = 'secret';
+
+    const res = await request(app).get(`/api/music/albums/${id}/navidrome-tracks`);
+
+    expect(res.status).toBe(200);
+    expect(get.mock.calls[0][0]).toMatch(/\/rest\/getAlbum$/);
+    expect(res.body).toMatchObject({ found: true, album: { id: 'nd-f' } });
+    expect(res.body.tracks[0]).toMatchObject({ track: 1, discNumber: 1, suffix: 'flac', bitDepth: 16, samplingRate: 44100 });
+  });
+
+  it('répond sans erreur pour un CD pas encore rippé', async () => {
+    const id = await insertAlbum({ title: `Unripped ${Math.random()}`, artist: ['Nobody'] });
+    jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([]);
+    jest.spyOn(navidromeService, 'getSongs').mockResolvedValue([]);
+
+    const res = await request(app).get(`/api/music/albums/${id}/navidrome-tracks`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ configured: true, found: false, tracks: [] });
+  });
+});
+
 describe('table des éditions déjà demandées', () => {
   const ReleaseGroupLookup = require('../../src/models/releaseGroupLookup').default;
   const run = (sql: string) => new Promise<void>((resolve, reject) => getDatabase().run(sql, (err: Error | null) => (err ? reject(err) : resolve())));

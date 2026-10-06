@@ -636,6 +636,30 @@ const musicController = {
     }
   },
 
+  /**
+   * The files of this CD's rip in Navidrome, for the track panel. A CD not
+   * ripped yet, or Navidrome not set up, is an answer, not an error.
+   */
+  getNavidromeTracks: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const id = parseInt(req.params.id as string, 10);
+      if (!navidromeService.isConfigured()) {
+        res.json({ configured: false, found: false, tracks: [] });
+        return;
+      }
+      const navidromeAlbum = await ripStatusService.navidromeAlbumFor(id);
+      if (!navidromeAlbum) {
+        res.json({ configured: true, found: false, tracks: [] });
+        return;
+      }
+      const tracks = await navidromeService.getAlbumSongs(navidromeAlbum.id);
+      res.json({ configured: true, found: true, album: { id: navidromeAlbum.id, name: navidromeAlbum.name }, tracks });
+    } catch (error) {
+      logger.error('Error reading the rip from Navidrome:', error);
+      res.status(502).json({ error: (error as Error).message || 'Failed to read the rip from Navidrome' });
+    }
+  },
+
   getAppleMusicUrl: async (req: Request, res: Response): Promise<void> => {
     try {
       const id = parseInt(req.params.id as string, 10);

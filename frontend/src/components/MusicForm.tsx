@@ -4,6 +4,8 @@ import { BsX, BsUpload, BsMusicNote, BsPlus, BsTrash, BsPencil, BsGripVertical }
 import apiService from '../services/api';
 import musicService from '../services/musicService';
 import CoverCropDialog from './CoverCropDialog';
+import { trackCredits, type TrackPerformer } from '../utils/trackCredits';
+import { joinNames, splitNames } from '../utils/trackDetail';
 
 interface TrackData {
   trackNumber?: number;
@@ -13,8 +15,28 @@ interface TrackData {
   musicbrainzRecordingId: string | null;
   musicbrainzTrackId: string | null;
   toc?: string | null;
+  work: string | null;
+  artist: string[];
+  composers: string[];
+  performers: TrackPerformer[];
   [key: string]: any;
 }
+
+/** Bootstrap's muted grey is unreadable on the dark dialog. */
+const HELP_COLOR = '#9ca3af';
+
+/** A track with nothing known yet, for "Add Track". */
+const emptyTrack = (): TrackData => ({
+  title: '',
+  durationSec: null,
+  isrc: '',
+  musicbrainzRecordingId: null,
+  musicbrainzTrackId: null,
+  work: null,
+  artist: [],
+  composers: [],
+  performers: []
+});
 
 interface DiscData {
   number: number;
@@ -174,6 +196,8 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [editingTrack, setEditingTrack] = useState<EditingTrackState | null>(null); // { discIndex, trackIndex, data }
   const [showTrackDialog, setShowTrackDialog] = useState(false);
+  // Names as typed, "A; B", split into lists only on save.
+  const [creditText, setCreditText] = useState({ composers: '', artist: '' });
   const [draggedTrack, setDraggedTrack] = useState<DragTrackState | null>(null); // { discIndex, trackIndex }
   const [dropTarget, setDropTarget] = useState<DragTrackState | null>(null); // { discIndex, trackIndex } - where track will drop
 
@@ -206,6 +230,8 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
       // Normalize discs data - handle both 'no' and 'trackNumber' fields
       const normalizedDiscs: DiscData[] = (cd.discs || []).map((disc: any) => ({
         ...disc,
+        // Every field goes back on save, the credits too: the server takes
+        // what the form sends as the edit, so nothing may be left behind.
         tracks: (disc.tracks || []).map((track: any) => ({
           trackNumber: track.trackNumber || track.no || 0,
           title: track.title || '',
@@ -213,7 +239,11 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
           isrc: track.isrc || '',
           musicbrainzRecordingId: track.musicbrainzRecordingId || null,
           musicbrainzTrackId: track.musicbrainzTrackId || null,
-          toc: track.toc || null
+          toc: track.toc || null,
+          work: track.work || null,
+          artist: track.artist || [],
+          composers: track.composers || [],
+          performers: track.performers || []
         }))
       }));
 
@@ -333,14 +363,9 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
     setEditingTrack({
       discIndex,
       trackIndex: -1,
-      data: {
-        title: '',
-        durationSec: null,
-        isrc: '',
-        musicbrainzRecordingId: null,
-        musicbrainzTrackId: null
-      }
+      data: emptyTrack()
     });
+    setCreditText({ composers: '', artist: '' });
     setShowTrackDialog(true);
   };
 
@@ -349,15 +374,40 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
     setEditingTrack({
       discIndex,
       trackIndex,
-      data: { ...track }
+      data: { ...track, performers: [...(track.performers || [])] }
     });
+    setCreditText({ composers: joinNames(track.composers), artist: joinNames(track.artist) });
     setShowTrackDialog(true);
   };
+
+  const updateEditingTrack = (changes: Partial<TrackData>) =>
+    setEditingTrack(prev => prev ? { ...prev, data: { ...prev.data, ...changes } } : null);
+
+  const updatePerformer = (index: number, changes: Partial<TrackPerformer>) =>
+    setEditingTrack(prev => prev ? {
+      ...prev,
+      data: {
+        ...prev.data,
+        performers: (prev.data.performers || []).map((performer, i) => i === index ? { ...performer, ...changes } : performer)
+      }
+    } : null);
 
   const saveTrack = () => {
     if (!editingTrack) return;
 
-    const { discIndex, trackIndex, data } = editingTrack;
+    const { discIndex, trackIndex } = editingTrack;
+    const data: TrackData = {
+      ...editingTrack.data,
+      title: editingTrack.data.title.trim(),
+      work: editingTrack.data.work?.trim() || null,
+      isrc: (editingTrack.data.isrc || '').trim().toUpperCase(),
+      musicbrainzRecordingId: editingTrack.data.musicbrainzRecordingId?.trim() || null,
+      composers: splitNames(creditText.composers),
+      artist: splitNames(creditText.artist),
+      performers: (editingTrack.data.performers || [])
+        .map(performer => ({ name: performer.name.trim(), role: performer.role.trim() }))
+        .filter(performer => performer.name)
+    };
 
     setFormData(prev => {
       const newDiscs = [...prev.discs];
@@ -1631,7 +1681,14 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                                   <BsGripVertical size={14} />
                                 </td>
                                 <td style={{ userSelect: 'none' }}>{trackIndex + 1}</td>
-                                <td style={{ userSelect: 'none' }}>{track.title}</td>
+                                <td style={{ userSelect: 'none' }}>
+                                  {track.title}
+                                  {trackCredits(track, formData.artist) && (
+                                    <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                      {trackCredits(track, formData.artist)}
+                                    </div>
+                                  )}
+                                </td>
                                 <td style={{ userSelect: 'none' }}>{formatDuration(track.durationSec)}</td>
                                 <td>
                                   <div className="d-flex gap-1">
@@ -1693,6 +1750,8 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
           setEditingTrack(null);
         }}
         centered
+        scrollable
+        fullscreen="sm-down"
         style={{ zIndex: 10200 }}
       >
         <Modal.Header closeButton>
@@ -1740,23 +1799,117 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                 }}
                 placeholder="e.g., 3:45 or just 3"
               />
-              <Form.Text className="text-muted">
+              <Form.Text style={{ color: HELP_COLOR }}>
                 Format: minutes:seconds (e.g., 3:45) or just minutes (e.g., 3)
               </Form.Text>
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>ISRC</Form.Label>
+              <Form.Label>Work</Form.Label>
               <Form.Control
                 type="text"
-                value={editingTrack.data.isrc || ''}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingTrack(prev => prev ? ({
-                  ...prev,
-                  data: { ...prev.data, isrc: e.target.value }
-                }) : null)}
-                placeholder="e.g., USRC17607839"
+                value={editingTrack.data.work || ''}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEditingTrack({ work: e.target.value })}
+                placeholder="e.g., Préludes, Book 1"
+              />
+              <Form.Text style={{ color: HELP_COLOR }}>
+                The piece this track belongs to, when it is one movement of it.
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Composers</Form.Label>
+              <Form.Control
+                type="text"
+                value={creditText.composers}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCreditText(prev => ({ ...prev, composers: e.target.value }))}
+                placeholder="e.g., Claude Debussy"
+              />
+              <Form.Text style={{ color: HELP_COLOR }}>Several names: separate them with a semicolon.</Form.Text>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Track artist</Form.Label>
+              <Form.Control
+                type="text"
+                value={creditText.artist}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCreditText(prev => ({ ...prev, artist: e.target.value }))}
+                placeholder="Only when it differs from the album's"
               />
             </Form.Group>
+
+            <Form.Group className="mb-3">
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <Form.Label className="mb-0">Performers</Form.Label>
+                <Button
+                  variant="outline-success"
+                  size="sm"
+                  onClick={() => updateEditingTrack({ performers: [...(editingTrack.data.performers || []), { name: '', role: '' }] })}
+                >
+                  <BsPlus size={16} /> Add
+                </Button>
+              </div>
+              {(editingTrack.data.performers || []).length === 0 ? (
+                <div className="text-muted small">No performers.</div>
+              ) : (
+                (editingTrack.data.performers || []).map((performer: TrackPerformer, index: number) => (
+                  <div key={index} className="d-flex gap-2 mb-2">
+                    <Form.Control
+                      type="text"
+                      size="sm"
+                      value={performer.name}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updatePerformer(index, { name: e.target.value })}
+                      placeholder="Name"
+                      aria-label="Performer name"
+                    />
+                    <Form.Control
+                      type="text"
+                      size="sm"
+                      value={performer.role}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updatePerformer(index, { role: e.target.value })}
+                      placeholder="Role: piano, conductor…"
+                      aria-label="Performer role"
+                      style={{ maxWidth: '45%' }}
+                    />
+                    <Button
+                      variant="outline-danger"
+                      size="sm"
+                      aria-label={`Remove ${performer.name || 'performer'}`}
+                      onClick={() => updateEditingTrack({
+                        performers: (editingTrack.data.performers || []).filter((_: TrackPerformer, i: number) => i !== index)
+                      })}
+                    >
+                      <BsTrash />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </Form.Group>
+
+            <Row>
+              <Col sm={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>ISRC</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={editingTrack.data.isrc || ''}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEditingTrack({ isrc: e.target.value })}
+                    placeholder="e.g., USRC17607839"
+                  />
+                </Form.Group>
+              </Col>
+              <Col sm={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>MusicBrainz recording</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={editingTrack.data.musicbrainzRecordingId || ''}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEditingTrack({ musicbrainzRecordingId: e.target.value })}
+                    placeholder="Recording ID"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
           </Form>
         </Modal.Body>
         <Modal.Footer>

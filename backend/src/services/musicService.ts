@@ -81,6 +81,10 @@ interface AlbumTrack {
   no: number;
   title: string;
   durationSec: number | null;
+  isrc: string | null;
+  musicbrainzRecordingId: string | null;
+  musicbrainzTrackId: string | null;
+  toc: string | null;
   artist: string[];
   work: string | null;
   composers: string[];
@@ -211,6 +215,10 @@ class MusicService {
           no: track.trackNumber,
           title: track.title,
           durationSec: track.durationSec,
+          isrc: track.isrc,
+          musicbrainzRecordingId: track.musicbrainzRecordingId,
+          musicbrainzTrackId: track.musicbrainzTrackId,
+          toc: track.toc,
           artist: track.artist,
           work: track.work,
           composers: track.composers,
@@ -312,9 +320,10 @@ class MusicService {
 
       // Update tracks if provided
       if (albumData.discs && albumData.discs.length > 0) {
-        // getAlbumById only hands the form {no, title, durationSec}, so a plain
-        // delete-and-recreate would wipe each track's ISRC, MusicBrainz ids and
-        // TOC. Keep them unless the edit supplies a replacement.
+        // The form sends back every field of the tracks it loaded, an emptied
+        // one as null or [], and that is the edit. A client that leaves a field
+        // out (a script, an older page) keeps what the track at that position
+        // had, rather than wiping its ISRC, MusicBrainz ids, TOC and credits.
         const existingTracks = await Track.findByCdId(id);
         const existingByPosition = new Map<string, typeof existingTracks[number]>();
         existingTracks.forEach(track => {
@@ -331,23 +340,24 @@ class MusicService {
             try {
               const trackNumber = track.trackNumber ?? track.no ?? 0;
               const previous = existingByPosition.get(`${disc.number}:${trackNumber}`);
+              const given = <K extends keyof TrackData>(key: K) => track[key] !== undefined;
 
               await Track.create({
                 albumId: id,
                 discNumber: disc.number,
                 trackNumber,
                 title: track.title,
-                durationSec: track.durationSec ?? previous?.durationSec,
-                isrc: track.isrc ?? previous?.isrc ?? undefined,
+                durationSec: given('durationSec') ? track.durationSec : previous?.durationSec,
+                isrc: (given('isrc') ? track.isrc : previous?.isrc) || null,
                 musicbrainzRecordingId:
-                  track.musicbrainzRecordingId ?? previous?.musicbrainzRecordingId ?? undefined,
+                  (given('musicbrainzRecordingId') ? track.musicbrainzRecordingId : previous?.musicbrainzRecordingId) || null,
                 musicbrainzTrackId:
-                  track.musicbrainzTrackId ?? previous?.musicbrainzTrackId ?? undefined,
-                toc: track.toc ?? previous?.toc ?? undefined,
-                artist: track.artist ?? previous?.artist,
-                work: track.work ?? previous?.work,
-                composers: track.composers ?? previous?.composers,
-                performers: track.performers ?? previous?.performers
+                  (given('musicbrainzTrackId') ? track.musicbrainzTrackId : previous?.musicbrainzTrackId) || null,
+                toc: (given('toc') ? track.toc : previous?.toc) || null,
+                artist: given('artist') ? track.artist : previous?.artist,
+                work: (given('work') ? track.work : previous?.work) || null,
+                composers: given('composers') ? track.composers : previous?.composers,
+                performers: given('performers') ? track.performers : previous?.performers
               });
             } catch (trackError) {
               console.error(`Failed to create track ${track.trackNumber || track.no}:`, trackError);

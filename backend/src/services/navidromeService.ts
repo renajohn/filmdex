@@ -69,7 +69,26 @@ const request = async <T>(endpoint: string, params: Record<string, string | numb
   return body;
 };
 
+/** One file of a rip, as the track panel shows it. */
+export interface NavidromeTrackFile {
+  discNumber: number;
+  track: number;
+  title: string;
+  durationSec: number | null;
+  suffix: string;
+  bitRate: number | null;
+  bitDepth: number | null;
+  samplingRate: number | null;
+  channelCount: number | null;
+  size: number | null;
+  path: string | null;
+}
+
 type RawAlbum = { id: string; name: string; artist?: string; musicBrainzId?: string; songCount?: number };
+type RawAlbumSong = {
+  title?: string; track?: number; discNumber?: number; duration?: number; suffix?: string; bitRate?: number;
+  bitDepth?: number; samplingRate?: number; channelCount?: number; size?: number; path?: string;
+};
 type RawSong = { albumId?: string; suffix?: string; bitDepth?: number };
 
 const toAlbum = (raw: RawAlbum): NavidromeAlbum => ({
@@ -115,6 +134,24 @@ const navidromeService = {
     // A refusal comes back as a Subsonic error document, not as an image.
     if (!contentType.startsWith('image/')) throw new Error('Navidrome has no cover for this album');
     return { data: Buffer.from(response.data), contentType };
+  },
+
+  /** The files of one album, with what a rip is judged by: format, bit depth, sampling rate. */
+  getAlbumSongs: async (albumId: string): Promise<NavidromeTrackFile[]> => {
+    const body = await request<{ album?: { song?: RawAlbumSong[] } }>('getAlbum', { id: albumId });
+    return (body.album?.song || []).map(song => ({
+      discNumber: song.discNumber || 1,
+      track: song.track || 0,
+      title: song.title || '',
+      durationSec: song.duration ?? null,
+      suffix: (song.suffix || '').toLowerCase(),
+      bitRate: song.bitRate || null,
+      bitDepth: song.bitDepth || null,
+      samplingRate: song.samplingRate || null,
+      channelCount: song.channelCount || null,
+      size: song.size || null,
+      path: song.path || null,
+    }));
   },
 
   /** Every song with its format: an empty search3 query lists the whole library in Navidrome. */

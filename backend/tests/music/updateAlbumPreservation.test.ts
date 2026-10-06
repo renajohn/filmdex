@@ -127,4 +127,63 @@ describe('musicService.updateAlbum — does not destroy data it was not given', 
     const tracks = await all('SELECT title FROM tracks WHERE album_id = ?', [album.id]);
     expect(tracks.map((t) => t.title)).toEqual(['Keep me']);
   });
+
+  it('hands the form every field of a track, credits and identifiers included', async () => {
+    const album = await createRichAlbum();
+
+    const loaded = await musicService.getAlbumById(album.id);
+
+    expect(loaded.discs[0].tracks[0]).toMatchObject({
+      no: 1, title: 'Airbag', isrc: 'GBAYE9700263', musicbrainzRecordingId: 'rec-airbag', toc: 'toc-1',
+    });
+  });
+
+  it('takes the credits the track editor sends, an emptied one included', async () => {
+    const album = await createRichAlbum();
+    await musicService.updateAlbum(album.id, {
+      title: 'OK Computer',
+      artist: ['Radiohead'],
+      discs: [{ number: 1, tracks: [{
+        no: 1, title: 'Airbag', work: 'Airbag', composers: ['Thom Yorke'],
+        performers: [{ name: 'Phil Selway', role: 'drums' }], artist: ['Radiohead'],
+      }] }],
+    } as any);
+
+    await musicService.updateAlbum(album.id, {
+      title: 'OK Computer',
+      artist: ['Radiohead'],
+      discs: [{ number: 1, tracks: [{
+        no: 1, title: 'Airbag', durationSec: 284, isrc: '', work: null, composers: ['Radiohead'], performers: [], artist: [],
+      }] }],
+    } as any);
+
+    const [track] = (await musicService.getAlbumById(album.id)).discs[0].tracks;
+    expect(track.composers).toEqual(['Radiohead']);
+    expect(track.performers).toEqual([]);
+    expect(track.work).toBeNull();
+    expect(track.isrc).toBeNull();
+    expect(track.musicbrainzRecordingId).toBe('rec-airbag');
+  });
+
+  it('keeps each track its own credits when the form reorders them', async () => {
+    const album = await musicService.addAlbum({
+      title: 'Reordered',
+      artist: ['Test'],
+      discs: [{ number: 1, tracks: [
+        { trackNumber: 1, title: 'First', composers: ['A'] },
+        { trackNumber: 2, title: 'Second', composers: ['B'] },
+      ] }],
+    } as any);
+    const loaded = await musicService.getAlbumById(album.id);
+    const [first, second] = loaded.discs[0].tracks;
+
+    await musicService.updateAlbum(album.id, {
+      title: 'Reordered',
+      artist: ['Test'],
+      discs: [{ number: 1, tracks: [{ ...second, no: 1 }, { ...first, no: 2 }] }],
+    } as any);
+
+    const tracks = (await musicService.getAlbumById(album.id)).discs[0].tracks;
+    expect(tracks.map(t => [t.title, t.composers])).toEqual([['Second', ['B']], ['First', ['A']]]);
+  });
 });

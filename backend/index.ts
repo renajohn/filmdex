@@ -269,6 +269,7 @@ app.delete('/api/music/albums/:id', musicController.deleteAlbum);
 app.post('/api/music/albums/:id/upload-cover', musicController.coverUploadMiddleware, musicController.uploadCustomCover);
 app.post('/api/music/albums/:id/upload-back-cover', musicController.coverUploadMiddleware, musicController.uploadCustomBackCover);
 app.post('/api/music/albums/:id/import-navidrome-cover', musicController.importNavidromeCover);
+app.get('/api/music/albums/:id/navidrome-tracks', musicController.getNavidromeTracks);
 app.get('/api/music/autocomplete', musicController.getAutocompleteSuggestions);
 app.get('/api/music/search', musicController.searchMusicBrainz);
 app.get('/api/music/coverart/:releaseId', musicController.getCoverArt);

@@ -51,6 +51,28 @@ export interface EditionAdoption {
   skipped?: 'no_release_group' | 'not_a_cd' | 'several_albums' | 'edition_taken' | 'failed';
 }
 
+/** One file of a CD's rip in Navidrome, matched to its track by disc and number. */
+export interface RipTrackFile {
+  discNumber: number;
+  track: number;
+  title: string;
+  durationSec: number | null;
+  suffix: string;
+  bitRate: number | null;
+  bitDepth: number | null;
+  samplingRate: number | null;
+  channelCount: number | null;
+  size: number | null;
+  path: string | null;
+}
+
+export interface RipTracks {
+  configured: boolean;
+  found: boolean;
+  album?: { id: string; name: string };
+  tracks: RipTrackFile[];
+}
+
 export interface RipStatus {
   configured: boolean;
   error?: string;
@@ -548,6 +570,17 @@ class MusicService {
   async importNavidromeCover(albumId: number | string): Promise<{ coverPath: string }> {
     const baseUrl = await this.getBaseUrl();
     const response = await fetch(`${baseUrl}/music/albums/${albumId}/import-navidrome-cover`, { method: 'POST' });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.error || `HTTP error! status: ${response.status}`);
+    }
+    return body;
+  }
+
+  /** The files of this CD's rip in Navidrome; found is false while it is not ripped. */
+  async getNavidromeTracks(albumId: number | string): Promise<RipTracks> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/albums/${albumId}/navidrome-tracks`);
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(body.error || `HTTP error! status: ${response.status}`);

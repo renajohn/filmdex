@@ -108,3 +108,48 @@ describe('MusicForm — adjusting a cover already stored', () => {
     expect(screen.queryByTestId('crop-dialog')).not.toBeInTheDocument();
   });
 });
+
+describe('MusicForm — editing a track', () => {
+  const credited = {
+    ...album,
+    discs: [{
+      number: 1,
+      tracks: [{
+        no: 1, title: 'Voiles', durationSec: 176, isrc: 'CHA000300002', musicbrainzRecordingId: 'rec-2',
+        work: 'Préludes, Book 1', artist: [], composers: ['Claude Debussy'],
+        performers: [{ name: 'Ruth Schmid-Gagnebin', role: 'piano' }],
+      }],
+    }],
+  };
+
+  it('edits the credits and sends every field of the track back', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(<MusicForm cd={credited} onSave={onSave} onCancel={vi.fn()} />);
+
+    expect(screen.getByText('Claude Debussy — Ruth Schmid-Gagnebin (piano)')).toBeInTheDocument();
+    const row = screen.getByText('Voiles').closest('tr')!;
+    fireEvent.click(row.querySelector('.btn-outline-primary')!);
+
+    expect(screen.getByDisplayValue('Préludes, Book 1')).toBeInTheDocument();
+    fireEvent.change(screen.getByDisplayValue('Claude Debussy'), { target: { value: 'Claude Debussy; Someone Else' } });
+    fireEvent.change(screen.getByDisplayValue('piano'), { target: { value: 'piano (Steinway)' } });
+    fireEvent.click(screen.getByRole('button', { name: /Add$/ }));
+    fireEvent.change(screen.getAllByLabelText('Performer name')[1], { target: { value: '  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Update Album' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const [track] = onSave.mock.calls[0][0].discs[0].tracks;
+    expect(track).toMatchObject({
+      title: 'Voiles',
+      durationSec: 176,
+      isrc: 'CHA000300002',
+      musicbrainzRecordingId: 'rec-2',
+      work: 'Préludes, Book 1',
+      composers: ['Claude Debussy', 'Someone Else'],
+      // The empty row added and left blank is dropped.
+      performers: [{ name: 'Ruth Schmid-Gagnebin', role: 'piano (Steinway)' }],
+    });
+  });
+});
+
