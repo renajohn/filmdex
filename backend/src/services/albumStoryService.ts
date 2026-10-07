@@ -188,12 +188,22 @@ type TopWork = { id: string; title: string; wikidata: string | null; tracks: num
  * The works an album performs, climbed up to the whole work ("Madama
  * Butterfly", not its arias), with the number of tracks each one covers.
  * Each work is looked up once however many tracks lead to it.
+ *
+ * MusicBrainz also files parts under what reuses them: the Romance of Chopin's
+ * first concerto is a part of "The Truman Show" soundtrack too, and "Carmina
+ * Burana" a part of the "Trionfi" triptych. So a track follows the parent most
+ * of the album shares, and the climb stops at the first work with an article.
  */
 const findTopWorks = async (releaseId: string): Promise<TopWork[]> => {
   const trackWorks = await musicbrainzService.getReleaseTrackWorks(releaseId);
 
-  // Start from the parents the release lookup already gave, to save a level.
-  const startsByTrack = trackWorks.map(works => new Set(works.flatMap(work => work.parentIds.length ? work.parentIds : [work.id])));
+  // Start from the parents the release lookup already gave, to save a level:
+  // of a part's parents, the one most tracks of the album lead to.
+  const parentCounts = new Map<string, number>();
+  trackWorks.flat().forEach(work => work.parentIds.forEach(id => parentCounts.set(id, (parentCounts.get(id) ?? 0) + 1)));
+  const mainParent = (parentIds: string[]): string =>
+    parentIds.reduce((best, id) => ((parentCounts.get(id) ?? 0) > (parentCounts.get(best) ?? 0) ? id : best));
+  const startsByTrack = trackWorks.map(works => new Set(works.map(work => work.parentIds.length ? mainParent(work.parentIds) : work.id)));
   const tracksByStart = new Map<string, Set<number>>();
   startsByTrack.forEach((starts, track) => starts.forEach(id => {
     if (!tracksByStart.has(id)) tracksByStart.set(id, new Set());
@@ -206,7 +216,7 @@ const findTopWorks = async (releaseId: string): Promise<TopWork[]> => {
   const climb = (id: string, depth = 0): Promise<{ id: string; title: string; wikidata: string | null }> => {
     if (!climbed.has(id)) {
       climbed.set(id, musicbrainzService.getWork(id).then(work =>
-        work.parentIds.length && depth < MAX_DEPTH ? climb(work.parentIds[0], depth + 1) : work));
+        work.parentIds.length && !work.wikidata && depth < MAX_DEPTH ? climb(work.parentIds[0], depth + 1) : work));
     }
     return climbed.get(id)!;
   };

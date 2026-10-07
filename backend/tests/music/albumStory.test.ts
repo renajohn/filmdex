@@ -285,6 +285,45 @@ describe('repli sur les œuvres', () => {
     expect(story.works.map(w => [w.title, w.tracks])).toEqual([['Preludes (Chopin)', 2], ['Piano Sonata No. 2 (Chopin)', 1]]);
   });
 
+  it('suit le parent que partagent les plages, pas une bande originale qui en reprend une', async () => {
+    const id = await insertAlbum('rel-concerto', 'rg-concerto');
+    jest.spyOn(musicbrainzService, 'getReleaseTrackWorks').mockResolvedValue([
+      [work('mvt-1', 'Concerto: I', ['concerto'])],
+      [work('mvt-2', 'Concerto: II. Romance', ['concerto', 'truman'])],
+      [work('mvt-3', 'Concerto: III', ['concerto'])],
+    ]);
+    const getWork = jest.spyOn(musicbrainzService, 'getWork').mockImplementation(async (workId: string) => ({
+      concerto: work('concerto', 'Piano Concerto no. 1', [], 'Q1'),
+      truman: work('truman', 'The Truman Show', [], 'Q2'),
+    } as Record<string, ReturnType<typeof work>>)[workId]);
+    mockWorkWikis({ Q1: 'Piano Concerto No. 1 (Chopin)', Q2: 'The Truman Show: Music from the Motion Picture' });
+
+    const story = await albumStoryService.getStory(id);
+
+    expect(story.works.map(w => [w.title, w.tracks])).toEqual([['Piano Concerto No. 1 (Chopin)', 3]]);
+    expect(getWork).not.toHaveBeenCalledWith('truman');
+  });
+
+  it('s’arrête à la première œuvre qui a un article', async () => {
+    const id = await insertAlbum('rel-carmina', 'rg-carmina');
+    jest.spyOn(musicbrainzService, 'getReleaseTrackWorks').mockResolvedValue([
+      [work('o-fortuna', 'O Fortuna', ['fortuna'])],
+      [work('in-taberna', 'In taberna', ['taberna'])],
+    ]);
+    const getWork = jest.spyOn(musicbrainzService, 'getWork').mockImplementation(async (workId: string) => ({
+      fortuna: work('fortuna', 'Fortuna Imperatrix Mundi', ['carmina']),
+      taberna: work('taberna', 'In Taberna', ['carmina']),
+      carmina: work('carmina', 'Carmina Burana', ['trionfi'], 'Q1'),
+      trionfi: work('trionfi', 'Trionfi', [], 'Q2'),
+    } as Record<string, ReturnType<typeof work>>)[workId]);
+    mockWorkWikis({ Q1: 'Carmina Burana (Orff)', Q2: 'Trionfi' });
+
+    const story = await albumStoryService.getStory(id);
+
+    expect(story.works.map(w => [w.title, w.tracks])).toEqual([['Carmina Burana (Orff)', 2]]);
+    expect(getWork).not.toHaveBeenCalledWith('trionfi');
+  });
+
   it('ne cherche pas les œuvres d’un recueil de chansons', async () => {
     const id = await insertAlbum('rel-songs', 'rg-songs');
     jest.spyOn(musicbrainzService, 'getReleaseTrackWorks').mockResolvedValue(
