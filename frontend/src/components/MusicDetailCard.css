@@ -427,25 +427,11 @@
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
-/* Session musicians, under a track, only when asked for */
-.track-musicians {
-  display: block;
-  margin-top: 2px;
-  color: #8a929d;
-  font-size: 0.75rem;
-  line-height: 1.4;
-}
-
 .track-listing-header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-}
-
-.musicians-toggle {
-  padding: 0;
-  font-size: 0.8rem;
 }
 
 /* …and under the title of each track that differs, inside its row */

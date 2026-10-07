@@ -106,7 +106,6 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const [appleUrl, setAppleUrl] = useState<string | null>(null);
   const [isInListenNext, setIsInListenNext] = useState<boolean>(false);
   const [togglingListenNext, setTogglingListenNext] = useState<boolean>(false);
-  const [showMusicians, setShowMusicians] = useState<boolean>(false);
   const [showIds, setShowIds] = useState<boolean>(false);
   const [showEdition, setShowEdition] = useState<boolean>(false);
   // A front cover whose file would not load: the placeholder takes its place.
@@ -554,11 +553,6 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
           <div className="info-section">
             <div className="track-listing-header">
               <h4>Track Listing</h4>
-              {discsCredits.some(credits => credits.musicians.some(Boolean)) && (
-                <Button variant="link" size="sm" className="musicians-toggle" onClick={() => setShowMusicians(shown => !shown)}>
-                  {showMusicians ? 'Hide musicians' : 'Show musicians'}
-                </Button>
-              )}
             </div>
             {cd.discs.map((disc: CdDisc, discIndex: number) => {
               const credits = discsCredits[discIndex];
@@ -595,9 +589,6 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                           {track.title}
                           {credits.perTrack[trackIndex] && (
                             <span className="track-credits">{credits.perTrack[trackIndex]}</span>
-                          )}
-                          {showMusicians && credits.musicians[trackIndex] && (
-                            <span className="track-musicians">{credits.musicians[trackIndex]}</span>
                           )}
                         </span>
                         {track.durationSec && (
