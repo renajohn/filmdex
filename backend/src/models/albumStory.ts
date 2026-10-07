@@ -6,6 +6,13 @@ export interface StorySection {
   text: string;
 }
 
+/** One language's article about the same subject. */
+export interface ArticleLink {
+  lang: string;
+  title: string;
+  url: string;
+}
+
 /** The article about a work the album performs, when the album has none of its own. */
 export interface WorkStory {
   workTitle: string;
@@ -15,6 +22,8 @@ export interface WorkStory {
   url: string;
   intro: string;
   sections: StorySection[];
+  /** Every language the work has an article in, the one told above among them. */
+  links: ArticleLink[];
 }
 
 /** Why no story was found: the album is not linked to MusicBrainz, or MusicBrainz knows no article. */
@@ -31,6 +40,7 @@ export interface AlbumStoryRow {
   intro: string | null;
   sections: string | null;
   works: string | null;
+  links: string | null;
   fetched_at: string;
 }
 
@@ -44,6 +54,7 @@ export interface AlbumStoryInput {
   intro: string | null;
   sections: StorySection[];
   works: WorkStory[];
+  links: ArticleLink[];
   fetchedAt: string;
 }
 
@@ -78,12 +89,14 @@ const AlbumStory = {
         intro       TEXT,
         sections    TEXT,
         works       TEXT,
+        links       TEXT,
         fetched_at  TEXT NOT NULL
       )
     `).then(async () => {
       // Tables created before works were looked up lack the column.
       const columns = await all<{ name: string }>(`PRAGMA table_info(album_stories)`);
       if (!columns.some(column => column.name === 'works')) await run(`ALTER TABLE album_stories ADD COLUMN works TEXT`);
+      if (!columns.some(column => column.name === 'links')) await run(`ALTER TABLE album_stories ADD COLUMN links TEXT`);
     }),
 
   get: (albumId: number): Promise<AlbumStoryRow | null> =>
@@ -91,15 +104,15 @@ const AlbumStory = {
 
   save: (albumId: number, story: AlbumStoryInput): Promise<void> =>
     run(
-      `INSERT INTO album_stories (album_id, found, reason, lang, title, url, wikidata_id, intro, sections, works, fetched_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO album_stories (album_id, found, reason, lang, title, url, wikidata_id, intro, sections, works, links, fetched_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(album_id) DO UPDATE SET
          found = excluded.found, reason = excluded.reason, lang = excluded.lang, title = excluded.title, url = excluded.url,
          wikidata_id = excluded.wikidata_id, intro = excluded.intro, sections = excluded.sections, works = excluded.works,
-         fetched_at = excluded.fetched_at`,
+         links = excluded.links, fetched_at = excluded.fetched_at`,
       [
         albumId, story.found ? 1 : 0, story.reason, story.lang, story.title, story.url, story.wikidataId,
-        story.intro, JSON.stringify(story.sections), JSON.stringify(story.works), story.fetchedAt,
+        story.intro, JSON.stringify(story.sections), JSON.stringify(story.works), JSON.stringify(story.links), story.fetchedAt,
       ]
     ),
 };

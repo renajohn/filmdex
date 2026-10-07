@@ -1,6 +1,6 @@
 import axios from 'axios';
 import Album from '../models/album';
-import AlbumStory, { AlbumStoryRow, NotFoundReason, StorySection, WorkStory } from '../models/albumStory';
+import AlbumStory, { AlbumStoryRow, ArticleLink, NotFoundReason, StorySection, WorkStory } from '../models/albumStory';
 import musicbrainzService from './musicbrainzService';
 import musicbrainzLinkService from './musicbrainzLinkService';
 import logger from '../logger';
@@ -16,6 +16,8 @@ export interface AlbumStoryResult {
   sections: StorySection[];
   /** Only when the album has no article of its own. */
   works: WorkStory[];
+  /** Every language the album has an article in, the one told above among them. */
+  links: ArticleLink[];
   fetchedAt: string;
 }
 
@@ -24,8 +26,8 @@ interface Article {
   title: string;
 }
 
-/** English first, where album articles are the most complete; French next. */
-const PREFERRED_WIKIS = ['enwiki', 'frwiki'];
+/** The languages read and linked, in the order their links are shown. */
+const PREFERRED_WIKIS = ['frwiki', 'enwiki'];
 
 /** A story found stays until refreshed by hand; a miss is retried after a month, articles get written. */
 const RETRY_MISS_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
@@ -98,29 +100,30 @@ const parseExtract = (extract: string): { intro: string; sections: StorySection[
   return { intro: clean(intro), sections };
 };
 
-/** The preferred Wikipedia article of a Wikidata item, if it has one. */
-const articleOfWikidata = async (wikidataId: string): Promise<Article | null> => {
+/** The articles of a Wikidata item in the languages read, in their order. */
+const articlesOfWikidata = async (wikidataId: string): Promise<Article[]> => {
   const response = await axios.get('https://www.wikidata.org/w/api.php', {
     params: { action: 'wbgetentities', ids: wikidataId, props: 'sitelinks', sitefilter: PREFERRED_WIKIS.join('|'), format: 'json' },
     headers: { 'User-Agent': userAgent() },
     timeout: 10000,
   });
   const sitelinks: Record<string, { title: string }> = response.data?.entities?.[wikidataId]?.sitelinks ?? {};
-  const wiki = PREFERRED_WIKIS.find(name => sitelinks[name]);
-  return wiki ? { lang: wiki.replace(/wiki$/, ''), title: sitelinks[wiki].title } : null;
+  return PREFERRED_WIKIS
+    .filter(name => sitelinks[name])
+    .map(name => ({ lang: name.replace(/wiki$/, ''), title: sitelinks[name].title }));
 };
 
-const findArticle = async (releaseGroupId: string): Promise<{ article: Article; wikidataId: string | null } | null> => {
+const findArticles = async (releaseGroupId: string): Promise<{ articles: Article[]; wikidataId: string | null }> => {
   const links = await musicbrainzService.getReleaseGroupWikiLinks(releaseGroupId);
 
   if (links.wikidata) {
-    const article = await articleOfWikidata(links.wikidata);
-    if (article) return { article, wikidataId: links.wikidata };
+    const articles = await articlesOfWikidata(links.wikidata);
+    if (articles.length) return { articles, wikidataId: links.wikidata };
   }
 
-  // Older entries link the article directly, in whatever language it was written.
-  const direct = links.wikipedia.map(parseArticleUrl).find((article): article is Article => article !== null);
-  return direct ? { article: direct, wikidataId: links.wikidata } : null;
+  // Older entries link the articles directly, in whatever language they were written.
+  const direct = links.wikipedia.map(parseArticleUrl).filter((article): article is Article => article !== null);
+  return { articles: direct, wikidataId: links.wikidata };
 };
 
 const fetchExtract = async ({ lang, title }: Article): Promise<{ title: string; extract: string } | null> => {
@@ -132,6 +135,44 @@ const fetchExtract = async ({ lang, title }: Article): Promise<{ title: string; 
   const pages: Record<string, { title: string; extract?: string; missing?: string }> = response.data?.query?.pages ?? {};
   const page = Object.values(pages)[0];
   return page?.extract ? { title: page.title, extract: page.extract } : null;
+};
+
+interface Told {
+  lang: string;
+  title: string;
+  url: string;
+  intro: string;
+  sections: StorySection[];
+  links: ArticleLink[];
+}
+
+/** What an article tells, once lists and references are set aside. */
+const narrativeLength = ({ intro, sections }: { intro: string; sections: StorySection[] }): number =>
+  intro.length + sections.reduce((sum, section) => sum + section.text.length, 0);
+
+/**
+ * Reads every language's article and tells the fullest: a French record is
+ * often better covered in French. All of them stay linked. Ties go to the
+ * first language, French.
+ */
+const readFullest = async (articles: Article[]): Promise<Told | null> => {
+  let fullest: (Told & { length: number }) | null = null;
+  const links: ArticleLink[] = [];
+
+  for (const article of articles) {
+    const page = await fetchExtract(article);
+    if (!page) continue;
+    const found = { lang: article.lang, title: page.title };
+    const link = { ...found, url: articleUrl(found) };
+    links.push(link);
+    const { intro, sections } = parseExtract(page.extract);
+    const length = narrativeLength({ intro, sections });
+    if (!fullest || length > fullest.length) fullest = { ...link, intro, sections, links: [], length };
+  }
+
+  if (!fullest) return null;
+  const { length: _length, ...told } = fullest;
+  return { ...told, links };
 };
 
 /** At most this many works get a story: a recital of twenty arias is not twenty stories. */
@@ -190,12 +231,9 @@ const findWorkStories = async (releaseId: string): Promise<WorkStory[]> => {
   for (const work of await findTopWorks(releaseId)) {
     if (stories.length === MAX_WORKS) break;
     if (!work.wikidata) continue;
-    const article = await articleOfWikidata(work.wikidata);
-    const page = article && await fetchExtract(article);
-    if (!article || !page) continue;
-    const { intro, sections } = parseExtract(page.extract);
-    const found = { lang: article.lang, title: page.title };
-    stories.push({ workTitle: work.title, tracks: work.tracks, ...found, url: articleUrl(found), intro, sections });
+    const told = await readFullest(await articlesOfWikidata(work.wikidata));
+    if (!told) continue;
+    stories.push({ workTitle: work.title, tracks: work.tracks, ...told });
   }
   return stories;
 };
@@ -230,27 +268,22 @@ const toResult = (albumId: number, row: AlbumStoryRow): AlbumStoryResult => ({
   intro: row.intro,
   sections: row.sections ? JSON.parse(row.sections) : [],
   works: row.works ? JSON.parse(row.works) : [],
+  // Stories kept before both languages were read link the one they told.
+  links: row.links ? JSON.parse(row.links) : row.url && row.lang && row.title ? [{ lang: row.lang, title: row.title, url: row.url }] : [],
   fetchedAt: row.fetched_at,
 });
 
 const fetchAndSave = async (albumId: number): Promise<void> => {
   const fetchedAt = new Date().toISOString();
-  const empty = { lang: null, title: null, url: null, wikidataId: null, intro: null, sections: [], works: [], fetchedAt };
+  const empty = { lang: null, title: null, url: null, wikidataId: null, intro: null, sections: [], works: [], links: [], fetchedAt };
   const miss = (reason: NotFoundReason) => AlbumStory.save(albumId, { ...empty, found: false, reason });
 
   const releaseGroupId = await resolveReleaseGroupId(albumId);
   if (!releaseGroupId) return miss('no_musicbrainz');
 
-  const match = await findArticle(releaseGroupId);
-  const page = match && await fetchExtract(match.article);
-  if (match && page) {
-    const { intro, sections } = parseExtract(page.extract);
-    const article = { lang: match.article.lang, title: page.title };
-    return AlbumStory.save(albumId, {
-      ...empty, found: true, reason: null, lang: article.lang, title: article.title, url: articleUrl(article),
-      wikidataId: match.wikidataId, intro, sections,
-    });
-  }
+  const { articles, wikidataId } = await findArticles(releaseGroupId);
+  const told = await readFullest(articles);
+  if (told) return AlbumStory.save(albumId, { ...empty, found: true, reason: null, wikidataId, ...told });
 
   // No article about the album: classical records rarely have one, but the works they play do.
   const album = await Album.findById(albumId);
@@ -260,9 +293,12 @@ const fetchAndSave = async (albumId: number): Promise<void> => {
   await AlbumStory.save(albumId, { ...empty, found: true, reason: null, works });
 };
 
-/** A miss is retried once old, or as soon as the album has been linked to MusicBrainz since. */
+/**
+ * A miss is retried once old, or as soon as the album has been linked to
+ * MusicBrainz since. A story kept before both languages were read is read again.
+ */
 const isStale = async (row: AlbumStoryRow): Promise<boolean> => {
-  if (row.found === 1) return false;
+  if (row.found === 1) return row.links === null;
   if (Date.now() - new Date(row.fetched_at).getTime() > RETRY_MISS_AFTER_MS) return true;
   return row.reason === 'no_musicbrainz' && Boolean((await Album.findById(row.album_id))?.musicbrainzReleaseGroupId);
 };

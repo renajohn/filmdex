@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from 'react-bootstrap';
 import { BsArrowClockwise, BsBoxArrowUpRight, BsChevronRight } from 'react-icons/bs';
-import musicService, { AlbumStory as Story, AlbumStorySection } from '../services/musicService';
+import musicService, { AlbumStory as Story, AlbumStoryLink, AlbumStorySection } from '../services/musicService';
 import './AlbumStory.css';
 
 const MISSING: Record<NonNullable<Story['reason']>, string> = {
   no_musicbrainz: 'No story: this album is not linked to MusicBrainz.',
   no_article: 'No Wikipedia article about this album or its works yet.',
 };
+
+const LANGUAGES: Record<string, string> = { fr: 'French', en: 'English' };
 
 /** Paragraphs of a plain-text Wikipedia extract. */
 const Paragraphs: React.FC<{ text: string }> = ({ text }) => (
@@ -22,13 +24,16 @@ interface ArticleProps {
   lang: string | null;
   title: string | null;
   url: string | null;
+  /** The same article in other languages: the fullest is told, all are linked. */
+  links?: AlbumStoryLink[];
   /** Section headings are one level deeper under a work's own heading. */
   nested?: boolean;
 }
 
 /** The introduction of a Wikipedia article, the rest on demand, and where it comes from. */
-const Article: React.FC<ArticleProps> = ({ intro, sections, lang, title, url, nested = false }) => {
+const Article: React.FC<ArticleProps> = ({ intro, sections, lang, title, url, links = [], nested = false }) => {
   const [expanded, setExpanded] = useState<boolean>(false);
+  const others = links.filter(link => link.url !== url);
 
   return (
     <>
@@ -57,6 +62,14 @@ const Article: React.FC<ArticleProps> = ({ intro, sections, lang, title, url, ne
         <a href={url ?? undefined} target="_blank" rel="noopener noreferrer">
           Wikipedia{lang ? ` (${lang})` : ''}: {title} <BsBoxArrowUpRight />
         </a>
+        {others.map(link => (
+          <React.Fragment key={link.url}>
+            {' · '}
+            <a href={link.url} target="_blank" rel="noopener noreferrer" title={link.title}>
+              also in {LANGUAGES[link.lang] ?? link.lang} <BsBoxArrowUpRight />
+            </a>
+          </React.Fragment>
+        ))}
         {' · '}CC BY-SA
       </p>
     </>
@@ -130,7 +143,7 @@ const AlbumStory: React.FC<{ albumId: number | string }> = ({ albumId }) => {
       {error && <p className="text-warning small">{error}</p>}
 
       {story.url ? (
-        <Article key={story.url} intro={story.intro} sections={story.sections} lang={story.lang} title={story.title} url={story.url} />
+        <Article key={story.url} intro={story.intro} sections={story.sections} lang={story.lang} title={story.title} url={story.url} links={story.links} />
       ) : (
         works.map(work => (
           <div key={work.url} className="album-story-work">
@@ -138,7 +151,7 @@ const AlbumStory: React.FC<{ albumId: number | string }> = ({ albumId }) => {
               {work.title}
               <span className="album-story-tracks">{work.tracks} {work.tracks === 1 ? 'track' : 'tracks'}</span>
             </h5>
-            <Article intro={work.intro} sections={work.sections} lang={work.lang} title={work.title} url={work.url} nested />
+            <Article intro={work.intro} sections={work.sections} lang={work.lang} title={work.title} url={work.url} links={work.links} nested />
           </div>
         ))
       )}

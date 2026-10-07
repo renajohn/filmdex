@@ -40,12 +40,20 @@ const EXTRACT = [
   '',
 ].join('\n');
 
-/** Answers Wikidata and Wikipedia as they answered for Invisible Touch. */
-const mockWikis = (sitelinks: Record<string, { title: string }>, extract: string | null = EXTRACT) =>
+/**
+ * Answers Wikidata and Wikipedia as they answered for Invisible Touch. Each
+ * language tells the same extract unless a test gives it its own.
+ */
+const mockWikis = (
+  sitelinks: Record<string, { title: string }>,
+  extract: string | null = EXTRACT,
+  extracts: Record<string, string> = {},
+) =>
   jest.spyOn(axios, 'get').mockImplementation(async (url: string) => {
     if (url.includes('wikidata.org')) return { data: { entities: { Q1141350: { sitelinks } } } };
     if (url.includes('wikipedia.org')) {
-      const page = extract === null ? { title: 'Invisible Touch', missing: '' } : { title: 'Invisible Touch', extract };
+      const text = extracts[url.match(/\/\/([a-z-]+)\./)![1]] ?? extract;
+      const page = text === null ? { title: 'Invisible Touch', missing: '' } : { title: 'Invisible Touch', extract: text };
       return { data: { query: { pages: { 1: page } } } };
     }
     throw new Error(`unexpected request ${url}`);
@@ -86,10 +94,12 @@ describe('parseExtract', () => {
 });
 
 describe('getStory', () => {
-  it('suit MusicBrainz, Wikidata puis Wikipedia, en préférant l’anglais', async () => {
+  it('suit MusicBrainz, Wikidata puis Wikipedia, raconte l’article le plus complet et lie les deux', async () => {
     const id = await insertAlbum('rel-1', 'rg-1');
     jest.spyOn(musicbrainzService, 'getReleaseGroupWikiLinks').mockResolvedValue({ wikidata: 'Q1141350', wikipedia: [] });
-    mockWikis({ frwiki: { title: 'Invisible Touch' }, enwiki: { title: 'Invisible Touch' } });
+    mockWikis({ frwiki: { title: 'Invisible Touch' }, enwiki: { title: 'Invisible Touch' } }, EXTRACT, {
+      fr: 'Invisible Touch est un album de Genesis.\n== Liste des titres ==\n1. Invisible Touch, un long titre qui ne compte pas',
+    });
 
     const story = await albumStoryService.getStory(id);
 
@@ -97,14 +107,49 @@ describe('getStory', () => {
       found: true, lang: 'en', title: 'Invisible Touch', url: 'https://en.wikipedia.org/wiki/Invisible_Touch',
     });
     expect(story.sections.map(s => s.heading)).toContain('Background');
+    expect(story.links).toEqual([
+      { lang: 'fr', title: 'Invisible Touch', url: 'https://fr.wikipedia.org/wiki/Invisible_Touch' },
+      { lang: 'en', title: 'Invisible Touch', url: 'https://en.wikipedia.org/wiki/Invisible_Touch' },
+    ]);
   });
 
-  it('se rabat sur le français quand il n’y a pas d’article anglais', async () => {
+  it('raconte le français quand il en dit plus, et à égalité', async () => {
+    const id = await insertAlbum('rel-1b', 'rg-1b');
+    jest.spyOn(musicbrainzService, 'getReleaseGroupWikiLinks').mockResolvedValue({ wikidata: 'Q1141350', wikipedia: [] });
+    mockWikis({ frwiki: { title: 'Invisible Touch' }, enwiki: { title: 'Invisible Touch' } }, EXTRACT, {
+      fr: `${EXTRACT}\n== Genèse ==\nLe groupe enregistre aux Fisher Lane Farm Studios pendant tout l’hiver.`,
+    });
+    expect(await albumStoryService.getStory(id)).toMatchObject({ found: true, lang: 'fr' });
+
+    const tie = await insertAlbum('rel-1c', 'rg-1c');
+    mockWikis({ frwiki: { title: 'Invisible Touch' }, enwiki: { title: 'Invisible Touch' } });
+    expect(await albumStoryService.getStory(tie)).toMatchObject({ found: true, lang: 'fr' });
+  });
+
+  it('se contente d’une seule langue', async () => {
     const id = await insertAlbum('rel-2', 'rg-2');
     jest.spyOn(musicbrainzService, 'getReleaseGroupWikiLinks').mockResolvedValue({ wikidata: 'Q1141350', wikipedia: [] });
-    mockWikis({ frwiki: { title: 'Invisible Touch' } });
+    mockWikis({ enwiki: { title: 'Invisible Touch' } });
 
-    expect(await albumStoryService.getStory(id)).toMatchObject({ found: true, lang: 'fr' });
+    const story = await albumStoryService.getStory(id);
+    expect(story).toMatchObject({ found: true, lang: 'en' });
+    expect(story.links.map(link => link.lang)).toEqual(['en']);
+  });
+
+  it('relit une histoire gardée avant que les deux langues soient lues', async () => {
+    const id = await insertAlbum('rel-old', 'rg-old');
+    await new Promise<void>((resolve, reject) => getDatabase().run(
+      `INSERT INTO album_stories (album_id, found, lang, title, url, intro, sections, works, links, fetched_at)
+       VALUES (?, 1, 'en', 'Invisible Touch', 'https://en.wikipedia.org/wiki/Invisible_Touch', 'Old.', '[]', '[]', NULL, ?)`,
+      [id, new Date().toISOString()],
+      (err: Error | null) => (err ? reject(err) : resolve())
+    ));
+    const links = jest.spyOn(musicbrainzService, 'getReleaseGroupWikiLinks').mockResolvedValue({ wikidata: 'Q1141350', wikipedia: [] });
+    mockWikis({ frwiki: { title: 'Invisible Touch' }, enwiki: { title: 'Invisible Touch' } });
+
+    const story = await albumStoryService.getStory(id);
+    expect(links).toHaveBeenCalledTimes(1);
+    expect(story.links).toHaveLength(2);
   });
 
   it('retrouve et garde le release group d’un album qui n’a que sa release', async () => {
@@ -215,6 +260,7 @@ describe('repli sur les œuvres', () => {
       workTitle: 'Madama Butterfly', tracks: 3, lang: 'en', title: 'Madama Butterfly',
       url: 'https://en.wikipedia.org/wiki/Madama_Butterfly', intro: 'Madama Butterfly was composed in 1904.',
       sections: [{ heading: 'History', level: 2, text: 'It failed.' }],
+      links: [{ lang: 'en', title: 'Madama Butterfly', url: 'https://en.wikipedia.org/wiki/Madama_Butterfly' }],
     }]);
     expect(getWork.mock.calls.map(call => call[0]).sort()).toEqual(['act-1', 'act-2', 'opera']);
   });

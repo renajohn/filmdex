@@ -4,6 +4,13 @@ export interface AlbumStorySection {
   text: string;
 }
 
+/** One language's article about the same subject. */
+export interface AlbumStoryLink {
+  lang: string;
+  title: string;
+  url: string;
+}
+
 export interface AlbumWorkStory {
   workTitle: string;
   tracks: number;
@@ -12,6 +19,8 @@ export interface AlbumWorkStory {
   url: string;
   intro: string;
   sections: AlbumStorySection[];
+  /** Every language the work has an article in, the one told above among them. */
+  links?: AlbumStoryLink[];
 }
 
 export interface AlbumStory {
@@ -25,6 +34,8 @@ export interface AlbumStory {
   sections: AlbumStorySection[];
   /** Only when the album has no article of its own. */
   works: AlbumWorkStory[];
+  /** Every language the album has an article in, the one told above among them. */
+  links?: AlbumStoryLink[];
   fetchedAt: string;
 }
 
