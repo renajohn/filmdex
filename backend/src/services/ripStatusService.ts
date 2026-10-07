@@ -133,6 +133,18 @@ const library = async (): Promise<{ albums: NavidromeAlbum[]; songs: NavidromeSo
   return cache;
 };
 
+/**
+ * The copy of a CD in Navidrome whose cover and stars to take: the lossless
+ * rip, the one tagged in Picard, before an old MP3.
+ */
+const bestCopy = (album: AlbumFormatted, navidrome: { albums: NavidromeAlbum[]; songs: NavidromeSong[] }): NavidromeAlbum | null => {
+  const songsByAlbum = groupSongs(navidrome.songs);
+  const matches = matchesOf(album, navidrome.albums)
+    .sort((a, b) => Number(albumState(b.candidate, songsByAlbum) === 'lossless') - Number(albumState(a.candidate, songsByAlbum) === 'lossless')
+      || Number(b.match === 'musicbrainz') - Number(a.match === 'musicbrainz'));
+  return matches[0]?.candidate ?? null;
+};
+
 const ripStatusService = {
   /** Forgets the library read from Navidrome, for a refresh right after a rip. */
   clearCache: (): void => { cache = null; },
@@ -216,19 +228,28 @@ const ripStatusService = {
     return results;
   },
 
-  /**
-   * The copy of a CD in Navidrome whose cover to take: the lossless rip, the
-   * one tagged in Picard, before an old MP3. Null when Navidrome has none.
-   */
+  /** The best copy of a CD in Navidrome, null when it has none. */
   navidromeAlbumFor: async (albumId: number): Promise<NavidromeAlbum | null> => {
     const album = await Album.findById(albumId);
     if (!album) return null;
+    return bestCopy(album, await library());
+  },
+
+  /** The copy in Navidrome of every CD of the collection that has one, by album id. */
+  navidromeAlbums: async (): Promise<Map<number, NavidromeAlbum>> => {
     const navidrome = await library();
-    const songsByAlbum = groupSongs(navidrome.songs);
-    const matches = matchesOf(album, navidrome.albums)
-      .sort((a, b) => Number(albumState(b.candidate, songsByAlbum) === 'lossless') - Number(albumState(a.candidate, songsByAlbum) === 'lossless')
-        || Number(b.match === 'musicbrainz') - Number(a.match === 'musicbrainz'));
-    return matches[0]?.candidate ?? null;
+    const copies = new Map<number, NavidromeAlbum>();
+    for (const album of await Album.findAll()) {
+      const copy = bestCopy(album, navidrome);
+      if (copy) copies.set(album.id, copy);
+    }
+    return copies;
+  },
+
+  /** Keeps the library read a moment ago in step with stars DexVault just gave in Navidrome. */
+  noteRating: (navidromeAlbumId: string, rating: number): void => {
+    const album = cache?.albums.find(candidate => candidate.id === navidromeAlbumId);
+    if (album) album.userRating = rating;
   },
 
   getStatus: async (): Promise<RipStatus> => {

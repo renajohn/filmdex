@@ -1,0 +1,79 @@
+/* The listening journal: a quiet form, then the notes, the latest first. */
+.album-notes-form .form-control,
+.album-notes-edit .form-control {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #d6dbe1;
+  font-size: 0.9rem;
+}
+
+.album-notes-form .form-control::placeholder {
+  color: #7d8691;
+}
+
+.album-notes-form-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.album-notes-form-row input[type='date'] {
+  width: auto;
+  color-scheme: dark;
+}
+
+.album-notes-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.album-notes-list li + li {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.album-notes-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: #8f98a3;
+  font-size: 0.78rem;
+}
+
+.album-notes-actions {
+  display: inline-flex;
+  gap: 12px;
+}
+
+/* Edit and Delete in a murmur, gold under the pointer. */
+.album-notes-action {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #8f98a3;
+  font-size: 0.78rem;
+  transition: color 0.15s ease;
+}
+
+.album-notes-action:hover,
+.album-notes-action:focus-visible {
+  color: #fbbf24;
+  outline: none;
+}
+
+.album-notes-text {
+  margin: 4px 0 0;
+  color: #d6dbe1;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.album-notes-error {
+  margin: 8px 0 0;
+  color: #fbbf24;
+  font-size: 0.85rem;
+}

@@ -21,6 +21,7 @@ import warningsController from './src/controllers/warningsController';
 import albumStoryController from './src/controllers/albumStoryController';
 import warningsService from './src/services/warningsService';
 import { startNightlyBackup } from './src/services/nightlyBackupService';
+import albumRatingService from './src/services/albumRatingService';
 import { mountMcp } from './src/mcp/mount';
 import Movie from './src/models/movie';
 import MovieImport from './src/models/movieImport';
@@ -270,6 +271,13 @@ app.post('/api/music/albums/:id/upload-cover', musicController.coverUploadMiddle
 app.post('/api/music/albums/:id/upload-back-cover', musicController.coverUploadMiddleware, musicController.uploadCustomBackCover);
 app.post('/api/music/albums/:id/import-navidrome-cover', musicController.importNavidromeCover);
 app.get('/api/music/albums/:id/navidrome-tracks', musicController.getNavidromeTracks);
+app.put('/api/music/albums/:id/rating', musicController.setUserRating);
+app.post('/api/music/albums/:id/rating/sync', musicController.syncUserRating);
+app.post('/api/music/ratings/sync', musicController.syncAllUserRatings);
+app.get('/api/music/albums/:id/notes', musicController.getAlbumNotes);
+app.post('/api/music/albums/:id/notes', musicController.createAlbumNote);
+app.put('/api/music/notes/:id', musicController.updateAlbumNote);
+app.delete('/api/music/notes/:id', musicController.deleteAlbumNote);
 app.get('/api/music/autocomplete', musicController.getAutocompleteSuggestions);
 app.get('/api/music/search', musicController.searchMusicBrainz);
 app.get('/api/music/coverart/:releaseId', musicController.getCoverArt);
@@ -489,6 +497,7 @@ const serverReady = startServer().then(() => {
 
     warningsService.startDailyRefresh();
     startNightlyBackup();
+    albumRatingService.startSync();
   }
 }).catch((error: Error) => {
   logger.error('Failed to start server:', error);

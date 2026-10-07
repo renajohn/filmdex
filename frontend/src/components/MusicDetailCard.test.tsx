@@ -12,6 +12,9 @@ vi.mock('../services/musicService', () => ({
     toggleListenNext: vi.fn(() => Promise.resolve({})),
     openAppleMusic: vi.fn(),
     getAppleMusicUrl: vi.fn(() => Promise.resolve({ url: 'https://music.apple.com/x' })),
+    syncAlbumRating: vi.fn(() => Promise.resolve({ userRating: null })),
+    setAlbumRating: vi.fn((_id: number, rating: number) => Promise.resolve({ userRating: rating || null, navidrome: 'synced' })),
+    getAlbumNotes: vi.fn(() => Promise.resolve([])),
   },
 }));
 
@@ -147,5 +150,30 @@ describe('MusicDetailCard', () => {
     expect(screen.getByText('George Martin')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     expect(onEdit).toHaveBeenCalled();
+  });
+
+  it('gives the CD stars, and takes them away with a second click on the same star', async () => {
+    render(<MusicDetailCard cd={cd()} onClose={() => {}} onDelete={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '4 stars' }));
+    await waitFor(() => expect(musicService.setAlbumRating).toHaveBeenCalledWith(1, 4));
+    await waitFor(() => expect(screen.getByRole('button', { name: '4 stars' })).toHaveAttribute('aria-pressed', 'true'));
+
+    fireEvent.click(screen.getByRole('button', { name: '4 stars' }));
+    await waitFor(() => expect(musicService.setAlbumRating).toHaveBeenLastCalledWith(1, 0));
+  });
+
+  it('shows the stars given in Navidrome since, as the album opens', async () => {
+    vi.mocked(musicService.syncAlbumRating).mockResolvedValueOnce({ userRating: 5 });
+    render(<MusicDetailCard cd={cd()} onClose={() => {}} onDelete={() => {}} />);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: '5 stars' })).toHaveAttribute('aria-pressed', 'true'));
+  });
+
+  it('shows the MusicBrainz community rating beside the owner\'s', () => {
+    render(<MusicDetailCard cd={cd({ rating: 4.25 })} onClose={() => {}} onDelete={() => {}} />);
+
+    expect(screen.getByText('4.3', { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(/community/)).toBeInTheDocument();
   });
 });

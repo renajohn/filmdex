@@ -212,6 +212,10 @@ export interface AlbumRow {
   isrc_codes: string | null;
   annotation: string | null;
   title_status: string | null;
+  /** The owner's stars, 1 to 5, or null when not rated. */
+  user_rating?: number | null;
+  /** The stars DexVault and Navidrome last agreed on: tells which side changed since. */
+  user_rating_synced?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -258,6 +262,7 @@ export interface AlbumFormatted {
   isrcCodes: string[];
   annotation: string | null;
   titleStatus: string | null;
+  userRating?: number | null;
   createdAt: string;
   updatedAt: string;
 }

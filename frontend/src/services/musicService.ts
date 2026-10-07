@@ -69,6 +69,18 @@ export interface RipTrackFile {
   path: string | null;
 }
 
+export type RatingSync = 'synced' | 'not_ripped' | 'not_configured' | 'failed';
+
+/** One entry of a CD's listening journal. */
+export interface AlbumNote {
+  id: number;
+  albumId: number;
+  note: string;
+  date: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface RipTracks {
   configured: boolean;
   found: boolean;
@@ -581,6 +593,44 @@ class MusicService {
   }
 
   /** The files of this CD's rip in Navidrome; found is false while it is not ripped. */
+  private async send<T>(path: string, method: string, body?: unknown): Promise<T> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}${path}`, {
+      method,
+      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || `HTTP error! status: ${response.status}`);
+    return result as T;
+  }
+
+  /** The owner's stars, 0 to take them away; Navidrome gets them too when the CD is ripped. */
+  setAlbumRating(albumId: number | string, rating: number): Promise<{ userRating: number | null; navidrome: RatingSync }> {
+    return this.send(`/music/albums/${albumId}/rating`, 'PUT', { rating });
+  }
+
+  /** Takes the stars given in Navidrome or Amperfy since. */
+  syncAlbumRating(albumId: number | string): Promise<{ userRating: number | null }> {
+    return this.send(`/music/albums/${albumId}/rating/sync`, 'POST');
+  }
+
+  getAlbumNotes(albumId: number | string): Promise<AlbumNote[]> {
+    return this.send(`/music/albums/${albumId}/notes`, 'GET');
+  }
+
+  addAlbumNote(albumId: number | string, note: string, date: string): Promise<AlbumNote> {
+    return this.send(`/music/albums/${albumId}/notes`, 'POST', { note, date });
+  }
+
+  updateAlbumNote(id: number, note: string, date: string): Promise<AlbumNote> {
+    return this.send(`/music/notes/${id}`, 'PUT', { note, date });
+  }
+
+  deleteAlbumNote(id: number): Promise<{ deleted: boolean }> {
+    return this.send(`/music/notes/${id}`, 'DELETE');
+  }
+
   async getNavidromeTracks(albumId: number | string): Promise<RipTracks> {
     const baseUrl = await this.getBaseUrl();
     const response = await fetch(`${baseUrl}/music/albums/${albumId}/navidrome-tracks`);

@@ -16,6 +16,8 @@ import musicbrainzLinkService from '../services/musicbrainzLinkService';
 import musicbrainzRefreshService from '../services/musicbrainzRefreshService';
 import ripStatusService from '../services/ripStatusService';
 import navidromeService from '../services/navidromeService';
+import albumRatingService from '../services/albumRatingService';
+import AlbumNote from '../models/albumNote';
 import logger from '../logger';
 import type { AlbumFormatted } from '../types';
 
@@ -657,6 +659,106 @@ const musicController = {
     } catch (error) {
       logger.error('Error reading the rip from Navidrome:', error);
       res.status(502).json({ error: (error as Error).message || 'Failed to read the rip from Navidrome' });
+    }
+  },
+
+  /** The owner's stars on a CD, 0 to take them away; given in Navidrome too. */
+  setUserRating: async (req: Request, res: Response): Promise<void> => {
+    const id = parseInt(req.params.id as string, 10);
+    const rating = Number(req.body?.rating);
+    if (!Number.isFinite(rating) || rating < 0 || rating > 5) {
+      res.status(400).json({ error: 'rating must be between 0 and 5' });
+      return;
+    }
+    try {
+      if (!await Album.findById(id)) {
+        res.status(404).json({ error: 'Album not found' });
+        return;
+      }
+      res.json(await albumRatingService.setRating(id, rating));
+    } catch (error) {
+      logger.error('Error rating an album:', error);
+      res.status(500).json({ error: 'Failed to rate the album' });
+    }
+  },
+
+  /** Takes the stars given in Navidrome since, as an album's dialog opens. */
+  syncUserRating: async (req: Request, res: Response): Promise<void> => {
+    try {
+      res.json({ userRating: await albumRatingService.syncAlbum(parseInt(req.params.id as string, 10)) });
+    } catch (error) {
+      res.status(502).json({ error: (error as Error).message || 'Failed to read the stars in Navidrome' });
+    }
+  },
+
+  syncAllUserRatings: async (_req: Request, res: Response): Promise<void> => {
+    try {
+      res.json(await albumRatingService.syncAll());
+    } catch (error) {
+      res.status(502).json({ error: (error as Error).message || 'Failed to sync the stars with Navidrome' });
+    }
+  },
+
+  getAlbumNotes: async (req: Request, res: Response): Promise<void> => {
+    try {
+      res.json(await AlbumNote.findByAlbumId(parseInt(req.params.id as string, 10)));
+    } catch (error) {
+      logger.error('Error reading listening notes:', error);
+      res.status(500).json({ error: 'Failed to read the notes' });
+    }
+  },
+
+  createAlbumNote: async (req: Request, res: Response): Promise<void> => {
+    const albumId = parseInt(req.params.id as string, 10);
+    const note = String(req.body?.note || '').trim();
+    const date = String(req.body?.date || new Date().toISOString().slice(0, 10));
+    if (!note) {
+      res.status(400).json({ error: 'A note needs some text' });
+      return;
+    }
+    try {
+      if (!await Album.findById(albumId)) {
+        res.status(404).json({ error: 'Album not found' });
+        return;
+      }
+      res.status(201).json(await AlbumNote.create(albumId, note, date));
+    } catch (error) {
+      logger.error('Error adding a listening note:', error);
+      res.status(500).json({ error: 'Failed to add the note' });
+    }
+  },
+
+  updateAlbumNote: async (req: Request, res: Response): Promise<void> => {
+    const id = parseInt(req.params.id as string, 10);
+    const note = String(req.body?.note || '').trim();
+    if (!note) {
+      res.status(400).json({ error: 'A note needs some text' });
+      return;
+    }
+    try {
+      const existing = await AlbumNote.findById(id);
+      if (!existing) {
+        res.status(404).json({ error: 'Note not found' });
+        return;
+      }
+      res.json(await AlbumNote.update(id, note, String(req.body?.date || existing.date)));
+    } catch (error) {
+      logger.error('Error editing a listening note:', error);
+      res.status(500).json({ error: 'Failed to edit the note' });
+    }
+  },
+
+  deleteAlbumNote: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const deleted = await AlbumNote.delete(parseInt(req.params.id as string, 10));
+      if (!deleted) {
+        res.status(404).json({ error: 'Note not found' });
+        return;
+      }
+      res.json({ deleted: true });
+    } catch (error) {
+      logger.error('Error deleting a listening note:', error);
+      res.status(500).json({ error: 'Failed to delete the note' });
     }
   },
 

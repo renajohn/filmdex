@@ -598,3 +598,40 @@
     background: inherit;
   }
 }
+
+/* The owner's stars: grey outlines, gold once given; the pointer previews nothing, a click decides. */
+.album-head-stars {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.album-head-star {
+  padding: 0 1px;
+  border: 0;
+  background: none;
+  color: #6b7480;
+  font-size: 1rem;
+  line-height: 1;
+  transition: color 0.15s ease, transform 0.1s ease;
+}
+
+.album-head-star:hover,
+.album-head-star:focus-visible {
+  color: #fbbf24;
+  outline: none;
+}
+
+.album-head-star:active {
+  transform: scale(0.9);
+}
+
+.album-head-star-on {
+  color: #fbbf24;
+}
+
+/* The community's stars, grey: an opinion beside the owner's, not one to follow. */
+.album-head-community svg {
+  color: #9aa4b2;
+  font-size: 0.8em;
+  vertical-align: -0.05em;
+}

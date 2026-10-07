@@ -13,7 +13,7 @@ const insertAlbum = (fields: { title: string; artist: string[]; releaseId?: stri
       function (this: { lastID: number }, err: Error | null) { if (err) reject(err); else resolve(this.lastID); }
     ));
 
-const album = (id: string, name: string, artist: string, musicBrainzId?: string) => ({ id, name, artist, musicBrainzId: musicBrainzId ?? null, songCount: 2 });
+const album = (id: string, name: string, artist: string, musicBrainzId?: string) => ({ id, name, artist, musicBrainzId: musicBrainzId ?? null, songCount: 2, userRating: 0 });
 const songs = (albumId: string, suffix: string, bitDepth: number | null = null) =>
   [1, 2].map(() => ({ albumId, suffix, bitDepth }));
 

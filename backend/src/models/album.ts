@@ -159,6 +159,12 @@ const Album = {
               db.run(`ALTER TABLE albums ADD COLUMN title_status TEXT DEFAULT 'owned'`, () => resolve());
             }),
             new Promise((resolve) => {
+              db.run(`ALTER TABLE albums ADD COLUMN user_rating INTEGER`, () => resolve());
+            }),
+            new Promise((resolve) => {
+              db.run(`ALTER TABLE albums ADD COLUMN user_rating_synced INTEGER`, () => resolve());
+            }),
+            new Promise((resolve) => {
               db.run(`ALTER TABLE albums ADD COLUMN discogs_release_id TEXT`, () => resolve());
             })
           ];
@@ -581,6 +587,34 @@ const Album = {
       }
     );
 
+    // The owner's stars, like year: stars:5, stars:>=3, stars:2-4; stars:0 is not rated.
+    cleanedQuery = processPattern(
+      /stars:(>=|<=|>|<)?(\d)(?:-(\d))?/g,
+      cleanedQuery,
+      (m) => {
+        hasFilters = true;
+        const stars = `COALESCE(user_rating, 0)`;
+        if (m[3]) {
+          whereClauses.push(`${stars} BETWEEN ? AND ?`);
+          params.push(parseInt(m[2]), parseInt(m[3]));
+        } else {
+          const opSql: Record<string, string> = { '>=': '>=', '<=': '<=', '>': '>', '<': '<', '=': '=' };
+          whereClauses.push(`${stars} ${opSql[m[1] || '=']} ?`);
+          params.push(parseInt(m[2]));
+        }
+      }
+    );
+
+    // Whether the owner has given the album stars: rated:no is what is left to listen to.
+    cleanedQuery = processPattern(
+      /rated:(yes|no)\b/gi,
+      cleanedQuery,
+      (m) => {
+        hasFilters = true;
+        whereClauses.push(m[1].toLowerCase() === 'yes' ? `user_rating > 0` : `(user_rating IS NULL OR user_rating = 0)`);
+      }
+    );
+
     return { params, whereClauses, hasFilters, hasTrackFilter, cleanedQuery: cleanedQuery.trim() };
   },
 
@@ -839,6 +873,33 @@ const Album = {
     });
   },
 
+  /**
+   * The owner's stars, apart from the album's other fields so that saving the
+   * edit form never resets them. `synced` is what Navidrome holds as well,
+   * when known; left undefined, the last agreed value stays.
+   */
+  setUserRating: (id: number, rating: number | null, synced?: number | null): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const sql = synced === undefined
+        ? 'UPDATE albums SET user_rating = ? WHERE id = ?'
+        : 'UPDATE albums SET user_rating = ?, user_rating_synced = ? WHERE id = ?';
+      const params = synced === undefined ? [rating, id] : [rating, synced, id];
+      db.run(sql, params, (err: Error | null) => (err ? reject(err) : resolve()));
+    });
+  },
+
+  /** The stars of every album with what was last agreed with Navidrome. */
+  findRatings: (): Promise<Array<{ id: number; userRating: number | null; synced: number | null }>> => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      db.all('SELECT id, user_rating, user_rating_synced FROM albums', [], (err: Error | null, rows: Array<{ id: number; user_rating: number | null; user_rating_synced: number | null }>) => {
+        if (err) reject(err);
+        else resolve(rows.map(row => ({ id: row.id, userRating: row.user_rating, synced: row.user_rating_synced })));
+      });
+    });
+  },
+
   formatRow: (row: AlbumRow): AlbumFormatted | null => {
     if (!row) return null;
 
@@ -884,6 +945,7 @@ const Album = {
       annotation: row.annotation,
       discogsReleaseId: row.discogs_release_id ?? null,
       titleStatus: row.title_status,
+      userRating: row.user_rating ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };

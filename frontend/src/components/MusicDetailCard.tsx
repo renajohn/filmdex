@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button } from 'react-bootstrap';
-import { BsPencil, BsTrash, BsMusicNote, BsApple, BsTags, BsPlayFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight } from 'react-icons/bs';
+import { BsPencil, BsTrash, BsMusicNote, BsApple, BsTags, BsPlayFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight, BsStar, BsStarFill } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
 import AlbumStory from './AlbumStory';
+import AlbumNotes from './AlbumNotes';
 import { discCredits, type TrackPerformer } from '../utils/trackCredits';
 import { canUsePicard, openInPicard } from '../utils/picard';
 import { openListen } from '../utils/navidrome';
@@ -59,6 +60,10 @@ interface CdData {
   language?: string;
   isrcCodes?: string[];
   annotation?: string;
+  /** The MusicBrainz community's rating, 0 to 5. */
+  rating?: number | null;
+  /** The owner's stars, 1 to 5, kept in step with Navidrome. */
+  userRating?: number | null;
   discs?: CdDisc[];
   ownership?: CdOwnership;
   urls?: { appleMusic?: string; [key: string]: string | undefined };
@@ -115,6 +120,34 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   // Undefined while Navidrome is asked for this CD's rip, read as the album opens.
   const [rip, setRip] = useState<RipTracks | null | undefined>(undefined);
   const [ripError, setRipError] = useState<string | null>(null);
+  const [stars, setStars] = useState<number | null>(cd.userRating ?? null);
+  const [starsNote, setStarsNote] = useState<string | null>(null);
+
+  // Stars given in Amperfy or Navidrome since the last sync show up as the album opens.
+  useEffect(() => {
+    let current = true;
+    setStars(cd.userRating ?? null);
+    setStarsNote(null);
+    musicService.syncAlbumRating(cd.id)
+      .then(({ userRating }) => { if (current) setStars(userRating ?? null); })
+      .catch(() => { /* the stars DexVault holds stay */ });
+    return () => { current = false; };
+  }, [cd.id, cd.userRating]);
+
+  const rate = async (value: number) => {
+    const next = value === stars ? 0 : value;
+    const previous = stars;
+    setStars(next || null);
+    setStarsNote(null);
+    try {
+      const result = await musicService.setAlbumRating(cd.id, next);
+      setStars(result.userRating ?? null);
+      if (result.navidrome === 'failed') setStarsNote('Saved here; Navidrome gets it at the next sync.');
+    } catch (error) {
+      setStars(previous);
+      setStarsNote((error as Error).message);
+    }
+  };
 
   // Only initialize from an already-cached Apple link; do not resolve automatically on open
   useEffect(() => {
@@ -424,6 +457,32 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
           </div>
 
           <dl className="album-head-facts">
+            <Field label="Your rating">
+              <span className="album-head-stars" role="group" aria-label="Your rating">
+                {[1, 2, 3, 4, 5].map(value => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`album-head-star${stars && value <= stars ? ' album-head-star-on' : ''}`}
+                    aria-label={`${value} star${value > 1 ? 's' : ''}`}
+                    aria-pressed={stars === value}
+                    title={stars === value ? 'Take the stars away' : `${value} star${value > 1 ? 's' : ''}`}
+                    onClick={() => rate(value)}
+                  >
+                    {stars && value <= stars ? <BsStarFill aria-hidden="true" /> : <BsStar aria-hidden="true" />}
+                  </button>
+                ))}
+              </span>
+              {starsNote && <span className="album-head-note">{starsNote}</span>}
+            </Field>
+            {typeof cd.rating === 'number' && cd.rating > 0 && (
+              <Field label="MusicBrainz">
+                <span className="album-head-community">
+                  <BsStarFill aria-hidden="true" /> {cd.rating.toFixed(1)}
+                </span>
+                <span className="album-head-muted"> / 5 · community</span>
+              </Field>
+            )}
             {released && <Field label="Released">{released}</Field>}
             {original && <Field label="First release">{original}</Field>}
             {cd.labels && cd.labels.length > 0 && (
@@ -536,6 +595,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
           </dl>
         </div>
 
+        <AlbumNotes albumId={Number(cd.id)} />
         <AlbumStory albumId={cd.id} />
 
         {/* Annotation */}

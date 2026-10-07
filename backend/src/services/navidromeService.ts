@@ -20,6 +20,8 @@ export interface NavidromeAlbum {
   artist: string;
   musicBrainzId: string | null;
   songCount: number;
+  /** The stars NAVIDROME_USER gave the album, 0 for none. */
+  userRating: number;
 }
 
 export interface NavidromeSong {
@@ -90,7 +92,7 @@ export interface NavidromeTrackFile {
   path: string | null;
 }
 
-type RawAlbum = { id: string; name: string; artist?: string; musicBrainzId?: string; songCount?: number };
+type RawAlbum = { id: string; name: string; artist?: string; musicBrainzId?: string; songCount?: number; userRating?: number };
 type RawAlbumSong = {
   id?: string; title?: string; track?: number; discNumber?: number; duration?: number; suffix?: string; bitRate?: number;
   bitDepth?: number; samplingRate?: number; channelCount?: number; size?: number; path?: string;
@@ -103,6 +105,7 @@ const toAlbum = (raw: RawAlbum): NavidromeAlbum => ({
   artist: raw.artist || '',
   musicBrainzId: raw.musicBrainzId || null,
   songCount: raw.songCount || 0,
+  userRating: raw.userRating || 0,
 });
 
 const navidromeService = {
@@ -114,6 +117,11 @@ const navidromeService = {
   /** A song in Navidrome's web player: its song list filtered down to that title on that album. */
   songUrl: (albumId: string, title: string): string =>
     `${publicUrl()}/app/#/song?filter=${encodeURIComponent(JSON.stringify({ album_id: albumId, title }))}`,
+
+  /** Gives an album, a song or an artist 1 to 5 stars, or takes them away with 0. */
+  setRating: async (id: string, rating: number): Promise<void> => {
+    await request('setRating', { id, rating });
+  },
 
   /** Every album, page by page. */
   getAlbums: async (): Promise<NavidromeAlbum[]> => {
