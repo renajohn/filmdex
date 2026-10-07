@@ -635,3 +635,30 @@
   font-size: 0.8em;
   vertical-align: -0.05em;
 }
+
+/* Rereads the edition on MusicBrainz: a small loop beside its rating, turning while it works. */
+.album-head-refresh {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #8f98a3;
+  font-size: 0.8rem;
+  line-height: 1;
+  vertical-align: baseline;
+  transition: color 0.15s ease;
+}
+
+.album-head-refresh:hover:not(:disabled),
+.album-head-refresh:focus-visible {
+  color: #fbbf24;
+  outline: none;
+}
+
+.album-head-spinning {
+  animation: album-head-spin 1s linear infinite;
+}
+
+@keyframes album-head-spin {
+  to { transform: rotate(360deg); }
+}

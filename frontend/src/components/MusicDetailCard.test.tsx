@@ -15,6 +15,8 @@ vi.mock('../services/musicService', () => ({
     syncAlbumRating: vi.fn(() => Promise.resolve({ userRating: null })),
     setAlbumRating: vi.fn((_id: number, rating: number) => Promise.resolve({ userRating: rating || null, navidrome: 'synced' })),
     getAlbumNotes: vi.fn(() => Promise.resolve([])),
+    refreshFromMusicBrainz: vi.fn(() => Promise.resolve({})),
+    getAlbumById: vi.fn(() => Promise.resolve({ rating: 4.15 })),
   },
 }));
 
@@ -175,5 +177,15 @@ describe('MusicDetailCard', () => {
 
     expect(screen.getByText('4.3', { exact: false })).toBeInTheDocument();
     expect(screen.getByText(/community/)).toBeInTheDocument();
+  });
+
+  it('rereads the edition on MusicBrainz from the loop beside its rating', async () => {
+    render(<MusicDetailCard cd={cd({ rating: null })} onClose={() => {}} onDelete={() => {}} />);
+    expect(screen.getByText('No community rating')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh from MusicBrainz' }));
+
+    await screen.findByText('4.2', { exact: false });
+    expect(musicService.refreshFromMusicBrainz).toHaveBeenCalledWith(1);
   });
 });

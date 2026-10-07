@@ -610,6 +610,11 @@ class MusicService {
     return this.send(`/music/albums/${albumId}/rating`, 'PUT', { rating });
   }
 
+  /** Rereads the album's edition on MusicBrainz: its community rating, missing fields, a longer track list. */
+  refreshFromMusicBrainz(albumId: number | string): Promise<unknown> {
+    return this.send(`/music/albums/${albumId}/refresh-musicbrainz`, 'POST');
+  }
+
   /** Takes the stars given in Navidrome or Amperfy since. */
   syncAlbumRating(albumId: number | string): Promise<{ userRating: number | null }> {
     return this.send(`/music/albums/${albumId}/rating/sync`, 'POST');

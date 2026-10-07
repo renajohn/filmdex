@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button } from 'react-bootstrap';
-import { BsPencil, BsTrash, BsMusicNote, BsApple, BsTags, BsPlayFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight, BsStar, BsStarFill } from 'react-icons/bs';
+import { BsPencil, BsTrash, BsMusicNote, BsApple, BsTags, BsPlayFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight, BsStar, BsStarFill, BsArrowClockwise } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
 import AlbumStory from './AlbumStory';
@@ -122,6 +122,28 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const [ripError, setRipError] = useState<string | null>(null);
   const [stars, setStars] = useState<number | null>(cd.userRating ?? null);
   const [starsNote, setStarsNote] = useState<string | null>(null);
+  const [community, setCommunity] = useState<number | null>(cd.rating ?? null);
+  const [refreshingMb, setRefreshingMb] = useState<boolean>(false);
+  const [mbError, setMbError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCommunity(cd.rating ?? null);
+    setMbError(null);
+  }, [cd.id, cd.rating]);
+
+  const refreshMusicBrainz = async () => {
+    setRefreshingMb(true);
+    setMbError(null);
+    try {
+      await musicService.refreshFromMusicBrainz(cd.id);
+      const album = await musicService.getAlbumById(cd.id) as { rating?: number | null };
+      setCommunity(album.rating ?? null);
+    } catch (error) {
+      setMbError((error as Error).message);
+    } finally {
+      setRefreshingMb(false);
+    }
+  };
 
   // Stars given in Amperfy or Navidrome since the last sync show up as the album opens.
   useEffect(() => {
@@ -475,12 +497,29 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
               </span>
               {starsNote && <span className="album-head-note">{starsNote}</span>}
             </Field>
-            {typeof cd.rating === 'number' && cd.rating > 0 && (
+            {cd.musicbrainzReleaseId && (
               <Field label="MusicBrainz">
-                <span className="album-head-community">
-                  <BsStarFill aria-hidden="true" /> {cd.rating.toFixed(1)}
-                </span>
-                <span className="album-head-muted"> / 5 · community</span>
+                {typeof community === 'number' && community > 0 ? (
+                  <>
+                    <span className="album-head-community">
+                      <BsStarFill aria-hidden="true" /> {community.toFixed(1)}
+                    </span>
+                    <span className="album-head-muted"> / 5 · community</span>
+                  </>
+                ) : (
+                  <span className="album-head-muted">No community rating</span>
+                )}
+                <button
+                  type="button"
+                  className="album-head-refresh"
+                  onClick={refreshMusicBrainz}
+                  disabled={refreshingMb}
+                  aria-label="Refresh from MusicBrainz"
+                  title="Refresh from MusicBrainz"
+                >
+                  <BsArrowClockwise aria-hidden="true" className={refreshingMb ? 'album-head-spinning' : undefined} />
+                </button>
+                {mbError && <span className="album-head-note">{mbError}</span>}
               </Field>
             )}
             {released && <Field label="Released">{released}</Field>}

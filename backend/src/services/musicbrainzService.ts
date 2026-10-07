@@ -277,7 +277,7 @@ const musicbrainzService = {
         'MusicBrainz release lookup',
         () => axios.get(`${this.baseUrl}/release/${releaseId}`, {
           params: {
-            inc: 'artists+recordings+release-groups+labels+media+tags+genres+artist-rels+url-rels+work-rels+recording-rels+isrcs+annotation',
+            inc: 'artists+recordings+release-groups+labels+media+tags+genres+artist-rels+url-rels+work-rels+recording-rels+isrcs+annotation+ratings',
             fmt: 'json'
           },
           headers: {
@@ -475,7 +475,7 @@ const musicbrainzService = {
       'MusicBrainz release credits lookup',
       () => axios.get(`${this.baseUrl}/release/${releaseId}`, {
         params: {
-          inc: 'artist-credits+recordings+isrcs+genres+annotation+artist-rels+url-rels+place-rels+recording-level-rels+work-rels+work-level-rels',
+          inc: 'artist-credits+recordings+isrcs+genres+annotation+artist-rels+url-rels+place-rels+recording-level-rels+work-rels+work-level-rels+release-groups+ratings',
           fmt: 'json'
         },
         headers: { 'User-Agent': this.userAgent },

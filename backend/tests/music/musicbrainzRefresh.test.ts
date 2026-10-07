@@ -104,6 +104,18 @@ describe('refreshAlbum', () => {
     expect(album.artist).toEqual(['Vivaldi', 'Rostropovich']);
   });
 
+  it('prend la note de la communauté MusicBrainz, et la suit quand elle change', async () => {
+    const id = await insertAlbum({ releaseId: 'rel-rated' });
+    const rated = (value: number) => ({ ...release(1), 'release-group': { rating: { value, 'votes-count': 8 } } });
+    jest.spyOn(musicbrainzService, 'getReleaseWithCredits').mockResolvedValueOnce(rated(4.15)).mockResolvedValueOnce(rated(4.4));
+
+    await musicbrainzRefreshService.refreshAlbum(id);
+    expect((await Album.findById(id))!.rating).toBe(4.15);
+
+    await musicbrainzRefreshService.refreshAlbum(id);
+    expect((await Album.findById(id))!.rating).toBe(4.4);
+  });
+
   it('garde une liste plus longue que celle de MusicBrainz et ne remplace pas un producteur saisi', async () => {
     const id = await insertAlbum({ producer: ['Hand Entered'] });
     for (const n of [1, 2, 3, 4]) await Track.create({ albumId: id, trackNumber: n, title: `Track ${n}` });

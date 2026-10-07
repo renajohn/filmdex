@@ -791,7 +791,7 @@ const Album = {
    * the caller decides what is missing, this only refuses unknown columns.
    */
   setColumns: (id: number, columns: Record<string, string | number | null>): Promise<void> => {
-    const allowed = ['producer', 'engineer', 'recording_location', 'isrc_codes', 'total_duration', 'annotation', 'genres', 'urls'];
+    const allowed = ['producer', 'engineer', 'recording_location', 'isrc_codes', 'total_duration', 'annotation', 'genres', 'urls', 'rating'];
     const names = Object.keys(columns);
     const unknown = names.filter(name => !allowed.includes(name));
     if (unknown.length > 0) return Promise.reject(new Error(`Unknown album columns: ${unknown.join(', ')}`));
