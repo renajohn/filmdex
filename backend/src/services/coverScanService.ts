@@ -160,7 +160,7 @@ interface ContentPart {
  * lets such a deployment point straight at the model instead, the same way
  * DISCOGS_TOKEN overrides the stored config.
  */
-function getConfig(): LLMConfig {
+export function getConfig(): LLMConfig {
   let baseUrl = DEFAULT_BASE_URL;
   let model = DEFAULT_MODEL;
 
@@ -191,7 +191,7 @@ function getConfig(): LLMConfig {
  * The "Network error" wording stays: scanCover matches on it to answer 503
  * (service down) rather than 422 (could not read the sleeve).
  */
-function requestFailure(error: unknown): Error {
+export function requestFailure(error: unknown): Error {
   if (axios.isAxiosError(error)) {
     if (error.response) {
       return new Error(`HTTP ${error.response.status}: ${error.response.data}`);

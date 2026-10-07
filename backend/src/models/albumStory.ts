@@ -17,6 +17,8 @@ export interface ArticleLink {
 export interface WorkStory {
   workTitle: string;
   tracks: number;
+  /** Where on the album its tracks are, counted from 1 across the discs. */
+  positions?: number[];
   lang: string;
   title: string;
   url: string;

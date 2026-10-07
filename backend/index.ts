@@ -19,6 +19,8 @@ import dropboxBackupController from './src/controllers/dropboxBackupController';
 import bookCommentController from './src/controllers/bookCommentController';
 import warningsController from './src/controllers/warningsController';
 import albumStoryController from './src/controllers/albumStoryController';
+import albumGuideController from './src/controllers/albumGuideController';
+import albumGuideService from './src/services/albumGuideService';
 import warningsService from './src/services/warningsService';
 import { startNightlyBackup } from './src/services/nightlyBackupService';
 import albumRatingService from './src/services/albumRatingService';
@@ -291,6 +293,10 @@ app.get('/api/music/albums/:id/apple-music', musicController.getAppleMusicUrl);
 app.put('/api/music/albums/:id/listen-next', musicController.toggleListenNext);
 app.get('/api/music/albums/:id/story', albumStoryController.get);
 app.post('/api/music/albums/:id/story/refresh', albumStoryController.refresh);
+app.get('/api/music/albums/:id/guide', albumGuideController.get);
+app.put('/api/music/albums/:id/guide', albumGuideController.save);
+app.delete('/api/music/albums/:id/guide', albumGuideController.remove);
+app.post('/api/music/albums/:id/guide/generate', albumGuideController.generate);
 app.get('/api/collections/listen-next/albums', musicController.getListenNextAlbums);
 app.post('/api/collections/listen-next/smart-fill', musicController.smartFillListenNext);
 app.post('/api/collections/listen-next/shuffle/:albumId', musicController.shuffleListenNextAlbum);
@@ -498,6 +504,7 @@ const serverReady = startServer().then(() => {
     warningsService.startDailyRefresh();
     startNightlyBackup();
     albumRatingService.startSync();
+    albumGuideService.startAutoWrite();
   }
 }).catch((error: Error) => {
   logger.error('Failed to start server:', error);

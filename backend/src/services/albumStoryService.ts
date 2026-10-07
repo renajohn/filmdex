@@ -182,7 +182,7 @@ const MAX_WORKS_TO_CLIMB = 10;
 /** Parts nest: an aria in an act in an opera, a movement in a suite in a set. */
 const MAX_DEPTH = 4;
 
-type TopWork = { id: string; title: string; wikidata: string | null; tracks: number };
+type TopWork = { id: string; title: string; wikidata: string | null; tracks: number; positions: number[] };
 
 /**
  * The works an album performs, climbed up to the whole work ("Madama
@@ -232,7 +232,10 @@ const findTopWorks = async (releaseId: string): Promise<TopWork[]> => {
   }
 
   return [...tops.values()]
-    .map(({ work, tracks }) => ({ id: work.id, title: work.title, wikidata: work.wikidata, tracks: tracks.size }))
+    .map(({ work, tracks }) => ({
+      id: work.id, title: work.title, wikidata: work.wikidata, tracks: tracks.size,
+      positions: [...tracks].sort((a, b) => a - b).map(track => track + 1),
+    }))
     .sort((a, b) => b.tracks - a.tracks);
 };
 
@@ -243,7 +246,7 @@ const findWorkStories = async (releaseId: string): Promise<WorkStory[]> => {
     if (!work.wikidata) continue;
     const told = await readFullest(await articlesOfWikidata(work.wikidata));
     if (!told) continue;
-    stories.push({ workTitle: work.title, tracks: work.tracks, ...told });
+    stories.push({ workTitle: work.title, tracks: work.tracks, positions: work.positions, ...told });
   }
   return stories;
 };
@@ -316,6 +319,12 @@ const isStale = async (row: AlbumStoryRow): Promise<boolean> => {
 const albumStoryService = {
   parseExtract,
   parseArticleUrl,
+
+  /** The narrative of one language's article, lists and references set aside, or null when it is gone. */
+  readArticle: async (link: { lang: string; title: string }): Promise<{ intro: string; sections: StorySection[] } | null> => {
+    const page = await fetchExtract(link);
+    return page ? parseExtract(page.extract) : null;
+  },
 
   /** Answers from the cache, fetching first when the album was never looked up or the miss is old. */
   getStory: async (albumId: number, { refresh = false } = {}): Promise<AlbumStoryResult> => {

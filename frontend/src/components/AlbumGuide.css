@@ -1,0 +1,87 @@
+/* The listening guide: read first, so it reads like the story below it. */
+.album-guide-text p,
+.album-guide-text li {
+  color: #e0e0e0;
+  line-height: 1.6;
+}
+
+.album-guide-text h5 {
+  margin-top: 1.1rem;
+  font-size: 1rem;
+  color: #fff;
+}
+
+.album-guide-text h5:first-child {
+  margin-top: 0;
+}
+
+.album-guide-text ul {
+  padding-left: 1.2rem;
+  margin-bottom: 0.75rem;
+}
+
+.album-guide-text li + li {
+  margin-top: 0.3rem;
+}
+
+.album-guide-text strong {
+  color: #fff;
+}
+
+.album-guide-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin-top: 0.75rem;
+  color: #8f98a3;
+  font-size: 0.78rem;
+}
+
+.album-guide-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.album-guide-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Edit and Rewrite in a murmur, gold under the pointer, like the journal's. */
+.album-guide-action {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #8f98a3;
+  font-size: inherit;
+  transition: color 0.15s ease;
+}
+
+.album-guide-action:hover,
+.album-guide-action:focus-visible {
+  color: #fbbf24;
+  outline: none;
+}
+
+.album-guide-muted {
+  color: #8f98a3;
+}
+
+.album-guide-editor.form-control {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #d6dbe1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+
+.album-guide-error {
+  margin: 8px 0 0;
+  color: #fbbf24;
+  font-size: 0.85rem;
+}

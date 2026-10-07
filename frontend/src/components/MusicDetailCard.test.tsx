@@ -15,6 +15,7 @@ vi.mock('../services/musicService', () => ({
     syncAlbumRating: vi.fn(() => Promise.resolve({ userRating: null })),
     setAlbumRating: vi.fn((_id: number, rating: number) => Promise.resolve({ userRating: rating || null, navidrome: 'synced' })),
     getAlbumNotes: vi.fn(() => Promise.resolve([])),
+    getAlbumGuide: vi.fn(() => Promise.resolve(null)),
     refreshFromMusicBrainz: vi.fn(() => Promise.resolve({})),
     getAlbumById: vi.fn(() => Promise.resolve({ rating: 4.15 })),
   },

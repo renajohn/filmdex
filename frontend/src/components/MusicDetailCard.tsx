@@ -5,6 +5,7 @@ import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
 import AlbumStory from './AlbumStory';
 import AlbumNotes from './AlbumNotes';
+import AlbumGuide from './AlbumGuide';
 import { discCredits, type TrackPerformer } from '../utils/trackCredits';
 import { canUsePicard, openInPicard } from '../utils/picard';
 import { openListen } from '../utils/navidrome';
@@ -106,6 +107,8 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const [showCoverModal, setShowCoverModal] = useState<boolean>(false);
   const [coverModalData, setCoverModalData] = useState<CoverModalData>({ coverUrl: '', title: '', artist: '', coverType: '' });
   const [confirmDelete, setConfirmDelete] = useState<boolean>(false);
+  // Wikipedia steps behind a toggle when the CD has a listening guide.
+  const [hasGuide, setHasGuide] = useState<boolean>(false);
   const deleteBtnRef = React.useRef<HTMLButtonElement>(null);
   const [openingApple, setOpeningApple] = useState<boolean>(false);
   const [appleUrl, setAppleUrl] = useState<string | null>(null);
@@ -634,8 +637,9 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
           </dl>
         </div>
 
+        <AlbumGuide albumId={Number(cd.id)} onLoaded={setHasGuide} />
         <AlbumNotes albumId={Number(cd.id)} />
-        <AlbumStory albumId={cd.id} />
+        <AlbumStory albumId={cd.id} folded={hasGuide} />
 
         {/* Annotation */}
         {cd.annotation && (

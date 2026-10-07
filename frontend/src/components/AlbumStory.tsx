@@ -76,8 +76,15 @@ const Article: React.FC<ArticleProps> = ({ intro, sections, lang, title, url, li
   );
 };
 
-const AlbumStory: React.FC<{ albumId: number | string }> = ({ albumId }) => {
+interface AlbumStoryProps {
+  albumId: number | string;
+  /** Behind a toggle, when a listening guide already tells what matters first. */
+  folded?: boolean;
+}
+
+const AlbumStory: React.FC<AlbumStoryProps> = ({ albumId, folded = false }) => {
   const [story, setStory] = useState<Story | null>(null);
+  const [unfolded, setUnfolded] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,12 +102,24 @@ const AlbumStory: React.FC<{ albumId: number | string }> = ({ albumId }) => {
     setStory(null);
     setLoading(true);
     setError(null);
+    setUnfolded(false);
     musicService.getAlbumStory(albumId)
       .then(result => { if (current) setStory(result); })
       .catch((e: Error) => { if (current) setError(e.message); })
       .finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
   }, [albumId]);
+
+  if (folded && !unfolded) {
+    return (
+      <div className="info-section album-story">
+        <button type="button" className="album-story-toggle" aria-expanded={false} onClick={() => setUnfolded(true)}>
+          <BsChevronRight aria-hidden="true" />
+          Read on Wikipedia…
+        </button>
+      </div>
+    );
+  }
 
   const refreshButton = (
     <Button variant="link" size="sm" className="album-story-refresh" disabled={loading}

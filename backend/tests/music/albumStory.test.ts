@@ -257,7 +257,7 @@ describe('repli sur les œuvres', () => {
 
     expect(story).toMatchObject({ found: true, url: null });
     expect(story.works).toEqual([{
-      workTitle: 'Madama Butterfly', tracks: 3, lang: 'en', title: 'Madama Butterfly',
+      workTitle: 'Madama Butterfly', tracks: 3, positions: [1, 2, 3], lang: 'en', title: 'Madama Butterfly',
       url: 'https://en.wikipedia.org/wiki/Madama_Butterfly', intro: 'Madama Butterfly was composed in 1904.',
       sections: [{ heading: 'History', level: 2, text: 'It failed.' }],
       links: [{ lang: 'en', title: 'Madama Butterfly', url: 'https://en.wikipedia.org/wiki/Madama_Butterfly' }],

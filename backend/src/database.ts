@@ -328,6 +328,7 @@ const initDatabase = async (): Promise<sqlite3.Database> => {
           const AlbumStory = (await import('./models/albumStory')).default;
           const ReleaseGroupLookup = (await import('./models/releaseGroupLookup')).default;
           const AlbumNote = (await import('./models/albumNote')).default;
+          const AlbumGuide = (await import('./models/albumGuide')).default;
 
           // Create all tables with their final schema
           await Movie.createTable();
@@ -347,6 +348,7 @@ const initDatabase = async (): Promise<sqlite3.Database> => {
           await AlbumStory.createTable();
           await ReleaseGroupLookup.createTable();
           await AlbumNote.createTable();
+          await AlbumGuide.createTable();
 
           // Run auto-migrations for schema updates
           await runAutoMigrations();

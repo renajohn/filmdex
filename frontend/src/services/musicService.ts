@@ -23,6 +23,20 @@ export interface AlbumWorkStory {
   links?: AlbumStoryLink[];
 }
 
+/** Who wrote a listening guide. */
+export type AlbumGuideSource = 'claude' | 'local_llm' | 'manual';
+
+/** What to know before listening to a CD. */
+export interface AlbumGuide {
+  albumId: number;
+  /** Markdown: "###" headings, "**bold**", "*italic*" and "-" bullets. */
+  text: string;
+  source: AlbumGuideSource;
+  model: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AlbumStory {
   albumId: number;
   found: boolean;
@@ -629,6 +643,21 @@ class MusicService {
   /** Takes the stars given in Navidrome or Amperfy since. */
   syncAlbumRating(albumId: number | string): Promise<{ userRating: number | null }> {
     return this.send(`/music/albums/${albumId}/rating/sync`, 'POST');
+  }
+
+  /** The CD's listening guide, or null when it has none yet. */
+  getAlbumGuide(albumId: number | string): Promise<AlbumGuide | null> {
+    return this.send(`/music/albums/${albumId}/guide`, 'GET');
+  }
+
+  /** Keeps a guide written or edited by hand. */
+  saveAlbumGuide(albumId: number | string, text: string): Promise<AlbumGuide> {
+    return this.send(`/music/albums/${albumId}/guide`, 'PUT', { text, source: 'manual' });
+  }
+
+  /** Has the local LLM write the guide, replacing the current one: about a minute. */
+  generateAlbumGuide(albumId: number | string): Promise<AlbumGuide> {
+    return this.send(`/music/albums/${albumId}/guide/generate`, 'POST');
   }
 
   getAlbumNotes(albumId: number | string): Promise<AlbumNote[]> {
