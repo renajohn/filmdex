@@ -396,3 +396,72 @@ describe('table des éditions déjà demandées', () => {
     expect(await ReleaseGroupLookup.find('new-row')).toEqual({ releaseGroupId: 'rg-new', isCd: true });
   });
 });
+
+describe('albums seulement en digital', () => {
+  const imageService = require('../../src/services/imageService').default;
+  const musicService = require('../../src/services/musicService').default;
+  const Album = require('../../src/models/album').default;
+  const tag = () => Math.random().toString(36).slice(2, 8);
+
+  beforeEach(() => {
+    jest.spyOn(imageService, 'saveImage').mockImplementation(async (_d: unknown, type: unknown, name: unknown) => `/api/images/${type}/${name}`);
+    jest.spyOn(navidromeService, 'getCoverArt').mockResolvedValue({ data: Buffer.from('jpg'), contentType: 'image/jpeg' });
+  });
+
+  const digitalOf = async (navidromeId: string) =>
+    (await request(app).get('/api/music/rip-status')).body.digital.find((d: { navidromeId: string }) => d.navidromeId === navidromeId);
+
+  it('liste ce que Navidrome a sans CD dans la collection, et dit ce qui est dans la wish list', async () => {
+    const [owned, wished, alone] = [`Owned ${tag()}`, `Wished ${tag()}`, `Alone ${tag()}`];
+    await insertAlbum({ title: owned, artist: ['Moby'] });
+    const wishId = await insertAlbum({ title: wished, artist: ['Moby'], status: 'wish' });
+    jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([
+      album('d-owned', owned, 'Moby'), album('d-wished', wished, 'Moby'), album('d-alone', alone, 'Moby'),
+    ]);
+    jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(songs('d-alone', 'mp3'));
+
+    expect(await digitalOf('d-owned')).toBeUndefined();
+    expect(await digitalOf('d-wished')).toMatchObject({ name: wished, wishAlbumId: wishId });
+    expect(await digitalOf('d-alone')).toMatchObject({ name: alone, artist: 'Moby', formats: ['MP3'], wishAlbumId: null });
+  });
+
+  it('met dans la wish list un album sans édition, avec la pochette de Navidrome, puis l’en retire', async () => {
+    const name = `Play ${tag()}`;
+    jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([album('d-play', name, 'Moby')]);
+    jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(songs('d-play', 'mp3'));
+
+    const put = await request(app).put('/api/music/rip-status/digital/d-play/wish');
+    expect(put.status).toBe(200);
+    expect(put.body.wishAlbumId).toEqual(expect.any(Number));
+    const wish = await Album.findById(put.body.wishAlbumId);
+    expect(wish).toMatchObject({ title: name, artist: ['Moby'], titleStatus: 'wish', format: 'CD' });
+    expect(wish.cover).toMatch(/navidrome_/);
+
+    // A second toggle on does not add it twice.
+    expect((await request(app).put('/api/music/rip-status/digital/d-play/wish')).body.wishAlbumId).toBe(put.body.wishAlbumId);
+
+    const del = await request(app).delete('/api/music/rip-status/digital/d-play/wish');
+    expect(del.body.wishAlbumId).toBeNull();
+    expect(await Album.findById(put.body.wishAlbumId)).toBeNull();
+  });
+
+  it('prend l’édition MusicBrainz des fichiers quand ils en ont une', async () => {
+    const name = `18 ${tag()}`;
+    const releaseId = `rel-${tag()}`;
+    jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([album('d-18', name, 'Moby', releaseId)]);
+    jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(songs('d-18', 'mp3'));
+    const add = jest.spyOn(musicService, 'addAlbumFromMusicBrainz').mockImplementation(async (_id: unknown, data: any) =>
+      musicService.addAlbum({ title: name, artist: ['Moby'], musicbrainzReleaseId: releaseId, ...data }));
+
+    const put = await request(app).put('/api/music/rip-status/digital/d-18/wish');
+
+    expect(add).toHaveBeenCalledWith(releaseId, { titleStatus: 'wish' });
+    expect(put.body.wishAlbumId).toEqual(expect.any(Number));
+  });
+
+  it('répond 404 pour un album que Navidrome n’a pas', async () => {
+    jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([]);
+    jest.spyOn(navidromeService, 'getSongs').mockResolvedValue([]);
+    expect((await request(app).put('/api/music/rip-status/digital/nope/wish')).status).toBe(404);
+  });
+});

@@ -127,6 +127,15 @@
   border-radius: 8px;
 }
 
+.rip-row-clickable {
+  cursor: pointer;
+}
+
+.rip-row-clickable:focus-visible {
+  outline: 2px solid #f0b73c;
+  outline-offset: -2px;
+}
+
 .rip-row:hover {
   background: rgba(255, 255, 255, 0.05);
 }
@@ -203,9 +212,23 @@
   color: #5fd39a;
 }
 
+.rip-state-wished {
+  background: rgba(240, 183, 60, 0.15);
+  color: #f0c654;
+}
+
 .rip-action {
   flex: 0 0 96px;
   text-align: right;
+}
+
+.rip-wish-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.8rem;
+  color: #c0c6cf;
 }
 
 .rip-no-edition {
@@ -221,7 +244,7 @@
 
 @media (max-width: 600px) {
   .rip-formats,
-  .rip-action {
+  .rip-action:not(:has(.rip-wish-toggle)) {
     display: none;
   }
 

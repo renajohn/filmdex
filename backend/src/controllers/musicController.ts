@@ -603,6 +603,35 @@ const musicController = {
     }
   },
 
+  /** Puts a digital-only album on the wish list (PUT) or takes it off (DELETE). */
+  setDigitalWished: async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!navidromeService.isConfigured()) {
+        res.status(409).json({ error: 'Navidrome is not configured' });
+        return;
+      }
+      const digital = await ripStatusService.setWished(req.params.navidromeId as string, req.method === 'PUT');
+      if (!digital) {
+        res.status(404).json({ error: 'This album is not in Navidrome, or a CD of the collection is' });
+        return;
+      }
+      res.json(digital);
+    } catch (error) {
+      logger.error('Error changing the wish list from a digital album:', error);
+      res.status(500).json({ error: 'Failed to change the wish list' });
+    }
+  },
+
+  /** The cover Navidrome shows for one of its albums, for the albums DexVault has no record of. */
+  getNavidromeCover: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { data, contentType } = await navidromeService.getCoverArt(req.params.navidromeId as string);
+      res.set('Cache-Control', 'public, max-age=86400').type(contentType).send(data);
+    } catch {
+      res.status(404).end();
+    }
+  },
+
   /**
    * Takes the cover Navidrome shows for this CD as its DexVault cover: a photo
    * of one's own, dropped on the album in Picard, comes back this way. Only

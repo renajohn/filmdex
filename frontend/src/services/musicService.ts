@@ -113,11 +113,23 @@ export interface RipTracks {
   tracks: RipTrackFile[];
 }
 
+/** An album Navidrome has that no CD of the collection is, and the wish list album standing for it. */
+export interface DigitalAlbum {
+  navidromeId: string;
+  name: string;
+  artist: string;
+  songCount: number;
+  formats: string[];
+  wishAlbumId: number | null;
+}
+
 export interface RipStatus {
   configured: boolean;
   error?: string;
   counts: Record<RipState, number>;
   albums: RipStatusAlbum[];
+  /** Missing from a server older than the digital tab. */
+  digital?: DigitalAlbum[];
 }
 
 class MusicService {
@@ -143,6 +155,16 @@ class MusicService {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     return await response.json();
+  }
+
+  /** Puts a digital-only album on the wish list, or takes it off. */
+  setDigitalWished(navidromeId: string, wished: boolean): Promise<DigitalAlbum> {
+    return this.send(`/music/rip-status/digital/${encodeURIComponent(navidromeId)}/wish`, wished ? 'PUT' : 'DELETE');
+  }
+
+  /** The cover Navidrome shows for one of its albums. */
+  navidromeCoverUrl(navidromeId: string): string {
+    return `/api/music/navidrome-cover/${encodeURIComponent(navidromeId)}`;
   }
 
   async getAllAlbums(): Promise<unknown> {

@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Form, ProgressBar } from 'react-bootstrap';
 import { BsArrowClockwise, BsTags } from 'react-icons/bs';
-import musicService, { type EditionAdoption, type RipState, type RipStatus } from '../services/musicService';
+import MusicDetailCard from '../components/MusicDetailCard';
+import musicService, { type DigitalAlbum, type EditionAdoption, type RipState, type RipStatus } from '../services/musicService';
 import { canUsePicard, openInPicard } from '../utils/picard';
 import './RipProgressPage.css';
 
-type Filter = 'todo' | RipState | 'all';
+type Filter = 'todo' | RipState | 'all' | 'digital';
 
 const STATE_LABELS: Record<RipState, string> = {
   none: 'Not ripped',
@@ -19,6 +20,7 @@ const FILTERS: Array<{ key: Filter; label: string }> = [
   { key: 'lossy', label: STATE_LABELS.lossy },
   { key: 'lossless', label: STATE_LABELS.lossless },
   { key: 'all', label: 'All' },
+  { key: 'digital', label: 'Digital only' },
 ];
 
 /** What DexVault did with the editions Picard wrote into the rips; tracks and credits follow each time. */
@@ -44,6 +46,8 @@ const RipProgressPage: React.FC = () => {
   const [query, setQuery] = useState('');
   const [editions, setEditions] = useState<EditionAdoption[]>([]);
   const [syncing, setSyncing] = useState(false);
+  const [detail, setDetail] = useState<any>(null);
+  const [wishing, setWishing] = useState<Set<string>>(new Set());
   const picard = canUsePicard();
 
   const load = useCallback(async () => {
@@ -77,23 +81,64 @@ const RipProgressPage: React.FC = () => {
 
   useEffect(() => { load().then(sync); }, [load, sync]);
 
-  const albums = useMemo(() => {
+  const matchesQuery = useCallback((text: string) => {
     const words = normalize(query).split(/\s+/).filter(Boolean);
+    const haystack = normalize(text);
+    return words.every(word => haystack.includes(word));
+  }, [query]);
+
+  const albums = useMemo(() => {
+    if (filter === 'digital') return [];
     return (status?.albums || [])
       .filter(album => filter === 'all' || (filter === 'todo' ? album.state !== 'lossless' : album.state === filter))
-      .filter(album => {
-        const text = normalize(`${album.title} ${album.artist.join(' ')}`);
-        return words.every(word => text.includes(word));
-      })
+      .filter(album => matchesQuery(`${album.title} ${album.artist.join(' ')}`))
       .sort((a, b) => ORDER[a.state] - ORDER[b.state]
         || a.artist.join(', ').localeCompare(b.artist.join(', '))
         || a.title.localeCompare(b.title));
-  }, [status, filter, query]);
+  }, [status, filter, matchesQuery]);
+
+  const digital = useMemo(() => filter !== 'digital' ? [] :
+    (status?.digital || []).filter(album => matchesQuery(`${album.name} ${album.artist}`)), [status, filter, matchesQuery]);
+
+  /** The CD's dialog, as on the collection page. */
+  const openDetail = async (albumId: number) => {
+    try {
+      setDetail(await musicService.getAlbumById(albumId));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  const deleteDetail = async () => {
+    try {
+      await musicService.deleteAlbum(detail.id);
+      setDetail(null);
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  const toggleWish = async (album: DigitalAlbum) => {
+    setWishing(current => new Set(current).add(album.navidromeId));
+    try {
+      const updated = await musicService.setDigitalWished(album.navidromeId, album.wishAlbumId === null);
+      setStatus(current => current && {
+        ...current,
+        digital: (current.digital || []).map(entry => entry.navidromeId === updated.navidromeId ? updated : entry),
+      });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setWishing(current => { const next = new Set(current); next.delete(album.navidromeId); return next; });
+    }
+  };
 
   const counts = status?.counts || { none: 0, lossy: 0, lossless: 0 };
   const total = counts.none + counts.lossy + counts.lossless;
   const countOf = (key: Filter) =>
-    key === 'all' ? total : key === 'todo' ? counts.none + counts.lossy : counts[key];
+    key === 'digital' ? (status?.digital || []).length
+      : key === 'all' ? total : key === 'todo' ? counts.none + counts.lossy : counts[key];
 
   return (
     <div className="rip-progress-page">
@@ -164,7 +209,7 @@ const RipProgressPage: React.FC = () => {
         <Form.Control
           size="sm"
           type="search"
-          placeholder="Find a CD…"
+          placeholder={filter === 'digital' ? 'Find an album…' : 'Find a CD…'}
           value={query}
           onChange={event => setQuery(event.target.value)}
           className="rip-progress-search"
@@ -173,7 +218,14 @@ const RipProgressPage: React.FC = () => {
 
       <ul className="rip-list">
         {albums.map(album => (
-          <li key={album.id} className="rip-row">
+          <li
+            key={album.id}
+            className="rip-row rip-row-clickable"
+            role="button"
+            tabIndex={0}
+            onClick={() => openDetail(album.id)}
+            onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openDetail(album.id); } }}
+          >
             <div className="rip-cover">
               {album.cover && <img src={musicService.getImageUrl(album.cover) || undefined} alt="" loading="lazy" />}
             </div>
@@ -185,7 +237,7 @@ const RipProgressPage: React.FC = () => {
               {album.formats.map(format => <span key={format} className="rip-format">{format}</span>)}
             </div>
             <span className={`rip-state rip-state-${album.state}`}>{STATE_LABELS[album.state]}</span>
-            <div className="rip-action">
+            <div className="rip-action" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
               {picard && album.musicbrainzReleaseId ? (
                 <Button size="sm" variant="outline-secondary" onClick={() => openInPicard(album.musicbrainzReleaseId!)}>
                   <BsTags className="me-1" />
@@ -197,10 +249,49 @@ const RipProgressPage: React.FC = () => {
             </div>
           </li>
         ))}
-        {status && albums.length === 0 && (
-          <li className="rip-empty">{query ? 'No CD matches this search.' : 'Nothing here.'}</li>
+        {digital.map(album => {
+          const wished = album.wishAlbumId !== null;
+          return (
+            <li key={album.navidromeId} className="rip-row">
+              <div className="rip-cover">
+                <img src={musicService.navidromeCoverUrl(album.navidromeId)} alt="" loading="lazy" />
+              </div>
+              <div className="rip-info">
+                <div className="rip-title">{album.name}</div>
+                <div className="rip-artist">{album.artist}</div>
+              </div>
+              <div className="rip-formats">
+                {album.formats.map(format => <span key={format} className="rip-format">{format}</span>)}
+              </div>
+              {wished && <span className="rip-state rip-state-wished">In wishlist</span>}
+              <div className="rip-action">
+                <Form.Check
+                  type="switch"
+                  id={`wish-${album.navidromeId}`}
+                  label="Wishlist"
+                  checked={wished}
+                  disabled={wishing.has(album.navidromeId)}
+                  onChange={() => toggleWish(album)}
+                  className="rip-wish-toggle"
+                />
+              </div>
+            </li>
+          );
+        })}
+        {status && albums.length === 0 && digital.length === 0 && (
+          <li className="rip-empty">
+            {query ? (filter === 'digital' ? 'No album matches this search.' : 'No CD matches this search.') : 'Nothing here.'}
+          </li>
         )}
       </ul>
+
+      {detail && (
+        <MusicDetailCard
+          cd={detail}
+          onClose={() => setDetail(null)}
+          onDelete={deleteDetail}
+        />
+      )}
     </div>
   );
 };
