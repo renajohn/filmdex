@@ -1,6 +1,6 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BsTrash, BsCurrencyDollar, BsClipboard, BsMusicNote, BsFilm, BsBook, BsFileEarmark } from 'react-icons/bs';
+import { BsTrash, BsCurrencyDollar, BsClipboard, BsDisc, BsFilm, BsBook, BsFileEarmark } from 'react-icons/bs';
 import apiService from '../services/api';
 import musicService from '../services/musicService';
 import { base64ToFile } from '../utils/downscaleImage';
@@ -938,7 +938,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
               onClick={handleAddAlbum}
               title="Add Album to Wish List"
             >
-              <BsMusicNote className="me-2" />
+              <BsDisc className="me-2" />
               Add Album
             </button>
             <button
@@ -975,7 +975,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
               className="add-album-btn"
               onClick={handleAddAlbum}
             >
-              <BsMusicNote className="me-2" />
+              <BsDisc className="me-2" />
               Add Your First Album
             </button>
             <button
@@ -1127,7 +1127,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
           {albums.length > 0 && (
             <div className="wishlist-section">
               <h2 className="wish-list-section-title">
-                <BsMusicNote className="me-2" />
+                <BsDisc className="me-2" />
                 Albums ({albums.length})
               </h2>
               <div className="table-responsive">

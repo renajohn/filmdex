@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button } from 'react-bootstrap';
-import { BsPencil, BsTrash, BsMusicNote, BsApple, BsTags, BsPlayFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight, BsStar, BsStarFill, BsArrowClockwise } from 'react-icons/bs';
+import { BsPencil, BsTrash, BsDisc, BsApple, BsTags, BsPlayFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight, BsStar, BsStarFill, BsArrowClockwise } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
 import AlbumStory from './AlbumStory';
@@ -401,7 +401,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
     >
       <Modal.Header closeButton>
         <Modal.Title>
-          <BsMusicNote className="me-2" />
+          <BsDisc className="me-2" />
           {cd.title}
         </Modal.Title>
       </Modal.Header>
@@ -420,7 +420,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
               />
             ) : (
               <div className="album-head-cover album-head-cover-empty" aria-hidden="true">
-                <BsMusicNote size={40} />
+                <BsDisc size={40} />
               </div>
             )}
             {backCover && (

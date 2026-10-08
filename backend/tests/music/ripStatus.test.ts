@@ -465,3 +465,52 @@ describe('albums seulement en digital', () => {
     expect((await request(app).put('/api/music/rip-status/digital/nope/wish')).status).toBe(404);
   });
 });
+
+describe('rapprochement des copies plus large', () => {
+  const tag = () => Math.random().toString(36).slice(2, 8);
+  const timed = (albumId: string, lengths: number[]) =>
+    lengths.map((durationSec, index) => ({ albumId, suffix: 'm4a', bitDepth: 16, discNumber: 1, track: index + 1, durationSec }));
+  const insertTracks = (albumId: number, lengths: number[]) => Promise.all(lengths.map((length, index) =>
+    new Promise<void>((resolve, reject) => getDatabase().run(
+      'INSERT INTO tracks (album_id, disc_number, track_number, title, duration_sec) VALUES (?, 1, ?, ?, ?)',
+      [albumId, index + 1, `Track ${index + 1}`, length], err => (err ? reject(err) : resolve())))));
+
+  it('reconnaît « Mozart: Requiem » dans le CD Requiem, crédité au même chef', async () => {
+    const word = tag();
+    const id = await insertAlbum({ title: `Requiem ${word}`, artist: ['Mozart', 'Herbert von Karajan'] });
+    jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([album('alac-req', `Mozart: Requiem ${word}`, 'Herbert von Karajan, Vienna Philharmonic & Wiener Singverein')]);
+    jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(songs('alac-req', 'm4a', 16));
+
+    expect(await statusOf(id)).toMatchObject({ state: 'lossless', matches: [{ match: 'title' }] });
+  });
+
+  it('ne tient pas compte de l’article : « Dark Side of the Moon » est « The Dark Side of the Moon »', async () => {
+    const word = tag();
+    const id = await insertAlbum({ title: `The Dark Side of the Moon ${word}`, artist: ['Pink Floyd'] });
+    jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([album('mp3-dsotm', `Dark Side of the Moon ${word} (EMI Uden pressing)`, 'Pink Floyd')]);
+    jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(songs('mp3-dsotm', 'mp3'));
+
+    expect(await statusOf(id)).toMatchObject({ state: 'lossy', matches: [{ match: 'title' }] });
+  });
+
+  it('reconnaît une copie aux durées de ses pistes quand titre et artiste diffèrent', async () => {
+    const id = await insertAlbum({ title: `Violinkonzert Nr. 5 ${tag()}`, artist: ['Wolfgang Amadeus Mozart', 'Karajan'] });
+    await insertTracks(id, [601, 553, 1210, 734]);
+    jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([album('alac-mutter', `Violin Concertos ${tag()}`, 'Anne-Sophie Mutter')]);
+    jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(timed('alac-mutter', [602, 552, 1211, 734]));
+
+    expect(await statusOf(id)).toMatchObject({ state: 'lossless', matches: [{ match: 'tracks' }] });
+  });
+
+  it('ne confond pas deux enregistrements du même titre, ni des pistes de durées voisines', async () => {
+    const word = tag();
+    const id = await insertAlbum({ title: `Carmina Burana ${word}`, artist: ['Orff', 'Chicago Symphony Chorus', 'James Levine'] });
+    await insertTracks(id, [160, 230, 95, 300]);
+    jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([album('lso', `Orff: Carmina Burana ${word}`, 'London Symphony Chorus, London Symphony Orchestra & Richard Hickox')]);
+    jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(timed('lso', [170, 222, 99, 290]));
+
+    expect(await statusOf(id)).toMatchObject({ state: 'none', matches: [] });
+    const digital = (await request(app).get('/api/music/rip-status')).body.digital;
+    expect(digital.map((d: { navidromeId: string }) => d.navidromeId)).toContain('lso');
+  });
+});

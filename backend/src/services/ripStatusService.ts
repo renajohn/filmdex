@@ -6,6 +6,7 @@ import musicbrainzService from './musicbrainzService';
 import musicbrainzRefreshService from './musicbrainzRefreshService';
 import ReleaseGroupLookup, { type ReleaseInfo } from '../models/releaseGroupLookup';
 import musicService from './musicService';
+import { getDatabase } from '../database';
 import imageService from './imageService';
 import logger from '../logger';
 
@@ -17,7 +18,7 @@ import logger from '../logger';
  * Every CD is to be ripped again to lossless, so "lossy" is still to do.
  */
 export type RipState = 'none' | 'lossy' | 'lossless';
-export type RipMatch = 'musicbrainz' | 'title';
+export type RipMatch = 'musicbrainz' | 'title' | 'tracks';
 
 export interface RipStatusAlbum {
   id: number;
@@ -79,13 +80,76 @@ const formatName = (song: NavidromeSong): string =>
 const cleanTitle = (title: string): string =>
   musicbrainzLinkService.normalize(title.replace(/[([][^)\]]*[)\]]/g, ' '));
 
+/** "The Dark Side of the Moon" is Dark Side of the Moon, "L'Essentiel" is Essentiel. */
+const ARTICLE = /^(the|a|an|le|la|les|l|un|une|der|die|das|il|lo|el|los)\s+/;
+
 /**
  * The names a CD may carry in its tags: Discogs titles join translations,
- * "Cellokonzerte • Cello Concertos", while a rip keeps one of them.
+ * "Cellokonzerte • Cello Concertos", while a rip keeps one of them; an old
+ * copy names the composer first, "Mozart: Requiem", where the CD says Requiem.
+ * The artist still has to agree.
  */
 const titleVariants = (title: string): Set<string> => {
-  const parts = title.split(/\s+[•·=/]\s+/).map(cleanTitle).filter(part => part.length >= 4);
-  return new Set([cleanTitle(title), ...parts].filter(Boolean));
+  const parts = [title, ...title.split(/\s+[•·=/]\s+/)];
+  const afterColon = parts.filter(part => part.includes(':')).map(part => part.slice(part.indexOf(':') + 1));
+  const keys = (list: string[]) => list.map(part => cleanTitle(part).replace(ARTICLE, ''));
+  return new Set([
+    ...keys([title]),
+    ...[...keys(parts.slice(1)), ...keys(afterColon)].filter(part => part.length >= 4),
+  ].filter(Boolean));
+};
+
+const sameTitle = (a: string, b: string): boolean => {
+  const variants = titleVariants(a);
+  return [...titleVariants(b)].some(variant => variants.has(variant));
+};
+
+/**
+ * The length of every track, in order: a CD and a copy of it whose titles
+ * and credits have nothing in common, "Violinkonzert Nr. 5" against "Violin
+ * Concertos", still last the same, second for second.
+ */
+export interface TrackLengths {
+  cd: Map<number, number[]>;
+  navidrome: Map<string, number[]>;
+}
+
+const MIN_TRACKS = 3;
+const TOLERANCE_SEC = 2;
+
+const sameTracks = (cd: number[] | undefined, copy: number[] | undefined): boolean =>
+  Boolean(cd && copy && cd.length >= MIN_TRACKS && cd.length === copy.length
+    && cd.every((length, index) => Math.abs(length - copy[index]) <= TOLERANCE_SEC));
+
+/** Each CD's track lengths, null when one of them is unknown. */
+const cdTrackLengths = (): Promise<Map<number, number[]>> =>
+  new Promise((resolve, reject) =>
+    getDatabase().all(
+      'SELECT album_id, duration_sec FROM tracks ORDER BY album_id, disc_number, track_number',
+      [],
+      (err: Error | null, rows: Array<{ album_id: number; duration_sec: number | null }>) => {
+        if (err) { reject(err); return; }
+        const lengths = new Map<number, number[]>();
+        const incomplete = new Set<number>();
+        for (const row of rows) {
+          if (row.duration_sec == null) incomplete.add(row.album_id);
+          lengths.set(row.album_id, [...(lengths.get(row.album_id) || []), row.duration_sec ?? 0]);
+        }
+        for (const id of incomplete) lengths.delete(id);
+        resolve(lengths);
+      }));
+
+const navidromeTrackLengths = (songs: NavidromeSong[]): Map<string, number[]> => {
+  const byAlbum = new Map<string, NavidromeSong[]>();
+  for (const song of songs) byAlbum.set(song.albumId, [...(byAlbum.get(song.albumId) || []), song]);
+  const lengths = new Map<string, number[]>();
+  for (const [albumId, list] of byAlbum) {
+    if (list.some(song => song.durationSec == null)) continue;
+    lengths.set(albumId, [...list]
+      .sort((a, b) => (a.discNumber ?? 1) - (b.discNumber ?? 1) || (a.track ?? 0) - (b.track ?? 0))
+      .map(song => song.durationSec!));
+  }
+  return lengths;
 };
 
 const words = (text: string): string[] => musicbrainzLinkService.normalize(text).split(' ').filter(Boolean);
@@ -127,35 +191,43 @@ const releaseInfo = async (releaseId: string): Promise<ReleaseInfo> => {
   return info;
 };
 
-/** The Navidrome albums that are this CD: same MusicBrainz edition, else same title and artist. */
-const matchesOf = (album: AlbumFormatted, candidates: NavidromeAlbum[]): Array<{ candidate: NavidromeAlbum; match: RipMatch }> => {
-  const variants = titleVariants(album.title);
-  return candidates.flatMap(candidate => {
+/**
+ * The Navidrome albums that are this CD: same MusicBrainz edition, else same
+ * title and artist, else the same tracks to the second.
+ */
+const matchesOf = (album: AlbumFormatted, candidates: NavidromeAlbum[], lengths?: TrackLengths): Array<{ candidate: NavidromeAlbum; match: RipMatch }> =>
+  candidates.flatMap(candidate => {
     if (album.musicbrainzReleaseId && candidate.musicBrainzId === album.musicbrainzReleaseId) {
       return [{ candidate, match: 'musicbrainz' as RipMatch }];
     }
-    return variants.has(cleanTitle(candidate.name)) && sameArtist(album.artist, candidate.artist)
-      ? [{ candidate, match: 'title' as RipMatch }] : [];
+    if (sameTitle(album.title, candidate.name) && sameArtist(album.artist, candidate.artist)) {
+      return [{ candidate, match: 'title' as RipMatch }];
+    }
+    return lengths && sameTracks(lengths.cd.get(album.id), lengths.navidrome.get(candidate.id))
+      ? [{ candidate, match: 'tracks' as RipMatch }] : [];
   });
-};
+
+interface Library { albums: NavidromeAlbum[]; songs: NavidromeSong[]; lengths: TrackLengths }
 
 const CACHE_MS = 60_000;
-let cache: { at: number; albums: NavidromeAlbum[]; songs: NavidromeSong[] } | null = null;
+let cache: { at: number; albums: NavidromeAlbum[]; songs: NavidromeSong[]; lengths: Map<string, number[]> } | null = null;
 
-const library = async (): Promise<{ albums: NavidromeAlbum[]; songs: NavidromeSong[] }> => {
-  if (cache && Date.now() - cache.at < CACHE_MS) return cache;
-  const [albums, songs] = await Promise.all([navidromeService.getAlbums(), navidromeService.getSongs()]);
-  cache = { at: Date.now(), albums, songs };
-  return cache;
+/** Navidrome, read at most once a minute, with the track lengths of the CDs as they stand now. */
+const library = async (): Promise<Library> => {
+  if (!cache || Date.now() - cache.at >= CACHE_MS) {
+    const [albums, songs] = await Promise.all([navidromeService.getAlbums(), navidromeService.getSongs()]);
+    cache = { at: Date.now(), albums, songs, lengths: navidromeTrackLengths(songs) };
+  }
+  return { albums: cache.albums, songs: cache.songs, lengths: { cd: await cdTrackLengths(), navidrome: cache.lengths } };
 };
 
 /**
  * The copy of a CD in Navidrome whose cover and stars to take: the lossless
  * rip, the one tagged in Picard, before an old MP3.
  */
-const bestCopy = (album: AlbumFormatted, navidrome: { albums: NavidromeAlbum[]; songs: NavidromeSong[] }): NavidromeAlbum | null => {
+const bestCopy = (album: AlbumFormatted, navidrome: Library): NavidromeAlbum | null => {
   const songsByAlbum = groupSongs(navidrome.songs);
-  const matches = matchesOf(album, navidrome.albums)
+  const matches = matchesOf(album, navidrome.albums, navidrome.lengths)
     .sort((a, b) => Number(albumState(b.candidate, songsByAlbum) === 'lossless') - Number(albumState(a.candidate, songsByAlbum) === 'lossless')
       || Number(b.match === 'musicbrainz') - Number(a.match === 'musicbrainz'));
   return matches[0]?.candidate ?? null;
@@ -165,9 +237,9 @@ const byName = (a: { artist: string; name: string }, b: { artist: string; name: 
   a.artist.localeCompare(b.artist) || a.name.localeCompare(b.name);
 
 /** The Navidrome albums none of these CDs is, each with the wish list album that stands for it. */
-const digitalOnly = (owned: AlbumFormatted[], wished: AlbumFormatted[], navidrome: { albums: NavidromeAlbum[]; songs: NavidromeSong[] }): DigitalAlbum[] => {
+const digitalOnly = (owned: AlbumFormatted[], wished: AlbumFormatted[], navidrome: Library): DigitalAlbum[] => {
   const songsByAlbum = groupSongs(navidrome.songs);
-  const ownedCopies = new Set(owned.flatMap(album => matchesOf(album, navidrome.albums).map(({ candidate }) => candidate.id)));
+  const ownedCopies = new Set(owned.flatMap(album => matchesOf(album, navidrome.albums, navidrome.lengths).map(({ candidate }) => candidate.id)));
   return navidrome.albums
     .filter(album => !ownedCopies.has(album.id))
     .map(album => ({
@@ -176,7 +248,7 @@ const digitalOnly = (owned: AlbumFormatted[], wished: AlbumFormatted[], navidrom
       artist: album.artist,
       songCount: album.songCount,
       formats: [...new Set((songsByAlbum.get(album.id) || []).map(formatName))].sort(),
-      wishAlbumId: wished.find(wish => matchesOf(wish, [album]).length > 0)?.id ?? null,
+      wishAlbumId: wished.find(wish => matchesOf(wish, [album], navidrome.lengths).length > 0)?.id ?? null,
     }))
     .sort(byName);
 };
@@ -320,7 +392,7 @@ const ripStatusService = {
     const navidrome = await library();
     const album = navidrome.albums.find(candidate => candidate.id === navidromeId);
     if (!album) return null;
-    const standing = (await Album.findByStatus('wish')).filter(wish => matchesOf(wish, [album]).length > 0);
+    const standing = (await Album.findByStatus('wish')).filter(wish => matchesOf(wish, [album], navidrome.lengths).length > 0);
     if (wished && standing.length === 0) {
       const added = await wishFor(album);
       logger.info(`Album ${added.id} "${added.title}" wished from its digital copy in Navidrome`);
@@ -328,7 +400,8 @@ const ripStatusService = {
     if (!wished) {
       for (const wish of standing) await musicService.deleteAlbum(wish.id);
     }
-    return digitalOnly(await Album.findAll(), await Album.findByStatus('wish'), navidrome)
+    // The wish just added has tracks of its own now.
+    return digitalOnly(await Album.findAll(), await Album.findByStatus('wish'), await library())
       .find(digital => digital.navidromeId === navidromeId) ?? null;
   },
 
@@ -336,7 +409,7 @@ const ripStatusService = {
     const counts: Record<RipState, number> = { none: 0, lossy: 0, lossless: 0 };
     const owned = (await Album.findAll()).filter(album => /CD|Unknown/i.test(album.format || 'Unknown'));
 
-    let navidrome: { albums: NavidromeAlbum[]; songs: NavidromeSong[] } = { albums: [], songs: [] };
+    let navidrome: Library = { albums: [], songs: [], lengths: { cd: new Map(), navidrome: new Map() } };
     let error: string | undefined;
     const configured = navidromeService.isConfigured();
     if (configured) {
@@ -351,7 +424,7 @@ const ripStatusService = {
     const stateOf = (album: NavidromeAlbum) => albumState(album, songsByAlbum);
 
     const albums = owned.map(album => {
-      const matches = matchesOf(album, navidrome.albums);
+      const matches = matchesOf(album, navidrome.albums, navidrome.lengths);
 
       // A CD ripped again sits next to its old MP3 copy until that one is deleted: the best copy counts.
       const states = matches.map(({ candidate }) => stateOf(candidate));

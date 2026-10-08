@@ -17,7 +17,7 @@ import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
 import musicService from './services/musicService';
 import bookService from './services/bookService';
-import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsMusicNote, BsArrowLeft, BsBarChart, BsFilm, BsBook } from 'react-icons/bs';
+import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsDisc, BsArrowLeft, BsBarChart, BsFilm, BsBook } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import { readStored, writeStored } from './utils/safeStorage';
@@ -1167,7 +1167,7 @@ function AppContent() {
                   onClick={handleMusicDex}
                   data-tooltip="MusicDex - My precious albums"
                 >
-                  <BsMusicNote className="segment-icon" />
+                  <BsDisc className="segment-icon" />
                 </button>
                 <button
                   className={`segment ${location.pathname === '/bookdex' ? 'active' : ''}`}

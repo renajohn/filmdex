@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Form, Button, Row, Col, Alert, Accordion, Card, Table } from 'react-bootstrap';
-import { BsX, BsUpload, BsMusicNote, BsPlus, BsTrash, BsPencil, BsGripVertical } from 'react-icons/bs';
+import { BsX, BsUpload, BsDisc, BsPlus, BsTrash, BsPencil, BsGripVertical } from 'react-icons/bs';
 import apiService from '../services/api';
 import musicService from '../services/musicService';
 import CoverCropDialog from './CoverCropDialog';
@@ -1155,7 +1155,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                         </>
                       ) : (
                         <>
-                          <BsMusicNote size={48} />
+                          <BsDisc size={48} />
                           <div style={{ fontSize: '0.75rem', marginTop: '8px' }}>
                             {cd && cd.id ? (
                               <>
@@ -1296,7 +1296,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                       color: 'rgba(255, 255, 255, 0.5)',
                       pointerEvents: 'none'
                     }}>
-                      <BsMusicNote size={48} />
+                      <BsDisc size={48} />
                       <div style={{ fontSize: '0.75rem', marginTop: '8px' }}>
                         {cd && cd.id ? (
                           <>
@@ -1589,7 +1589,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
           {formData.discs.length === 0 ? (
             <Alert variant="info" className="mb-3">
               <div className="text-center py-2">
-                <BsMusicNote size={24} className="mb-2" />
+                <BsDisc size={24} className="mb-2" />
                 <p className="mb-0">No tracks added yet. Click "Add Disc" to start adding tracks.</p>
               </div>
             </Alert>

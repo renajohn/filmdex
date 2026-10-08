@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Dropdown } from 'react-bootstrap';
-import { BsMusicNote, BsThreeDots, BsPlayFill, BsPencil, BsTrash } from 'react-icons/bs';
+import { BsDisc, BsThreeDots, BsPlayFill, BsPencil, BsTrash } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import ListenNextToggle from './ListenNextToggle';
 import { isAppleMobile, openListen } from '../utils/navidrome';
@@ -102,7 +102,7 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onEdit, on
           className="music-thumbnail-placeholder"
           style={{ display: getCoverImage() ? 'none' : 'flex' }}
         >
-          <BsMusicNote size={32} />
+          <BsDisc size={32} />
         </div>
         {openingApple && (
           <div className="thumbnail-opening-overlay">

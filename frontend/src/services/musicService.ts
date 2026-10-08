@@ -63,7 +63,7 @@ export interface RipStatusAlbum {
   musicbrainzReleaseId: string | null;
   state: RipState;
   formats: string[];
-  matches: Array<{ name: string; artist: string; match: 'musicbrainz' | 'title'; state: RipState }>;
+  matches: Array<{ name: string; artist: string; match: 'musicbrainz' | 'title' | 'tracks'; state: RipState }>;
 }
 
 /** An edition DexVault took from a rip tagged by Picard, or why it left the album alone. */

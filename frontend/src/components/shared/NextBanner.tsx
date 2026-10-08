@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { BsX, BsFilm, BsMusicNote } from 'react-icons/bs';
+import { BsX, BsFilm, BsDisc } from 'react-icons/bs';
 import './shared.css';
 
 interface NextBannerItem {
@@ -89,7 +89,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
     }
   };
 
-  const PlaceholderIcon = type === 'music' ? BsMusicNote : BsFilm;
+  const PlaceholderIcon = type === 'music' ? BsDisc : BsFilm;
   const itemLabel = type === 'music' ? 'album' : 'movie';
   const itemLabelPlural = type === 'music' ? 'albums' : 'movies';
 

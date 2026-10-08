@@ -8,7 +8,7 @@ import MusicDetailCard from './MusicDetailCard';
 import AddMusicDialog from './AddMusicDialog';
 import AlphabeticalIndex from './AlphabeticalIndex';
 import { NextBanner, CollectionHeader, EmptyState } from './shared';
-import { BsChevronDown, BsMusicNote, BsDisc } from 'react-icons/bs';
+import { BsChevronDown, BsDisc } from 'react-icons/bs';
 import './MusicSearch.css';
 import { readStored, writeStored } from '../utils/safeStorage';
 
@@ -707,7 +707,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
       return searchCriteria?.searchText && searchCriteria.searchText.trim() ? (
         /* Search returned no results */
         <EmptyState
-          icon="🎵"
+          icon="💿"
           title="No Results Found"
           description={`No albums match "${searchCriteria.searchText}"`}
           hint="Try different keywords or clear your search"
@@ -724,7 +724,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
               className="btn btn-primary btn-lg mt-4"
               onClick={onOpenAddDialog}
             >
-              <BsMusicNote className="me-2" />
+              <BsDisc className="me-2" />
               Add Your First Album
             </button>
           }

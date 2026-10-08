@@ -28,6 +28,10 @@ export interface NavidromeSong {
   albumId: string;
   suffix: string;
   bitDepth: number | null;
+  /** Where the song sits on the album, and how long it lasts: what tells a copy of a CD apart. */
+  discNumber?: number;
+  track?: number;
+  durationSec?: number | null;
 }
 
 type SubsonicResponse<T> = { 'subsonic-response': T & { status: 'ok' | 'failed'; error?: { code: number; message: string } } };
@@ -97,7 +101,7 @@ type RawAlbumSong = {
   id?: string; title?: string; track?: number; discNumber?: number; duration?: number; suffix?: string; bitRate?: number;
   bitDepth?: number; samplingRate?: number; channelCount?: number; size?: number; path?: string;
 };
-type RawSong = { albumId?: string; suffix?: string; bitDepth?: number };
+type RawSong = { albumId?: string; suffix?: string; bitDepth?: number; discNumber?: number; track?: number; duration?: number };
 
 const toAlbum = (raw: RawAlbum): NavidromeAlbum => ({
   id: raw.id,
@@ -187,6 +191,7 @@ const navidromeService = {
       const page = body.searchResult3?.song || [];
       songs.push(...page.filter(song => song.albumId).map(song => ({
         albumId: song.albumId!, suffix: (song.suffix || '').toLowerCase(), bitDepth: song.bitDepth || null,
+        discNumber: song.discNumber || 1, track: song.track || 0, durationSec: song.duration ?? null,
       })));
       if (page.length < PAGE_SIZE) return songs;
     }
