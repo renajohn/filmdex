@@ -1,9 +1,26 @@
 import { useEffect, useSyncExternalStore } from 'react';
 
+/** An object to take from one shelf to another, or to put on its shelf when new. */
+export interface ShelfMove {
+  kind: 'movie' | 'album' | 'box_set';
+  id: number;
+  title: string;
+  /** Null for an object new to the collection. */
+  from: string | null;
+  /** Null when the shelves have no more room for it. */
+  to: string | null;
+  /** What it stands next to there: the one before it, or the one after when it is first. */
+  after?: string | null;
+  before?: string | null;
+}
+
 interface Locations {
   movies: Record<number, string>;
   albums: Record<number, string>;
+  moves?: ShelfMove[];
 }
+
+const NO_MOVES: ShelfMove[] = [];
 
 /** Fetched again when a page asks after this long, so a CD added since gets its shelf. */
 const STALE_MS = 30 * 1000;
@@ -47,6 +64,23 @@ export function useShelfLocation(kind: 'movie' | 'album', id: number | string | 
   }, []);
   if (id == null || !current) return null;
   return (kind === 'movie' ? current.movies : current.albums)[Number(id)] ?? null;
+}
+
+/** What the owner has to move on the shelves since they last put them in order. */
+export function useShelfMoves(): ShelfMove[] {
+  const current = useSyncExternalStore(subscribe, () => locations);
+  return current?.moves ?? NO_MOVES;
+}
+
+/** The owner made these moves: the shelves stand as the plan has them. */
+export async function markMovesDone(moves: ShelfMove[]): Promise<void> {
+  const response = await fetch('/api/shelving/moves/done', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ moves: moves.map(({ kind, id, to }) => ({ kind, id, to })) }),
+  });
+  if (!response.ok) throw new Error('The moves could not be recorded');
+  await refreshShelfLocations();
 }
 
 /** For tests: forget what was fetched. */

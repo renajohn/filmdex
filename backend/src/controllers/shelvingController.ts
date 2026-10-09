@@ -154,6 +154,18 @@ const shelvingController = {
     await act(res, 'Moving to the shelf before', () => shelvingService.moveBack(kind, id));
   },
 
+  /** The owner made the moves listed: they stand where the plan has them. */
+  movesDone: async (req: Request, res: Response): Promise<void> => {
+    const moves = Array.isArray(req.body?.moves) ? req.body.moves : null;
+    const valid = moves?.every((move: any) => SHELF_KINDS.includes(move?.kind) && Number.isInteger(move?.id)
+      && (move.to === null || (typeof move.to === 'string' && move.to.length <= 200)));
+    if (!valid) {
+      res.status(400).json({ error: 'List the moves made' });
+      return;
+    }
+    await act(res, 'Recording the moves made', () => shelvingService.movesDone(moves));
+  },
+
   /** Keeps a collection's films together on the shelf, or not. */
   setTogether: async (req: Request, res: Response): Promise<void> => {
     const id = Number(req.params.id);

@@ -100,10 +100,38 @@ const ShelfItem = {
         together      INTEGER NOT NULL DEFAULT 1
       )
     `);
+    await run(`
+      CREATE TABLE IF NOT EXISTS shelf_positions (
+        kind    TEXT NOT NULL,
+        item_id INTEGER NOT NULL,
+        place   TEXT,
+        PRIMARY KEY (kind, item_id)
+      )
+    `);
     const collectionColumns = await all<{ name: string }>(`PRAGMA table_info(shelf_collections)`);
     if (!collectionColumns.some(column => column.name === 'together')) {
       await run(`ALTER TABLE shelf_collections ADD COLUMN together INTEGER NOT NULL DEFAULT 1`);
     }
+  },
+
+  /** Where each object stood when the owner last put the shelves in order: a shelf code, a place's name, or null for none. */
+  standing: (): Promise<Array<{ kind: ShelfKind; item_id: number; place: string | null }>> =>
+    all(`SELECT kind, item_id, place FROM shelf_positions`),
+
+  /** The owner moved these objects where the plan has them. */
+  saveStanding: async (positions: Array<{ kind: ShelfKind; id: number; place: string | null }>): Promise<void> => {
+    for (const position of positions) {
+      await run(
+        `INSERT INTO shelf_positions (kind, item_id, place) VALUES (?, ?, ?)
+         ON CONFLICT (kind, item_id) DO UPDATE SET place = excluded.place`,
+        [position.kind, position.id, position.place]
+      );
+    }
+  },
+
+  /** Forgets objects that are no longer in the collection. */
+  forgetStanding: async (kind: ShelfKind, itemId: number): Promise<void> => {
+    await run(`DELETE FROM shelf_positions WHERE kind = ? AND item_id = ?`, [kind, itemId]);
   },
 
   /** Whether the owner keeps each collection together on the shelf, for those they decided; the others follow their name. */

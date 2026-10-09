@@ -12,6 +12,8 @@ import BackupPage from './pages/BackupPage';
 import RipProgressPage from './pages/RipProgressPage';
 import ShelvesPage from './pages/ShelvesPage';
 import CogDropdown from './components/CogDropdown';
+import ShelfMovesNotice from './components/shared/ShelfMovesNotice';
+import { refreshShelfLocations } from './utils/shelfLocations';
 import CsvExportDialog from './components/CsvExportDialog';
 import AlbumCsvExportDialog from './components/AlbumCsvExportDialog';
 import ScrollToTop from './components/ScrollToTop';
@@ -944,6 +946,7 @@ function AppContent() {
   };
 
   const handleAlbumMovedToCollection = (album: any) => {
+    refreshShelfLocations();
     // Refresh music dex if it's open
     if (musicDexRef.current && musicDexRef.current.refreshAlbums) {
       musicDexRef.current.refreshAlbums();
@@ -951,6 +954,7 @@ function AppContent() {
   };
 
   const handleAlbumAdded = (_id?: number) => {
+    refreshShelfLocations();
     // Don't show success messages for wish list additions
     // Only show errors if needed
   };
@@ -960,6 +964,7 @@ function AppContent() {
   };
 
   const handleMovieMovedToCollection = () => {
+    refreshShelfLocations();
     // Refresh collection when a movie is moved from wish list to collection
     if (movieSearchRef.current && movieSearchRef.current.refreshMovies) {
       movieSearchRef.current.refreshMovies();
@@ -967,6 +972,7 @@ function AppContent() {
   };
 
   const handleAddMovieSuccess = () => {
+    refreshShelfLocations();
     // Refresh movies when a movie is successfully added
     if (movieSearchRef.current && movieSearchRef.current.refreshMovies) {
       movieSearchRef.current.refreshMovies();
@@ -1594,6 +1600,7 @@ function AppContent() {
         </div>
       </header>
 
+      <ShelfMovesNotice />
       <main className="App-main">
         <Routes>
           <Route

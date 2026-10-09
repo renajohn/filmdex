@@ -49,6 +49,20 @@ export interface ShelvedItem {
   together?: { id: number; name: string } | null;
 }
 
+/** An object to take from one shelf to another, or to put on its shelf when new. */
+export interface ShelfMove {
+  kind: ShelfKind;
+  id: number;
+  title: string;
+  /** The shelf or place it stood on; null for an object new to the collection. */
+  from: string | null;
+  /** Null when the shelves have no more room for it. */
+  to: string | null;
+  /** What it stands next to there, to slip it in at the right place: the one before it, or the one after when it is first. */
+  after?: string | null;
+  before?: string | null;
+}
+
 export interface ShelfLevelPlan {
   id: number;
   level: number;
@@ -379,22 +393,80 @@ const shelvingService = {
 
   /**
    * Where each film and CD is, for their cards: the shelf code, or the name of
-   * the place it is kept in. A film in a box set is where its box set is.
+   * the place it is kept in. A film in a box set is where its box set is. And
+   * what the owner has to move since they last put the shelves in order.
    */
-  locations: async (): Promise<{ movies: Record<number, string>; albums: Record<number, string> }> => {
+  locations: async (): Promise<{ movies: Record<number, string>; albums: Record<number, string>; moves: ShelfMove[] }> => {
     const { items, places } = await shelvingService.arrange();
     const placeName = new Map(places.map(place => [place.id, place.name]));
     const movies: Record<number, string> = {};
     const albums: Record<number, string> = {};
+    const whereOf = (item: Ordered) => (item.placeId != null && placeName.get(item.placeId)) || item.code || null;
     for (const item of items) {
-      const where = (item.placeId != null && placeName.get(item.placeId)) || item.code;
+      const where = whereOf(item);
       if (!where) continue;
       if (item.kind === 'album') albums[item.id] = where;
       else if (item.kind === 'movie') movies[item.id] = where;
       else for (const movieId of item.movieIds || []) movies[movieId] = where;
     }
-    return { movies, albums };
+    return { movies, albums, moves: await shelvingService.moves(items.map(item => ({ item, where: whereOf(item) }))) };
   },
+
+  /**
+   * What stands somewhere else than where the owner last put it: a film after
+   * which another was added moves on to the next shelf. An object new to the
+   * collection is to be put on its shelf. The first time, what the plan says
+   * is taken as where everything stands.
+   */
+  moves: async (current: Array<{ item: Ordered; where: string | null }>): Promise<ShelfMove[]> => {
+    const standing = await ShelfItem.standing();
+    if (standing.length === 0) {
+      await ShelfItem.saveStanding(current.map(({ item, where }) => ({ kind: item.kind, id: item.id, place: where })));
+      return [];
+    }
+    const before = new Map(standing.map(row => [`${row.kind}:${row.item_id}`, row.place]));
+    // Each shelf's objects in the order they stand; what was put there by hand lies apart.
+    const onShelf = new Map<number, Ordered[]>();
+    for (const { item } of current) {
+      if (item.levelId == null || item.pinned || item.placeId != null) continue;
+      onShelf.set(item.levelId, [...(onShelf.get(item.levelId) || []), item]);
+    }
+    const neighbours = (item: Ordered): { after: string | null; before: string | null } => {
+      const row = item.levelId != null && !item.pinned ? onShelf.get(item.levelId) || [] : [];
+      const at = row.indexOf(item);
+      if (at < 0) return { after: null, before: null };
+      if (at > 0) return { after: row[at - 1].title, before: null };
+      return { after: null, before: row[1]?.title ?? null };
+    };
+    const moves: ShelfMove[] = [];
+    const placed: Array<{ kind: ShelfKind; id: number; place: string | null }> = [];
+    for (const { item, where } of current) {
+      const was = before.get(`${item.kind}:${item.id}`);
+      if (was === where || (was === undefined && where == null)) continue;
+      // One that had no shelf as the shelves were being set up gets one: no move to make, but it stands there from now on.
+      if (was === null) {
+        placed.push({ kind: item.kind, id: item.id, place: where });
+        continue;
+      }
+      moves.push({
+        kind: item.kind, id: item.id, from: was ?? null, to: where,
+        title: item.kind === 'album' && item.subtitle ? `${item.subtitle} – ${item.title}` : item.title,
+        ...(where ? neighbours(item) : { after: null, before: null }),
+      });
+    }
+    await ShelfItem.saveStanding(placed);
+    const present = new Set(current.map(({ item }) => `${item.kind}:${item.id}`));
+    for (const row of standing) {
+      if (!present.has(`${row.kind}:${row.item_id}`)) await ShelfItem.forgetStanding(row.kind, row.item_id);
+    }
+    // In the order they stand, so the owner works along the shelves.
+    const at = new Map(current.map(({ item }, index) => [`${item.kind}:${item.id}`, index]));
+    return moves.sort((a, b) => at.get(`${a.kind}:${a.id}`)! - at.get(`${b.kind}:${b.id}`)!);
+  },
+
+  /** The owner made these moves: they stand where the plan has them now. */
+  movesDone: (moves: Array<{ kind: ShelfKind; id: number; to: string | null }>): Promise<void> =>
+    ShelfItem.saveStanding(moves.map(move => ({ kind: move.kind, id: move.id, place: move.to }))),
 
   saveSettings: (kind: ShelfKind, id: number, settings: ShelfSettings): Promise<void> => ShelfItem.saveSettings(kind, id, settings),
 

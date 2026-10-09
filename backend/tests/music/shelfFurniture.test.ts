@@ -118,4 +118,26 @@ describe('les meubles', () => {
     plan = (await request(app).get('/api/shelving')).body;
     expect(codeOf(plan, ids[0])).toBeNull();
   });
+
+  it('annonce ce qu’il faut déplacer quand un film arrive, jusqu’à ce que ce soit fait', async () => {
+    await request(app).post('/api/shelving/units').send({ letter: 'M', levels: 4, capacity: 2, section: 'films' }).expect(201);
+    const movesNow = async () => (await request(app).get('/api/shelving/locations')).body.moves;
+    // What earlier tests moved is taken as done.
+    await request(app).post('/api/shelving/moves/done').send({ moves: await movesNow() }).expect(200);
+    expect(await movesNow()).toEqual([]);
+
+    const first = await insertMovie('Zy First');
+    const moves = await movesNow();
+    expect(moves[0]).toMatchObject({ kind: 'movie', id: first, title: 'Zy First', from: null, to: 'M-1' });
+    expect(moves.slice(1).every((move: any) => move.from && move.to !== move.from)).toBe(true);
+    expect(moves.some((move: any) => move.from === 'M-1' && move.to === 'M-2')).toBe(true);
+    // Where on the shelf: after the one before it, or before the next when it comes first.
+    expect(moves.every((move: any) => !!move.after !== !!move.before)).toBe(true);
+    expect(moves.find((move: any) => move.from === 'M-1' && move.to === 'M-2')).toMatchObject({ after: null, before: expect.any(String) });
+    expect(await movesNow()).toEqual(moves);
+
+    await request(app).post('/api/shelving/moves/done').send({ moves }).expect(200);
+    expect(await movesNow()).toEqual([]);
+    await request(app).post('/api/shelving/moves/done').send({ moves: [{ kind: 'shelf', id: 1, to: 'M-1' }] }).expect(400);
+  });
 });

@@ -1,0 +1,74 @@
+/* Over the page's bottom right corner, out of the way of the cards until dismissed. */
+.shelf-moves {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1060;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(380px, calc(100vw - 32px));
+  max-height: min(60vh, 480px);
+  padding: 12px 14px;
+  border: 1px solid rgba(240, 183, 60, 0.45);
+  border-radius: 10px;
+  background: #23252a;
+  color: #e0e0e0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  font-size: 0.85rem;
+}
+
+.shelf-moves-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #f0c654;
+}
+
+.shelf-moves-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.shelf-moves-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.shelf-moves-list li + li {
+  margin-top: 4px;
+}
+
+.shelf-moves-icon {
+  flex: none;
+  position: relative;
+  top: 2px;
+}
+
+.shelf-moves-icon.put {
+  color: #5fd39a;
+}
+
+.shelf-moves-icon.move {
+  color: #f0c654;
+}
+
+.shelf-moves-icon.off {
+  color: #e5734f;
+}
+
+.shelf-moves-title {
+  color: #f4f4f4;
+  font-weight: 600;
+}
+
+.shelf-moves-error {
+  color: #e5734f;
+}
+
+.shelf-moves .btn {
+  align-self: flex-end;
+}

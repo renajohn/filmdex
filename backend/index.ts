@@ -246,6 +246,7 @@ app.get('/api/import/:id/suggestions', importController.getMovieSuggestions);
 // Shelving: where each physical object is kept
 app.get('/api/shelving', shelvingController.plan);
 app.get('/api/shelving/locations', shelvingController.locations);
+app.post('/api/shelving/moves/done', shelvingController.movesDone);
 app.put('/api/shelving/items/:kind/:id', shelvingController.saveItem);
 app.post('/api/shelving/items/:kind/:id/no-room', shelvingController.noRoom);
 app.post('/api/shelving/items/:kind/:id/move-back', shelvingController.moveBack);
