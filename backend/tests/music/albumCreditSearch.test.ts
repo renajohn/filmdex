@@ -48,6 +48,18 @@ describe('chercher un CD par ce que créditent ses pistes', () => {
     expect(await titles('Marriner')).toEqual(['Cello Concertos test', 'Piano Concertos 20 & 21 test']);
   });
 
+  it('ne garde que le classique, ou tout le reste, comme les étagères les distinguent', async () => {
+    const wall = await insertAlbum(['Pink Floyd'], 'The Wall test');
+    await run(`UPDATE albums SET genres = ? WHERE id = ?`, [JSON.stringify(['classical', 'progressive rock']), wall]);
+    const forced = await insertAlbum(['Somebody'], 'Forced classical test');
+    await run(`INSERT INTO shelf_items (kind, item_id, section) VALUES ('album', ?, 'classical')`, [forced]);
+
+    const classical = await titles('classical:yes test');
+    expect(classical).toEqual(['Cello Concertos test', 'Forced classical test', 'Piano Concertos 20 & 21 test']);
+    expect(await titles('classical:no test')).toEqual(['Kuschel test', 'The Wall test']);
+    expect(await titles('classical:yes conductor:Marriner')).toEqual(['Piano Concertos 20 & 21 test']);
+  });
+
   it('propose les noms crédités pendant la frappe', async () => {
     const names = async (field: string, value: string) =>
       (await request(app).get('/api/music/autocomplete').query({ field, value })).body.map((row: any) => row[field]);

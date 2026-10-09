@@ -2,6 +2,7 @@ import type sqlite3 from 'sqlite3';
 import { getDatabase } from '../database';
 import cacheService from '../services/cacheService';
 import { normalizeAlbumOwnership } from '../services/utils/albumOwnership';
+import { isClassicalAlbum, type Performer } from '../services/shelfOrder';
 import type { AlbumRow, AlbumFormatted, AlbumCreateData, AlbumSearchParsed } from '../types';
 
 interface AlbumUpdateResult {
@@ -641,7 +642,43 @@ const Album = {
     return { params, whereClauses, hasFilters, hasTrackFilter, cleanedQuery: cleanedQuery.trim() };
   },
 
-  search: (query: string): Promise<AlbumFormatted[]> => {
+  /**
+   * The albums a query finds. `classical:yes` keeps the classical CDs, and
+   * `classical:no` the others, told apart as the shelves tell them: by their
+   * genres, by the roles of their performers when they have none, or by the
+   * section the owner set by hand.
+   */
+  search: async (query: string): Promise<AlbumFormatted[]> => {
+    const classical = query.match(/(^|\s)classical:(yes|no)\b/i);
+    if (!classical) return Album.searchAll(query);
+    const albums = await Album.searchAll(query.replace(classical[0], ' ').replace(/\s+/g, ' ').trim());
+    if (albums.length === 0) return albums;
+    const want = classical[2].toLowerCase() === 'yes';
+    const ids = albums.map(album => album.id);
+    const marks = ids.map(() => '?').join(',');
+    const all = <T>(sql: string): Promise<T[]> => new Promise((resolve, reject) =>
+      getDatabase().all(sql, ids, (err: Error | null, rows: T[]) => (err ? reject(err) : resolve(rows))));
+    const [tracks, sections] = await Promise.all([
+      all<{ album_id: number; performers: string | null }>(`SELECT album_id, performers FROM tracks WHERE album_id IN (${marks})`),
+      all<{ item_id: number; section: string | null }>(`SELECT item_id, section FROM shelf_items WHERE kind = 'album' AND item_id IN (${marks})`),
+    ]);
+    const performersOf = new Map<number, Performer[]>();
+    for (const track of tracks) {
+      let list: Performer[] = [];
+      try { list = JSON.parse(track.performers || '[]'); } catch { /* unreadable credits count as none */ }
+      performersOf.set(track.album_id, [...(performersOf.get(track.album_id) || []), ...(Array.isArray(list) ? list : [])]);
+    }
+    const sectionOf = new Map(sections.map(row => [row.item_id, row.section]));
+    return albums.filter(album => {
+      const section = sectionOf.get(album.id);
+      const isClassical = section === 'classical' || section === 'music'
+        ? section === 'classical'
+        : isClassicalAlbum(album.genres || [], performersOf.get(album.id) || []);
+      return isClassical === want;
+    });
+  },
+
+  searchAll: (query: string): Promise<AlbumFormatted[]> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
 

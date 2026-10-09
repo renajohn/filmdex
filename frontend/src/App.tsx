@@ -127,7 +127,7 @@ function AppContent() {
   const getAutocompleteOptions = async (text: string): Promise<AutocompleteOption[]> => {
     // Different keywords for MusicDex, BookDex vs DexVault
     const keywords = location.pathname === '/musicdex'
-      ? ['title:', 'artist:', 'genre:', 'track:', 'composer:', 'performer:', 'conductor:', 'instrument:', 'work:', 'label:', 'country:', 'year:', 'stars:', 'stars:>=', 'stars:<=', 'stars:0', 'rated:no', 'rated:yes']
+      ? ['title:', 'artist:', 'genre:', 'track:', 'composer:', 'performer:', 'conductor:', 'instrument:', 'work:', 'label:', 'country:', 'year:', 'stars:', 'stars:>=', 'stars:<=', 'stars:0', 'rated:no', 'rated:yes', 'classical:yes', 'classical:no']
       : location.pathname === '/bookdex'
         ? ['title:', 'author:', 'artist:', 'isbn:', 'series:', 'owner:', 'format:', 'language:', 'genre:', 'tag:', 'type:', 'title_status:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=', 'rating:', 'rating:>', 'rating:<', 'rating:>=', 'rating:<=']
         : [
@@ -622,7 +622,9 @@ function AppContent() {
             'stars:<=': 'At most that many of your stars',
             'stars:0': 'Not rated yet',
             'rated:no': 'Not rated yet',
-            'rated:yes': 'Rated, any number of stars'
+            'rated:yes': 'Rated, any number of stars',
+            'classical:yes': 'Only classical music, as on the shelves',
+            'classical:no': 'Everything but classical music'
           }
         : location.pathname === '/bookdex'
           ? {
