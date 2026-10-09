@@ -5,6 +5,7 @@ import InlinePosterSelector from './InlinePosterSelector';
 import CollectionTagsInput from './CollectionTagsInput';
 import CollectionRenameDialog from './CollectionRenameDialog';
 import MovieWarnings from './MovieWarnings';
+import DetailSteps, { useScrollKeys, useStepKeys } from './shared/DetailSteps';
 import apiService from '../services/api';
 import { getLanguageName } from '../services/languageCountryUtils';
 import { BsX, BsPlay, BsTrash, BsCheck, BsX as BsXIcon, BsCopy, BsFilm, BsGripVertical, BsEye } from 'react-icons/bs';
@@ -120,6 +121,9 @@ interface MovieDetailCardProps {
   onMovieClick?: (id: number) => void;
   onSearch?: (query: string) => void;
   loading?: boolean;
+  /** The movie before or after this one on the page; none at either end. */
+  onPrevious?: (() => void) | null;
+  onNext?: (() => void) | null;
 }
 
 // Sortable Collection Member Component
@@ -177,7 +181,7 @@ const SortableCollectionMember = ({ movie, collectionName, onMovieClick, getPost
   );
 };
 
-const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert, onRefresh, onMovieClick, onSearch, loading = false }: MovieDetailCardProps) => {
+const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert, onRefresh, onMovieClick, onSearch, loading = false, onPrevious, onNext }: MovieDetailCardProps) => {
   const [showTrailer, setShowTrailer] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -212,6 +216,16 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const [watchDate, setWatchDate] = useState(new Date().toISOString().split('T')[0]);
   const [showWatchedPrompt, setShowWatchedPrompt] = useState(false);
   const posterRef = useRef<HTMLDivElement>(null);
+
+  // ← → step through the page's movies, unless a picker or a dialog of the
+  // card's own has the keys. Each movie starts at the top.
+  const cardHasTheKeys = showPosterSelector || showTrailer || showDeleteConfirm || showPropagationDialog || showCollectionRenameDialog || showDatePicker;
+  useStepKeys(onPrevious, onNext, cardHasTheKeys);
+  const cardRef = useRef<HTMLDivElement>(null);
+  useScrollKeys(cardRef, cardHasTheKeys);
+  useEffect(() => {
+    cardRef.current?.scrollTo?.({ top: 0 });
+  }, [movieDetails?.id]);
   const datePickerRef = useRef<HTMLDivElement>(null);
   
   // Search handlers
@@ -1623,15 +1637,20 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
         }}
       >
         <div 
+          ref={cardRef}
           className="movie-detail-card" 
           onClick={(e) => e.stopPropagation()}
           onWheel={(e) => e.stopPropagation()}
           onScroll={(e) => e.stopPropagation()}
           onTouchMove={(e) => e.stopPropagation()}
         >
-          <button className="movie-detail-close" onClick={onClose}>
-            <BsX />
-          </button>
+          {/* Close and ‹ › stay in the corner however far the card has scrolled. */}
+          <div className="movie-detail-topbar">
+            <DetailSteps onPrevious={onPrevious} onNext={onNext} noun="movie" className="movie-detail-steps" />
+            <button className="movie-detail-close" onClick={onClose}>
+              <BsX />
+            </button>
+          </div>
 
           {/* Inline Poster Selector - positioned relative to card */}
           <InlinePosterSelector

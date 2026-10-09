@@ -1666,3 +1666,28 @@
   margin-top: 4px;
 }
 
+
+/* The title takes the rest of the header, so ‹ › stay put whatever its length. */
+.book-detail-modal .modal-title {
+  flex: 1;
+  min-width: 0;
+}
+
+/* As a panel on a desktop, the book runs the full height of the screen, so the
+   heights capped at 90vh above give way. */
+@media (min-width: 992px) {
+  .modal.book-detail-modal .modal-dialog {
+    max-height: none !important;
+    height: 100vh !important;
+  }
+
+  .modal.book-detail-modal .modal-content {
+    max-height: none !important;
+    height: 100% !important;
+  }
+
+  .modal.book-detail-modal .modal-body.book-detail-modal-body {
+    max-height: none !important;
+    height: auto !important;
+  }
+}

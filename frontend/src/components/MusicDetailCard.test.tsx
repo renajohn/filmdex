@@ -189,4 +189,72 @@ describe('MusicDetailCard', () => {
     await screen.findByText('4.2', { exact: false });
     expect(musicService.refreshFromMusicBrainz).toHaveBeenCalledWith(1);
   });
+
+  it('steps to the album before or after it with ‹ › and the arrow keys, not while typing', () => {
+    const onPrevious = vi.fn();
+    const onNext = vi.fn();
+    render(<MusicDetailCard cd={cd()} onClose={vi.fn()} onDelete={vi.fn()} onPrevious={onPrevious} onNext={onNext} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next album' }));
+    fireEvent.keyDown(document.body, { key: 'ArrowLeft' });
+    expect(onNext).toHaveBeenCalledTimes(1);
+    expect(onPrevious).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(screen.getByPlaceholderText('What did you hear this time?'), { key: 'ArrowRight' });
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it('greys out ‹ on the first album, and shows no steps for an album the page does not list', () => {
+    const { rerender } = render(<MusicDetailCard cd={cd()} onClose={vi.fn()} onDelete={vi.fn()} onNext={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Previous album' })).toBeDisabled();
+
+    rerender(<MusicDetailCard cd={cd()} onClose={vi.fn()} onDelete={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Previous album' })).not.toBeInTheDocument();
+  });
+
+  it('scrolls the details with ↓ right away, further with Shift', () => {
+    render(<MusicDetailCard cd={cd()} onClose={vi.fn()} onDelete={vi.fn()} />);
+    const body = document.querySelector('.modal-body') as HTMLElement;
+    body.scrollBy = vi.fn();
+
+    fireEvent.keyDown(document.body, { key: 'ArrowDown' });
+    fireEvent.keyDown(body, { key: 'ArrowUp', shiftKey: true });
+
+    expect(body.scrollBy).toHaveBeenNthCalledWith(1, { top: 120, behavior: 'smooth' });
+    expect(body.scrollBy).toHaveBeenNthCalledWith(2, { top: -360, behavior: 'smooth' });
+  });
+
+  it('glides while ↓ is held, frame by frame, and stops when it is let go', () => {
+    const frames: FrameRequestCallback[] = [];
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => { frames.push(callback); return frames.length; });
+    const caf = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+    render(<MusicDetailCard cd={cd()} onClose={vi.fn()} onDelete={vi.fn()} />);
+    const body = document.querySelector('.modal-body') as HTMLElement;
+    body.scrollBy = vi.fn();
+
+    fireEvent.keyDown(document.body, { key: 'ArrowDown' });
+    fireEvent.keyDown(document.body, { key: 'ArrowDown', repeat: true });
+    fireEvent.keyDown(document.body, { key: 'ArrowDown', repeat: true });
+
+    // One smooth step for the press, then a single glide for the repeats.
+    expect(body.scrollBy).toHaveBeenCalledTimes(1);
+    expect(frames).toHaveLength(1);
+    frames[0](performance.now() + 16);
+    expect(body.scrollTop).toBeGreaterThan(0);
+
+    fireEvent.keyUp(document.body, { key: 'ArrowDown' });
+    expect(caf).toHaveBeenCalled();
+    raf.mockRestore();
+    caf.mockRestore();
+  });
+
+  it('leaves the arrows to a field being typed in', () => {
+    render(<MusicDetailCard cd={cd()} onClose={vi.fn()} onDelete={vi.fn()} />);
+    const body = document.querySelector('.modal-body') as HTMLElement;
+    body.scrollBy = vi.fn();
+
+    fireEvent.keyDown(screen.getByPlaceholderText('What did you hear this time?'), { key: 'ArrowDown' });
+
+    expect(body.scrollBy).not.toHaveBeenCalled();
+  });
 });

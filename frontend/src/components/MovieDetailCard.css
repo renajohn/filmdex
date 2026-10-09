@@ -68,6 +68,27 @@
   }
 }
 
+/* A bar of no height that sticks to the top of the card as it scrolls, so
+   the close button and ‹ › placed in it stay in the corner. */
+.movie-detail-topbar {
+  position: sticky;
+  top: 0;
+  height: 0;
+  z-index: 10;
+}
+
+.movie-detail-steps.detail-steps {
+  position: absolute;
+  top: 19px;
+  right: 65px;
+  margin: 0;
+}
+
+.movie-detail-steps .detail-step {
+  background: rgba(26, 26, 26, 0.7);
+  border-color: transparent;
+}
+
 .movie-detail-close {
   position: absolute;
   top: 15px;
@@ -2676,4 +2697,47 @@
     width: 100%;
     justify-content: center;
   }
+}
+
+/* On a desktop, the movie slides in as a panel along the right edge, the full
+   height of the screen, with the list still in sight beside it. */
+@media (min-width: 992px) {
+  .movie-detail-overlay {
+    justify-content: flex-end !important;
+    align-items: stretch !important;
+    padding: 0;
+    background-color: rgba(0, 0, 0, 0.35);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .movie-detail-card {
+    width: min(1080px, 65vw);
+    max-width: none;
+    height: 100vh;
+    max-height: 100vh;
+    align-self: stretch;
+    border-width: 0 0 0 1px;
+    border-radius: 0;
+    box-shadow: -16px 0 48px rgba(0, 0, 0, 0.45);
+    animation: movieDetailPanelIn 0.25s ease-out;
+  }
+
+  .movie-detail-header {
+    border-radius: 0;
+  }
+}
+
+@keyframes movieDetailPanelIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* A title long enough to reach the corner wraps before ‹ › and the close button. */
+.movie-detail-card:has(.movie-detail-steps) .movie-detail-title {
+  padding-right: 110px;
 }

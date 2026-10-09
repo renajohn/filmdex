@@ -601,6 +601,49 @@
   }
 }
 
+/* On a desktop, a record's details slide in as a panel along the right edge,
+   the full height of the screen, with the list still in sight beside it. Only
+   the body scrolls, so the title and the actions stay at hand. */
+@media (min-width: 992px) {
+  .modal.side-panel-modal .modal-dialog {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(1080px, 65vw);
+    max-width: none;
+    min-height: 0;
+    margin: 0;
+  }
+
+  .modal.side-panel-modal .modal-content {
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    border-width: 0 0 0 1px;
+    border-radius: 0;
+    box-shadow: -16px 0 48px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+  }
+
+  .modal.side-panel-modal .modal-body {
+    overflow-y: auto;
+  }
+
+  .modal.side-panel-modal.fade .modal-dialog {
+    transform: translateX(100%);
+    transition: transform 0.25s ease-out;
+  }
+
+  .modal.side-panel-modal.show .modal-dialog {
+    transform: none;
+  }
+
+  .modal-backdrop.side-panel-backdrop.show {
+    opacity: 0.35;
+  }
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;

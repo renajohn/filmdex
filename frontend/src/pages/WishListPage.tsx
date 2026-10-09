@@ -8,6 +8,7 @@ import bookService from '../services/bookService';
 import MovieThumbnail from '../components/MovieThumbnail';
 import MovieDetailCard from '../components/MovieDetailCard';
 import MusicDetailCard from '../components/MusicDetailCard';
+import { useDetailSteps } from '../utils/detailSteps';
 import BookThumbnail from '../components/BookThumbnail';
 import BookDetailCard from '../components/BookDetailCard';
 import AddMusicDialog from '../components/AddMusicDialog';
@@ -519,6 +520,11 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
     setSelectedAlbumDetails(null);
     setSelectedBookDetails(null);
   };
+
+  // An open item's details step through its table, in the table's order.
+  const movieSteps = useDetailSteps(movies.map(movie => movie.id), selectedMovieDetails?.id, id => apiService.getMovieDetails(id), setSelectedMovieDetails);
+  const albumSteps = useDetailSteps(albums.map(album => album.id), selectedAlbumDetails?.id, id => musicService.getAlbumById(id), setSelectedAlbumDetails);
+  const bookSteps = useDetailSteps(books.map(book => book.id), selectedBookDetails?.id, id => bookService.getBookById(id), setSelectedBookDetails);
 
   const handleBookClick = async (bookId: number) => {
     try {
@@ -1333,6 +1339,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
           onRefresh={handleRefreshForDetailCard}
           onMovieClick={(movieId: number) => handleItemClick(movieId, 'movie')}
           onSearch={onSearch}
+          onPrevious={movieSteps.onPrevious}
+          onNext={movieSteps.onNext}
         />
       )}
 
@@ -1342,6 +1350,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
           onClose={handleCloseDetails}
           onDelete={() => handleDeleteItemFromDetails(selectedAlbumDetails.id, 'album')}
           onSearch={onSearch}
+          onPrevious={albumSteps.onPrevious}
+          onNext={albumSteps.onNext}
         />
       )}
 
@@ -1351,6 +1361,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
           onClose={handleCloseDetails}
           onEdit={() => {}}
           onDelete={() => handleDeleteItemFromDetails(selectedBookDetails.id, 'book')}
+          onPrevious={bookSteps.onPrevious}
+          onNext={bookSteps.onNext}
           onUpdateBook={async (id: number | string, bookData: any) => {
             await bookService.updateBook(id, bookData);
             handleRefreshForDetailCard();

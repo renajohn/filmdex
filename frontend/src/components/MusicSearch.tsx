@@ -1,4 +1,4 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import musicService from '../services/musicService';
 import { base64ToFile } from '../utils/downscaleImage';
@@ -11,6 +11,7 @@ import { NextBanner, CollectionHeader, EmptyState } from './shared';
 import { BsChevronDown, BsDisc } from 'react-icons/bs';
 import './MusicSearch.css';
 import { readStored, writeStored } from '../utils/safeStorage';
+import { useDetailSteps } from '../utils/detailSteps';
 
 interface MusicSearchProps {
   cds: any;
@@ -636,7 +637,23 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     }
   };
 
-  const handleCdClick = async (cdId: number | string) => {
+  // The albums in the order the grid shows them, so their details step from one to the next.
+  // An album opened from Listen Next steps through Listen Next instead.
+  const [stepThrough, setStepThrough] = useState<'grid' | 'listenNext'>('grid');
+  const gridIds = useMemo(() => {
+    if (groupBy === 'none') return filteredCds.map(cd => cd.id);
+    const grouped = groupCds(filteredCds, groupBy);
+    return Object.keys(grouped).sort()
+      .filter(key => expandedGroups.has(key))
+      .flatMap(key => sortCds(grouped[key], sortBy).map(cd => cd.id));
+  }, [filteredCds, groupBy, expandedGroups, groupCds, sortCds, sortBy]);
+  const shownIds = useMemo(
+    () => stepThrough === 'listenNext' ? listenNextAlbums.map(album => album.id) : gridIds,
+    [stepThrough, listenNextAlbums, gridIds]);
+  const albumSteps = useDetailSteps(shownIds, selectedCdDetails?.id, id => musicService.getAlbumById(id), setSelectedCdDetails);
+
+  const handleCdClick = async (cdId: number | string, from: 'grid' | 'listenNext' = 'grid') => {
+    setStepThrough(from);
     try {
       setLoadingDetails(true);
       const details = await musicService.getAlbumById(cdId);
@@ -871,7 +888,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           type="music"
           title="Listen Next"
           icon="🎧"
-          onItemClick={handleCdClick}
+          onItemClick={(id) => handleCdClick(id, 'listenNext')}
           onRemove={(e, item) => handleListenNextToggle(e, item as Album)}
           getImageUrl={(album) => getCoverUrl(album.cover) || ''}
           getTitle={(album) => album.title || ''}
@@ -1009,6 +1026,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           }}
           onSearch={updateSearchViaUrl}
           onListenNextChange={refreshListenNextAlbums}
+          onPrevious={albumSteps.onPrevious}
+          onNext={albumSteps.onNext}
         />
       )}
 

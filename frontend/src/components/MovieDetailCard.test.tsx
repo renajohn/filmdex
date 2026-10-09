@@ -109,4 +109,24 @@ describe('MovieDetailCard', () => {
     await waitFor(() => expect(apiService.refreshMovieRatings).toHaveBeenCalledWith(1));
     await waitFor(() => expect(apiService.getMovieWarnings).toHaveBeenCalledTimes(2));
   });
+
+  it('steps to the movie before or after it with ‹ › and the arrow keys', async () => {
+    const onPrevious = vi.fn();
+    const onNext = vi.fn();
+    render(<MovieDetailCard movieDetails={movie()} onClose={() => {}} onPrevious={onPrevious} onNext={onNext} />);
+    await waitFor(() => expect(screen.getByText('Test Movie')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous movie' }));
+    fireEvent.keyDown(document.body, { key: 'ArrowRight' });
+
+    expect(onPrevious).toHaveBeenCalledTimes(1);
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows no steps for a movie the page does not list', async () => {
+    render(<MovieDetailCard movieDetails={movie()} onClose={() => {}} />);
+    await waitFor(() => expect(screen.getByText('Test Movie')).toBeInTheDocument());
+
+    expect(screen.queryByRole('button', { name: 'Next movie' })).not.toBeInTheDocument();
+  });
 });

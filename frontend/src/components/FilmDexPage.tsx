@@ -15,6 +15,7 @@ import {
 } from 'react-icons/bs';
 import './FilmDexPage.css';
 import { readStored, writeStored } from '../utils/safeStorage';
+import { shownIds, useDetailSteps, type Id } from '../utils/detailSteps';
 
 export interface FilmDexPageRef {
   refreshMovies: () => void;
@@ -365,7 +366,18 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
 
 
 
-  const handleMovieClick = async (movieId: number) => {
+  // An open movie's details step through the movies in the order the grid
+  // shows them, or through the Watch Next banner or the box set it was opened from.
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const [stepIds, setStepIds] = useState<Id[] | null>(null);
+  const movieSteps = useDetailSteps(
+    selectedMovieDetails ? stepIds ?? shownIds(resultsRef.current) : [],
+    selectedMovieDetails?.id,
+    id => apiService.getMovieDetails(id),
+    setSelectedMovieDetails);
+
+  const handleMovieClick = async (movieId: number, siblings?: Id[]) => {
+    setStepIds(siblings ?? null);
     try {
       setLoadingDetails(true);
       console.log('Loading movie details for ID:', movieId);
@@ -973,7 +985,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
           items={watchNextMovies}
           type="movie"
           title="Watch Next"
-          onItemClick={handleMovieClick}
+          onItemClick={(id) => handleMovieClick(id, watchNextMovies.map((movie: any) => movie.id))}
           onRemove={handleWatchNextToggle}
           getImageUrl={(movie: any) => getPosterUrl(movie.poster_path)}
           getTitle={(movie: any) => movie.title}
@@ -983,7 +995,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
         />
       )}
 
-      <div className="movies-results">
+      <div className="movies-results" ref={resultsRef}>
         <CollectionHeader
           filteredCount={filteredMovies.length}
           totalCount={allMovies.length}
@@ -1287,6 +1299,8 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
           onRefresh={refreshForDetailCard}
           onMovieClick={handleMovieClick}
           onSearch={onSearch}
+          onPrevious={movieSteps.onPrevious}
+          onNext={movieSteps.onNext}
         />
       )}
 

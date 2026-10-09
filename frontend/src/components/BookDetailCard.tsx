@@ -7,6 +7,7 @@ import CoverModal from './CoverModal';
 import BookForm from './BookForm';
 import StarRatingInput from './StarRatingInput';
 import InlineCoverSelector from './InlineCoverSelector';
+import DetailSteps, { useScrollKeys, useStepKeys } from './shared/DetailSteps';
 import './BookDetailCard.css';
 import './VolumeSelector.css';
 
@@ -24,6 +25,9 @@ interface BookDetailCardProps {
   onBookAdded?: (book: any) => void;
   onAddError?: (error: any) => void;
   onBookClick?: (book: any) => void;
+  /** The book before or after this one on the page; none at either end. */
+  onPrevious?: (() => void) | null;
+  onNext?: (() => void) | null;
 }
 
 interface SeriesBookItemProps {
@@ -101,7 +105,7 @@ const SeriesBookItem = ({ bookItem, onBookClick, getCoverUrl, currentBookId }: S
   );
 };
 
-const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, onDelete, onSearch, onAddNextVolume, onAddBooksBatch, onAddStart, onBookAdded, onAddError, onBookClick }: BookDetailCardProps) => {
+const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, onDelete, onSearch, onAddNextVolume, onAddBooksBatch, onAddStart, onBookAdded, onAddError, onBookClick, onPrevious, onNext }: BookDetailCardProps) => {
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [coverModalData, setCoverModalData] = useState<{ coverUrl: string; title: string; author: string; coverType?: string }>({ coverUrl: '', title: '', author: '' });
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -123,6 +127,16 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
   
   // View state: 'detail', 'volumes', or 'edit'
   const [view, setView] = useState('detail');
+
+  // ← → step through the page's books, but only on the details, never while
+  // editing or choosing volumes. Each book starts at the top.
+  const steps = view === 'detail' ? { onPrevious, onNext } : { onPrevious: null, onNext: null };
+  useStepKeys(steps.onPrevious, steps.onNext, showCoverModal);
+  const detailViewRef = useRef<HTMLDivElement>(null);
+  useScrollKeys(detailViewRef, view !== 'detail' || showCoverModal);
+  useEffect(() => {
+    detailViewRef.current?.scrollTo?.({ top: 0 });
+  }, [book?.id]);
   const [volumes, setVolumes] = useState<any[]>([]);
   const [loadingVolumes, setLoadingVolumes] = useState(false);
   const [volumeError, setVolumeError] = useState('');
@@ -1371,7 +1385,8 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
         centered 
         fullscreen="md-down"
         style={{ zIndex: 10100 }}
-        className="book-detail-modal"
+        className="book-detail-modal side-panel-modal"
+        backdropClassName="side-panel-backdrop"
         backdrop={true}
         keyboard={true}
         restoreFocus={false}
@@ -1404,6 +1419,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
               </>
             )}
           </Modal.Title>
+          <DetailSteps onPrevious={steps.onPrevious} onNext={steps.onNext} noun="book" />
         </Modal.Header>
         
         <Modal.Body className="book-detail-modal-body" style={{ maxHeight: 'calc(90vh - 120px)', overflow: 'hidden', position: 'relative' }}>
@@ -1428,7 +1444,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
             ''
           }`}>
             {/* Detail View */}
-            <div className={`book-detail-view ${view === 'detail' ? 'active' : ''}`}>
+            <div ref={detailViewRef} className={`book-detail-view ${view === 'detail' ? 'active' : ''}`}>
           {getCoverImage() ? (
             <Row>
               <Col md={3}>

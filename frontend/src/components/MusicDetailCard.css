@@ -73,6 +73,32 @@
   line-height: 1.2;
 }
 
+/* The title takes the rest of the header, so ‹ › stay put whatever its length. */
+.music-detail-modal .modal-title {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The footer: how to listen on the left, editing the record on the right. */
+.music-detail-modal .modal-footer {
+  justify-content: space-between;
+}
+
+.music-detail-listen,
+.music-detail-manage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.music-detail-listen .btn,
+.music-detail-manage .btn {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+}
+
 /*
  * The head of the album: one quiet surface. The cover sits in its own column,
  * who and what are beside it with the way to listen, and the facts of the
@@ -164,19 +190,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.album-head-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.album-head-actions .btn {
-  display: inline-flex;
-  align-items: center;
-}
-
-/* The facts: right under the actions, the label column starting where the identity does. */
+/* The facts: right under who and what, the label column starting where the identity does. */
 .album-head-facts {
   grid-column: 2;
   align-self: start;

@@ -24,7 +24,8 @@ interface Movie {
 interface BoxSetStackProps {
   boxSetName: string;
   movies: Movie[];
-  onMovieClick: (movieId: number) => void;
+  /** Opens a movie, with the box set's movies in order to step through. */
+  onMovieClick: (movieId: number, siblings?: number[]) => void;
   isExpanded: boolean;
   onToggleExpanded?: () => void;
   sortedMovies?: Movie[];
@@ -51,7 +52,7 @@ const BoxSetStack: React.FC<BoxSetStackProps> = ({ boxSetName, movies, onMovieCl
   };
 
   const handleMovieClick = (movie: Movie) => {
-    onMovieClick(movie.id);
+    onMovieClick(movie.id, (sortedMovies || movies).map(other => other.id));
   };
 
   // Calculate combined score for a movie

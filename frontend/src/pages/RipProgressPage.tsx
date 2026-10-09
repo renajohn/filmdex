@@ -3,6 +3,7 @@ import { Button, Form, ProgressBar } from 'react-bootstrap';
 import { BsArrowClockwise, BsTags } from 'react-icons/bs';
 import MusicDetailCard from '../components/MusicDetailCard';
 import musicService, { type DigitalAlbum, type EditionAdoption, type RipState, type RipStatus } from '../services/musicService';
+import { useDetailSteps } from '../utils/detailSteps';
 import { canUsePicard, openInPicard } from '../utils/picard';
 import './RipProgressPage.css';
 
@@ -108,6 +109,8 @@ const RipProgressPage: React.FC = () => {
       setError((e as Error).message);
     }
   };
+
+  const albumSteps = useDetailSteps(albums.map(album => album.id), detail?.id, id => musicService.getAlbumById(id), setDetail);
 
   const deleteDetail = async () => {
     try {
@@ -290,6 +293,8 @@ const RipProgressPage: React.FC = () => {
           cd={detail}
           onClose={() => setDetail(null)}
           onDelete={deleteDetail}
+          onPrevious={albumSteps.onPrevious}
+          onNext={albumSteps.onNext}
         />
       )}
     </div>

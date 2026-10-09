@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button } from 'react-bootstrap';
 import { BsPencil, BsTrash, BsDisc, BsApple, BsTags, BsPlayFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight, BsStar, BsStarFill, BsArrowClockwise } from 'react-icons/bs';
 import musicService from '../services/musicService';
@@ -11,6 +11,7 @@ import { canUsePicard, openInPicard } from '../utils/picard';
 import { openListen } from '../utils/navidrome';
 import { playingTime, ripSummary, urlLabel } from '../utils/albumHead';
 import TrackDetails from './TrackDetails';
+import DetailSteps, { useScrollKeys, useStepKeys } from './shared/DetailSteps';
 import type { RipTracks } from '../services/musicService';
 import './MusicDetailCard.css';
 
@@ -87,6 +88,9 @@ interface MusicDetailCardProps {
   onDelete: () => void;
   onSearch?: ((predicate: string) => void) | null;
   onListenNextChange?: (() => void) | null;
+  /** The album before or after this one on the page; none at either end. */
+  onPrevious?: (() => void) | null;
+  onNext?: (() => void) | null;
 }
 
 const CONDITIONS: Record<string, string> = {
@@ -103,7 +107,7 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, 
   </>
 );
 
-const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, onDelete, onSearch, onListenNextChange }) => {
+const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, onDelete, onSearch, onListenNextChange, onPrevious, onNext }) => {
   const [showCoverModal, setShowCoverModal] = useState<boolean>(false);
   const [coverModalData, setCoverModalData] = useState<CoverModalData>({ coverUrl: '', title: '', artist: '', coverType: '' });
   const [confirmDelete, setConfirmDelete] = useState<boolean>(false);
@@ -329,6 +333,15 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
     return () => { current = false; };
   }, [cd.id]);
 
+  // Stepping to another album starts it at the top, not where the last one was left.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    bodyRef.current?.scrollTo?.({ top: 0 });
+  }, [cd.id]);
+
+  useStepKeys(onPrevious, onNext, showCoverModal);
+  useScrollKeys(bodyRef, showCoverModal);
+
   /** Opens a track's details, or closes them when they are open. */
   const toggleTrack = (key: string) => {
     setSelectedTrack(selectedTrack === key ? null : key);
@@ -397,16 +410,18 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
       centered
       fullscreen="md-down"
       style={{ zIndex: 10100 }}
-      className="music-detail-modal"
+      className="music-detail-modal side-panel-modal"
+      backdropClassName="side-panel-backdrop"
     >
       <Modal.Header closeButton>
         <Modal.Title>
           <BsDisc className="me-2" />
           {cd.title}
         </Modal.Title>
+        <DetailSteps onPrevious={onPrevious} onNext={onNext} noun="album" />
       </Modal.Header>
 
-      <Modal.Body>
+      <Modal.Body ref={bodyRef}>
         {/* The head: the cover, who and what, how to listen, then the facts of this edition. */}
         <div className="album-head">
           <div className="album-head-covers">
@@ -443,42 +458,6 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
             </button>
             {shape && <div className="album-head-shape">{shape}</div>}
 
-            <div className="album-head-actions">
-              {ripAlbum ? (
-                <Button variant="primary" size="sm" onClick={() => openListen(ripAlbum)}>
-                  <BsPlayFill className="me-1" />
-                  Listen
-                </Button>
-              ) : rip === undefined && !ripError ? (
-                <Button variant="primary" size="sm" disabled>
-                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                  Listen
-                </Button>
-              ) : (
-                <Button variant="outline-light" size="sm" disabled={openingApple} onClick={handleOpenAppleMusic}>
-                  {openingApple ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Opening Apple Music…
-                    </>
-                  ) : (
-                    <>
-                      <BsApple className="me-1" />
-                      Apple Music
-                    </>
-                  )}
-                </Button>
-              )}
-              <Button
-                variant={isInListenNext ? 'warning' : 'outline-secondary'}
-                size="sm"
-                onClick={handleListenNextToggle}
-                disabled={togglingListenNext}
-              >
-                <BsHeadphones className="me-1" />
-                {isInListenNext ? 'In Listen Next' : 'Listen Next'}
-              </Button>
-            </div>
           </div>
 
           <dl className="album-head-facts">
@@ -722,20 +701,58 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
       </Modal.Body>
 
       <Modal.Footer>
-        {onEdit && (
-          <Button variant="outline-primary" onClick={onEdit}>
-            <BsPencil className="me-1" />
-            Edit
+        {/* How to listen on the left, always at hand however far the body has scrolled. */}
+        <div className="music-detail-listen">
+          {ripAlbum ? (
+            <Button variant="primary" onClick={() => openListen(ripAlbum)}>
+              <BsPlayFill className="me-1" />
+              Listen
+            </Button>
+          ) : rip === undefined && !ripError ? (
+            <Button variant="primary" disabled>
+              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              Listen
+            </Button>
+          ) : (
+            <Button variant="outline-light" disabled={openingApple} onClick={handleOpenAppleMusic}>
+              {openingApple ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Opening Apple Music…
+                </>
+              ) : (
+                <>
+                  <BsApple className="me-1" />
+                  Apple Music
+                </>
+              )}
+            </Button>
+          )}
+          <Button
+            variant={isInListenNext ? 'warning' : 'outline-secondary'}
+            onClick={handleListenNextToggle}
+            disabled={togglingListenNext}
+          >
+            <BsHeadphones className="me-1" />
+            {isInListenNext ? 'In Listen Next' : 'Listen Next'}
           </Button>
-        )}
-        <Button
-          ref={deleteBtnRef}
-          variant={confirmDelete ? 'danger' : 'outline-danger'}
-          onClick={handleDelete}
-        >
-          <BsTrash className="me-1" />
-          {confirmDelete ? 'Are you sure?' : 'Delete'}
-        </Button>
+        </div>
+        <div className="music-detail-manage">
+          {onEdit && (
+            <Button variant="outline-primary" onClick={onEdit}>
+              <BsPencil className="me-1" />
+              Edit
+            </Button>
+          )}
+          <Button
+            ref={deleteBtnRef}
+            variant={confirmDelete ? 'danger' : 'outline-danger'}
+            onClick={handleDelete}
+          >
+            <BsTrash className="me-1" />
+            {confirmDelete ? 'Are you sure?' : 'Delete'}
+          </Button>
+        </div>
       </Modal.Footer>
 
       {/* Cover Zoom Modal */}

@@ -12,6 +12,7 @@ import { Modal, Button, Form } from 'react-bootstrap';
 import { BsChevronDown, BsBook, BsX } from 'react-icons/bs';
 import './BookSearch.css';
 import { readStored, writeStored } from '../utils/safeStorage';
+import { shownIds, useDetailSteps } from '../utils/detailSteps';
 
 interface BookSearchProps {
   books: any;
@@ -980,6 +981,13 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
     setShowAddDialog(true);
   };
 
+  // An open book's details step through the books in the order the page shows them.
+  const bookSteps = useDetailSteps(
+    selectedBookDetails ? shownIds(scrollContainerRef.current) : [],
+    selectedBookDetails?.id,
+    id => bookService.getBookById(id),
+    setSelectedBookDetails);
+
   const handleBookClick = async (bookId: number | string) => {
     try {
       // Save scroll position before opening modal to ensure it's preserved
@@ -1534,6 +1542,8 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
             });
           }}
           onEdit={() => handleEditBook(selectedBookDetails)}
+          onPrevious={bookSteps.onPrevious}
+          onNext={bookSteps.onNext}
           onUpdateBook={onUpdateBook}
           onBookUpdated={async (bookOrId: any) => {
             try {

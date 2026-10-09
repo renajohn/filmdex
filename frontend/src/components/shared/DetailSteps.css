@@ -1,0 +1,32 @@
+/* ‹ › step through the page's items, beside the close button. */
+.detail-steps {
+  display: inline-flex;
+  flex: none;
+  gap: 4px;
+  margin: 0 12px;
+}
+
+.detail-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  background: none;
+  color: #c9d1d9;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.detail-step:hover:not(:disabled),
+.detail-step:focus-visible {
+  color: #fbbf24;
+  border-color: #fbbf24;
+  outline: none;
+}
+
+.detail-step:disabled {
+  opacity: 0.3;
+}
