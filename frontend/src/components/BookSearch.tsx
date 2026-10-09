@@ -12,7 +12,8 @@ import { Modal, Button, Form } from 'react-bootstrap';
 import { BsChevronDown, BsBook, BsX } from 'react-icons/bs';
 import './BookSearch.css';
 import { readStored, writeStored } from '../utils/safeStorage';
-import { shownIds, useDetailSteps } from '../utils/detailSteps';
+import { findById, shownIds, useDetailSteps } from '../utils/detailSteps';
+import { bookImages } from '../utils/detailImages';
 
 interface BookSearchProps {
   books: any;
@@ -986,7 +987,8 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
     selectedBookDetails ? shownIds(scrollContainerRef.current) : [],
     selectedBookDetails?.id,
     id => bookService.getBookById(id),
-    setSelectedBookDetails);
+    setSelectedBookDetails,
+    { imagesOf: bookImages, summaryOf: id => findById(id, allBooks) });
 
   const handleBookClick = async (bookId: number | string) => {
     try {

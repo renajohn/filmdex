@@ -427,6 +427,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
           <div className="album-head-covers">
             {frontCover ? (
               <img
+                key={`front-${cd.id}`}
                 src={frontCover}
                 alt={`${cd.title} front cover`}
                 className="album-head-cover"
@@ -440,6 +441,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
             )}
             {backCover && (
               <img
+                key={`back-${cd.id}`}
                 src={backCover}
                 alt={`${cd.title} back cover`}
                 title="Back cover"

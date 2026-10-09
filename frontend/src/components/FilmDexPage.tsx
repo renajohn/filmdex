@@ -15,7 +15,8 @@ import {
 } from 'react-icons/bs';
 import './FilmDexPage.css';
 import { readStored, writeStored } from '../utils/safeStorage';
-import { shownIds, useDetailSteps, type Id } from '../utils/detailSteps';
+import { findById, shownIds, useDetailSteps, type Id } from '../utils/detailSteps';
+import { movieImages } from '../utils/detailImages';
 
 export interface FilmDexPageRef {
   refreshMovies: () => void;
@@ -374,7 +375,8 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
     selectedMovieDetails ? stepIds ?? shownIds(resultsRef.current) : [],
     selectedMovieDetails?.id,
     id => apiService.getMovieDetails(id),
-    setSelectedMovieDetails);
+    setSelectedMovieDetails,
+    { imagesOf: movieImages, summaryOf: id => findById(id, allMovies, watchNextMovies) });
 
   const handleMovieClick = async (movieId: number, siblings?: Id[]) => {
     setStepIds(siblings ?? null);

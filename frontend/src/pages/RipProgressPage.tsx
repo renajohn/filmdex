@@ -4,6 +4,7 @@ import { BsArrowClockwise, BsTags } from 'react-icons/bs';
 import MusicDetailCard from '../components/MusicDetailCard';
 import musicService, { type DigitalAlbum, type EditionAdoption, type RipState, type RipStatus } from '../services/musicService';
 import { useDetailSteps } from '../utils/detailSteps';
+import { albumImages } from '../utils/detailImages';
 import { canUsePicard, openInPicard } from '../utils/picard';
 import './RipProgressPage.css';
 
@@ -110,7 +111,8 @@ const RipProgressPage: React.FC = () => {
     }
   };
 
-  const albumSteps = useDetailSteps(albums.map(album => album.id), detail?.id, id => musicService.getAlbumById(id), setDetail);
+  const albumSteps = useDetailSteps(albums.map(album => album.id), detail?.id, id => musicService.getAlbumById(id), setDetail,
+    { imagesOf: albumImages });
 
   const deleteDetail = async () => {
     try {

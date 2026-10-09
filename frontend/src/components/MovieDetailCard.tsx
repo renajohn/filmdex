@@ -1686,7 +1686,9 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                   title={currentData!.tmdb_id ? 'Click to change poster' : ''}
                 >
                   {poster_path ? (
+                    // Keyed by the movie, so stepping to another never leaves the last poster showing while the new one loads.
                     <img
+                      key={`poster-${currentData!.id}`}
                       src={getPosterUrl(poster_path) || undefined}
                       alt={`${title} poster`}
                       onError={(e: React.SyntheticEvent<HTMLImageElement>) => {

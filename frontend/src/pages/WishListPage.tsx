@@ -8,7 +8,8 @@ import bookService from '../services/bookService';
 import MovieThumbnail from '../components/MovieThumbnail';
 import MovieDetailCard from '../components/MovieDetailCard';
 import MusicDetailCard from '../components/MusicDetailCard';
-import { useDetailSteps } from '../utils/detailSteps';
+import { findById, useDetailSteps } from '../utils/detailSteps';
+import { albumImages, bookImages, movieImages } from '../utils/detailImages';
 import BookThumbnail from '../components/BookThumbnail';
 import BookDetailCard from '../components/BookDetailCard';
 import AddMusicDialog from '../components/AddMusicDialog';
@@ -522,9 +523,12 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
   };
 
   // An open item's details step through its table, in the table's order.
-  const movieSteps = useDetailSteps(movies.map(movie => movie.id), selectedMovieDetails?.id, id => apiService.getMovieDetails(id), setSelectedMovieDetails);
-  const albumSteps = useDetailSteps(albums.map(album => album.id), selectedAlbumDetails?.id, id => musicService.getAlbumById(id), setSelectedAlbumDetails);
-  const bookSteps = useDetailSteps(books.map(book => book.id), selectedBookDetails?.id, id => bookService.getBookById(id), setSelectedBookDetails);
+  const movieSteps = useDetailSteps(movies.map(movie => movie.id), selectedMovieDetails?.id, id => apiService.getMovieDetails(id), setSelectedMovieDetails,
+    { imagesOf: movieImages, summaryOf: id => findById(id, movies) });
+  const albumSteps = useDetailSteps(albums.map(album => album.id), selectedAlbumDetails?.id, id => musicService.getAlbumById(id), setSelectedAlbumDetails,
+    { imagesOf: albumImages, summaryOf: id => findById(id, albums) });
+  const bookSteps = useDetailSteps(books.map(book => book.id), selectedBookDetails?.id, id => bookService.getBookById(id), setSelectedBookDetails,
+    { imagesOf: bookImages, summaryOf: id => findById(id, books) });
 
   const handleBookClick = async (bookId: number) => {
     try {

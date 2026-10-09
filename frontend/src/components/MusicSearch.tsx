@@ -11,7 +11,8 @@ import { NextBanner, CollectionHeader, EmptyState } from './shared';
 import { BsChevronDown, BsDisc } from 'react-icons/bs';
 import './MusicSearch.css';
 import { readStored, writeStored } from '../utils/safeStorage';
-import { useDetailSteps } from '../utils/detailSteps';
+import { findById, useDetailSteps } from '../utils/detailSteps';
+import { albumImages } from '../utils/detailImages';
 
 interface MusicSearchProps {
   cds: any;
@@ -650,7 +651,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const shownIds = useMemo(
     () => stepThrough === 'listenNext' ? listenNextAlbums.map(album => album.id) : gridIds,
     [stepThrough, listenNextAlbums, gridIds]);
-  const albumSteps = useDetailSteps(shownIds, selectedCdDetails?.id, id => musicService.getAlbumById(id), setSelectedCdDetails);
+  const albumSteps = useDetailSteps(shownIds, selectedCdDetails?.id, id => musicService.getAlbumById(id), setSelectedCdDetails,
+    { imagesOf: albumImages, summaryOf: id => findById(id, allCds, listenNextAlbums) });
 
   const handleCdClick = async (cdId: number | string, from: 'grid' | 'listenNext' = 'grid') => {
     setStepThrough(from);
