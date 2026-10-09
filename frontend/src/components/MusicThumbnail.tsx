@@ -5,6 +5,7 @@ import musicService from '../services/musicService';
 import ListenNextToggle from './ListenNextToggle';
 import { isAppleMobile, openListen } from '../utils/navidrome';
 import './MusicThumbnail.css';
+import ShelfCode from './shared/ShelfCode';
 
 interface CdData {
   id: number | string;
@@ -111,6 +112,7 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onEdit, on
             </div>
           </div>
         )}
+        <ShelfCode kind="album" id={cd.id} />
         <div className="thumbnail-listen-next-toggle">
           <ListenNextToggle
             isActive={isInListenNext}

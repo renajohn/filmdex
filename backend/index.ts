@@ -21,6 +21,8 @@ import warningsController from './src/controllers/warningsController';
 import albumStoryController from './src/controllers/albumStoryController';
 import albumGuideController from './src/controllers/albumGuideController';
 import albumGuideService from './src/services/albumGuideService';
+import shelvingController from './src/controllers/shelvingController';
+import shelvingService from './src/services/shelvingService';
 import warningsService from './src/services/warningsService';
 import { startNightlyBackup } from './src/services/nightlyBackupService';
 import albumRatingService from './src/services/albumRatingService';
@@ -241,6 +243,20 @@ app.post('/api/import/ignore', importController.ignoreMovie);
 app.get('/api/import/:id/suggestions', importController.getMovieSuggestions);
 
 // Analytics routes
+// Shelving: where each physical object is kept
+app.get('/api/shelving', shelvingController.plan);
+app.get('/api/shelving/locations', shelvingController.locations);
+app.put('/api/shelving/items/:kind/:id', shelvingController.saveItem);
+app.post('/api/shelving/items/:kind/:id/no-room', shelvingController.noRoom);
+app.post('/api/shelving/units', shelvingController.createUnit);
+app.put('/api/shelving/units/:id', shelvingController.updateUnit);
+app.delete('/api/shelving/units/:id', shelvingController.deleteUnit);
+app.put('/api/shelving/levels/:id', shelvingController.updateLevel);
+app.get('/api/shelving/places', shelvingController.places);
+app.post('/api/shelving/places', shelvingController.createPlace);
+app.put('/api/shelving/places/:id', shelvingController.renamePlace);
+app.delete('/api/shelving/places/:id', shelvingController.deletePlace);
+
 app.get('/api/analytics', analyticsController.getAnalytics);
 app.get('/api/analytics/music', analyticsController.getMusicAnalytics);
 app.get('/api/analytics/books', analyticsController.getBookAnalytics);
@@ -508,6 +524,7 @@ const serverReady = startServer().then(() => {
     startNightlyBackup();
     albumRatingService.startSync();
     albumGuideService.startAutoWrite();
+    shelvingService.startSortNameSync();
   }
 }).catch((error: Error) => {
   logger.error('Failed to start server:', error);

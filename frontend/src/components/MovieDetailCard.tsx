@@ -14,6 +14,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, horizontalList
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import './MovieDetailCard.css';
+import ShelfCode from './shared/ShelfCode';
 
 interface MovieData {
   id: number;
@@ -1798,6 +1799,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                       </span>
                     </span>
                   )}
+                <ShelfCode kind="movie" id={currentData!.id} variant="inline" className="movie-detail-shelf" />
                 <div className="movie-detail-facts">
                   <span className="fact-item">
                     {renderGenres(genres)} | {formatRuntime(runtime)} | {renderClickableAge(recommended_age)}

@@ -10,6 +10,7 @@ import BookDexPage from './pages/BookDexPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import BackupPage from './pages/BackupPage';
 import RipProgressPage from './pages/RipProgressPage';
+import ShelvesPage from './pages/ShelvesPage';
 import CogDropdown from './components/CogDropdown';
 import CsvExportDialog from './components/CsvExportDialog';
 import AlbumCsvExportDialog from './components/AlbumCsvExportDialog';
@@ -17,7 +18,7 @@ import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
 import musicService from './services/musicService';
 import bookService from './services/bookService';
-import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsDisc, BsArrowLeft, BsBarChart, BsFilm, BsBook } from 'react-icons/bs';
+import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsDisc, BsArrowLeft, BsBarChart, BsBookshelf, BsFilm, BsBook } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import { readStored, writeStored } from './utils/safeStorage';
@@ -92,7 +93,7 @@ function AppContent() {
   const showSearchBar = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/bookdex' || location.pathname === '/wishlist';
 
   // Check if we should show the navigation pills (all main sections)
-  const showNavigationPills = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/musicdex/rip' || location.pathname === '/bookdex' || location.pathname === '/wishlist' || location.pathname === '/analytics' || location.pathname === '/backup';
+  const showNavigationPills = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/musicdex/rip' || location.pathname === '/bookdex' || location.pathname === '/wishlist' || location.pathname === '/shelves' || location.pathname === '/analytics' || location.pathname === '/backup';
 
   // Get the page title based on current route
   const getPageTitle = (): string => {
@@ -109,6 +110,8 @@ function AppContent() {
         return 'DexVault - CSV Import';
       case '/wishlist':
         return 'DexVault';
+      case '/shelves':
+        return 'Shelves';
       case '/analytics':
         return 'FilmDex Analytics';
       case '/backup':
@@ -800,6 +803,10 @@ function AppContent() {
     navigate('/analytics');
   };
 
+  const handleShelves = () => {
+    navigate('/shelves');
+  };
+
   const handleBackup = () => {
     navigate('/backup');
   };
@@ -1182,6 +1189,13 @@ function AppContent() {
                   data-tooltip="Wish List - My precious to come"
                 >
                   <BsHeart className="segment-icon" />
+                </button>
+                <button
+                  className={`segment ${location.pathname === '/shelves' ? 'active' : ''}`}
+                  onClick={handleShelves}
+                  data-tooltip="Shelves - Where each disc stands"
+                >
+                  <BsBookshelf className="segment-icon" />
                 </button>
                 <button
                   className={`segment ${location.pathname === '/analytics' ? 'active' : ''}`}
@@ -1612,6 +1626,7 @@ function AppContent() {
           <Route path="/musicdex/rip" element={<RipProgressPage />} />
           <Route path="/bookdex" element={<BookDexPage ref={bookDexRef} searchCriteria={searchCriteria} />} />
           <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onAddAlbum={handleWishListAddAlbum} onAddBook={handleWishListAddBook} onMovieMovedToCollection={handleMovieMovedToCollection} onAlbumMovedToCollection={handleAlbumMovedToCollection} onBookMovedToCollection={handleBookMovedToCollection} onShowAlert={handleShowAlert} onMovieAdded={handleMovieAdded} onAlbumAdded={handleAlbumAdded} onBookAdded={handleBookAdded} onSearch={handleSearchFromMovieDetail} />} />
+          <Route path="/shelves" element={<ShelvesPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/backup" element={<BackupPage />} />
         </Routes>

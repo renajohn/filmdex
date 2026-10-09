@@ -1,0 +1,68 @@
+/* Where to find a film or CD, at a glance. */
+.shelf-code-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: #fbbf24;
+}
+
+.shelf-code-overlay {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 20;
+  max-width: calc(100% - 12px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.78);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/*
+ * On a card, shown while the pointer is over it. The card is named rather than
+ * the badge's parent: the layer over a poster lets the pointer through, so it
+ * is never hovered itself.
+ */
+.movie-card-large:hover .shelf-code-overlay,
+.boxset-stack-container:hover .shelf-code-overlay,
+.music-thumbnail:hover .shelf-code-overlay,
+.next-banner__card:hover .shelf-code-overlay,
+.shelf-code-overlay:focus-visible {
+  opacity: 1;
+}
+
+/* Without a pointer to hover with, a phone shows it always. */
+@media (hover: none) {
+  .shelf-code-overlay {
+    opacity: 1;
+  }
+}
+
+.shelf-code-inline {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  font-size: 0.85rem;
+}
+
+.movie-detail-shelf {
+  margin: 6px 0 4px;
+  width: fit-content;
+}
+
+.music-detail-shelf {
+  flex: none;
+  margin-left: 12px;
+}

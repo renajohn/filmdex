@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { BsX, BsFilm, BsDisc } from 'react-icons/bs';
+import ShelfCode from './ShelfCode';
 import './shared.css';
 
 interface NextBannerItem {
@@ -187,6 +188,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
                 )}
 
                 {renderBadges && <div className="next-banner__badges">{renderBadges(item)}</div>}
+                <ShelfCode kind={type === 'music' ? 'album' : 'movie'} id={item.id} />
 
                 {/* Movie-style hover overlay */}
                 {type === 'movie' && (

@@ -3,6 +3,7 @@ import { Popover, Overlay } from 'react-bootstrap';
 import MovieThumbnail from './MovieThumbnail';
 import WarningBadges from './WarningBadges';
 import './BoxSetStack.css';
+import ShelfCode from './shared/ShelfCode';
 
 interface Movie {
   id: number;
@@ -185,6 +186,8 @@ const BoxSetStack: React.FC<BoxSetStackProps> = ({ boxSetName, movies, onMovieCl
               <span className="boxset-partial-count">({movies.length}/{totalCount})</span>
             )}
           </div>
+          {/* A box set stands in one place: where its films are. */}
+          <ShelfCode kind="movie" id={movies[0]?.id} />
           {displayMovies.slice(0, 3).map((movie, index) => {
             let rotation = 0;
             let offsetX = 0;

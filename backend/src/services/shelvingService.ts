@@ -1,0 +1,445 @@
+import { getDatabase } from '../database';
+import ShelfItem, { SHELF_SECTIONS, ShelfItemRow, ShelfKind, ShelfPlaceRow, ShelfSection, ShelfSettings } from '../models/shelfItem';
+import ShelfFurniture, { ShelfLevelRow, ShelfUnitRow } from '../models/shelfFurniture';
+import { fillShelves, usableCases } from './shelfFill';
+import musicbrainzService from './musicbrainzService';
+import logger from '../logger';
+import {
+  boxSetName, classicalHeadline, collationKey, filmTitle, isClassicalAlbum, isVarious, Performer, personSortName, withoutArticle,
+} from './shelfOrder';
+
+/** A request the shelves cannot honour, with the status to answer it by. */
+export class ShelvingError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+  }
+}
+
+/** Where a filing name came from: set by hand, given by MusicBrainz, or worked out here and worth a look. */
+export type SortSource = 'manual' | 'musicbrainz' | 'guess';
+
+export interface ShelvedItem {
+  kind: ShelfKind;
+  id: number;
+  title: string;
+  /** The artist, or a film's year and format. */
+  subtitle: string;
+  image: string | null;
+  section: ShelfSection;
+  /** Whether the section is the one the data gives, not one set by hand. */
+  sectionAuto: boolean;
+  /** The name it is filed under, as read on the shelf: "Michael, George", "Parrain". */
+  sortName: string;
+  sortSource: SortSource;
+  /** How wide it stands, in standard cases: a CD case for a CD, a Blu-ray case for a film (a DVD's is 1.2). */
+  units: number;
+  /** Whether the width is the estimate from its discs or format, not one set by hand. */
+  unitsAuto: boolean;
+  placeId: number | null;
+  /** The shelf it stands on, "B-3", once the furniture is described; null off the shelves or when they are full. */
+  code: string | null;
+  levelId: number | null;
+  /** Whether the owner put it on that shelf by hand, out of the order. */
+  pinned: boolean;
+  /** The films a box set holds. */
+  movieIds?: number[];
+}
+
+export interface ShelfLevelPlan {
+  id: number;
+  level: number;
+  code: string;
+  section: ShelfSection | null;
+  /** Cases it holds, its own or its unit's. */
+  capacity: number;
+  ownCapacity: number | null;
+  /** Cases it takes before it counts as full. */
+  usable: number;
+  used: number;
+  count: number;
+  /** How many of them the owner put there by hand. */
+  pinned: number;
+  first: string | null;
+  last: string | null;
+  locked: boolean;
+  /** The name of the object told it had no room here. */
+  breakBefore: string | null;
+}
+
+export interface ShelfUnitPlan {
+  id: number;
+  letter: string;
+  capacity: number;
+  levels: ShelfLevelPlan[];
+}
+
+export interface ShelvingPlan {
+  sections: Array<{ key: ShelfSection; items: ShelvedItem[]; shelves: number; unshelved: number }>;
+  places: Array<ShelfPlaceRow & { items: ShelvedItem[] }>;
+  units: ShelfUnitPlan[];
+}
+
+/** An object with the key it stands in order by: its filing name, then the year and title, then itself. */
+type Ordered = ShelvedItem & { orderKey: string; pinTo: number | null };
+
+const all = <T>(sql: string, params: unknown[] = []): Promise<T[]> =>
+  new Promise((resolve, reject) =>
+    getDatabase().all(sql, params, (err: Error | null, rows: T[]) => (err ? reject(err) : resolve(rows))));
+
+const parseList = <T = string>(json: string | null): T[] => {
+  try {
+    const value = JSON.parse(json || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+};
+
+interface AlbumRow { id: number; artist: string; title: string; release_year: number | null; genres: string | null; cover: string | null; discs: number | null }
+interface TrackCreditRow { album_id: number; composers: string | null; performers: string | null }
+interface MovieRow { id: number; title: string; release_date: string | null; format: string | null; poster_path: string | null; box_set_id: number | null }
+interface BoxSetRow { id: number; name: string }
+
+/** A CD case holds two discs; beyond that a box set grows by a case for every two more. */
+const albumUnits = (discs: number): number => Math.max(1, Math.ceil(discs / 2));
+
+/** A box set of films stands about a case wide for every two films in it. */
+const boxSetUnits = (films: number): number => Math.max(1, Math.ceil(films / 2));
+
+/** A DVD case is thicker than a Blu-ray's: a shelf holding 12 Blu-ray takes 10 DVD. */
+const movieUnits = (format: string | null): number => (/^dvd/i.test(format || '') ? 1.2 : 1);
+
+/** The filing name of a CD outside classical: the artist as MusicBrainz files it, the title for a compilation. */
+const musicSortName = (artists: string[], title: string, saved: ShelfItemRow | undefined): { name: string; source: SortSource } => {
+  const first = artists[0] || '';
+  if (!first || isVarious(first)) return { name: withoutArticle(title), source: 'guess' };
+  if (saved?.artist_sort) {
+    // MusicBrainz files "The Beatles" as "Beatles, The": the article is not read on the shelf.
+    return { name: saved.artist_sort.replace(/,\s*(the|les|le|la|l['’])$/i, ''), source: 'musicbrainz' };
+  }
+  return { name: withoutArticle(first), source: 'guess' };
+};
+
+const orderKeyOf = (sortName: string, then: string, kind: ShelfKind, id: number): string =>
+  [collationKey(sortName), then, kind, String(id).padStart(9, '0')].join('\u0001');
+
+const byKey = (a: Ordered, b: Ordered): number => (a.orderKey < b.orderKey ? -1 : a.orderKey > b.orderKey ? 1 : 0);
+
+const codeOf = (unit: ShelfUnitRow, level: ShelfLevelRow): string => `${unit.letter}-${level.level}`;
+
+const shelvingService = {
+  /**
+   * Every object to shelve, in the order it stands within its section, and
+   * those kept off the shelves by place. The order within a section is the
+   * filing name, then the year for an artist's albums, so a discography stands
+   * in the order it came out.
+   */
+  plan: async (): Promise<ShelvingPlan> => {
+    const { items, places, units, levels } = await shelvingService.arrange();
+    const strip = ({ orderKey: _key, pinTo: _pin, ...item }: Ordered): ShelvedItem => item;
+    const placeIds = new Set(places.map(place => place.id));
+    const onShelves = items.filter(item => item.placeId == null || !placeIds.has(item.placeId));
+
+    const nameOf = new Map(items.map(item => [item.orderKey, item.sortName]));
+    const unitPlans: ShelfUnitPlan[] = units.map(unit => ({
+      id: unit.id,
+      letter: unit.letter,
+      capacity: unit.capacity,
+      levels: levels.filter(level => level.unit_id === unit.id).map(level => {
+        const held = onShelves.filter(item => item.levelId === level.id);
+        const pinned = held.filter(item => item.pinned).length;
+        const capacity = level.capacity || unit.capacity;
+        return {
+          id: level.id,
+          level: level.level,
+          code: codeOf(unit, level),
+          section: level.section,
+          capacity,
+          ownCapacity: level.capacity,
+          usable: usableCases(capacity),
+          used: Math.round(held.reduce((sum, item) => sum + item.units, 0) * 10) / 10,
+          count: held.length,
+          pinned,
+          first: held[0]?.sortName ?? null,
+          last: held[held.length - 1]?.sortName ?? null,
+          locked: !!level.locked,
+          breakBefore: level.break_before ? nameOf.get(level.break_before) ?? 'an object since removed' : null,
+        };
+      }),
+    }));
+
+    return {
+      sections: SHELF_SECTIONS.map(key => {
+        // Once there are shelves, the list follows them, a shelf's objects in order, what has none at the end.
+        const shelfIndex = new Map(units.flatMap(unit => levels.filter(level => level.unit_id === unit.id)).map((level, index) => [level.id, index]));
+        const at = (item: Ordered) => (item.levelId == null ? Infinity : shelfIndex.get(item.levelId) ?? Infinity);
+        const sectionItems = onShelves.filter(item => item.section === key)
+          .sort((a, b) => at(a) - at(b) || byKey(a, b));
+        return {
+          key,
+          items: sectionItems.map(strip),
+          shelves: levels.filter(level => level.section === key).length,
+          unshelved: sectionItems.filter(item => item.code == null).length,
+        };
+      }),
+      places: places.map(place => ({ ...place, items: items.filter(item => item.placeId === place.id).map(strip) })),
+      units: unitPlans,
+    };
+  },
+
+  /**
+   * Every object in order, each with the shelf it goes on: a section's
+   * shelves are taken unit after unit, from the left, and in each from the
+   * top shelf down.
+   */
+  arrange: async (): Promise<{ items: Ordered[]; places: ShelfPlaceRow[]; units: ShelfUnitRow[]; levels: ShelfLevelRow[] }> => {
+    const [albums, credits, movies, boxSets, saved, places, units, levels] = await Promise.all([
+      all<AlbumRow>(`
+        SELECT a.id, a.artist, a.title, a.release_year, a.genres, a.cover,
+               (SELECT MAX(disc_number) FROM tracks t WHERE t.album_id = a.id) AS discs
+          FROM albums a WHERE COALESCE(a.title_status, 'owned') = 'owned'`),
+      all<TrackCreditRow>(`
+        SELECT t.album_id, t.composers, t.performers FROM tracks t
+          JOIN albums a ON a.id = t.album_id
+         WHERE COALESCE(a.title_status, 'owned') = 'owned'`),
+      all<MovieRow>(`
+        SELECT m.id, m.title, m.release_date, m.format, m.poster_path,
+               (SELECT c.id FROM movie_collections mc JOIN collections c ON c.id = mc.collection_id
+                 WHERE mc.movie_id = m.id AND c.type = 'box_set' ORDER BY c.id LIMIT 1) AS box_set_id
+          FROM movies m WHERE COALESCE(m.title_status, 'owned') = 'owned'`),
+      all<BoxSetRow>(`SELECT id, name FROM collections WHERE type = 'box_set'`),
+      ShelfItem.all(),
+      ShelfItem.places(),
+      ShelfFurniture.units(),
+      ShelfFurniture.levels(),
+    ]);
+
+    const settings = new Map(saved.map(row => [`${row.kind}:${row.item_id}`, row]));
+    const creditsOf = new Map<number, { composers: string[]; performers: Performer[] }>();
+    for (const row of credits) {
+      const entry = creditsOf.get(row.album_id) || { composers: [], performers: [] };
+      entry.composers.push(...parseList(row.composers));
+      entry.performers.push(...parseList<Performer>(row.performers));
+      creditsOf.set(row.album_id, entry);
+    }
+
+    const items: Ordered[] = [];
+    const finish = (item: ShelvedItem, then: string, row: ShelfItemRow | undefined) => {
+      const manual = row?.shelve_under?.trim();
+      const shelved = manual ? { ...item, sortName: manual, sortSource: 'manual' as const } : item;
+      const section = row?.section || shelved.section;
+      items.push({
+        ...shelved,
+        section,
+        sectionAuto: !row?.section,
+        placeId: row?.place_id ?? null,
+        units: row?.units || shelved.units,
+        unitsAuto: !row?.units,
+        orderKey: orderKeyOf(shelved.sortName, then, item.kind, item.id),
+        pinTo: row?.level_id ?? null,
+      });
+    };
+
+    for (const album of albums) {
+      const row = settings.get(`album:${album.id}`);
+      const artists = parseList(album.artist);
+      const albumCredits = creditsOf.get(album.id) || { composers: [], performers: [] };
+      const classical = row?.section ? row.section === 'classical' : isClassicalAlbum(parseList(album.genres), albumCredits.performers);
+      let sort: { name: string; source: SortSource };
+      if (classical && !isVarious(artists[0])) {
+        const headline = classicalHeadline(artists, albumCredits.composers, albumCredits.performers);
+        sort = headline ? { name: personSortName(headline), source: 'guess' } : { name: withoutArticle(album.title), source: 'guess' };
+      } else {
+        sort = musicSortName(artists, album.title, row);
+      }
+      finish({
+        kind: 'album', id: album.id, title: album.title, subtitle: artists.join(', '), image: album.cover,
+        section: classical ? 'classical' : 'music', sectionAuto: true,
+        sortName: sort.name, sortSource: sort.source, units: albumUnits(album.discs || 1), unitsAuto: true, placeId: null, code: null, levelId: null, pinned: false,
+      }, `${String(album.release_year || 9999)} ${collationKey(album.title)}`, row);
+    }
+
+    const filmsOf = new Map<number, MovieRow[]>();
+    for (const movie of movies) {
+      if (movie.box_set_id != null) {
+        filmsOf.set(movie.box_set_id, [...(filmsOf.get(movie.box_set_id) || []), movie]);
+        continue;
+      }
+      const row = settings.get(`movie:${movie.id}`);
+      const year = (movie.release_date || '').slice(0, 4);
+      finish({
+        kind: 'movie', id: movie.id, title: movie.title, subtitle: [year, movie.format].filter(Boolean).join(' · '),
+        image: movie.poster_path, section: 'films', sectionAuto: true,
+        sortName: filmTitle(movie.title), sortSource: 'guess', units: movieUnits(movie.format), unitsAuto: true, placeId: null, code: null, levelId: null, pinned: false,
+      }, year, row);
+    }
+
+    for (const box of boxSets) {
+      const films = filmsOf.get(box.id);
+      if (!films?.length) continue;
+      const row = settings.get(`box_set:${box.id}`);
+      finish({
+        kind: 'box_set', id: box.id, title: box.name, subtitle: `${films.length} films`,
+        image: films[0].poster_path, section: 'films', sectionAuto: true,
+        sortName: withoutArticle(boxSetName(box.name)), sortSource: 'guess', units: boxSetUnits(films.length), unitsAuto: true, placeId: null, code: null, levelId: null, pinned: false,
+        movieIds: films.map(film => film.id),
+      }, '', row);
+    }
+
+    items.sort(byKey);
+    const placeIds = new Set(places.map(place => place.id));
+    const unitOf = new Map(units.map(unit => [unit.id, unit]));
+    const shelvesInOrder = units.flatMap(unit => levels.filter(level => level.unit_id === unit.id));
+    const levelById = new Map(levels.map(level => [level.id, level]));
+    const onShelves = items.filter(item => item.placeId == null || !placeIds.has(item.placeId));
+
+    // What the owner put on a shelf by hand stands there, out of the order, and takes from its room.
+    const reserved = new Map<number, number>();
+    for (const item of onShelves) {
+      const level = item.pinTo != null ? levelById.get(item.pinTo) : undefined;
+      if (!level) continue;
+      item.levelId = level.id;
+      item.code = codeOf(unitOf.get(level.unit_id)!, level);
+      item.pinned = true;
+      reserved.set(level.id, (reserved.get(level.id) || 0) + item.units);
+    }
+
+    for (const section of SHELF_SECTIONS) {
+      const shelves = shelvesInOrder.filter(level => level.section === section);
+      const placed = onShelves.filter(item => item.section === section && !item.pinned);
+      const { shelfOf } = fillShelves(
+        shelves.map(level => ({
+          reserved: reserved.get(level.id) || 0,
+          id: level.id,
+          capacity: level.capacity || unitOf.get(level.unit_id)!.capacity,
+          locked: !!level.locked,
+          lockedFrom: level.locked_from,
+          lockedThrough: level.locked_through,
+          breakBefore: level.break_before,
+        })),
+        placed.map(item => ({ key: item.orderKey, units: item.units })),
+      );
+      placed.forEach((item, index) => {
+        const level = shelves.find(shelf => shelf.id === shelfOf[index]);
+        item.levelId = level?.id ?? null;
+        item.code = level ? codeOf(unitOf.get(level.unit_id)!, level) : null;
+      });
+    }
+    return { items, places, units, levels };
+  },
+
+  /**
+   * Where each film and CD is, for their cards: the shelf code, or the name of
+   * the place it is kept in. A film in a box set is where its box set is.
+   */
+  locations: async (): Promise<{ movies: Record<number, string>; albums: Record<number, string> }> => {
+    const { items, places } = await shelvingService.arrange();
+    const placeName = new Map(places.map(place => [place.id, place.name]));
+    const movies: Record<number, string> = {};
+    const albums: Record<number, string> = {};
+    for (const item of items) {
+      const where = (item.placeId != null && placeName.get(item.placeId)) || item.code;
+      if (!where) continue;
+      if (item.kind === 'album') albums[item.id] = where;
+      else if (item.kind === 'movie') movies[item.id] = where;
+      else for (const movieId of item.movieIds || []) movies[movieId] = where;
+    }
+    return { movies, albums };
+  },
+
+  saveSettings: (kind: ShelfKind, id: number, settings: ShelfSettings): Promise<void> => ShelfItem.saveSettings(kind, id, settings),
+
+  createUnit: ShelfFurniture.createUnit,
+  updateUnit: ShelfFurniture.updateUnit,
+  moveUnit: ShelfFurniture.moveUnit,
+  deleteUnit: ShelfFurniture.deleteUnit,
+  unit: ShelfFurniture.unit,
+  level: ShelfFurniture.level,
+
+  /** Gives a shelf to a section, or another capacity. A shelf given to another section starts afresh: unlocked, with room for all. */
+  updateLevel: async (id: number, changes: { section?: ShelfSection | null; capacity?: number | null }): Promise<void> => {
+    const level = await ShelfFurniture.level(id);
+    if (!level) throw new ShelvingError(404, 'Shelf not found');
+    const moved = changes.section !== undefined && changes.section !== level.section;
+    await ShelfFurniture.updateLevel(id, {
+      ...changes,
+      ...(moved ? { break_before: null, locked: 0, locked_from: null, locked_through: null } : {}),
+    });
+  },
+
+  /**
+   * Locks a shelf once arranged, keeping the objects it holds now and the
+   * place where the next shelf begins, or unlocks it.
+   */
+  setLocked: async (id: number, locked: boolean): Promise<void> => {
+    if (!locked) {
+      await ShelfFurniture.updateLevel(id, { locked: 0, locked_from: null, locked_through: null });
+      return;
+    }
+    const { items } = await shelvingService.arrange();
+    const held = items.filter(item => item.levelId === id && !item.pinned);
+    if (held.length === 0) throw new ShelvingError(409, 'Nothing stands on this shelf in order to keep');
+    await ShelfFurniture.updateLevel(id, {
+      locked: 1, locked_from: held[0].orderKey, locked_through: held[held.length - 1].orderKey, break_before: null,
+    });
+  },
+
+  /**
+   * An object did not fit on its shelf: it and those after it go on the next
+   * one. On a locked shelf, the shelf gives up that object and the ones after.
+   */
+  noRoom: async (kind: ShelfKind, id: number): Promise<void> => {
+    const { items } = await shelvingService.arrange();
+    const item = items.find(other => other.kind === kind && other.id === id);
+    if (!item?.levelId) throw new ShelvingError(409, 'It is not on a shelf');
+    if (item.pinned) throw new ShelvingError(409, 'It was put on this shelf by hand: choose another shelf for it instead');
+    const held = items.filter(other => other.levelId === item.levelId && !other.pinned);
+    const at = held.indexOf(item);
+    if (at === 0) throw new ShelvingError(409, 'It is already first on its shelf: give the shelf more room instead');
+    const level = await ShelfFurniture.level(item.levelId);
+    if (level?.locked) await ShelfFurniture.updateLevel(item.levelId, { locked_through: held[at - 1].orderKey });
+    else await ShelfFurniture.updateLevel(item.levelId, { break_before: item.orderKey });
+  },
+
+  /** Forgets that an object had no room on a shelf. */
+  clearBreak: (id: number): Promise<void> => ShelfFurniture.updateLevel(id, { break_before: null }),
+
+  places: ShelfItem.places,
+  createPlace: ShelfItem.createPlace,
+  renamePlace: ShelfItem.renamePlace,
+  deletePlace: ShelfItem.deletePlace,
+
+  /**
+   * Asks MusicBrainz the sort name of each album's artist not asked yet: the
+   * name a record shop files them under, "Michael, George" but "Beatles, The",
+   * which no rule could tell from the name alone. One album per request, at
+   * MusicBrainz's pace; an album it fails on is asked again next time.
+   */
+  fetchSortNames: async (): Promise<number> => {
+    let fetched = 0;
+    for (const { id, releaseId } of await ShelfItem.albumIdsWithoutSort()) {
+      try {
+        const credits = await musicbrainzService.getReleaseArtistCredits(releaseId);
+        const first = credits[0];
+        await ShelfItem.saveArtistSort(id, first?.sortName || null, first?.type || null);
+        fetched += 1;
+      } catch (error) {
+        logger.warn(`Sort name of album ${id}: ${(error as Error).message}`);
+      }
+    }
+    return fetched;
+  },
+
+  /** Fetches the missing sort names soon after start, then every few hours for the CDs added since. */
+  startSortNameSync: (): void => {
+    const tick = () => {
+      shelvingService.fetchSortNames()
+        .then(count => { if (count) logger.info(`Fetched the sort names of ${count} albums`); })
+        .catch(error => logger.warn(`Sort names sync failed: ${(error as Error).message}`));
+    };
+    setTimeout(tick, 2 * 60 * 1000).unref();
+    setInterval(tick, 6 * 60 * 60 * 1000).unref();
+  },
+};
+
+export default shelvingService;

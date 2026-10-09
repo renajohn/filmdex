@@ -14,6 +14,7 @@ import TrackDetails from './TrackDetails';
 import DetailSteps, { useScrollKeys, useStepKeys } from './shared/DetailSteps';
 import type { RipTracks } from '../services/musicService';
 import './MusicDetailCard.css';
+import ShelfCode from './shared/ShelfCode';
 
 interface CdOwnership {
   condition?: string;
@@ -418,6 +419,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
           <BsDisc className="me-2" />
           {cd.title}
         </Modal.Title>
+        <ShelfCode kind="album" id={cd.id} variant="inline" className="music-detail-shelf" />
         <DetailSteps onPrevious={onPrevious} onNext={onNext} noun="album" />
       </Modal.Header>
 

@@ -485,6 +485,24 @@ const musicbrainzService = {
     return response.data;
   },
 
+  /** The artists a release is credited to, with the names they are filed under: "Michael, George", "Beatles, The". */
+  getReleaseArtistCredits: async function(releaseId: string): Promise<Array<{ name: string; sortName: string | null; type: string | null }>> {
+    const response: AxiosResponse<{ 'artist-credit'?: Array<{ name?: string; artist?: { name?: string; 'sort-name'?: string; type?: string } }> }> =
+      await withRetry(
+        'MusicBrainz artist credits lookup',
+        () => axios.get(`${this.baseUrl}/release/${releaseId}`, {
+          params: { inc: 'artist-credits', fmt: 'json' },
+          headers: { 'User-Agent': this.userAgent },
+          timeout: 10000
+        })
+      );
+    return (response.data['artist-credit'] || []).map(credit => ({
+      name: credit.name || credit.artist?.name || '',
+      sortName: credit.artist?.['sort-name'] || null,
+      type: credit.artist?.type || null,
+    }));
+  },
+
   /** A work with the works it is part of and its Wikidata id. */
   getWork: async function(workId: string): Promise<MBWorkRef & { wikidata: string | null }> {
     const response: AxiosResponse<MBRawWork> = await withRetry(

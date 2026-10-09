@@ -17,6 +17,7 @@ import './FilmDexPage.css';
 import { readStored, writeStored } from '../utils/safeStorage';
 import { findById, shownIds, useDetailSteps, type Id } from '../utils/detailSteps';
 import { movieImages } from '../utils/detailImages';
+import ShelfCode from './shared/ShelfCode';
 
 export interface FilmDexPageRef {
   refreshMovies: () => void;
@@ -475,6 +476,8 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
               </svg>
             </button>
+
+            <ShelfCode kind="movie" id={movie.id} />
 
             {/* Bottom title overlay - appears on hover */}
             <div className="poster-title-overlay-large">
