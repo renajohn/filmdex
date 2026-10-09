@@ -43,6 +43,10 @@ export interface ShelvedItem {
   pinned: boolean;
   /** The films a box set holds. */
   movieIds?: number[];
+  /** A film's collections, and whether the owner keeps each together on the shelf. */
+  collections?: Array<{ id: number; name: string; together: boolean }>;
+  /** The collection it stands with, filed under its first film: "Jurassic Park". */
+  together?: { id: number; name: string } | null;
 }
 
 export interface ShelfLevelPlan {
@@ -99,6 +103,7 @@ interface AlbumRow { id: number; artist: string; title: string; release_year: nu
 interface TrackCreditRow { album_id: number; composers: string | null; performers: string | null }
 interface MovieRow { id: number; title: string; release_date: string | null; format: string | null; poster_path: string | null; box_set_id: number | null }
 interface BoxSetRow { id: number; name: string }
+interface MembershipRow { movie_id: number; collection_id: number; name: string }
 
 /** A CD case holds two discs; beyond that a box set grows by a case for every two more. */
 const albumUnits = (discs: number): number => Math.max(1, Math.ceil(discs / 2));
@@ -119,6 +124,9 @@ const musicSortName = (artists: string[], title: string, saved: ShelfItemRow | u
   }
   return { name: withoutArticle(first), source: 'guess' };
 };
+
+/** A collection of films lent out, "Prêté à Yves", is no series to keep together. */
+const isLoan = (name: string): boolean => /^(pr[êe]t|lent\s|loaned\s)/i.test(name.trim());
 
 const orderKeyOf = (sortName: string, then: string, kind: ShelfKind, id: number): string =>
   [collationKey(sortName), then, kind, String(id).padStart(9, '0')].join('\u0001');
@@ -193,7 +201,7 @@ const shelvingService = {
    * top shelf down.
    */
   arrange: async (): Promise<{ items: Ordered[]; places: ShelfPlaceRow[]; units: ShelfUnitRow[]; levels: ShelfLevelRow[] }> => {
-    const [albums, credits, movies, boxSets, saved, places, units, levels] = await Promise.all([
+    const [albums, credits, movies, boxSets, memberships, togetherChoices, saved, places, units, levels] = await Promise.all([
       all<AlbumRow>(`
         SELECT a.id, a.artist, a.title, a.release_year, a.genres, a.cover,
                (SELECT MAX(disc_number) FROM tracks t WHERE t.album_id = a.id) AS discs
@@ -208,6 +216,11 @@ const shelvingService = {
                  WHERE mc.movie_id = m.id AND c.type = 'box_set' ORDER BY c.id LIMIT 1) AS box_set_id
           FROM movies m WHERE COALESCE(m.title_status, 'owned') = 'owned'`),
       all<BoxSetRow>(`SELECT id, name FROM collections WHERE type = 'box_set'`),
+      all<MembershipRow>(`
+        SELECT mc.movie_id, mc.collection_id, c.name FROM movie_collections mc
+          JOIN collections c ON c.id = mc.collection_id
+         WHERE c.type = 'user' ORDER BY c.id`),
+      ShelfItem.togetherChoices(),
       ShelfItem.all(),
       ShelfItem.places(),
       ShelfFurniture.units(),
@@ -260,18 +273,53 @@ const shelvingService = {
     }
 
     const filmsOf = new Map<number, MovieRow[]>();
-    for (const movie of movies) {
-      if (movie.box_set_id != null) {
-        filmsOf.set(movie.box_set_id, [...(filmsOf.get(movie.box_set_id) || []), movie]);
-        continue;
-      }
+    const loose = movies.filter(movie => {
+      if (movie.box_set_id == null) return true;
+      filmsOf.set(movie.box_set_id, [...(filmsOf.get(movie.box_set_id) || []), movie]);
+      return false;
+    });
+
+    // A collection kept together stands under its first film's name, its films in the order they came out.
+    // Each is, unless the owner said otherwise, or it holds films lent out rather than a series.
+    const together = new Set(memberships
+      .filter(member => togetherChoices.get(member.collection_id) ?? !isLoan(member.name))
+      .map(member => member.collection_id));
+    const collectionsOf = new Map<number, Array<{ id: number; name: string; together: boolean }>>();
+    for (const member of memberships) {
+      const entry = { id: member.collection_id, name: member.name, together: together.has(member.collection_id) };
+      collectionsOf.set(member.movie_id, [...(collectionsOf.get(member.movie_id) || []), entry]);
+    }
+    const released = (movie: MovieRow) => movie.release_date || '9999';
+    const ownName = (movie: MovieRow) => settings.get(`movie:${movie.id}`)?.shelve_under?.trim() || filmTitle(movie.title);
+    const groupOf = new Map<number, { id: number; name: string }>();
+    for (const id of together) {
+      const films = loose
+        .filter(movie => !groupOf.has(movie.id) && collectionsOf.get(movie.id)?.some(entry => entry.id === id))
+        .sort((a, b) => released(a).localeCompare(released(b)) || a.id - b.id);
+      if (films.length < 2) continue;
+      const group = { id, name: ownName(films[0]) };
+      films.forEach(movie => groupOf.set(movie.id, group));
+    }
+
+    for (const movie of loose) {
       const row = settings.get(`movie:${movie.id}`);
       const year = (movie.release_date || '').slice(0, 4);
-      finish({
+      const group = groupOf.get(movie.id) || null;
+      const item: ShelvedItem = {
         kind: 'movie', id: movie.id, title: movie.title, subtitle: [year, movie.format].filter(Boolean).join(' · '),
         image: movie.poster_path, section: 'films', sectionAuto: true,
         sortName: filmTitle(movie.title), sortSource: 'guess', units: movieUnits(movie.format), unitsAuto: true, placeId: null, code: null, levelId: null, pinned: false,
-      }, year, row);
+        collections: collectionsOf.get(movie.id) || [], together: group,
+      };
+      if (!group) {
+        finish(item, year, row);
+        continue;
+      }
+      // The film's own name is set aside while its collection is kept together.
+      const shelved = { ...item, sortName: group.name, sortSource: 'guess' as const };
+      finish(shelved, `~${String(group.id).padStart(9, '0')} ${released(movie)}`, row && { ...row, shelve_under: null });
+      const last = items[items.length - 1];
+      last.sortSource = row?.shelve_under?.trim() && ownName(movie) === group.name ? 'manual' : 'guess';
     }
 
     for (const box of boxSets) {
@@ -349,6 +397,13 @@ const shelvingService = {
   },
 
   saveSettings: (kind: ShelfKind, id: number, settings: ShelfSettings): Promise<void> => ShelfItem.saveSettings(kind, id, settings),
+
+  /** Keeps a collection's films together on the shelf, or lets each stand under its own name again. */
+  setTogether: async (collectionId: number, together: boolean): Promise<void> => {
+    const found = await all<{ id: number }>(`SELECT id FROM collections WHERE id = ? AND type = 'user'`, [collectionId]);
+    if (found.length === 0) throw new ShelvingError(404, 'Collection not found');
+    await ShelfItem.setTogether(collectionId, together);
+  },
 
   createUnit: ShelfFurniture.createUnit,
   updateUnit: ShelfFurniture.updateUnit,

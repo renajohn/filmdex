@@ -122,6 +122,42 @@ describe('le plan de rangement', () => {
     expect(order.indexOf(`movie:${amelie}`)).toBeLessThan(order.indexOf(`movie:${matrix}`));
   });
 
+  it('garde une collection ensemble, sous son premier film, dans l’ordre des sorties, sauf des films prêtés', async () => {
+    const jurassic = await run(`INSERT INTO collections (name, type) VALUES ('Jurassic test', 'user')`);
+    const world = await insertMovie('Jurassic World test', '2015');
+    const park = await insertMovie('Jurassic Park test', '1993');
+    const lost = await insertMovie('The Lost World test', '1997');
+    for (const movie of [world, park, lost]) {
+      await run(`INSERT INTO movie_collections (movie_id, collection_id) VALUES (?, ?)`, [movie, jurassic]);
+    }
+    const kong = await insertMovie('King Kong test', '2005');
+    const lent = await run(`INSERT INTO collections (name, type) VALUES ('Prêté à Yves test', 'user')`);
+    const godzilla = await insertMovie('Godzilla test', '2023');
+    const fall = await insertMovie('The Fall Guy test', '2024');
+    for (const movie of [godzilla, fall]) {
+      await run(`INSERT INTO movie_collections (movie_id, collection_id) VALUES (?, ?)`, [movie, lent]);
+    }
+    const films = async () => (await request(app).get('/api/shelving')).body.sections.find((s: any) => s.key === 'films').items;
+    const order = (items: any[], ids: number[]) => items.filter((i: any) => ids.includes(i.id)).map((i: any) => i.id);
+    const jurassicIds = [world, park, lost, kong];
+
+    const kept = await films();
+    expect(order(kept, jurassicIds)).toEqual([park, lost, world, kong]);
+    expect(kept.find((i: any) => i.id === world)).toMatchObject({
+      sortName: 'Jurassic Park test', together: { id: jurassic, name: 'Jurassic Park test' },
+      collections: [{ id: jurassic, name: 'Jurassic test', together: true }],
+    });
+    // Films lent out stand each under its own name.
+    expect(order(kept, [godzilla, fall])).toEqual([fall, godzilla]);
+    expect(kept.find((i: any) => i.id === fall).together).toBeNull();
+
+    expect((await request(app).put(`/api/shelving/collections/${jurassic}`).send({ together: false })).status).toBe(200);
+    expect(order(await films(), jurassicIds)).toEqual([park, world, kong, lost]);
+    await request(app).put(`/api/shelving/collections/${lent}`).send({ together: true });
+    expect(order(await films(), [godzilla, fall])).toEqual([godzilla, fall]);
+    expect((await request(app).put('/api/shelving/collections/999999').send({ together: true })).status).toBe(404);
+  });
+
   it('garde ce qui est réglé à la main : la section, le nom, un lieu hors des étagères', async () => {
     const tilney = await insertAlbum(['George Frideric Handel', 'Colin Tilney'], 'Water Music test', ['classical']);
     const place = (await request(app).post('/api/shelving/places').send({ name: 'Armoire, en haut' })).body;

@@ -154,6 +154,16 @@ const shelvingController = {
     await act(res, 'Moving to the shelf before', () => shelvingService.moveBack(kind, id));
   },
 
+  /** Keeps a collection's films together on the shelf, or not. */
+  setTogether: async (req: Request, res: Response): Promise<void> => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || typeof req.body?.together !== 'boolean') {
+      res.status(400).json({ error: 'Say whether to keep the collection together' });
+      return;
+    }
+    await act(res, 'Keeping a collection together', () => shelvingService.setTogether(id, req.body.together));
+  },
+
   /** Every object in shelf order within its section, and those kept elsewhere. */
   plan: async (_req: Request, res: Response): Promise<void> => {
     try {

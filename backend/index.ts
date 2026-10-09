@@ -253,6 +253,7 @@ app.post('/api/shelving/units', shelvingController.createUnit);
 app.put('/api/shelving/units/:id', shelvingController.updateUnit);
 app.delete('/api/shelving/units/:id', shelvingController.deleteUnit);
 app.put('/api/shelving/levels/:id', shelvingController.updateLevel);
+app.put('/api/shelving/collections/:id', shelvingController.setTogether);
 app.get('/api/shelving/places', shelvingController.places);
 app.post('/api/shelving/places', shelvingController.createPlace);
 app.put('/api/shelving/places/:id', shelvingController.renamePlace);

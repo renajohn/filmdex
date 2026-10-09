@@ -24,6 +24,10 @@ export interface ShelvedItem {
   /** Whether the owner put it on that shelf by hand, out of the order. */
   pinned: boolean;
   movieIds?: number[];
+  /** A film's collections, and whether each is kept together on the shelf. */
+  collections?: Array<{ id: number; name: string; together: boolean }>;
+  /** The collection it stands with, filed under its first film. */
+  together?: { id: number; name: string } | null;
 }
 
 export interface ShelfPlace {
@@ -107,6 +111,10 @@ const shelvingService = {
   /** It would fit on the shelf before: that shelf takes it. */
   moveBack: (kind: ShelfKind, id: number): Promise<void> =>
     send<void>(`/items/${kind}/${id}/move-back`, { method: 'POST' }),
+
+  /** Keeps a collection's films together on the shelf, under its first film, or lets each stand under its own name. */
+  setTogether: (collectionId: number, together: boolean): Promise<void> =>
+    send<void>(`/collections/${collectionId}`, { method: 'PUT', body: JSON.stringify({ together }) }),
 
   createUnit: (unit: { letter: string; levels: number; capacity: number; section: ShelfSection | null }): Promise<void> =>
     send<void>(`/units`, { method: 'POST', body: JSON.stringify(unit) }),

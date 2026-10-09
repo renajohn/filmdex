@@ -94,6 +94,29 @@ const ShelfItem = {
     if (!columns.some(column => column.name === 'level_id')) await run(`ALTER TABLE shelf_items ADD COLUMN level_id INTEGER`);
     // Box sets had a section of their own for a while; they stand among the films now.
     await run(`UPDATE shelf_items SET section = NULL WHERE section = 'box_sets'`);
+    await run(`
+      CREATE TABLE IF NOT EXISTS shelf_collections (
+        collection_id INTEGER PRIMARY KEY REFERENCES collections(id) ON DELETE CASCADE,
+        together      INTEGER NOT NULL DEFAULT 1
+      )
+    `);
+    const collectionColumns = await all<{ name: string }>(`PRAGMA table_info(shelf_collections)`);
+    if (!collectionColumns.some(column => column.name === 'together')) {
+      await run(`ALTER TABLE shelf_collections ADD COLUMN together INTEGER NOT NULL DEFAULT 1`);
+    }
+  },
+
+  /** Whether the owner keeps each collection together on the shelf, for those they decided; the others follow their name. */
+  togetherChoices: async (): Promise<Map<number, boolean>> =>
+    new Map((await all<{ collection_id: number; together: number }>(`SELECT collection_id, together FROM shelf_collections`))
+      .map(row => [row.collection_id, !!row.together])),
+
+  setTogether: async (collectionId: number, together: boolean): Promise<void> => {
+    await run(
+      `INSERT INTO shelf_collections (collection_id, together) VALUES (?, ?)
+       ON CONFLICT (collection_id) DO UPDATE SET together = excluded.together`,
+      [collectionId, together ? 1 : 0]
+    );
   },
 
   all: (): Promise<ShelfItemRow[]> => all<ShelfItemRow>(`SELECT * FROM shelf_items`),

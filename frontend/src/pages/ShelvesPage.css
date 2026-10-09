@@ -313,6 +313,11 @@
   color: #f0c654;
 }
 
+.shelf-tag-collection {
+  background: rgba(95, 179, 230, 0.15);
+  color: #8ccaf0;
+}
+
 .shelf-edit {
   flex: 0 0 auto;
   display: inline-flex;
@@ -366,6 +371,17 @@
 
 .shelf-editor-field {
   flex: 0 1 180px;
+}
+
+.shelf-editor-collections {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+.shelf-editor-collections legend {
+  float: none;
+  margin-bottom: 2px;
+  font-size: 0.75rem;
 }
 
 .shelf-editor-narrow {

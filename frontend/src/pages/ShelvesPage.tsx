@@ -50,10 +50,11 @@ interface EditorProps {
   units: ShelvingPlan['units'];
   onSave: (settings: ShelfSettings) => Promise<void>;
   onClose: () => void;
+  onTogether: (collectionId: number, together: boolean) => void;
 }
 
 /** What can be set by hand for one object: its section, the name it is filed under, a place off the shelves. */
-const ShelfItemEditor: React.FC<EditorProps> = ({ item, places, units: furniture, onSave, onClose }) => {
+const ShelfItemEditor: React.FC<EditorProps> = ({ item, places, units: furniture, onSave, onClose, onTogether }) => {
   const [section, setSection] = useState<string>(item.sectionAuto ? '' : item.section);
   const [shelveUnder, setShelveUnder] = useState(item.sortSource === 'manual' ? item.sortName : '');
   const [units, setUnits] = useState<string>(item.unitsAuto ? '' : String(item.units));
@@ -135,6 +136,16 @@ const ShelfItemEditor: React.FC<EditorProps> = ({ item, places, units: furniture
           )}
         </Form.Select>
       </Form.Group>
+      {item.collections && item.collections.length > 0 && (
+        <fieldset className="shelf-editor-field shelf-editor-collections">
+          <legend className="form-label">Collection</legend>
+          {item.collections.map(collection => (
+            <Form.Check key={collection.id} id={fieldId(`together-${collection.id}`)} type="checkbox"
+              label={`Keep “${collection.name}” together`} checked={collection.together}
+              onChange={event => onTogether(collection.id, event.target.checked)} />
+          ))}
+        </fieldset>
+      )}
       <div className="shelf-editor-actions">
         <Button size="sm" variant="outline-secondary" onClick={onClose} disabled={saving}>Cancel</Button>
         <Button size="sm" variant="warning" type="submit" disabled={saving}>Save</Button>
@@ -143,6 +154,9 @@ const ShelfItemEditor: React.FC<EditorProps> = ({ item, places, units: furniture
         <strong>Sort as</strong>: the name it is shelved by alphabetically, e.g. “Marriner, Neville” for a Marriner CD.
         {' '}<strong>Width</strong>: how many standard cases it takes on the shelf (1 is a Blu-ray or CD case; a DVD is 1.2).
         {' '}<strong>Location</strong>: in order with the rest, or a shelf of your choosing (a free one, for a box set laid flat), or somewhere off the shelves.
+        {item.collections && item.collections.length > 0 && <>
+          {' '}<strong>Collection</strong>: its films stand together, under the first one out, in the order they came out.
+        </>}
       </p>
       {error && <div className="shelf-editor-error">{error}</div>}
     </Form>
@@ -160,6 +174,7 @@ interface RowProps {
   onClose: () => void;
   onNoRoom: () => void;
   onMoveBack: () => void;
+  onTogether: (collectionId: number, together: boolean) => void;
   /** The section's shelves before and after its own: null when there is none, undefined when unknown. */
   before?: string | null;
   after?: string | null;
@@ -168,8 +183,9 @@ interface RowProps {
 }
 
 const ShelfRow: React.FC<RowProps> = ({
-  item, position, editing, places, units, onEdit, onSave, onClose, onNoRoom, onMoveBack, before, after, firstOnShelf,
+  item, position, editing, places, units, onEdit, onSave, onClose, onNoRoom, onMoveBack, onTogether, before, after, firstOnShelf,
 }) => {
+  const collection = item.together && item.collections?.find(entry => entry.id === item.together!.id);
   const image = thumbnail(item.image);
   // A classical CD or a compilation is filed under a name worked out from its credits: worth a look.
   const unsure = item.sortSource === 'guess' && item.kind === 'album';
@@ -185,6 +201,7 @@ const ShelfRow: React.FC<RowProps> = ({
           <div className="shelf-sort-name">
             {item.sortName}
             {item.sortSource === 'manual' && <span className="shelf-tag">set by hand</span>}
+            {collection && <span className="shelf-tag shelf-tag-collection" title="Kept together with its collection">{collection.name}</span>}
             {unsure && item.section === 'classical' && <span className="shelf-tag shelf-tag-guess">guessed</span>}
           </div>
           {/* A film filed under its own title would show it twice. */}
@@ -232,7 +249,7 @@ const ShelfRow: React.FC<RowProps> = ({
           </button>
         )}
       </div>
-      {editing && <ShelfItemEditor item={item} places={places} units={units} onSave={onSave} onClose={onClose} />}
+      {editing && <ShelfItemEditor item={item} places={places} units={units} onSave={onSave} onClose={onClose} onTogether={onTogether} />}
     </li>
   );
 };
@@ -354,6 +371,7 @@ const ShelvesPage: React.FC = () => {
     onClose: () => setEditing(null),
     onNoRoom: () => run(() => shelvingService.noRoom(item.kind, item.id)),
     onMoveBack: () => run(() => shelvingService.moveBack(item.kind, item.id)),
+    onTogether: (collectionId: number, together: boolean) => run(() => shelvingService.setTogether(collectionId, together)),
     ...neighbours(item),
   });
 

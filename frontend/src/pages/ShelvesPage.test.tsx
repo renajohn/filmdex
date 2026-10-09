@@ -16,6 +16,7 @@ vi.mock('../services/shelvingService', () => ({
     updateUnit: vi.fn(),
     deleteUnit: vi.fn(),
     updateLevel: vi.fn(),
+    setTogether: vi.fn(),
   },
 }));
 
@@ -82,6 +83,25 @@ describe('ShelvesPage', () => {
     await waitFor(() => expect(shelvingService.saveItem).toHaveBeenCalledWith('album', 5,
       { section: null, shelveUnder: 'Marriner, Neville', placeId: 9, levelId: null, units: 3 }));
     expect(shelvingService.getPlan).toHaveBeenCalledTimes(2);
+  });
+
+  it('garde une collection ensemble depuis le crayon d’un de ses films, et la nomme sur ses films', async () => {
+    const lost = item({
+      kind: 'movie', id: 12, title: 'The Lost World', sortName: 'Lost World', section: 'films',
+      collections: [{ id: 4, name: 'Jurassic Park', together: false }], together: null,
+    });
+    vi.mocked(shelvingService.getPlan).mockResolvedValue({ ...PLAN, sections: [{ key: 'films', shelves: 0, unshelved: 1, items: [lost] }, ...PLAN.sections.slice(1)] });
+    vi.mocked(shelvingService.setTogether).mockReset().mockResolvedValue();
+    render(<ShelvesPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit shelving of The Lost World' }));
+
+    vi.mocked(shelvingService.getPlan).mockResolvedValue({ ...PLAN, sections: [{ key: 'films', shelves: 0, unshelved: 1, items: [{
+      ...lost, sortName: 'Jurassic Park', collections: [{ id: 4, name: 'Jurassic Park', together: true }], together: { id: 4, name: 'Jurassic Park' },
+    }] }, ...PLAN.sections.slice(1)] });
+    fireEvent.click(screen.getByLabelText('Keep “Jurassic Park” together'));
+    await waitFor(() => expect(shelvingService.setTogether).toHaveBeenCalledWith(4, true));
+    expect(await screen.findByTitle('Kept together with its collection')).toHaveTextContent('Jurassic Park');
+    expect(screen.getByLabelText('Keep “Jurassic Park” together')).toBeChecked();
   });
 
   it('ne propose pas de section pour un film', async () => {
