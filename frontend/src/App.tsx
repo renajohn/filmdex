@@ -127,7 +127,7 @@ function AppContent() {
   const getAutocompleteOptions = async (text: string): Promise<AutocompleteOption[]> => {
     // Different keywords for MusicDex, BookDex vs DexVault
     const keywords = location.pathname === '/musicdex'
-      ? ['title:', 'artist:', 'genre:', 'track:', 'label:', 'country:', 'year:', 'stars:', 'stars:>=', 'stars:<=', 'stars:0', 'rated:no', 'rated:yes']
+      ? ['title:', 'artist:', 'genre:', 'track:', 'composer:', 'performer:', 'conductor:', 'instrument:', 'work:', 'label:', 'country:', 'year:', 'stars:', 'stars:>=', 'stars:<=', 'stars:0', 'rated:no', 'rated:yes']
       : location.pathname === '/bookdex'
         ? ['title:', 'author:', 'artist:', 'isbn:', 'series:', 'owner:', 'format:', 'language:', 'genre:', 'tag:', 'type:', 'title_status:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=', 'rating:', 'rating:>', 'rating:<', 'rating:>=', 'rating:<=']
         : [
@@ -178,7 +178,7 @@ function AppContent() {
 
     // Check if we're inside a filter value (after a keyword) - supports negation with - prefix
     const filterMatch = location.pathname === '/musicdex'
-      ? currentWord.match(/^(-?)(title|artist|genre|mood|track|label|country|year):(.*)$/)
+      ? currentWord.match(/^(-?)(title|artist|genre|mood|track|composer|performer|conductor|instrument|work|label|country|year):(.*)$/)
       : location.pathname === '/bookdex'
         ? currentWord.match(/^(-?)(title|author|artist|isbn|series|owner|format|language|genre|tag|type|title_status|year|rating):(.*)$/)
         : currentWord.match(/^(-?)(actor|director|title|collection|box_set|genre|format|original_language|media_type|imdb_rating|tmdb_rating|rotten_tomato_rating):(.*)$/);
@@ -585,6 +585,11 @@ function AppContent() {
       const hintMap: Record<string, string> = {
         'actor': '(Actor)',
         'director': '(Director)',
+        'composer': '(Composer)',
+        'performer': '(Performer)',
+        'conductor': '(Conductor)',
+        'instrument': '(Instrument)',
+        'work': '(Work)',
         'title': '(Title)',
         'collection': '(Collection)',
         'box_set': '(Box Set)',
@@ -607,6 +612,11 @@ function AppContent() {
             'title:': 'Search by CD title',
             'artist:': 'Search by artist name',
             'genre:': 'Search by genre',
+            'composer:': 'A composer of one of its tracks',
+            'performer:': 'Plays, sings or conducts on one of its tracks',
+            'conductor:': 'Conducts one of its tracks',
+            'instrument:': 'Someone plays it on one of its tracks: cello, piano…',
+            'work:': 'A work on one of its tracks: K. 466, Brandenburg…',
             'stars:': 'Your stars, exactly (stars:5) or a range (stars:2-4)',
             'stars:>=': 'At least that many of your stars',
             'stars:<=': 'At most that many of your stars',

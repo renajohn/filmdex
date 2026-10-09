@@ -420,16 +420,39 @@ const Album = {
 
     const columnMap: Record<string, string> = {
       'artist': 'artist', 'title': 'title', 'genre': 'genres', 'mood': 'moods',
-      'label': 'labels', 'country': 'country', 'track': 'track'
+      'label': 'labels', 'country': 'country', 'track': 'track',
+      'composer': 'composer', 'performer': 'performer', 'conductor': 'conductor', 'instrument': 'instrument', 'work': 'work'
+    };
+
+    // What a track credits, read from its JSON lists: an album matches when one of its tracks does.
+    const onTrack = (condition: string) => `EXISTS (SELECT 1 FROM tracks WHERE tracks.album_id = albums.id AND ${condition})`;
+    const byPerformer = (condition: string) =>
+      onTrack(`EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(tracks.performers) THEN tracks.performers ELSE '[]' END) p WHERE ${condition})`);
+    const trackClauses: Record<string, () => string> = {
+      track: () => onTrack('tracks.title LIKE ?'),
+      composer: () => onTrack('tracks.composers LIKE ?'),
+      work: () => onTrack('tracks.work LIKE ?'),
+      performer: () => byPerformer(`json_extract(p.value, '$.name') LIKE ?`),
+      conductor: () => byPerformer(`json_extract(p.value, '$.name') LIKE ? AND json_extract(p.value, '$.role') LIKE '%conduct%'`),
+      instrument: () => byPerformer(`json_extract(p.value, '$.role') LIKE ?`),
     };
 
     // Helper: build clause for single/multiple values
     const buildClause = (column: string, values: string[], negate: boolean = false): string => {
-      if (column === 'track') {
+      if (trackClauses[column]) {
         hasTrackFilter = true;
         const clauses = values.map(v => {
           params.push(`%${v}%`);
-          return `EXISTS (SELECT 1 FROM tracks WHERE tracks.album_id = albums.id AND tracks.title LIKE ?)`;
+          return trackClauses[column]();
+        });
+        const combined = clauses.length === 1 ? clauses[0] : `(${clauses.join(' OR ')})`;
+        return negate ? `NOT ${combined}` : combined;
+      }
+      if (column === 'artist') {
+        // A compilation names its artists on each track, not on the album.
+        const clauses = values.map(v => {
+          params.push(`%${v}%`, `%${v}%`);
+          return `(artist LIKE ? OR ${onTrack('tracks.artist LIKE ?')})`;
         });
         const combined = clauses.length === 1 ? clauses[0] : `(${clauses.join(' OR ')})`;
         return negate ? `NOT ${combined}` : combined;
@@ -488,7 +511,7 @@ const Album = {
     };
 
     // Process filters with smart value extraction
-    const fields = 'artist|title|genre|mood|track|label|country';
+    const fields = 'artist|title|genre|mood|track|label|country|composer|performer|conductor|instrument|work';
 
     // Pattern for negated filters: -field:...
     const negFilterRe = new RegExp(`-(${fields}):`, 'g');
@@ -649,8 +672,11 @@ const Album = {
         // Add general text search if there's remaining text
         if (cleanedQuery.trim()) {
           const searchTerm = `%${cleanedQuery.trim()}%`;
-          whereClause += ` AND (title LIKE ? OR artist LIKE ? OR labels LIKE ? OR genres LIKE ?)`;
-          params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+          // Plain words find a conductor, a soloist or a composer credited on a track too.
+          whereClause += ` AND (title LIKE ? OR artist LIKE ? OR labels LIKE ? OR genres LIKE ?
+            OR EXISTS (SELECT 1 FROM tracks WHERE tracks.album_id = albums.id
+              AND (tracks.composers LIKE ? OR tracks.performers LIKE ? OR tracks.work LIKE ? OR tracks.artist LIKE ?)))`;
+          params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
         }
 
         const sql = `
@@ -956,9 +982,25 @@ const Album = {
       const db = getDatabase();
 
       // Validate field to prevent SQL injection (accept singular forms)
-      const allowedFields = ['title', 'artist', 'genre', 'mood', 'track', 'label', 'country', 'year'];
+      const allowedFields = ['title', 'artist', 'genre', 'mood', 'track', 'label', 'country', 'year', 'composer', 'performer', 'conductor', 'instrument', 'work'];
       if (!allowedFields.includes(field)) {
         return reject(new Error(`Invalid field: ${field}`));
+      }
+
+      // The names credited on tracks, read from their JSON lists.
+      const credits: Record<string, string> = {
+        composer: `SELECT DISTINCT c.value AS name FROM tracks, json_each(CASE WHEN json_valid(tracks.composers) THEN tracks.composers ELSE '[]' END) c WHERE c.value LIKE ?`,
+        work: `SELECT DISTINCT work AS name FROM tracks WHERE work LIKE ?`,
+        performer: `SELECT DISTINCT json_extract(p.value, '$.name') AS name FROM tracks, json_each(CASE WHEN json_valid(tracks.performers) THEN tracks.performers ELSE '[]' END) p WHERE json_extract(p.value, '$.name') LIKE ?`,
+        conductor: `SELECT DISTINCT json_extract(p.value, '$.name') AS name FROM tracks, json_each(CASE WHEN json_valid(tracks.performers) THEN tracks.performers ELSE '[]' END) p WHERE json_extract(p.value, '$.name') LIKE ? AND json_extract(p.value, '$.role') LIKE '%conduct%'`,
+        instrument: `SELECT DISTINCT json_extract(p.value, '$.role') AS name FROM tracks, json_each(CASE WHEN json_valid(tracks.performers) THEN tracks.performers ELSE '[]' END) p WHERE json_extract(p.value, '$.role') LIKE ?`,
+      };
+      if (credits[field]) {
+        db.all(`${credits[field]} ORDER BY name LIMIT 20`, [`%${value}%`], (err: Error | null, rows: Array<{ name: string | null }>) => {
+          if (err) reject(err);
+          else resolve(rows.filter(row => row.name).map(row => ({ [field]: row.name })));
+        });
+        return;
       }
 
       // Handle track autocomplete separately (from tracks table)

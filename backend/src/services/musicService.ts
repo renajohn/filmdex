@@ -989,7 +989,7 @@ class MusicService {
    * Get autocomplete suggestions for a given field
    */
   async getAutocompleteSuggestions(field: string, value: string): Promise<AutocompleteRow[]> {
-    const allowedFields = ['title', 'artist', 'genre', 'mood', 'track', 'label', 'country', 'year'];
+    const allowedFields = ['title', 'artist', 'genre', 'mood', 'track', 'label', 'country', 'year', 'composer', 'performer', 'conductor', 'instrument', 'work'];
     if (!allowedFields.includes(field)) {
       throw new Error(`Invalid field: ${field}`);
     }

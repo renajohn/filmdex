@@ -1,6 +1,6 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import TrackDetails, { type DetailedTrack } from './TrackDetails';
 
 const credited: DetailedTrack = {
@@ -30,6 +30,24 @@ describe('TrackDetails', () => {
     expect(screen.queryByRole('link', { name: 'Recording' })).not.toBeInTheDocument();
     expect(screen.getByText('FLAC · 16-bit · 44.1 kHz · stereo', { exact: false })).toBeInTheDocument();
     expect(screen.getByText('Debussy/01.flac')).toBeInTheDocument();
+  });
+
+  it('opens the CDs that credit a composer, a performer, a conductor or an instrument too', () => {
+    const onSearch = vi.fn();
+    render(<TrackDetails onSearch={onSearch} track={{
+      disc: 1, no: 1, title: 'I. Allegro', work: 'Piano Concerto No. 20 in D minor, K. 466', composers: ['Wolfgang Amadeus Mozart'],
+      performers: [{ name: 'Sir Neville Marriner', role: 'conductor' }, { name: 'Alfred Brendel', role: 'piano' }],
+    }} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Wolfgang Amadeus Mozart' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Alfred Brendel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'conductor' }));
+    fireEvent.click(screen.getByRole('button', { name: 'piano' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Piano Concerto No. 20 in D minor, K. 466' }));
+    expect(onSearch.mock.calls.map(([predicate]) => predicate)).toEqual([
+      'composer:"Wolfgang Amadeus Mozart"', 'performer:"Alfred Brendel"', 'conductor:"Sir Neville Marriner"',
+      'instrument:"piano"', 'work:"Piano Concerto No. 20 in D minor, K. 466"',
+    ]);
   });
 
   it('says when a track has no credits and the CD is not ripped', () => {

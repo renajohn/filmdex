@@ -690,6 +690,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                           albumArtists={Array.isArray(cd.artist) ? cd.artist : [cd.artist]}
                           rip={rip}
                           ripError={ripError}
+                          onSearch={onSearch ? predicate => { onSearch(predicate); onClose(); } : undefined}
                         />
                       )}
                       </React.Fragment>

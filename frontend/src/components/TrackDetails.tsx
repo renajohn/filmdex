@@ -26,7 +26,12 @@ interface TrackDetailsProps {
   /** Undefined while Navidrome is being read. */
   rip?: RipTracks | null;
   ripError?: string | null;
+  /** Lists the CDs that credit a name too, from a search such as `conductor:"Neville Marriner"`. */
+  onSearch?: (predicate: string) => void;
 }
+
+/** A filter on one value, quoted so a name with spaces stays whole. */
+const predicate = (field: string, value: string) => `${field}:"${value.replace(/"/g, '')}"`;
 
 const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <>
@@ -40,7 +45,15 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, 
  * list: one surface whatever the screen, and never a doubt about which track
  * it speaks of.
  */
-const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumArtists = [], id, rip, ripError }) => {
+const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumArtists = [], id, rip, ripError, onSearch }) => {
+  // A credited name or role opens the CDs that credit it as well.
+  const link = (field: string, value: string, { label = value, title = `CDs with ${value}`, className = '' } = {}) => (onSearch
+    ? <button type="button" className={`track-details-search ${className}`} title={title}
+        onClick={() => onSearch(predicate(field, value))}>{label}</button>
+    : <span className={className}>{label}</span>);
+  const list = (field: string, values: string[]) => values.map((value, index) => (
+    <React.Fragment key={value}>{index > 0 && ', '}{link(field, value)}</React.Fragment>
+  ));
   const people = performersByPerson(track.performers || []);
   const composers = track.composers || [];
   const key = (names: string[]) => names.map(name => name.toLocaleLowerCase()).sort().join('|');
@@ -66,16 +79,25 @@ const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumArtists = [], i
   return (
     <div className="track-details" id={id}>
       <dl>
-        {track.work && track.work !== track.title && <Field label="Work">{track.work}</Field>}
-        {composers.length > 0 && <Field label={composers.length > 1 ? 'Composers' : 'Composer'}>{composers.join(', ')}</Field>}
-        {artists.length > 0 && <Field label="Track artist">{artists.join(', ')}</Field>}
+        {track.work && track.work !== track.title && <Field label="Work">{link('work', track.work, { title: 'CDs with this work' })}</Field>}
+        {composers.length > 0 && <Field label={composers.length > 1 ? 'Composers' : 'Composer'}>{list('composer', composers)}</Field>}
+        {artists.length > 0 && <Field label="Track artist">{list('artist', artists)}</Field>}
         {people.length > 0 && (
           <Field label="Performers">
             <ul className="track-details-people">
               {people.map(person => (
                 <li key={person.name}>
-                  <span className="track-details-person">{person.name}</span>
-                  <span className="track-details-role">{person.roles.join(', ')}</span>
+                  {link('performer', person.name, { className: 'track-details-person' })}
+                  <span className="track-details-role">
+                    {person.roles.map((role, index) => (
+                      <React.Fragment key={role}>
+                        {index > 0 && ', '}
+                        {/conduct/i.test(role)
+                          ? link('conductor', person.name, { label: role, title: `CDs ${person.name} conducts`, className: 'track-details-role-link' })
+                          : link('instrument', role, { title: `CDs with ${role}`, className: 'track-details-role-link' })}
+                      </React.Fragment>
+                    ))}
+                  </span>
                 </li>
               ))}
             </ul>

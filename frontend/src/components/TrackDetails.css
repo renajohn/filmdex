@@ -158,3 +158,27 @@
     margin-top: 8px;
   }
 }
+
+/* A name that opens the CDs crediting it: plain text until the pointer finds it. */
+.track-details-search {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.track-details-search:hover,
+.track-details-search:focus-visible {
+  color: #f0c654;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  outline: none;
+}
+
+.track-details-role-link {
+  color: #9aa4b2;
+  font-size: 0.78rem;
+}
