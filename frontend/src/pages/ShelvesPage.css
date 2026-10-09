@@ -498,6 +498,8 @@
 
 .furniture-unit {
   flex: 1 1 280px;
+  /* Long titles on an open shelf shorten rather than widen the unit past the screen. */
+  min-width: 0;
   max-width: 460px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
@@ -749,6 +751,7 @@
 .furniture-panel {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   gap: 12px;
   padding: 10px 10px 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -779,6 +782,7 @@
 .furniture-panel-field {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   gap: 4px;
   margin: 0;
 }
@@ -914,5 +918,14 @@
 
   .furniture-unit-letter {
     grid-column: 1 / -1;
+  }
+}
+
+/* A phone zooms in on a field written smaller than 16px when it takes focus. */
+@media (hover: none) and (pointer: coarse) {
+  .shelves-page input,
+  .shelves-page select,
+  .shelves-page textarea {
+    font-size: 16px;
   }
 }
