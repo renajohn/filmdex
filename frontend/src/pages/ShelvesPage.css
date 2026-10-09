@@ -3,7 +3,17 @@
   margin: 0 auto;
   padding: 24px 16px 48px;
   color: #e0e0e0;
+  /* One colour per section, read the same on a tab, a shelf chip and a board of the furniture. */
+  --section-films: #f0b73c;
+  --section-music: #5fb3e6;
+  --section-classical: #c48ae6;
+  --section-free: #6c7580;
 }
+
+.section-films { --section-color: var(--section-films); }
+.section-music { --section-color: var(--section-music); }
+.section-classical { --section-color: var(--section-classical); }
+.free { --section-color: var(--section-free); }
 
 .shelves-header h2 {
   margin: 0 0 4px;
@@ -59,6 +69,40 @@
   color: #1a1a1a;
 }
 
+/* A section's tab carries its colour, the one its shelves show in the furniture. */
+.shelves-tab[class*="section-"]::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--section-color);
+  vertical-align: 1px;
+}
+
+.shelves-tab.active::before {
+  background: #1a1a1a;
+  opacity: 0.5;
+}
+
+.shelves-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #f0c654;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(240, 198, 84, 0.4);
+}
+
+.shelves-link:hover,
+.shelves-link:focus-visible {
+  text-decoration-color: currentColor;
+  outline: none;
+}
+
 .shelves-tab-count {
   opacity: 0.7;
   margin-left: 2px;
@@ -80,16 +124,94 @@
   color: #e0e0e0;
 }
 
+/* The shelves of the section, in the order they fill: one tap takes the list to a shelf. */
+.shelf-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.shelf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid rgba(240, 183, 60, 0.3);
+  border-radius: 6px;
+  background: rgba(240, 183, 60, 0.08);
+  color: #f0c654;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.shelf-chip:hover,
+.shelf-chip:focus-visible {
+  background: rgba(240, 183, 60, 0.2);
+  outline: none;
+}
+
+.shelf-chip.empty {
+  border-style: dashed;
+  color: #9aa4b2;
+  background: transparent;
+}
+
+.shelf-chip-over {
+  border-color: rgba(229, 115, 79, 0.5);
+  background: rgba(229, 115, 79, 0.1);
+  color: #f1a08a;
+}
+
+.shelf-chip-count {
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+.shelf-letter {
+  /* Reached from the strip, the heading lands below the top of the page. */
+  scroll-margin-top: 8px;
+}
+
 .shelf-letter-heading {
   position: sticky;
   top: 0;
   z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
   margin: 12px 0 4px;
   padding: 4px 8px;
   background: #1a1a1a;
+}
+
+.shelf-letter-heading h3 {
+  margin: 0;
   color: #f0b73c;
   font-size: 1rem;
   font-weight: 600;
+}
+
+.shelf-letter-meta {
+  flex: 1;
+  color: #9aa4b2;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.shelf-letter-heading .shelves-link {
+  font-size: 0.8rem;
+}
+
+.shelf-letter-note {
+  margin: 0 8px 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(229, 115, 79, 0.1);
+  color: #c0c6cf;
+  font-size: 0.8rem;
 }
 
 .shelf-list {
@@ -206,10 +328,32 @@
 }
 
 .shelf-edit:hover,
-.shelf-edit:focus-visible {
+.shelf-edit:focus-visible,
+.shelf-edit.active {
   color: #f0b73c;
   background: rgba(255, 255, 255, 0.06);
   outline: none;
+}
+
+.shelf-edit:disabled {
+  color: #4b525c;
+  background: none;
+}
+
+/* The arrows to the shelf before and the next name the shelf they lead to. */
+.shelf-move {
+  flex-direction: column;
+  gap: 0;
+  width: auto;
+  min-width: 30px;
+  padding: 0 3px;
+  line-height: 1;
+}
+
+.shelf-move-target {
+  font-size: 0.6rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .shelf-editor {
@@ -340,69 +484,135 @@
   color: #f0c654;
 }
 
-/* Furniture: the units side by side, as they stand. */
-.furniture-add {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.furniture-add .form-group,
-.furniture-add > div {
-  flex: 0 1 120px;
-}
-
-.furniture-add .form-label {
-  margin-bottom: 2px;
-  color: #9aa4b2;
-  font-size: 0.75rem;
-}
-
+/*
+ * Furniture: the units side by side, as they stand, each a column of boards
+ * from the top shelf down. A board carries its section's colour on its edge
+ * and in its fill; a click opens it to set the shelf up.
+ */
 .furniture-units {
   display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  padding-bottom: 8px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px;
 }
 
 .furniture-unit {
-  flex: 0 0 220px;
+  flex: 1 1 280px;
+  max-width: 460px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  padding: 8px;
+  border-radius: 10px;
+  padding: 10px;
   background: rgba(255, 255, 255, 0.02);
 }
 
 .furniture-unit-heading {
   display: flex;
   align-items: center;
-  gap: 2px;
-  margin-bottom: 6px;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 0 2px;
 }
 
 .furniture-unit-heading h3 {
-  flex: 1;
   margin: 0;
   color: #f0b73c;
-  font-size: 1.2rem;
+  font-size: 1.3rem;
   font-weight: 700;
-  text-align: center;
 }
 
-.furniture-unit-edit {
+.furniture-unit-meta {
+  flex: 1;
+  color: #9aa4b2;
+  font-size: 0.8rem;
+}
+
+.furniture-unit-edit,
+.furniture-add {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 4px;
-  margin-bottom: 8px;
+  align-items: end;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.furniture-unit-edit .btn {
+.furniture-unit-edit .form-label,
+.furniture-add .form-label {
+  margin-bottom: 2px;
+  color: #9aa4b2;
+  font-size: 0.75rem;
+}
+
+.furniture-span {
   grid-column: 1 / -1;
 }
 
-.furniture-levels {
+.furniture-add .furniture-unit-heading {
+  margin-bottom: 0;
+}
+
+.furniture-unit-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.furniture-unit-tools .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.furniture-unit-tools .btn:last-child {
+  margin-left: auto;
+}
+
+/* The unit to add stands after the others, a dashed outline until it is filled in. */
+.furniture-unit-add {
+  border-style: dashed;
+  background: none;
+}
+
+.furniture-unit-add:not(.open) {
+  flex-grow: 0;
+}
+
+.furniture-unit-add.open {
+  border-style: solid;
+}
+
+.furniture-unit-add .furniture-add {
+  margin-bottom: 0;
+  background: none;
+  padding: 0;
+}
+
+.furniture-add-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 72px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: #9aa4b2;
+  font-size: 0.95rem;
+}
+
+.furniture-add-button:hover,
+.furniture-add-button:focus-visible {
+  color: #f0b73c;
+  background: rgba(255, 255, 255, 0.04);
+  outline: none;
+}
+
+.furniture-shelves {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -411,69 +621,298 @@
   gap: 6px;
 }
 
-.furniture-level {
-  padding: 6px;
+.furniture-shelf {
   border-radius: 6px;
-  border-bottom: 3px solid rgba(255, 255, 255, 0.18);
+  /* The board's edge below, and the section's colour along its left side. */
+  border-left: 4px solid var(--section-color);
+  border-bottom: 3px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.04);
 }
 
-.furniture-level.free {
-  opacity: 0.6;
+.furniture-shelf.free {
+  border-left-style: dashed;
+  background: rgba(255, 255, 255, 0.015);
 }
 
-.furniture-level.locked {
+.furniture-shelf.locked {
   border-bottom-color: #5fd39a;
 }
 
-.furniture-level-top {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.furniture-shelf.open {
+  background: rgba(255, 255, 255, 0.07);
 }
 
-.furniture-code {
-  flex: 0 0 auto;
-  min-width: 36px;
+.furniture-board {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  row-gap: 5px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 10px 7px 8px;
+  border: none;
+  border-radius: 0 6px 0 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+
+.furniture-board:hover,
+.furniture-board:focus-visible {
+  background: rgba(255, 255, 255, 0.05);
+  outline: none;
+}
+
+.furniture-shelf-code {
   color: #f0c654;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 38px;
+}
+
+.furniture-shelf.free .furniture-shelf-code {
+  color: #c0c6cf;
+}
+
+.furniture-shelf-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.furniture-shelf-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.furniture-shelf-section {
+  color: var(--section-color);
   font-weight: 600;
 }
 
+.furniture-shelf.free .furniture-shelf-section {
+  color: #9aa4b2;
+  font-weight: 400;
+}
+
+.furniture-shelf-count {
+  color: #9aa4b2;
+  font-variant-numeric: tabular-nums;
+}
+
+.furniture-shelf-mark {
+  color: #5fd39a;
+  font-size: 0.8rem;
+}
+
+.furniture-shelf-mark + .furniture-shelf-mark,
+.furniture-shelf-mark[aria-label="No room"] {
+  color: #f0c654;
+}
+
+.furniture-shelf-range {
+  overflow: hidden;
+  color: #c0c6cf;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.furniture-shelf.free .furniture-shelf-range {
+  color: #7d8590;
+}
+
 .furniture-fill {
-  height: 5px;
-  margin: 6px 0 4px;
-  border-radius: 3px;
+  grid-column: 1 / -1;
+  height: 4px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.08);
   overflow: hidden;
 }
 
 .furniture-fill-bar {
+  display: block;
   height: 100%;
-  background: #f0b73c;
+  background: var(--section-color);
 }
 
 .furniture-fill-bar.over {
   background: #e5734f;
 }
 
-.furniture-level-range {
-  overflow: hidden;
+/* The open shelf's setup, under its board. */
+.furniture-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 10px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.furniture-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.furniture-panel-head strong {
+  color: #f0c654;
+}
+
+.furniture-panel-figures {
+  flex: 1;
   color: #9aa4b2;
-  font-size: 0.72rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+.furniture-panel-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+
+.furniture-panel-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+
+.furniture-panel-label {
+  margin: 0;
+  color: #9aa4b2;
+  font-size: 0.75rem;
+}
+
+.furniture-panel-hint {
+  margin: 0;
+  color: #7d8590;
+  font-size: 0.75rem;
+}
+
+.furniture-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.furniture-choice {
+  padding: 3px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  background: transparent;
+  color: #c0c6cf;
+  font-size: 0.8rem;
+}
+
+.furniture-choice:hover,
+.furniture-choice:focus-visible {
+  border-color: var(--section-color);
+  outline: none;
+}
+
+.furniture-choice.active {
+  background: var(--section-color);
+  border-color: var(--section-color);
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.furniture-choice.free.active {
+  color: #f4f4f4;
+}
+
+.furniture-capacity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #9aa4b2;
+  font-size: 0.8rem;
+}
+
+.furniture-capacity .form-control {
+  width: 64px;
+  text-align: right;
+}
+
+.furniture-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
 }
 
 .furniture-break {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  color: #f0c654;
-  font-size: 0.72rem;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(240, 183, 60, 0.1);
+  color: #c0c6cf;
+  font-size: 0.8rem;
 }
 
-.furniture-capacity {
-  margin-top: 4px;
-  font-size: 0.75rem;
+.furniture-break > svg {
+  color: #f0c654;
+}
+
+.furniture-break > span {
+  flex: 1 1 200px;
+}
+
+.furniture-contents {
+  margin: 0;
+  padding: 0 0 0 1.5em;
+  columns: 2;
+  column-gap: 16px;
+  color: #c0c6cf;
+  font-size: 0.8rem;
+}
+
+.furniture-contents li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  break-inside: avoid;
+}
+
+.furniture-link {
+  width: fit-content;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #f0c654;
+  font-size: 0.8rem;
+}
+
+.furniture-link:hover,
+.furniture-link:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
+@media (max-width: 600px) {
+  .furniture-unit {
+    max-width: none;
+  }
+
+  .furniture-contents {
+    columns: 1;
+  }
+
+  .furniture-unit-edit,
+  .furniture-add {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .furniture-unit-letter {
+    grid-column: 1 / -1;
+  }
 }

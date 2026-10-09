@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Form } from 'react-bootstrap';
 import { BsArrowBarDown, BsArrowBarUp, BsPencil, BsTrash, BsX } from 'react-icons/bs';
 import shelvingService, {
-  type ShelfSection, type ShelvedItem, type ShelvingPlan, type ShelfSettings,
+  type ShelfLevel, type ShelfSection, type ShelvedItem, type ShelvingPlan, type ShelfSettings,
 } from '../services/shelvingService';
 import ShelfFurniture from './ShelfFurniture';
 import { refreshShelfLocations } from '../utils/shelfLocations';
@@ -39,6 +39,10 @@ const thumbnail = (image: string | null): string | null => {
 };
 
 const keyOf = (item: ShelvedItem) => `${item.kind}:${item.id}`;
+
+/** The heading a shelf's objects stand under, and the id to scroll to it by. */
+const NO_SHELF = 'No shelf yet';
+const anchorOf = (heading: string) => `shelf-group-${heading === NO_SHELF ? 'none' : heading}`;
 
 interface EditorProps {
   item: ShelvedItem;
@@ -156,12 +160,20 @@ interface RowProps {
   onClose: () => void;
   onNoRoom: () => void;
   onMoveBack: () => void;
+  /** The section's shelves before and after its own: null when there is none, undefined when unknown. */
+  before?: string | null;
+  after?: string | null;
+  /** Whether it stands first on its shelf, where no room cannot be told. */
+  firstOnShelf?: boolean;
 }
 
-const ShelfRow: React.FC<RowProps> = ({ item, position, editing, places, units, onEdit, onSave, onClose, onNoRoom, onMoveBack }) => {
+const ShelfRow: React.FC<RowProps> = ({
+  item, position, editing, places, units, onEdit, onSave, onClose, onNoRoom, onMoveBack, before, after, firstOnShelf,
+}) => {
   const image = thumbnail(item.image);
   // A classical CD or a compilation is filed under a name worked out from its credits: worth a look.
   const unsure = item.sortSource === 'guess' && item.kind === 'album';
+  const movable = item.code && !item.pinned && !editing;
   return (
     <li className={`shelf-row ${editing ? 'editing' : ''}`}>
       <div className="shelf-row-main" onClick={editing ? undefined : onEdit}>
@@ -190,18 +202,28 @@ const ShelfRow: React.FC<RowProps> = ({ item, position, editing, places, units, 
             {item.code}
           </span>
         )}
-        {item.code && !item.pinned && !editing && (
-          <button type="button" className="shelf-edit" aria-label={`Move ${item.title} to the shelf before`}
-            title="It fits on the shelf before: move it back there"
+        {movable && (
+          <button type="button" className="shelf-edit shelf-move" disabled={before === null}
+            aria-label={`Move ${item.title} back to ${before || 'the shelf before'}`}
+            title={before === null
+              ? `${item.code} is the first shelf of its section`
+              : `It fits on ${before || 'the shelf before'}: move it back there, with what stands before it on ${item.code}`}
             onClick={event => { event.stopPropagation(); onMoveBack(); }}>
             <BsArrowBarUp />
+            {before && <span className="shelf-move-target">{before}</span>}
           </button>
         )}
-        {item.code && !item.pinned && !editing && (
-          <button type="button" className="shelf-edit" aria-label={`No room for ${item.title}`}
-            title="No room on this shelf: it and the ones after it go on the next shelf"
+        {movable && (
+          <button type="button" className="shelf-edit shelf-move" disabled={after === null || firstOnShelf}
+            aria-label={`No room for ${item.title}: move it on to ${after || 'the next shelf'}`}
+            title={after === null
+              ? `${item.code} is the last shelf of its section`
+              : firstOnShelf
+                ? `It stands first on ${item.code}: give the shelf more room instead`
+                : `No room on ${item.code}: it and the ones after it go on to ${after || 'the next shelf'}`}
             onClick={event => { event.stopPropagation(); onNoRoom(); }}>
             <BsArrowBarDown />
+            {after && <span className="shelf-move-target">{after}</span>}
           </button>
         )}
         {!editing && (
@@ -229,6 +251,9 @@ const ShelvesPage: React.FC = () => {
   const [editing, setEditing] = useState<string | null>(null);
   const [newPlace, setNewPlace] = useState('');
   const [renaming, setRenaming] = useState<{ id: number; name: string } | null>(null);
+  // A shelf's heading to scroll to once its section shows, and a shelf to open as the furniture shows.
+  const [jumpTo, setJumpTo] = useState<string | null>(null);
+  const [furnitureFocus, setFurnitureFocus] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -258,9 +283,10 @@ const ShelvesPage: React.FC = () => {
     }
   };
 
+  // A shelf code finds what stands on it: "A-3".
   const matches = useCallback((item: ShelvedItem) => {
     const words = normalize(query).split(/\s+/).filter(Boolean);
-    const text = normalize(`${item.sortName} ${item.title} ${item.subtitle}`);
+    const text = normalize(`${item.sortName} ${item.title} ${item.subtitle} ${item.code || ''}`);
     return words.every(word => text.includes(word));
   }, [query]);
 
@@ -272,13 +298,51 @@ const ShelvesPage: React.FC = () => {
     const result: Array<{ heading: string; rows: Array<{ item: ShelvedItem; position: number }> }> = [];
     section.items.forEach((item, index) => {
       if (!matches(item)) return;
-      const heading = byShelf ? item.code || 'No shelf yet' : letterOf(item.sortName);
+      const heading = byShelf ? item.code || NO_SHELF : letterOf(item.sortName);
       const last = result[result.length - 1];
       if (last?.heading === heading) last.rows.push({ item, position: index + 1 });
       else result.push({ heading, rows: [{ item, position: index + 1 }] });
     });
     return result;
   }, [section, matches, byShelf]);
+
+  // The section's shelves in the order they fill, and each shelf by its code.
+  const shelves = useMemo(
+    () => (plan?.units || []).flatMap(unit => unit.levels).filter(level => level.section === tab),
+    [plan, tab],
+  );
+  const levelByCode = useMemo(() => new Map((plan?.units || []).flatMap(unit => unit.levels).map(level => [level.code, level])), [plan]);
+
+  useEffect(() => {
+    if (!jumpTo || !section) return;
+    document.getElementById(anchorOf(jumpTo))?.scrollIntoView?.({ block: 'start' });
+    setJumpTo(null);
+  }, [jumpTo, section, groups]);
+
+  /** Takes a section's list to a shelf's objects, from the furniture. */
+  const showShelf = (level: ShelfLevel, inSection: ShelfSection) => {
+    setTab(inSection);
+    setQuery('');
+    setJumpTo(level.code);
+  };
+
+  /** Takes the furniture to a shelf, from its heading in the list. */
+  const setUpShelf = (level: ShelfLevel) => {
+    setFurnitureFocus(level.id);
+    setTab('furniture');
+  };
+
+  /** The shelves before and after an object's own, in its section's order, and whether it stands first on its own. */
+  const neighbours = (item: ShelvedItem) => {
+    if (item.levelId == null || !section) return {};
+    const at = shelves.findIndex(level => level.id === item.levelId);
+    if (at < 0) return {};
+    return {
+      before: shelves[at - 1]?.code ?? null,
+      after: shelves[at + 1]?.code ?? null,
+      firstOnShelf: section.items.find(other => other.levelId === item.levelId && !other.pinned) === item,
+    };
+  };
 
   const rowProps = (item: ShelvedItem) => ({
     item,
@@ -290,6 +354,7 @@ const ShelvesPage: React.FC = () => {
     onClose: () => setEditing(null),
     onNoRoom: () => run(() => shelvingService.noRoom(item.kind, item.id)),
     onMoveBack: () => run(() => shelvingService.moveBack(item.kind, item.id)),
+    ...neighbours(item),
   });
 
   const units = (items: ShelvedItem[]) => items.reduce((sum, item) => sum + item.units, 0);
@@ -310,7 +375,7 @@ const ShelvesPage: React.FC = () => {
         <div className="shelves-tabs" role="tablist">
           {plan?.sections.map(entry => (
             <button key={entry.key} type="button" role="tab" aria-selected={tab === entry.key}
-              className={`shelves-tab ${tab === entry.key ? 'active' : ''}`} onClick={() => setTab(entry.key)}>
+              className={`shelves-tab section-${entry.key} ${tab === entry.key ? 'active' : ''}`} onClick={() => setTab(entry.key)}>
               {SECTION_LABELS[entry.key]} <span className="shelves-tab-count">{entry.items.length}</span>
             </button>
           ))}
@@ -341,22 +406,63 @@ const ShelvesPage: React.FC = () => {
             {section.items.length} objects, about <strong>{Math.round(units(section.items))}</strong> standard cases wide
             {section.shelves > 0 && <> on {section.shelves} shelves</>}
             {section.unshelved > 0 && section.shelves > 0 && <>, <strong className="shelves-over">{section.unshelved} without a shelf</strong></>}
+            {section.shelves === 0 && plan && (
+              <> · <button type="button" className="shelves-link" onClick={() => setTab('furniture')}>
+                {plan.units.length === 0 ? 'Describe the furniture' : `Give ${SECTION_LABELS[section.key]} a shelf`}
+              </button></>
+            )}
           </div>
+          {/* The shelves in the order they fill: one click takes the list to what stands on one. */}
+          {byShelf && !query && (
+            <nav className="shelf-strip" aria-label={`Shelves of ${SECTION_LABELS[section.key]}`}>
+              {shelves.map(level => (
+                <button key={level.id} type="button" className={`shelf-chip ${level.count === 0 ? 'empty' : ''}`}
+                  title={level.count === 0 ? `${level.code}: empty` : `${level.code}: ${level.first}${level.count > 1 ? ` – ${level.last}` : ''}`}
+                  onClick={() => setJumpTo(level.code)}>
+                  {level.code}<span className="shelf-chip-count">{level.count}</span>
+                </button>
+              ))}
+              {section.unshelved > 0 && (
+                <button type="button" className="shelf-chip shelf-chip-over" onClick={() => setJumpTo(NO_SHELF)}>
+                  {NO_SHELF}<span className="shelf-chip-count">{section.unshelved}</span>
+                </button>
+              )}
+            </nav>
+          )}
           {groups.length === 0 && <div className="shelves-empty">Nothing matches.</div>}
-          {groups.map(group => (
-            <section key={group.heading} className="shelf-letter">
-              <h3 className="shelf-letter-heading">{group.heading}</h3>
-              <ul className="shelf-list">
-                {group.rows.map(({ item, position }) => (
-                  <ShelfRow key={keyOf(item)} position={position} {...rowProps(item)} />
-                ))}
-              </ul>
-            </section>
-          ))}
+          {groups.map(group => {
+            const level = byShelf ? levelByCode.get(group.heading) : undefined;
+            return (
+              <section key={group.heading} id={anchorOf(group.heading)} className="shelf-letter">
+                <div className="shelf-letter-heading">
+                  <h3>{group.heading}</h3>
+                  {level && (
+                    <span className="shelf-letter-meta">
+                      {level.count} · {level.used} of {level.capacity} cases{level.locked && ' · locked'}
+                    </span>
+                  )}
+                  {level && (
+                    <button type="button" className="shelves-link" onClick={() => setUpShelf(level)}>Set up {level.code} ›</button>
+                  )}
+                </div>
+                {group.heading === NO_SHELF && (
+                  <p className="shelf-letter-note">
+                    The {SECTION_LABELS[section.key].toLowerCase()} shelves are full from here. Give {SECTION_LABELS[section.key]} another
+                    shelf, or a shelf more room, in <button type="button" className="shelves-link" onClick={() => setTab('furniture')}>Furniture</button>.
+                  </p>
+                )}
+                <ul className="shelf-list">
+                  {group.rows.map(({ item, position }) => (
+                    <ShelfRow key={keyOf(item)} position={position} {...rowProps(item)} />
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
         </>
       )}
 
-      {plan && tab === 'furniture' && <ShelfFurniture plan={plan} run={run} />}
+      {plan && tab === 'furniture' && <ShelfFurniture plan={plan} run={run} onShowShelf={showShelf} focusLevelId={furnitureFocus} />}
 
       {plan && tab === 'places' && (
         <div className="shelf-places">

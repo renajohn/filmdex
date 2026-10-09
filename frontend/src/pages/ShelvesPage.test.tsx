@@ -103,30 +103,49 @@ describe('ShelvesPage', () => {
     await waitFor(() => expect(shelvingService.createPlace).toHaveBeenCalledWith('Desk'));
   });
 
-  it('range étage par étage une fois les meubles décrits, et envoie à l’étage suivant ce qui n’a pas la place', async () => {
+  it('range étage par étage une fois les meubles décrits, et déplace vers l’étage d’avant ou d’après, nommé', async () => {
+    const levelAt = (id: number, level: number, count: number, first: string | null, last: string | null) => ({
+      id, level, code: `A-${level}`, section: 'films' as const, capacity: 12, ownCapacity: null, usable: 12, used: count,
+      count, pinned: 0, first, last, locked: false, breakBefore: null,
+    });
     const shelved: ShelvingPlan = {
       ...PLAN,
+      units: [{ id: 1, letter: 'A', capacity: 12, levels: [levelAt(1, 1, 2, 'Matrix', 'Moon'), levelAt(2, 2, 1, 'Nemo', 'Nemo')] }],
       sections: PLAN.sections.map(entry => entry.key !== 'films' ? entry : {
         ...entry, shelves: 2, unshelved: 0,
         items: [
           item({ kind: 'movie', id: 10, title: 'The Matrix', sortName: 'Matrix', section: 'films', code: 'A-1', levelId: 1 }),
-          item({ kind: 'movie', id: 11, title: 'Moon', sortName: 'Moon', section: 'films', code: 'A-2', levelId: 2 }),
+          item({ kind: 'movie', id: 11, title: 'Moon', sortName: 'Moon', section: 'films', code: 'A-1', levelId: 1 }),
+          item({ kind: 'movie', id: 12, title: 'Nemo', sortName: 'Nemo', section: 'films', code: 'A-2', levelId: 2 }),
         ],
       }),
     };
     vi.mocked(shelvingService.getPlan).mockResolvedValue(shelved);
     vi.mocked(shelvingService.noRoom).mockReset().mockResolvedValue();
+    vi.mocked(shelvingService.moveBack).mockReset().mockResolvedValue();
     render(<ShelvesPage />);
 
     expect(await screen.findByRole('heading', { name: 'A-2' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'No room for The Matrix' }));
-    await waitFor(() => expect(shelvingService.noRoom).toHaveBeenCalledWith('movie', 10));
-    vi.mocked(shelvingService.moveBack).mockReset().mockResolvedValue();
-    fireEvent.click(screen.getByRole('button', { name: 'Move Moon to the shelf before' }));
-    await waitFor(() => expect(shelvingService.moveBack).toHaveBeenCalledWith('movie', 11));
+    expect(screen.getByText('2 · 2 of 12 cases')).toBeInTheDocument();
+    // The strip of shelves, to reach one in a tap.
+    expect(within(screen.getByRole('navigation', { name: 'Shelves of Films' })).getAllByRole('button')).toHaveLength(2);
+
+    // First on the first shelf: nowhere to go either way.
+    expect(screen.getByRole('button', { name: 'Move The Matrix back to the shelf before' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'No room for The Matrix: move it on to A-2' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'No room for Moon: move it on to A-2' }));
+    await waitFor(() => expect(shelvingService.noRoom).toHaveBeenCalledWith('movie', 11));
+    fireEvent.click(screen.getByRole('button', { name: 'Move Nemo back to A-1' }));
+    await waitFor(() => expect(shelvingService.moveBack).toHaveBeenCalledWith('movie', 12));
+    expect(screen.getByRole('button', { name: 'No room for Nemo: move it on to the next shelf' })).toBeDisabled();
+
+    // A shelf code finds what stands on it.
+    fireEvent.change(screen.getByPlaceholderText('Find on the shelves…'), { target: { value: 'a-2' } });
+    expect(screen.getByText('Nemo')).toBeInTheDocument();
+    expect(screen.queryByText('Moon')).not.toBeInTheDocument();
   });
 
-  it('ajoute un meuble et donne un étage à une section', async () => {
+  it('dessine chaque meuble en colonne, ouvre un étage pour le régler, et passe de la liste au meuble et retour', async () => {
     const furnished: ShelvingPlan = {
       ...PLAN,
       units: [{ id: 1, letter: 'A', capacity: 12, levels: [{
@@ -134,24 +153,45 @@ describe('ShelvesPage', () => {
         count: 10, pinned: 0, first: '2001', last: 'Arrietty', locked: false, breakBefore: null,
       }, {
         id: 6, level: 2, code: 'A-2', section: null, capacity: 12, ownCapacity: null, usable: 10.2, used: 0,
-        count: 0, pinned: 0, first: null, last: null, locked: false, breakBefore: null,
+        count: 0, pinned: 0, first: null, last: null, locked: false, breakBefore: 'Big fish',
       }] }],
+      sections: PLAN.sections.map(entry => entry.key !== 'films' ? entry : {
+        ...entry, shelves: 1,
+        items: [item({ kind: 'movie', id: 10, title: 'The Matrix', sortName: 'Matrix', section: 'films', code: 'A-1', levelId: 5 })],
+      }),
     };
     vi.mocked(shelvingService.getPlan).mockResolvedValue(furnished);
     vi.mocked(shelvingService.createUnit).mockReset().mockResolvedValue();
     vi.mocked(shelvingService.updateLevel).mockReset().mockResolvedValue();
     render(<ShelvesPage />);
-    fireEvent.click(await screen.findByRole('tab', { name: /Furniture/ }));
 
-    expect(screen.getByText('10 · 2001 – Arrietty')).toBeInTheDocument();
+    // From a shelf's heading in the list to its board in the furniture, already open.
+    fireEvent.click(await screen.findByRole('button', { name: 'Set up A-1 ›' }));
+    expect(screen.getByRole('tab', { name: /Furniture/ })).toHaveAttribute('aria-selected', 'true');
+    const unit = screen.getByRole('region', { name: 'Unit A' });
+    expect(within(unit).getByText('2 shelves · 12 cases each')).toBeInTheDocument();
+    expect(within(unit).getByRole('button', { name: /A-1 Films 10 · 10\/12 2001 – Arrietty/ })).toHaveAttribute('aria-expanded', 'true');
+    expect(within(unit).getByRole('button', { name: /A-2 Free No room Nothing put here yet/ })).toHaveAttribute('aria-expanded', 'false');
+
+    const panel = screen.getByRole('group', { name: 'Set up A-1' });
+    expect(within(panel).getByRole('radio', { name: 'Films' })).toBeChecked();
+    expect(within(panel).getByText('Matrix')).toBeInTheDocument();
+    fireEvent.click(within(panel).getByRole('radio', { name: 'Free' }));
+    await waitFor(() => expect(shelvingService.updateLevel).toHaveBeenCalledWith(5, { section: null }));
+    fireEvent.click(within(panel).getByRole('button', { name: 'Lock what it holds' }));
+    await waitFor(() => expect(shelvingService.updateLevel).toHaveBeenCalledWith(5, { locked: true }));
+
+    // The unit's own settings and the new unit stay out of the way until asked for.
+    expect(screen.queryByLabelText('Letter')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Add a unit' }));
     expect(screen.getByLabelText('Letter')).toHaveValue('B');
     fireEvent.click(screen.getByRole('button', { name: 'Add unit' }));
     await waitFor(() => expect(shelvingService.createUnit).toHaveBeenCalledWith({ letter: 'B', levels: 10, capacity: 12, section: 'films' }));
 
-    fireEvent.change(screen.getByLabelText('Section of A-1'), { target: { value: '' } });
-    await waitFor(() => expect(shelvingService.updateLevel).toHaveBeenCalledWith(5, { section: null }));
-    fireEvent.click(screen.getByRole('button', { name: 'Lock A-1' }));
-    await waitFor(() => expect(shelvingService.updateLevel).toHaveBeenCalledWith(5, { locked: true }));
+    // And back to the list, at the shelf.
+    fireEvent.click(screen.getByRole('button', { name: 'Open A-1 in Films ›' }));
+    expect(screen.getByRole('tab', { name: /Films/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('heading', { name: 'A-1' })).toBeInTheDocument();
   });
 
   it('pose un coffret à la main sur un étage libre, et le marque', async () => {
