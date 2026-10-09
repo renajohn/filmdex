@@ -316,6 +316,7 @@ const shelvingService = {
           lockedFrom: level.locked_from,
           lockedThrough: level.locked_through,
           breakBefore: level.break_before,
+          extendThrough: level.extend_through,
         })),
         placed.map(item => ({ key: item.orderKey, units: item.units })),
       );
@@ -363,7 +364,7 @@ const shelvingService = {
     const moved = changes.section !== undefined && changes.section !== level.section;
     await ShelfFurniture.updateLevel(id, {
       ...changes,
-      ...(moved ? { break_before: null, locked: 0, locked_from: null, locked_through: null } : {}),
+      ...(moved ? { break_before: null, extend_through: null, locked: 0, locked_from: null, locked_through: null } : {}),
     });
   },
 
@@ -398,11 +399,51 @@ const shelvingService = {
     if (at === 0) throw new ShelvingError(409, 'It is already first on its shelf: give the shelf more room instead');
     const level = await ShelfFurniture.level(item.levelId);
     if (level?.locked) await ShelfFurniture.updateLevel(item.levelId, { locked_through: held[at - 1].orderKey });
-    else await ShelfFurniture.updateLevel(item.levelId, { break_before: item.orderKey });
+    else {
+      // Moved back onto this shelf earlier, it no longer is.
+      const extended = level?.extend_through != null && item.orderKey <= level.extend_through;
+      await ShelfFurniture.updateLevel(item.levelId, {
+        break_before: item.orderKey,
+        ...(extended ? { extend_through: held[at - 1].orderKey } : {}),
+      });
+    }
   },
 
-  /** Forgets that an object had no room on a shelf. */
-  clearBreak: (id: number): Promise<void> => ShelfFurniture.updateLevel(id, { break_before: null }),
+  /**
+   * It would fit on the shelf before: that shelf takes it, and those before it
+   * on its shelf, whatever its room. The shelf before is the section's
+   * previous one, in the order the shelves fill.
+   */
+  moveBack: async (kind: ShelfKind, id: number): Promise<void> => {
+    const { items, units, levels } = await shelvingService.arrange();
+    const item = items.find(other => other.kind === kind && other.id === id);
+    if (!item?.levelId) throw new ShelvingError(409, 'It is not on a shelf');
+    if (item.pinned) throw new ShelvingError(409, 'It was put on this shelf by hand: choose another shelf for it instead');
+    const current = levels.find(level => level.id === item.levelId)!;
+    const shelves = units.flatMap(unit => levels.filter(level => level.unit_id === unit.id && level.section === current.section));
+    const previous = shelves[shelves.findIndex(level => level.id === current.id) - 1];
+    if (!previous) throw new ShelvingError(409, 'It is on the first shelf of its section');
+
+    if (previous.locked) {
+      await ShelfFurniture.updateLevel(previous.id, { locked_through: item.orderKey });
+    } else {
+      // Only it moves: the shelf before stops right after it, as it stopped before it.
+      const following = items.find(other => other.section === item.section && !other.pinned && other.placeId == null && other.orderKey > item.orderKey);
+      await ShelfFurniture.updateLevel(previous.id, {
+        extend_through: item.orderKey,
+        break_before: following ? following.orderKey : null,
+      });
+    }
+    if (current.locked) {
+      const rest = items.filter(other => other.levelId === current.id && !other.pinned && other.orderKey > item.orderKey);
+      await ShelfFurniture.updateLevel(current.id, rest.length > 0
+        ? { locked_from: rest[0].orderKey }
+        : { locked: 0, locked_from: null, locked_through: null });
+    }
+  },
+
+  /** Forgets that an object had no room on a shelf, and what was moved back onto it. */
+  clearBreak: (id: number): Promise<void> => ShelfFurniture.updateLevel(id, { break_before: null, extend_through: null }),
 
   places: ShelfItem.places,
   createPlace: ShelfItem.createPlace,

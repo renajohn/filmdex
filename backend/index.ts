@@ -248,6 +248,7 @@ app.get('/api/shelving', shelvingController.plan);
 app.get('/api/shelving/locations', shelvingController.locations);
 app.put('/api/shelving/items/:kind/:id', shelvingController.saveItem);
 app.post('/api/shelving/items/:kind/:id/no-room', shelvingController.noRoom);
+app.post('/api/shelving/items/:kind/:id/move-back', shelvingController.moveBack);
 app.post('/api/shelving/units', shelvingController.createUnit);
 app.put('/api/shelving/units/:id', shelvingController.updateUnit);
 app.delete('/api/shelving/units/:id', shelvingController.deleteUnit);

@@ -11,6 +11,7 @@ vi.mock('../services/shelvingService', () => ({
     renamePlace: vi.fn(),
     deletePlace: vi.fn(),
     noRoom: vi.fn(),
+    moveBack: vi.fn(),
     createUnit: vi.fn(),
     updateUnit: vi.fn(),
     deleteUnit: vi.fn(),
@@ -120,6 +121,9 @@ describe('ShelvesPage', () => {
     expect(await screen.findByRole('heading', { name: 'A-2' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'No room for The Matrix' }));
     await waitFor(() => expect(shelvingService.noRoom).toHaveBeenCalledWith('movie', 10));
+    vi.mocked(shelvingService.moveBack).mockReset().mockResolvedValue();
+    fireEvent.click(screen.getByRole('button', { name: 'Move Moon to the shelf before' }));
+    await waitFor(() => expect(shelvingService.moveBack).toHaveBeenCalledWith('movie', 11));
   });
 
   it('ajoute un meuble et donne un étage à une section', async () => {

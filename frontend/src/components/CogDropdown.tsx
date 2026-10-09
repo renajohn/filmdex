@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { BsGear, BsPlus, BsUpload, BsDownload, BsArrowsAngleContract, BsImage, BsArchive } from 'react-icons/bs';
+import { BsGear, BsPlus, BsUpload, BsDownload, BsArrowsAngleContract, BsImage, BsArchive, BsBookshelf } from 'react-icons/bs';
 import './CogDropdown.css';
 
 interface CogDropdownProps {
@@ -14,6 +14,7 @@ interface CogDropdownProps {
   onAddBook?: () => void;
   onExportBooksCSV?: () => void;
   onBackup?: () => void;
+  onShelves?: () => void;
   currentPage?: string;
 }
 
@@ -28,6 +29,7 @@ const CogDropdown: React.FC<CogDropdownProps> = ({
   onAddBook,
   onExportBooksCSV,
   onBackup,
+  onShelves,
   currentPage = 'dexvault'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -132,6 +134,13 @@ const CogDropdown: React.FC<CogDropdownProps> = ({
 
               <button
                 className="cog-menu-item"
+                onClick={() => handleMenuClick(onShelves)}
+              >
+                <BsBookshelf className="menu-icon" />
+                Shelves
+              </button>
+              <button
+                className="cog-menu-item"
                 onClick={() => handleMenuClick(onBackup)}
               >
                 <BsArchive className="menu-icon" />
@@ -151,6 +160,13 @@ const CogDropdown: React.FC<CogDropdownProps> = ({
 
               <div className="cog-menu-separator" />
 
+              <button
+                className="cog-menu-item"
+                onClick={() => handleMenuClick(onShelves)}
+              >
+                <BsBookshelf className="menu-icon" />
+                Shelves
+              </button>
               <button
                 className="cog-menu-item"
                 onClick={() => handleMenuClick(onBackup)}
@@ -179,6 +195,13 @@ const CogDropdown: React.FC<CogDropdownProps> = ({
 
               <div className="cog-menu-separator" />
 
+              <button
+                className="cog-menu-item"
+                onClick={() => handleMenuClick(onShelves)}
+              >
+                <BsBookshelf className="menu-icon" />
+                Shelves
+              </button>
               <button
                 className="cog-menu-item"
                 onClick={() => handleMenuClick(onBackup)}

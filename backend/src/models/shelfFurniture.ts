@@ -19,14 +19,16 @@ export interface ShelfLevelRow {
   capacity: number | null;
   /** The order key of the first object that found no room here: it and those after it start on the next shelf. */
   break_before: string | null;
+  /** The order key of the last object the owner moved back onto it: it takes all up to that one, whatever its room. */
+  extend_through: string | null;
   /** The order keys of the first and last object a locked shelf keeps: it keeps all up to the last, whatever its capacity. */
   locked_from: string | null;
   locked_through: string | null;
   locked: number;
 }
 
-type LevelColumn = 'section' | 'capacity' | 'break_before' | 'locked_from' | 'locked_through' | 'locked';
-const LEVEL_COLUMNS: LevelColumn[] = ['section', 'capacity', 'break_before', 'locked_from', 'locked_through', 'locked'];
+type LevelColumn = 'section' | 'capacity' | 'break_before' | 'extend_through' | 'locked_from' | 'locked_through' | 'locked';
+const LEVEL_COLUMNS: LevelColumn[] = ['section', 'capacity', 'break_before', 'extend_through', 'locked_from', 'locked_through', 'locked'];
 
 const run = (sql: string, params: unknown[] = []): Promise<{ lastID: number; changes: number }> =>
   new Promise((resolve, reject) =>
@@ -66,6 +68,7 @@ const ShelfFurniture = {
         section        TEXT,
         capacity       INTEGER,
         break_before   TEXT,
+        extend_through TEXT,
         locked_from    TEXT,
         locked_through TEXT,
         locked         INTEGER NOT NULL DEFAULT 0,
@@ -73,6 +76,8 @@ const ShelfFurniture = {
       )
     `);
     await run(`UPDATE shelf_levels SET section = NULL WHERE section = 'box_sets'`);
+    const columns = await all<{ name: string }>(`PRAGMA table_info(shelf_levels)`);
+    if (!columns.some(column => column.name === 'extend_through')) await run(`ALTER TABLE shelf_levels ADD COLUMN extend_through TEXT`);
   },
 
   units: (): Promise<ShelfUnitRow[]> => all<ShelfUnitRow>(`SELECT * FROM shelf_units ORDER BY position, letter`),

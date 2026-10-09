@@ -143,6 +143,17 @@ const shelvingController = {
     await act(res, 'Moving to the next shelf', () => shelvingService.noRoom(kind, id));
   },
 
+  /** It would fit on the shelf before: that shelf takes it. */
+  moveBack: async (req: Request, res: Response): Promise<void> => {
+    const kind = req.params.kind as ShelfKind;
+    const id = Number(req.params.id);
+    if (!SHELF_KINDS.includes(kind) || !Number.isInteger(id)) {
+      res.status(404).json({ error: 'Unknown item' });
+      return;
+    }
+    await act(res, 'Moving to the shelf before', () => shelvingService.moveBack(kind, id));
+  },
+
   /** Every object in shelf order within its section, and those kept elsewhere. */
   plan: async (_req: Request, res: Response): Promise<void> => {
     try {

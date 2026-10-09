@@ -18,7 +18,7 @@ import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
 import musicService from './services/musicService';
 import bookService from './services/bookService';
-import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsDisc, BsArrowLeft, BsBarChart, BsBookshelf, BsFilm, BsBook } from 'react-icons/bs';
+import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsDisc, BsArrowLeft, BsBarChart, BsFilm, BsBook } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import { readStored, writeStored } from './utils/safeStorage';
@@ -1191,13 +1191,6 @@ function AppContent() {
                   <BsHeart className="segment-icon" />
                 </button>
                 <button
-                  className={`segment ${location.pathname === '/shelves' ? 'active' : ''}`}
-                  onClick={handleShelves}
-                  data-tooltip="Shelves - Where each disc stands"
-                >
-                  <BsBookshelf className="segment-icon" />
-                </button>
-                <button
                   className={`segment ${location.pathname === '/analytics' ? 'active' : ''}`}
                   onClick={handleAnalytics}
                   data-tooltip="Analytics - The palant\u00EDr of data"
@@ -1225,6 +1218,7 @@ function AppContent() {
                 onAddBook={handleAddBook}
                 onExportBooksCSV={handleExportBooksCSV}
                 onBackup={handleBackup}
+                onShelves={handleShelves}
                 currentPage={location.pathname === '/musicdex' ? 'musicdex' : location.pathname === '/bookdex' ? 'bookdex' : 'filmdex'}
               />
             </div>

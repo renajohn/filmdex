@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Form } from 'react-bootstrap';
-import { BsArrowBarDown, BsPencil, BsTrash, BsX } from 'react-icons/bs';
+import { BsArrowBarDown, BsArrowBarUp, BsPencil, BsTrash, BsX } from 'react-icons/bs';
 import shelvingService, {
   type ShelfSection, type ShelvedItem, type ShelvingPlan, type ShelfSettings,
 } from '../services/shelvingService';
@@ -155,9 +155,10 @@ interface RowProps {
   onSave: (settings: ShelfSettings) => Promise<void>;
   onClose: () => void;
   onNoRoom: () => void;
+  onMoveBack: () => void;
 }
 
-const ShelfRow: React.FC<RowProps> = ({ item, position, editing, places, units, onEdit, onSave, onClose, onNoRoom }) => {
+const ShelfRow: React.FC<RowProps> = ({ item, position, editing, places, units, onEdit, onSave, onClose, onNoRoom, onMoveBack }) => {
   const image = thumbnail(item.image);
   // A classical CD or a compilation is filed under a name worked out from its credits: worth a look.
   const unsure = item.sortSource === 'guess' && item.kind === 'album';
@@ -188,6 +189,13 @@ const ShelfRow: React.FC<RowProps> = ({ item, position, editing, places, units, 
           <span className={`shelf-code ${item.pinned ? 'pinned' : ''}`} title={item.pinned ? 'Put on this shelf by hand' : 'Its place in order'}>
             {item.code}
           </span>
+        )}
+        {item.code && !item.pinned && !editing && (
+          <button type="button" className="shelf-edit" aria-label={`Move ${item.title} to the shelf before`}
+            title="It fits on the shelf before: move it back there"
+            onClick={event => { event.stopPropagation(); onMoveBack(); }}>
+            <BsArrowBarUp />
+          </button>
         )}
         {item.code && !item.pinned && !editing && (
           <button type="button" className="shelf-edit" aria-label={`No room for ${item.title}`}
@@ -281,6 +289,7 @@ const ShelvesPage: React.FC = () => {
     onSave: saveItem(item),
     onClose: () => setEditing(null),
     onNoRoom: () => run(() => shelvingService.noRoom(item.kind, item.id)),
+    onMoveBack: () => run(() => shelvingService.moveBack(item.kind, item.id)),
   });
 
   const units = (items: ShelvedItem[]) => items.reduce((sum, item) => sum + item.units, 0);

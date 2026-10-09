@@ -52,7 +52,7 @@ const LevelCard: React.FC<{ level: ShelfLevel; run: Props['run'] }> = ({ level, 
       </div>
       {(level.section || level.count > 0) && (
         <>
-          <div className="furniture-fill" title={`${level.used} of ${level.capacity} cases, filled up to ${level.usable}`}>
+          <div className="furniture-fill" title={`${level.used} of ${level.capacity} cases`}>
             <div className={`furniture-fill-bar ${level.used > level.usable ? 'over' : ''}`} style={{ width: `${full}%` }} />
           </div>
           <div className="furniture-level-range">
@@ -143,7 +143,7 @@ const ShelfFurniture: React.FC<Props> = ({ plan, run }) => {
     <div className="furniture">
       <p className="shelves-subtitle">
         Each unit is a column of shelves, numbered from the top: A-1, A-2… Capacity counts standard cases: Blu-ray for films (a DVD takes 1.2),
-        jewel cases for CDs. Shelves fill to 85%, leaving room for what comes later. A free shelf only takes what you put on it by hand,
+        jewel cases for CDs. Each shelf fills up to its capacity; set a shelf's own when it holds more or less. A free shelf only takes what you put on it by hand,
         from an object's pencil. Lock a shelf once arranged.
       </p>
 

@@ -104,6 +104,10 @@ const shelvingService = {
   noRoom: (kind: ShelfKind, id: number): Promise<void> =>
     send<void>(`/items/${kind}/${id}/no-room`, { method: 'POST' }),
 
+  /** It would fit on the shelf before: that shelf takes it. */
+  moveBack: (kind: ShelfKind, id: number): Promise<void> =>
+    send<void>(`/items/${kind}/${id}/move-back`, { method: 'POST' }),
+
   createUnit: (unit: { letter: string; levels: number; capacity: number; section: ShelfSection | null }): Promise<void> =>
     send<void>(`/units`, { method: 'POST', body: JSON.stringify(unit) }),
 

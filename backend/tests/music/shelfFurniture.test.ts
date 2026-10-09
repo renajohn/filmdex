@@ -9,24 +9,29 @@ const shelf = (id: number, fields: Partial<FillShelf> = {}): FillShelf => ({
 const items = (...keys: string[]) => keys.map(key => ({ key, units: 1 }));
 
 describe('le remplissage des étagères', () => {
-  it('remplit chaque étage à 85 %, dans l’ordre, et compte ce qui ne tient nulle part', () => {
-    expect(usableCases(10)).toBe(8.5);
-    const keys = 'abcdefghijklmnopqrst'.split('');
+  it('remplit chaque étage jusqu’à sa capacité, dans l’ordre, et compte ce qui ne tient nulle part', () => {
+    expect(usableCases(10)).toBe(10);
+    const keys = 'abcdefghijklmnopqrstuv'.split('');
     const { shelfOf, overflow } = fillShelves([shelf(1), shelf(2)], items(...keys));
-    expect(shelfOf.slice(0, 8)).toEqual(Array(8).fill(1));
-    expect(shelfOf.slice(8, 16)).toEqual(Array(8).fill(2));
-    expect(overflow).toBe(4);
+    expect(shelfOf.slice(0, 10)).toEqual(Array(10).fill(1));
+    expect(shelfOf.slice(10, 20)).toEqual(Array(10).fill(2));
+    expect(overflow).toBe(2);
   });
 
-  it('met 10 Blu-ray, ou 8 DVD, sur un étage qui en tient 12', () => {
-    const blurays = fillShelves([shelf(1, { capacity: 12 })], items(...'abcdefghijkl'.split('')));
-    expect(blurays.shelfOf.filter(id => id === 1)).toHaveLength(10);
+  it('met 12 Blu-ray, ou 10 DVD, sur un étage qui en tient 12', () => {
+    const blurays = fillShelves([shelf(1, { capacity: 12 })], items(...'abcdefghijklm'.split('')));
+    expect(blurays.shelfOf.filter(id => id === 1)).toHaveLength(12);
     const dvds = fillShelves([shelf(1, { capacity: 12 })], 'abcdefghijkl'.split('').map(key => ({ key, units: 1.2 })));
-    expect(dvds.shelfOf.filter(id => id === 1)).toHaveLength(8);
+    expect(dvds.shelfOf.filter(id => id === 1)).toHaveLength(10);
+  });
+
+  it('prend sur un étage ce qu’on y a remonté, même au-delà de sa place', () => {
+    const { shelfOf } = fillShelves([shelf(1, { capacity: 2, extendThrough: 'c' }), shelf(2)], items('a', 'b', 'c', 'd'));
+    expect(shelfOf).toEqual([1, 1, 1, 2]);
   });
 
   it('compte un coffret selon sa largeur, et donne un étage vide à un objet plus large que lui', () => {
-    const { shelfOf } = fillShelves([shelf(1, { capacity: 4 }), shelf(2, { capacity: 4 })],
+    const { shelfOf } = fillShelves([shelf(1, { capacity: 3 }), shelf(2, { capacity: 3 })],
       [{ key: 'a', units: 2 }, { key: 'b', units: 2 }, { key: 'c', units: 9 }]);
     expect(shelfOf).toEqual([1, 2, null]);
   });
@@ -37,7 +42,7 @@ describe('le remplissage des étagères', () => {
   });
 
   it('compte la place prise par ce qui est posé à la main', () => {
-    const { shelfOf } = fillShelves([shelf(1, { reserved: 8 }), shelf(2)], items('a', 'b'));
+    const { shelfOf } = fillShelves([shelf(1, { reserved: 10 }), shelf(2)], items('a', 'b'));
     expect(shelfOf).toEqual([2, 2]);
   });
 
@@ -74,6 +79,16 @@ describe('les meubles', () => {
     expect(ids.map(id => codeOf(plan, id))).toEqual(['Q-1', 'Q-1', 'Q-2', 'Q-2']);
     expect(plan.units.find((u: any) => u.letter === 'Q').levels[0].breakBefore).toBe('Zz Charlie');
     expect((await request(app).get('/api/shelving/locations')).body.movies[ids[2]]).toBe('Q-2');
+
+    // Back onto the shelf before, then down again.
+    await request(app).post(`/api/shelving/items/movie/${ids[2]}/move-back`).expect(200);
+    plan = (await request(app).get('/api/shelving')).body;
+    expect(ids.map(id => codeOf(plan, id))).toEqual(['Q-1', 'Q-1', 'Q-1', 'Q-2']);
+    await request(app).post(`/api/shelving/items/movie/${ids[2]}/no-room`).expect(200);
+    plan = (await request(app).get('/api/shelving')).body;
+    expect(ids.map(id => codeOf(plan, id))).toEqual(['Q-1', 'Q-1', 'Q-2', 'Q-2']);
+    const first = plan.sections[0].items.find((i: any) => i.code === 'Q-1');
+    await request(app).post(`/api/shelving/items/${first.kind}/${first.id}/move-back`).expect(409);
 
     const second = unit.levels[1].id;
     await request(app).put(`/api/shelving/levels/${second}`).send({ locked: true }).expect(200);
