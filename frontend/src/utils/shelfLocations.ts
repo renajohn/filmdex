@@ -12,6 +12,10 @@ export interface ShelfMove {
   /** What it stands next to there: the one before it, or the one after when it is first. */
   after?: string | null;
   before?: string | null;
+  /** It may stay on the shelf it stood on: that shelf had room for it after all. */
+  canStay?: boolean;
+  /** It may go on to the next shelf instead, for want of room. */
+  canNoRoom?: boolean;
 }
 
 interface Locations {
@@ -81,6 +85,18 @@ export async function markMovesDone(moves: ShelfMove[]): Promise<void> {
   });
   if (!response.ok) throw new Error('The moves could not be recorded');
   await refreshShelfLocations();
+}
+
+const planListeners = new Set<() => void>();
+
+/** The plan changed outside the shelves page, from the moves notice: the page reads it again. */
+export function onShelvesChanged(listener: () => void): () => void {
+  planListeners.add(listener);
+  return () => { planListeners.delete(listener); };
+}
+
+export function shelvesChanged(): void {
+  planListeners.forEach(listener => listener());
 }
 
 /** For tests: forget what was fetched. */

@@ -41,6 +41,12 @@ describe('le remplissage des étagères', () => {
     expect(shelfOf).toEqual([1, 1, 2, 2]);
   });
 
+  it('oublie qu’un étage n’avait pas la place quand plus aucun étage après lui ne prend la suite', () => {
+    const { shelfOf, overflow } = fillShelves([shelf(1, { breakBefore: 'c' })], items('a', 'b', 'c', 'd'));
+    expect(shelfOf).toEqual([1, 1, 1, 1]);
+    expect(overflow).toBe(0);
+  });
+
   it('compte la place prise par ce qui est posé à la main', () => {
     const { shelfOf } = fillShelves([shelf(1, { reserved: 10 }), shelf(2)], items('a', 'b'));
     expect(shelfOf).toEqual([2, 2]);
@@ -135,9 +141,29 @@ describe('les meubles', () => {
     expect(moves.every((move: any) => !!move.after !== !!move.before)).toBe(true);
     expect(moves.find((move: any) => move.from === 'M-1' && move.to === 'M-2')).toMatchObject({ after: null, before: expect.any(String) });
     expect(await movesNow()).toEqual(moves);
+    // One pushed on from the shelf just before may stay there; one put after another may go on for want of room.
+    expect(moves.find((move: any) => move.from === 'M-1' && move.to === 'M-2')).toMatchObject({ canStay: true, canNoRoom: false });
+    expect(moves.every((move: any) => move.canNoRoom === (move.to != null && move.after != null))).toBe(true);
 
     await request(app).post('/api/shelving/moves/done').send({ moves }).expect(200);
     expect(await movesNow()).toEqual([]);
     await request(app).post('/api/shelving/moves/done').send({ moves: [{ kind: 'shelf', id: 1, to: 'M-1' }] }).expect(400);
+  });
+
+  it('garde un étage plein à ce qu’il tient quand un film n’y a pas la place', async () => {
+    await request(app).post('/api/shelving/units').send({ letter: 'P', levels: 3, capacity: 2, section: 'films' }).expect(201);
+    let plan = (await request(app).get('/api/shelving')).body;
+    const items = () => plan.sections[0].items.filter((i: any) => !i.pinned);
+    // A shelf holding two, with a shelf of the section after it.
+    const shelves = plan.units.flatMap((u: any) => u.levels).filter((l: any) => l.section === 'films');
+    const target = shelves.slice(0, -1).find((l: any) => items().filter((i: any) => i.levelId === l.id).length >= 2);
+    const level = () => plan.units.flatMap((u: any) => u.levels).find((l: any) => l.id === target.id);
+    const held = items().filter((i: any) => i.levelId === target.id);
+    const second = held[1];
+
+    await request(app).post(`/api/shelving/items/${second.kind}/${second.id}/no-room`).send({ full: true }).expect(200);
+    plan = (await request(app).get('/api/shelving')).body;
+    expect(level().ownCapacity).toBe(held[0].units);
+    expect(plan.sections[0].items.find((i: any) => i.kind === second.kind && i.id === second.id).levelId).not.toBe(target.id);
   });
 });

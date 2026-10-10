@@ -5,7 +5,7 @@ import shelvingService, {
   type ShelfLevel, type ShelfSection, type ShelvedItem, type ShelvingPlan, type ShelfSettings,
 } from '../services/shelvingService';
 import ShelfFurniture from './ShelfFurniture';
-import { refreshShelfLocations } from '../utils/shelfLocations';
+import { onShelvesChanged, refreshShelfLocations } from '../utils/shelfLocations';
 import { SECTION_LABELS } from './shelfLabels';
 import './ShelvesPage.css';
 
@@ -284,6 +284,7 @@ const ShelvesPage: React.FC = () => {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => onShelvesChanged(load), [load]);
 
   const saveItem = (item: ShelvedItem) => async (settings: ShelfSettings) => {
     await shelvingService.saveItem(item.kind, item.id, settings);

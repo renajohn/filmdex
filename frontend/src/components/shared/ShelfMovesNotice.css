@@ -65,10 +65,54 @@
   font-weight: 600;
 }
 
+.shelf-moves-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.shelf-moves-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  color: #b9bcc3;
+}
+
+.shelf-moves-actions button {
+  padding: 1px 8px;
+  border: 1px solid #4a4e57;
+  border-radius: 999px;
+  background: transparent;
+  color: #e0e0e0;
+  font-size: 0.78rem;
+}
+
+.shelf-moves-actions button:hover:not(:disabled) {
+  border-color: #f0c654;
+  color: #f0c654;
+}
+
+.shelf-moves-tick {
+  flex: none;
+  align-self: flex-start;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #8a8f99;
+  line-height: 1.4;
+}
+
+.shelf-moves-tick:hover:not(:disabled) {
+  border-color: #5fd39a;
+  color: #5fd39a;
+}
+
 .shelf-moves-error {
   color: #e5734f;
 }
 
-.shelf-moves .btn {
+.shelf-moves > .btn {
   align-self: flex-end;
 }

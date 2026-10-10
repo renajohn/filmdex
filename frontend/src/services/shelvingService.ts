@@ -104,9 +104,9 @@ const shelvingService = {
 
   deletePlace: (id: number): Promise<void> => send<void>(`/places/${id}`, { method: 'DELETE' }),
 
-  /** It did not fit on its shelf: it and those after it go on the next one. */
-  noRoom: (kind: ShelfKind, id: number): Promise<void> =>
-    send<void>(`/items/${kind}/${id}/no-room`, { method: 'POST' }),
+  /** It did not fit on its shelf: it and those after it go on the next one; `full` also keeps the shelf at what it holds now. */
+  noRoom: (kind: ShelfKind, id: number, full = false): Promise<void> =>
+    send<void>(`/items/${kind}/${id}/no-room`, full ? { method: 'POST', body: JSON.stringify({ full }) } : { method: 'POST' }),
 
   /** It would fit on the shelf before: that shelf takes it. */
   moveBack: (kind: ShelfKind, id: number): Promise<void> =>

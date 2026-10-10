@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Button } from 'react-bootstrap';
-import { BsArrowRightCircle, BsBookshelf, BsDashCircle, BsPlusCircle } from 'react-icons/bs';
-import { markMovesDone, refreshShelfLocations, useShelfMoves, type ShelfMove } from '../../utils/shelfLocations';
+import { BsArrowRightCircle, BsBookshelf, BsCheck2, BsDashCircle, BsPlusCircle } from 'react-icons/bs';
+import { markMovesDone, refreshShelfLocations, shelvesChanged, useShelfMoves, type ShelfMove } from '../../utils/shelfLocations';
+import shelvingService from '../../services/shelvingService';
 import './ShelfMovesNotice.css';
 
 /** Asked again this often while the page is in view, for a film added from elsewhere. */
@@ -32,6 +33,8 @@ const ShelfMovesNotice: React.FC = () => {
   const { pathname } = useLocation();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** The move whose "No room" is asking whether the shelf is full. */
+  const [asking, setAsking] = useState<string | null>(null);
 
   useEffect(() => { refreshShelfLocations(); }, [pathname]);
 
@@ -47,17 +50,30 @@ const ShelfMovesNotice: React.FC = () => {
 
   if (moves.length === 0) return null;
 
-  const done = async () => {
+  const keyOf = (move: ShelfMove) => `${move.kind}:${move.id}`;
+
+  /** Changes the plan or records what was done, then asks again what is left to move. */
+  const act = async (work: () => Promise<void>) => {
     setSaving(true);
     setError(null);
     try {
-      await markMovesDone(moves);
+      await work();
+      setAsking(null);
+      await refreshShelfLocations();
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setSaving(false);
     }
   };
+
+  /** Changes where things go: the shelves page, if open, shows it too. */
+  const replan = (work: () => Promise<void>) => act(async () => {
+    await work();
+    shelvesChanged();
+  });
+
+  const done = () => act(() => markMovesDone(moves));
 
   return (
     <aside className="shelf-moves" role="status" aria-label="Shelves to rearrange">
@@ -67,9 +83,42 @@ const ShelfMovesNotice: React.FC = () => {
       </div>
       <ul className="shelf-moves-list">
         {moves.map(move => (
-          <li key={`${move.kind}:${move.id}`}>
+          <li key={keyOf(move)}>
             {iconOf(move)}
-            <span><span className="shelf-moves-title">{move.title}</span>: {whatToDo(move)}</span>
+            <div className="shelf-moves-body">
+              <span><span className="shelf-moves-title">{move.title}</span>: {whatToDo(move)}</span>
+              {asking === keyOf(move) ? (
+                <div className="shelf-moves-actions">
+                  <span>Is {move.to} full now?</span>
+                  <button type="button" disabled={saving} onClick={() => replan(() => shelvingService.noRoom(move.kind, move.id, true))}>
+                    Yes, it is full
+                  </button>
+                  <button type="button" disabled={saving} onClick={() => replan(() => shelvingService.noRoom(move.kind, move.id))}>
+                    Just this one
+                  </button>
+                  <button type="button" disabled={saving} onClick={() => setAsking(null)}>Cancel</button>
+                </div>
+              ) : (move.canStay || move.canNoRoom) && (
+                <div className="shelf-moves-actions">
+                  {move.canStay && (
+                    <button type="button" disabled={saving} onClick={() => replan(() => shelvingService.moveBack(move.kind, move.id))}
+                      title={`It still fits on ${move.from}: stop the moves there`}>
+                      It fits on {move.from}
+                    </button>
+                  )}
+                  {move.canNoRoom && (
+                    <button type="button" disabled={saving} onClick={() => setAsking(keyOf(move))}
+                      title={`${move.to} has no room for it: it goes on to the next shelf`}>
+                      No room
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+            <button type="button" className="shelf-moves-tick" disabled={saving} onClick={() => act(() => markMovesDone([move]))}
+              aria-label={`Done: ${move.title}`} title="Done">
+              <BsCheck2 aria-hidden="true" />
+            </button>
           </li>
         ))}
       </ul>

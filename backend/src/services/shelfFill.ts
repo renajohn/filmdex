@@ -50,6 +50,9 @@ export const fillShelves = (shelves: FillShelf[], items: FillItem[]): { shelfOf:
       return;
     }
     const lockedAhead = shelves.slice(index + 1).find(other => other.locked && other.lockedFrom != null);
+    // A shelf told it had no room keeps the rest when no shelf after it can take them,
+    // as when the next one went to another section since.
+    const breakBefore = shelves.slice(index + 1).some(other => !other.locked) ? shelf.breakBefore : null;
     const room = usableCases(shelf.capacity) - (shelf.reserved || 0);
     let used = 0;
     while (next < items.length) {
@@ -60,7 +63,7 @@ export const fillShelves = (shelves: FillShelf[], items: FillItem[]): { shelfOf:
         used += item.units;
         continue;
       }
-      if (used > 0 && shelf.breakBefore != null && item.key >= shelf.breakBefore) break;
+      if (used > 0 && breakBefore != null && item.key >= breakBefore) break;
       if (used + item.units > room + 1e-9 && (used > 0 || (shelf.reserved || 0) > 0)) break;
       shelfOf[next++] = shelf.id;
       used += item.units;

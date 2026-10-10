@@ -140,7 +140,7 @@ const shelvingController = {
       res.status(404).json({ error: 'Unknown item' });
       return;
     }
-    await act(res, 'Moving to the next shelf', () => shelvingService.noRoom(kind, id));
+    await act(res, 'Moving to the next shelf', () => shelvingService.noRoom(kind, id, req.body?.full === true));
   },
 
   /** It would fit on the shelf before: that shelf takes it. */
