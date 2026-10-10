@@ -2,69 +2,120 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ShelfMovesNotice from './ShelfMovesNotice';
-import { resetShelfLocations } from '../../utils/shelfLocations';
+import { refreshShelfLocations, resetShelfLocations } from '../../utils/shelfLocations';
 
+// A new film on A-4; the last one there, King Kong, goes on to A-5.
 const MOVES = [
-  { kind: 'movie', id: 1, title: 'Jurassic World', from: null, to: 'A-4', after: 'Jurassic Park III', before: null, canNoRoom: true },
-  { kind: 'movie', id: 2, title: 'King Kong', from: 'A-4', to: 'A-5', after: null, before: 'Kung Fu Panda', canStay: true },
-  { kind: 'box_set', id: 3, title: 'Lord of the Rings', from: 'B-10', to: null },
+  { kind: 'movie', id: 1, title: 'Jurassic World', from: null, to: 'A-4', after: 'Jurassic Park III', before: null, toLevelId: 4 },
+  { kind: 'movie', id: 2, title: 'King Kong', from: 'A-4', to: 'A-5', after: null, before: 'Kung Fu Panda', toLevelId: 5 },
 ];
+const LINE = { code: 'A-4', items: [
+  { kind: 'movie', id: 9, title: 'Jurassic Park III' },
+  { kind: 'movie', id: 1, title: 'Jurassic World' },
+  { kind: 'movie', id: 2, title: 'King Kong' },
+] };
+const LEVELS = [{ id: 4, capacity: null, break_before: null, extend_through: null, locked: 0, locked_from: null, locked_through: null }];
 
-let moves = MOVES;
+let moves: Array<Record<string, unknown>> = MOVES;
+const body = (url: string) => JSON.parse(vi.mocked(fetch).mock.calls.filter(([called]) => called === url).pop()![1]!.body as string);
 
 beforeEach(() => {
   resetShelfLocations();
   moves = MOVES;
+  const stored = new Map<string, string>();
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => { stored.set(key, value); },
+    removeItem: (key: string) => { stored.delete(key); },
+  });
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    const ok = (json: unknown) => ({ ok: true, status: 200, json: async () => json });
     if (url === '/api/shelving/moves/done') {
       const done = JSON.parse(init!.body as string).moves.map((move: { id: number }) => move.id);
       moves = moves.filter(move => !done.includes(move.id));
-      return { ok: true, status: 200, json: async () => ({ ok: true }) };
+      return ok({ ok: true });
     }
-    if (init?.method === 'POST') return { ok: true, status: 200, json: async () => ({ ok: true }) };
-    return { ok: true, json: async () => ({ movies: {}, albums: {}, moves }) };
+    if (url === '/api/shelving/moves/undo') {
+      moves = MOVES;
+      return ok({ ok: true });
+    }
+    if (url === '/api/shelving/levels/4/take-off') {
+      // Taken off to the end: the chain goes on with King Kong; nothing off: it stops there.
+      if (JSON.parse(init!.body as string).count === 0) moves = moves.filter(move => move.id !== 2);
+      return ok({ ok: true });
+    }
+    if (url === '/api/shelving/levels/4/line') return ok(LINE);
+    if (url === '/api/shelving/levels/5/line') return ok({ code: 'A-5', items: [{ kind: 'movie', id: 2, title: 'King Kong' }] });
+    if (url === '/api/shelving/levels/state' && !init?.method) return ok({ levels: LEVELS });
+    if (init?.method) return ok({ ok: true });
+    return ok({ movies: {}, albums: {}, moves });
   }));
 });
 
 afterEach(() => vi.unstubAllGlobals());
 
+const show = async () => {
+  await act(async () => { render(<MemoryRouter><ShelfMovesNotice /></MemoryRouter>); });
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled());
+};
+
 describe('ShelfMovesNotice', () => {
-  it('dit quoi déplacer sur les étagères, et s’efface une fois fait', async () => {
-    await act(async () => { render(<MemoryRouter><ShelfMovesNotice /></MemoryRouter>); });
-    expect(screen.getByText('3 things to move on the shelves')).toBeInTheDocument();
-    const list = screen.getByRole('status');
-    expect(list).toHaveTextContent('Jurassic World: Put on A-4, after Jurassic Park III');
-    expect(list).toHaveTextContent('King Kong: Move from A-4 to A-5');
-    expect(list).not.toHaveTextContent('Kung Fu Panda');
-    expect(list).toHaveTextContent('Lord of the Rings: Take off B-10');
+  it('propose de sortir ce que le plan fait passer à l’étage suivant, d’un seul geste', async () => {
+    await show();
+    const notice = screen.getByRole('status');
+    expect(notice).toHaveTextContent('Put on A-4');
+    expect(notice).toHaveTextContent('Jurassic World (new), after Jurassic Park III');
+    expect(notice).toHaveTextContent('Take off for A-5:');
+    // The plan's guess is lit: King Kong comes off, Jurassic World stays.
+    expect(screen.getByRole('button', { name: 'King Kong' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Jurassic World' })).toHaveAttribute('aria-pressed', 'false');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Done, dismiss' }));
-    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
-    const done = vi.mocked(fetch).mock.calls.find(([url]) => url === '/api/shelving/moves/done')!;
-    expect(JSON.parse(done[1]!.body as string)).toEqual({ moves: [
-      { kind: 'movie', id: 1, to: 'A-4' }, { kind: 'movie', id: 2, to: 'A-5' }, { kind: 'box_set', id: 3, to: null },
-    ] });
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(await screen.findByText('Put on A-5')).toBeInTheDocument();
+    expect(body('/api/shelving/levels/4/take-off')).toEqual({ count: 1 });
+    expect(body('/api/shelving/moves/done')).toEqual({ moves: [{ kind: 'movie', id: 1, to: 'A-4' }] });
+    expect(screen.getByRole('status')).toHaveTextContent('King Kong from A-4, first, before Kung Fu Panda');
   });
 
-  it('arrête la chaîne quand un film tient encore sur son étage', async () => {
-    await act(async () => { render(<MemoryRouter><ShelfMovesNotice /></MemoryRouter>); });
-    fireEvent.click(screen.getByRole('button', { name: 'It fits on A-4' }));
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/shelving/items/movie/2/move-back', expect.objectContaining({ method: 'POST' })));
+  it('change d’un toucher combien de films sortent : un de plus, ou aucun', async () => {
+    await show();
+    // Tighter than planned: from Jurassic World on, all come off.
+    fireEvent.click(screen.getByRole('button', { name: 'Jurassic World' }));
+    expect(screen.getByRole('button', { name: 'Jurassic World' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'King Kong' })).toHaveAttribute('aria-pressed', 'true');
+    // Tapped again, the first of those coming off stays.
+    fireEvent.click(screen.getByRole('button', { name: 'Jurassic World' }));
+    fireEvent.click(screen.getByRole('button', { name: 'King Kong' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Nothing comes off.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(await screen.findByText('The shelves are tidy')).toBeInTheDocument();
+    expect(body('/api/shelving/levels/4/take-off')).toEqual({ count: 0 });
   });
 
-  it('demande si l’étage est plein quand un nouveau film n’y a pas la place', async () => {
-    await act(async () => { render(<MemoryRouter><ShelfMovesNotice /></MemoryRouter>); });
-    fireEvent.click(screen.getByRole('button', { name: 'No room' }));
-    expect(screen.getByRole('status')).toHaveTextContent('Is A-4 full now?');
-    fireEvent.click(screen.getByRole('button', { name: 'Yes, it is full' }));
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/shelving/items/movie/1/no-room',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ full: true }) })));
+  it('revient sur une réponse donnée par erreur', async () => {
+    await show();
+    fireEvent.click(screen.getByRole('button', { name: 'King Kong' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await screen.findByText('The shelves are tidy');
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByText('Put on A-4')).toBeInTheDocument();
+    expect(body('/api/shelving/levels/state')).toEqual({ levels: LEVELS });
+    expect(body('/api/shelving/moves/undo')).toEqual({ moves: [{ kind: 'movie', id: 1, from: null }] });
+    // As it was answered: nothing coming off.
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Nothing comes off.'));
   });
 
-  it('coche un déplacement fait, sans les autres', async () => {
-    await act(async () => { render(<MemoryRouter><ShelfMovesNotice /></MemoryRouter>); });
-    fireEvent.click(screen.getByRole('button', { name: 'Done: King Kong' }));
-    await waitFor(() => expect(screen.getByText('2 things to move on the shelves')).toBeInTheDocument());
-    expect(screen.getByRole('status')).not.toHaveTextContent('King Kong');
+  it('se range pour plus tard, et se rouvre quand un nouveau déplacement arrive', async () => {
+    await show();
+    fireEvent.click(screen.getByRole('button', { name: 'Later' }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Shelves to tidy' }));
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Later' }));
+
+    moves = [...MOVES, { kind: 'movie', id: 4, title: 'Up', from: null, to: 'B-1', after: 'Unforgiven', before: null, toLevelId: 11 }];
+    await act(async () => { await refreshShelfLocations(); });
+    expect(screen.getByRole('status')).toBeInTheDocument();
   });
 });

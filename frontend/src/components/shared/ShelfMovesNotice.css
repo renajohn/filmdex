@@ -1,118 +1,166 @@
-/* Over the page's bottom right corner, out of the way of the cards until dismissed. */
+/* Over the page's bottom right corner, out of the way of the cards until put off. */
 .shelf-moves {
   position: fixed;
   right: 16px;
-  bottom: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   z-index: 1060;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   width: min(380px, calc(100vw - 32px));
-  max-height: min(60vh, 480px);
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
   padding: 12px 14px;
   border: 1px solid rgba(240, 183, 60, 0.45);
   border-radius: 10px;
   background: #23252a;
   color: #e0e0e0;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
+}
+
+.shelf-moves p {
+  margin: 0;
+}
+
+.shelf-moves strong {
+  color: #f4f4f4;
 }
 
 .shelf-moves-head {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.shelf-moves-head strong {
   color: #f0c654;
+  font-size: 1rem;
 }
 
-.shelf-moves-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  overflow-y: auto;
-}
-
-.shelf-moves-list li {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.shelf-moves-list li + li {
-  margin-top: 4px;
-}
-
-.shelf-moves-icon {
-  flex: none;
-  position: relative;
-  top: 2px;
-}
-
-.shelf-moves-icon.put {
-  color: #5fd39a;
-}
-
-.shelf-moves-icon.move {
-  color: #f0c654;
-}
-
-.shelf-moves-icon.off {
-  color: #e5734f;
-}
-
-.shelf-moves-title {
-  color: #f4f4f4;
-  font-weight: 600;
-}
-
-.shelf-moves-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.shelf-moves-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 3px;
-  color: #b9bcc3;
-}
-
-.shelf-moves-actions button {
-  padding: 1px 8px;
-  border: 1px solid #4a4e57;
-  border-radius: 999px;
-  background: transparent;
-  color: #e0e0e0;
+.shelf-moves-left {
+  margin-left: auto;
+  color: #8a8f99;
   font-size: 0.78rem;
 }
 
-.shelf-moves-actions button:hover:not(:disabled) {
-  border-color: #f0c654;
-  color: #f0c654;
+/* What arrives on the shelf; one taken off again for want of room is struck through. */
+.shelf-moves-put {
+  margin: 0;
+  padding-left: 18px;
 }
 
-.shelf-moves-tick {
-  flex: none;
-  align-self: flex-start;
-  padding: 0 4px;
-  border: 1px solid transparent;
+.shelf-moves-put li + li {
+  margin-top: 2px;
+}
+
+.shelf-moves-put li.is-off {
+  color: #8a8f99;
+  text-decoration: line-through;
+}
+
+.shelf-moves-off {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
   border-radius: 6px;
+  background: #2d3036;
+}
+
+/* The shelf's last films: those coming off are lit, the rest stay dim. */
+.shelf-moves-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.shelf-moves-chips button {
+  padding: 4px 12px;
+  border: 1px solid #4a4e57;
+  border-radius: 999px;
   background: transparent;
   color: #8a8f99;
-  line-height: 1.4;
+  font-size: 0.85rem;
 }
 
-.shelf-moves-tick:hover:not(:disabled) {
-  border-color: #5fd39a;
-  color: #5fd39a;
+.shelf-moves-chips button.is-leaving {
+  border-color: #e5734f;
+  background: rgba(229, 115, 79, 0.18);
+  color: #f4f4f4;
+}
+
+.shelf-moves-hint {
+  color: #8a8f99;
+  font-size: 0.75rem;
+}
+
+.shelf-moves-ask {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.shelf-moves-ask .btn {
+  min-width: 120px;
+}
+
+/* On a phone the one answer takes the whole width, easy to reach. */
+@media (max-width: 480px) {
+  .shelf-moves-ask .btn {
+    flex: 1;
+  }
 }
 
 .shelf-moves-error {
   color: #e5734f;
 }
 
-.shelf-moves > .btn {
-  align-self: flex-end;
+.shelf-moves-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #3a3d44;
+}
+
+.shelf-moves-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #b9bcc3;
+  font-size: 0.8rem;
+}
+
+.shelf-moves-link:hover:not(:disabled) {
+  color: #f0c654;
+}
+
+.shelf-moves-link:disabled {
+  opacity: 0.4;
+}
+
+/* Put off for later: a button in the corner that opens it again. */
+.shelf-moves-folded {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 1060;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid rgba(240, 183, 60, 0.45);
+  border-radius: 999px;
+  background: #23252a;
+  color: #f0c654;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.shelf-moves-folded:hover {
+  border-color: #f0c654;
 }

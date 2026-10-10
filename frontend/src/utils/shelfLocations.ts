@@ -12,10 +12,8 @@ export interface ShelfMove {
   /** What it stands next to there: the one before it, or the one after when it is first. */
   after?: string | null;
   before?: string | null;
-  /** It may stay on the shelf it stood on: that shelf had room for it after all. */
-  canStay?: boolean;
-  /** It may go on to the next shelf instead, for want of room. */
-  canNoRoom?: boolean;
+  /** The shelf it goes on, when it is one the owner fills step by step. */
+  toLevelId?: number | null;
 }
 
 interface Locations {
@@ -84,6 +82,17 @@ export async function markMovesDone(moves: ShelfMove[]): Promise<void> {
     body: JSON.stringify({ moves: moves.map(({ kind, id, to }) => ({ kind, id, to })) }),
   });
   if (!response.ok) throw new Error('The moves could not be recorded');
+  await refreshShelfLocations();
+}
+
+/** The owner had not made these moves after all: they are listed again. */
+export async function markMovesUndone(moves: ShelfMove[]): Promise<void> {
+  const response = await fetch('/api/shelving/moves/undo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ moves: moves.map(({ kind, id, from }) => ({ kind, id, from })) }),
+  });
+  if (!response.ok) throw new Error('The moves could not be undone');
   await refreshShelfLocations();
 }
 

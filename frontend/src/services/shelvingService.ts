@@ -67,6 +67,23 @@ export interface ShelvingPlan {
   units: ShelfUnit[];
 }
 
+/** A shelf's objects in order, as it stands once its moves are made. */
+export interface ShelfLine {
+  code: string;
+  items: Array<{ kind: ShelfKind; id: number; title: string }>;
+}
+
+/** What a shelf was told about its room, as the server keeps it. */
+export interface LevelState {
+  id: number;
+  capacity: number | null;
+  break_before: string | null;
+  extend_through: string | null;
+  locked: number;
+  locked_from: string | null;
+  locked_through: string | null;
+}
+
 export interface ShelfSettings {
   section?: ShelfSection | null;
   shelveUnder?: string | null;
@@ -104,9 +121,23 @@ const shelvingService = {
 
   deletePlace: (id: number): Promise<void> => send<void>(`/places/${id}`, { method: 'DELETE' }),
 
-  /** It did not fit on its shelf: it and those after it go on the next one; `full` also keeps the shelf at what it holds now. */
-  noRoom: (kind: ShelfKind, id: number, full = false): Promise<void> =>
-    send<void>(`/items/${kind}/${id}/no-room`, full ? { method: 'POST', body: JSON.stringify({ full }) } : { method: 'POST' }),
+  /** It did not fit on its shelf: it and those after it go on the next one. */
+  noRoom: (kind: ShelfKind, id: number): Promise<void> =>
+    send<void>(`/items/${kind}/${id}/no-room`, { method: 'POST' }),
+
+
+  /** What is on a shelf once its moves are made, in order, the ones the plan takes off it included. */
+  line: (levelId: number): Promise<ShelfLine> => send<ShelfLine>(`/levels/${levelId}/line`),
+
+  /** The shelf is filled, with its last `count` taken off to make room: those go on to the next shelf. */
+  takeOff: (levelId: number, count: number): Promise<void> =>
+    send<void>(`/levels/${levelId}/take-off`, { method: 'POST', body: JSON.stringify({ count }) }),
+
+  /** What each shelf was told about its room, to put it back as it was. */
+  levelsState: async (): Promise<LevelState[]> => (await send<{ levels: LevelState[] }>(`/levels/state`)).levels,
+
+  restoreLevels: (levels: LevelState[]): Promise<void> =>
+    send<void>(`/levels/state`, { method: 'PUT', body: JSON.stringify({ levels }) }),
 
   /** It would fit on the shelf before: that shelf takes it. */
   moveBack: (kind: ShelfKind, id: number): Promise<void> =>

@@ -140,7 +140,65 @@ const shelvingController = {
       res.status(404).json({ error: 'Unknown item' });
       return;
     }
-    await act(res, 'Moving to the next shelf', () => shelvingService.noRoom(kind, id, req.body?.full === true));
+    await act(res, 'Moving to the next shelf', () => shelvingService.noRoom(kind, id));
+  },
+
+  /** What is on a shelf once its moves are made, in order. */
+  line: async (req: Request, res: Response): Promise<void> => {
+    const id = Number(req.params.id);
+    try {
+      const { code, items } = await shelvingService.line(id);
+      res.json({ code, items: items.map(({ orderKey: _key, ...item }) => item) });
+    } catch (error) {
+      if (error instanceof ShelvingError) res.status(error.status).json({ error: error.message });
+      else fail(res, 'Reading a shelf', error);
+    }
+  },
+
+  /** The shelf is filled, with the last few taken off it to make room. */
+  takeOff: async (req: Request, res: Response): Promise<void> => {
+    const id = Number(req.params.id);
+    const count = req.body?.count;
+    if (!Number.isInteger(id) || !Number.isInteger(count)) {
+      res.status(400).json({ error: 'Say how many were taken off' });
+      return;
+    }
+    await act(res, 'Filling a shelf', () => shelvingService.takeOff(id, count));
+  },
+
+  /** What each shelf was told about its room, to undo a change. */
+  levelsState: async (_req: Request, res: Response): Promise<void> => {
+    try {
+      res.json({ levels: await shelvingService.levelsState() });
+    } catch (error) {
+      fail(res, 'Reading the shelves', error);
+    }
+  },
+
+  restoreLevels: async (req: Request, res: Response): Promise<void> => {
+    const levels = Array.isArray(req.body?.levels) ? req.body.levels : null;
+    const key = (value: unknown) => value === null || (typeof value === 'string' && value.length <= 500);
+    const valid = levels?.every((level: any) => Number.isInteger(level?.id)
+      && (level.capacity === null || (typeof level.capacity === 'number' && level.capacity > 0 && level.capacity <= 500))
+      && key(level.break_before) && key(level.extend_through) && key(level.locked_from) && key(level.locked_through)
+      && (level.locked === 0 || level.locked === 1));
+    if (!valid) {
+      res.status(400).json({ error: 'Give the shelves as they were' });
+      return;
+    }
+    await act(res, 'Putting the shelves back', () => shelvingService.restoreLevels(levels));
+  },
+
+  /** The owner had not made the moves listed after all. */
+  movesUndone: async (req: Request, res: Response): Promise<void> => {
+    const moves = Array.isArray(req.body?.moves) ? req.body.moves : null;
+    const valid = moves?.every((move: any) => SHELF_KINDS.includes(move?.kind) && Number.isInteger(move?.id)
+      && (move.from === null || (typeof move.from === 'string' && move.from.length <= 200)));
+    if (!valid) {
+      res.status(400).json({ error: 'List the moves to undo' });
+      return;
+    }
+    await act(res, 'Undoing the moves', () => shelvingService.movesUndone(moves));
   },
 
   /** It would fit on the shelf before: that shelf takes it. */

@@ -141,29 +141,50 @@ describe('les meubles', () => {
     expect(moves.every((move: any) => !!move.after !== !!move.before)).toBe(true);
     expect(moves.find((move: any) => move.from === 'M-1' && move.to === 'M-2')).toMatchObject({ after: null, before: expect.any(String) });
     expect(await movesNow()).toEqual(moves);
-    // One pushed on from the shelf just before may stay there; one put after another may go on for want of room.
-    expect(moves.find((move: any) => move.from === 'M-1' && move.to === 'M-2')).toMatchObject({ canStay: true, canNoRoom: false });
-    expect(moves.every((move: any) => move.canNoRoom === (move.to != null && move.after != null))).toBe(true);
+    expect(moves.every((move: any) => move.toLevelId != null)).toBe(true);
 
     await request(app).post('/api/shelving/moves/done').send({ moves }).expect(200);
     expect(await movesNow()).toEqual([]);
     await request(app).post('/api/shelving/moves/done').send({ moves: [{ kind: 'shelf', id: 1, to: 'M-1' }] }).expect(400);
   });
 
-  it('garde un étage plein à ce qu’il tient quand un film n’y a pas la place', async () => {
-    await request(app).post('/api/shelving/units').send({ letter: 'P', levels: 3, capacity: 2, section: 'films' }).expect(201);
-    let plan = (await request(app).get('/api/shelving')).body;
-    const items = () => plan.sections[0].items.filter((i: any) => !i.pinned);
-    // A shelf holding two, with a shelf of the section after it.
-    const shelves = plan.units.flatMap((u: any) => u.levels).filter((l: any) => l.section === 'films');
-    const target = shelves.slice(0, -1).find((l: any) => items().filter((i: any) => i.levelId === l.id).length >= 2);
-    const level = () => plan.units.flatMap((u: any) => u.levels).find((l: any) => l.id === target.id);
-    const held = items().filter((i: any) => i.levelId === target.id);
-    const second = held[1];
+  it('remplit un étage pas à pas : ce qui tient y reste, les derniers sortis passent au suivant, et tout se défait', async () => {
+    await request(app).post('/api/shelving/units').send({ letter: 'U', levels: 3, capacity: 2, section: 'films' }).expect(201);
+    const movesNow = async () => (await request(app).get('/api/shelving/locations')).body.moves;
+    await request(app).post('/api/shelving/moves/done').send({ moves: await movesNow() }).expect(200);
+    await insertMovie('Zx Undo');
+    const moves = await movesNow();
+    const arrival = moves[0];
+    expect(arrival).toMatchObject({ title: 'Zx Undo', from: null, toLevelId: expect.any(Number) });
+    const shelf = arrival.toLevelId;
 
-    await request(app).post(`/api/shelving/items/${second.kind}/${second.id}/no-room`).send({ full: true }).expect(200);
-    plan = (await request(app).get('/api/shelving')).body;
-    expect(level().ownCapacity).toBe(held[0].units);
-    expect(plan.sections[0].items.find((i: any) => i.kind === second.kind && i.id === second.id).levelId).not.toBe(target.id);
+    // What stands there and what arrives, in order, the ones the plan pushes on included.
+    const line = (await request(app).get(`/api/shelving/levels/${shelf}/line`).expect(200)).body;
+    expect(line.code).toBe(arrival.to);
+    expect(line.items.some((item: any) => item.title === 'Zx Undo')).toBe(true);
+    const pushed = moves.filter((move: any) => move.from === arrival.to);
+    expect(pushed.length).toBeGreaterThan(0);
+    expect(pushed.every((move: any) => line.items.some((item: any) => item.id === move.id))).toBe(true);
+
+    // It fits: the shelf keeps all of it, and nothing goes on from there.
+    const before = (await request(app).get('/api/shelving/levels/state').expect(200)).body.levels;
+    await request(app).post(`/api/shelving/levels/${shelf}/take-off`).send({ count: 0 }).expect(200);
+    expect((await movesNow()).filter((move: any) => move.from === arrival.to)).toEqual([]);
+
+    // Too tight, twice: the last two go on to the next shelf.
+    await request(app).post(`/api/shelving/levels/${shelf}/take-off`).send({ count: 2 }).expect(200);
+    const off = (await movesNow()).filter((move: any) => move.from === arrival.to).map((move: any) => move.id);
+    expect(off).toEqual(line.items.slice(-2).filter((item: any) => item.title !== 'Zx Undo').map((item: any) => item.id));
+    await request(app).post(`/api/shelving/levels/${shelf}/take-off`).send({ count: line.items.length }).expect(409);
+
+    // Taken back: the shelves as they were told before, the moves as they were listed.
+    await request(app).put('/api/shelving/levels/state').send({ levels: before }).expect(200);
+    expect(await movesNow()).toEqual(moves);
+    await request(app).put('/api/shelving/levels/state').send({ levels: [{ id: 'x' }] }).expect(400);
+    await request(app).post('/api/shelving/moves/done').send({ moves }).expect(200);
+    await request(app).post('/api/shelving/moves/undo').send({ moves: moves.map(({ kind, id, from }: any) => ({ kind, id, from })) }).expect(200);
+    expect(await movesNow()).toEqual(moves);
+    await request(app).post('/api/shelving/moves/undo').send({ moves: [{ kind: 'shelf', id: 1, from: null }] }).expect(400);
+    await request(app).get('/api/shelving/levels/999999/line').expect(404);
   });
 });

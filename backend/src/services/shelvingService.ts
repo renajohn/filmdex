@@ -50,6 +50,17 @@ export interface ShelvedItem {
 }
 
 /** An object to take from one shelf to another, or to put on its shelf when new. */
+/** An object on a shelf, in the order the shelf holds them. */
+export interface LineItem {
+  kind: ShelfKind;
+  id: number;
+  title: string;
+  orderKey: string;
+}
+
+/** What a shelf was told about its room. */
+export type LevelState = Pick<ShelfLevelRow, 'id' | 'capacity' | 'break_before' | 'extend_through' | 'locked' | 'locked_from' | 'locked_through'>;
+
 export interface ShelfMove {
   kind: ShelfKind;
   id: number;
@@ -61,10 +72,9 @@ export interface ShelfMove {
   /** What it stands next to there, to slip it in at the right place: the one before it, or the one after when it is first. */
   after?: string | null;
   before?: string | null;
-  /** It may stay on the shelf it stood on, the one just before: the shelf had room for it after all. */
-  canStay?: boolean;
-  /** It may go on to the next shelf instead: the shelf has no room for it. Not for the first on a shelf. */
-  canNoRoom?: boolean;
+  /** The shelf it goes on, when it is one the owner fills step by step. */
+  toLevelId?: number | null;
+
 }
 
 export interface ShelfLevelPlan {
@@ -401,14 +411,7 @@ const shelvingService = {
    * what the owner has to move since they last put the shelves in order.
    */
   locations: async (): Promise<{ movies: Record<number, string>; albums: Record<number, string>; moves: ShelfMove[] }> => {
-    const { items, places, units, levels } = await shelvingService.arrange();
-    // The shelf before each one in its section, in the order the shelves fill.
-    const shelfBefore = new Map<string, string>();
-    const sections = [...new Set(levels.map(level => level.section))];
-    for (const section of sections) {
-      const shelves = units.flatMap(unit => levels.filter(level => level.unit_id === unit.id && level.section === section).map(level => codeOf(unit, level)));
-      shelves.slice(1).forEach((code, i) => shelfBefore.set(code, shelves[i]));
-    }
+    const { items, places } = await shelvingService.arrange();
     const placeName = new Map(places.map(place => [place.id, place.name]));
     const movies: Record<number, string> = {};
     const albums: Record<number, string> = {};
@@ -420,7 +423,7 @@ const shelvingService = {
       else if (item.kind === 'movie') movies[item.id] = where;
       else for (const movieId of item.movieIds || []) movies[movieId] = where;
     }
-    return { movies, albums, moves: await shelvingService.moves(items.map(item => ({ item, where: whereOf(item) })), shelfBefore) };
+    return { movies, albums, moves: await shelvingService.moves(items.map(item => ({ item, where: whereOf(item) }))) };
   },
 
   /**
@@ -429,7 +432,7 @@ const shelvingService = {
    * collection is to be put on its shelf. The first time, what the plan says
    * is taken as where everything stands.
    */
-  moves: async (current: Array<{ item: Ordered; where: string | null }>, shelfBefore = new Map<string, string>()): Promise<ShelfMove[]> => {
+  moves: async (current: Array<{ item: Ordered; where: string | null }>): Promise<ShelfMove[]> => {
     const standing = await ShelfItem.standing();
     if (standing.length === 0) {
       await ShelfItem.saveStanding(current.map(({ item, where }) => ({ kind: item.kind, id: item.id, place: where })));
@@ -465,8 +468,7 @@ const shelvingService = {
         kind: item.kind, id: item.id, from: was ?? null, to: where,
         title: item.kind === 'album' && item.subtitle ? `${item.subtitle} – ${item.title}` : item.title,
         ...nextTo,
-        canStay: onPlan && was != null && where != null && shelfBefore.get(where) === was,
-        canNoRoom: onPlan && nextTo.after != null,
+        toLevelId: onPlan ? item.levelId : null,
       });
     }
     await ShelfItem.saveStanding(placed);
@@ -531,7 +533,7 @@ const shelvingService = {
    * An object did not fit on its shelf: it and those after it go on the next
    * one. On a locked shelf, the shelf gives up that object and the ones after.
    */
-  noRoom: async (kind: ShelfKind, id: number, full = false): Promise<void> => {
+  noRoom: async (kind: ShelfKind, id: number): Promise<void> => {
     const { items } = await shelvingService.arrange();
     const item = items.find(other => other.kind === kind && other.id === id);
     if (!item?.levelId) throw new ShelvingError(409, 'It is not on a shelf');
@@ -540,11 +542,6 @@ const shelvingService = {
     const at = held.indexOf(item);
     if (at === 0) throw new ShelvingError(409, 'It is already first on its shelf: give the shelf more room instead');
     const level = await ShelfFurniture.level(item.levelId);
-    // Full as it stands: the shelf holds what is before it, and no more from now on.
-    if (full) {
-      const room = held.slice(0, at).reduce((sum, other) => sum + other.units, 0) + items.filter(other => other.levelId === item.levelId && other.pinned).reduce((sum, other) => sum + other.units, 0);
-      await ShelfFurniture.updateLevel(item.levelId, { capacity: Math.round(room * 10) / 10 });
-    }
     if (level?.locked) await ShelfFurniture.updateLevel(item.levelId, { locked_through: held[at - 1].orderKey });
     else {
       // Moved back onto this shelf earlier, it no longer is.
@@ -586,6 +583,60 @@ const shelvingService = {
       await ShelfFurniture.updateLevel(current.id, rest.length > 0
         ? { locked_from: rest[0].orderKey }
         : { locked: 0, locked_from: null, locked_through: null });
+    }
+  },
+
+  /**
+   * What is on a shelf once its moves are made, in order: what stands there
+   * now and what the plan brings, the ones the plan takes off it included.
+   */
+  line: async (id: number): Promise<{ items: LineItem[]; code: string }> => {
+    const { items, units, levels } = await shelvingService.arrange();
+    const level = levels.find(other => other.id === id);
+    if (!level) throw new ShelvingError(404, 'Shelf not found');
+    const code = codeOf(units.find(unit => unit.id === level.unit_id)!, level);
+    const there = new Set((await ShelfItem.standing()).filter(row => row.place === code).map(row => `${row.kind}:${row.item_id}`));
+    const line = items.filter(item => !item.pinned && item.placeId == null && (item.levelId === id || there.has(`${item.kind}:${item.id}`)));
+    return { code, items: line.sort(byKey).map(item => ({ kind: item.kind, id: item.id, title: item.title, orderKey: item.orderKey })) };
+  },
+
+  /**
+   * The owner filled a shelf and took the last few off it to make room: it
+   * holds the rest, whatever the plan said of its room, and those go on to
+   * the next shelf.
+   */
+  takeOff: async (id: number, count: number): Promise<void> => {
+    const { items: line } = await shelvingService.line(id);
+    if (count < 0 || count >= line.length) throw new ShelvingError(409, 'The shelf cannot be left empty');
+    const level = (await ShelfFurniture.level(id))!;
+    const kept = line[line.length - count - 1];
+    if (level.locked) {
+      await ShelfFurniture.updateLevel(id, { locked_through: kept.orderKey });
+      return;
+    }
+    // As when one is moved back: the shelf takes all up to the last kept and stops right after it.
+    const { items } = await shelvingService.arrange();
+    const keptItem = items.find(item => item.orderKey === kept.orderKey)!;
+    const following = items.find(other => other.section === keptItem.section && !other.pinned && other.placeId == null && other.orderKey > kept.orderKey);
+    await ShelfFurniture.updateLevel(id, { extend_through: kept.orderKey, break_before: following ? following.orderKey : null });
+  },
+
+  /** What each shelf was told about its room, to put it back as it was. */
+  levelsState: async (): Promise<LevelState[]> =>
+    (await ShelfFurniture.levels()).map(({ id, capacity, break_before, extend_through, locked, locked_from, locked_through }) =>
+      ({ id, capacity, break_before, extend_through, locked, locked_from, locked_through })),
+
+  /** Puts the shelves back as they were told: undoes a change made from the moves notice. */
+  restoreLevels: async (rows: LevelState[]): Promise<void> => {
+    const known = new Set((await ShelfFurniture.levels()).map(level => level.id));
+    for (const { id, ...state } of rows) if (known.has(id)) await ShelfFurniture.updateLevel(id, state);
+  },
+
+  /** The owner had not made these moves after all: they stand where they stood. */
+  movesUndone: async (moves: Array<{ kind: ShelfKind; id: number; from: string | null }>): Promise<void> => {
+    for (const move of moves) {
+      if (move.from == null) await ShelfItem.forgetStanding(move.kind, move.id);
+      else await ShelfItem.saveStanding([{ kind: move.kind, id: move.id, place: move.from }]);
     }
   },
 
