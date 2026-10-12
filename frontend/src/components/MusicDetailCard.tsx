@@ -63,8 +63,15 @@ interface CdData {
   language?: string;
   isrcCodes?: string[];
   annotation?: string;
-  /** The MusicBrainz community's rating, 0 to 5. */
+  /** The MusicBrainz community's rating, 0 to 5, and how many voted. */
   rating?: number | null;
+  ratingVotes?: number | null;
+  /** The Discogs community's rating, 0 to 5, and how many voted. */
+  discogsRating?: number | null;
+  discogsRatingVotes?: number | null;
+  /** Both weighed by their votes; null under three votes in all. */
+  communityRating?: number | null;
+  communityVotes?: number;
   /** The owner's stars, 1 to 5, kept in step with Navidrome. */
   userRating?: number | null;
   discs?: CdDisc[];
@@ -108,6 +115,24 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, 
   </>
 );
 
+type CommunityRatings = Pick<CdData, 'rating' | 'ratingVotes' | 'discogsRating' | 'discogsRatingVotes' | 'communityRating' | 'communityVotes'>;
+
+const communityOf = (album: CommunityRatings): CommunityRatings => ({
+  rating: album.rating, ratingVotes: album.ratingVotes,
+  discogsRating: album.discogsRating, discogsRatingVotes: album.discogsRatingVotes,
+  communityRating: album.communityRating, communityVotes: album.communityVotes,
+});
+
+const votesLabel = (votes: number): string => `${votes} vote${votes === 1 ? '' : 's'}`;
+
+/** Each source's votes and rating, for the tooltip: "Discogs: 27 votes → 4.26". */
+const communityDetail = (ratings: CommunityRatings): string => [
+  ['Discogs', ratings.discogsRatingVotes, ratings.discogsRating] as const,
+  ['MusicBrainz', ratings.ratingVotes, ratings.rating] as const,
+].filter(([, votes, value]) => votes && typeof value === 'number')
+  .map(([source, votes, value]) => `${source}: ${votesLabel(votes!)} → ${Number(value!.toFixed(2))}`)
+  .join('\n');
+
 const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, onDelete, onSearch, onListenNextChange, onPrevious, onNext }) => {
   const [showCoverModal, setShowCoverModal] = useState<boolean>(false);
   const [coverModalData, setCoverModalData] = useState<CoverModalData>({ coverUrl: '', title: '', artist: '', coverType: '' });
@@ -130,22 +155,21 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const [ripError, setRipError] = useState<string | null>(null);
   const [stars, setStars] = useState<number | null>(cd.userRating ?? null);
   const [starsNote, setStarsNote] = useState<string | null>(null);
-  const [community, setCommunity] = useState<number | null>(cd.rating ?? null);
+  const [community, setCommunity] = useState<CommunityRatings>(communityOf(cd));
   const [refreshingMb, setRefreshingMb] = useState<boolean>(false);
   const [mbError, setMbError] = useState<string | null>(null);
 
   useEffect(() => {
-    setCommunity(cd.rating ?? null);
+    setCommunity(communityOf(cd));
     setMbError(null);
-  }, [cd.id, cd.rating]);
+  }, [cd.id, cd.communityRating, cd.communityVotes]);
 
   const refreshMusicBrainz = async () => {
     setRefreshingMb(true);
     setMbError(null);
     try {
-      await musicService.refreshFromMusicBrainz(cd.id);
-      const album = await musicService.getAlbumById(cd.id) as { rating?: number | null };
-      setCommunity(album.rating ?? null);
+      if (cd.musicbrainzReleaseId) await musicService.refreshFromMusicBrainz(cd.id);
+      setCommunity(communityOf(await musicService.refreshCommunityRating(cd.id) as CommunityRatings));
     } catch (error) {
       setMbError((error as Error).message);
     } finally {
@@ -483,25 +507,27 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
               </span>
               {starsNote && <span className="album-head-note">{starsNote}</span>}
             </Field>
-            {cd.musicbrainzReleaseId && (
-              <Field label="MusicBrainz">
-                {typeof community === 'number' && community > 0 ? (
-                  <>
+            {(cd.musicbrainzReleaseId || cd.urls?.discogs) && (
+              <Field label="Community">
+                {typeof community.communityRating === 'number' ? (
+                  <span title={communityDetail(community)}>
                     <span className="album-head-community">
-                      <BsStarFill aria-hidden="true" /> {community.toFixed(1)}
+                      <BsStarFill aria-hidden="true" /> {community.communityRating.toFixed(1)}
                     </span>
-                    <span className="album-head-muted"> / 5 · community</span>
-                  </>
+                    <span className="album-head-muted"> / 5 · {votesLabel(community.communityVotes ?? 0)}</span>
+                  </span>
                 ) : (
-                  <span className="album-head-muted">No community rating</span>
+                  <span className="album-head-muted" title={communityDetail(community) || undefined}>
+                    {community.communityVotes ? `Too few votes (${community.communityVotes})` : 'No community rating'}
+                  </span>
                 )}
                 <button
                   type="button"
                   className="album-head-refresh"
                   onClick={refreshMusicBrainz}
                   disabled={refreshingMb}
-                  aria-label="Refresh from MusicBrainz"
-                  title="Refresh from MusicBrainz"
+                  aria-label="Refresh the community rating"
+                  title="Reread MusicBrainz and Discogs"
                 >
                   <BsArrowClockwise aria-hidden="true" className={refreshingMb ? 'album-head-spinning' : undefined} />
                 </button>

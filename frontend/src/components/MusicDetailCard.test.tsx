@@ -18,6 +18,7 @@ vi.mock('../services/musicService', () => ({
     getAlbumGuide: vi.fn(() => Promise.resolve(null)),
     refreshFromMusicBrainz: vi.fn(() => Promise.resolve({})),
     getAlbumById: vi.fn(() => Promise.resolve({ rating: 4.15 })),
+    refreshCommunityRating: vi.fn(() => Promise.resolve({ rating: 2, ratingVotes: 1, discogsRating: 4.26, discogsRatingVotes: 27, communityRating: 4.18, communityVotes: 28 })),
   },
 }));
 
@@ -173,21 +174,29 @@ describe('MusicDetailCard', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: '5 stars' })).toHaveAttribute('aria-pressed', 'true'));
   });
 
-  it('shows the MusicBrainz community rating beside the owner\'s', () => {
-    render(<MusicDetailCard cd={cd({ rating: 4.25 })} onClose={() => {}} onDelete={() => {}} />);
+  it('shows both communities\' rating weighed by their votes, each in the tooltip', () => {
+    render(<MusicDetailCard cd={cd({ rating: 2, ratingVotes: 1, discogsRating: 4.26, discogsRatingVotes: 27, communityRating: 4.18, communityVotes: 28 })} onClose={() => {}} onDelete={() => {}} />);
 
-    expect(screen.getByText('4.3', { exact: false })).toBeInTheDocument();
-    expect(screen.getByText(/community/)).toBeInTheDocument();
+    expect(screen.getByText('4.2', { exact: false })).toBeInTheDocument();
+    const rating = screen.getByText(/28 votes/).parentElement!;
+    expect(rating).toHaveAttribute('title', 'Discogs: 27 votes → 4.26\nMusicBrainz: 1 vote → 2');
   });
 
-  it('rereads the edition on MusicBrainz from the loop beside its rating', async () => {
+  it('says when too few voted rather than showing one listener\'s stars', () => {
+    render(<MusicDetailCard cd={cd({ rating: 2, ratingVotes: 1, communityRating: null, communityVotes: 1 })} onClose={() => {}} onDelete={() => {}} />);
+
+    expect(screen.getByText('Too few votes (1)')).toHaveAttribute('title', 'MusicBrainz: 1 vote → 2');
+  });
+
+  it('rereads MusicBrainz and Discogs from the loop beside the rating', async () => {
     render(<MusicDetailCard cd={cd({ rating: null })} onClose={() => {}} onDelete={() => {}} />);
     expect(screen.getByText('No community rating')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh from MusicBrainz' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh the community rating' }));
 
     await screen.findByText('4.2', { exact: false });
     expect(musicService.refreshFromMusicBrainz).toHaveBeenCalledWith(1);
+    expect(musicService.refreshCommunityRating).toHaveBeenCalledWith(1);
   });
 
   it('steps to the album before or after it with ‹ › and the arrow keys, not while typing', () => {

@@ -5,6 +5,7 @@ import { getDatabase } from '../database';
 import { normalizeAlbumOwnership } from './utils/albumOwnership';
 import musicbrainzService from './musicbrainzService';
 import discogsService from './discogsService';
+import communityRatingService from './communityRatingService';
 import type { FormattedRelease } from './musicbrainzService';
 import imageService from './imageService';
 import axios, { AxiosResponse } from 'axios';
@@ -870,6 +871,11 @@ class MusicService {
 
       const album = await this.addAlbum(albumData);
 
+      // The communities' votes, which the release lookups above do not count.
+      communityRatingService.refreshAlbum(album.id).catch((error: unknown) => {
+        logger.warn(`Could not read the community ratings of album ${album.id}: ${(error as Error).message}`);
+      });
+
       const clientFront = additionalData.coverArtData?.frontCoverUrl;
       const coverWork = (async () => {
         // Individual pressings are often catalogued without any image; the master
@@ -942,6 +948,11 @@ class MusicService {
       }
 
       const album = await this.addAlbum(albumData);
+
+      // The communities' votes, which the release lookups above do not count.
+      communityRatingService.refreshAlbum(album.id).catch((error: unknown) => {
+        logger.warn(`Could not read the community ratings of album ${album.id}: ${(error as Error).message}`);
+      });
 
       // The record is already safe, so cover art can no longer block the add.
       // We still give it a short head start: when Cover Art Archive is healthy

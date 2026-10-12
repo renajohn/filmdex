@@ -292,6 +292,8 @@ app.get('/api/music/navidrome-cover/:navidromeId', musicController.getNavidromeC
 app.post('/api/music/albums/link-musicbrainz', musicController.linkMusicBrainz);
 app.post('/api/music/albums/refresh-musicbrainz', musicController.refreshAllFromMusicBrainz);
 app.post('/api/music/albums/:id/refresh-musicbrainz', musicController.refreshFromMusicBrainz);
+app.post('/api/music/albums/community-ratings', musicController.refreshAllCommunityRatings);
+app.post('/api/music/albums/:id/community-rating', musicController.refreshCommunityRating);
 app.get('/api/music/albums/:id', musicController.getAlbumById);
 app.put('/api/music/albums/:id', musicController.updateAlbum);
 app.put('/api/music/albums/:id/status', musicController.updateAlbumStatus);

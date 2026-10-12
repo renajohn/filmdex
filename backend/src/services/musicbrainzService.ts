@@ -519,6 +519,20 @@ const musicbrainzService = {
     return { ...workRef(response.data), wikidata };
   },
 
+  /** The community's rating of a release group, 0 to 5, and how many voted; null when nobody did. */
+  getReleaseGroupRating: async function(releaseGroupId: string): Promise<{ value: number | null; votes: number }> {
+    const response: AxiosResponse<{ rating?: { value?: number | null; 'votes-count'?: number } }> = await withRetry(
+      'MusicBrainz release group rating',
+      () => axios.get(`${this.baseUrl}/release-group/${releaseGroupId}`, {
+        params: { inc: 'ratings', fmt: 'json' },
+        headers: { 'User-Agent': this.userAgent },
+        timeout: 10000
+      })
+    );
+    const rating = response.data.rating;
+    return { value: typeof rating?.value === 'number' ? rating.value : null, votes: rating?.['votes-count'] ?? 0 };
+  },
+
   getReleaseGroupWikiLinks: async function(releaseGroupId: string): Promise<{ wikidata: string | null; wikipedia: string[] }> {
     const response: AxiosResponse<{ relations?: Array<{ type: string; url?: { resource: string } }> }> = await withRetry(
       'MusicBrainz release group lookup',

@@ -203,3 +203,33 @@ describe('discogsService.searchFreeText', () => {
     await expect(discogsService.searchFreeText('zzzz')).resolves.toEqual([]);
   });
 });
+
+describe('discogsService.getCommunityRating', () => {
+  const previous = process.env.DISCOGS_TOKEN;
+  beforeAll(() => { process.env.DISCOGS_TOKEN = 'token'; });
+  afterAll(() => {
+    if (previous === undefined) delete process.env.DISCOGS_TOKEN;
+    else process.env.DISCOGS_TOKEN = previous;
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  const answer = (byPath: Record<string, unknown>) =>
+    jest.spyOn(axios, 'get').mockImplementation(async (url: string) => ({ data: byPath[url.replace(/^.*discogs\.com/, '')] }) as any);
+
+  it('takes the main release when it has more votes than the pressing', async () => {
+    answer({
+      '/releases/2492812': { master_id: 1632, community: { rating: { average: 4.41, count: 32 } } },
+      '/masters/1632': { main_release: 400000 },
+      '/releases/400000': { community: { rating: { average: 4.3, count: 1500 } } },
+    });
+    await expect(discogsService.getCommunityRating('2492812')).resolves.toEqual({ value: 4.3, votes: 1500 });
+  });
+
+  it('keeps the pressing when it is the main release', async () => {
+    answer({
+      '/releases/915881': { master_id: 510059, community: { rating: { average: 4.26, count: 27 } } },
+      '/masters/510059': { main_release: 915881 },
+    });
+    await expect(discogsService.getCommunityRating('915881')).resolves.toEqual({ value: 4.26, votes: 27 });
+  });
+});

@@ -2,6 +2,7 @@ import type sqlite3 from 'sqlite3';
 import { getDatabase } from '../database';
 import cacheService from '../services/cacheService';
 import { normalizeAlbumOwnership } from '../services/utils/albumOwnership';
+import { combineRatings } from '../services/utils/communityRating';
 import { isClassicalAlbum, type Performer } from '../services/shelfOrder';
 import type { AlbumRow, AlbumFormatted, AlbumCreateData, AlbumSearchParsed } from '../types';
 
@@ -167,6 +168,15 @@ const Album = {
             }),
             new Promise((resolve) => {
               db.run(`ALTER TABLE albums ADD COLUMN discogs_release_id TEXT`, () => resolve());
+            }),
+            new Promise((resolve) => {
+              db.run(`ALTER TABLE albums ADD COLUMN rating_votes INTEGER`, () => resolve());
+            }),
+            new Promise((resolve) => {
+              db.run(`ALTER TABLE albums ADD COLUMN discogs_rating REAL`, () => resolve());
+            }),
+            new Promise((resolve) => {
+              db.run(`ALTER TABLE albums ADD COLUMN discogs_rating_votes INTEGER`, () => resolve());
             })
           ];
 
@@ -854,7 +864,8 @@ const Album = {
    * the caller decides what is missing, this only refuses unknown columns.
    */
   setColumns: (id: number, columns: Record<string, string | number | null>): Promise<void> => {
-    const allowed = ['producer', 'engineer', 'recording_location', 'isrc_codes', 'total_duration', 'annotation', 'genres', 'urls', 'rating'];
+    const allowed = ['producer', 'engineer', 'recording_location', 'isrc_codes', 'total_duration', 'annotation', 'genres', 'urls', 'rating',
+      'rating_votes', 'discogs_rating', 'discogs_rating_votes'];
     const names = Object.keys(columns);
     const unknown = names.filter(name => !allowed.includes(name));
     if (unknown.length > 0) return Promise.reject(new Error(`Unknown album columns: ${unknown.join(', ')}`));
@@ -980,6 +991,16 @@ const Album = {
       moods: JSON.parse(row.moods || '[]'), // Keep in response but will be empty
       tags: JSON.parse(row.tags || '[]'),
       rating: row.rating,
+      ratingVotes: row.rating_votes ?? null,
+      discogsRating: row.discogs_rating ?? null,
+      discogsRatingVotes: row.discogs_rating_votes ?? null,
+      ...(() => {
+        const community = combineRatings(
+          { value: row.rating, votes: row.rating_votes },
+          { value: row.discogs_rating, votes: row.discogs_rating_votes }
+        );
+        return { communityRating: community.value, communityVotes: community.votes };
+      })(),
       totalDuration: row.total_duration,
       format: row.format,
       packaging: row.packaging,

@@ -186,6 +186,9 @@ export interface AlbumRow {
   moods: string | null;
   tags: string | null;
   rating: number | null;
+  rating_votes?: number | null;
+  discogs_rating?: number | null;
+  discogs_rating_votes?: number | null;
   total_duration: number | null;
   format: string | null;
   packaging: string | null;
@@ -233,7 +236,15 @@ export interface AlbumFormatted {
   genres: string[];
   moods: string[];
   tags: string[];
+  /** MusicBrainz's community rating of the release group, 0 to 5, and how many voted. */
   rating: number | null;
+  ratingVotes?: number | null;
+  /** Discogs's community rating, 0 to 5: the album's most rated pressing. */
+  discogsRating?: number | null;
+  discogsRatingVotes?: number | null;
+  /** Both weighed by their votes; null under three votes in all. */
+  communityRating?: number | null;
+  communityVotes?: number;
   totalDuration: number | null;
   format: string | null;
   packaging: string | null;

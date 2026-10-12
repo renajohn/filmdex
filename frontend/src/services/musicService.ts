@@ -662,6 +662,11 @@ class MusicService {
     return this.send(`/music/albums/${albumId}/refresh-musicbrainz`, 'POST');
   }
 
+  /** Rereads MusicBrainz's and Discogs's community ratings; answers with the album. */
+  refreshCommunityRating(albumId: number | string): Promise<unknown> {
+    return this.send(`/music/albums/${albumId}/community-rating`, 'POST');
+  }
+
   /** Takes the stars given in Navidrome or Amperfy since. */
   syncAlbumRating(albumId: number | string): Promise<{ userRating: number | null }> {
     return this.send(`/music/albums/${albumId}/rating/sync`, 'POST');

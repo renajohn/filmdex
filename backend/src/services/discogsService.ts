@@ -283,12 +283,40 @@ const getMasterCoverArt = async (masterId: number | null | undefined): Promise<s
 const getRelease = async (releaseId: string | number): Promise<DiscogsRelease> =>
   request<DiscogsRelease>(`/releases/${releaseId}`, {});
 
+type Rated = { master_id?: number; community?: { rating?: { average?: number; count?: number } } };
+
+const ratingOf = (release: Rated): { value: number | null; votes: number } => {
+  const rating = release.community?.rating;
+  const votes = rating?.count ?? 0;
+  return { value: votes > 0 && typeof rating?.average === 'number' ? rating.average : null, votes };
+};
+
+/**
+ * The community's rating of the album, 0 to 5. Discogs rates each pressing
+ * apart: a CD reissue may hold 27 votes where the master's main release holds
+ * 1500, so the one with more votes speaks for the album. Not summed, the same
+ * people often rate several pressings.
+ */
+const getCommunityRating = async (releaseId: string | number): Promise<{ value: number | null; votes: number }> => {
+  const release = await request<Rated>(`/releases/${releaseId}`, {});
+  let best = ratingOf(release);
+  if (release.master_id) {
+    const master = await request<{ main_release?: number }>(`/masters/${release.master_id}`, {});
+    if (master.main_release && String(master.main_release) !== String(releaseId)) {
+      const main = ratingOf(await request<Rated>(`/releases/${master.main_release}`, {}));
+      if (main.votes > best.votes) best = main;
+    }
+  }
+  return best;
+};
+
 export default {
   isConfigured,
   search,
   searchFreeText,
   searchByBarcode,
   getRelease,
+  getCommunityRating,
   getMasterCoverArt,
   formatRelease
 };

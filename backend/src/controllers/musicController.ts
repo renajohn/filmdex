@@ -17,6 +17,7 @@ import musicbrainzRefreshService from '../services/musicbrainzRefreshService';
 import ripStatusService from '../services/ripStatusService';
 import navidromeService from '../services/navidromeService';
 import albumRatingService from '../services/albumRatingService';
+import communityRatingService from '../services/communityRatingService';
 import AlbumNote from '../models/albumNote';
 import logger from '../logger';
 import type { AlbumFormatted } from '../types';
@@ -555,6 +556,29 @@ const musicController = {
         res.status(500).json({ error: 'Failed to refresh album from MusicBrainz' });
       }
     }
+  },
+
+  /** Rereads MusicBrainz's and Discogs's community ratings of one album. */
+  refreshCommunityRating: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const id = parseInt(req.params.id as string, 10);
+      await communityRatingService.refreshAlbum(id);
+      res.json(await Album.findById(id));
+    } catch (error) {
+      const message = (error as Error).message;
+      if (message === 'Album not found') {
+        res.status(404).json({ error: message });
+      } else {
+        logger.error('Error refreshing community ratings:', error);
+        res.status(500).json({ error: 'Failed to refresh the community ratings' });
+      }
+    }
+  },
+
+  /** Every album's community ratings, in the background: a few seconds an album for Discogs's rate limit. */
+  refreshAllCommunityRatings: async (_req: Request, res: Response): Promise<void> => {
+    communityRatingService.refreshAll().catch(error => logger.error('Error refreshing all community ratings:', error));
+    res.status(202).json({ started: true });
   },
 
   /** Every album with an edition, or only the ids given in the body. Slow: one request a second. */

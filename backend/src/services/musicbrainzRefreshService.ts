@@ -25,7 +25,7 @@ type RawRelease = {
   genres?: Array<{ name: string }>;
   relations?: Relation[];
   media?: Array<{ format?: string; tracks?: RawTrack[] }>;
-  'release-group'?: { rating?: { value?: number | null } };
+  'release-group'?: { rating?: { value?: number | null; 'votes-count'?: number } };
 };
 
 export interface RefreshResult {
@@ -141,6 +141,8 @@ const missingColumns = (album: AlbumFormatted, release: RawRelease, tracks: Trac
   // The community's rating is MusicBrainz's own and moves with its votes: always the latest.
   const rating = release['release-group']?.rating?.value;
   if (typeof rating === 'number' && Math.round(rating * 20) / 20 !== album.rating) columns.rating = Math.round(rating * 20) / 20;
+  const votes = release['release-group']?.rating?.['votes-count'];
+  if (typeof votes === 'number' && votes !== album.ratingVotes) columns.rating_votes = votes;
 
   const addedUrls = Object.fromEntries(Object.entries(urls).filter(([type]) => !album.urls?.[type]));
   if (Object.keys(addedUrls).length > 0) columns.urls = JSON.stringify({ ...(album.urls || {}), ...addedUrls });
