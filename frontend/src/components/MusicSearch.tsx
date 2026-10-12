@@ -13,6 +13,8 @@ import './MusicSearch.css';
 import { readStored, writeStored } from '../utils/safeStorage';
 import { findById, useDetailSteps } from '../utils/detailSteps';
 import { albumImages } from '../utils/detailImages';
+import { useAlbumOrder } from '../utils/shelfLocations';
+import { artistLetter, artistSortKey, artistSortName } from '../utils/artistOrder';
 
 interface MusicSearchProps {
   cds: any;
@@ -82,6 +84,16 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     return savedSort || 'title';
   });
   const [sortLoading, setSortLoading] = useState(false);
+  // The shelves' order, read by sortCds through the ref: it arrives after the albums.
+  const albumOrder = useAlbumOrder();
+  const albumOrderRef = useRef(albumOrder);
+  albumOrderRef.current = albumOrder;
+  const byArtistSort = sortBy === 'artist' || sortBy === 'artistReverse';
+  const letterOf = (cd: Album): string => {
+    if (byArtistSort) return artistLetter(cd, albumOrder);
+    const firstChar = cd.title?.charAt(0)?.toUpperCase() || '';
+    return /[A-Z]/.test(firstChar) ? firstChar : '#';
+  };
   const [groupBy, setGroupBy] = useState('none');
   const [groupLoading, setGroupLoading] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
@@ -292,24 +304,23 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
 
   const sortCds = useCallback((cdsToSort: Album[], sortOption: string) => {
     const sorted = [...cdsToSort];
+    const order = albumOrderRef.current;
+    const byArtist = (a: Album, b: Album) => {
+      const keyA = artistSortKey(a, order);
+      const keyB = artistSortKey(b, order);
+      return keyA < keyB ? -1 : keyA > keyB ? 1 : 0;
+    };
 
     switch (sortOption) {
       case 'title':
         return sorted.sort((a, b) => a.title.localeCompare(b.title));
       case 'titleReverse':
         return sorted.sort((a, b) => b.title.localeCompare(a.title));
+      // As the CDs stand on the shelves: "Chapman, Tracy" at C, "-M-" at M.
       case 'artist':
-        return sorted.sort((a, b) => {
-          const artistA = Array.isArray(a.artist) ? a.artist.join(', ') : a.artist;
-          const artistB = Array.isArray(b.artist) ? b.artist.join(', ') : b.artist;
-          return artistA.localeCompare(artistB);
-        });
+        return sorted.sort(byArtist);
       case 'artistReverse':
-        return sorted.sort((a, b) => {
-          const artistA = Array.isArray(a.artist) ? a.artist.join(', ') : a.artist;
-          const artistB = Array.isArray(b.artist) ? b.artist.join(', ') : b.artist;
-          return artistB.localeCompare(artistA);
-        });
+        return sorted.sort((a, b) => byArtist(b, a));
       case 'year':
         return sorted.sort((a, b) => (b.releaseYear || 0) - (a.releaseYear || 0));
       case 'yearReverse':
@@ -322,6 +333,14 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
         return sorted;
     }
   }, []);
+
+  // The shelves' order comes after the albums, or changes with them: sort again by it.
+  useEffect(() => {
+    if (!byArtistSort) return;
+    setAllCds(cds => sortCds(cds, sortBy));
+    setFilteredCds(cds => sortCds(cds, sortBy));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [albumOrder]);
 
   const handleSortChange = async (sortOption: string) => {
     setSortBy(sortOption);
@@ -757,11 +776,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
         <div className={`cd-grid ${sortLoading ? 'sort-loading' : ''}`}>
           {filteredCds.map((cd) => {
             // Use artist name for letter tracking when sorting by artist
-            const sortField = (sortBy === 'artist' || sortBy === 'artistReverse')
-              ? (Array.isArray(cd.artist) ? cd.artist[0] : cd.artist)
-              : cd.title;
-            const firstChar = sortField?.charAt(0)?.toUpperCase() || '';
-            const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
+            const letter = letterOf(cd);
 
             return (
               <MusicThumbnail
@@ -808,11 +823,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
               {isExpanded && (
                 <div className="cd-grid">
                   {sortedGroupCds.map((cd) => {
-                    const sortField = (sortBy === 'artist' || sortBy === 'artistReverse')
-                      ? (Array.isArray(cd.artist) ? cd.artist[0] : cd.artist)
-                      : cd.title;
-                    const firstChar = sortField?.charAt(0)?.toUpperCase() || '';
-                    const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
+                    const letter = letterOf(cd);
 
                     return (
                       <MusicThumbnail
@@ -872,8 +883,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
         items={filteredCds}
         getTitle={(cd: Record<string, unknown>) => {
           if (sortBy === 'artist' || sortBy === 'artistReverse') {
-            // For artist sort, use the first artist name
-            return Array.isArray(cd.artist) ? cd.artist[0] : String(cd.artist || '');
+            // The name the CD is filed under on the shelves.
+            return artistSortName(cd as unknown as Album, albumOrder);
           }
           return String(cd.title || '');
         }}

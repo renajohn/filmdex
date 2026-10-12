@@ -114,6 +114,13 @@ export interface ShelvingPlan {
 /** An object with the key it stands in order by: its filing name, then the year and title, then itself. */
 type Ordered = ShelvedItem & { orderKey: string; pinTo: number | null };
 
+/**
+ * Where a CD stands in the shelves' order: the name it is filed under,
+ * "Chapman, Tracy" or "Karajan, Herbert von", and the key that orders it,
+ * which the collection's list sorts by too.
+ */
+export interface AlbumOrder { sortName: string; key: string }
+
 const all = <T>(sql: string, params: unknown[] = []): Promise<T[]> =>
   new Promise((resolve, reject) =>
     getDatabase().all(sql, params, (err: Error | null, rows: T[]) => (err ? reject(err) : resolve(rows))));
@@ -410,20 +417,22 @@ const shelvingService = {
    * the place it is kept in. A film in a box set is where its box set is. And
    * what the owner has to move since they last put the shelves in order.
    */
-  locations: async (): Promise<{ movies: Record<number, string>; albums: Record<number, string>; moves: ShelfMove[] }> => {
+  locations: async (): Promise<{ movies: Record<number, string>; albums: Record<number, string>; albumOrder: Record<number, AlbumOrder>; moves: ShelfMove[] }> => {
     const { items, places } = await shelvingService.arrange();
     const placeName = new Map(places.map(place => [place.id, place.name]));
     const movies: Record<number, string> = {};
     const albums: Record<number, string> = {};
+    const albumOrder: Record<number, AlbumOrder> = {};
     const whereOf = (item: Ordered) => (item.placeId != null && placeName.get(item.placeId)) || item.code || null;
     for (const item of items) {
+      if (item.kind === 'album') albumOrder[item.id] = { sortName: item.sortName, key: item.orderKey };
       const where = whereOf(item);
       if (!where) continue;
       if (item.kind === 'album') albums[item.id] = where;
       else if (item.kind === 'movie') movies[item.id] = where;
       else for (const movieId of item.movieIds || []) movies[movieId] = where;
     }
-    return { movies, albums, moves: await shelvingService.moves(items.map(item => ({ item, where: whereOf(item) }))) };
+    return { movies, albums, albumOrder, moves: await shelvingService.moves(items.map(item => ({ item, where: whereOf(item) }))) };
   },
 
   /**

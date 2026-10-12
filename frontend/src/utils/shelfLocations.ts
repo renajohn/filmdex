@@ -16,13 +16,21 @@ export interface ShelfMove {
   toLevelId?: number | null;
 }
 
+/** Where a CD stands in the shelves' order: the name it is filed under and the key that orders it. */
+export interface AlbumOrder {
+  sortName: string;
+  key: string;
+}
+
 interface Locations {
   movies: Record<number, string>;
   albums: Record<number, string>;
+  albumOrder?: Record<number, AlbumOrder>;
   moves?: ShelfMove[];
 }
 
 const NO_MOVES: ShelfMove[] = [];
+const NO_ORDER: Record<number, AlbumOrder> = {};
 
 /** Fetched again when a page asks after this long, so a CD added since gets its shelf. */
 const STALE_MS = 30 * 1000;
@@ -66,6 +74,18 @@ export function useShelfLocation(kind: 'movie' | 'album', id: number | string | 
   }, []);
   if (id == null || !current) return null;
   return (kind === 'movie' ? current.movies : current.albums)[Number(id)] ?? null;
+}
+
+/**
+ * The order the CDs stand in on the shelves, by album id: the collection
+ * sorts by artist the same way, "Chapman, Tracy" at C and "-M-" at M.
+ */
+export function useAlbumOrder(): Record<number, AlbumOrder> {
+  const current = useSyncExternalStore(subscribe, () => locations);
+  useEffect(() => {
+    if (Date.now() - fetchedAt > STALE_MS) refreshShelfLocations();
+  }, []);
+  return current?.albumOrder ?? NO_ORDER;
 }
 
 /** What the owner has to move on the shelves since they last put them in order. */

@@ -122,6 +122,18 @@ describe('le plan de rangement', () => {
     expect(order.indexOf(`movie:${amelie}`)).toBeLessThan(order.indexOf(`movie:${matrix}`));
   });
 
+  it('donne à la collection l’ordre des CD sur les étagères, pour son tri par artiste', async () => {
+    const m = await insertAlbum(['‐M‐'], 'Qui de nous deux test', ['chanson']);
+    const kremer = await insertAlbum(['Antonio Vivaldi', 'Gidon Kremer'], 'Le quattro stagioni test', ['classical']);
+    await insertTrack(kremer, ['Antonio Vivaldi'], [{ name: 'Gidon Kremer', role: 'violin' }]);
+
+    const { albumOrder } = (await request(app).get('/api/shelving/locations')).body;
+
+    expect(albumOrder[m].sortName).toBe('‐M‐');
+    expect(albumOrder[m].key.startsWith('m\u0001')).toBe(true);
+    expect(albumOrder[kremer].sortName).toBe('Kremer, Gidon');
+  });
+
   it('garde une collection ensemble, sous son premier film, dans l’ordre des sorties, sauf des films prêtés', async () => {
     const jurassic = await run(`INSERT INTO collections (name, type) VALUES ('Jurassic test', 'user')`);
     const world = await insertMovie('Jurassic World test', '2015');
