@@ -773,11 +773,23 @@ class MusicService {
       // An edition is often catalogued without any image while its release group
       // has one, the way a Discogs pressing falls back on its master. Only the
       // front: another edition's back cover would list the wrong tracks.
-      if (!frontUrl) {
-        const releaseGroupId = (await Album.findById(albumId))?.musicbrainzReleaseGroupId;
-        if (releaseGroupId) {
-          const groupArt = await musicbrainzService.getReleaseGroupCoverArt(releaseGroupId);
-          frontUrl = groupArt?.front?.url || null;
+      const album = !frontUrl || !backUrl ? await Album.findById(albumId) : null;
+      if (!frontUrl && album?.musicbrainzReleaseGroupId) {
+        const groupArt = await musicbrainzService.getReleaseGroupCoverArt(album.musicbrainzReleaseGroupId);
+        frontUrl = groupArt?.front?.url || null;
+      }
+
+      // Cover Art Archive is often down or has no image typed as the front,
+      // while the Discogs release MusicBrainz links to has both sides. It is the
+      // same edition, so its back cover lists the right tracks.
+      const discogsId = album?.urls?.discogs?.match(/discogs\.com\/release\/(\d+)/)?.[1];
+      if ((!frontUrl || !backUrl) && discogsId && discogsService.isConfigured()) {
+        try {
+          const formatted = discogsService.formatRelease(await discogsService.getRelease(discogsId));
+          if (!frontUrl) frontUrl = formatted.coverArt.front || await discogsService.getMasterCoverArt(formatted.masterId);
+          if (!backUrl) backUrl = formatted.coverArt.back;
+        } catch (error) {
+          logger.warn(`Could not read Discogs release ${discogsId} for cover art: ${(error as Error).message}`);
         }
       }
     }
