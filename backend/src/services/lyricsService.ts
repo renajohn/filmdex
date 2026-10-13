@@ -22,6 +22,11 @@ const TIMEOUT_MS = 15000;
 const PAUSE_MS = 300;
 /** A track LRCLIB did not know is asked again after a month. */
 const RETRY_MISSING_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
+/**
+ * When the lookup last learnt to find more: a track it missed before is asked
+ * again at once. Always a moment already past, or it would ask over and over.
+ */
+const LOOKUP_REVISED_AT = '2026-10-13T10:15:00.000Z';
 /** Search results this far from the CD's length are another recording. */
 const DURATION_TOLERANCE_SEC = 5;
 const EVERY_MS = 30 * 60 * 1000;
@@ -66,11 +71,37 @@ const plainText = (text: string): string => text.replace(/[‐‑‒–—]/g, '
 const bareTitle = (title: string): string =>
   plainText(title).replace(/\s*[([][^)\]]*[)\]]\s*/g, ' ').replace(/\s+-\s+(live|remaster(ed)?|single|radio edit|mono|stereo)\b.*$/i, '').trim();
 
-/** The artist to ask for: the track's own on a compilation, the album's otherwise. */
-export const artistOf = (track: Pick<TrackToLookUp, 'trackArtist' | 'albumArtist'>): string | null => {
-  const names = [...parseList(track.trackArtist), ...parseList(track.albumArtist)].map(plainText).filter(Boolean);
-  return names[0] ?? null;
+/**
+ * The artists to ask for, in turn: the track's own, then the album's. A duet
+ * is filed under either singer ("Bahia", Véronique Sanson with Alain Chamfort).
+ */
+export const artistsOf = (track: Pick<TrackToLookUp, 'trackArtist' | 'albumArtist'>): string[] =>
+  [...new Set([...parseList(track.trackArtist), ...parseList(track.albumArtist)].map(plainText).filter(Boolean))]
+    .filter(name => name !== 'Various Artists' && name !== '[dialogue]').slice(0, 3);
+
+/** The artist to ask for first: the track's own on a compilation, the album's otherwise. */
+export const artistOf = (track: Pick<TrackToLookUp, 'trackArtist' | 'albumArtist'>): string | null => artistsOf(track)[0] ?? null;
+
+/** What a parenthesis says that is not another song: "(live)", "(Remastered 2009)", "(interview)". */
+const NOT_A_SONG = /\b(live|remaster|version|edit|mix|demo|interview|comedy|bonus|feat|acoustic|instrumental|mono|stereo|take)/i;
+
+/**
+ * The song a track names in parentheses, when the track is a film's scene
+ * set to it: "End Credits (Blackout)" is Blackout.
+ */
+export const songInParentheses = (title: string): string | null => {
+  const inner = plainText(title).match(/\(([^)]+)\)\s*$/)?.[1]?.trim();
+  return inner && !NOT_A_SONG.test(inner) && inner.length >= 4 ? inner : null;
 };
+
+const sameTitle = (a: string, b: string): boolean => {
+  const key = (text: string) => plainText(text).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return key(a) === key(b) || key(a).startsWith(`${key(b)} `);
+};
+
+/** The words of a timed text without the times: those of another length do not fit this one's. */
+const untimed = (synced: string): string =>
+  synced.split('\n').map(line => line.replace(/^(\[[^\]]*\])+\s?/, '')).join('\n').trim();
 
 const fromRecord = (record: LrclibRecord): LyricsLookup => {
   if (record.instrumental) return { status: 'instrumental', plain: null, synced: null, sourceId: String(record.id) };
@@ -102,13 +133,27 @@ export const pickResult = (records: LrclibRecord[], durationSec: number | null):
 };
 
 /**
+ * The same song at another length, a live take or a film's cut, for a track
+ * no recording of its length matches: the words without their times.
+ */
+export const pickOtherTake = (records: LrclibRecord[], name: string, durationSec: number | null): LyricsLookup | null => {
+  const takes = records.filter(record => !record.instrumental && (record.plainLyrics || record.syncedLyrics) && sameTitle(record.trackName, name));
+  const best = [...takes].sort((a, b) => durationSec == null ? 0 : Math.abs((a.duration ?? 0) - durationSec) - Math.abs((b.duration ?? 0) - durationSec))[0];
+  if (!best) return null;
+  return { status: 'found', plain: best.plainLyrics?.trim() || untimed(best.syncedLyrics!), synced: null, sourceId: String(best.id) };
+};
+
+/**
  * Looks a track up: the exact entry for this artist, title, album and length
  * first, then a search on the artist and title, then on the title without
- * "(Remastered)" and the like.
+ * "(Remastered)" and the like, then on the song a scene is set to. Each
+ * artist of the track is asked in turn. Failing a recording of the same
+ * length, the words of another take of the song, untimed.
  */
 export const lookUp = async (track: TrackToLookUp): Promise<LyricsLookup> => {
-  const artist = artistOf(track);
-  if (!artist) return MISSING;
+  const artists = artistsOf(track);
+  if (artists.length === 0) return MISSING;
+  const artist = artists[0];
   const title = plainText(track.title);
 
   if (track.durationSec) {
@@ -121,10 +166,19 @@ export const lookUp = async (track: TrackToLookUp): Promise<LyricsLookup> => {
     }
   }
 
-  for (const name of [...new Set([title, bareTitle(title)])].filter(Boolean)) {
-    const results = await lrclib<LrclibRecord[]>('search', { artist_name: artist, track_name: name });
-    const best = pickResult(results || [], track.durationSec);
-    if (best) return fromRecord(best);
+  const names = [...new Set([title, bareTitle(title), songInParentheses(title)])].filter((name): name is string => Boolean(name));
+  const otherTakes: Array<{ records: LrclibRecord[]; name: string }> = [];
+  for (const singer of artists) {
+    for (const name of names) {
+      const results = await lrclib<LrclibRecord[]>('search', { artist_name: singer, track_name: name });
+      const best = pickResult(results || [], track.durationSec);
+      if (best) return fromRecord(best);
+      if (results?.length) otherTakes.push({ records: results, name });
+    }
+  }
+  for (const { records, name } of otherTakes) {
+    const take = pickOtherTake(records, name, track.durationSec);
+    if (take) return take;
   }
   return MISSING;
 };
@@ -277,7 +331,8 @@ const lyricsService = {
       await albumDone(albumId).catch(error => logger.warn(`Lyrics of album ${albumId} not written: ${(error as Error).message}`));
     };
     try {
-      const retryBefore = new Date(Date.now() - RETRY_MISSING_AFTER_MS).toISOString();
+      const monthAgo = new Date(Date.now() - RETRY_MISSING_AFTER_MS).toISOString();
+      const retryBefore = monthAgo > LOOKUP_REVISED_AT ? monthAgo : LOOKUP_REVISED_AT;
       const classical = await classicalAlbumIds();
       const leftForLater = new Set<string>();
       const key = (track: TrackToLookUp) => `${track.albumId}/${track.discNumber}/${track.trackNumber}`;

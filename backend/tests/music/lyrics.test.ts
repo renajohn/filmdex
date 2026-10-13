@@ -7,7 +7,7 @@ import app from '../../index';
 import { getDatabase } from '../../src/database';
 import navidromeService from '../../src/services/navidromeService';
 import ripStatusService from '../../src/services/ripStatusService';
-import lyricsService, { artistOf, findByTags, lyricsTiming, pickResult, resolveOnDisk } from '../../src/services/lyricsService';
+import lyricsService, { artistOf, findByTags, lyricsTiming, pickResult, resolveOnDisk, songInParentheses } from '../../src/services/lyricsService';
 
 const run = (sql: string, params: unknown[] = []) =>
   new Promise<number>((resolve, reject) =>
@@ -20,7 +20,7 @@ const insertTrack = (albumId: number, track: number, title: string, durationSec 
   run(`INSERT INTO tracks (album_id, disc_number, track_number, title, duration_sec, artist) VALUES (?, 1, ?, ?, ?, ?)`,
     [albumId, track, title, durationSec, JSON.stringify(artist)]);
 
-const record = (fields: Partial<{ id: number; duration: number; instrumental: boolean; plainLyrics: string | null; syncedLyrics: string | null }>) => ({
+const record = (fields: Partial<{ id: number; trackName: string; duration: number; instrumental: boolean; plainLyrics: string | null; syncedLyrics: string | null }>) => ({
   id: 1, trackName: 'T', artistName: 'A', albumName: 'B', duration: 264, instrumental: false, plainLyrics: 'words', syncedLyrics: null, ...fields,
 });
 
@@ -76,6 +76,50 @@ describe('lyrics lookup', () => {
 
     const res = await request(app).get(`/api/music/albums/${albumId}/discs/1/tracks/1/lyrics`);
     expect(res.body).toMatchObject({ status: 'found', sourceId: '7' });
+  });
+
+  it('reconnaît la chanson qu’une scène de film met entre parenthèses, pas « (live) »', () => {
+    expect(songInParentheses('End Credits (Blackout)')).toBe('Blackout');
+    expect(songInParentheses('Gallery Slideshow (Sing for Absolution)')).toBe('Sing for Absolution');
+    expect(songInParentheses('Thankful (live)')).toBeNull();
+    expect(songInParentheses('Tell Me Why (smooth radio edit)')).toBeNull();
+    expect(songInParentheses('Plug In Baby')).toBeNull();
+  });
+
+  it('prend les paroles d’une autre prise, sans les temps, quand aucune n’a la durée du CD', async () => {
+    const albumId = await insertAlbum(`Drones ${Math.random()}`, ['Muse']);
+    await insertTrack(albumId, 1, 'Dead Inside (live at Brighton Dome)', 279);
+    await insertTrack(albumId, 2, 'End Credits (Blackout)', 276);
+    jest.spyOn(axios, 'get').mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
+      if (url.endsWith('/get')) throw notFound();
+      const name = config?.params?.track_name;
+      if (name === 'Dead Inside') {
+        return { data: [record({ id: 3, trackName: 'DEAD INSIDE', duration: 263, plainLyrics: null, syncedLyrics: '[00:01.00] Revolt\n[00:04.50] Dead inside' })] };
+      }
+      if (name === 'Blackout') return { data: [record({ id: 4, trackName: 'Blackout', duration: 262, plainLyrics: 'Don’t kid yourself', syncedLyrics: '[00:01.00] Don’t kid yourself' })] };
+      return { data: [] };
+    });
+
+    const live = await request(app).get(`/api/music/albums/${albumId}/discs/1/tracks/1/lyrics`);
+    expect(live.body).toMatchObject({ status: 'found', sourceId: '3', plain: 'Revolt\nDead inside', synced: null });
+    const scene = await request(app).get(`/api/music/albums/${albumId}/discs/1/tracks/2/lyrics`);
+    expect(scene.body).toMatchObject({ status: 'found', sourceId: '4', plain: 'Don’t kid yourself', synced: null });
+  });
+
+  it('demande aussi l’autre chanteur d’un duo, et ne prend pas une chanson d’un autre titre', async () => {
+    const albumId = await insertAlbum(`Duos ${Math.random()}`, ['Véronique Sanson']);
+    await insertTrack(albumId, 1, 'Bahia', 225, ['Alain Chamfort']);
+    await insertTrack(albumId, 2, 'Unknown Song', 200);
+    jest.spyOn(axios, 'get').mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
+      if (url.endsWith('/get')) throw notFound();
+      if (config?.params?.artist_name === 'Véronique Sanson' && config?.params?.track_name === 'Bahia') {
+        return { data: [record({ id: 5, trackName: 'Bahia', duration: 172 })] };
+      }
+      return { data: [record({ id: 6, trackName: 'Another Song', duration: 100 })] };
+    });
+
+    expect((await request(app).get(`/api/music/albums/${albumId}/discs/1/tracks/1/lyrics`)).body).toMatchObject({ status: 'found', sourceId: '5' });
+    expect((await request(app).get(`/api/music/albums/${albumId}/discs/1/tracks/2/lyrics`)).body).toMatchObject({ status: 'missing' });
   });
 
   it('note une piste instrumentale ou introuvable, et la recherche à nouveau sur demande', async () => {
@@ -146,7 +190,7 @@ describe('lyrics lookup', () => {
     const rock = await insertAlbum(`Rock ${Math.random()}`, ['Muse']);
     await insertTrack(pop, 1, 'Cherry Wine');
     await insertTrack(pop, 2, 'From Eden');
-    await insertTrack(baroque, 1, 'Brandenburg Concerto No. 3: I. Allegro');
+    await insertTrack(baroque, 1, 'Brandenburg Concerto No. 3: I. Allegro', 300, ['Johann Sebastian Bach']);
     await insertTrack(rock, 1, 'Uprising');
     const asked: unknown[] = [];
     jest.spyOn(axios, 'get').mockImplementation(async (_url: string, config?: { params?: Record<string, unknown> }) => {
