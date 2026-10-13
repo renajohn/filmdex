@@ -20,7 +20,9 @@ import bookCommentController from './src/controllers/bookCommentController';
 import warningsController from './src/controllers/warningsController';
 import albumStoryController from './src/controllers/albumStoryController';
 import albumGuideController from './src/controllers/albumGuideController';
+import lyricsController from './src/controllers/lyricsController';
 import albumGuideService from './src/services/albumGuideService';
+import lyricsService from './src/services/lyricsService';
 import shelvingController from './src/controllers/shelvingController';
 import shelvingService from './src/services/shelvingService';
 import warningsService from './src/services/warningsService';
@@ -326,6 +328,8 @@ app.get('/api/music/albums/:id/guide', albumGuideController.get);
 app.put('/api/music/albums/:id/guide', albumGuideController.save);
 app.delete('/api/music/albums/:id/guide', albumGuideController.remove);
 app.post('/api/music/albums/:id/guide/generate', albumGuideController.generate);
+app.get('/api/music/albums/:id/discs/:disc/tracks/:track/lyrics', lyricsController.get);
+app.post('/api/music/albums/:id/discs/:disc/tracks/:track/lyrics', lyricsController.get);
 app.get('/api/collections/listen-next/albums', musicController.getListenNextAlbums);
 app.post('/api/collections/listen-next/smart-fill', musicController.smartFillListenNext);
 app.post('/api/collections/listen-next/shuffle/:albumId', musicController.shuffleListenNextAlbum);
@@ -534,6 +538,7 @@ const serverReady = startServer().then(() => {
     startNightlyBackup();
     albumRatingService.startSync();
     albumGuideService.startAutoWrite();
+    lyricsService.startAutoFetch();
     shelvingService.startSortNameSync();
   }
 }).catch((error: Error) => {

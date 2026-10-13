@@ -1,7 +1,8 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import TrackDetails, { type DetailedTrack } from './TrackDetails';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import TrackDetails, { lyricsText, type DetailedTrack } from './TrackDetails';
+import musicService from '../services/musicService';
 
 const credited: DetailedTrack = {
   disc: 1, no: 1, title: 'Danseuses de Delphes', work: 'Préludes, Livre I: I. Danseuses de Delphes',
@@ -82,5 +83,53 @@ describe('TrackDetails', () => {
 
     rerender(<TrackDetails track={{ ...track, artist: ['Aretha Franklin'] }} albumArtists={['Various Artists']} rip={rip} />);
     expect(screen.getByText('Aretha Franklin')).toBeInTheDocument();
+  });
+
+  describe('lyrics', () => {
+    afterEach(() => vi.restoreAllMocks());
+    const lyrics = (fields: object) => ({ status: 'found', plain: null, synced: null, source: 'lrclib', checkedAt: '2026-10-13', ...fields });
+
+    it('shows the words of the track, asked for by album, disc and track', async () => {
+      const get = vi.spyOn(musicService, 'getLyrics').mockResolvedValue(lyrics({ plain: 'Karma police\nArrest this man', synced: '[00:01.00] Karma police' }) as never);
+      render(<TrackDetails albumId={42} track={{ disc: 1, no: 6, title: 'Karma Police' }} />);
+
+      // Folded: the fold says the words are there, opening it shows them.
+      expect(await screen.findByText('synced')).toBeInTheDocument();
+      expect(screen.queryByText(/Arrest this man/)).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /Lyrics/ }));
+      expect(screen.getByRole('button', { name: /Lyrics/ })).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByText(/Arrest this man/)).toBeInTheDocument();
+      expect(get).toHaveBeenCalledWith(42, 1, 6);
+    });
+
+    it('reads timed lines without their times when there is no plain text', () => {
+      expect(lyricsText({ plain: null, synced: '[00:01.00] One\n[00:02.50][00:40.00] Two' })).toBe('One\nTwo');
+    });
+
+    it('says a track is instrumental', async () => {
+      vi.spyOn(musicService, 'getLyrics').mockResolvedValue(lyrics({ status: 'instrumental' }) as never);
+      render(<TrackDetails albumId={42} track={{ disc: 1, no: 1, title: 'Guitar Flute & String' }} />);
+      expect(await screen.findByText('instrumental')).toBeInTheDocument();
+    });
+
+    it('looks again for words not found', async () => {
+      const get = vi.spyOn(musicService, 'getLyrics')
+        .mockResolvedValueOnce(lyrics({ status: 'missing' }) as never)
+        .mockResolvedValueOnce(lyrics({ plain: 'Found now' }) as never);
+      render(<TrackDetails albumId={42} track={{ disc: 1, no: 2, title: 'Sitting' }} />);
+
+      expect(await screen.findByText('none found')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /Lyrics/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Look again' }));
+      expect(await screen.findByText('Found now')).toBeInTheDocument();
+      expect(get).toHaveBeenLastCalledWith(42, 1, 2, true);
+    });
+
+    it('asks for nothing without an album', () => {
+      const get = vi.spyOn(musicService, 'getLyrics');
+      render(<TrackDetails track={{ disc: 1, no: 2, title: 'Voiles' }} />);
+      expect(get).not.toHaveBeenCalled();
+      expect(screen.queryByRole('region', { name: 'Lyrics' })).not.toBeInTheDocument();
+    });
   });
 });

@@ -3,6 +3,11 @@ services:
     image: ghcr.io/renajohn/filmdex:latest
     volumes:
       - dexvault_data:/data
+      # The library Navidrome reads (read-only there): DexVault writes an .lrc
+      # beside each ripped track it has lyrics for, which Navidrome hands to its
+      # players. The container runs as root and gives each file to the owner of
+      # its album folder. Without MUSIC_LIBRARY_PATH, no file is written.
+      - /home/rjl/Music:/music
     networks:
       - web
     environment:
@@ -35,6 +40,8 @@ services:
       - NAVIDROME_PASSWORD=${NAVIDROME_PASSWORD:-}
       # Where a browser opens an album in Navidrome, from an album's Listen button.
       - NAVIDROME_PUBLIC_URL=${NAVIDROME_PUBLIC_URL:-https://music.lab.crog.org}
+      # The mount above, where Navidrome's song paths are resolved.
+      - MUSIC_LIBRARY_PATH=/music
       # The backup runs at 3 a.m. local time: without TZ the container runs on UTC.
       - TZ=Europe/Zurich
     restart: unless-stopped

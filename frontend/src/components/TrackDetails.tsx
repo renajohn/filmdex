@@ -1,9 +1,10 @@
-import React from 'react';
-import { BsBoxArrowUpRight } from 'react-icons/bs';
-import type { RipTracks } from '../services/musicService';
+import React, { useEffect, useState } from 'react';
+import { BsBoxArrowUpRight, BsChevronRight } from 'react-icons/bs';
+import musicService, { type RipTracks, type TrackLyrics } from '../services/musicService';
 import type { TrackPerformer } from '../utils/trackCredits';
 import { performersByPerson, ripFileFor, ripFormat, ripSize } from '../utils/trackDetail';
 import { isAppleMobile, trackListenUrl } from '../utils/navidrome';
+import { layOutLyrics } from '../utils/lyricsLayout';
 import './TrackDetails.css';
 
 export interface DetailedTrack {
@@ -20,6 +21,8 @@ export interface DetailedTrack {
 
 interface TrackDetailsProps {
   track: DetailedTrack;
+  /** The CD the track is on: its words are asked for by album, disc and track. Without it, no words. */
+  albumId?: number;
   /** The album's artists: a track artist is only worth a line when it differs, as on a compilation. */
   albumArtists?: string[];
   id?: string;
@@ -40,12 +43,92 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, 
   </>
 );
 
+/** The words to read: the plain text, else the timed lines without their times. */
+export const lyricsText = (lyrics: Pick<TrackLyrics, 'plain' | 'synced'>): string =>
+  (lyrics.plain?.trim() || (lyrics.synced || '').split('\n').map(line => line.replace(/^(\[[^\]]*\])+\s?/, '')).join('\n').trim());
+
+/**
+ * The words of a track, asked for as its details open but folded away: the
+ * fold says whether there are any, opening it shows them.
+ */
+const Lyrics: React.FC<{ albumId: number; disc: number; track: number }> = ({ albumId, disc, track }) => {
+  const [lyrics, setLyrics] = useState<TrackLyrics | null | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    let current = true;
+    setLyrics(undefined);
+    setError(null);
+    setOpen(false);
+    musicService.getLyrics(albumId, disc, track)
+      .then(result => { if (current) setLyrics(result); })
+      .catch((e: Error) => { if (current) setError(e.message); });
+    return () => { current = false; };
+  }, [albumId, disc, track]);
+
+  const askAgain = () => {
+    setAsking(true);
+    setError(null);
+    musicService.getLyrics(albumId, disc, track, true)
+      .then(setLyrics)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setAsking(false));
+  };
+  const again = (
+    <button type="button" className="track-details-search track-details-lyrics-again" onClick={askAgain} disabled={asking}>
+      {asking ? 'Looking…' : 'Look again'}
+    </button>
+  );
+
+  const text = lyrics?.status === 'found' ? lyricsText(lyrics) : '';
+  let hint: string;
+  let body: React.ReactNode;
+  if (error) {
+    hint = 'could not look them up';
+    body = <p className="track-details-muted">{error} {again}</p>;
+  } else if (lyrics === undefined) {
+    hint = 'looking…';
+    body = <p className="track-details-muted">Looking up the lyrics…</p>;
+  } else if (lyrics?.status === 'instrumental') {
+    hint = 'instrumental';
+    body = <p className="track-details-muted">Instrumental.</p>;
+  } else if (!text) {
+    hint = 'none found';
+    body = <p className="track-details-muted">No lyrics found. {again}</p>;
+  } else {
+    hint = lyrics!.synced ? 'synced' : '';
+    body = (
+      <>
+        <div className="track-details-lyrics-text">
+          {layOutLyrics(lyrics!).map((stanza, index) => (
+            <p key={index}>{stanza.map((line, at) => <React.Fragment key={at}>{at > 0 && <br />}{line}</React.Fragment>)}</p>
+          ))}
+        </div>
+        <p className="track-details-muted track-details-lyrics-source">From LRCLIB.</p>
+      </>
+    );
+  }
+
+  return (
+    <section className="track-details-lyrics" aria-label="Lyrics">
+      <button type="button" className="track-details-lyrics-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <BsChevronRight aria-hidden="true" className={open ? 'track-details-lyrics-chevron-open' : ''} />
+        Lyrics
+        {hint && <span className="track-details-lyrics-hint">{hint}</span>}
+      </button>
+      {open && <div className="track-details-lyrics-body">{body}</div>}
+    </section>
+  );
+};
+
 /**
  * Everything DexVault knows of one track, opened under its row in the track
  * list: one surface whatever the screen, and never a doubt about which track
  * it speaks of.
  */
-const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumArtists = [], id, rip, ripError, onSearch }) => {
+const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumId, albumArtists = [], id, rip, ripError, onSearch }) => {
   // A credited name or role opens the CDs that credit it as well.
   const link = (field: string, value: string, { label = value, title = `CDs with ${value}`, className = '' } = {}) => (onSearch
     ? <button type="button" className={`track-details-search ${className}`} title={title}
@@ -119,6 +202,7 @@ const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumArtists = [], i
         {rip?.configured !== false && <Field label="Rip">{ripText}</Field>}
       </dl>
       {!credited && <p className="track-details-muted track-details-empty">No credits for this track. Edit the album to add them.</p>}
+      {albumId !== undefined && Number.isInteger(Number(track.no)) && <Lyrics albumId={albumId} disc={track.disc} track={Number(track.no)} />}
     </div>
   );
 };

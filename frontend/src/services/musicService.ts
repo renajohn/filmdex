@@ -106,6 +106,16 @@ export interface AlbumNote {
   updatedAt: string;
 }
 
+/** A track's words as DexVault keeps them, from LRCLIB. */
+export interface TrackLyrics {
+  status: 'found' | 'instrumental' | 'missing';
+  plain: string | null;
+  /** LRC, "[mm:ss.xx] line", when the source times its lines. */
+  synced: string | null;
+  source: string | null;
+  checkedAt: string;
+}
+
 export interface RipTracks {
   configured: boolean;
   found: boolean;
@@ -706,6 +716,17 @@ class MusicService {
   async getNavidromeTracks(albumId: number | string): Promise<RipTracks> {
     const baseUrl = await this.getBaseUrl();
     const response = await fetch(`${baseUrl}/music/albums/${albumId}/navidrome-tracks`);
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.error || `HTTP error! status: ${response.status}`);
+    }
+    return body;
+  }
+
+  /** A track's words, looked up as it is asked when they never were; `again` looks them up anew. */
+  async getLyrics(albumId: number | string, disc: number, track: number, again = false): Promise<TrackLyrics> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/albums/${albumId}/discs/${disc}/tracks/${track}/lyrics`, { method: again ? 'POST' : 'GET' });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(body.error || `HTTP error! status: ${response.status}`);

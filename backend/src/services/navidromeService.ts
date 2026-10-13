@@ -112,6 +112,22 @@ const toAlbum = (raw: RawAlbum): NavidromeAlbum => ({
   userRating: raw.userRating || 0,
 });
 
+/** A session on Navidrome's own API, for what Subsonic does not tell: where a file really lies. */
+let nativeToken: string | null = null;
+
+const nativeLogin = async (): Promise<string> => {
+  const { url, user, password } = config();
+  try {
+    const response = await axios.post<{ token: string }>(`${url}/auth/login`, { username: user, password }, { timeout: TIMEOUT_MS });
+    return response.data.token;
+  } catch (error) {
+    const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+    throw new Error(`Navidrome login failed${status ? ` (HTTP ${status})` : ''}`);
+  }
+};
+
+type RawNativeSong = { path?: string; discNumber?: number; trackNumber?: number };
+
 const navidromeService = {
   isConfigured,
 
@@ -125,6 +141,41 @@ const navidromeService = {
   /** Gives an album, a song or an artist 1 to 5 stars, or takes them away with 0. */
   setRating: async (id: string, rating: number): Promise<void> => {
     await request('setRating', { id, rating });
+  },
+
+  /**
+   * Where each file of an album lies, relative to the library or absolute in
+   * Navidrome's container. Subsonic may report a path made up from the tags
+   * instead, unless the player asks for the real one; Navidrome's own API
+   * always gives the real one.
+   */
+  getSongPaths: async (albumId: string): Promise<Array<{ discNumber: number; track: number; path: string }>> => {
+    const { url } = config();
+    if (!isConfigured()) throw new Error('Navidrome is not configured: set NAVIDROME_USER and NAVIDROME_PASSWORD');
+    for (let attempt = 0; attempt < 2; attempt++) {
+      nativeToken = nativeToken || await nativeLogin();
+      try {
+        const response = await axios.get<RawNativeSong[]>(`${url}/api/song`, {
+          params: { album_id: albumId, _start: 0, _end: 1000 },
+          headers: { 'X-ND-Authorization': `Bearer ${nativeToken}` },
+          timeout: TIMEOUT_MS,
+        });
+        return (response.data || []).filter(song => song.path).map(song => ({
+          discNumber: song.discNumber || 1, track: song.trackNumber || 0, path: song.path!,
+        }));
+      } catch (error) {
+        const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+        // An expired session: log in again once.
+        if (status === 401 && attempt === 0) { nativeToken = null; continue; }
+        throw new Error(`Navidrome song paths request failed${status ? ` (HTTP ${status})` : ''}`);
+      }
+    }
+    return [];
+  },
+
+  /** Asks Navidrome to rescan its library now, for files DexVault just wrote beside the rips. Admins only. */
+  startScan: async (): Promise<void> => {
+    await request('startScan');
   },
 
   /** Every album, page by page. */

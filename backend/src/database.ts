@@ -329,6 +329,7 @@ const initDatabase = async (): Promise<sqlite3.Database> => {
           const ReleaseGroupLookup = (await import('./models/releaseGroupLookup')).default;
           const AlbumNote = (await import('./models/albumNote')).default;
           const AlbumGuide = (await import('./models/albumGuide')).default;
+          const TrackLyrics = (await import('./models/trackLyrics')).default;
           const ShelfItem = (await import('./models/shelfItem')).default;
           const ShelfFurniture = (await import('./models/shelfFurniture')).default;
 
@@ -351,6 +352,7 @@ const initDatabase = async (): Promise<sqlite3.Database> => {
           await ReleaseGroupLookup.createTable();
           await AlbumNote.createTable();
           await AlbumGuide.createTable();
+          await TrackLyrics.createTable();
           await ShelfItem.createTable();
           await ShelfFurniture.createTable();
 

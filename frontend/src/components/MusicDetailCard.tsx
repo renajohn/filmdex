@@ -713,6 +713,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                         <TrackDetails
                           id={`track-details-${key}`}
                           track={{ ...track, disc: disc.number }}
+                          albumId={Number(cd.id)}
                           albumArtists={Array.isArray(cd.artist) ? cd.artist : [cd.artist]}
                           rip={rip}
                           ripError={ripError}

@@ -182,3 +182,73 @@
   color: #9aa4b2;
   font-size: 0.78rem;
 }
+
+/* The words, under the facts: a quiet heading, then the song as it is sung, line by line. */
+.track-details-lyrics {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.track-details-lyrics-toggle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #8f98a3;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.track-details-lyrics-toggle svg {
+  align-self: center;
+  font-size: 0.7rem;
+  transition: transform 0.15s ease-out;
+}
+
+.track-details-lyrics-toggle .track-details-lyrics-chevron-open {
+  transform: rotate(90deg);
+}
+
+.track-details-lyrics-toggle:hover,
+.track-details-lyrics-toggle:focus-visible {
+  color: #f0c654;
+}
+
+.track-details-lyrics-hint {
+  color: #6f7882;
+}
+
+.track-details-lyrics-body {
+  margin-top: 6px;
+}
+
+.track-details-lyrics-text {
+  color: #d6dbe1;
+  line-height: 1.6;
+}
+
+/* A stanza a paragraph, a line a line: the space between them is the song's breath. */
+.track-details-lyrics-text p {
+  margin: 0 0 0.9em;
+}
+
+.track-details-lyrics-text p:last-child {
+  margin-bottom: 0;
+}
+
+.track-details-lyrics-source {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+}
+
+.track-details-lyrics p.track-details-muted {
+  margin: 0;
+}
+
+.track-details-lyrics-again {
+  text-decoration: underline;
+}
