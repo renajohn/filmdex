@@ -238,6 +238,14 @@ export interface LrcWriteReport {
 
 let lookingUp = false;
 
+/**
+ * The classical CDs, told apart as the shelves tell them. LRCLIB knows
+ * songs, not movements: they are not looked up with the others, only when
+ * someone opens one of their tracks.
+ */
+const classicalAlbumIds = async (): Promise<number[]> =>
+  (await Album.search('classical:yes')).map(album => album.id);
+
 const lyricsService = {
   /** The words of one track, looked up there and then when never asked yet. Null when the CD has no such track. */
   forTrack: async (albumId: number, discNumber: number, trackNumber: number, { again = false } = {}): Promise<TrackLyricsFormatted | null> => {
@@ -252,21 +260,36 @@ const lyricsService = {
     });
   },
 
-  /** Looks up every track of the collection that has not been, one at a time. Returns how many were. */
-  lookUpMissing: async (): Promise<number> => {
+  /**
+   * Looks up every track of the collection that has not been, one at a time,
+   * classical CDs apart. Each album done is handed to `albumDone`, to write
+   * its .lrc files without waiting for the others. Returns how many were.
+   */
+  lookUpMissing: async (albumDone?: (albumId: number) => Promise<unknown>): Promise<number> => {
     if (lookingUp) return 0;
     lookingUp = true;
     let done = 0;
+    let current: number | null = null;
+    const finish = async () => {
+      if (current == null || !albumDone) return;
+      const albumId = current;
+      await albumDone(albumId).catch(error => logger.warn(`Lyrics of album ${albumId} not written: ${(error as Error).message}`));
+    };
     try {
       const retryBefore = new Date(Date.now() - RETRY_MISSING_AFTER_MS).toISOString();
+      const classical = await classicalAlbumIds();
       const leftForLater = new Set<string>();
       const key = (track: TrackToLookUp) => `${track.albumId}/${track.discNumber}/${track.trackNumber}`;
       for (;;) {
-        const tracks = (await TrackLyrics.toLookUp(retryBefore, BATCH + leftForLater.size)).filter(track => !leftForLater.has(key(track)));
+        const tracks = (await TrackLyrics.toLookUp(retryBefore, BATCH + leftForLater.size, classical)).filter(track => !leftForLater.has(key(track)));
         if (tracks.length === 0) break;
         let failedInARow = 0;
         let lookedUp = 0;
         for (const track of tracks) {
+          if (track.albumId !== current) {
+            await finish();
+            current = track.albumId;
+          }
           try {
             await withRetries(() => lookUpAndSave(track));
             done++;
@@ -285,6 +308,7 @@ const lyricsService = {
         }
         if (lookedUp === 0) break;
       }
+      await finish();
       if (done > 0) logger.info(`Lyrics looked up for ${done} tracks`);
       return done;
     } finally {
@@ -294,14 +318,16 @@ const lyricsService = {
 
   /**
    * Writes an .lrc beside every file of a rip whose track has words and no
-   * .lrc yet. An .lrc already there is left as it is, whoever wrote it.
+   * .lrc yet, for the albums given or for all. An .lrc already there is left
+   * as it is, whoever wrote it.
    */
-  writeLrcFiles: async (): Promise<LrcWriteReport | null> => {
+  writeLrcFiles: async (albumIds?: number[]): Promise<LrcWriteReport | null> => {
     const root = libraryRoot();
     if (!root || !navidromeService.isConfigured()) return null;
     const report: LrcWriteReport = { written: 0, alreadyThere: 0, notOnDisk: 0 };
     const missingExamples: string[] = [];
     for (const [albumId, copy] of await ripStatusService.navidromeAlbums()) {
+      if (albumIds && !albumIds.includes(albumId)) continue;
       const lyrics = await TrackLyrics.foundForAlbum(albumId);
       if (lyrics.length === 0) continue;
       const files = await navidromeService.getAlbumSongs(copy.id);
@@ -344,10 +370,13 @@ const lyricsService = {
     return report;
   },
 
-  /** Every half hour: the tracks of new CDs, then the .lrc files of new rips. */
+  /**
+   * Every half hour: the tracks of new CDs, each album's .lrc files as soon
+   * as it is done, then those of the rips that came since.
+   */
   startAutoFetch: (): void => {
     const tick = async () => {
-      await lyricsService.lookUpMissing().catch(error => logger.warn(`Lyrics lookup failed: ${(error as Error).message}`));
+      await lyricsService.lookUpMissing(albumId => lyricsService.writeLrcFiles([albumId])).catch(error => logger.warn(`Lyrics lookup failed: ${(error as Error).message}`));
       await lyricsService.writeLrcFiles().catch(error => logger.warn(`Writing .lrc files failed: ${(error as Error).message}`));
     };
     setTimeout(tick, 2 * 60 * 1000).unref();

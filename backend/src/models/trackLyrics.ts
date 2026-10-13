@@ -120,8 +120,9 @@ const TrackLyrics = {
   /**
    * The tracks of the collection to look up, oldest albums first: never
    * looked up, renamed since, or missing and last asked before `retryBefore`.
+   * The albums in `skip` are left out.
    */
-  toLookUp: async (retryBefore: string, limit: number): Promise<TrackToLookUp[]> =>
+  toLookUp: async (retryBefore: string, limit: number, skip: number[] = []): Promise<TrackToLookUp[]> =>
     all<TrackToLookUp>(
       `SELECT t.album_id AS albumId, t.disc_number AS discNumber, t.track_number AS trackNumber, t.title,
               t.duration_sec AS durationSec, t.artist AS trackArtist, a.artist AS albumArtist, a.title AS albumTitle
@@ -131,9 +132,10 @@ const TrackLyrics = {
            ON l.album_id = t.album_id AND l.disc_number = t.disc_number AND l.track_number = t.track_number
         WHERE (a.title_status = 'owned' OR a.title_status IS NULL)
           AND (l.album_id IS NULL OR l.title != t.title OR (l.status = 'missing' AND l.checked_at < ?))
+          ${skip.length > 0 ? `AND t.album_id NOT IN (${skip.map(() => '?').join(',')})` : ''}
         ORDER BY t.album_id, t.disc_number, t.track_number
         LIMIT ?`,
-      [retryBefore, limit]
+      [retryBefore, ...skip, limit]
     ),
 };
 

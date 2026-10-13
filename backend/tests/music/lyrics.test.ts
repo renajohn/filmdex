@@ -138,6 +138,31 @@ describe('lyrics lookup', () => {
     expect(asked).toContain('Blackout');
     expect(asked).not.toContain('Hysteria');
   });
+
+  it('laisse de côté les CD classiques et passe chaque album fini à la suite', async () => {
+    const pop = await insertAlbum(`Pop ${Math.random()}`, ['Hozier']);
+    const baroque = await insertAlbum(`Baroque ${Math.random()}`, ['Various Artists']);
+    await run(`UPDATE albums SET genres = ? WHERE id = ?`, [JSON.stringify(['Classical', 'Baroque']), baroque]);
+    const rock = await insertAlbum(`Rock ${Math.random()}`, ['Muse']);
+    await insertTrack(pop, 1, 'Cherry Wine');
+    await insertTrack(pop, 2, 'From Eden');
+    await insertTrack(baroque, 1, 'Brandenburg Concerto No. 3: I. Allegro');
+    await insertTrack(rock, 1, 'Uprising');
+    const asked: unknown[] = [];
+    jest.spyOn(axios, 'get').mockImplementation(async (_url: string, config?: { params?: Record<string, unknown> }) => {
+      asked.push(config?.params?.track_name);
+      return { data: record({}) };
+    });
+
+    const done: Array<{ albumId: number; asked: number }> = [];
+    await lyricsService.lookUpMissing(async albumId => { done.push({ albumId, asked: asked.length }); });
+    expect(asked).toEqual(['Cherry Wine', 'From Eden', 'Uprising']);
+    // Each album is handed on once its tracks are looked up, before the next one starts.
+    expect(done).toEqual([{ albumId: pop, asked: 2 }, { albumId: rock, asked: 3 }]);
+    // A classical track is still looked up when it is opened.
+    expect((await request(app).get(`/api/music/albums/${baroque}/discs/1/tracks/1/lyrics`)).status).toBe(200);
+    expect(asked).toContain('Brandenburg Concerto No. 3: I. Allegro');
+  });
 });
 
 describe('.lrc files beside the rips', () => {
