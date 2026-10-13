@@ -215,7 +215,8 @@ export const findByTags = (root: string, madeUpPath: string, discNumber: number,
   const track = String(trackNumber);
   const numbered = discNumber > 1
     ? new RegExp(`^0*${discNumber}-0*${track}(?!\\d)`)
-    : new RegExp(`^(0*1-)?0*${track}(?!\\d)`);
+    // "1-10" and "2-01" are not "1": a lone number is the track only when no dash follows it.
+    : new RegExp(`^(0*1-)?0*${track}(?![\\d-])`);
   const found = folders.flatMap(folder => {
     let entries: string[] = [];
     try { entries = fs.readdirSync(folder); } catch { return []; }

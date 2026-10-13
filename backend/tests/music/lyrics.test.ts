@@ -249,6 +249,18 @@ describe('.lrc files beside the rips', () => {
     expect(findByTags(root, 'Tracy Chapman/Crossroads/01-05 - Be Careful of My Heart.flac', 1, 5)).toBeNull();
   });
 
+  it('ne prend pas « 1-10 » ni « 2-01 » pour la piste 1 d’un double album', () => {
+    const wall = path.join(root, 'FLAC', 'Pink Floyd', 'The Wall');
+    fs.mkdirSync(wall, { recursive: true });
+    for (const name of ['1-01 In the Flesh_.flac', '1-02 The Thin Ice.flac', '1-10 One of My Turns.flac', '1-11 Don’t Leave Me Now.flac', '2-01 Hey You.flac', '2-02 Is There Anybody Out There_.flac']) {
+      fs.writeFileSync(path.join(wall, name), '');
+    }
+
+    expect(findByTags(root, 'Pink Floyd/The Wall/01-01 - In the Flesh?.flac', 1, 1)).toBe(path.join(wall, '1-01 In the Flesh_.flac'));
+    expect(findByTags(root, 'Pink Floyd/The Wall/01-02 - The Thin Ice.flac', 1, 2)).toBe(path.join(wall, '1-02 The Thin Ice.flac'));
+    expect(findByTags(root, 'Pink Floyd/The Wall/02-01 - Hey You.flac', 2, 1)).toBe(path.join(wall, '2-01 Hey You.flac'));
+  });
+
   it('ne fait rien sans dossier de musique monté', async () => {
     expect(await lyricsService.writeLrcFiles()).toBeNull();
   });
