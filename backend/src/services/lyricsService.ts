@@ -129,6 +129,21 @@ export const lookUp = async (track: TrackToLookUp): Promise<LyricsLookup> => {
   return MISSING;
 };
 
+/** LRCLIB answers 503 now and then: a lookup is tried again after 5, 15 and 45 seconds. */
+export const lyricsTiming = { retryDelaysMs: [5000, 15000, 45000] };
+const MAX_FAILURES_IN_A_ROW = 5;
+
+const withRetries = async <T>(attempt: () => Promise<T>): Promise<T> => {
+  for (let tries = 0; ; tries++) {
+    try {
+      return await attempt();
+    } catch (error) {
+      if (tries >= lyricsTiming.retryDelaysMs.length) throw error;
+      await pause(lyricsTiming.retryDelaysMs[tries]);
+    }
+  }
+};
+
 /** Looks a track up and keeps what was found, or that nothing was. */
 const lookUpAndSave = async (track: TrackToLookUp): Promise<TrackLyricsFormatted> => {
   const found = await lookUp(track);
@@ -168,6 +183,47 @@ export const resolveOnDisk = (root: string, songPath: string): string | null => 
   return current;
 };
 
+/**
+ * The file of a track found on disk from where the tags put it, for a path
+ * Navidrome made up ("Tracy Chapman/Crossroads/01-01 - Crossroads.flac"):
+ * the album folder under the library or under FLAC/, or the folder named
+ * after it with the year ("Crossroads (1989)"), then the only file of that
+ * kind there whose name starts with the track number ("01 Crossroads.flac",
+ * "1-01 Crossroads.flac").
+ */
+export const findByTags = (root: string, madeUpPath: string, discNumber: number, trackNumber: number): string | null => {
+  const parts = madeUpPath.split('/').filter(Boolean);
+  if (parts.length < 3) return null;
+  const [artist, album] = parts.slice(-3, -1);
+  const extension = path.extname(madeUpPath).toLowerCase();
+  const albumKey = album.normalize('NFC').toLocaleLowerCase();
+
+  const folders: string[] = [];
+  for (const base of ['', 'FLAC']) {
+    const artistFolder = resolveOnDisk(root, path.join(base, artist));
+    if (!artistFolder) continue;
+    let entries: string[] = [];
+    try { entries = fs.readdirSync(artistFolder); } catch { continue; }
+    for (const entry of entries) {
+      const key = entry.normalize('NFC').toLocaleLowerCase();
+      if (key === albumKey || (key.startsWith(albumKey) && /^\s*\(\d{4}\)$/.test(key.slice(albumKey.length)))) {
+        folders.push(path.join(artistFolder, entry));
+      }
+    }
+  }
+
+  const track = String(trackNumber);
+  const numbered = discNumber > 1
+    ? new RegExp(`^0*${discNumber}-0*${track}(?!\\d)`)
+    : new RegExp(`^(0*1-)?0*${track}(?!\\d)`);
+  const found = folders.flatMap(folder => {
+    let entries: string[] = [];
+    try { entries = fs.readdirSync(folder); } catch { return []; }
+    return entries.filter(entry => path.extname(entry).toLowerCase() === extension && numbered.test(entry)).map(entry => path.join(folder, entry));
+  });
+  return found.length === 1 ? found[0] : null;
+};
+
 /** The .lrc for a track: its timed lines, else its plain words, which Navidrome shows unsynced. */
 export const lrcText = (lyrics: Pick<TrackLyricsFormatted, 'synced' | 'plain'>): string | null => {
   const text = lyrics.synced?.trim() || lyrics.plain?.trim();
@@ -203,20 +259,31 @@ const lyricsService = {
     let done = 0;
     try {
       const retryBefore = new Date(Date.now() - RETRY_MISSING_AFTER_MS).toISOString();
+      const leftForLater = new Set<string>();
+      const key = (track: TrackToLookUp) => `${track.albumId}/${track.discNumber}/${track.trackNumber}`;
       for (;;) {
-        const tracks = await TrackLyrics.toLookUp(retryBefore, BATCH);
+        const tracks = (await TrackLyrics.toLookUp(retryBefore, BATCH + leftForLater.size)).filter(track => !leftForLater.has(key(track)));
         if (tracks.length === 0) break;
+        let failedInARow = 0;
+        let lookedUp = 0;
         for (const track of tracks) {
           try {
-            await lookUpAndSave(track);
+            await withRetries(() => lookUpAndSave(track));
             done++;
+            lookedUp++;
+            failedInARow = 0;
           } catch (error) {
-            // LRCLIB down: stop here, the next pass picks up where this one left.
-            logger.warn(`Lyrics lookup stopped after ${done} tracks: ${(error as Error).message}`);
-            return done;
+            // One track LRCLIB keeps refusing is left for the next pass; several in a row, LRCLIB is down.
+            if (++failedInARow >= MAX_FAILURES_IN_A_ROW) {
+              logger.warn(`Lyrics lookup stopped after ${done} tracks: ${(error as Error).message}`);
+              return done;
+            }
+            leftForLater.add(key(track));
+            logger.warn(`Lyrics of album ${track.albumId} track ${track.discNumber}-${track.trackNumber} left for later: ${(error as Error).message}`);
           }
           await pause(PAUSE_MS);
         }
+        if (lookedUp === 0) break;
       }
       if (done > 0) logger.info(`Lyrics looked up for ${done} tracks`);
       return done;
@@ -227,13 +294,13 @@ const lyricsService = {
 
   /**
    * Writes an .lrc beside every file of a rip whose track has words and no
-   * .lrc yet, then asks Navidrome to scan. An .lrc already there is left as
-   * it is, whoever wrote it.
+   * .lrc yet. An .lrc already there is left as it is, whoever wrote it.
    */
   writeLrcFiles: async (): Promise<LrcWriteReport | null> => {
     const root = libraryRoot();
     if (!root || !navidromeService.isConfigured()) return null;
     const report: LrcWriteReport = { written: 0, alreadyThere: 0, notOnDisk: 0 };
+    const missingExamples: string[] = [];
     for (const [albumId, copy] of await ripStatusService.navidromeAlbums()) {
       const lyrics = await TrackLyrics.foundForAlbum(albumId);
       if (lyrics.length === 0) continue;
@@ -251,7 +318,11 @@ const lyricsService = {
             return [];
           });
           const real = realPaths.find(candidate => candidate.discNumber === words.discNumber && candidate.track === words.trackNumber);
-          audio = real ? resolveOnDisk(root, real.path) : null;
+          audio = (real ? resolveOnDisk(root, real.path) : null)
+            ?? (file.path ? findByTags(root, file.path, words.discNumber, words.trackNumber) : null);
+          if (!audio && missingExamples.length < 3) {
+            missingExamples.push(`album ${albumId} disc ${words.discNumber} track ${words.trackNumber}: ${file.path ?? 'no path'}${real ? ` / ${real.path}` : ''}`);
+          }
         }
         if (!audio) { report.notOnDisk++; continue; }
         const lrc = audio.slice(0, audio.length - path.extname(audio).length) + '.lrc';
@@ -265,11 +336,11 @@ const lyricsService = {
         report.written++;
       }
     }
-    if (report.notOnDisk > 0) logger.warn(`Lyrics: ${report.notOnDisk} files Navidrome lists were not found under ${root}`);
-    if (report.written > 0) {
-      logger.info(`Lyrics: ${report.written} .lrc files written beside the rips`);
-      await navidromeService.startScan().catch(error => logger.warn(`Navidrome scan not started: ${(error as Error).message}`));
+    if (report.notOnDisk > 0) {
+      logger.warn(`Lyrics: ${report.notOnDisk} files Navidrome lists were not found under ${root}, such as ${missingExamples.join('; ')}`);
     }
+    // Navidrome watches the library: the folders it is told have changed are scanned within seconds.
+    if (report.written > 0) logger.info(`Lyrics: ${report.written} .lrc files written beside the rips`);
     return report;
   },
 

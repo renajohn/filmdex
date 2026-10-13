@@ -173,11 +173,6 @@ const navidromeService = {
     return [];
   },
 
-  /** Asks Navidrome to rescan its library now, for files DexVault just wrote beside the rips. Admins only. */
-  startScan: async (): Promise<void> => {
-    await request('startScan');
-  },
-
   /** Every album, page by page. */
   getAlbums: async (): Promise<NavidromeAlbum[]> => {
     const albums: NavidromeAlbum[] = [];

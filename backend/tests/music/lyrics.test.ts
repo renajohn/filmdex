@@ -7,7 +7,7 @@ import app from '../../index';
 import { getDatabase } from '../../src/database';
 import navidromeService from '../../src/services/navidromeService';
 import ripStatusService from '../../src/services/ripStatusService';
-import lyricsService, { artistOf, pickResult, resolveOnDisk } from '../../src/services/lyricsService';
+import lyricsService, { artistOf, findByTags, lyricsTiming, pickResult, resolveOnDisk } from '../../src/services/lyricsService';
 
 const run = (sql: string, params: unknown[] = []) =>
   new Promise<number>((resolve, reject) =>
@@ -100,6 +100,28 @@ describe('lyrics lookup', () => {
     expect((await request(app).get(`/api/music/albums/${albumId}/discs/1/tracks/9/lyrics`)).status).toBe(404);
   });
 
+  it('réessaie quand LRCLIB répond 503, et laisse pour plus tard une piste qui échoue toujours', async () => {
+    lyricsTiming.retryDelaysMs = [1, 1];
+    const albumId = await insertAlbum(`Flaky ${Math.random()}`, ['Muse']);
+    await insertTrack(albumId, 1, 'Flaky Song');
+    await insertTrack(albumId, 2, 'Broken Song');
+    const unavailable = () => Object.assign(new Error('503'), { isAxiosError: true, response: { status: 503 } });
+    let flaky = 0;
+    jest.spyOn(axios, 'get').mockImplementation(async (_url: string, config?: { params?: Record<string, unknown> }) => {
+      if (config?.params?.track_name === 'Broken Song') throw unavailable();
+      if (config?.params?.track_name === 'Flaky Song' && flaky++ < 2) throw unavailable();
+      return { data: record({ plainLyrics: 'got it' }) };
+    });
+    try {
+      await lyricsService.lookUpMissing();
+    } finally {
+      lyricsTiming.retryDelaysMs = [5000, 15000, 45000];
+    }
+    expect((await request(app).get(`/api/music/albums/${albumId}/discs/1/tracks/1/lyrics`)).body.plain).toBe('got it');
+    const broken = await new Promise<unknown>(r => getDatabase().get('SELECT * FROM track_lyrics WHERE album_id = ? AND track_number = 2', [albumId], (_e, row) => r(row)));
+    expect(broken).toBeUndefined();
+  });
+
   it('remplit les pistes de la collection jamais cherchées, pas celles de la wish list', async () => {
     // Earlier tests left their tracks looked up; these are the only new ones.
     const owned = await insertAlbum(`Owned ${Math.random()}`, ['Muse']);
@@ -159,14 +181,12 @@ describe('.lrc files beside the rips', () => {
       id: `s${index}`, url: null, discNumber: 1, track: index + 1, title: name, durationSec: 264, suffix: 'flac',
       bitRate: null, bitDepth: 16, samplingRate: 44100, channelCount: 2, size: null, path: `FLAC/Hozier/Hozier/${name}`,
     })));
-    const scan = jest.spyOn(navidromeService, 'startScan').mockResolvedValue();
 
     const report = await lyricsService.writeLrcFiles();
     expect(report).toEqual({ written: 1, alreadyThere: 1, notOnDisk: 0 });
     expect(fs.readFileSync(path.join(dir, '01 Jackie.lrc'), 'utf8')).toBe('[00:01.00] timed words\n');
     expect(fs.readFileSync(path.join(dir, '02 Angel.lrc'), 'utf8')).toBe('by hand\n');
     expect(fs.existsSync(path.join(dir, '03 Instrumental.lrc'))).toBe(false);
-    expect(scan).toHaveBeenCalled();
   });
 
   it('demande le vrai chemin à Navidrome quand Subsonic en invente un à partir des tags', async () => {
@@ -185,10 +205,23 @@ describe('.lrc files beside the rips', () => {
       bitRate: null, bitDepth: 16, samplingRate: 44100, channelCount: 2, size: null, path: 'Muse/Absolution/01 - Blackout.flac',
     }]);
     jest.spyOn(navidromeService, 'getSongPaths').mockResolvedValue([{ discNumber: 1, track: 1, path: '/music/FLAC/Muse/Absolution/01-14 Blackout.flac' }]);
-    jest.spyOn(navidromeService, 'startScan').mockResolvedValue();
 
     expect(await lyricsService.writeLrcFiles()).toEqual({ written: 1, alreadyThere: 0, notOnDisk: 0 });
     expect(fs.readFileSync(path.join(dir, '01-14 Blackout.lrc'), 'utf8')).toBe('words\n');
+  });
+
+  it('retrouve un fichier sur le disque d’après le chemin que Navidrome tire des tags', () => {
+    const flac = path.join(root, 'FLAC', 'Tracy Chapman', 'Crossroads');
+    const mp3 = path.join(root, 'Phil Collins', 'No Jacket Required (1985)');
+    fs.mkdirSync(flac, { recursive: true });
+    fs.mkdirSync(mp3, { recursive: true });
+    for (const name of ['01 Crossroads.flac', '10 All That You Have Is Your Soul.flac', '01 Crossroads.lrc']) fs.writeFileSync(path.join(flac, name), '');
+    fs.writeFileSync(path.join(mp3, '1-02 Long Long Way to Go.mp3'), '');
+
+    expect(findByTags(root, 'Tracy Chapman/Crossroads/01-01 - Crossroads.flac', 1, 1)).toBe(path.join(flac, '01 Crossroads.flac'));
+    expect(findByTags(root, 'Tracy Chapman/Crossroads/01-10 - All That You Have Is Your Soul.flac', 1, 10)).toBe(path.join(flac, '10 All That You Have Is Your Soul.flac'));
+    expect(findByTags(root, 'Phil Collins/No Jacket Required/01-02 - Long Long Way to Go.mp3', 1, 2)).toBe(path.join(mp3, '1-02 Long Long Way to Go.mp3'));
+    expect(findByTags(root, 'Tracy Chapman/Crossroads/01-05 - Be Careful of My Heart.flac', 1, 5)).toBeNull();
   });
 
   it('ne fait rien sans dossier de musique monté', async () => {
