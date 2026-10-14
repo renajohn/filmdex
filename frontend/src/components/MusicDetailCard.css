@@ -106,10 +106,10 @@
  */
 .album-head {
   display: grid;
-  grid-template-columns: 168px 1fr;
+  grid-template-columns: 144px 1fr;
   grid-template-rows: auto 1fr;
-  gap: 12px 20px;
-  padding: 14px 16px 16px;
+  gap: 10px 18px;
+  padding: 12px 14px 14px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.04);
   font-size: 0.85rem;
@@ -123,12 +123,12 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
+  gap: 6px;
 }
 
 .album-head-cover {
-  width: 168px;
-  height: 168px;
+  width: 144px;
+  height: 144px;
   object-fit: cover;
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -154,8 +154,8 @@
 }
 
 .album-head-back {
-  width: 56px;
-  height: 56px;
+  width: 44px;
+  height: 44px;
   object-fit: cover;
   border-radius: 4px;
   opacity: 0.85;
@@ -197,9 +197,9 @@
   display: grid;
   grid-template-columns: 6.5rem 1fr;
   align-items: baseline;
-  gap: 6px 12px;
+  gap: 4px 12px;
   margin: 0;
-  padding-top: 10px;
+  padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
@@ -315,13 +315,13 @@
   }
 
   .album-head-cover {
-    width: 112px;
-    height: 112px;
+    width: 104px;
+    height: 104px;
   }
 
   .album-head-back {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
   }
 
   .album-head-artist {
@@ -335,7 +335,7 @@
   }
 
   .album-head-facts dt:not(:first-child) {
-    margin-top: 8px;
+    margin-top: 6px;
   }
 }
 
@@ -551,7 +551,7 @@
   }
 }
 
-/* The identifiers, folded away: codes one looks up, not reads. */
+/* The rarely wanted facts, folded away: credits, the copy owned, codes one looks up, old notes. */
 .album-head-toggle svg {
   font-size: 0.7em;
   transition: transform 0.15s ease;
@@ -561,8 +561,20 @@
   transform: rotate(90deg);
 }
 
-.album-head-ids {
+.album-head-advanced {
   display: contents;
+}
+
+.album-head-annotation {
+  white-space: pre-wrap;
+}
+
+/* One's own stars, then the community's beside them; under them when there is no room. */
+.album-head-rating {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
 }
 
 /* A long edition note: two lines and an ellipsis, the whole of it on a click. */

@@ -59,17 +59,15 @@ beforeEach(() => {
 });
 
 describe('MusicDetailCard', () => {
-  it('shows the edition in one grid: who, what, when, label, codes and links', async () => {
+  it('shows the edition in one grid: who, what, when, label and links', async () => {
     render(<MusicDetailCard cd={cd()} onClose={() => {}} onDelete={() => {}} />);
 
     expect(screen.getByRole('button', { name: 'The Beatles' })).toBeInTheDocument();
     expect(screen.getByText('CD · 3 tracks · 1 h 18 min')).toBeInTheDocument();
-    expect(screen.getByText('2009 · GB')).toBeInTheDocument();
-    expect(screen.getByText('First release')).toBeInTheDocument();
-    expect(screen.getByText('1969-09-26')).toBeInTheDocument();
-    expect(screen.getByText('Apple Records')).toBeInTheDocument();
+    expect(screen.getByText('2009 · GB · Apple Records')).toBeInTheDocument();
+    expect(screen.getByText('· first 1969-09-26')).toBeInTheDocument();
     expect(screen.queryByText('094638246824')).not.toBeInTheDocument();
-    expect(screen.getByText(/^added /)).toBeInTheDocument();
+    expect(screen.queryByText(/^added /)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'MusicBrainz' })).toHaveAttribute('href', 'https://musicbrainz.org/release/rel-1');
     expect(screen.getByRole('link', { name: 'Discogs' })).toHaveAttribute('href', 'https://www.discogs.com/release/1');
     expect(screen.getByRole('img', { name: 'Abbey Road front cover' })).toHaveAttribute('src', '/images/covers/1.jpg');
@@ -77,11 +75,14 @@ describe('MusicDetailCard', () => {
     await waitFor(() => expect(screen.getByText('Not ripped yet.')).toBeInTheDocument());
   });
 
-  it('folds the identifiers away until asked', () => {
-    render(<MusicDetailCard cd={cd()} onClose={() => {}} onDelete={() => {}} />);
+  it('folds the identifiers and the album notes away until asked', () => {
+    render(<MusicDetailCard cd={cd({ annotation: 'Remastered from the original tapes' })} onClose={() => {}} onDelete={() => {}} />);
 
+    expect(screen.queryByText('Remastered from the original tapes')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Show' }));
 
+    expect(screen.getByText('Remastered from the original tapes')).toBeInTheDocument();
+    expect(screen.getByText(/^added /)).toBeInTheDocument();
     expect(screen.getByText('0946 3 82468 2 4')).toBeInTheDocument();
     expect(screen.getByText('094638246824')).toBeInTheDocument();
     expect(screen.getByText('rel-1')).toBeInTheDocument();
@@ -94,7 +95,7 @@ describe('MusicDetailCard', () => {
     })} onClose={() => {}} onDelete={() => {}} />);
 
     expect(screen.getByText('2009')).toBeInTheDocument();
-    expect(screen.queryByText('First release')).not.toBeInTheDocument();
+    expect(screen.queryByText(/first/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Label/)).not.toBeInTheDocument();
     expect(screen.queryByText('Barcode')).not.toBeInTheDocument();
     expect(screen.queryByText('Genres')).not.toBeInTheDocument();
@@ -141,16 +142,17 @@ describe('MusicDetailCard', () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps the owner\'s facts in the grid and the edit action in the footer', () => {
+  it('keeps the owner\'s facts under Advanced and the edit action in the footer', () => {
     const onEdit = vi.fn();
     render(<MusicDetailCard cd={cd({
       ownership: { condition: 'NM', priceChf: 12, notes: 'Bought at the flea market' },
       editionNotes: '2009 remaster', producer: ['George Martin'],
     })} onClose={() => {}} onDelete={() => {}} onEdit={onEdit} />);
 
+    expect(screen.getByText('2009 remaster')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
     expect(screen.getByText('Near Mint · CHF 12')).toBeInTheDocument();
     expect(screen.getByText('Bought at the flea market')).toBeInTheDocument();
-    expect(screen.getByText('2009 remaster')).toBeInTheDocument();
     expect(screen.getByText('George Martin')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     expect(onEdit).toHaveBeenCalled();
@@ -199,7 +201,7 @@ describe('MusicDetailCard', () => {
     expect(musicService.refreshCommunityRating).toHaveBeenCalledWith(1);
   });
 
-  it('steps to the album before or after it with ‹ › and the arrow keys, not while typing', () => {
+  it('steps to the album before or after it with ‹ › and the arrow keys, not while typing', async () => {
     const onPrevious = vi.fn();
     const onNext = vi.fn();
     render(<MusicDetailCard cd={cd()} onClose={vi.fn()} onDelete={vi.fn()} onPrevious={onPrevious} onNext={onNext} />);
@@ -209,6 +211,7 @@ describe('MusicDetailCard', () => {
     expect(onNext).toHaveBeenCalledTimes(1);
     expect(onPrevious).toHaveBeenCalledTimes(1);
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Write a listening note…' }));
     fireEvent.keyDown(screen.getByPlaceholderText('What did you hear this time?'), { key: 'ArrowRight' });
     expect(onNext).toHaveBeenCalledTimes(1);
   });
@@ -257,11 +260,12 @@ describe('MusicDetailCard', () => {
     caf.mockRestore();
   });
 
-  it('leaves the arrows to a field being typed in', () => {
+  it('leaves the arrows to a field being typed in', async () => {
     render(<MusicDetailCard cd={cd()} onClose={vi.fn()} onDelete={vi.fn()} />);
     const body = document.querySelector('.modal-body') as HTMLElement;
     body.scrollBy = vi.fn();
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Write a listening note…' }));
     fireEvent.keyDown(screen.getByPlaceholderText('What did you hear this time?'), { key: 'ArrowDown' });
 
     expect(body.scrollBy).not.toHaveBeenCalled();

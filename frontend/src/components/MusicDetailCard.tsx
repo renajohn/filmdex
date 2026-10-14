@@ -144,7 +144,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const [appleUrl, setAppleUrl] = useState<string | null>(null);
   const [isInListenNext, setIsInListenNext] = useState<boolean>(false);
   const [togglingListenNext, setTogglingListenNext] = useState<boolean>(false);
-  const [showIds, setShowIds] = useState<boolean>(false);
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
   const [showEdition, setShowEdition] = useState<boolean>(false);
   // A front cover whose file would not load: the placeholder takes its place.
   const [coverBroken, setCoverBroken] = useState<boolean>(false);
@@ -391,6 +391,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
 
   // …and of its edition: the year and country together, the first release only when it is another year.
   const released = [cd.releaseYear, cd.country].filter(Boolean).join(' · ');
+  const labels = (cd.labels || []).join(', ');
   // The date can come back as a bare year, a number, from older imports.
   const firstRelease = cd.releaseGroupFirstReleaseDate ? String(cd.releaseGroupFirstReleaseDate) : '';
   const original = firstRelease && firstRelease.slice(0, 4) !== String(cd.releaseYear ?? '') ? firstRelease : null;
@@ -489,55 +490,60 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
           </div>
 
           <dl className="album-head-facts">
-            <Field label="Your rating">
-              <span className="album-head-stars" role="group" aria-label="Your rating">
-                {[1, 2, 3, 4, 5].map(value => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={`album-head-star${stars && value <= stars ? ' album-head-star-on' : ''}`}
-                    aria-label={`${value} star${value > 1 ? 's' : ''}`}
-                    aria-pressed={stars === value}
-                    title={stars === value ? 'Take the stars away' : `${value} star${value > 1 ? 's' : ''}`}
-                    onClick={() => rate(value)}
-                  >
-                    {stars && value <= stars ? <BsStarFill aria-hidden="true" /> : <BsStar aria-hidden="true" />}
-                  </button>
-                ))}
-              </span>
-              {starsNote && <span className="album-head-note">{starsNote}</span>}
-            </Field>
-            {(cd.musicbrainzReleaseId || cd.urls?.discogs) && (
-              <Field label="Community">
-                {typeof community.communityRating === 'number' ? (
-                  <span title={communityDetail(community)}>
-                    <span className="album-head-community">
-                      <BsStarFill aria-hidden="true" /> {community.communityRating.toFixed(1)}
-                    </span>
-                    <span className="album-head-muted"> / 5 · {votesLabel(community.communityVotes ?? 0)}</span>
-                  </span>
-                ) : (
-                  <span className="album-head-muted" title={communityDetail(community) || undefined}>
-                    {community.communityVotes ? `Too few votes (${community.communityVotes})` : 'No community rating'}
+            <Field label="Rating">
+              <span className="album-head-rating">
+                <span className="album-head-stars" role="group" aria-label="Your rating">
+                  {[1, 2, 3, 4, 5].map(value => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={`album-head-star${stars && value <= stars ? ' album-head-star-on' : ''}`}
+                      aria-label={`${value} star${value > 1 ? 's' : ''}`}
+                      aria-pressed={stars === value}
+                      title={stars === value ? 'Take the stars away' : `${value} star${value > 1 ? 's' : ''}`}
+                      onClick={() => rate(value)}
+                    >
+                      {stars && value <= stars ? <BsStarFill aria-hidden="true" /> : <BsStar aria-hidden="true" />}
+                    </button>
+                  ))}
+                </span>
+                {/* The community's rating beside one's own, in a murmur. */}
+                {(cd.musicbrainzReleaseId || cd.urls?.discogs) && (
+                  <span className="album-head-muted">
+                    {typeof community.communityRating === 'number' ? (
+                      <span title={communityDetail(community)}>
+                        <span className="album-head-community">
+                          <BsStarFill aria-hidden="true" /> {community.communityRating.toFixed(1)}
+                        </span>
+                        <span> / 5 · {votesLabel(community.communityVotes ?? 0)}</span>
+                      </span>
+                    ) : (
+                      <span title={communityDetail(community) || undefined}>
+                        {community.communityVotes ? `Too few votes (${community.communityVotes})` : 'No community rating'}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="album-head-refresh"
+                      onClick={refreshMusicBrainz}
+                      disabled={refreshingMb}
+                      aria-label="Refresh the community rating"
+                      title="Reread MusicBrainz and Discogs"
+                    >
+                      <BsArrowClockwise aria-hidden="true" className={refreshingMb ? 'album-head-spinning' : undefined} />
+                    </button>
                   </span>
                 )}
-                <button
-                  type="button"
-                  className="album-head-refresh"
-                  onClick={refreshMusicBrainz}
-                  disabled={refreshingMb}
-                  aria-label="Refresh the community rating"
-                  title="Reread MusicBrainz and Discogs"
-                >
-                  <BsArrowClockwise aria-hidden="true" className={refreshingMb ? 'album-head-spinning' : undefined} />
-                </button>
-                {mbError && <span className="album-head-note">{mbError}</span>}
+              </span>
+              {starsNote && <span className="album-head-note">{starsNote}</span>}
+              {mbError && <span className="album-head-note">{mbError}</span>}
+            </Field>
+            {/* The edition in one line: year and country, its label, the first release only when it is another year. */}
+            {(released || labels || original) && (
+              <Field label="Released">
+                {[released, labels].filter(Boolean).join(' · ')}
+                {original && <span className="album-head-muted">{released || labels ? ' · ' : ''}first {original}</span>}
               </Field>
-            )}
-            {released && <Field label="Released">{released}</Field>}
-            {original && <Field label="First release">{original}</Field>}
-            {cd.labels && cd.labels.length > 0 && (
-              <Field label={cd.labels.length > 1 ? 'Labels' : 'Label'}>{cd.labels.join(', ')}</Field>
             )}
             {cd.editionNotes && (
               <Field label="Edition">
@@ -561,21 +567,6 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                     <button type="button" className="album-head-filter" onClick={() => handleSearch('genre', genre)}>{genre}</button>
                   </React.Fragment>
                 ))}
-              </Field>
-            )}
-            {cd.producer && cd.producer.length > 0 && (
-              <Field label={cd.producer.length > 1 ? 'Producers' : 'Producer'}>{cd.producer.join(', ')}</Field>
-            )}
-            {cd.engineer && cd.engineer.length > 0 && (
-              <Field label={cd.engineer.length > 1 ? 'Engineers' : 'Engineer'}>{cd.engineer.join(', ')}</Field>
-            )}
-            {cd.recordingLocation && <Field label="Recorded at">{cd.recordingLocation}</Field>}
-            {cd.recordingQuality && <Field label="Quality">{cd.recordingQuality}</Field>}
-            {cd.language && <Field label="Language">{cd.language.toUpperCase()}</Field>}
-            {(owned || ownership.notes) && (
-              <Field label="Owned">
-                {owned}
-                {ownership.notes && <span className="album-head-note">{ownership.notes}</span>}
               </Field>
             )}
             {(cd.musicbrainzReleaseId || links.length > 0) && (
@@ -612,27 +603,43 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                 </span>
               </Field>
             )}
-            <Field label="In DexVault">
-              <span className="album-head-muted">
-                added {added}
-                {updated && updated !== added && ` · updated ${updated}`}
-              </span>
-            </Field>
-            <dt>IDs</dt>
+            {/* What is rarely wanted, folded away: the credits, the copy owned, the codes, the old notes. */}
+            <dt>Advanced</dt>
             <dd>
               <button
                 type="button"
                 className="album-head-link album-head-toggle"
-                aria-expanded={showIds}
-                aria-controls={`album-ids-${cd.id}`}
-                onClick={() => setShowIds(open => !open)}
+                aria-expanded={showAdvanced}
+                aria-controls={`album-advanced-${cd.id}`}
+                onClick={() => setShowAdvanced(open => !open)}
               >
-                <BsChevronRight aria-hidden="true" className={showIds ? 'album-head-chevron-open' : undefined} />
-                {showIds ? 'Hide' : 'Show'}
+                <BsChevronRight aria-hidden="true" className={showAdvanced ? 'album-head-chevron-open' : undefined} />
+                {showAdvanced ? 'Hide' : 'Show'}
               </button>
             </dd>
-            {showIds && (
-              <div className="album-head-ids" id={`album-ids-${cd.id}`}>
+            {showAdvanced && (
+              <div className="album-head-advanced" id={`album-advanced-${cd.id}`}>
+                {cd.producer && cd.producer.length > 0 && (
+                  <Field label={cd.producer.length > 1 ? 'Producers' : 'Producer'}>{cd.producer.join(', ')}</Field>
+                )}
+                {cd.engineer && cd.engineer.length > 0 && (
+                  <Field label={cd.engineer.length > 1 ? 'Engineers' : 'Engineer'}>{cd.engineer.join(', ')}</Field>
+                )}
+                {cd.recordingLocation && <Field label="Recorded at">{cd.recordingLocation}</Field>}
+                {cd.recordingQuality && <Field label="Quality">{cd.recordingQuality}</Field>}
+                {cd.language && <Field label="Language">{cd.language.toUpperCase()}</Field>}
+                {(owned || ownership.notes) && (
+                  <Field label="Owned">
+                    {owned}
+                    {ownership.notes && <span className="album-head-note">{ownership.notes}</span>}
+                  </Field>
+                )}
+                <Field label="In DexVault">
+                  <span className="album-head-muted">
+                    added {added}
+                    {updated && updated !== added && ` · updated ${updated}`}
+                  </span>
+                </Field>
                 {cd.catalogNumber && <Field label="Catalogue no."><code className="album-head-code">{cd.catalogNumber}</code></Field>}
                 {cd.barcode && <Field label="Barcode"><code className="album-head-code">{cd.barcode}</code></Field>}
                 {cd.isrcCodes && cd.isrcCodes.length > 0 && (
@@ -640,6 +647,9 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                 )}
                 {cd.musicbrainzReleaseId && (
                   <Field label="MusicBrainz"><code className="album-head-code">{cd.musicbrainzReleaseId}</code></Field>
+                )}
+                {cd.annotation && (
+                  <Field label="Album notes"><span className="album-head-annotation">{cd.annotation}</span></Field>
                 )}
               </div>
             )}
@@ -649,16 +659,6 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
         <AlbumGuide albumId={Number(cd.id)} onLoaded={setHasGuide} />
         <AlbumNotes albumId={Number(cd.id)} />
         <AlbumStory albumId={cd.id} folded={hasGuide} />
-
-        {/* Annotation */}
-        {cd.annotation && (
-          <div className="info-section">
-            <h4>Album Notes</h4>
-            <div className="annotation-text">
-              {cd.annotation}
-            </div>
-          </div>
-        )}
 
         {/* Track Listing */}
         {cd.discs && cd.discs.length > 0 && (

@@ -45,4 +45,14 @@ describe('AlbumNotes', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(screen.queryByText('Slow movement, sublime.')).not.toBeInTheDocument());
   });
+
+  it('offers only a link when the CD has no note yet, and the form on a click', async () => {
+    (musicService.getAlbumNotes as any).mockResolvedValueOnce([]);
+    render(<AlbumNotes albumId={8} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Write a listening note…' }));
+
+    expect(screen.getByText('Listening notes')).toBeInTheDocument();
+    expect(screen.getByLabelText('New listening note')).toHaveFocus();
+  });
 });

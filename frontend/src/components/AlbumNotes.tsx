@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Form } from 'react-bootstrap';
+import { BsPencil } from 'react-icons/bs';
 import musicService, { type AlbumNote } from '../services/musicService';
 import './AlbumNotes.css';
 
@@ -17,6 +18,7 @@ const dayLabel = (date: string): string => {
 /**
  * A CD's listening journal: one dated note per attentive listening, the
  * latest first. Writing one is right there; editing and deleting stay quiet.
+ * A CD with no note yet only offers a link to write the first one.
  */
 const AlbumNotes: React.FC<{ albumId: number }> = ({ albumId }) => {
   const [notes, setNotes] = useState<AlbumNote[] | null>(null);
@@ -25,10 +27,12 @@ const AlbumNotes: React.FC<{ albumId: number }> = ({ albumId }) => {
   const [editing, setEditing] = useState<{ id: number; note: string; date: string } | null>(null);
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [writing, setWriting] = useState<boolean>(false);
 
   useEffect(() => {
     let current = true;
     setNotes(null);
+    setWriting(false);
     musicService.getAlbumNotes(albumId)
       .then(list => { if (current) setNotes(list); })
       .catch(err => { if (current) { setNotes([]); setError((err as Error).message); } });
@@ -72,6 +76,20 @@ const AlbumNotes: React.FC<{ albumId: number }> = ({ albumId }) => {
     setNotes(list => (list || []).filter(n => n.id !== id));
   });
 
+  // Nothing while the notes load, so the link does not flash before a journal.
+  if (notes === null) return null;
+
+  if (notes.length === 0 && !writing && !error) {
+    return (
+      <div className="info-section album-notes">
+        <button type="button" className="album-notes-open" onClick={() => setWriting(true)}>
+          <BsPencil aria-hidden="true" />
+          Write a listening note…
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="info-section album-notes">
       <h4>Listening notes</h4>
@@ -81,6 +99,7 @@ const AlbumNotes: React.FC<{ albumId: number }> = ({ albumId }) => {
           as="textarea"
           rows={2}
           placeholder="What did you hear this time?"
+          autoFocus={writing && notes.length === 0}
           value={draft}
           onChange={e => setDraft(e.target.value)}
           aria-label="New listening note"
