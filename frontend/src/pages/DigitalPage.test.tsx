@@ -38,7 +38,7 @@ const LIBRARY: DigitalLibrary = {
   albums: [
     digital({
       navidromeId: 'nd-mezz', name: 'Mezzanine', artist: 'Massive Attack', formats: ['FLAC'], quality: 'lossless', bitRate: null,
-      cd: { id: 7, title: 'Mezzanine', artist: ['Massive Attack'], cover: null, format: 'CD', match: 'musicbrainz' },
+      cd: { id: 7, title: 'Mezzanine', artist: ['Massive Attack'], cover: null, format: 'Enhanced CD', match: 'musicbrainz' },
     }),
     digital({
       navidromeId: 'nd-play', name: 'Play', bitRate: 128,
@@ -114,6 +114,8 @@ describe('DigitalPage', () => {
     vi.mocked(musicService.getAlbumById).mockResolvedValue({ id: 7, title: 'Mezzanine (detail)' });
     render(<DigitalPage />);
     fireEvent.click(await screen.findByRole('tab', { name: /Lossless/ }));
+    // A CD is a CD, whatever its pressing: no "Enhanced CD" nor "Unknown".
+    expect(within(screen.getByText('Mezzanine').closest('li')!).getByText('CD')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Mezzanine'));
 

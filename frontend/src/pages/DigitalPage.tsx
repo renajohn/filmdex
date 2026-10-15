@@ -299,7 +299,7 @@ const DigitalPage: React.FC = () => {
             {tab === 'buy' && (album.buy?.listened || album.buy?.rated) && <BuyReasons album={album} />}
           </div>
           <div className="digital-badges">
-            {album.cd && <span className="digital-badge digital-badge-cd" title={album.cd.title}>{album.cd.format || 'CD'}</span>}
+            {album.cd && <span className="digital-badge digital-badge-cd" title={album.cd.title}>CD</span>}
             {album.oldCopy && <span className="digital-badge digital-badge-old" title="An old compressed copy is still in Navidrome">+ MP3</span>}
             {!album.buy?.wished && album.wishAlbumId !== null && <span className="digital-badge digital-badge-wished">Wishlist</span>}
             <span className={`digital-badge digital-quality-${album.quality}`}>{qualityLabel(album)}</span>
