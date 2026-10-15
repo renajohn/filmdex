@@ -7,7 +7,7 @@ import musicbrainzRefreshService from './musicbrainzRefreshService';
 import ReleaseGroupLookup, { type ReleaseInfo } from '../models/releaseGroupLookup';
 import musicService from './musicService';
 import { getDatabase } from '../database';
-import imageService from './imageService';
+import listenHistoryService from './listenHistoryService';
 import logger from '../logger';
 
 /**
@@ -28,7 +28,7 @@ export interface RipStatusAlbum {
   musicbrainzReleaseId: string | null;
   state: RipState;
   formats: string[];
-  matches: Array<{ name: string; artist: string; match: RipMatch; state: RipState }>;
+  matches: Array<{ navidromeId: string; name: string; artist: string; match: RipMatch; state: RipState }>;
 }
 
 /**
@@ -45,35 +45,20 @@ export interface EditionAdoption {
   skipped?: 'no_release_group' | 'not_a_cd' | 'several_albums' | 'edition_taken' | 'failed';
 }
 
-/**
- * An album Navidrome has that no CD of the collection is: an old download or
- * a borrowed CD ripped long ago. It may already be on the wish list.
- */
-export interface DigitalAlbum {
-  navidromeId: string;
-  name: string;
-  artist: string;
-  songCount: number;
-  formats: string[];
-  /** The wish list album standing for it, null when it is not wished. */
-  wishAlbumId: number | null;
-}
-
 export interface RipStatus {
   configured: boolean;
   error?: string;
   counts: Record<RipState, number>;
   albums: RipStatusAlbum[];
-  digital: DigitalAlbum[];
 }
 
-const LOSSLESS = new Set(['flac', 'alac', 'wav', 'aif', 'aiff', 'ape', 'wv']);
+export const LOSSLESS = new Set(['flac', 'alac', 'wav', 'aif', 'aiff', 'ape', 'wv']);
 
 /** An .m4a is ALAC when Navidrome reports a bit depth, AAC otherwise. */
-const isLossless = (song: NavidromeSong): boolean =>
+export const isLossless = (song: NavidromeSong): boolean =>
   LOSSLESS.has(song.suffix) || (song.suffix === 'm4a' && Boolean(song.bitDepth));
 
-const formatName = (song: NavidromeSong): string =>
+export const formatName = (song: NavidromeSong): string =>
   (song.suffix === 'm4a' ? (song.bitDepth ? 'alac' : 'aac') : song.suffix).toUpperCase();
 
 /** "Abbey Road (Remastered 2009)" and "Abbey Road [Disc 1]" are Abbey Road. */
@@ -166,7 +151,7 @@ const sameArtist = (artists: string[], navidromeArtist: string): boolean => {
     list.every(word => tagged.has(word)) || [...tagged].every(word => list.includes(word)));
 };
 
-const groupSongs = (songs: NavidromeSong[]): Map<string, NavidromeSong[]> => {
+export const groupSongs = (songs: NavidromeSong[]): Map<string, NavidromeSong[]> => {
   const byAlbum = new Map<string, NavidromeSong[]>();
   for (const song of songs) byAlbum.set(song.albumId, [...(byAlbum.get(song.albumId) || []), song]);
   return byAlbum;
@@ -195,7 +180,7 @@ const releaseInfo = async (releaseId: string): Promise<ReleaseInfo> => {
  * The Navidrome albums that are this CD: same MusicBrainz edition, else same
  * title and artist, else the same tracks to the second.
  */
-const matchesOf = (album: AlbumFormatted, candidates: NavidromeAlbum[], lengths?: TrackLengths): Array<{ candidate: NavidromeAlbum; match: RipMatch }> =>
+export const matchesOf = (album: AlbumFormatted, candidates: NavidromeAlbum[], lengths?: TrackLengths): Array<{ candidate: NavidromeAlbum; match: RipMatch }> =>
   candidates.flatMap(candidate => {
     if (album.musicbrainzReleaseId && candidate.musicBrainzId === album.musicbrainzReleaseId) {
       return [{ candidate, match: 'musicbrainz' as RipMatch }];
@@ -207,7 +192,7 @@ const matchesOf = (album: AlbumFormatted, candidates: NavidromeAlbum[], lengths?
       ? [{ candidate, match: 'tracks' as RipMatch }] : [];
   });
 
-interface Library { albums: NavidromeAlbum[]; songs: NavidromeSong[]; lengths: TrackLengths }
+export interface Library { albums: NavidromeAlbum[]; songs: NavidromeSong[]; lengths: TrackLengths }
 
 const CACHE_MS = 60_000;
 let cache: { at: number; albums: NavidromeAlbum[]; songs: NavidromeSong[]; lengths: Map<string, number[]> } | null = null;
@@ -217,6 +202,9 @@ const library = async (): Promise<Library> => {
   if (!cache || Date.now() - cache.at >= CACHE_MS) {
     const [albums, songs] = await Promise.all([navidromeService.getAlbums(), navidromeService.getSongs()]);
     cache = { at: Date.now(), albums, songs, lengths: navidromeTrackLengths(songs) };
+    // Every fresh reading notes what was listened to since the last one.
+    await listenHistoryService.record(songs).catch(error =>
+      logger.warn(`Plays not noted from Navidrome: ${(error as Error).message}`));
   }
   return { albums: cache.albums, songs: cache.songs, lengths: { cd: await cdTrackLengths(), navidrome: cache.lengths } };
 };
@@ -233,53 +221,18 @@ const bestCopy = (album: AlbumFormatted, navidrome: Library): NavidromeAlbum | n
   return matches[0]?.candidate ?? null;
 };
 
-const byName = (a: { artist: string; name: string }, b: { artist: string; name: string }) =>
-  a.artist.localeCompare(b.artist) || a.name.localeCompare(b.name);
-
-/** The Navidrome albums none of these CDs is, each with the wish list album that stands for it. */
-const digitalOnly = (owned: AlbumFormatted[], wished: AlbumFormatted[], navidrome: Library): DigitalAlbum[] => {
-  const songsByAlbum = groupSongs(navidrome.songs);
-  const ownedCopies = new Set(owned.flatMap(album => matchesOf(album, navidrome.albums, navidrome.lengths).map(({ candidate }) => candidate.id)));
-  return navidrome.albums
-    .filter(album => !ownedCopies.has(album.id))
-    .map(album => ({
-      navidromeId: album.id,
-      name: album.name,
-      artist: album.artist,
-      songCount: album.songCount,
-      formats: [...new Set((songsByAlbum.get(album.id) || []).map(formatName))].sort(),
-      wishAlbumId: wished.find(wish => matchesOf(wish, [album], navidrome.lengths).length > 0)?.id ?? null,
-    }))
-    .sort(byName);
-};
-
-/**
- * A wish list album for a digital one: its MusicBrainz edition when the files
- * carry one, else its title and artist with the cover Navidrome shows.
- */
-const wishFor = async (album: NavidromeAlbum): Promise<AlbumFormatted> => {
-  if (album.musicBrainzId) {
-    try {
-      return await musicService.addAlbumFromMusicBrainz(album.musicBrainzId, { titleStatus: 'wish' });
-    } catch (error) {
-      logger.warn(`Could not wish "${album.name}" from its edition ${album.musicBrainzId}: ${(error as Error).message}`);
-    }
-  }
-  const added = await musicService.addAlbum({ title: album.name, artist: [album.artist], format: 'CD', titleStatus: 'wish' });
-  try {
-    const { data } = await navidromeService.getCoverArt(album.id);
-    const filename = `navidrome_${added.id}_${Date.now()}.jpg`;
-    const coverPath = await imageService.saveImage(data, 'cd/custom', filename);
-    await Album.updateFrontCover(added.id, coverPath);
-  } catch (error) {
-    logger.warn(`Wished "${album.name}" without a cover: ${(error as Error).message}`);
-  }
-  return added;
-};
-
 const ripStatusService = {
   /** Forgets the library read from Navidrome, for a refresh right after a rip. */
   clearCache: (): void => { cache = null; },
+
+  /** Navidrome's albums and songs, read at most once a minute. */
+  library,
+
+  /** Reads Navidrome again now, which notes the plays since the last reading. */
+  refreshLibrary: async (): Promise<void> => {
+    cache = null;
+    await library();
+  },
 
   /**
    * Takes from the rips the edition Picard identified each CD as. A FLAC
@@ -384,27 +337,6 @@ const ripStatusService = {
     if (album) album.userRating = rating;
   },
 
-  /**
-   * Puts a digital album on the wish list, or takes it off: the wish list
-   * albums standing for it are deleted. Null when Navidrome has no such album.
-   */
-  setWished: async (navidromeId: string, wished: boolean): Promise<DigitalAlbum | null> => {
-    const navidrome = await library();
-    const album = navidrome.albums.find(candidate => candidate.id === navidromeId);
-    if (!album) return null;
-    const standing = (await Album.findByStatus('wish')).filter(wish => matchesOf(wish, [album], navidrome.lengths).length > 0);
-    if (wished && standing.length === 0) {
-      const added = await wishFor(album);
-      logger.info(`Album ${added.id} "${added.title}" wished from its digital copy in Navidrome`);
-    }
-    if (!wished) {
-      for (const wish of standing) await musicService.deleteAlbum(wish.id);
-    }
-    // The wish just added has tracks of its own now.
-    return digitalOnly(await Album.findAll(), await Album.findByStatus('wish'), await library())
-      .find(digital => digital.navidromeId === navidromeId) ?? null;
-  },
-
   getStatus: async (): Promise<RipStatus> => {
     const counts: Record<RipState, number> = { none: 0, lossy: 0, lossless: 0 };
     const owned = (await Album.findAll()).filter(album => /CD|Unknown/i.test(album.format || 'Unknown'));
@@ -440,13 +372,13 @@ const ripStatusService = {
         musicbrainzReleaseId: album.musicbrainzReleaseId || null,
         state,
         formats,
-        matches: matches.map(({ candidate, match }, index) => ({ name: candidate.name, artist: candidate.artist, match, state: states[index] })),
+        matches: matches.map(({ candidate, match }, index) => ({
+          navidromeId: candidate.id, name: candidate.name, artist: candidate.artist, match, state: states[index],
+        })),
       };
     });
 
-    const digital = digitalOnly(await Album.findAll(), await Album.findByStatus('wish'), navidrome);
-
-    return { configured, ...(error ? { error } : {}), counts, albums, digital };
+    return { configured, ...(error ? { error } : {}), counts, albums };
   },
 };
 

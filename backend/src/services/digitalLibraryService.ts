@@ -1,0 +1,324 @@
+import Album from '../models/album';
+import NavidromePlay from '../models/navidromePlay';
+import type { DayPlays } from '../models/navidromePlay';
+import type { AlbumFormatted } from '../types';
+import navidromeService, { type NavidromeAlbum, type NavidromeSong } from './navidromeService';
+import ripStatusService, { formatName, groupSongs, isLossless, matchesOf, type Library, type RipMatch } from './ripStatusService';
+import listenHistoryService, { localDay } from './listenHistoryService';
+import musicService from './musicService';
+import imageService from './imageService';
+import logger from '../logger';
+
+/**
+ * How good the files of an album are:
+ * - lossless: every file lossless (FLAC, ALAC…);
+ * - near:     compressed, at 256 kbps or more on average (MP3 320, V0, AAC 256);
+ * - lossy:    compressed below that.
+ * A mixed album is as good as its compressed files.
+ */
+export type Quality = 'lossless' | 'near' | 'lossy';
+
+const NEAR_LOSSLESS_KBPS = 256;
+
+/**
+ * An album one listens to and has no CD of is one to buy: at least three of
+ * its tracks played twice or more over the last 90 days, every track for an
+ * album of fewer. Twice the same three songs in an evening counts, one
+ * listen of the whole album does not. The most recent plays rank first.
+ */
+export const LISTEN_WINDOW_DAYS = 90;
+const REPEATS = 2;
+const FAVOURITES = 3;
+const HALF_LIFE_DAYS = 60;
+const EXPLICIT_RATING = 4;
+
+export interface Listening {
+  /** Tracks played at least twice in the window, and how many it takes. */
+  favourites: number;
+  needed: number;
+  plays: number;
+  lastPlayed: string | null;
+  /** Recent plays weigh more, a play halving every 60 days: what the Buy tab is sorted by. */
+  score: number;
+}
+
+export interface DigitalAlbum {
+  navidromeId: string;
+  name: string;
+  artist: string;
+  songCount: number;
+  /** The album in Navidrome's web player. */
+  url: string;
+  formats: string[];
+  quality: Quality;
+  /** Average bitrate of the compressed files, in kbps; null when all are lossless. */
+  bitRate: number | null;
+  /** Lossless at more than 16 bits or 44.1 kHz. */
+  hiRes: boolean;
+  /** The CD of the collection this is a copy of. */
+  cd: { id: number; title: string; artist: string[]; cover: string | null; format: string | null; match: RipMatch } | null;
+  /** An old compressed copy of the same CD still sits next to this lossless one. */
+  oldCopy: boolean;
+  wishAlbumId: number | null;
+  rating: number;
+  starred: boolean;
+  /** Tracks rated 4 or 5 stars, or hearted. */
+  favouriteTracks: number;
+  listening: Listening;
+  /** Why it is worth buying on CD; null when the CD is in the collection or nothing says so. */
+  buy: { listened: boolean; rated: boolean; wished: boolean } | null;
+  dismissed: boolean;
+}
+
+export interface PhysicalOnlyAlbum {
+  id: number;
+  title: string;
+  artist: string[];
+  cover: string | null;
+}
+
+/** A compressed copy of a CD Navidrome also has in lossless: a file to delete. */
+export interface OldCopy {
+  albumId: number;
+  title: string;
+  navidromeId: string;
+  name: string;
+  formats: string[];
+}
+
+export interface DigitalLibrary {
+  configured: boolean;
+  error?: string;
+  albums: DigitalAlbum[];
+  physicalOnly: PhysicalOnlyAlbum[];
+  oldCopies: OldCopy[];
+}
+
+export interface DigitalTrack {
+  id: string | null;
+  url: string | null;
+  discNumber: number;
+  track: number;
+  title: string;
+  durationSec: number | null;
+  suffix: string;
+  bitRate: number | null;
+  bitDepth: number | null;
+  samplingRate: number | null;
+  /** Plays over the last 90 days, and the last one ever. */
+  plays: number;
+  lastPlayed: string | null;
+  rating: number;
+  starred: boolean;
+}
+
+const qualityOf = (songs: NavidromeSong[]): { quality: Quality; bitRate: number | null; hiRes: boolean } => {
+  const compressed = songs.filter(song => !isLossless(song));
+  if (songs.length > 0 && compressed.length === 0) {
+    const hiRes = songs.every(song => (song.bitDepth ?? 16) > 16 || (song.samplingRate ?? 44100) > 44100);
+    return { quality: 'lossless', bitRate: null, hiRes };
+  }
+  // Weighed by length: a VBR file's quiet track has a lower bitrate than the album.
+  const length = compressed.reduce((sum, song) => sum + (song.durationSec || 0), 0);
+  const bitRate = compressed.length === 0 ? null : length > 0
+    ? Math.round(compressed.reduce((sum, song) => sum + (song.bitRate || 0) * (song.durationSec || 0), 0) / length)
+    : Math.round(compressed.reduce((sum, song) => sum + (song.bitRate || 0), 0) / compressed.length);
+  return { quality: (bitRate ?? 0) >= NEAR_LOSSLESS_KBPS ? 'near' : 'lossy', bitRate, hiRes: false };
+};
+
+/** The plays of each song over the window, by song. */
+const playsBySong = (plays: DayPlays[]): Map<string, DayPlays[]> => {
+  const bySong = new Map<string, DayPlays[]>();
+  for (const play of plays) bySong.set(play.songId, [...(bySong.get(play.songId) || []), play]);
+  return bySong;
+};
+
+const daysBetween = (from: string, to: string): number =>
+  Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+
+export const listeningOf = (songs: NavidromeSong[], bySong: Map<string, DayPlays[]>, today: string): Listening => {
+  const counts = songs.map(song => (song.id ? bySong.get(song.id) || [] : []));
+  const favourites = counts.filter(days => days.reduce((sum, day) => sum + day.plays, 0) >= REPEATS).length;
+  const all = counts.flat();
+  const score = all.reduce((sum, day) => sum + day.plays * 0.5 ** (daysBetween(day.day, today) / HALF_LIFE_DAYS), 0);
+  // Navidrome's last play, or a day of the history when it is later: plays of
+  // another account in Navidrome do not count, and those noted here do.
+  const lastPlayed = [...songs.map(song => song.played), ...all.map(day => day.day)]
+    .filter((played): played is string => Boolean(played)).sort().pop() ?? null;
+  return {
+    favourites,
+    needed: Math.min(FAVOURITES, songs.length),
+    plays: all.reduce((sum, day) => sum + day.plays, 0),
+    lastPlayed,
+    score: Math.round(score * 100) / 100,
+  };
+};
+
+const byName = (a: DigitalAlbum, b: DigitalAlbum) => a.artist.localeCompare(b.artist) || a.name.localeCompare(b.name);
+
+/**
+ * A wish list album for a digital one: its MusicBrainz edition when the files
+ * carry one, else its title and artist with the cover Navidrome shows.
+ */
+const wishFor = async (album: NavidromeAlbum): Promise<AlbumFormatted> => {
+  if (album.musicBrainzId) {
+    try {
+      return await musicService.addAlbumFromMusicBrainz(album.musicBrainzId, { titleStatus: 'wish' });
+    } catch (error) {
+      logger.warn(`Could not wish "${album.name}" from its edition ${album.musicBrainzId}: ${(error as Error).message}`);
+    }
+  }
+  const added = await musicService.addAlbum({ title: album.name, artist: [album.artist], format: 'CD', titleStatus: 'wish' });
+  try {
+    const { data } = await navidromeService.getCoverArt(album.id);
+    const filename = `navidrome_${added.id}_${Date.now()}.jpg`;
+    const coverPath = await imageService.saveImage(data, 'cd/custom', filename);
+    await Album.updateFrontCover(added.id, coverPath);
+  } catch (error) {
+    logger.warn(`Wished "${album.name}" without a cover: ${(error as Error).message}`);
+  }
+  return added;
+};
+
+const EMPTY: Library = { albums: [], songs: [], lengths: { cd: new Map(), navidrome: new Map() } };
+
+const build = async (navidrome: Library, configured: boolean, error?: string): Promise<DigitalLibrary> => {
+  const owned = await Album.findAll();
+  const wished = await Album.findByStatus('wish');
+  const dismissed = await NavidromePlay.dismissed();
+  const today = localDay(new Date());
+  const bySong = playsBySong(await listenHistoryService.recent(LISTEN_WINDOW_DAYS));
+  const songsByAlbum = groupSongs(navidrome.songs);
+  const qualities = new Map(navidrome.albums.map(album => [album.id, qualityOf(songsByAlbum.get(album.id) || [])]));
+
+  // Which CD each Navidrome album is a copy of, and the old copies a lossless rip makes redundant.
+  const cdOf = new Map<string, { album: AlbumFormatted; match: RipMatch }>();
+  const oldCopies: OldCopy[] = [];
+  const physicalOnly: PhysicalOnlyAlbum[] = [];
+  for (const album of owned) {
+    const matches = matchesOf(album, navidrome.albums, navidrome.lengths);
+    if (matches.length === 0) {
+      if (/CD|Unknown/i.test(album.format || 'Unknown')) {
+        physicalOnly.push({ id: album.id, title: album.title, artist: album.artist, cover: album.cover || null });
+      }
+      continue;
+    }
+    const hasLossless = matches.some(({ candidate }) => qualities.get(candidate.id)?.quality === 'lossless');
+    for (const { candidate, match } of matches) {
+      if (hasLossless && qualities.get(candidate.id)?.quality !== 'lossless') {
+        oldCopies.push({
+          albumId: album.id, title: album.title, navidromeId: candidate.id, name: candidate.name,
+          formats: [...new Set((songsByAlbum.get(candidate.id) || []).map(formatName))].sort(),
+        });
+      } else if (!cdOf.has(candidate.id)) {
+        cdOf.set(candidate.id, { album, match });
+      }
+    }
+  }
+  const oldCopyIds = new Set(oldCopies.map(copy => copy.navidromeId));
+  const withOldCopy = new Set(oldCopies.map(copy => copy.albumId));
+
+  const albums = navidrome.albums.filter(album => !oldCopyIds.has(album.id)).map((album): DigitalAlbum => {
+    const songs = songsByAlbum.get(album.id) || [];
+    const owner = cdOf.get(album.id);
+    const listening = listeningOf(songs, bySong, today);
+    const favouriteTracks = songs.filter(song => (song.userRating ?? 0) >= EXPLICIT_RATING || song.starred).length;
+    const wishAlbumId = owner ? null : wished.find(wish => matchesOf(wish, [album], navidrome.lengths).length > 0)?.id ?? null;
+    const listened = listening.needed > 0 && listening.favourites >= listening.needed;
+    const rated = album.userRating >= EXPLICIT_RATING || Boolean(album.starred) || favouriteTracks > 0;
+    const wishedNow = wishAlbumId !== null;
+    return {
+      navidromeId: album.id,
+      name: album.name,
+      artist: album.artist,
+      songCount: album.songCount || songs.length,
+      url: navidromeService.albumUrl(album.id),
+      formats: [...new Set(songs.map(formatName))].sort(),
+      ...(qualities.get(album.id) || { quality: 'lossy' as Quality, bitRate: null, hiRes: false }),
+      cd: owner ? {
+        id: owner.album.id, title: owner.album.title, artist: owner.album.artist,
+        cover: owner.album.cover || null, format: owner.album.format || null, match: owner.match,
+      } : null,
+      oldCopy: owner ? withOldCopy.has(owner.album.id) : false,
+      wishAlbumId,
+      rating: album.userRating,
+      starred: Boolean(album.starred),
+      favouriteTracks,
+      listening,
+      buy: !owner && (listened || rated || wishedNow) ? { listened, rated, wished: wishedNow } : null,
+      dismissed: dismissed.has(album.id),
+    };
+  }).sort(byName);
+
+  physicalOnly.sort((a, b) => a.artist.join(', ').localeCompare(b.artist.join(', ')) || a.title.localeCompare(b.title));
+  return { configured, ...(error ? { error } : {}), albums, physicalOnly, oldCopies };
+};
+
+const digitalLibraryService = {
+  /** Every album of Navidrome, how good its files are, whether it is a CD of the collection, and whether to buy it. */
+  getLibrary: async (): Promise<DigitalLibrary> => {
+    const configured = navidromeService.isConfigured();
+    if (!configured) return build(EMPTY, false);
+    try {
+      return build(await ripStatusService.library(), true);
+    } catch (error) {
+      return build(EMPTY, true, (error as Error).message);
+    }
+  },
+
+  /** One album as the page shows it, null when Navidrome has no such album. */
+  getAlbum: async (navidromeId: string): Promise<DigitalAlbum | null> =>
+    (await digitalLibraryService.getLibrary()).albums.find(album => album.navidromeId === navidromeId) ?? null,
+
+  /**
+   * Puts an album with no CD on the wish list, or takes it off: the wish list
+   * albums standing for it are deleted. Null when Navidrome has no such album.
+   */
+  setWished: async (navidromeId: string, wished: boolean): Promise<DigitalAlbum | null> => {
+    const navidrome = await ripStatusService.library();
+    const album = navidrome.albums.find(candidate => candidate.id === navidromeId);
+    if (!album) return null;
+    const standing = (await Album.findByStatus('wish')).filter(wish => matchesOf(wish, [album], navidrome.lengths).length > 0);
+    if (wished && standing.length === 0) {
+      const added = await wishFor(album);
+      logger.info(`Album ${added.id} "${added.title}" wished from its digital copy in Navidrome`);
+    }
+    if (!wished) {
+      for (const wish of standing) await musicService.deleteAlbum(wish.id);
+    }
+    return digitalLibraryService.getAlbum(navidromeId);
+  },
+
+  /** "Not interested": listening to an album no longer puts it in the Buy tab, until undone. */
+  setDismissed: async (navidromeId: string, dismissed: boolean): Promise<DigitalAlbum | null> => {
+    const album = (await ripStatusService.library()).albums.find(candidate => candidate.id === navidromeId);
+    if (!album) return null;
+    if (dismissed) await NavidromePlay.dismiss(album.id, album.name, album.artist);
+    else await NavidromePlay.undismiss(album.id);
+    return digitalLibraryService.getAlbum(navidromeId);
+  },
+
+  /** The files of an album, each with how often it was played lately: why the album is to buy. */
+  getTracks: async (navidromeId: string): Promise<DigitalTrack[]> => {
+    const bySong = playsBySong(await listenHistoryService.recent(LISTEN_WINDOW_DAYS));
+    const files = await navidromeService.getAlbumSongs(navidromeId);
+    return files.map(file => ({
+      id: file.id,
+      url: file.url,
+      discNumber: file.discNumber,
+      track: file.track,
+      title: file.title,
+      durationSec: file.durationSec,
+      suffix: file.suffix,
+      bitRate: file.bitRate,
+      bitDepth: file.bitDepth,
+      samplingRate: file.samplingRate,
+      plays: (file.id ? bySong.get(file.id) || [] : []).reduce((sum, day) => sum + day.plays, 0),
+      lastPlayed: file.played ?? null,
+      rating: file.userRating ?? 0,
+      starred: Boolean(file.starred),
+    })).sort((a, b) => a.discNumber - b.discNumber || a.track - b.track);
+  },
+};
+
+export default digitalLibraryService;

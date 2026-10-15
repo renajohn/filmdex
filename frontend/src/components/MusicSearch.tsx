@@ -934,9 +934,9 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           onAdd={() => setShowAddDialog(true)}
           loading={loading}
           extraControls={
-            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => navigate('/musicdex/rip')}>
+            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => navigate('/musicdex/digital')}>
               <BsDisc className="me-1" />
-              Ripping
+              Digital
             </button>
           }
         />

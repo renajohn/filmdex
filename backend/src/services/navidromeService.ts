@@ -22,12 +22,24 @@ export interface NavidromeAlbum {
   songCount: number;
   /** The stars NAVIDROME_USER gave the album, 0 for none. */
   userRating: number;
+  /** Whether NAVIDROME_USER hearted it, in Amperfy or Navidrome. */
+  starred?: boolean;
 }
 
 export interface NavidromeSong {
   albumId: string;
+  /** What the listening history is kept by. */
+  id?: string;
   suffix: string;
   bitDepth: number | null;
+  /** In kbps: what tells an MP3 at 320 from one at 128. */
+  bitRate?: number | null;
+  samplingRate?: number | null;
+  /** How often NAVIDROME_USER has played it, ever, and when last. */
+  playCount?: number;
+  played?: string | null;
+  userRating?: number;
+  starred?: boolean;
   /** Where the song sits on the album, and how long it lasts: what tells a copy of a CD apart. */
   discNumber?: number;
   track?: number;
@@ -94,14 +106,22 @@ export interface NavidromeTrackFile {
   channelCount: number | null;
   size: number | null;
   path: string | null;
+  playCount?: number;
+  played?: string | null;
+  userRating?: number;
+  starred?: boolean;
 }
 
-type RawAlbum = { id: string; name: string; artist?: string; musicBrainzId?: string; songCount?: number; userRating?: number };
+type RawAlbum = { id: string; name: string; artist?: string; musicBrainzId?: string; songCount?: number; userRating?: number; starred?: string };
 type RawAlbumSong = {
   id?: string; title?: string; track?: number; discNumber?: number; duration?: number; suffix?: string; bitRate?: number;
   bitDepth?: number; samplingRate?: number; channelCount?: number; size?: number; path?: string;
+  playCount?: number; played?: string; userRating?: number; starred?: string;
 };
-type RawSong = { albumId?: string; suffix?: string; bitDepth?: number; discNumber?: number; track?: number; duration?: number };
+type RawSong = {
+  id?: string; albumId?: string; suffix?: string; bitDepth?: number; bitRate?: number; samplingRate?: number;
+  discNumber?: number; track?: number; duration?: number; playCount?: number; played?: string; userRating?: number; starred?: string;
+};
 
 const toAlbum = (raw: RawAlbum): NavidromeAlbum => ({
   id: raw.id,
@@ -110,6 +130,7 @@ const toAlbum = (raw: RawAlbum): NavidromeAlbum => ({
   musicBrainzId: raw.musicBrainzId || null,
   songCount: raw.songCount || 0,
   userRating: raw.userRating || 0,
+  starred: Boolean(raw.starred),
 });
 
 /** A session on Navidrome's own API, for what Subsonic does not tell: where a file really lies. */
@@ -224,10 +245,17 @@ const navidromeService = {
       channelCount: song.channelCount || null,
       size: song.size || null,
       path: song.path || null,
+      playCount: song.playCount || 0,
+      played: song.played || null,
+      userRating: song.userRating || 0,
+      starred: Boolean(song.starred),
     }));
   },
 
-  /** Every song with its format: an empty search3 query lists the whole library in Navidrome. */
+  /**
+   * Every song with its format and how NAVIDROME_USER listened to it: an
+   * empty search3 query lists the whole library in Navidrome.
+   */
   getSongs: async (): Promise<NavidromeSong[]> => {
     const songs: NavidromeSong[] = [];
     for (let offset = 0; ; offset += PAGE_SIZE) {
@@ -236,8 +264,10 @@ const navidromeService = {
       });
       const page = body.searchResult3?.song || [];
       songs.push(...page.filter(song => song.albumId).map(song => ({
-        albumId: song.albumId!, suffix: (song.suffix || '').toLowerCase(), bitDepth: song.bitDepth || null,
+        albumId: song.albumId!, id: song.id, suffix: (song.suffix || '').toLowerCase(), bitDepth: song.bitDepth || null,
+        bitRate: song.bitRate || null, samplingRate: song.samplingRate || null,
         discNumber: song.discNumber || 1, track: song.track || 0, durationSec: song.duration ?? null,
+        playCount: song.playCount || 0, played: song.played || null, userRating: song.userRating || 0, starred: Boolean(song.starred),
       })));
       if (page.length < PAGE_SIZE) return songs;
     }

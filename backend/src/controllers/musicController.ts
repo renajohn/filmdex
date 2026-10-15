@@ -15,6 +15,7 @@ import smartPlaylistService from '../services/smartPlaylistService';
 import musicbrainzLinkService from '../services/musicbrainzLinkService';
 import musicbrainzRefreshService from '../services/musicbrainzRefreshService';
 import ripStatusService from '../services/ripStatusService';
+import digitalLibraryService from '../services/digitalLibraryService';
 import navidromeService from '../services/navidromeService';
 import albumRatingService from '../services/albumRatingService';
 import communityRatingService from '../services/communityRatingService';
@@ -597,52 +598,85 @@ const musicController = {
     }
   },
 
-  /** Each CD of the collection and how it stands in Navidrome; ?refresh=1 rereads the library. */
-  getRipStatus: async (req: Request, res: Response): Promise<void> => {
+  /** Every album of Navidrome, the quality of its files, its CD and whether to buy it; refresh rereads the library. */
+  getDigitalLibrary: async (req: Request, res: Response): Promise<void> => {
     try {
       if (req.query.refresh) ripStatusService.clearCache();
-      res.json(await ripStatusService.getStatus());
+      res.json(await digitalLibraryService.getLibrary());
     } catch (error) {
-      logger.error('Error reading the rip status:', error);
-      res.status(500).json({ error: 'Failed to read the rip status' });
+      logger.error('Error reading the digital library:', error);
+      res.status(500).json({ error: 'Failed to read the digital library' });
     }
   },
 
   /**
-   * Rereads Navidrome, takes from the rips the editions Picard identified the
-   * CDs as, and answers with the status that follows.
+   * Rereads Navidrome, which notes the plays since, takes from the rips the
+   * editions Picard identified the CDs as, and answers with the library that follows.
    */
-  syncRipStatus: async (_req: Request, res: Response): Promise<void> => {
+  syncDigitalLibrary: async (_req: Request, res: Response): Promise<void> => {
     try {
       ripStatusService.clearCache();
-      // Navidrome out of reach must not hide the collection: getStatus reports it.
+      // Navidrome out of reach must not hide the collection: getLibrary reports it.
       const editions = await ripStatusService.adoptEditions().catch(error => {
         logger.warn(`Could not take editions from the rips: ${(error as Error).message}`);
         return [];
       });
-      res.json({ editions, status: await ripStatusService.getStatus() });
+      res.json({ editions, library: await digitalLibraryService.getLibrary() });
     } catch (error) {
-      logger.error('Error syncing the rip status:', error);
-      res.status(500).json({ error: 'Failed to sync the rip status' });
+      logger.error('Error syncing the digital library:', error);
+      res.status(500).json({ error: 'Failed to sync the digital library' });
     }
   },
 
-  /** Puts a digital-only album on the wish list (PUT) or takes it off (DELETE). */
+  /** Puts an album with no CD on the wish list (PUT) or takes it off (DELETE). */
   setDigitalWished: async (req: Request, res: Response): Promise<void> => {
     try {
       if (!navidromeService.isConfigured()) {
         res.status(409).json({ error: 'Navidrome is not configured' });
         return;
       }
-      const digital = await ripStatusService.setWished(req.params.navidromeId as string, req.method === 'PUT');
-      if (!digital) {
-        res.status(404).json({ error: 'This album is not in Navidrome, or a CD of the collection is' });
+      const album = await digitalLibraryService.setWished(req.params.navidromeId as string, req.method === 'PUT');
+      if (!album) {
+        res.status(404).json({ error: 'This album is not in Navidrome' });
         return;
       }
-      res.json(digital);
+      res.json(album);
     } catch (error) {
       logger.error('Error changing the wish list from a digital album:', error);
       res.status(500).json({ error: 'Failed to change the wish list' });
+    }
+  },
+
+  /** Sets an album aside from the Buy tab as "Not interested" (PUT), or brings it back (DELETE). */
+  setDigitalDismissed: async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!navidromeService.isConfigured()) {
+        res.status(409).json({ error: 'Navidrome is not configured' });
+        return;
+      }
+      const album = await digitalLibraryService.setDismissed(req.params.navidromeId as string, req.method === 'PUT');
+      if (!album) {
+        res.status(404).json({ error: 'This album is not in Navidrome' });
+        return;
+      }
+      res.json(album);
+    } catch (error) {
+      logger.error('Error dismissing a digital album:', error);
+      res.status(500).json({ error: 'Failed to change the album' });
+    }
+  },
+
+  /** The tracks of a Navidrome album with their plays of the last 90 days. */
+  getDigitalTracks: async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!navidromeService.isConfigured()) {
+        res.status(409).json({ error: 'Navidrome is not configured' });
+        return;
+      }
+      res.json({ tracks: await digitalLibraryService.getTracks(req.params.navidromeId as string) });
+    } catch (error) {
+      logger.error('Error reading the tracks of a digital album:', error);
+      res.status(500).json({ error: 'Failed to read the tracks' });
     }
   },
 

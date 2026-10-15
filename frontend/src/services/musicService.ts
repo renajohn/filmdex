@@ -53,19 +53,6 @@ export interface AlbumStory {
   fetchedAt: string;
 }
 
-export type RipState = 'none' | 'lossy' | 'lossless';
-
-export interface RipStatusAlbum {
-  id: number;
-  title: string;
-  artist: string[];
-  cover: string | null;
-  musicbrainzReleaseId: string | null;
-  state: RipState;
-  formats: string[];
-  matches: Array<{ name: string; artist: string; match: 'musicbrainz' | 'title' | 'tracks'; state: RipState }>;
-}
-
 /** An edition DexVault took from a rip tagged by Picard, or why it left the album alone. */
 export interface EditionAdoption {
   albumId: number | null;
@@ -123,23 +110,61 @@ export interface RipTracks {
   tracks: RipTrackFile[];
 }
 
-/** An album Navidrome has that no CD of the collection is, and the wish list album standing for it. */
+/**
+ * How good an album's files are: every file lossless; compressed at 256 kbps
+ * or more on average; compressed below that.
+ */
+export type DigitalQuality = 'lossless' | 'near' | 'lossy';
+
+/** An album of Navidrome: its files, its CD if one is in the collection, and whether to buy it. */
 export interface DigitalAlbum {
   navidromeId: string;
   name: string;
   artist: string;
   songCount: number;
+  /** The album in Navidrome's web player. */
+  url: string;
   formats: string[];
+  quality: DigitalQuality;
+  /** Average bitrate of the compressed files, in kbps. */
+  bitRate: number | null;
+  hiRes: boolean;
+  cd: { id: number; title: string; artist: string[]; cover: string | null; format: string | null; match: 'musicbrainz' | 'title' | 'tracks' } | null;
+  /** An old compressed copy of the same CD is still in Navidrome. */
+  oldCopy: boolean;
   wishAlbumId: number | null;
+  rating: number;
+  starred: boolean;
+  favouriteTracks: number;
+  listening: { favourites: number; needed: number; plays: number; lastPlayed: string | null; score: number };
+  buy: { listened: boolean; rated: boolean; wished: boolean } | null;
+  dismissed: boolean;
 }
 
-export interface RipStatus {
+export interface DigitalLibrary {
   configured: boolean;
   error?: string;
-  counts: Record<RipState, number>;
-  albums: RipStatusAlbum[];
-  /** Missing from a server older than the digital tab. */
-  digital?: DigitalAlbum[];
+  albums: DigitalAlbum[];
+  physicalOnly: Array<{ id: number; title: string; artist: string[]; cover: string | null }>;
+  oldCopies: Array<{ albumId: number; title: string; navidromeId: string; name: string; formats: string[] }>;
+}
+
+/** A track of a Navidrome album with its plays of the last 90 days. */
+export interface DigitalTrack {
+  id: string | null;
+  url: string | null;
+  discNumber: number;
+  track: number;
+  title: string;
+  durationSec: number | null;
+  suffix: string;
+  bitRate: number | null;
+  bitDepth: number | null;
+  samplingRate: number | null;
+  plays: number;
+  lastPlayed: string | null;
+  rating: number;
+  starred: boolean;
 }
 
 class MusicService {
@@ -147,29 +172,44 @@ class MusicService {
     return '/api';
   }
 
-  /** Each CD and how it stands in Navidrome; refresh rereads the library instead of the minute-old copy. */
-  async getRipStatus(refresh = false): Promise<RipStatus> {
+  /** Every album of Navidrome and how it stands; refresh rereads the library instead of the minute-old copy. */
+  async getDigitalLibrary(refresh = false): Promise<DigitalLibrary> {
     const baseUrl = await this.getBaseUrl();
-    const response = await fetch(`${baseUrl}/music/rip-status${refresh ? '?refresh=1' : ''}`);
+    const response = await fetch(`${baseUrl}/music/digital${refresh ? '?refresh=1' : ''}`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     return await response.json();
   }
 
-  /** Rereads Navidrome and takes the editions Picard identified the ripped CDs as. */
-  async syncRipStatus(): Promise<{ editions: EditionAdoption[]; status: RipStatus }> {
+  /** Rereads Navidrome, which notes the plays since, and takes the editions Picard identified the ripped CDs as. */
+  async syncDigitalLibrary(): Promise<{ editions: EditionAdoption[]; library: DigitalLibrary }> {
     const baseUrl = await this.getBaseUrl();
-    const response = await fetch(`${baseUrl}/music/rip-status/sync`, { method: 'POST' });
+    const response = await fetch(`${baseUrl}/music/digital/sync`, { method: 'POST' });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     return await response.json();
   }
 
-  /** Puts a digital-only album on the wish list, or takes it off. */
+  /** Puts an album with no CD on the wish list, or takes it off. */
   setDigitalWished(navidromeId: string, wished: boolean): Promise<DigitalAlbum> {
-    return this.send(`/music/rip-status/digital/${encodeURIComponent(navidromeId)}/wish`, wished ? 'PUT' : 'DELETE');
+    return this.send(`/music/digital/${encodeURIComponent(navidromeId)}/wish`, wished ? 'PUT' : 'DELETE');
+  }
+
+  /** "Not interested": the album leaves the Buy tab however much it is played, until undone. */
+  setDigitalDismissed(navidromeId: string, dismissed: boolean): Promise<DigitalAlbum> {
+    return this.send(`/music/digital/${encodeURIComponent(navidromeId)}/dismiss`, dismissed ? 'PUT' : 'DELETE');
+  }
+
+  /** An album's tracks with their plays of the last 90 days. */
+  async getDigitalTracks(navidromeId: string): Promise<DigitalTrack[]> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/digital/${encodeURIComponent(navidromeId)}/tracks`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return (await response.json()).tracks;
   }
 
   /** The cover Navidrome shows for one of its albums. */

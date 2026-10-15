@@ -9,7 +9,7 @@ import MusicDexPage from './pages/MusicDexPage';
 import BookDexPage from './pages/BookDexPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import BackupPage from './pages/BackupPage';
-import RipProgressPage from './pages/RipProgressPage';
+import DigitalPage from './pages/DigitalPage';
 import ShelvesPage from './pages/ShelvesPage';
 import CogDropdown from './components/CogDropdown';
 import ShelfMovesNotice from './components/shared/ShelfMovesNotice';
@@ -95,7 +95,7 @@ function AppContent() {
   const showSearchBar = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/bookdex' || location.pathname === '/wishlist';
 
   // Check if we should show the navigation pills (all main sections)
-  const showNavigationPills = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/musicdex/rip' || location.pathname === '/bookdex' || location.pathname === '/wishlist' || location.pathname === '/shelves' || location.pathname === '/analytics' || location.pathname === '/backup';
+  const showNavigationPills = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/musicdex/digital' || location.pathname === '/bookdex' || location.pathname === '/wishlist' || location.pathname === '/shelves' || location.pathname === '/analytics' || location.pathname === '/backup';
 
   // Get the page title based on current route
   const getPageTitle = (): string => {
@@ -104,8 +104,8 @@ function AppContent() {
         return 'DexVault';
       case '/musicdex':
         return 'MusicDex';
-      case '/musicdex/rip':
-        return 'MusicDex - Ripping';
+      case '/musicdex/digital':
+        return 'MusicDex - Digital';
       case '/bookdex':
         return 'BookDex';
       case '/filmdex/import':
@@ -1636,7 +1636,8 @@ function AppContent() {
           />
           <Route path="/filmdex/import" element={<ImportPage />} />
           <Route path="/musicdex" element={<MusicDexPage ref={musicDexRef} searchCriteria={searchCriteria} />} />
-          <Route path="/musicdex/rip" element={<RipProgressPage />} />
+          <Route path="/musicdex/digital" element={<DigitalPage />} />
+          <Route path="/musicdex/rip" element={<Navigate to="/musicdex/digital" replace />} />
           <Route path="/bookdex" element={<BookDexPage ref={bookDexRef} searchCriteria={searchCriteria} />} />
           <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onAddAlbum={handleWishListAddAlbum} onAddBook={handleWishListAddBook} onMovieMovedToCollection={handleMovieMovedToCollection} onAlbumMovedToCollection={handleAlbumMovedToCollection} onBookMovedToCollection={handleBookMovedToCollection} onShowAlert={handleShowAlert} onMovieAdded={handleMovieAdded} onAlbumAdded={handleAlbumAdded} onBookAdded={handleBookAdded} onSearch={handleSearchFromMovieDetail} />} />
           <Route path="/shelves" element={<ShelvesPage />} />

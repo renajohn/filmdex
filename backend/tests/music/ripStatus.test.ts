@@ -24,11 +24,7 @@ beforeEach(() => {
 
 afterEach(() => jest.restoreAllMocks());
 
-const statusOf = async (id: number) => {
-  const res = await request(app).get('/api/music/rip-status');
-  expect(res.status).toBe(200);
-  return res.body.albums.find((a: { id: number }) => a.id === id);
-};
+const statusOf = async (id: number) => (await ripStatusService.getStatus()).albums.find(a => a.id === id)!;
 
 describe('rip status', () => {
   it('reconnaît un CD rippé en FLAC par son ID MusicBrainz', async () => {
@@ -86,13 +82,13 @@ describe('rip status', () => {
     const wished = await insertAlbum({ title: `Wished ${Math.random()}`, artist: ['X'], status: 'wish' });
     const owned = await insertAlbum({ title: `Owned ${Math.random()}`, artist: ['X'] });
 
-    const res = await request(app).get('/api/music/rip-status');
+    const status = await ripStatusService.getStatus();
 
-    expect(res.body.configured).toBe(false);
-    const ids = res.body.albums.map((a: { id: number }) => a.id);
+    expect(status.configured).toBe(false);
+    const ids = status.albums.map(a => a.id);
     expect(ids).toContain(owned);
     expect(ids).not.toContain(wished);
-    expect(res.body.albums.find((a: { id: number }) => a.id === owned).state).toBe('none');
+    expect(status.albums.find(a => a.id === owned)!.state).toBe('none');
   });
 });
 
@@ -148,13 +144,13 @@ describe('adoption des éditions depuis les rips', () => {
     library(exact);
     jest.spyOn(musicbrainzService, 'getReleaseDetails').mockResolvedValue({ 'release-group': { id: group } });
 
-    const res = await request(app).post('/api/music/rip-status/sync');
+    const res = await request(app).post('/api/music/digital/sync');
 
     expect(res.status).toBe(200);
     expect(res.body.editions).toContainEqual(expect.objectContaining({ albumId: id, releaseId: exact, action: 'edition' }));
     expect((await Album.findById(id)).musicbrainzReleaseId).toBe(exact);
     expect(musicbrainzRefreshService.refreshAlbum).toHaveBeenCalledWith(id);
-    expect(res.body.status.albums.find((a: { id: number }) => a.id === id)).toMatchObject({ state: 'lossless' });
+    expect(res.body.library.albums.find((a: { cd: { id: number } | null }) => a.cd?.id === id)).toMatchObject({ quality: 'lossless' });
   });
 
   it('ne demande le release group à MusicBrainz qu’une fois par édition', async () => {
@@ -409,7 +405,7 @@ describe('albums seulement en digital', () => {
   });
 
   const digitalOf = async (navidromeId: string) =>
-    (await request(app).get('/api/music/rip-status')).body.digital.find((d: { navidromeId: string }) => d.navidromeId === navidromeId);
+    (await request(app).get('/api/music/digital')).body.albums.find((d: { navidromeId: string }) => d.navidromeId === navidromeId);
 
   it('liste ce que Navidrome a sans CD dans la collection, et dit ce qui est dans la wish list', async () => {
     const [owned, wished, alone] = [`Owned ${tag()}`, `Wished ${tag()}`, `Alone ${tag()}`];
@@ -420,9 +416,9 @@ describe('albums seulement en digital', () => {
     ]);
     jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(songs('d-alone', 'mp3'));
 
-    expect(await digitalOf('d-owned')).toBeUndefined();
-    expect(await digitalOf('d-wished')).toMatchObject({ name: wished, wishAlbumId: wishId });
-    expect(await digitalOf('d-alone')).toMatchObject({ name: alone, artist: 'Moby', formats: ['MP3'], wishAlbumId: null });
+    expect(await digitalOf('d-owned')).toMatchObject({ cd: { title: owned }, wishAlbumId: null, buy: null });
+    expect(await digitalOf('d-wished')).toMatchObject({ name: wished, cd: null, wishAlbumId: wishId, buy: { wished: true } });
+    expect(await digitalOf('d-alone')).toMatchObject({ name: alone, artist: 'Moby', formats: ['MP3'], cd: null, wishAlbumId: null, buy: null });
   });
 
   it('met dans la wish list un album sans édition, avec la pochette de Navidrome, puis l’en retire', async () => {
@@ -430,7 +426,7 @@ describe('albums seulement en digital', () => {
     jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([album('d-play', name, 'Moby')]);
     jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(songs('d-play', 'mp3'));
 
-    const put = await request(app).put('/api/music/rip-status/digital/d-play/wish');
+    const put = await request(app).put('/api/music/digital/d-play/wish');
     expect(put.status).toBe(200);
     expect(put.body.wishAlbumId).toEqual(expect.any(Number));
     const wish = await Album.findById(put.body.wishAlbumId);
@@ -438,9 +434,9 @@ describe('albums seulement en digital', () => {
     expect(wish.cover).toMatch(/navidrome_/);
 
     // A second toggle on does not add it twice.
-    expect((await request(app).put('/api/music/rip-status/digital/d-play/wish')).body.wishAlbumId).toBe(put.body.wishAlbumId);
+    expect((await request(app).put('/api/music/digital/d-play/wish')).body.wishAlbumId).toBe(put.body.wishAlbumId);
 
-    const del = await request(app).delete('/api/music/rip-status/digital/d-play/wish');
+    const del = await request(app).delete('/api/music/digital/d-play/wish');
     expect(del.body.wishAlbumId).toBeNull();
     expect(await Album.findById(put.body.wishAlbumId)).toBeNull();
   });
@@ -453,7 +449,7 @@ describe('albums seulement en digital', () => {
     const add = jest.spyOn(musicService, 'addAlbumFromMusicBrainz').mockImplementation(async (_id: unknown, data: any) =>
       musicService.addAlbum({ title: name, artist: ['Moby'], musicbrainzReleaseId: releaseId, ...data }));
 
-    const put = await request(app).put('/api/music/rip-status/digital/d-18/wish');
+    const put = await request(app).put('/api/music/digital/d-18/wish');
 
     expect(add).toHaveBeenCalledWith(releaseId, { titleStatus: 'wish' });
     expect(put.body.wishAlbumId).toEqual(expect.any(Number));
@@ -462,7 +458,7 @@ describe('albums seulement en digital', () => {
   it('répond 404 pour un album que Navidrome n’a pas', async () => {
     jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([]);
     jest.spyOn(navidromeService, 'getSongs').mockResolvedValue([]);
-    expect((await request(app).put('/api/music/rip-status/digital/nope/wish')).status).toBe(404);
+    expect((await request(app).put('/api/music/digital/nope/wish')).status).toBe(404);
   });
 });
 
@@ -510,7 +506,7 @@ describe('rapprochement des copies plus large', () => {
     jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(timed('lso', [170, 222, 99, 290]));
 
     expect(await statusOf(id)).toMatchObject({ state: 'none', matches: [] });
-    const digital = (await request(app).get('/api/music/rip-status')).body.digital;
-    expect(digital.map((d: { navidromeId: string }) => d.navidromeId)).toContain('lso');
+    const digital = (await request(app).get('/api/music/digital')).body.albums;
+    expect(digital.find((d: { navidromeId: string }) => d.navidromeId === 'lso')).toMatchObject({ cd: null });
   });
 });
