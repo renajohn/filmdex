@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import AlbumGuide, { GuideText } from './AlbumGuide';
+import AlbumGuide, { GuideText, briefOf, readingOf } from './AlbumGuide';
 import musicService from '../services/musicService';
 
 vi.mock('../services/musicService', () => ({
@@ -26,15 +26,44 @@ describe('GuideText', () => {
   });
 });
 
+describe('briefOf', () => {
+  it('garde de chaque œuvre son titre et son contexte', () => {
+    const text = '### Consolations\n**Contexte** : six pièces calmes.\n\n**À guetter** :\n- plage 1\n\n### Liebesträume\n**Contexte** : trois mélodies.\n\n**Le son** : un piano.\n\n### Votre version\nUn Steinway.';
+    expect(briefOf(text)).toBe('### Consolations\n**Contexte** : six pièces calmes.\n\n### Liebesträume\n**Contexte** : trois mélodies.');
+  });
+
+  it('ne replie rien sans contexte, ni quand il n’y a rien de plus', () => {
+    expect(briefOf('### Ma version\nQuelques mots.')).toBeNull();
+    expect(briefOf('### Titre\n**Context**: all of it.')).toBeNull();
+  });
+});
+
+describe('readingOf', () => {
+  it('ôte le titre qui ne fait que répéter l’album, pas ceux de plusieurs œuvres', () => {
+    expect(readingOf('### Abbey Road (1969), 47 min — plages 1 à 17\n**Contexte** : le dernier.\n\n### Votre version\nUn remaster.'))
+      .toBe('**Contexte** : le dernier.\n\n### Votre version\nUn remaster.');
+    const two = '### Consolations\n**Contexte** : calmes.\n\n### Liebesträume\n**Contexte** : trois mélodies.';
+    expect(readingOf(two)).toBe(two);
+  });
+});
+
 describe('AlbumGuide', () => {
-  it('montre la fiche, sa source, et prévient la fenêtre qu’il y en a une', async () => {
+  it('montre le contexte, le reste et sa source sur demande, et prévient la fenêtre qu’il y en a une', async () => {
     vi.mocked(musicService.getAlbumGuide).mockResolvedValue(GUIDE);
     const onLoaded = vi.fn();
     render(<AlbumGuide albumId={117} onLoaded={onLoaded} />);
 
     expect(await screen.findByText('Before you listen')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Le Sacre du printemps/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Le Sacre du printemps/ })).not.toBeInTheDocument();
+    expect(screen.getByText('30 ans')).toBeInTheDocument();
+    expect(screen.queryByText(/un basson seul/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Written by Claude/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'See more…' }));
+    expect(screen.getByText(/un basson seul/)).toBeInTheDocument();
     expect(screen.getByText(/Written by Claude/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'See less…' }));
+    expect(screen.queryByText(/un basson seul/)).not.toBeInTheDocument();
     expect(onLoaded).toHaveBeenLastCalledWith(true);
   });
 
@@ -43,7 +72,8 @@ describe('AlbumGuide', () => {
     vi.mocked(musicService.saveAlbumGuide).mockResolvedValue({ ...GUIDE, source: 'manual', text: '### Ma version' });
     render(<AlbumGuide albumId={117} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'See more…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     const editor = screen.getByLabelText('Listening guide');
     expect(editor).toHaveValue(GUIDE.text);
     fireEvent.change(editor, { target: { value: '### Ma version' } });
@@ -58,7 +88,8 @@ describe('AlbumGuide', () => {
     vi.mocked(musicService.generateAlbumGuide).mockResolvedValue({ ...GUIDE, source: 'local_llm', model: 'Qwen3.6', text: '### Nouvelle' });
     render(<AlbumGuide albumId={117} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Rewrite with the local LLM' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'See more…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rewrite with the local LLM' }));
     expect(musicService.generateAlbumGuide).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Replace' }));
 

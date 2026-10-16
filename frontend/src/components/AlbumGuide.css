@@ -85,3 +85,11 @@
   color: #fbbf24;
   font-size: 0.85rem;
 }
+
+/* See more… / See less…, right under the text it unfolds. */
+.album-guide-more {
+  display: block;
+  margin-top: 0.25rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

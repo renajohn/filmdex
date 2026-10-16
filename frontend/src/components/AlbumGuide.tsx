@@ -51,6 +51,46 @@ export const GuideText: React.FC<{ text: string }> = ({ text }) => {
   return <div className="album-guide-text">{blocks}</div>;
 };
 
+/** A heading the guide closes with, on the recording rather than on a work. */
+const VERSION_HEADING = /^#{1,6}\s+(votre version|your version)\b/i;
+
+/**
+ * The guide as it is read: an album of one work opens on a heading that only
+ * says the album's title, year and length again, so it goes. Several works
+ * keep theirs, which say which tracks each one is.
+ */
+export const readingOf = (text: string): string => {
+  const lines = text.split('\n');
+  const works = lines.filter(line => /^#{1,6}\s/.test(line.trim()) && !VERSION_HEADING.test(line.trim()));
+  const first = lines.findIndex(line => line.trim());
+  if (works.length !== 1 || first < 0 || lines[first].trim() !== works[0].trim()) return text;
+  return lines.slice(first + 1).join('\n').trim();
+};
+
+/**
+ * The guide in brief: each work's heading and its context, the paragraph a
+ * guide opens a work with. Null when there is nothing more to unfold, as in a
+ * guide written by hand with no context.
+ */
+export const briefOf = (text: string): string | null => {
+  const lines = text.split('\n');
+  const kept: string[] = [];
+  let heading: string | null = null;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (/^#{1,6}\s/.test(line)) {
+      heading = line;
+    } else if (/^\*\*(contexte|context)\*\*/i.test(line)) {
+      if (heading) kept.push(heading);
+      heading = null;
+      for (; i < lines.length && lines[i].trim() && !/^#{1,6}\s/.test(lines[i].trim()); i++) kept.push(lines[i]);
+      kept.push('');
+    }
+  }
+  const brief = kept.join('\n').trim();
+  return brief && brief !== text.trim() ? brief : null;
+};
+
 const dayLabel = (iso: string): string =>
   new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -71,10 +111,12 @@ const AlbumGuide: React.FC<AlbumGuideProps> = ({ albumId, onLoaded }) => {
   const [confirmReplace, setConfirmReplace] = useState<boolean>(false);
   const [busy, setBusy] = useState<'saving' | 'writing' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [more, setMore] = useState<boolean>(false);
 
   useEffect(() => {
     let current = true;
     setGuide(undefined);
+    setMore(false);
     setEditing(null);
     setConfirmReplace(false);
     setError(null);
@@ -152,12 +194,23 @@ const AlbumGuide: React.FC<AlbumGuideProps> = ({ albumId, onLoaded }) => {
     );
   }
 
+  // Folded to the context of each work; the rest, and who wrote it, a click away.
+  const reading = readingOf(guide.text);
+  const brief = briefOf(reading);
+  const folded = brief !== null && !more;
+  const fold = brief !== null && (
+    <button type="button" className="album-guide-action album-guide-more" aria-expanded={more} onClick={() => setMore(!more)}>
+      {more ? 'See less…' : 'See more…'}
+    </button>
+  );
+
   return (
     <div className="info-section album-guide">
       <h4>Before you listen</h4>
-      {writing || <GuideText text={guide.text} />}
+      {writing || <GuideText text={folded ? brief : reading} />}
+      {!writing && fold}
 
-      <div className="album-guide-footer">
+      {!folded && <div className="album-guide-footer">
         <span>
           {SOURCE_LABELS[guide.source]}
           {guide.source === 'local_llm' && guide.model ? ` (${guide.model})` : ''}
@@ -177,7 +230,7 @@ const AlbumGuide: React.FC<AlbumGuideProps> = ({ albumId, onLoaded }) => {
             </>
           )}
         </span>
-      </div>
+      </div>}
       {error && <p className="album-guide-error">{error}</p>}
     </div>
   );
