@@ -115,3 +115,26 @@ export const discCredits = (tracks: CreditedTrack[], albumArtists: string[]): Di
 
   return { common, perTrack, musicians };
 };
+
+/** "Partita Nr.1 B-dur, BWV 825: I. Prélude" as its work and its movement, at the last colon. */
+const splitMovement = (title: string): { work: string; movement: string } | null => {
+  const at = title.lastIndexOf(': ');
+  return at > 0 ? { work: title.slice(0, at).trim(), movement: title.slice(at + 2).trim() } : null;
+};
+
+/**
+ * The works a disc's tracks fall under: the movements of a sonata or a
+ * partita, two tracks or more in a row whose titles open alike, go under
+ * one heading and keep only their own part, "I. Prélude". A track alone,
+ * such as one of 24 préludes, each its own piece, stays as it is. Null for
+ * a track under no heading.
+ */
+export const workGroups = (titles: string[]): Array<{ work: string; movement: string; first: boolean } | null> => {
+  const parts = titles.map(splitMovement);
+  return parts.map((part, index) => {
+    if (!part) return null;
+    const same = (other: number) => parts[other]?.work === part.work;
+    if (!same(index - 1) && !same(index + 1)) return null;
+    return { ...part, first: !same(index - 1) };
+  });
+};

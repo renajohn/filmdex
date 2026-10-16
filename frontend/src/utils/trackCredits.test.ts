@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { trackCredits, discCredits } from './trackCredits';
+import { trackCredits, discCredits, workGroups } from './trackCredits';
 
 const vivaldi = {
   artist: ['Antonio Vivaldi'],
@@ -96,5 +96,23 @@ describe('discCredits', () => {
     const [many] = [discCredits([{ performers: [{ name: 'Karajan', role: 'conductor' }, ...sections] }], [])];
     expect(many.common).toBe('Karajan (conductor)');
     expect(many.musicians[0]).toContain('Player 3 (double bass)');
+  });
+});
+
+describe('workGroups', () => {
+  it('puts the movements of a work under it, and leaves alone a piece on its own', () => {
+    expect(workGroups([
+      '24 Préludes, op. 28 no. 1 in C major: Agitato',
+      '24 Préludes, op. 28 no. 2 in A minor: Lento',
+      'Piano Sonata no. 2 in B‐flat minor: op. 35: I. Grave – Doppio movimento',
+      'Piano Sonata no. 2 in B‐flat minor: op. 35: II. Scherzo',
+      'Come Together',
+    ])).toEqual([
+      null,
+      null,
+      { work: 'Piano Sonata no. 2 in B‐flat minor: op. 35', movement: 'I. Grave – Doppio movimento', first: true },
+      { work: 'Piano Sonata no. 2 in B‐flat minor: op. 35', movement: 'II. Scherzo', first: false },
+      null,
+    ]);
   });
 });

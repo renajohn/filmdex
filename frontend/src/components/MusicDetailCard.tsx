@@ -6,7 +6,7 @@ import CoverModal from './CoverModal';
 import AlbumStory from './AlbumStory';
 import AlbumNotes from './AlbumNotes';
 import AlbumGuide from './AlbumGuide';
-import { discCredits, type TrackPerformer } from '../utils/trackCredits';
+import { discCredits, workGroups, type TrackPerformer } from '../utils/trackCredits';
 import { canUsePicard, openInPicard } from '../utils/picard';
 import { isAppleMobile, openListen, trackListenUrl } from '../utils/navidrome';
 import { ripFileFor } from '../utils/trackDetail';
@@ -419,8 +419,8 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
 
   const ripAlbum = rip?.found ? rip.album : undefined;
 
-  const discsCredits = (cd.discs || []).map((disc: CdDisc) =>
-    discCredits(disc.tracks, Array.isArray(cd.artist) ? cd.artist : [cd.artist]));
+  const albumArtists = Array.isArray(cd.artist) ? cd.artist : [cd.artist];
+  const discsCredits = (cd.discs || []).map((disc: CdDisc) => discCredits(disc.tracks, albumArtists));
 
   // What the head says of the CD as an object: its format, size and length in one murmur…
   const discs = cd.discs || [];
@@ -729,13 +729,21 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
             </div>
             {cd.discs.map((disc: CdDisc, discIndex: number) => {
               const credits = discsCredits[discIndex];
+              // The movements of a work go under its heading, which says who wrote and who plays them all;
+              // under a movement, only what differs. Who wrote the rest is in each track's credits.
+              const works = workGroups(disc.tracks.map(track => track.title));
+              const workCredits = new Map<number, ReturnType<typeof discCredits> & { start: number }>();
+              works.forEach((work, index) => {
+                if (!work?.first) return;
+                let end = index + 1;
+                while (works[end] && !works[end]!.first) end++;
+                workCredits.set(index, { ...discCredits(disc.tracks.slice(index, end), albumArtists), start: index });
+                for (let i = index + 1; i < end; i++) workCredits.set(i, workCredits.get(index)!);
+              });
               return (
                 <div key={discIndex} className="disc-tracks mb-3">
                   {cd.discs!.length > 1 && (
                     <h6 className="disc-title">Disc {disc.number}</h6>
-                  )}
-                  {credits.common && (
-                    <div className="disc-credits">{credits.common}</div>
                   )}
                   <div className="track-list">
                     {disc.tracks.map((track: CdTrack, trackIndex: number) => {
@@ -746,10 +754,17 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                       const playUrl = file ? trackListenUrl(file, appleMobile) : null;
                       // The buttons inside the row act on their own, not as a click on the row.
                       const own = (event: React.SyntheticEvent) => event.stopPropagation();
+                      const work = works[trackIndex];
                       return (
                       <React.Fragment key={trackIndex}>
+                      {work?.first && (
+                        <div className="track-work">
+                          {work.work}
+                          {workCredits.get(trackIndex)?.common && <span className="track-work-by"> · {workCredits.get(trackIndex)!.common}</span>}
+                        </div>
+                      )}
                       <div
-                        className={`track-item track-selectable${open ? ' track-selected' : ''}`}
+                        className={`track-item track-selectable${open ? ' track-selected' : ''}${work ? ' track-in-work' : ''}`}
                         role="button"
                         tabIndex={0}
                         aria-expanded={open}
@@ -774,7 +789,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                           )}
                         </span>
                         <span className="track-title">
-                          {track.title}
+                          {work ? work.movement : track.title}
                           {words && (open ? (
                             <span className="track-view" role="group" aria-label="Show">
                               {(['credits', 'lyrics'] as const).map(view => (
@@ -786,9 +801,11 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                             <button type="button" className="track-lyrics-tag" title="Show the lyrics"
                               onClick={event => { own(event); toggleTrack(key, 'lyrics'); }} onKeyDown={own}>lyrics</button>
                           ))}
-                          {credits.perTrack[trackIndex] && (
-                            <span className="track-credits">{credits.perTrack[trackIndex]}</span>
-                          )}
+                          {(() => {
+                            const inWork = workCredits.get(trackIndex);
+                            const line = inWork ? inWork.perTrack[trackIndex - inWork.start] : credits.perTrack[trackIndex];
+                            return line && <span className="track-credits">{line}</span>;
+                          })()}
                         </span>
                         {track.durationSec && (
                           <span className="track-duration">
