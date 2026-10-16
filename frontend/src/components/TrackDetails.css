@@ -18,45 +18,28 @@
   to { opacity: 1; transform: none; }
 }
 
-.track-details dl {
-  display: grid;
-  grid-template-columns: 6.5rem 1fr;
-  align-items: baseline;
-  gap: 7px 12px;
-  margin: 0;
+.track-details-credits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
   padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
-.track-details dt {
-  color: #8f98a3;
-  font-size: 0.78rem;
-  font-weight: 400;
-}
-
-.track-details dd {
-  margin: 0;
+/* A credit: the role small, over the names that hold it. */
+.track-details-credit {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
   color: #d6dbe1;
   overflow-wrap: anywhere;
 }
 
-/* The people, one a line: the name carries the weight, the role follows in a murmur. */
-.track-details-people {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.track-details-people li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: 8px;
-}
-
 .track-details-role {
   color: #9aa4b2;
-  font-size: 0.78rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
 }
 
 .track-details-muted {
@@ -65,7 +48,7 @@
 
 .track-details-isrc {
   color: #c3cad3;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   letter-spacing: 0.04em;
 }
 
@@ -98,8 +81,25 @@
   color: inherit;
 }
 
-/* The rip: its format in one line, the file's path under it in small type. */
+/* How to hear it, at the foot: listen, the rip, the ISRC, the words at the far end. */
+.track-details-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 12px;
+  margin-top: 9px;
+  padding-top: 7px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.07);
+  color: #9aa4b2;
+  font-size: 0.8rem;
+}
+
+.track-details-strip-end {
+  margin-left: auto;
+}
+
 .track-details-format {
+  color: #d6dbe1;
   font-variant-numeric: tabular-nums;
 }
 
@@ -143,19 +143,18 @@
   color: #fff;
 }
 
-/* On a phone: labels above their values, still hanging off the title column. */
+/* On a phone: still hanging off the title column, the words' fold back in line with the strip. */
 @media (max-width: 768px) {
   .track-details {
     padding: 2px 8px 10px 59px;
   }
 
-  .track-details dl {
-    grid-template-columns: 1fr;
-    gap: 2px;
+  .track-details-credits {
+    gap: 7px 16px;
   }
 
-  .track-details dt:not(:first-child) {
-    margin-top: 8px;
+  .track-details-strip-end {
+    margin-left: 0;
   }
 }
 
@@ -180,14 +179,14 @@
 
 .track-details-role-link {
   color: #9aa4b2;
-  font-size: 0.78rem;
 }
 
-/* The words, under the facts: a quiet heading, then the song as it is sung, line by line. */
+/* The words, under the strip: the song as it is sung, line by line. */
 .track-details-lyrics {
   margin-top: 10px;
   padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 0.85rem;
 }
 
 .track-details-lyrics-toggle {

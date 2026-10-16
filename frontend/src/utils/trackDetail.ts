@@ -12,6 +12,22 @@ export const performersByPerson = (performers: TrackPerformer[]): Array<{ name: 
   return [...people.entries()].map(([name, roles]) => ({ name, roles }));
 };
 
+/**
+ * The people who hold the same roles, together under them, in credit order:
+ * the four violins of "Eleanor Rigby" under one "violin", and Norah Jones
+ * once under "piano, lead vocals". Roles match whatever their order.
+ */
+export const peopleByRoles = (people: Array<{ name: string; roles: string[] }>): Array<{ roles: string[]; names: string[] }> => {
+  const groups = new Map<string, { roles: string[]; names: string[] }>();
+  for (const person of people) {
+    const key = [...person.roles].map(role => role.toLocaleLowerCase()).sort().join('|');
+    const group = groups.get(key);
+    if (group) group.names.push(person.name);
+    else groups.set(key, { roles: person.roles, names: [person.name] });
+  }
+  return [...groups.values()];
+};
+
 /** The rip's file for a track: same disc, same number. */
 export const ripFileFor = (files: RipTrackFile[], disc: number, track: number): RipTrackFile | null =>
   files.find(file => file.discNumber === disc && file.track === track) ?? null;

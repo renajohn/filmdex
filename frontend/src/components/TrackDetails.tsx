@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BsBoxArrowUpRight, BsChevronRight } from 'react-icons/bs';
 import musicService, { type RipTracks, type TrackLyrics } from '../services/musicService';
 import type { TrackPerformer } from '../utils/trackCredits';
-import { performersByPerson, ripFileFor, ripFormat, ripSize } from '../utils/trackDetail';
+import { peopleByRoles, performersByPerson, ripFileFor, ripFormat, ripSize } from '../utils/trackDetail';
 import { isAppleMobile, trackListenUrl } from '../utils/navidrome';
 import { layOutLyrics } from '../utils/lyricsLayout';
 import './TrackDetails.css';
@@ -36,28 +36,23 @@ interface TrackDetailsProps {
 /** A filter on one value, quoted so a name with spaces stays whole. */
 const predicate = (field: string, value: string) => `${field}:"${value.replace(/"/g, '')}"`;
 
-const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <>
-    <dt>{label}</dt>
-    <dd>{children}</dd>
-  </>
-);
-
 /** The words to read: the plain text, else the timed lines without their times. */
 export const lyricsText = (lyrics: Pick<TrackLyrics, 'plain' | 'synced'>): string =>
   (lyrics.plain?.trim() || (lyrics.synced || '').split('\n').map(line => line.replace(/^(\[[^\]]*\])+\s?/, '')).join('\n').trim());
 
 /**
  * The words of a track, asked for as its details open but folded away: the
- * fold says whether there are any, opening it shows them.
+ * fold, at the end of the strip, says whether there are any; opening it shows
+ * them under the strip. Nothing is asked for without an album.
  */
-const Lyrics: React.FC<{ albumId: number; disc: number; track: number }> = ({ albumId, disc, track }) => {
+const useLyrics = (albumId: number | undefined, disc: number, track: number, bodyId: string) => {
   const [lyrics, setLyrics] = useState<TrackLyrics | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    if (albumId === undefined) return undefined;
     let current = true;
     setLyrics(undefined);
     setError(null);
@@ -71,7 +66,7 @@ const Lyrics: React.FC<{ albumId: number; disc: number; track: number }> = ({ al
   const askAgain = () => {
     setAsking(true);
     setError(null);
-    musicService.getLyrics(albumId, disc, track, true)
+    musicService.getLyrics(albumId!, disc, track, true)
       .then(setLyrics)
       .catch((e: Error) => setError(e.message))
       .finally(() => setAsking(false));
@@ -111,22 +106,24 @@ const Lyrics: React.FC<{ albumId: number; disc: number; track: number }> = ({ al
     );
   }
 
-  return (
-    <section className="track-details-lyrics" aria-label="Lyrics">
-      <button type="button" className="track-details-lyrics-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+  if (albumId === undefined) return { toggle: null, body: null };
+  return {
+    toggle: (
+      <button type="button" className="track-details-lyrics-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen(!open)}>
         <BsChevronRight aria-hidden="true" className={open ? 'track-details-lyrics-chevron-open' : ''} />
         Lyrics
         {hint && <span className="track-details-lyrics-hint">{hint}</span>}
       </button>
-      {open && <div className="track-details-lyrics-body">{body}</div>}
-    </section>
-  );
+    ),
+    body: open && <section id={bodyId} className="track-details-lyrics" aria-label="Lyrics">{body}</section>,
+  };
 };
 
 /**
  * Everything DexVault knows of one track, opened under its row in the track
  * list: one surface whatever the screen, and never a doubt about which track
- * it speaks of.
+ * it speaks of. Who made it reads as a row of roles, each over the names that
+ * hold it; how to hear it, a strip at the foot.
  */
 const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumId, albumArtists = [], id, rip, ripError, onSearch }) => {
   // A credited name or role opens the CDs that credit it as well.
@@ -134,75 +131,80 @@ const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumId, albumArtist
     ? <button type="button" className={`track-details-search ${className}`} title={title}
         onClick={() => onSearch(predicate(field, value))}>{label}</button>
     : <span className={className}>{label}</span>);
-  const list = (field: string, values: string[]) => values.map((value, index) => (
-    <React.Fragment key={value}>{index > 0 && ', '}{link(field, value)}</React.Fragment>
+  const names = (field: string, values: string[]) => values.map((value, index) => (
+    <React.Fragment key={value}>{index > 0 && ', '}{link(field, value, { className: 'track-details-person' })}</React.Fragment>
   ));
-  const people = performersByPerson(track.performers || []);
+  const groups = peopleByRoles(performersByPerson(track.performers || []));
   const composers = track.composers || [];
-  const key = (names: string[]) => names.map(name => name.toLocaleLowerCase()).sort().join('|');
+  const key = (list: string[]) => list.map(name => name.toLocaleLowerCase()).sort().join('|');
   const artists = key(track.artist || []) === key(albumArtists) ? [] : track.artist || [];
+  const work = track.work && track.work !== track.title ? track.work : null;
   const file = rip?.found ? ripFileFor(rip.tracks, track.disc, Number(track.no)) : null;
   const appleMobile = isAppleMobile();
   const listenUrl = file ? trackListenUrl(file, appleMobile) : null;
-  const credited = Boolean(track.work || composers.length || people.length);
+  const credited = Boolean(work || composers.length || groups.length);
+  const lyrics = useLyrics(Number.isInteger(Number(track.no)) ? albumId : undefined, track.disc, Number(track.no), `${id || 'track'}-lyrics`);
+
+  // A credit: what it is, small, over who.
+  const credit = (label: React.ReactNode, who: React.ReactNode, keyed: string) => (
+    <div className="track-details-credit" key={keyed}>
+      <span className="track-details-role">{label}</span>
+      <span>{who}</span>
+    </div>
+  );
 
   let ripText: React.ReactNode = null;
-  if (ripError) ripText = <span className="track-details-muted">Could not read Navidrome: {ripError}</span>;
-  else if (rip === undefined) ripText = <span className="track-details-muted">Reading Navidrome…</span>;
-  else if (!rip?.found) ripText = <span className="track-details-muted">Not in Navidrome yet.</span>;
-  else if (!file) ripText = <span className="track-details-muted">No file at this position in the rip.</span>;
+  if (ripError) ripText = <span>Could not read Navidrome: {ripError}</span>;
+  else if (rip === undefined) ripText = <span>Reading Navidrome…</span>;
+  else if (!rip?.found) ripText = <span>Not in Navidrome yet.</span>;
+  else if (!file) ripText = <span>No file at this position in the rip.</span>;
   else ripText = (
     <>
       <span className="track-details-format">{ripFormat(file)}</span>
-      {ripSize(file) && <span className="track-details-muted"> · <span className="track-details-size">{ripSize(file)}</span></span>}
-      {file.path && <span className="track-details-path">{file.path}</span>}
+      {ripSize(file) && <span className="track-details-size">{ripSize(file)}</span>}
     </>
   );
 
   return (
     <div className="track-details" id={id}>
-      <dl>
-        {track.work && track.work !== track.title && <Field label="Work">{link('work', track.work, { title: 'CDs with this work' })}</Field>}
-        {composers.length > 0 && <Field label={composers.length > 1 ? 'Composers' : 'Composer'}>{list('composer', composers)}</Field>}
-        {artists.length > 0 && <Field label="Track artist">{list('artist', artists)}</Field>}
-        {people.length > 0 && (
-          <Field label="Performers">
-            <ul className="track-details-people">
-              {people.map(person => (
-                <li key={person.name}>
-                  {link('performer', person.name, { className: 'track-details-person' })}
-                  <span className="track-details-role">
-                    {person.roles.map((role, index) => (
-                      <React.Fragment key={role}>
-                        {index > 0 && ', '}
-                        {/conduct/i.test(role)
-                          ? link('conductor', person.name, { label: role, title: `CDs ${person.name} conducts`, className: 'track-details-role-link' })
-                          : link('instrument', role, { title: `CDs with ${role}`, className: 'track-details-role-link' })}
-                      </React.Fragment>
-                    ))}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </Field>
-        )}
-        {track.isrc && <Field label="ISRC"><code className="track-details-isrc">{track.isrc}</code></Field>}
+      {credited || artists.length > 0 ? (
+        <div className="track-details-credits">
+          {work && credit('work', link('work', work, { title: 'CDs with this work', className: 'track-details-person' }), 'work')}
+          {composers.length > 0 && credit(composers.length > 1 ? 'composers' : 'composer', names('composer', composers), 'composer')}
+          {artists.length > 0 && credit('track artist', names('artist', artists), 'artist')}
+          {groups.map(group => credit(
+            group.roles.map((role, index) => (
+              <React.Fragment key={role}>
+                {index > 0 && ', '}
+                {/conduct/i.test(role)
+                  ? link('conductor', group.names[0], { label: role, title: `CDs ${group.names[0]} conducts`, className: 'track-details-role-link' })
+                  : link('instrument', role, { title: `CDs with ${role}`, className: 'track-details-role-link' })}
+              </React.Fragment>
+            )),
+            names('performer', group.names),
+            group.roles.join('|'),
+          ))}
+        </div>
+      ) : (
+        <p className="track-details-muted track-details-empty">No credits for this track. Edit the album to add them.</p>
+      )}
+      <div className="track-details-strip">
         {listenUrl && (
-          <Field label="Listen">
-            <a
-              className="track-details-link"
-              href={listenUrl}
-              {...(appleMobile ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
-            >
-              {appleMobile ? 'Amperfy' : 'Navidrome'}
-              <BsBoxArrowUpRight aria-hidden="true" />
-            </a>
-          </Field>
+          <a
+            className="track-details-link"
+            href={listenUrl}
+            {...(appleMobile ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+          >
+            {appleMobile ? 'Amperfy' : 'Navidrome'}
+            <BsBoxArrowUpRight aria-hidden="true" />
+          </a>
         )}
-        {rip?.configured !== false && <Field label="Rip">{ripText}</Field>}
-      </dl>
-      {!credited && <p className="track-details-muted track-details-empty">No credits for this track. Edit the album to add them.</p>}
-      {albumId !== undefined && Number.isInteger(Number(track.no)) && <Lyrics albumId={albumId} disc={track.disc} track={Number(track.no)} />}
+        {rip?.configured !== false && ripText}
+        {track.isrc && <span>ISRC <code className="track-details-isrc">{track.isrc}</code></span>}
+        {lyrics.toggle && <span className="track-details-strip-end">{lyrics.toggle}</span>}
+      </div>
+      {file?.path && <span className="track-details-path">{file.path}</span>}
+      {lyrics.body}
     </div>
   );
 };

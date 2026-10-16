@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { joinNames, performersByPerson, ripFileFor, ripFormat, ripSize, splitNames } from './trackDetail';
+import { joinNames, peopleByRoles, performersByPerson, ripFileFor, ripFormat, ripSize, splitNames } from './trackDetail';
 import type { RipTrackFile } from '../services/musicService';
 
 const file = (overrides: Partial<RipTrackFile> = {}): RipTrackFile => ({
@@ -17,6 +17,20 @@ describe('trackDetail', () => {
     ])).toEqual([
       { name: 'Ryan Tedder', roles: ['drums', 'piano'] },
       { name: 'Adele', roles: ['lead vocals'] },
+    ]);
+  });
+
+  it('puts the people who hold the same roles under them, whatever their order', () => {
+    expect(peopleByRoles([
+      { name: 'Norah Jones', roles: ['piano', 'lead vocals'] },
+      { name: 'Tony Gilbert', roles: ['violin'] },
+      { name: 'Sidney Sax', roles: ['violin'] },
+      { name: 'Jesse Harris', roles: ['lead vocals', 'piano'] },
+      { name: 'Jesse Harris Jr.', roles: ['piano'] },
+    ])).toEqual([
+      { roles: ['piano', 'lead vocals'], names: ['Norah Jones', 'Jesse Harris'] },
+      { roles: ['violin'], names: ['Tony Gilbert', 'Sidney Sax'] },
+      { roles: ['piano'], names: ['Jesse Harris Jr.'] },
     ]);
   });
 

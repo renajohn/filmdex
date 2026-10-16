@@ -51,6 +51,20 @@ describe('TrackDetails', () => {
     ]);
   });
 
+  it('writes each role once, over the people who hold the same ones', () => {
+    render(<TrackDetails track={{
+      disc: 1, no: 2, title: 'Eleanor Rigby', performers: [
+        { name: 'Paul McCartney', role: 'lead vocals, bass guitar' }, { name: 'Tony Gilbert', role: 'violin' },
+        { name: 'Sidney Sax', role: 'violin' }, { name: 'John Lennon', role: 'bass guitar, lead vocals' },
+      ],
+    }} rip={rip} />);
+
+    expect(screen.getAllByText('violin')).toHaveLength(1);
+    expect(screen.getByText('violin').closest('.track-details-credit')).toHaveTextContent('violinTony Gilbert, Sidney Sax');
+    expect(screen.getAllByText('lead vocals')).toHaveLength(1);
+    expect(screen.getByText('lead vocals').closest('.track-details-credit')).toHaveTextContent('Paul McCartney, John Lennon');
+  });
+
   it('says when a track has no credits and the CD is not ripped', () => {
     render(<TrackDetails track={{ disc: 1, no: 2, title: 'Voiles' }} rip={{ configured: true, found: false, tracks: [] }} />);
 
