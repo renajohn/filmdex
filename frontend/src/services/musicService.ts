@@ -103,6 +103,13 @@ export interface TrackLyrics {
   checkedAt: string;
 }
 
+/** Whether a track has words, for its row: "pending" while DexVault looks them up. */
+export interface TrackLyricsState {
+  discNumber: number;
+  trackNumber: number;
+  status: TrackLyrics['status'] | 'pending';
+}
+
 export interface RipTracks {
   configured: boolean;
   found: boolean;
@@ -772,6 +779,17 @@ class MusicService {
       throw new Error(body.error || `HTTP error! status: ${response.status}`);
     }
     return body;
+  }
+
+  /** Whether each track of an album has words; those never looked up are, in the background, and come back "pending". */
+  async getAlbumLyrics(albumId: number | string): Promise<TrackLyricsState[]> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/albums/${albumId}/lyrics`);
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.error || `HTTP error! status: ${response.status}`);
+    }
+    return body.tracks || [];
   }
 
   /** As uploadCover, for the back. */

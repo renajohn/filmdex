@@ -102,6 +102,10 @@ const TrackLyrics = {
     return row ? format(row) : null;
   },
 
+  /** What is known of each track of an album, words or not. */
+  forAlbum: async (albumId: number): Promise<TrackLyricsFormatted[]> =>
+    (await all<TrackLyricsRow>(`SELECT * FROM track_lyrics WHERE album_id = ?`, [albumId])).map(format),
+
   /** Every track of an album that has words, for the files beside its rip. */
   foundForAlbum: async (albumId: number): Promise<TrackLyricsFormatted[]> =>
     (await all<TrackLyricsRow>(`SELECT * FROM track_lyrics WHERE album_id = ? AND status = 'found'`, [albumId])).map(format),

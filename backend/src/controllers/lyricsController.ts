@@ -32,6 +32,26 @@ const lyricsController = {
       res.status(502).json({ error: (error as Error).message || 'Failed to look up the lyrics' });
     }
   },
+
+  /** Whether each track of an album has words; those never looked up are, in the background. */
+  album: async (req: Request, res: Response): Promise<void> => {
+    const albumId = Number(req.params.id);
+    if (!Number.isInteger(albumId)) {
+      res.status(400).json({ error: 'The album must be a number' });
+      return;
+    }
+    try {
+      const tracks = await lyricsService.forAlbum(albumId);
+      if (!tracks) {
+        res.status(404).json({ error: 'Album not found' });
+        return;
+      }
+      res.json({ tracks });
+    } catch (error) {
+      logger.error('Error reading the lyrics of an album:', error);
+      res.status(500).json({ error: (error as Error).message || 'Failed to read the lyrics' });
+    }
+  },
 };
 
 export default lyricsController;

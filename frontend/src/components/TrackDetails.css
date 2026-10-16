@@ -94,10 +94,6 @@
   font-size: 0.8rem;
 }
 
-.track-details-strip-end {
-  margin-left: auto;
-}
-
 .track-details-format {
   color: #d6dbe1;
   font-variant-numeric: tabular-nums;
@@ -143,7 +139,7 @@
   color: #fff;
 }
 
-/* On a phone: still hanging off the title column, the words' fold back in line with the strip. */
+/* On a phone: still hanging off the title column. */
 @media (max-width: 768px) {
   .track-details {
     padding: 2px 8px 10px 59px;
@@ -151,10 +147,6 @@
 
   .track-details-credits {
     gap: 7px 16px;
-  }
-
-  .track-details-strip-end {
-    margin-left: 0;
   }
 }
 
@@ -181,48 +173,11 @@
   color: #9aa4b2;
 }
 
-/* The words, under the strip: the song as it is sung, line by line. */
+/* The words, asked from the row: the song as it is sung, line by line. */
 .track-details-lyrics {
-  margin-top: 10px;
   padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   font-size: 0.85rem;
-}
-
-.track-details-lyrics-toggle {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 0;
-  border: none;
-  background: none;
-  color: #8f98a3;
-  font: inherit;
-  font-size: 0.78rem;
-  cursor: pointer;
-}
-
-.track-details-lyrics-toggle svg {
-  align-self: center;
-  font-size: 0.7rem;
-  transition: transform 0.15s ease-out;
-}
-
-.track-details-lyrics-toggle .track-details-lyrics-chevron-open {
-  transform: rotate(90deg);
-}
-
-.track-details-lyrics-toggle:hover,
-.track-details-lyrics-toggle:focus-visible {
-  color: #f0c654;
-}
-
-.track-details-lyrics-hint {
-  color: #6f7882;
-}
-
-.track-details-lyrics-body {
-  margin-top: 6px;
 }
 
 .track-details-lyrics-text {

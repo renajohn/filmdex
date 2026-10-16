@@ -1,37 +1,5 @@
 /* The listening journal: a quiet form, then the notes, the latest first. */
 
-/* No note yet: a quiet link that opens the form, like the Wikipedia one. */
-.album-notes-open {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: #d6dbe1;
-  font-size: 0.85rem;
-  text-decoration: underline;
-  text-decoration-color: rgba(255, 255, 255, 0.3);
-  text-underline-offset: 3px;
-  transition: color 0.15s ease;
-}
-
-.album-notes-open svg {
-  font-size: 0.8em;
-  color: #9aa4b2;
-}
-
-.album-notes-open:hover,
-.album-notes-open:focus-visible {
-  color: #fbbf24;
-  text-decoration-color: currentColor;
-  outline: none;
-}
-
-.album-notes-open:hover svg,
-.album-notes-open:focus-visible svg {
-  color: inherit;
-}
 .album-notes-form .form-control,
 .album-notes-edit .form-control {
   background: rgba(255, 255, 255, 0.04);

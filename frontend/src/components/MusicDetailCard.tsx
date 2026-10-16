@@ -8,13 +8,18 @@ import AlbumNotes from './AlbumNotes';
 import AlbumGuide from './AlbumGuide';
 import { discCredits, type TrackPerformer } from '../utils/trackCredits';
 import { canUsePicard, openInPicard } from '../utils/picard';
-import { openListen } from '../utils/navidrome';
+import { isAppleMobile, openListen, trackListenUrl } from '../utils/navidrome';
+import { ripFileFor } from '../utils/trackDetail';
 import { playingTime, ripSummary, urlLabel } from '../utils/albumHead';
 import TrackDetails from './TrackDetails';
 import DetailSteps, { useScrollKeys, useStepKeys } from './shared/DetailSteps';
 import type { RipTracks } from '../services/musicService';
 import './MusicDetailCard.css';
 import ShelfCode from './shared/ShelfCode';
+
+/** How often, and how many times, an album's tracks are asked after while their words are looked up. */
+const LYRICS_POLL_MS = 3000;
+const LYRICS_POLLS = 20;
 
 interface CdOwnership {
   condition?: string;
@@ -139,6 +144,10 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const [confirmDelete, setConfirmDelete] = useState<boolean>(false);
   // Wikipedia steps behind a toggle when the CD has a listening guide.
   const [hasGuide, setHasGuide] = useState<boolean>(false);
+  // The line under the guide: how many listening notes, whether the first is being written, whether Wikipedia is open.
+  const [noteCount, setNoteCount] = useState<number | null>(null);
+  const [writingNote, setWritingNote] = useState<boolean>(false);
+  const [storyOpen, setStoryOpen] = useState<boolean | null>(null);
   const deleteBtnRef = React.useRef<HTMLButtonElement>(null);
   const [openingApple, setOpeningApple] = useState<boolean>(false);
   const [appleUrl, setAppleUrl] = useState<string | null>(null);
@@ -150,6 +159,10 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const [coverBroken, setCoverBroken] = useState<boolean>(false);
   // The track whose details are open under its row, as "disc-position".
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
+  // What the open track shows: its credits, or its words.
+  const [trackView, setTrackView] = useState<'credits' | 'lyrics'>('credits');
+  // The tracks that have words, as "disc-number", once DexVault knows.
+  const [withWords, setWithWords] = useState<Set<string>>(new Set());
   // Undefined while Navidrome is asked for this CD's rip, read as the album opens.
   const [rip, setRip] = useState<RipTracks | null | undefined>(undefined);
   const [ripError, setRipError] = useState<string | null>(null);
@@ -358,6 +371,32 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
     return () => { current = false; };
   }, [cd.id]);
 
+  useEffect(() => {
+    setNoteCount(null);
+    setWritingNote(false);
+    setStoryOpen(null);
+  }, [cd.id]);
+  // Wikipedia is open at once when no guide tells what matters first, until a click says otherwise.
+  const showStory = storyOpen ?? !hasGuide;
+
+  // Which tracks have words: those never looked up are, in the background, and asked after again until known.
+  useEffect(() => {
+    let current = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    setWithWords(new Set());
+    const read = (triesLeft: number) => {
+      musicService.getAlbumLyrics(cd.id)
+        .then(tracks => {
+          if (!current) return;
+          setWithWords(new Set(tracks.filter(track => track.status === 'found').map(track => `${track.discNumber}-${track.trackNumber}`)));
+          if (triesLeft > 0 && tracks.some(track => track.status === 'pending')) timer = setTimeout(() => read(triesLeft - 1), LYRICS_POLL_MS);
+        })
+        .catch(() => undefined);
+    };
+    read(LYRICS_POLLS);
+    return () => { current = false; clearTimeout(timer); };
+  }, [cd.id]);
+
   // Stepping to another album starts it at the top, not where the last one was left.
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -367,10 +406,16 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   useStepKeys(onPrevious, onNext, showCoverModal);
   useScrollKeys(bodyRef, showCoverModal);
 
-  /** Opens a track's details, or closes them when they are open. */
-  const toggleTrack = (key: string) => {
-    setSelectedTrack(selectedTrack === key ? null : key);
+  /** Opens a track's credits or words, or closes them when they are what is open. */
+  const toggleTrack = (key: string, view: 'credits' | 'lyrics' = 'credits') => {
+    if (selectedTrack === key && (trackView === view || view === 'credits')) {
+      setSelectedTrack(null);
+      return;
+    }
+    setSelectedTrack(key);
+    setTrackView(view);
   };
+  const appleMobile = isAppleMobile();
 
   const ripAlbum = rip?.found ? rip.album : undefined;
 
@@ -657,8 +702,24 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
         </div>
 
         <AlbumGuide albumId={Number(cd.id)} onLoaded={setHasGuide} />
-        <AlbumNotes albumId={Number(cd.id)} />
-        <AlbumStory albumId={cd.id} folded={hasGuide} />
+        <AlbumNotes albumId={Number(cd.id)} writing={writingNote} onCount={setNoteCount} />
+        {/* One line for what is a click away: the first listening note, the story on Wikipedia. */}
+        <div className="album-extras">
+          {noteCount === 0 && (
+            <>
+              <button type="button" className="album-extras-link" aria-expanded={writingNote} onClick={() => setWritingNote(!writingNote)}>
+                <BsPencil aria-hidden="true" />
+                Write a listening note…
+              </button>
+              <span className="album-extras-sep" aria-hidden="true">·</span>
+            </>
+          )}
+          <button type="button" className="album-extras-link" aria-expanded={showStory} onClick={() => setStoryOpen(!showStory)}>
+            <BsChevronRight aria-hidden="true" className={showStory ? 'album-extras-chevron-open' : undefined} />
+            Read on Wikipedia…
+          </button>
+        </div>
+        <AlbumStory albumId={cd.id} open={showStory} />
 
         {/* Track Listing */}
         {cd.discs && cd.discs.length > 0 && (
@@ -680,6 +741,11 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                     {disc.tracks.map((track: CdTrack, trackIndex: number) => {
                       const key = `${disc.number}-${trackIndex}`;
                       const open = selectedTrack === key;
+                      const words = withWords.has(`${disc.number}-${track.no}`);
+                      const file = rip?.found ? ripFileFor(rip.tracks, disc.number, Number(track.no)) : null;
+                      const playUrl = file ? trackListenUrl(file, appleMobile) : null;
+                      // The buttons inside the row act on their own, not as a click on the row.
+                      const own = (event: React.SyntheticEvent) => event.stopPropagation();
                       return (
                       <React.Fragment key={trackIndex}>
                       <div
@@ -690,15 +756,36 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                         aria-controls={open ? `track-details-${key}` : undefined}
                         onClick={() => toggleTrack(key)}
                         onKeyDown={(event: React.KeyboardEvent) => {
+                          if (event.target !== event.currentTarget) return;
                           if (event.key === 'Enter' || event.key === ' ') {
                             event.preventDefault();
                             toggleTrack(key);
                           }
                         }}
                       >
-                        <span className="track-number">{track.no}.</span>
+                        <span className={`track-number${playUrl ? ' track-playable' : ''}`}>
+                          <span className="track-number-text">{track.no}.</span>
+                          {playUrl && (
+                            <a className="track-play" href={playUrl} aria-label={`Play ${track.title} in ${appleMobile ? 'Amperfy' : 'Navidrome'}`}
+                              title={`Play in ${appleMobile ? 'Amperfy' : 'Navidrome'}`} onClick={own} onKeyDown={own}
+                              {...(appleMobile ? {} : { target: '_blank', rel: 'noopener noreferrer' })}>
+                              <BsPlayFill aria-hidden="true" />
+                            </a>
+                          )}
+                        </span>
                         <span className="track-title">
                           {track.title}
+                          {words && (open ? (
+                            <span className="track-view" role="group" aria-label="Show">
+                              {(['credits', 'lyrics'] as const).map(view => (
+                                <button key={view} type="button" className={trackView === view ? 'active' : ''} aria-pressed={trackView === view}
+                                  onClick={event => { own(event); setTrackView(view); }} onKeyDown={own}>{view}</button>
+                              ))}
+                            </span>
+                          ) : (
+                            <button type="button" className="track-lyrics-tag" title="Show the lyrics"
+                              onClick={event => { own(event); toggleTrack(key, 'lyrics'); }} onKeyDown={own}>lyrics</button>
+                          ))}
                           {credits.perTrack[trackIndex] && (
                             <span className="track-credits">{credits.perTrack[trackIndex]}</span>
                           )}
@@ -717,6 +804,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                           albumArtists={Array.isArray(cd.artist) ? cd.artist : [cd.artist]}
                           rip={rip}
                           ripError={ripError}
+                          view={words ? trackView : 'credits'}
                           onSearch={onSearch ? predicate => { onSearch(predicate); onClose(); } : undefined}
                         />
                       )}

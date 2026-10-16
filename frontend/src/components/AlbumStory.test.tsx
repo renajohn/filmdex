@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import AlbumStory from './AlbumStory';
 import musicService from '../services/musicService';
@@ -17,7 +17,7 @@ describe('AlbumStory', () => {
       sections: [], works: [], links: [FR, EN], fetchedAt: '2026-10-07T12:00:00Z',
     });
 
-    render(<AlbumStory albumId={127} />);
+    render(<AlbumStory albumId={127} open />);
 
     expect(await screen.findByText('Dancetaria est le septième album d’Indochine.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Wikipedia \(fr\): Dancetaria/ })).toHaveAttribute('href', FR.url);
@@ -30,23 +30,21 @@ describe('AlbumStory', () => {
       sections: [], works: [], links: [EN], fetchedAt: '2026-10-07T12:00:00Z',
     });
 
-    render(<AlbumStory albumId={127} />);
+    render(<AlbumStory albumId={127} open />);
 
     await screen.findByText('An album by Indochine.');
     expect(screen.queryByText(/also in/)).not.toBeInTheDocument();
   });
 
-  it('reste replié derrière un bouton quand une fiche d’écoute passe devant', async () => {
+  it('ne montre rien tant qu’on ne l’ouvre pas', async () => {
     vi.mocked(musicService.getAlbumStory).mockResolvedValue({
       albumId: 127, found: true, reason: null, ...FR, intro: 'Dancetaria est le septième album d’Indochine.',
       sections: [], works: [], links: [FR, EN], fetchedAt: '2026-10-07T12:00:00Z',
     });
 
-    render(<AlbumStory albumId={127} folded />);
-
-    const toggle = screen.getByRole('button', { name: /Read on Wikipedia/ });
+    const { rerender } = render(<AlbumStory albumId={127} open={false} />);
     expect(screen.queryByText('Dancetaria est le septième album d’Indochine.')).not.toBeInTheDocument();
-    fireEvent.click(toggle);
+    rerender(<AlbumStory albumId={127} open />);
     expect(await screen.findByText('Dancetaria est le septième album d’Indochine.')).toBeInTheDocument();
   });
 });

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Form } from 'react-bootstrap';
-import { BsPencil } from 'react-icons/bs';
 import musicService, { type AlbumNote } from '../services/musicService';
 import './AlbumNotes.css';
 
@@ -15,29 +14,40 @@ const dayLabel = (date: string): string => {
   return new Date(year, month - 1, day).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
+interface AlbumNotesProps {
+  albumId: number;
+  /** The first note is being written, from the link above: a CD with no note shows nothing until then. */
+  writing?: boolean;
+  /** How many notes the CD has, once they are read. */
+  onCount?: (count: number) => void;
+}
+
 /**
  * A CD's listening journal: one dated note per attentive listening, the
  * latest first. Writing one is right there; editing and deleting stay quiet.
- * A CD with no note yet only offers a link to write the first one.
+ * A CD with no note yet shows nothing: the link to write the first one sits
+ * in the line above.
  */
-const AlbumNotes: React.FC<{ albumId: number }> = ({ albumId }) => {
+const AlbumNotes: React.FC<AlbumNotesProps> = ({ albumId, writing = false, onCount }) => {
   const [notes, setNotes] = useState<AlbumNote[] | null>(null);
   const [draft, setDraft] = useState<string>('');
   const [date, setDate] = useState<string>(today());
   const [editing, setEditing] = useState<{ id: number; note: string; date: string } | null>(null);
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [writing, setWriting] = useState<boolean>(false);
 
   useEffect(() => {
     let current = true;
     setNotes(null);
-    setWriting(false);
     musicService.getAlbumNotes(albumId)
       .then(list => { if (current) setNotes(list); })
       .catch(err => { if (current) { setNotes([]); setError((err as Error).message); } });
     return () => { current = false; };
   }, [albumId]);
+
+  useEffect(() => {
+    if (notes) onCount?.(notes.length);
+  }, [notes, onCount]);
 
   const run = async (action: () => Promise<void>) => {
     setSaving(true);
@@ -76,19 +86,8 @@ const AlbumNotes: React.FC<{ albumId: number }> = ({ albumId }) => {
     setNotes(list => (list || []).filter(n => n.id !== id));
   });
 
-  // Nothing while the notes load, so the link does not flash before a journal.
-  if (notes === null) return null;
-
-  if (notes.length === 0 && !writing && !error) {
-    return (
-      <div className="info-section album-notes">
-        <button type="button" className="album-notes-open" onClick={() => setWriting(true)}>
-          <BsPencil aria-hidden="true" />
-          Write a listening note…
-        </button>
-      </div>
-    );
-  }
+  // Nothing while the notes load, nor for a CD with none until its first is being written.
+  if (notes === null || (notes.length === 0 && !writing && !error)) return null;
 
   return (
     <div className="info-section album-notes">

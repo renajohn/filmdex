@@ -7,6 +7,8 @@ vi.mock('../services/musicService', () => ({
   default: {
     getListenNextAlbums: vi.fn(() => Promise.resolve([])),
     getNavidromeTracks: vi.fn(() => Promise.resolve({ configured: true, found: false, tracks: [] })),
+    getAlbumLyrics: vi.fn(() => Promise.resolve([])),
+    getLyrics: vi.fn(() => Promise.resolve({ status: 'found', plain: 'Here comes the sun', synced: null, source: 'lrclib', checkedAt: '2026-10-16' })),
     getAlbumStory: vi.fn(() => Promise.resolve({ found: false, reason: 'no_musicbrainz' })),
     getImageUrl: vi.fn((path: string | null | undefined) => (path ? `/images/${path}` : null)),
     toggleListenNext: vi.fn(() => Promise.resolve({})),
@@ -56,6 +58,56 @@ const cd = (over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   (musicService.getNavidromeTracks as any).mockResolvedValue({ configured: true, found: false, tracks: [] });
+  (musicService.getAlbumNotes as any).mockResolvedValue([]);
+  (musicService.getAlbumGuide as any).mockResolvedValue(null);
+});
+
+describe('MusicDetailCard notes and Wikipedia', () => {
+  it('offers the first note and Wikipedia on one line, and shows the notes at once when there are some', async () => {
+    (musicService.getAlbumGuide as any).mockResolvedValue({ albumId: 1, source: 'claude', model: null, text: '**Contexte** : x.', createdAt: '', updatedAt: '' });
+    const { unmount } = render(<MusicDetailCard cd={cd() as any} onClose={() => {}} onEdit={() => {}} onDelete={() => {}} />);
+
+    const write = await screen.findByRole('button', { name: 'Write a listening note…' });
+    // A guide tells what matters first: Wikipedia waits for a click.
+    expect(screen.getByRole('button', { name: 'Read on Wikipedia…' })).toHaveAttribute('aria-expanded', 'false');
+    expect(musicService.getAlbumStory).toHaveBeenCalled();
+    fireEvent.click(write);
+    expect(screen.getByLabelText('New listening note')).toBeInTheDocument();
+    unmount();
+
+    (musicService.getAlbumNotes as any).mockResolvedValue([{ id: 1, albumId: 1, note: 'Side two at night.', date: '2026-10-01', createdAt: '', updatedAt: '' }]);
+    render(<MusicDetailCard cd={cd() as any} onClose={() => {}} onEdit={() => {}} onDelete={() => {}} />);
+    expect(await screen.findByText('Side two at night.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Write a listening note…' })).not.toBeInTheDocument();
+  });
+});
+
+describe('MusicDetailCard tracks', () => {
+  it('plays a ripped track from its number, and opens its words from the tag or its credits from the row', async () => {
+    (musicService.getNavidromeTracks as any).mockResolvedValue({
+      ...ripped, tracks: ripped.tracks.map(track => ({ ...track, url: `https://music.lab/song/${track.track}` })),
+    });
+    (musicService.getAlbumLyrics as any).mockResolvedValue([
+      { discNumber: 1, trackNumber: 1, status: 'found' }, { discNumber: 1, trackNumber: 2, status: 'missing' }, { discNumber: 1, trackNumber: 3, status: 'instrumental' },
+    ]);
+    render(<MusicDetailCard cd={cd() as any} onClose={() => {}} onEdit={() => {}} onDelete={() => {}} />);
+
+    expect(await screen.findByRole('link', { name: 'Play Track 1 in Navidrome' })).toHaveAttribute('href', 'https://music.lab/song/1');
+    // Only the track with words has the tag.
+    const tag = await screen.findByRole('button', { name: 'lyrics' });
+    expect(screen.getAllByRole('button', { name: 'lyrics' })).toHaveLength(1);
+
+    fireEvent.click(tag);
+    expect(await screen.findByText('Here comes the sun')).toBeInTheDocument();
+    expect(musicService.getLyrics).toHaveBeenCalledWith(1, 1, 1);
+    fireEvent.click(screen.getByRole('button', { name: 'credits', pressed: false }));
+    expect(screen.queryByText('Here comes the sun')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'lyrics', pressed: false })).toBeInTheDocument();
+
+    // A track with no words opens on its credits, with no choice to make.
+    fireEvent.click(screen.getByText('Track 2'));
+    expect(screen.queryByRole('group', { name: 'Show' })).not.toBeInTheDocument();
+  });
 });
 
 describe('MusicDetailCard', () => {

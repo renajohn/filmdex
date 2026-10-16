@@ -292,6 +292,15 @@ export interface LrcWriteReport {
 }
 
 let lookingUp = false;
+/** The albums whose tracks are being looked up for someone who opened them. */
+const albumsLookingUp = new Set<number>();
+
+/** Where a track's words stand, for its row in the track list: "pending" while they are being looked up. */
+export interface TrackLyricsState {
+  discNumber: number;
+  trackNumber: number;
+  status: TrackLyricsFormatted['status'] | 'pending';
+}
 
 /**
  * The classical CDs, told apart as the shelves tell them. LRCLIB knows
@@ -313,6 +322,39 @@ const lyricsService = {
       albumId, discNumber, trackNumber, title: track.title, durationSec: track.durationSec,
       trackArtist: JSON.stringify(track.artist || []), albumArtist: JSON.stringify(album.artist || []), albumTitle: album.title,
     });
+  },
+
+  /**
+   * Whether each track of an album has words, from those kept. The tracks
+   * never looked up, or renamed since, are "pending" and looked up in the
+   * background, classical CDs too: a second call tells what was found. Null
+   * when there is no such album.
+   */
+  forAlbum: async (albumId: number): Promise<TrackLyricsState[] | null> => {
+    const album = await Album.findById(albumId);
+    if (!album) return null;
+    const tracks = await Track.findByCdId(albumId);
+    const known = new Map((await TrackLyrics.forAlbum(albumId)).map(row => [`${row.discNumber}/${row.trackNumber}`, row]));
+    const pending = tracks.filter(track => known.get(`${track.discNumber}/${track.trackNumber}`)?.title !== track.title);
+    if (pending.length > 0 && !albumsLookingUp.has(albumId)) {
+      albumsLookingUp.add(albumId);
+      (async () => {
+        for (const track of pending) {
+          await lookUpAndSave({
+            albumId, discNumber: track.discNumber, trackNumber: track.trackNumber, title: track.title, durationSec: track.durationSec,
+            trackArtist: JSON.stringify(track.artist || []), albumArtist: JSON.stringify(album.artist || []), albumTitle: album.title,
+          });
+          await pause(PAUSE_MS);
+        }
+      })()
+        .catch(error => logger.warn(`Lyrics of album ${albumId} not looked up: ${(error as Error).message}`))
+        .finally(() => albumsLookingUp.delete(albumId));
+    }
+    return tracks.map(track => ({
+      discNumber: track.discNumber,
+      trackNumber: track.trackNumber,
+      status: pending.includes(track) ? 'pending' : known.get(`${track.discNumber}/${track.trackNumber}`)!.status,
+    }));
   },
 
   /**

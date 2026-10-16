@@ -46,12 +46,14 @@ describe('AlbumNotes', () => {
     await waitFor(() => expect(screen.queryByText('Slow movement, sublime.')).not.toBeInTheDocument());
   });
 
-  it('offers only a link when the CD has no note yet, and the form on a click', async () => {
+  it('shows nothing for a CD with no note until the first is being written, and tells how many there are', async () => {
     (musicService.getAlbumNotes as any).mockResolvedValueOnce([]);
-    render(<AlbumNotes albumId={8} />);
+    const onCount = vi.fn();
+    const { rerender } = render(<AlbumNotes albumId={8} onCount={onCount} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Write a listening note…' }));
-
+    await waitFor(() => expect(onCount).toHaveBeenCalledWith(0));
+    expect(screen.queryByText('Listening notes')).not.toBeInTheDocument();
+    rerender(<AlbumNotes albumId={8} onCount={onCount} writing />);
     expect(screen.getByText('Listening notes')).toBeInTheDocument();
     expect(screen.getByLabelText('New listening note')).toHaveFocus();
   });

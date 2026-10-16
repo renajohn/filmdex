@@ -105,14 +105,10 @@ describe('TrackDetails', () => {
 
     it('shows the words of the track, asked for by album, disc and track', async () => {
       const get = vi.spyOn(musicService, 'getLyrics').mockResolvedValue(lyrics({ plain: 'Karma police\nArrest this man', synced: '[00:01.00] Karma police' }) as never);
-      render(<TrackDetails albumId={42} track={{ disc: 1, no: 6, title: 'Karma Police' }} />);
+      render(<TrackDetails albumId={42} track={{ disc: 1, no: 6, title: 'Karma Police' }} view="lyrics" />);
 
-      // Folded: the fold says the words are there, opening it shows them.
-      expect(await screen.findByText('synced')).toBeInTheDocument();
-      expect(screen.queryByText(/Arrest this man/)).not.toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: /Lyrics/ }));
-      expect(screen.getByRole('button', { name: /Lyrics/ })).toHaveAttribute('aria-expanded', 'true');
-      expect(screen.getByText(/Arrest this man/)).toBeInTheDocument();
+      expect(await screen.findByText(/Arrest this man/)).toBeInTheDocument();
+      expect(screen.getByText('From LRCLIB, synced.')).toBeInTheDocument();
       expect(get).toHaveBeenCalledWith(42, 1, 6);
     });
 
@@ -122,26 +118,25 @@ describe('TrackDetails', () => {
 
     it('says a track is instrumental', async () => {
       vi.spyOn(musicService, 'getLyrics').mockResolvedValue(lyrics({ status: 'instrumental' }) as never);
-      render(<TrackDetails albumId={42} track={{ disc: 1, no: 1, title: 'Guitar Flute & String' }} />);
-      expect(await screen.findByText('instrumental')).toBeInTheDocument();
+      render(<TrackDetails albumId={42} track={{ disc: 1, no: 1, title: 'Guitar Flute & String' }} view="lyrics" />);
+      expect(await screen.findByText('Instrumental.')).toBeInTheDocument();
     });
 
     it('looks again for words not found', async () => {
       const get = vi.spyOn(musicService, 'getLyrics')
         .mockResolvedValueOnce(lyrics({ status: 'missing' }) as never)
         .mockResolvedValueOnce(lyrics({ plain: 'Found now' }) as never);
-      render(<TrackDetails albumId={42} track={{ disc: 1, no: 2, title: 'Sitting' }} />);
+      render(<TrackDetails albumId={42} track={{ disc: 1, no: 2, title: 'Sitting' }} view="lyrics" />);
 
-      expect(await screen.findByText('none found')).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: /Lyrics/ }));
-      fireEvent.click(screen.getByRole('button', { name: 'Look again' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Look again' }));
       expect(await screen.findByText('Found now')).toBeInTheDocument();
       expect(get).toHaveBeenLastCalledWith(42, 1, 2, true);
     });
 
-    it('asks for nothing without an album', () => {
+    it('asks for nothing on the credits, nor without an album', () => {
       const get = vi.spyOn(musicService, 'getLyrics');
-      render(<TrackDetails track={{ disc: 1, no: 2, title: 'Voiles' }} />);
+      render(<TrackDetails albumId={42} track={{ disc: 1, no: 2, title: 'Voiles' }} />);
+      render(<TrackDetails track={{ disc: 1, no: 2, title: 'Voiles' }} view="lyrics" />);
       expect(get).not.toHaveBeenCalled();
       expect(screen.queryByRole('region', { name: 'Lyrics' })).not.toBeInTheDocument();
     });

@@ -139,6 +139,28 @@ describe('lyrics lookup', () => {
     expect((await request(app).post(`/api/music/albums/${albumId}/discs/1/tracks/2/lyrics`)).body).toMatchObject({ status: 'found', plain: 'now there' });
   });
 
+  it('dit pour chaque piste d’un album si elle a des paroles, et cherche en arrière-plan celles jamais cherchées', async () => {
+    const albumId = await insertAlbum(`Come Away With Me ${Math.random()}`, ['Norah Jones']);
+    await insertTrack(albumId, 1, 'Don’t Know Why');
+    await insertTrack(albumId, 2, 'Seven Years');
+    await run(`INSERT INTO track_lyrics (album_id, disc_number, track_number, title, status, checked_at) VALUES (?, 1, 1, 'Don’t Know Why', 'found', '2026-10-16')`, [albumId]);
+    const get = jest.spyOn(axios, 'get').mockResolvedValue({ data: record({ instrumental: true, plainLyrics: null }) });
+
+    const first = await request(app).get(`/api/music/albums/${albumId}/lyrics`);
+    expect(first.status).toBe(200);
+    expect(first.body.tracks).toEqual([
+      { discNumber: 1, trackNumber: 1, status: 'found' },
+      { discNumber: 1, trackNumber: 2, status: 'pending' },
+    ]);
+
+    // The track never looked up is, in the background: the next call knows.
+    await new Promise(resolve => setTimeout(resolve, 500));
+    expect(get).toHaveBeenCalledTimes(1);
+    const second = await request(app).get(`/api/music/albums/${albumId}/lyrics`);
+    expect(second.body.tracks[1]).toEqual({ discNumber: 1, trackNumber: 2, status: 'instrumental' });
+    expect((await request(app).get('/api/music/albums/999999/lyrics')).status).toBe(404);
+  });
+
   it('répond 404 pour une piste que le CD n’a pas', async () => {
     const albumId = await insertAlbum(`Short ${Math.random()}`, ['X']);
     expect((await request(app).get(`/api/music/albums/${albumId}/discs/1/tracks/9/lyrics`)).status).toBe(404);

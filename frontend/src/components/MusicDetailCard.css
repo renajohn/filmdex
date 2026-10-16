@@ -457,6 +457,145 @@
   line-height: 1.4;
 }
 
+/* ▶ in place of the number: under the pointer, and on the open track, where a phone finds it. */
+.track-number.track-playable {
+  position: relative;
+}
+
+.track-play {
+  position: absolute;
+  inset: -3px -4px -3px auto;
+  display: none;
+  align-items: center;
+  justify-content: flex-end;
+  color: #d6dbe1;
+  font-size: 1.05rem;
+  text-decoration: none;
+}
+
+.track-play:hover,
+.track-play:focus-visible {
+  color: #fbbf24;
+  outline: none;
+}
+
+.track-item:hover .track-playable .track-play,
+.track-selected .track-playable .track-play,
+.track-playable .track-play:focus-visible {
+  display: inline-flex;
+}
+
+.track-item:hover .track-playable .track-number-text,
+.track-selected .track-playable .track-number-text,
+.track-playable:focus-within .track-number-text {
+  visibility: hidden;
+}
+
+.track-selected .track-play {
+  color: #fbbf24;
+}
+
+/* A track with words says so after its title; open, the tag becomes the choice between credits and lyrics. */
+.track-lyrics-tag,
+.track-view {
+  margin-left: 8px;
+  vertical-align: 1px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.track-lyrics-tag {
+  padding: 0 8px;
+  background: none;
+  color: #9aa4b2;
+  cursor: pointer;
+}
+
+.track-lyrics-tag:hover,
+.track-lyrics-tag:focus-visible {
+  color: #fbbf24;
+  border-color: #fbbf24;
+  outline: none;
+}
+
+.track-view {
+  display: inline-flex;
+  overflow: hidden;
+}
+
+.track-view button {
+  padding: 0 9px;
+  border: none;
+  background: none;
+  color: #9aa4b2;
+  font: inherit;
+  cursor: pointer;
+}
+
+.track-view button.active {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+.track-view button:hover,
+.track-view button:focus-visible {
+  color: #fbbf24;
+  outline: none;
+}
+
+/* The line under the guide: the first listening note and Wikipedia, as two quiet links. */
+.album-extras {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 0 0 1rem;
+  padding: 0 4px;
+}
+
+.album-extras-sep {
+  color: #5f6670;
+}
+
+.album-extras-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #d6dbe1;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.3);
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+
+.album-extras-link svg {
+  font-size: 0.75em;
+  color: #9aa4b2;
+  transition: transform 0.15s ease;
+}
+
+.album-extras-link:hover,
+.album-extras-link:focus-visible {
+  color: #fbbf24;
+  text-decoration-color: currentColor;
+  outline: none;
+}
+
+.album-extras-link:hover svg,
+.album-extras-link:focus-visible svg {
+  color: inherit;
+}
+
+.album-extras-link .album-extras-chevron-open {
+  transform: rotate(90deg);
+}
+
 /* Cover Modal Styles */
 .cover-zoom-overlay {
   position: fixed;
