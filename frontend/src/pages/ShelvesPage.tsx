@@ -329,16 +329,22 @@ const ShelvesPage: React.FC = () => {
     () => (plan?.units || []).flatMap(unit => unit.levels).filter(level => level.section === tab),
     [plan, tab],
   );
-  // The strip adds the free shelves the section's objects were put on by hand, counting only those objects.
+  // The strip adds the free shelves the section's objects were put on by hand, counting only those objects,
+  // and the empty free shelves of the section's units, so a unit reads whole.
   const stripShelves = useMemo(() => {
     const held = new Map<number, ShelvedItem[]>();
     section?.items.forEach(item => {
       if (item.levelId != null) held.set(item.levelId, [...(held.get(item.levelId) || []), item]);
     });
-    return (plan?.units || []).flatMap(unit => unit.levels).flatMap(level => {
-      if (level.section === tab) return [level];
-      const own = level.section === null ? held.get(level.id) : undefined;
-      return own ? [{ ...level, count: own.length, first: own[0].sortName, last: own[own.length - 1].sortName }] : [];
+    return (plan?.units || []).flatMap(unit => {
+      const ours = unit.levels.some(level => level.section === tab || held.has(level.id));
+      return unit.levels.flatMap(level => {
+        if (level.section === tab) return [level];
+        if (level.section !== null) return [];
+        const own = held.get(level.id);
+        if (own) return [{ ...level, count: own.length, first: own[0].sortName, last: own[own.length - 1].sortName }];
+        return ours && level.count === 0 ? [level] : [];
+      });
     });
   }, [plan, tab, section]);
   const levelByCode = useMemo(() => new Map((plan?.units || []).flatMap(unit => unit.levels).map(level => [level.code, level])), [plan]);

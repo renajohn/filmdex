@@ -220,6 +220,9 @@ describe('ShelvesPage', () => {
       units: [{ id: 1, letter: 'A', capacity: 12, levels: [{
         id: 6, level: 5, code: 'A-5', section: null, capacity: 12, ownCapacity: null, usable: 10.2, used: 0,
         count: 0, pinned: 0, first: null, last: null, locked: false, breakBefore: null,
+      }, {
+        id: 7, level: 6, code: 'A-6', section: null, capacity: 12, ownCapacity: null, usable: 10.2, used: 0,
+        count: 0, pinned: 0, first: null, last: null, locked: false, breakBefore: null,
       }] }],
       sections: PLAN.sections.map(entry => entry.key !== 'films' ? entry : {
         ...entry,
@@ -232,6 +235,8 @@ describe('ShelvesPage', () => {
     expect(await screen.findByTitle('Put on this shelf by hand')).toHaveTextContent('A-5');
     // The free shelf holds a film, so the strip of Films offers it.
     expect(within(screen.getByRole('navigation', { name: 'Shelves of Films' })).getByTitle('A-5: Harry Potter')).toHaveTextContent('A-51');
+    // And the empty free shelf beside it, so the unit reads whole.
+    expect(within(screen.getByRole('navigation', { name: 'Shelves of Films' })).getByTitle('A-6: empty')).toHaveClass('empty');
     expect(screen.queryByRole('button', { name: 'No room for Harry Potter box' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Edit shelving of Harry Potter box' }));
     expect(screen.getByLabelText('Location')).toHaveValue('level:6');
