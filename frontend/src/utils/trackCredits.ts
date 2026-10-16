@@ -26,13 +26,17 @@ export const formatPerformers = (performers: TrackPerformer[]): string => {
  * One line naming who wrote and who plays a track, as MusicBrainz credits it:
  * "Antonio Vivaldi — Paul Sacher (conductor), Mstislav Rostropovich (cello)".
  * The track artist only shows when there is no composer and it differs from
- * the album's, as on a compilation. Null when there is nothing to say.
+ * the album's, as on a compilation; a performer who is the album's artist,
+ * Dinu Lipatti at the piano on his own album, goes without saying. Null when
+ * there is nothing to say.
  */
 export const trackCredits = (track: CreditedTrack, albumArtists: string[]): string | null => {
+  const albumArtist = (name: string) => albumArtists.some(artist => same(artist, name));
   const composers = track.composers || [];
-  const artists = (track.artist || []).filter(name => !albumArtists.some(albumArtist => same(albumArtist, name)));
+  const artists = (track.artist || []).filter(name => !albumArtist(name));
   const authors = composers.length > 0 ? composers : artists;
-  const parts = [authors.join(' / '), formatPerformers(track.performers || [])].filter(Boolean);
+  const performers = (track.performers || []).filter(performer => !albumArtist(performer.name));
+  const parts = [authors.join(' / '), formatPerformers(performers)].filter(Boolean);
   return parts.length > 0 ? parts.join(' — ') : null;
 };
 

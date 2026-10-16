@@ -16,6 +16,13 @@ describe('trackCredits', () => {
     expect(trackCredits({ artist: ['Massive Attack'] }, ['Massive Attack'])).toBeNull();
   });
 
+  it('tait l’interprète qui est l’artiste de l’album', () => {
+    expect(trackCredits({
+      composers: ['Edvard Grieg'],
+      performers: [{ name: 'Alceo Galliera', role: 'conductor' }, { name: 'Dinu Lipatti', role: 'piano' }],
+    }, ['Dinu Lipatti'])).toBe('Edvard Grieg — Alceo Galliera (conductor)');
+  });
+
   it('nomme l’artiste d’une piste de compilation', () => {
     expect(trackCredits({ artist: ['Horace Andy'] }, ['Massive Attack'])).toBe('Horace Andy');
   });
