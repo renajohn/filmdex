@@ -80,7 +80,7 @@ const ShelfFurniture = {
     if (!columns.some(column => column.name === 'extend_through')) await run(`ALTER TABLE shelf_levels ADD COLUMN extend_through TEXT`);
   },
 
-  units: (): Promise<ShelfUnitRow[]> => all<ShelfUnitRow>(`SELECT * FROM shelf_units ORDER BY position, letter`),
+  units: (): Promise<ShelfUnitRow[]> => all<ShelfUnitRow>(`SELECT * FROM shelf_units ORDER BY letter COLLATE NOCASE, position`),
 
   levels: (): Promise<ShelfLevelRow[]> => all<ShelfLevelRow>(`SELECT * FROM shelf_levels ORDER BY unit_id, level`),
 
@@ -112,19 +112,6 @@ const ShelfFurniture = {
       }
       await run(`UPDATE shelf_items SET level_id = NULL WHERE level_id IN (SELECT id FROM shelf_levels WHERE unit_id = ? AND level > ?)`, [id, changes.levels]);
       await run(`DELETE FROM shelf_levels WHERE unit_id = ? AND level > ?`, [id, changes.levels]);
-    }
-  },
-
-  /** Moves a unit one place to the left or the right. */
-  moveUnit: async (id: number, direction: -1 | 1): Promise<void> => {
-    const units = await ShelfFurniture.units();
-    const at = units.findIndex(unit => unit.id === id);
-    const other = units[at + direction];
-    if (at < 0 || !other) return;
-    const ordered = [...units];
-    [ordered[at], ordered[at + direction]] = [ordered[at + direction], ordered[at]];
-    for (const [index, unit] of ordered.entries()) {
-      await run(`UPDATE shelf_units SET position = ? WHERE id = ?`, [index + 1, unit.id]);
     }
   },
 

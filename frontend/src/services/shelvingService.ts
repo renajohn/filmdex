@@ -150,8 +150,7 @@ const shelvingService = {
   createUnit: (unit: { letter: string; levels: number; capacity: number; section: ShelfSection | null }): Promise<void> =>
     send<void>(`/units`, { method: 'POST', body: JSON.stringify(unit) }),
 
-  /** `move` takes the unit one place left (-1) or right (1). */
-  updateUnit: (id: number, changes: { letter?: string; levels?: number; capacity?: number; move?: -1 | 1 }): Promise<void> =>
+  updateUnit: (id: number, changes: { letter?: string; levels?: number; capacity?: number }): Promise<void> =>
     send<void>(`/units/${id}`, { method: 'PUT', body: JSON.stringify(changes) }),
 
   deleteUnit: (id: number): Promise<void> => send<void>(`/units/${id}`, { method: 'DELETE' }),

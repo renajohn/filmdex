@@ -232,8 +232,8 @@ const shelvingService = {
 
   /**
    * Every object in order, each with the shelf it goes on: a section's
-   * shelves are taken unit after unit, from the left, and in each from the
-   * top shelf down.
+   * shelves are taken unit after unit, in letter order, and in each from
+   * the top shelf down.
    */
   arrange: async (): Promise<{ items: Ordered[]; places: ShelfPlaceRow[]; units: ShelfUnitRow[]; levels: ShelfLevelRow[] }> => {
     const [albums, credits, movies, boxSets, memberships, togetherChoices, saved, places, units, levels] = await Promise.all([
@@ -505,7 +505,6 @@ const shelvingService = {
 
   createUnit: ShelfFurniture.createUnit,
   updateUnit: ShelfFurniture.updateUnit,
-  moveUnit: ShelfFurniture.moveUnit,
   deleteUnit: ShelfFurniture.deleteUnit,
   unit: ShelfFurniture.unit,
   level: ShelfFurniture.level,

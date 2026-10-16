@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Form } from 'react-bootstrap';
-import { BsArrowBarDown, BsChevronLeft, BsChevronRight, BsLock, BsPencil, BsPlusLg, BsTrash, BsUnlock, BsX } from 'react-icons/bs';
+import { BsArrowBarDown, BsLock, BsPencil, BsPlusLg, BsTrash, BsUnlock, BsX } from 'react-icons/bs';
 import shelvingService, {
   type ShelfLevel, type ShelfSection, type ShelfUnit, type ShelvedItem, type ShelvingPlan,
 } from '../services/shelvingService';
@@ -155,8 +155,6 @@ const ShelfPanel: React.FC<PanelProps> = ({ level, unit, items, run, onShowShelf
 
 interface UnitProps {
   unit: ShelfUnit;
-  first: boolean;
-  last: boolean;
   itemsOf: (level: ShelfLevel) => ShelvedItem[];
   selected: number | null;
   onSelect: (id: number | null) => void;
@@ -165,7 +163,7 @@ interface UnitProps {
 }
 
 /** A unit as it stands: its shelves from the top, each a board to click and set up. */
-const UnitColumn: React.FC<UnitProps> = ({ unit, first, last, itemsOf, selected, onSelect, run, onShowShelf }) => {
+const UnitColumn: React.FC<UnitProps> = ({ unit, itemsOf, selected, onSelect, run, onShowShelf }) => {
   const [editing, setEditing] = useState(false);
   const [letter, setLetter] = useState(unit.letter);
   const [levels, setLevels] = useState(String(unit.levels.length));
@@ -202,10 +200,6 @@ const UnitColumn: React.FC<UnitProps> = ({ unit, first, last, itemsOf, selected,
           </Form.Group>
           <Button size="sm" variant="warning" type="submit" className="furniture-span">Save</Button>
           <div className="furniture-unit-tools furniture-span">
-            <Button size="sm" variant="outline-secondary" disabled={first} aria-label={`Move ${unit.letter} left`}
-              onClick={() => run(() => shelvingService.updateUnit(unit.id, { move: -1 }))}><BsChevronLeft /> Left</Button>
-            <Button size="sm" variant="outline-secondary" disabled={last} aria-label={`Move ${unit.letter} right`}
-              onClick={() => run(() => shelvingService.updateUnit(unit.id, { move: 1 }))}>Right <BsChevronRight /></Button>
             {confirmDelete ? (
               <Button size="sm" variant="danger" onClick={() => run(() => shelvingService.deleteUnit(unit.id))}>Delete {unit.letter}?</Button>
             ) : (
@@ -251,7 +245,7 @@ const UnitColumn: React.FC<UnitProps> = ({ unit, first, last, itemsOf, selected,
  * The shelving units side by side, as they stand, each a column of boards
  * from the top shelf down: its section's colour, how full it is and what it
  * holds from first to last. A board opens to set the shelf up. A section
- * fills its shelves unit after unit from the left, top shelf first.
+ * fills its shelves unit after unit in letter order, top shelf first.
  */
 const ShelfFurniture: React.FC<Props> = ({ plan, run, onShowShelf, focusLevelId = null }) => {
   const [adding, setAdding] = useState(plan.units.length === 0);
@@ -301,9 +295,8 @@ const ShelfFurniture: React.FC<Props> = ({ plan, run, onShowShelf, focusLevelId 
       ))}
 
       <div className="furniture-units">
-        {plan.units.map((unit, index) => (
+        {plan.units.map(unit => (
           <UnitColumn key={`${unit.id}:${unit.letter}:${unit.capacity}:${unit.levels.length}`} unit={unit}
-            first={index === 0} last={index === plan.units.length - 1}
             itemsOf={itemsOf} selected={selected} onSelect={setSelected} run={run} onShowShelf={onShowShelf} />
         ))}
 

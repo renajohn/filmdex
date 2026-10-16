@@ -62,7 +62,7 @@ const shelvingController = {
     await act(res, 'Adding a unit', () => shelvingService.createUnit(letter, levels, capacity, section), 201);
   },
 
-  /** Another letter, capacity or number of shelves, or a move one place left (-1) or right (1). */
+  /** Another letter, capacity or number of shelves. */
   updateUnit: async (req: Request, res: Response): Promise<void> => {
     const id = Number(req.params.id);
     const body = req.body || {};
@@ -93,10 +93,7 @@ const shelvingController = {
       }
       changes.levels = body.levels;
     }
-    await act(res, 'Changing a unit', async () => {
-      await shelvingService.updateUnit(id, changes);
-      if (body.move === -1 || body.move === 1) await shelvingService.moveUnit(id, body.move);
-    });
+    await act(res, 'Changing a unit', () => shelvingService.updateUnit(id, changes));
   },
 
   deleteUnit: (req: Request, res: Response): Promise<void> =>
