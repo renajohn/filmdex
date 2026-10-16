@@ -329,6 +329,18 @@ const ShelvesPage: React.FC = () => {
     () => (plan?.units || []).flatMap(unit => unit.levels).filter(level => level.section === tab),
     [plan, tab],
   );
+  // The strip adds the free shelves the section's objects were put on by hand, counting only those objects.
+  const stripShelves = useMemo(() => {
+    const held = new Map<number, ShelvedItem[]>();
+    section?.items.forEach(item => {
+      if (item.levelId != null) held.set(item.levelId, [...(held.get(item.levelId) || []), item]);
+    });
+    return (plan?.units || []).flatMap(unit => unit.levels).flatMap(level => {
+      if (level.section === tab) return [level];
+      const own = level.section === null ? held.get(level.id) : undefined;
+      return own ? [{ ...level, count: own.length, first: own[0].sortName, last: own[own.length - 1].sortName }] : [];
+    });
+  }, [plan, tab, section]);
   const levelByCode = useMemo(() => new Map((plan?.units || []).flatMap(unit => unit.levels).map(level => [level.code, level])), [plan]);
 
   useEffect(() => {
@@ -434,7 +446,7 @@ const ShelvesPage: React.FC = () => {
           {/* The shelves in the order they fill: one click takes the list to what stands on one. */}
           {byShelf && !query && (
             <nav className="shelf-strip" aria-label={`Shelves of ${SECTION_LABELS[section.key]}`}>
-              {shelves.map(level => (
+              {stripShelves.map(level => (
                 <button key={level.id} type="button" className={`shelf-chip ${level.count === 0 ? 'empty' : ''}`}
                   title={level.count === 0 ? `${level.code}: empty` : `${level.code}: ${level.first}${level.count > 1 ? ` – ${level.last}` : ''}`}
                   onClick={() => setJumpTo(level.code)}>

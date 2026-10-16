@@ -230,6 +230,8 @@ describe('ShelvesPage', () => {
     render(<ShelvesPage />);
 
     expect(await screen.findByTitle('Put on this shelf by hand')).toHaveTextContent('A-5');
+    // The free shelf holds a film, so the strip of Films offers it.
+    expect(within(screen.getByRole('navigation', { name: 'Shelves of Films' })).getByTitle('A-5: Harry Potter')).toHaveTextContent('A-51');
     expect(screen.queryByRole('button', { name: 'No room for Harry Potter box' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Edit shelving of Harry Potter box' }));
     expect(screen.getByLabelText('Location')).toHaveValue('level:6');
