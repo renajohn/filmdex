@@ -25,6 +25,7 @@ import { ConfirmDialog } from '../components/shared/ConfirmDialog';
 import { TextArea, TextField } from '../components/shared/TextField';
 import Notice from '../components/shared/Notice';
 import Spinner, { Loading } from '../components/shared/Spinner';
+import { thumbProps } from '../utils/thumb';
 
 export interface WishListPageRef {
   refreshItems: () => Promise<void>;
@@ -1147,10 +1148,12 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         <td>
                           <div className="album-poster">
                             <img
-                              src={musicService.getImageUrl(album.cover) || musicService.getImageUrl('/placeholder-album.png') || undefined}
+                              {...thumbProps(musicService.getImageUrl(album.cover) || musicService.getImageUrl('/placeholder-album.png') || '', 120)}
+                              loading="lazy"
                               alt={album.title}
                               className="music-thumbnail-table"
                               onError={(e) => {
+                                (e.target as HTMLImageElement).removeAttribute('srcset');
                                 (e.target as HTMLImageElement).src = musicService.getImageUrl('/placeholder-album.png') || '';
                               }}
                             />
@@ -1246,10 +1249,12 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                               </CoverButton>
                             )}
                             <img
-                              src={bookService.getImageUrl(book.cover) || bookService.getImageUrl('/placeholder-book.png') || undefined}
+                              {...thumbProps(bookService.getImageUrl(book.cover) || bookService.getImageUrl('/placeholder-book.png') || '')}
+                              loading="lazy"
                               alt={book.title}
                               className="book-thumbnail-table"
                               onError={(e) => {
+                                (e.target as HTMLImageElement).removeAttribute('srcset');
                                 (e.target as HTMLImageElement).src = bookService.getImageUrl('/placeholder-book.png') || '';
                               }}
                             />

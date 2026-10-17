@@ -9,6 +9,7 @@ import DigitalMarks from './shared/DigitalMarks';
 import CoverButton from './shared/CoverButton';
 import type { AlbumDigital } from '../utils/digitalLibrary';
 import { listenAlbumById } from '../utils/playAlbum';
+import { thumbProps } from '../utils/thumb';
 
 interface CdData {
   id: number | string;
@@ -79,7 +80,9 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onListenNe
       <div className="music-thumbnail-cover">
         {getCoverImage() ? (
           <img
-            src={getCoverImage()!}
+            {...thumbProps(getCoverImage()!)}
+            loading="lazy"
+            decoding="async"
             alt={`${cd.title} cover`}
             className="music-thumbnail-image"
             onError={(e: React.SyntheticEvent<HTMLImageElement>) => {

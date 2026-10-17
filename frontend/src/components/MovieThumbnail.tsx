@@ -4,6 +4,7 @@ import PosterModal from './PosterModal';
 import AgeDisplay from './AgeDisplay';
 import './MovieThumbnail.css';
 import CoverTag from './shared/CoverTag';
+import { thumbProps } from '../utils/thumb';
 
 interface MovieThumbnailProps {
   imdbLink?: string;
@@ -125,7 +126,9 @@ const MovieThumbnail: React.FC<MovieThumbnailProps> = ({ imdbLink, title, year, 
     <>
       <div className={`movie-thumbnail ${className}`}>
         <img
-          src={thumbnailUrl}
+          {...thumbProps(thumbnailUrl)}
+          loading="lazy"
+          decoding="async"
           alt={`${title} poster`}
           onError={handleImageError}
           onLoad={handleImageLoad}

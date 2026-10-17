@@ -4,6 +4,7 @@ import ShelfCode from './ShelfCode';
 import CoverButton from './CoverButton';
 import './shared.css';
 import Spinner from './Spinner';
+import { thumbProps } from '../../utils/thumb';
 
 interface NextBannerItem {
   id: number;
@@ -194,7 +195,8 @@ const NextBanner: React.FC<NextBannerProps> = ({
               >
                 {getImageUrl && getImageUrl(item) ? (
                   <img
-                    src={getImageUrl(item)!}
+                    {...thumbProps(getImageUrl(item)!)}
+                    decoding="async"
                     alt={getTitle ? getTitle(item) : ''}
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';

@@ -44,6 +44,7 @@ import Collection from './src/models/collection';
 import MovieCollection from './src/models/movieCollection';
 import { initDatabase } from './src/database';
 import imageService from './src/services/imageService';
+import { sendImage } from './src/services/imageThumbService';
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -223,24 +224,12 @@ app.get('/api/backdrop/:tmdbId', movieController.getMovieBackdrop);
 // Route with subdirectory
 app.get('/api/images/:type/:subdir/:filename', (req: Request, res: Response) => {
   const { type, subdir, filename } = req.params;
-  const imagePath = path.join(configManager.getImagesPath(), type as string, subdir as string, filename as string);
-
-  if (fs.existsSync(imagePath)) {
-    res.sendFile(imagePath);
-  } else {
-    res.status(404).json({ error: 'Image not found' });
-  }
+  void sendImage(req, res, path.join(type as string, subdir as string, filename as string));
 });
 // Route without subdirectory (for backward compatibility)
 app.get('/api/images/:type/:filename', (req: Request, res: Response) => {
   const { type, filename } = req.params;
-  const imagePath = path.join(configManager.getImagesPath(), type as string, filename as string);
-
-  if (fs.existsSync(imagePath)) {
-    res.sendFile(imagePath);
-  } else {
-    res.status(404).json({ error: 'Image not found' });
-  }
+  void sendImage(req, res, path.join(type as string, filename as string));
 });
 
 // Import routes (CSV upload already handled above)
@@ -429,20 +418,16 @@ app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Static file serving for images with error handling
-app.use('/images', (req: Request, res: Response, next: NextFunction) => {
-  const filePath = path.join(configManager.getImagesPath(), req.path);
-
-  // Check if file exists
-  fs.access(filePath, fs.constants.F_OK, (err) => {
-    if (err) {
-      // File doesn't exist, return 404 with proper headers
-      res.status(404).json({ error: 'Image not found' });
-    } else {
-      // File exists, serve it
-      express.static(configManager.getImagesPath())(req, res, next);
-    }
-  });
+// Posters and backdrops saved before /api/images, stored as /images/…
+app.use('/images', (req: Request, res: Response) => {
+  let relative: string;
+  try {
+    relative = decodeURIComponent(req.path).replace(/^\/+/, '');
+  } catch {
+    res.status(404).json({ error: 'Image not found' });
+    return;
+  }
+  void sendImage(req, res, relative);
 });
 
 // Serve the frontend build
