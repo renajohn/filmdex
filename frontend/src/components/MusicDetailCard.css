@@ -465,26 +465,48 @@
   line-height: 1.4;
 }
 
-/* ▶ in place of the number: under the pointer, and on the open track, where a phone finds it. */
+/*
+ * ▶ in place of the number: under the pointer, and on the open track, where a
+ * phone finds it. A round button: it lights up under the pointer, open track
+ * or not, and sinks when pressed.
+ */
 .track-number.track-playable {
   position: relative;
 }
 
 .track-play {
   position: absolute;
-  inset: -3px -4px -3px auto;
+  top: 50%;
+  right: -6px;
+  width: 28px;
+  height: 28px;
   display: none;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
+  padding-left: 2px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
   color: #d6dbe1;
-  font-size: 1.05rem;
+  font-size: 1rem;
   text-decoration: none;
+  transform: translateY(-50%);
+  transition: background-color 0.12s ease, color 0.12s ease, transform 0.08s ease;
 }
 
 .track-play:hover,
 .track-play:focus-visible {
-  color: #fbbf24;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
   outline: none;
+}
+
+.track-play:focus-visible {
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.75);
+}
+
+.track-play:active {
+  background: rgba(255, 255, 255, 0.28);
+  transform: translateY(-50%) scale(0.88);
 }
 
 .track-item:hover .track-playable .track-play,
@@ -499,8 +521,20 @@
   visibility: hidden;
 }
 
+/* On the open track, gold, and still a button: brighter under the pointer, deeper when pressed. */
 .track-selected .track-play {
+  background: rgba(251, 191, 36, 0.14);
   color: #fbbf24;
+}
+
+.track-selected .track-play:hover,
+.track-selected .track-play:focus-visible {
+  background: rgba(251, 191, 36, 0.28);
+  color: #fcd34d;
+}
+
+.track-selected .track-play:active {
+  background: rgba(251, 191, 36, 0.4);
 }
 
 /* A track with words says so after its title; open, the tag becomes the choice between credits and lyrics. */
