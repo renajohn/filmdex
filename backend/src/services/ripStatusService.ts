@@ -206,7 +206,9 @@ const library = async (): Promise<Library> => {
     await listenHistoryService.record(songs).catch(error =>
       logger.warn(`Plays not noted from Navidrome: ${(error as Error).message}`));
   }
-  return { albums: cache.albums, songs: cache.songs, lengths: { cd: await cdTrackLengths(), navidrome: cache.lengths } };
+  // The reading in hand: a sync may clear the cache while the CDs' lengths are read.
+  const read = cache;
+  return { albums: read.albums, songs: read.songs, lengths: { cd: await cdTrackLengths(), navidrome: read.lengths } };
 };
 
 /**
