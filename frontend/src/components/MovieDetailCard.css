@@ -634,8 +634,8 @@
   }
 }
 
-/* On a phone, the whole screen, as an album's card: no margin, no corners. */
-@media (max-width: 767.98px) {
+/* Below a desktop's width, the whole screen, as an album's card: no margin, no corners. */
+@media (max-width: 991.98px) {
   .movie-detail-overlay {
     padding: 0;
     align-items: stretch !important;

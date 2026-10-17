@@ -1,6 +1,7 @@
 import musicService, { type RipTracks } from '../services/musicService';
 import { player, type PlayerAlbum, type PlayOptions, type PlayerTrack } from '../services/player';
 import { ripFileFor } from './trackDetail';
+import { openListen } from './navidrome';
 
 interface AlbumLike {
   id: number | string;
@@ -55,5 +56,16 @@ export const playAlbumById = async (albumId: number | string, options?: PlayOpti
   const tracks = playerTracksOf(album, rip);
   if (tracks.length === 0) return false;
   player.playAlbum(playerAlbumOf(album, rip), tracks, 0, 0, options);
+  return true;
+};
+
+/**
+ * On an iPhone, the album plays in Amperfy, as its card's Listen does: false
+ * when it has no rip to play.
+ */
+export const listenAlbumById = async (albumId: number | string): Promise<boolean> => {
+  const rip = await musicService.getNavidromeTracks(albumId).catch(() => null);
+  if (!rip?.found || !rip.album) return false;
+  openListen(rip.album);
   return true;
 };

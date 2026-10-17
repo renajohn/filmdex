@@ -1480,9 +1480,9 @@
   }
 }
 
-/* On a phone, the whole screen, as an album's card: the dialog, its content
-   and its body take the height the rules above hold to 90vh. */
-@media (max-width: 767.98px) {
+/* Below a desktop's width, the whole screen, as an album's card: the dialog,
+   its content and its body take the height the rules above hold to 90vh. */
+@media (max-width: 991.98px) {
   .book-detail-modal .modal-dialog {
     margin: 0 !important;
     max-width: none;

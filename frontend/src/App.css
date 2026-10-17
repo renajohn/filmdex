@@ -309,6 +309,14 @@
   }
 }
 
+/* A dialog that fills the screen at this width is held to nothing. */
+@media (max-width: 991.98px) {
+  .modal-fullscreen-lg-down .modal-content {
+    max-width: none;
+    max-height: none;
+  }
+}
+
 /*
  * The player's bar takes the foot of the screen while it is out: the page
  * scrolls to just above it, and a record's card, a panel or a full screen,

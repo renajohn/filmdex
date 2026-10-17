@@ -1010,7 +1010,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
               Listen
             </Button>
           ) : (
-            <Button disabled={openingApple} onClick={handleOpenAppleMusic}>
+            <Button disabled={openingApple} onClick={handleOpenAppleMusic} aria-label={openingApple ? 'Opening Apple Music…' : 'Apple Music'}>
               {openingApple ? (
                 <>
                   <Spinner size="sm" className="me-2" />
@@ -1019,38 +1019,45 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
               ) : (
                 <>
                   <BsApple className="me-1" />
-                  Apple Music
+                  <span className="music-detail-long">Apple Music</span>
+                  <span className="music-detail-short" aria-hidden="true">Apple</span>
                 </>
               )}
             </Button>
           )}
           <Button active={isInListenNext}
+            aria-label={isInListenNext ? 'In Listen Next' : 'Listen Next'}
+            icon={<BsHeadphones />}
             onClick={handleListenNextToggle}
             disabled={togglingListenNext}
           >
-            <BsHeadphones className="me-1" />
-            {isInListenNext ? 'In Listen Next' : 'Listen Next'}
+            <span className="music-detail-long">{isInListenNext ? 'In Listen Next' : 'Listen Next'}</span>
+            <span className="music-detail-short" aria-hidden="true">Next</span>
           </Button>
         </div>
         <div className="music-detail-manage">
           {!hasCd && onBought && (
-            <Button icon={<BsDisc />} onClick={onBought}>
-              I bought the CD
+            <Button icon={<BsDisc />} onClick={onBought} aria-label="I bought the CD">
+              <span className="music-detail-long">I bought the CD</span>
+              <span className="music-detail-short" aria-hidden="true">Bought</span>
             </Button>
           )}
           {/* A digital album is Navidrome's: it goes when its files go, and it has nothing of a CD to edit. */}
           {onEdit && cd.titleStatus !== 'digital' && (
-            <Button icon={<BsPencil />} onClick={onEdit}>
-              Edit
+            <Button icon={<BsPencil />} onClick={onEdit} aria-label="Edit">
+              <span className="music-detail-long">Edit</span>
             </Button>
           )}
           {cd.titleStatus !== 'digital' && (
             <Button variant="danger" active={confirmDelete}
+              aria-label={confirmDelete ? 'Are you sure?' : 'Delete'}
+              icon={<BsTrash />}
               ref={deleteBtnRef}
               onClick={handleDelete}
             >
-              <BsTrash className="me-1" />
-              {confirmDelete ? 'Are you sure?' : 'Delete'}
+              {confirmDelete ? (
+                <><span className="music-detail-long">Are you sure?</span><span className="music-detail-short" aria-hidden="true">Sure?</span></>
+              ) : <span className="music-detail-long">Delete</span>}
             </Button>
           )}
         </div>

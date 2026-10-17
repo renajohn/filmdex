@@ -47,8 +47,11 @@ export interface DialogProps extends Omit<DialogHeaderProps, 'titleId' | 'classN
   size?: 'sm' | 'md' | 'lg';
   /** center: a form or a question; panel: a record's card along the right edge. */
   variant?: 'center' | 'panel';
-  /** The whole screen below this width; a panel and a large dialog take it below md by default. */
-  fullscreen?: 'sm' | 'md' | false;
+  /**
+   * The whole screen below this width: a panel below lg, where it becomes the
+   * panel along the right edge, never a box in between; a large dialog below md.
+   */
+  fullscreen?: 'sm' | 'md' | 'lg' | false;
   /** A question to answer: neither a click beside it nor ✕ closes it. */
   modal?: boolean;
   scrollable?: boolean;
@@ -80,7 +83,7 @@ const DialogRoot: React.FC<DialogProps> = ({
 }) => {
   const titleId = useId();
   const panel = variant === 'panel';
-  const full = fullscreen ?? (panel || size === 'lg' ? 'md' : false);
+  const full = fullscreen ?? (panel ? 'lg' : size === 'lg' ? 'md' : false);
   // Asked to close, it leaves on its own first: the page that holds it may take it away at once,
   // and a panel would vanish rather than slide out. Once it has left, the page is told.
   const [leaving, setLeaving] = useState(false);
