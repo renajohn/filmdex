@@ -261,8 +261,10 @@
 }
 
 /* Side by side in a group (Play and its ▾): one shape. */
-.btn-group > .ui-button:not(:last-child),
-.ui-button-group > .ui-button:not(:last-child) {
+/* Square only on a side that meets another button: a panel opened after the
+   ▾ (a date picker) is no button, and the ▾ keeps its round end. */
+.btn-group > .ui-button:has(+ .ui-button),
+.ui-button-group > .ui-button:has(+ .ui-button) {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
