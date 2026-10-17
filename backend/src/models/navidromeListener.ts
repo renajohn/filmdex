@@ -19,7 +19,7 @@ export interface Listener {
   user: string;
   /** Unix seconds of its last play, null for none yet. */
   lastListen: number | null;
-  /** Unix seconds of its last report of stars and hearts, null for none yet. */
+  /** Unix seconds of its last library report, null for none yet. */
   favouritesAt: number | null;
 }
 
@@ -69,10 +69,29 @@ const best = (rows: Array<{ item_id: string; rating: number; starred: number }>)
   return byId;
 };
 
+/** What Navidrome told the plugin, by the call it came by. */
+export type EventType = 'scrobble' | 'nowPlaying' | 'playbackReport';
+
+/** A song, an album or an artist as an account sees it in Navidrome, with all its fields. */
+export interface LibraryItem {
+  id: string;
+  [field: string]: unknown;
+}
+
+export interface AccountLibrary {
+  songs: LibraryItem[];
+  albums: LibraryItem[];
+  artists: LibraryItem[];
+}
+
+/** Playing and playback reports are kept a year; plays, for good. */
+const EVENTS_KEPT_SEC = 365 * 86400;
+
 /**
- * What every Navidrome account plays and likes, as the DexVault plugin in
- * Navidrome tells it: each play with who and when, added to the day-by-day
- * plays, and each account's stars and hearts.
+ * Everything the DexVault plugin in Navidrome hands on, kept as it came:
+ * every event of every account, and each account's library as it sees it.
+ * What DexVault counts is drawn from them: each play with who and when,
+ * added to the day-by-day plays, and the stars and hearts of each account.
  */
 const NavidromeListener = {
   createTable: async (): Promise<void> => {
@@ -89,18 +108,34 @@ const NavidromeListener = {
       await run('ALTER TABLE navidrome_listens ADD COLUMN counted INTEGER NOT NULL DEFAULT 0');
       await run('UPDATE navidrome_listens SET counted = 1 WHERE navidrome_user != ?', [process.env.NAVIDROME_USER || '']);
     }
-    await run(`CREATE TABLE IF NOT EXISTS navidrome_favourites (
+    await run(`CREATE TABLE IF NOT EXISTS navidrome_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
       navidrome_user TEXT NOT NULL,
-      kind TEXT NOT NULL CHECK (kind IN ('song', 'album')),
+      song_id TEXT,
+      at INTEGER NOT NULL,
+      received_at INTEGER NOT NULL,
+      data TEXT NOT NULL,
+      event_key TEXT UNIQUE
+    )`);
+    await run('CREATE INDEX IF NOT EXISTS idx_navidrome_events_at ON navidrome_events (at)');
+    await run(`CREATE TABLE IF NOT EXISTS navidrome_library (
+      navidrome_user TEXT NOT NULL,
+      kind TEXT NOT NULL CHECK (kind IN ('song', 'album', 'artist')),
       item_id TEXT NOT NULL,
-      rating INTEGER NOT NULL DEFAULT 0,
-      starred INTEGER NOT NULL DEFAULT 0,
+      data TEXT NOT NULL,
       PRIMARY KEY (navidrome_user, kind, item_id)
     )`);
+    // Version 1 of the plugin sent only the stars and hearts; its next report brings them all.
+    await run('DROP TABLE IF EXISTS navidrome_favourites');
     await run(`CREATE TABLE IF NOT EXISTS navidrome_listeners (
       navidrome_user TEXT PRIMARY KEY,
       favourites_at INTEGER
     )`);
+    const listenerColumns = await all<{ name: string }>('PRAGMA table_info(navidrome_listeners)');
+    if (!listenerColumns.some(column => column.name === 'account')) {
+      await run('ALTER TABLE navidrome_listeners ADD COLUMN account TEXT');
+    }
   },
 
   /**
@@ -134,24 +169,43 @@ const NavidromeListener = {
     return pending.length;
   })),
 
-  /** Replaces an account's stars and hearts with what it has now. */
-  replaceFavourites: (user: string, songs: Favourite[], albums: Favourite[], now: number = Math.floor(Date.now() / 1000)): Promise<void> =>
+  /**
+   * Keeps an event as it came, once: Navidrome sends a play again until it is
+   * taken, so a play is known by who, what and when. True when it was new.
+   */
+  addEvent: (type: EventType, user: string, songId: string | null, at: number, data: unknown,
+    now: number = Math.floor(Date.now() / 1000)): Promise<boolean> => serial(async () => {
+    const key = type === 'scrobble' ? `${user}|${songId}|${at}` : null;
+    const added = await run(`INSERT OR IGNORE INTO navidrome_events (type, navidrome_user, song_id, at, received_at, data, event_key)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`, [type, user, songId, at, now, JSON.stringify(data), key]);
+    await run('INSERT OR IGNORE INTO navidrome_listeners (navidrome_user) VALUES (?)', [user]);
+    return added > 0;
+  }),
+
+  /** Replaces an account's library with the one it sees now, and forgets the events past their time. */
+  replaceLibrary: (user: string, account: unknown, library: AccountLibrary, now: number = Math.floor(Date.now() / 1000)): Promise<void> =>
     serial(() => inTransaction(async () => {
-      await run('DELETE FROM navidrome_favourites WHERE navidrome_user = ?', [user]);
-      for (const [kind, items] of [['song', songs], ['album', albums]] as const) {
+      await run('DELETE FROM navidrome_library WHERE navidrome_user = ?', [user]);
+      for (const [kind, items] of [['song', library.songs], ['album', library.albums], ['artist', library.artists]] as const) {
         for (const item of items) {
-          await run('INSERT OR REPLACE INTO navidrome_favourites (navidrome_user, kind, item_id, rating, starred) VALUES (?, ?, ?, ?, ?)',
-            [user, kind, item.id, item.rating, item.starred ? 1 : 0]);
+          await run('INSERT OR REPLACE INTO navidrome_library (navidrome_user, kind, item_id, data) VALUES (?, ?, ?, ?)',
+            [user, kind, item.id, JSON.stringify(item)]);
         }
       }
-      await run(`INSERT INTO navidrome_listeners (navidrome_user, favourites_at) VALUES (?, ?)
-        ON CONFLICT(navidrome_user) DO UPDATE SET favourites_at = excluded.favourites_at`, [user, now]);
+      await run(`INSERT INTO navidrome_listeners (navidrome_user, favourites_at, account) VALUES (?, ?, ?)
+        ON CONFLICT(navidrome_user) DO UPDATE SET favourites_at = excluded.favourites_at, account = excluded.account`,
+      [user, now, account == null ? null : JSON.stringify(account)]);
+      await run("DELETE FROM navidrome_events WHERE type != 'scrobble' AND at < ?", [now - EVENTS_KEPT_SEC]);
     })),
 
   /** The stars and hearts of every account but `except`, whose own DexVault reads fresh. */
   othersFavourites: async (except: string): Promise<OthersFavourites> => {
-    const rows = await all<{ kind: string; item_id: string; rating: number; starred: number }>(
-      'SELECT kind, item_id, rating, starred FROM navidrome_favourites WHERE navidrome_user != ?', [except]);
+    const rows = await all<{ kind: string; item_id: string; rating: number; starred: number }>(`
+      SELECT kind, item_id, rating, starred FROM (
+        SELECT kind, item_id, COALESCE(json_extract(data, '$.userRating'), 0) AS rating,
+          CASE WHEN json_extract(data, '$.starred') IS NULL THEN 0 ELSE 1 END AS starred
+        FROM navidrome_library WHERE navidrome_user != ? AND kind IN ('song', 'album'))
+      WHERE rating > 0 OR starred = 1`, [except]);
     return {
       songs: best(rows.filter(row => row.kind === 'song')),
       albums: best(rows.filter(row => row.kind === 'album')),

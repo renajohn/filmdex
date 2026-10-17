@@ -1,7 +1,8 @@
-// DexVault plugin for Navidrome: tells DexVault what every Navidrome account
-// plays, as it plays it, and each account's stars and hearts every hour.
-// DexVault's own reading of Navidrome only sees NAVIDROME_USER: this is how
-// the other accounts are counted too, with no password of theirs in DexVault.
+// DexVault plugin for Navidrome: hands DexVault, as they are, everything
+// Navidrome tells a scrobbler about every account (each play, what starts
+// playing, each playback report), and every hour each account's library as
+// that account sees it (its plays, stars and hearts). It decides nothing:
+// DexVault keeps it all and makes of it what it counts.
 //
 // Build with ./build.sh, which makes dexvault.ndp.
 package main
@@ -21,13 +22,13 @@ import (
 
 const (
 	defaultURL = "http://dexvault:3001"
-	// Reports of stars and hearts: on the hour, and once soon after Navidrome starts.
-	favouritesSchedule = "favourites"
-	favouritesEvery    = "@every 1h"
-	favouritesFirst    = "favourites-first"
-	firstDelaySeconds  = 60
-	pageSize           = 500
-	timeoutMs          = 15000
+	// The libraries: on the hour, and once soon after Navidrome starts.
+	librarySchedule   = "library"
+	libraryEvery      = "@every 1h"
+	libraryFirst      = "library-first"
+	firstDelaySeconds = 60
+	pageSize          = 500
+	timeoutMs         = 30000
 )
 
 type dexvaultPlugin struct{}
@@ -48,8 +49,9 @@ func config(key, fallback string) string {
 	return fallback
 }
 
-// send hands DexVault a report. A failure asks Navidrome to try again later:
-// it keeps the plays it could not deliver and sends them once DexVault answers.
+// send hands DexVault what Navidrome said. A failure asks Navidrome to try
+// again later: it keeps the plays it could not deliver and sends them once
+// DexVault answers.
 func send(method, path string, body any) error {
 	token := config("token", "")
 	if token == "" {
@@ -85,35 +87,45 @@ func send(method, path string, body any) error {
 	}
 }
 
+// event is what Navidrome told the plugin, untouched, and which call it came by.
+type event struct {
+	Type string `json:"type"`
+	Data any    `json:"data"`
+}
+
+const eventsPath = "/api/music/navidrome/plugin/events"
+
 // Every account assigned to the plugin in Navidrome is reported.
 func (p *dexvaultPlugin) IsAuthorized(scrobbler.IsAuthorizedRequest) (bool, error) {
 	return true, nil
 }
 
-// What is playing now: DexVault asks Navidrome itself when it wants it.
-func (p *dexvaultPlugin) NowPlaying(scrobbler.NowPlayingRequest) error { return nil }
-
-func (p *dexvaultPlugin) PlaybackReport(scrobbler.PlaybackReportRequest) error { return nil }
-
-type listen struct {
-	User     string `json:"user"`
-	SongID   string `json:"songId"`
-	PlayedAt int64  `json:"playedAt"`
+// A play Navidrome counts. Kept by Navidrome until DexVault has it.
+func (p *dexvaultPlugin) Scrobble(req scrobbler.ScrobbleRequest) error {
+	return send("POST", eventsPath, event{Type: "scrobble", Data: req})
 }
 
-// A play that counts, as Navidrome counts it: half the track or four minutes heard.
-func (p *dexvaultPlugin) Scrobble(req scrobbler.ScrobbleRequest) error {
-	if req.Track.ID == "" {
-		return nil
+// A track starting. Navidrome does not keep these: one missed is gone.
+func (p *dexvaultPlugin) NowPlaying(req scrobbler.NowPlayingRequest) error {
+	if err := send("POST", eventsPath, event{Type: "nowPlaying", Data: req}); err != nil {
+		pdk.Log(pdk.LogDebug, "DexVault plugin: now playing not sent")
 	}
-	return send("POST", "/api/music/navidrome/plugin/listens", listen{User: req.Username, SongID: req.Track.ID, PlayedAt: req.Timestamp})
+	return nil
+}
+
+// Play, pause, stop and position, from players that report them. Not kept either.
+func (p *dexvaultPlugin) PlaybackReport(req scrobbler.PlaybackReportRequest) error {
+	if err := send("POST", eventsPath, event{Type: "playbackReport", Data: req}); err != nil {
+		pdk.Log(pdk.LogDebug, "DexVault plugin: playback report not sent")
+	}
+	return nil
 }
 
 func (p *dexvaultPlugin) OnInit() error {
-	if _, err := host.SchedulerScheduleRecurring(favouritesEvery, "", favouritesSchedule); err != nil {
+	if _, err := host.SchedulerScheduleRecurring(libraryEvery, "", librarySchedule); err != nil {
 		pdk.Log(pdk.LogError, "DexVault plugin: could not schedule the hourly report: "+err.Error())
 	}
-	if _, err := host.SchedulerScheduleOneTime(firstDelaySeconds, "", favouritesFirst); err != nil {
+	if _, err := host.SchedulerScheduleOneTime(firstDelaySeconds, "", libraryFirst); err != nil {
 		pdk.Log(pdk.LogWarn, "DexVault plugin: could not schedule the first report: "+err.Error())
 	}
 	return nil
@@ -126,43 +138,16 @@ func (p *dexvaultPlugin) OnCallback(scheduler.SchedulerCallbackRequest) error {
 		return nil
 	}
 	for _, user := range users {
-		if err := reportFavourites(user.UserName); err != nil {
-			pdk.Log(pdk.LogWarn, fmt.Sprintf("DexVault plugin: stars and hearts of %s not reported: %s", user.UserName, err.Error()))
+		if err := reportLibrary(user); err != nil {
+			pdk.Log(pdk.LogWarn, fmt.Sprintf("DexVault plugin: library of %s not reported: %s", user.UserName, err.Error()))
 		}
 	}
 	return nil
 }
 
-type favourite struct {
-	ID      string `json:"id"`
-	Rating  int    `json:"rating"`
-	Starred bool   `json:"starred"`
-}
-
-// The part of Subsonic's answers the report needs.
-type item struct {
-	ID         string `json:"id"`
-	UserRating int    `json:"userRating"`
-	Starred    string `json:"starred"`
-}
-
-type subsonicAnswer struct {
-	Response struct {
-		Status string `json:"status"`
-		Error  *struct {
-			Message string `json:"message"`
-		} `json:"error"`
-		SearchResult3 struct {
-			Song []item `json:"song"`
-		} `json:"searchResult3"`
-		AlbumList2 struct {
-			Album []item `json:"album"`
-		} `json:"albumList2"`
-	} `json:"subsonic-response"`
-}
-
-// ask calls Navidrome's Subsonic API from inside, as the account.
-func ask(user, endpoint string, params url.Values) (*subsonicAnswer, error) {
+// ask calls Navidrome's Subsonic API from inside, as the account, and returns
+// the part of the answer under `key`, untouched.
+func ask(user, endpoint, key string, params url.Values) (json.RawMessage, error) {
 	params.Set("u", user)
 	params.Set("v", "1.16.1")
 	params.Set("c", "dexvault-plugin")
@@ -171,63 +156,66 @@ func ask(user, endpoint string, params url.Values) (*subsonicAnswer, error) {
 	if err != nil {
 		return nil, err
 	}
-	var answer subsonicAnswer
+	var answer struct {
+		Response map[string]json.RawMessage `json:"subsonic-response"`
+	}
 	if err := json.Unmarshal([]byte(raw), &answer); err != nil {
 		return nil, err
 	}
-	if answer.Response.Status != "ok" {
-		if answer.Response.Error != nil {
-			return nil, fmt.Errorf("%s", answer.Response.Error.Message)
-		}
-		return nil, fmt.Errorf("Navidrome answered %q", answer.Response.Status)
+	var status string
+	_ = json.Unmarshal(answer.Response["status"], &status)
+	if status != "ok" {
+		return nil, fmt.Errorf("Navidrome answered %s", string(answer.Response["error"]))
 	}
-	return &answer, nil
+	return answer.Response[key], nil
 }
 
-func liked(items []item, into []favourite) []favourite {
-	for _, it := range items {
-		if it.UserRating > 0 || it.Starred != "" {
-			into = append(into, favourite{ID: it.ID, Rating: it.UserRating, Starred: it.Starred != ""})
+// pages reads a paged list to its end: each item as Navidrome gives it.
+func pages(user, endpoint, key, field string, params func(offset int) url.Values) ([]json.RawMessage, error) {
+	all := []json.RawMessage{}
+	for offset := 0; ; offset += pageSize {
+		part, err := ask(user, endpoint, key, params(offset))
+		if err != nil {
+			return nil, err
+		}
+		var page map[string][]json.RawMessage
+		if len(part) > 0 {
+			if err := json.Unmarshal(part, &page); err != nil {
+				return nil, err
+			}
+		}
+		all = append(all, page[field]...)
+		if len(page[field]) < pageSize {
+			return all, nil
 		}
 	}
-	return into
 }
 
-// reportFavourites reads every song and album as the account sees them and
-// sends DexVault those it rated or hearted, which replace what it had.
-func reportFavourites(user string) error {
-	songs := []favourite{}
-	for offset := 0; ; offset += pageSize {
-		answer, err := ask(user, "search3", url.Values{
-			"query": {""}, "songCount": {fmt.Sprint(pageSize)}, "songOffset": {fmt.Sprint(offset)},
-			"albumCount": {"0"}, "artistCount": {"0"},
-		})
-		if err != nil {
-			return err
-		}
-		page := answer.Response.SearchResult3.Song
-		songs = liked(page, songs)
-		if len(page) < pageSize {
-			break
-		}
-	}
-	albums := []favourite{}
-	for offset := 0; ; offset += pageSize {
-		answer, err := ask(user, "getAlbumList2", url.Values{
-			"type": {"alphabeticalByName"}, "size": {fmt.Sprint(pageSize)}, "offset": {fmt.Sprint(offset)},
-		})
-		if err != nil {
-			return err
-		}
-		page := answer.Response.AlbumList2.Album
-		albums = liked(page, albums)
-		if len(page) < pageSize {
-			break
-		}
-	}
-	if err := send("PUT", "/api/music/navidrome/plugin/favourites/"+url.PathEscape(user), map[string]any{"songs": songs, "albums": albums}); err != nil {
+// reportLibrary reads every song, album and artist as the account sees them
+// (its plays, stars and hearts) and sends them all, as Navidrome gives them.
+func reportLibrary(user host.User) error {
+	songs, err := pages(user.UserName, "search3", "searchResult3", "song", func(offset int) url.Values {
+		return url.Values{"query": {""}, "songCount": {fmt.Sprint(pageSize)}, "songOffset": {fmt.Sprint(offset)}, "albumCount": {"0"}, "artistCount": {"0"}}
+	})
+	if err != nil {
 		return err
 	}
-	pdk.Log(pdk.LogInfo, fmt.Sprintf("DexVault plugin: %s's likes reported, %d songs and %d albums", user, len(songs), len(albums)))
+	albums, err := pages(user.UserName, "getAlbumList2", "albumList2", "album", func(offset int) url.Values {
+		return url.Values{"type": {"alphabeticalByName"}, "size": {fmt.Sprint(pageSize)}, "offset": {fmt.Sprint(offset)}}
+	})
+	if err != nil {
+		return err
+	}
+	artists, err := pages(user.UserName, "search3", "searchResult3", "artist", func(offset int) url.Values {
+		return url.Values{"query": {""}, "artistCount": {fmt.Sprint(pageSize)}, "artistOffset": {fmt.Sprint(offset)}, "albumCount": {"0"}, "songCount": {"0"}}
+	})
+	if err != nil {
+		return err
+	}
+	body := map[string]any{"user": user, "songs": songs, "albums": albums, "artists": artists}
+	if err := send("PUT", "/api/music/navidrome/plugin/library/"+url.PathEscape(user.UserName), body); err != nil {
+		return err
+	}
+	pdk.Log(pdk.LogInfo, fmt.Sprintf("DexVault plugin: library of %s reported, %d songs, %d albums, %d artists", user.UserName, len(songs), len(albums), len(artists)))
 	return nil
 }

@@ -39,15 +39,20 @@ avec son heure et son compte.
 
 ## Le plugin (`navidrome-plugin/`)
 
+Principe (17.10.2026) : **le plugin ne fait que transmettre, le plus possible ; toute la logique est
+dans DexVault.**
+
 - Écrit en Go (TinyGo), construit par `navidrome-plugin/build.sh` en `dexvault.ndp`.
 - Réglages dans Navidrome : l'adresse de DexVault (`http://dexvault:3001`) et un jeton,
   `NAVIDROME_PLUGIN_TOKEN` dans la stack DexVault.
-- Chaque écoute : `POST /api/music/navidrome/plugin/listens` `{ user, songId, playedAt }`. Si DexVault
-  ne répond pas, le plugin demande à Navidrome de réessayer : Navidrome garde l'écoute dans sa base
-  et la renvoie (vérifié de bout en bout).
-- Chaque heure, et une minute après le démarrage : pour chaque compte, `search3` et `getAlbumList2`
-  au nom du compte, puis `PUT /api/music/navidrome/plugin/favourites/:user` avec les pistes et albums
-  notés ou aimés, qui remplacent ce que DexVault avait.
+- Chaque événement de scrobbler, tel que Navidrome le donne : `POST /api/music/navidrome/plugin/events`
+  `{ type: scrobble | nowPlaying | playbackReport, data }`. Pour une écoute que DexVault ne prend pas,
+  Navidrome la garde et la renvoie (vérifié de bout en bout) ; les autres ne sont pas gardées.
+- Chaque heure, et une minute après le démarrage : pour chaque compte, `search3` (pistes, artistes) et
+  `getAlbumList2` au nom du compte, en entier et sans tri, puis
+  `PUT /api/music/navidrome/plugin/library/:user` `{ user, songs, albums, artists }`.
+- DexVault garde les événements dans `navidrome_events` (début et rapports de lecture un an, écoutes
+  pour toujours) et la dernière bibliothèque de chaque compte dans `navidrome_library`.
 
 ## Écoutes
 
@@ -70,8 +75,8 @@ de tous les comptes, `NAVIDROME_USER` compris.
 
 - La note de DexVault reste celle du compte principal, synchronisée dans les deux sens comme aujourd'hui
   (`albumRatingService`).
-- Pour l'onglet Buy, la règle « 4-5 étoiles ou un cœur » regarde aussi les autres comptes
-  (`navidrome_favourites`) ; la copie que le plugin envoie de `NAVIDROME_USER` est ignorée, DexVault
+- Pour l'onglet Buy, la règle « 4-5 étoiles ou un cœur » regarde aussi les autres comptes, tirée de
+  leur bibliothèque (`navidrome_library`) ; la copie que le plugin envoie de `NAVIDROME_USER` est ignorée, DexVault
   lisant ses notes à jour.
 - L'affichage reste celui du compte principal partout ailleurs.
 
@@ -102,7 +107,8 @@ lui, a déjà tout gardé jour par jour.
 
 ## Tests
 
-- une écoute d'un autre compte compte à son jour, une seule fois même renvoyée ;
+- une écoute compte à son jour, une seule fois même renvoyée ;
+- un début ou un rapport de lecture est gardé tel quel, sans compter d'écoute ;
 - une écoute de `NAVIDROME_USER` compte aussi, et le relevé n'ajoute plus rien ;
 - à la bascule, ses écoutes non comptées sont rattrapées une fois, sans doublon ;
 - sans jeton, le relevé compte comme avant ;

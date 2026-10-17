@@ -1,22 +1,23 @@
 # Plugin DexVault pour Navidrome
 
 Navidrome range les écoutes, les étoiles et les cœurs **par compte**, et son API ne donne à un compte
-que les siens. DexVault ne lit lui-même que `NAVIDROME_USER`. Ce plugin, chargé par Navidrome, lui
-envoie le reste :
+que les siens. Ce plugin, chargé par Navidrome, transmet à DexVault **tout ce que Navidrome lui dit,
+tel quel**, pour tous les comptes qui lui sont assignés. Il ne décide de rien :
 
-- **chaque écoute** de chaque compte, au moment où Navidrome la compte (moitié de la piste ou 4 min),
-  avec le compte et l'heure ;
-- **les étoiles et les cœurs** de chaque compte, toutes les heures, et une minute après le démarrage.
+- chaque **écoute** (`scrobble`) : la piste avec tous ses champs, le compte, l'heure ;
+- chaque **début de lecture** (`nowPlaying`) et chaque **rapport de lecture** (`playbackReport` :
+  lecture, pause, arrêt, position, lecteur), pour les lecteurs qui en envoient ;
+- toutes les heures, et une minute après le démarrage, la **bibliothèque de chaque compte** telle qu'il
+  la voit : toutes les pistes, tous les albums et tous les artistes avec tous leurs champs (écoutes,
+  étoiles, cœurs compris), et le compte lui-même.
 
-Le plugin est le seul à compter les écoutes, de tous les comptes, `NAVIDROME_USER` compris : DexVault
-les ajoute à son historique jour par jour, à l'heure exacte. Ses compteurs ne sont plus que notés, pour
-pouvoir revenir en arrière sans recompter le passé (sans `NAVIDROME_PLUGIN_TOKEN`, DexVault compte comme
-avant). Les notes de `NAVIDROME_USER` restent lues directement par DexVault, sans attendre l'heure ;
-celles des autres comptes viennent du plugin, et pour l'onglet Buy un cœur ou 4-5 étoiles de n'importe
-quel compte comptent. Aucun mot de passe d'un autre compte n'entre dans DexVault.
+DexVault garde tout (`navidrome_events`, `navidrome_library`) et en tire ce qu'il compte : une écoute
+par `scrobble`, ajoutée à l'historique jour par jour, et, pour l'onglet Buy, les cœurs et 4-5 étoiles
+des autres comptes. Les notes de `NAVIDROME_USER` restent lues directement par DexVault, sans attendre
+l'heure. Aucun mot de passe d'un autre compte n'entre dans DexVault.
 
 Si DexVault ne répond pas, Navidrome garde les écoutes dans sa base et les renvoie jusqu'à ce qu'il
-réponde : rien ne se perd. La page Digital signale un plugin muet depuis plus de trois heures.
+réponde : aucune ne se perd. Les débuts et rapports de lecture, eux, Navidrome ne les garde pas. La page Digital signale un plugin muet depuis plus de trois heures.
 
 ## Construire
 
@@ -42,6 +43,6 @@ Donne `dexvault.ndp` (non versionné). Écrit pour Navidrome 0.64 (système de p
    - *Users* : tous les comptes ;
    - activer le plugin.
 4. Vérifier : une minute plus tard, le journal de Navidrome dit
-   `DexVault plugin: <compte>'s likes reported`, et la page Digital nomme les autres comptes comptés.
+   `DexVault plugin: library of <compte> reported`, et la page Digital nomme les autres comptes comptés.
 
 Mettre à jour : reconstruire, refaire l'étape 2, puis désactiver et réactiver le plugin.

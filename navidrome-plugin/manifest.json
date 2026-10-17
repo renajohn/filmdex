@@ -1,22 +1,29 @@
 {
   "name": "DexVault",
   "author": "Renault John Lecoultre",
-  "version": "1.0.0",
-  "description": "Tells DexVault what every account plays, and each account's stars and hearts every hour",
+  "version": "2.0.0",
+  "description": "Hands DexVault everything Navidrome tells about every account: each play, what starts playing, playback reports, and every hour each account's library with its plays, stars and hearts",
   "website": "https://dexvault.lab.crog.org/musicdex/digital",
   "permissions": {
     "users": {
-      "reason": "Report the plays, stars and hearts of the accounts assigned to the plugin"
+      "reason": "Report the plays and libraries of the accounts assigned to the plugin"
     },
     "subsonicapi": {
-      "reason": "Read each account's stars and hearts, which Navidrome keeps per account"
+      "reason": "Read each account's library as it sees it: plays, stars and hearts are kept per account"
     },
     "scheduler": {
-      "reason": "Report the stars and hearts every hour"
+      "reason": "Report the libraries every hour"
     },
     "http": {
       "reason": "Send the reports to DexVault, which runs beside Navidrome on the home network",
-      "requiredHosts": ["dexvault", "dexvault.lab.crog.org", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.1"]
+      "requiredHosts": [
+        "dexvault",
+        "dexvault.lab.crog.org",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "127.0.0.1"
+      ]
     }
   },
   "config": {
@@ -35,13 +42,24 @@
           "description": "The same secret as NAVIDROME_PLUGIN_TOKEN in the DexVault stack"
         }
       },
-      "required": ["token"]
+      "required": [
+        "token"
+      ]
     },
     "uiSchema": {
       "type": "VerticalLayout",
       "elements": [
-        { "type": "Control", "scope": "#/properties/url" },
-        { "type": "Control", "scope": "#/properties/token", "options": { "format": "password" } }
+        {
+          "type": "Control",
+          "scope": "#/properties/url"
+        },
+        {
+          "type": "Control",
+          "scope": "#/properties/token",
+          "options": {
+            "format": "password"
+          }
+        }
       ]
     }
   }

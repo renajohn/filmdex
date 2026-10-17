@@ -17,11 +17,19 @@ const playsOf = (songId: string) =>
     getDatabase().all('SELECT day, plays FROM navidrome_plays WHERE song_id = ?', [songId],
       (err: Error | null, rows: Array<{ day: string; plays: number }>) => (err ? reject(err) : resolve(rows))));
 
-const listen = (body: Record<string, unknown>, token = TOKEN) =>
-  request(app).post('/api/music/navidrome/plugin/listens').set('Authorization', `Bearer ${token}`).send(body);
+const event = (type: string, data: Record<string, unknown>, token = TOKEN) =>
+  request(app).post('/api/music/navidrome/plugin/events').set('Authorization', `Bearer ${token}`).send({ type, data });
 
-const favourites = (user: string, body: Record<string, unknown>) =>
-  request(app).put(`/api/music/navidrome/plugin/favourites/${user}`).set('Authorization', `Bearer ${TOKEN}`).send(body);
+/** A play as Navidrome hands it to the plugin, which passes it on untouched. */
+const listen = ({ user, songId, playedAt }: { user: string; songId: string; playedAt: unknown }, token = TOKEN) =>
+  event('scrobble', { username: user, track: { id: songId, title: 'Porcelain', album: 'Play', artist: 'Moby', duration: 241 }, timestamp: playedAt }, token);
+
+const library = (user: string, body: Record<string, unknown>) =>
+  request(app).put(`/api/music/navidrome/plugin/library/${user}`).set('Authorization', `Bearer ${TOKEN}`)
+    .send({ user: { userName: user, name: user, isAdmin: false }, songs: [], albums: [], artists: [], ...body });
+
+const rows = <T>(statement: string, params: unknown[] = []) =>
+  new Promise<T[]>((resolve, reject) => getDatabase().all(statement, params, (err: Error | null, found: T[]) => (err ? reject(err) : resolve(found))));
 
 /** Noon on 2026-10-10, in Unix seconds. */
 const NOON = Math.floor(new Date('2026-10-10T12:00:00').getTime() / 1000);
@@ -92,10 +100,24 @@ describe('le plugin DexVault dans Navidrome', () => {
     expect(await playsOf(songId)).toEqual([{ day: '2026-10-10', plays: 3 }]);
   });
 
+  it('garde tel quel ce que Navidrome dit d’une lecture, sans en faire une écoute', async () => {
+    const songId = `s-${tag()}`;
+    await event('nowPlaying', { username: 'violaine', track: { id: songId, title: 'Porcelain' }, position: 0 }).expect(200);
+    await event('playbackReport', {
+      username: 'violaine', track: { id: songId }, state: 'paused', positionMs: 61000, playerName: 'Amperfy', timestamp: NOON,
+    }).expect(200);
+
+    const kept = await rows<{ type: string; data: string }>('SELECT type, data FROM navidrome_events WHERE song_id = ? ORDER BY id', [songId]);
+    expect(kept.map(row => row.type)).toEqual(['nowPlaying', 'playbackReport']);
+    expect(JSON.parse(kept[1].data)).toMatchObject({ state: 'paused', positionMs: 61000, playerName: 'Amperfy' });
+    expect(await playsOf(songId)).toEqual([]);
+  });
+
   it('refuse ce qui n’est pas une écoute', async () => {
     expect((await listen({ user: 'violaine', songId: '../etc', playedAt: NOON })).status).toBe(400);
     expect((await listen({ user: 'violaine', songId: 's1', playedAt: 'hier' })).status).toBe(400);
     expect((await listen({ user: '', songId: 's1', playedAt: NOON })).status).toBe(400);
+    expect((await event('somethingElse', { username: 'violaine' })).status).toBe(400);
   });
 
   it('met dans Buy un album dont une piste a le cœur d’un autre compte, et le dit dans la page', async () => {
@@ -115,10 +137,16 @@ describe('le plugin DexVault dans Navidrome', () => {
     expect((await inBuy()).album.buy).toBeNull();
 
     // NAVIDROME_USER's own copy from the plugin is not weighed: DexVault reads it fresh.
-    await favourites('renault', { songs: [{ id: `${albumId}-1`, rating: 5, starred: true }], albums: [] }).expect(200);
+    await library('renault', { songs: [{ id: `${albumId}-1`, title: 'One', userRating: 5, starred: '2026-10-17T10:00:00Z' }] }).expect(200);
     expect((await inBuy()).album.buy).toBeNull();
 
-    await favourites('violaine', { songs: [{ id: `${albumId}-2`, rating: 0, starred: true }], albums: [] }).expect(200);
+    // The whole library comes, liked or not: DexVault picks out the hearts and stars.
+    await library('violaine', {
+      songs: [{ id: `${albumId}-1`, title: 'One', playCount: 4 }, { id: `${albumId}-2`, title: 'Two', starred: '2026-10-17T10:00:00Z' }],
+      albums: [{ id: albumId, name: 'Hearted', userRating: 3 }],
+      artists: [{ id: 'ar-moby', name: 'Moby', starred: '2026-10-17T10:00:00Z' }],
+    }).expect(200);
+    expect((await rows('SELECT item_id FROM navidrome_library WHERE navidrome_user = ?', ['violaine'])).length).toBe(4);
     const { album, plugin } = await inBuy();
     expect(album).toMatchObject({ starred: false, favouriteTracks: 1, buy: { rated: true } });
     expect(plugin).toMatchObject({ stale: false, lastReportAt: expect.any(Number) });
@@ -126,7 +154,7 @@ describe('le plugin DexVault dans Navidrome', () => {
     expect(plugin.accounts).not.toContain('renault');
 
     // A later report replaces the account's likes: the heart taken back, the album leaves Buy.
-    await favourites('violaine', { songs: [], albums: [] }).expect(200);
+    await library('violaine', { songs: [{ id: `${albumId}-2`, title: 'Two' }] }).expect(200);
     expect((await inBuy()).album.buy).toBeNull();
   });
 
@@ -134,8 +162,9 @@ describe('le plugin DexVault dans Navidrome', () => {
     jest.spyOn(navidromeService, 'isConfigured').mockReturnValue(false);
     const now = Math.floor(Date.now() / 1000);
     const users = await NavidromeListener.listeners();
-    for (const { user } of users) await NavidromeListener.replaceFavourites(user, [], [], now - 4 * 3600);
-    await NavidromeListener.replaceFavourites(`old-${tag()}`, [], [], now - 4 * 3600);
+    const empty = { songs: [], albums: [], artists: [] };
+    for (const { user } of users) await NavidromeListener.replaceLibrary(user, null, empty, now - 4 * 3600);
+    await NavidromeListener.replaceLibrary(`old-${tag()}`, null, empty, now - 4 * 3600);
 
     expect((await request(app).get('/api/music/digital')).body.plugin).toMatchObject({ stale: true });
   });
