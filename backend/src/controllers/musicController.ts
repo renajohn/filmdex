@@ -23,6 +23,7 @@ import albumPurchaseService, { PurchaseError } from '../services/albumPurchaseSe
 import navidromeService from '../services/navidromeService';
 import albumRatingService from '../services/albumRatingService';
 import communityRatingService from '../services/communityRatingService';
+import trackPopularityService from '../services/trackPopularityService';
 import AlbumNote from '../models/albumNote';
 import logger from '../logger';
 import type { AlbumFormatted } from '../types';
@@ -599,6 +600,22 @@ const musicController = {
       } else {
         logger.error('Error refreshing community ratings:', error);
         res.status(500).json({ error: 'Failed to refresh the community ratings' });
+      }
+    }
+  },
+
+  /** Rereads on Deezer how much each track of the album is listened to. */
+  refreshTrackPopularity: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const id = parseInt(req.params.id as string, 10);
+      res.json(await trackPopularityService.refreshAlbum(id));
+    } catch (error) {
+      const message = (error as Error).message;
+      if (message === 'Album not found') {
+        res.status(404).json({ error: message });
+      } else {
+        logger.error('Error reading track popularity:', error);
+        res.status(500).json({ error: 'Failed to read the track popularity' });
       }
     }
   },

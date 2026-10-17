@@ -16,7 +16,8 @@ The prototypes the choices were made on are kept in `docs/superpowers/specs/`:
    buttons. Do not invent another surface.
 2. **Gold means "on" or "to do", never "pointed at".** In Listen or Watch Next,
    wished, playing, the choice made, the one action a window is for. Hovering
-   shows a light veil, not gold.
+   shows a light veil, not gold. The tracks most listened to on Deezer wear a
+   small dot of the numbers' grey before their number: an invitation, not gold.
 3. **One gold action per window.** The action the window is for (Play, Save,
    Rename, Add). Everything else is secondary or quiet.
 4. **Red is danger, and danger never takes the gold.** In a confirmation, the

@@ -35,6 +35,7 @@ import albumRatingService from './src/services/albumRatingService';
 import listenHistoryService from './src/services/listenHistoryService';
 import navidromeService from './src/services/navidromeService';
 import ripStatusService from './src/services/ripStatusService';
+import trackPopularityService from './src/services/trackPopularityService';
 import { mountMcp } from './src/mcp/mount';
 import Movie from './src/models/movie';
 import MovieImport from './src/models/movieImport';
@@ -301,6 +302,7 @@ app.post('/api/music/albums/refresh-musicbrainz', musicController.refreshAllFrom
 app.post('/api/music/albums/:id/refresh-musicbrainz', musicController.refreshFromMusicBrainz);
 app.post('/api/music/albums/community-ratings', musicController.refreshAllCommunityRatings);
 app.post('/api/music/albums/:id/community-rating', musicController.refreshCommunityRating);
+app.post('/api/music/albums/:id/track-popularity', musicController.refreshTrackPopularity);
 app.get('/api/music/albums/:id', musicController.getAlbumById);
 app.put('/api/music/albums/:id', musicController.updateAlbum);
 app.put('/api/music/albums/:id/status', musicController.updateAlbumStatus);
@@ -550,6 +552,7 @@ const serverReady = startServer().then(() => {
     listenNextPlaylistService.startAutoSync();
     lyricsService.startAutoFetch();
     shelvingService.startSortNameSync();
+    trackPopularityService.startAutoRefresh();
   }
 }).catch((error: Error) => {
   logger.error('Failed to start server:', error);

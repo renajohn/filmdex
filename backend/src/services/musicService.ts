@@ -6,6 +6,8 @@ import { normalizeAlbumOwnership } from './utils/albumOwnership';
 import musicbrainzService from './musicbrainzService';
 import discogsService from './discogsService';
 import communityRatingService from './communityRatingService';
+import trackPopularityService, { popularTracks } from './trackPopularityService';
+import TrackPopularity from '../models/trackPopularity';
 import type { FormattedRelease } from './musicbrainzService';
 import imageService from './imageService';
 import axios, { AxiosResponse } from 'axios';
@@ -90,6 +92,8 @@ interface AlbumTrack {
   work: string | null;
   composers: string[];
   performers: TrackPerformer[];
+  /** One of the few tracks listened to much more than the rest, on Deezer. */
+  popular?: boolean;
 }
 
 interface DiscData {
@@ -199,6 +203,7 @@ class MusicService {
       console.log(`Fetching tracks for album ID: ${id}`);
       const tracks = await Track.findByCdId(id);
       console.log(`Found ${tracks.length} tracks`);
+      const popular = popularTracks(await TrackPopularity.findByAlbum(id), tracks.length);
 
       // Group tracks by disc
       const discs: Record<number, TrackFormatted[]> = {};
@@ -223,7 +228,8 @@ class MusicService {
           artist: track.artist,
           work: track.work,
           composers: track.composers,
-          performers: track.performers
+          performers: track.performers,
+          ...(popular.has(`${track.discNumber}-${track.trackNumber}`) ? { popular: true } : {})
         }))
       }));
 
@@ -875,6 +881,9 @@ class MusicService {
       communityRatingService.refreshAlbum(album.id).catch((error: unknown) => {
         logger.warn(`Could not read the community ratings of album ${album.id}: ${(error as Error).message}`);
       });
+      trackPopularityService.refreshAlbum(album.id).catch((error: unknown) => {
+        logger.warn(`Could not read the track popularity of album ${album.id}: ${(error as Error).message}`);
+      });
 
       const clientFront = additionalData.coverArtData?.frontCoverUrl;
       const coverWork = (async () => {
@@ -952,6 +961,9 @@ class MusicService {
       // The communities' votes, which the release lookups above do not count.
       communityRatingService.refreshAlbum(album.id).catch((error: unknown) => {
         logger.warn(`Could not read the community ratings of album ${album.id}: ${(error as Error).message}`);
+      });
+      trackPopularityService.refreshAlbum(album.id).catch((error: unknown) => {
+        logger.warn(`Could not read the track popularity of album ${album.id}: ${(error as Error).message}`);
       });
 
       // The record is already safe, so cover art can no longer block the add.

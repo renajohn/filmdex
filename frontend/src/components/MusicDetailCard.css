@@ -511,12 +511,26 @@
 }
 
 .track-number {
+  position: relative;
   color: #777;
   font-size: 0.9rem;
   font-weight: 500;
   min-width: 35px;
   text-align: right;
   margin-right: 12px;
+}
+
+/* The tracks most listened to: a small dot of the number's grey at the left of its column, never gold. */
+.track-popular {
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.8;
+  transform: translateY(-50%);
 }
 
 .track-title {
