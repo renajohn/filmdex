@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import DigitalPage, { ricardoUrl } from './DigitalPage';
 import musicService, { type DigitalAlbum, type DigitalLibrary } from '../services/musicService';
 import { playNavidromeAlbum } from '../utils/playAlbum';
@@ -28,6 +29,9 @@ vi.mock('../components/MusicDetailCard', () => ({
 }));
 
 vi.mock('../utils/playAlbum', () => ({ playNavidromeAlbum: vi.fn(() => Promise.resolve(true)) }));
+
+/** The page as the app shows it, at an address of its own. */
+const renderPage = (path = '/musicdex/digital') => render(<MemoryRouter initialEntries={[path]}><DigitalPage /></MemoryRouter>);
 
 const digital = (fields: Partial<DigitalAlbum> & { navidromeId: string; name: string }): DigitalAlbum => ({
   artist: 'Moby', songCount: 10, url: `https://music/${fields.navidromeId}`, formats: ['MP3'], quality: 'lossy', bitRate: 192,
@@ -69,7 +73,7 @@ const titles = () => screen.getAllByRole('listitem').map(item => item.querySelec
 
 describe('DigitalPage', () => {
   it('ouvre sur Buy : les suggestions dans leur encadré, puis la wishlist, sans les albums écartés', async () => {
-    render(<DigitalPage />);
+    renderPage();
 
     expect(await screen.findByRole('tab', { name: /Buy/, selected: true })).toBeInTheDocument();
     await waitFor(() => expect(titles()).toEqual(['Play', '18']));
@@ -87,14 +91,14 @@ describe('DigitalPage', () => {
       buy: { listened: true, rated: false, wished: true } };
     vi.mocked(musicService.getDigitalLibrary).mockResolvedValue({ ...LIBRARY, albums: LIBRARY.albums.map(a => (a.navidromeId === 'nd-18' ? played : a)) });
     vi.mocked(musicService.syncDigitalLibrary).mockResolvedValue({ editions: [], library: { ...LIBRARY, albums: LIBRARY.albums.map(a => (a.navidromeId === 'nd-18' ? played : a)) } });
-    render(<DigitalPage />);
+    renderPage();
 
     expect(await screen.findByRole('heading', { name: /Wishlist 0 · 1 more in the suggestions above/ })).toBeInTheDocument();
   });
 
   it('écarte un album par « Not interested »', async () => {
     vi.mocked(musicService.setDigitalDismissed).mockResolvedValue({ ...LIBRARY.albums[1], dismissed: true });
-    render(<DigitalPage />);
+    renderPage();
     await screen.findByText('Play');
 
     fireEvent.click(screen.getByRole('button', { name: 'Not interested' }));
@@ -104,7 +108,7 @@ describe('DigitalPage', () => {
   });
 
   it('range le lossy du pire débit au meilleur, et masque les onglets vides', async () => {
-    render(<DigitalPage />);
+    renderPage();
     fireEvent.click(await screen.findByRole('tab', { name: /Lossy/ }));
 
     expect(titles()).toEqual(['Play', 'Hotel', '18', 'Wait for Me']);
@@ -115,7 +119,7 @@ describe('DigitalPage', () => {
 
   it('ouvre la fiche du CD quand on clique un album dont on a le CD', async () => {
     vi.mocked(musicService.getAlbumById).mockResolvedValue({ id: 7, title: 'Mezzanine (detail)' });
-    render(<DigitalPage />);
+    renderPage();
     fireEvent.click(await screen.findByRole('tab', { name: /Lossless/ }));
     // A CD is a CD, whatever its pressing: no "Enhanced CD" nor "Unknown".
     expect(within(screen.getByText('Mezzanine').closest('li')!).getByText('CD')).toBeInTheDocument();
@@ -131,7 +135,7 @@ describe('DigitalPage', () => {
       { id: 's1', url: null, discNumber: 1, track: 1, title: 'Honey', durationSec: 190, suffix: 'mp3', bitRate: 128,
         bitDepth: null, samplingRate: 44100, plays: 3, lastPlayed: null, rating: 0, starred: false },
     ]);
-    render(<DigitalPage />);
+    renderPage();
 
     fireEvent.click(await screen.findByText('Play'));
 
@@ -140,9 +144,24 @@ describe('DigitalPage', () => {
     expect(musicService.getDigitalTracks).toHaveBeenCalledWith('nd-play');
   });
 
+  it('joue l’album à partir d’une piste dépliée', async () => {
+    vi.mocked(musicService.getDigitalTracks).mockResolvedValue([
+      { id: 's1', url: null, discNumber: 1, track: 1, title: 'Honey', durationSec: 190, suffix: 'mp3', bitRate: 128,
+        bitDepth: null, samplingRate: 44100, plays: 3, lastPlayed: null, rating: 0, starred: false },
+      { id: 's2', url: null, discNumber: 1, track: 2, title: 'Find My Baby', durationSec: 160, suffix: 'mp3', bitRate: 128,
+        bitDepth: null, samplingRate: 44100, plays: 0, lastPlayed: null, rating: 0, starred: false },
+    ]);
+    renderPage();
+
+    fireEvent.click(await screen.findByText('Play'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Play Find My Baby' }));
+
+    await waitFor(() => expect(playNavidromeAlbum).toHaveBeenCalledWith(expect.objectContaining({ navidromeId: 'nd-play' }), 's2', '/musicdex/digital?tab=buy&album=nd-play'));
+  });
+
   it('met un album sans CD dans la wishlist depuis l’onglet No CD', async () => {
     vi.mocked(musicService.setDigitalWished).mockResolvedValue({ ...LIBRARY.albums[3], wishAlbumId: 99 });
-    render(<DigitalPage />);
+    renderPage();
     fireEvent.click(await screen.findByRole('tab', { name: /No CD/ }));
 
     const hotel = screen.getByText('Hotel').closest('li')!;
@@ -156,13 +175,36 @@ describe('DigitalPage', () => {
 
   it('joue un album dans DexVault depuis ▶, Navidrome restant à côté', async () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
-    render(<DigitalPage />);
+    renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Play Play' }));
-    await waitFor(() => expect(playNavidromeAlbum).toHaveBeenCalledWith(expect.objectContaining({ navidromeId: 'nd-play' })));
+    await waitFor(() => expect(playNavidromeAlbum).toHaveBeenCalledWith(expect.objectContaining({ navidromeId: 'nd-play' }), undefined, '/musicdex/digital?tab=buy&album=nd-play'));
     fireEvent.click(screen.getByRole('button', { name: 'Open Play in Navidrome' }));
     expect(open).toHaveBeenCalledWith('https://music/nd-play', '_blank', 'noopener');
     open.mockRestore();
+  });
+
+  it('ramène à l’album lancé depuis la barre : son onglet, déplié', async () => {
+    vi.mocked(musicService.getDigitalTracks).mockResolvedValue([
+      { id: 's1', url: null, discNumber: 1, track: 1, title: 'Lobby Song', durationSec: 190, suffix: 'mp3', bitRate: 160,
+        bitDepth: null, samplingRate: 44100, plays: 0, lastPlayed: null, rating: 0, starred: false },
+    ]);
+    renderPage('/musicdex/digital?tab=nocd&album=nd-hot');
+
+    expect(await screen.findByText('Lobby Song')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /No CD/ })).toHaveAttribute('aria-selected', 'true');
+    expect(musicService.getDigitalTracks).toHaveBeenCalledWith('nd-hot');
+  });
+
+  it('ramène dans No CD un album lancé depuis Buy et retiré de la wishlist depuis', async () => {
+    vi.mocked(musicService.getDigitalTracks).mockResolvedValue([
+      { id: 's1', url: null, discNumber: 1, track: 1, title: 'Lobby Song', durationSec: 190, suffix: 'mp3', bitRate: 160,
+        bitDepth: null, samplingRate: 44100, plays: 0, lastPlayed: null, rating: 0, starred: false },
+    ]);
+    renderPage('/musicdex/digital?tab=buy&album=nd-hot');
+
+    expect(await screen.findByText('Lobby Song')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /No CD/ })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('cherche le CD sur Ricardo sans ce que le titre digital ajoute', () => {

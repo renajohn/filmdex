@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Form, ProgressBar } from 'react-bootstrap';
 import { BsArrowClockwise, BsBoxArrowUpRight, BsChevronDown, BsChevronRight, BsHeartFill, BsPauseFill, BsPlayFill, BsSearch, BsStarFill, BsXLg } from 'react-icons/bs';
 import MusicDetailCard from '../components/MusicDetailCard';
@@ -84,15 +85,38 @@ const BuyReasons: React.FC<{ album: DigitalAlbum }> = ({ album }) => {
   );
 };
 
-const TrackList: React.FC<{ tracks: DigitalTrack[] | undefined | null }> = ({ tracks }) => {
+interface TrackListProps {
+  tracks: DigitalTrack[] | undefined | null;
+  /** Plays the album from a track; none on an iPhone, which plays in Amperfy. */
+  onPlay?: (songId: string) => void;
+}
+
+const TrackList: React.FC<TrackListProps> = ({ tracks, onPlay }) => {
+  // The track DexVault plays: its bars where its number was, its title in gold. Under the pointer,
+  // a track's number turns to ▶, which plays the album from it, and the one playing to ❚❚.
+  const nowSongId = usePlayer(state => state.tracks[state.index]?.songId ?? null);
+  const nowPlaying = usePlayer(state => state.playing);
   if (tracks === undefined) return <div className="digital-tracks-empty">Reading Navidrome…</div>;
   if (tracks === null) return <div className="digital-tracks-empty">Could not read the tracks.</div>;
   const discs = new Set(tracks.map(track => track.discNumber)).size > 1;
   return (
     <ol className="digital-tracks">
       {tracks.map(track => (
-        <li key={track.id ?? `${track.discNumber}-${track.track}`} className={track.plays >= 2 ? 'digital-track-favourite' : ''}>
-          <span className="digital-track-number">{discs ? `${track.discNumber}-` : ''}{track.track}</span>
+        <li key={track.id ?? `${track.discNumber}-${track.track}`}
+          className={`${track.plays >= 2 ? 'digital-track-favourite' : ''}${track.id && track.id === nowSongId ? ' digital-track-current' : ''}`}>
+          <span className={`digital-track-number${onPlay && track.id ? ' digital-track-playable' : ''}`}>
+            <span className="digital-track-number-text">
+              {track.id && track.id === nowSongId ? <NowPlayingBars playing={nowPlaying} /> : `${discs ? `${track.discNumber}-` : ''}${track.track}`}
+            </span>
+            {onPlay && track.id && (
+              <button type="button" className="digital-track-play"
+                onClick={() => (track.id === nowSongId ? player.toggle() : onPlay(track.id!))}
+                aria-label={`${track.id === nowSongId && nowPlaying ? 'Pause' : 'Play'} ${track.title}`}
+                title={track.id === nowSongId && nowPlaying ? 'Pause' : 'Play'}>
+                {track.id === nowSongId && nowPlaying ? <BsPauseFill aria-hidden="true" /> : <BsPlayFill aria-hidden="true" />}
+              </button>
+            )}
+          </span>
           <span className="digital-track-title">{track.title}</span>
           <span className="digital-track-meta">
             {track.rating > 0 && <span><BsStarFill /> {track.rating}</span>}
@@ -130,15 +154,20 @@ const DigitalPage: React.FC = () => {
   const nowPlaying = usePlayer(state => state.playing);
   const [starting, setStarting] = useState<string | null>(null);
 
-  /** ▶ on a row: pauses or plays on the album playing, plays another from the start; Navidrome when it has no file. */
-  const play = async (album: DigitalAlbum) => {
-    if (nowNavidromeId === album.navidromeId) {
+  /**
+   * ▶ on a row: pauses or plays on the album playing, plays another from the
+   * start; ▶ on one of its tracks plays it from there. Navidrome when it has no file.
+   */
+  const play = async (album: DigitalAlbum, fromSongId?: string) => {
+    if (nowNavidromeId === album.navidromeId && !fromSongId) {
       player.toggle();
       return;
     }
     setStarting(album.navidromeId);
     try {
-      if (!(await playNavidromeAlbum(album))) openListen({ id: album.navidromeId, url: album.url });
+      // The bar leads back here, to this tab and this album.
+      const from = `/musicdex/digital?tab=${tab}&album=${encodeURIComponent(album.navidromeId)}`;
+      if (!(await playNavidromeAlbum(album, fromSongId, from))) openListen({ id: album.navidromeId, url: album.url });
     } catch {
       openListen({ id: album.navidromeId, url: album.url });
     } finally {
@@ -263,8 +292,8 @@ const DigitalPage: React.FC = () => {
     change(album, () => musicService.setDigitalDismissed(album.navidromeId, dismissed));
 
   /** An album with no CD opens in place, its tracks with their plays: why it is to buy. */
-  const toggleTracks = async (album: DigitalAlbum) => {
-    if (expanded === album.navidromeId) { setExpanded(null); return; }
+  const toggleTracks = async (album: DigitalAlbum, keepOpen = false) => {
+    if (expanded === album.navidromeId && !keepOpen) { setExpanded(null); return; }
     setExpanded(album.navidromeId);
     if (tracks[album.navidromeId]) return;
     try {
@@ -276,6 +305,31 @@ const DigitalPage: React.FC = () => {
   };
 
   const activate = (album: DigitalAlbum) => (album.cd ? openDetail(album.cd.id) : toggleTracks(album));
+
+  // ?tab=buy&album=… brings back the album the player's bar was started from, unfolded and in sight: in
+  // that tab while it is still there, else where it went since (off the wish list, into No CD, say).
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const wanted = params.get('album');
+    if (!wanted || all.length === 0) return;
+    navigate({ search: '' }, { replace: true });
+    const album = all.find(entry => entry.navidromeId === wanted);
+    if (!album) return;
+    const holds = (key: Tab) => key !== 'physical' && lists[key].some(entry => entry.navidromeId === wanted);
+    const asked = params.get('tab') as Tab | null;
+    const dismissedHere = lists.dismissed.some(entry => entry.navidromeId === wanted);
+    const target: Tab = asked && holds(asked) ? asked
+      : asked === 'buy' && dismissedHere ? 'buy'
+        : !album.cd ? 'nocd' : album.quality;
+    setTab(target);
+    setQuery('');
+    if (target === 'buy' && dismissedHere) setShowDismissed(true);
+    if (!album.cd) toggleTracks(album, true);
+    window.setTimeout(() => document.getElementById(`digital-${wanted}`)?.scrollIntoView?.({ block: 'center', behavior: 'smooth' }), 50);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search, all]);
 
   const total = all.length;
   const fromCds = all.filter(album => album.cd).length;
@@ -301,7 +355,7 @@ const DigitalPage: React.FC = () => {
     const showWish = !album.cd && (tab === 'buy' || tab === 'nocd');
     const canDismiss = tab === 'buy' && !album.buy?.wished && !dismissedRow;
     return (
-      <li key={album.navidromeId} className={`digital-item ${open ? 'open' : ''}`}>
+      <li key={album.navidromeId} id={`digital-${album.navidromeId}`} className={`digital-item ${open ? 'open' : ''}`}>
         <div
           className="digital-row"
           role="button"
@@ -387,7 +441,7 @@ const DigitalPage: React.FC = () => {
             )}
           </div>
         </div>
-        {open && <TrackList tracks={tracks[album.navidromeId]} />}
+        {open && <TrackList tracks={tracks[album.navidromeId]} onPlay={appleMobile ? undefined : songId => play(album, songId)} />}
       </li>
     );
   };

@@ -55,9 +55,10 @@ interface NavidromeAlbumLike {
 
 /**
  * Plays an album from its files in Navidrome, as the Digital page lists them:
- * one with no CD in the collection too. False when Navidrome gives no file.
+ * one with no CD in the collection too; from one of its songs when given, the
+ * rest of the album after it. False when Navidrome gives no file.
  */
-export const playNavidromeAlbum = async (album: NavidromeAlbumLike): Promise<boolean> => {
+export const playNavidromeAlbum = async (album: NavidromeAlbumLike, fromSongId?: string, from?: string): Promise<boolean> => {
   const files = await musicService.getDigitalTracks(album.navidromeId);
   const tracks: PlayerTrack[] = files
     .filter(file => file.id)
@@ -68,9 +69,10 @@ export const playNavidromeAlbum = async (album: NavidromeAlbumLike): Promise<boo
     id: album.cd?.id ?? null,
     navidromeId: album.navidromeId,
     url: album.url ?? null,
+    from: from ?? null,
     title: album.cd?.title ?? album.name,
     artist: album.artist,
     cover: album.cd?.cover ? musicService.getImageUrl(album.cd.cover) : musicService.navidromeCoverUrl(album.navidromeId),
-  }, tracks, 0);
+  }, tracks, Math.max(0, tracks.findIndex(track => track.songId === fromSongId)));
   return true;
 };

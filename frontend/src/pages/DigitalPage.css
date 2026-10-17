@@ -364,6 +364,65 @@
   color: #e0e0e0;
 }
 
+/* A track's number turns to a round ▶ under the pointer, ❚❚ on the track playing: lighter when hovered, sinking when pressed. */
+.digital-track-number.digital-track-playable {
+  position: relative;
+}
+
+.digital-track-play {
+  position: absolute;
+  top: 50%;
+  right: -6px;
+  width: 24px;
+  height: 24px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0 0 1px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+  font-size: 0.85rem;
+  transform: translateY(-50%);
+  transition: background-color 0.12s ease, transform 0.08s ease;
+}
+
+.digital-tracks li:hover .digital-track-play,
+.digital-track-play:focus-visible {
+  display: inline-flex;
+}
+
+.digital-tracks li:hover .digital-track-playable .digital-track-number-text,
+.digital-track-playable:focus-within .digital-track-number-text {
+  visibility: hidden;
+}
+
+.digital-track-play:hover,
+.digital-track-play:focus-visible {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  outline: none;
+}
+
+.digital-track-play:active {
+  transform: translateY(-50%) scale(0.88);
+}
+
+.digital-tracks li.digital-track-current .digital-track-play {
+  background: rgba(251, 191, 36, 0.16);
+  color: #fbbf24;
+}
+
+.digital-tracks li.digital-track-current .digital-track-play:hover {
+  background: rgba(251, 191, 36, 0.3);
+}
+
+/* The track DexVault plays, in gold. */
+.digital-tracks li.digital-track-current {
+  color: #fbbf24;
+}
+
 .digital-track-number {
   flex: 0 0 28px;
   text-align: right;

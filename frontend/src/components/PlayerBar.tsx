@@ -37,9 +37,10 @@ const PlayerBar: React.FC = () => {
   const last = useRef<{ album: NonNullable<typeof album>; track: NonNullable<typeof track> } | null>(null);
   if (album && track) last.current = { album, track };
   const out = Boolean(shown && album && track);
-  // The CD's card, or the album in Navidrome when the collection has no CD of it.
+  // Back where the album was started (the Digital page's tab), else the CD's card, else the album in Navidrome.
   const open = () => {
-    if (album?.id != null) navigate(`/musicdex?album=${album.id}`);
+    if (album?.from) navigate(album.from);
+    else if (album?.id != null) navigate(`/musicdex?album=${album.id}`);
     else if (album?.url) window.open(album.url, '_blank', 'noopener');
   };
   const length = duration || track?.durationSec || 0;

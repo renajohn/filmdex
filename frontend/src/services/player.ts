@@ -17,6 +17,8 @@ export interface PlayerAlbum {
   /** The album in Navidrome, and its page there, when known. */
   navidromeId?: string | null;
   url?: string | null;
+  /** Where it was started, for the bar to lead back there: the Digital page's tab, say. */
+  from?: string | null;
   title: string;
   artist: string;
   cover: string | null;
