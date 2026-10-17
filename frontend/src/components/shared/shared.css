@@ -781,96 +781,73 @@
   z-index: 10;
 }
 
-.next-banner__remove-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 32px;
-  height: 32px;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  opacity: 0;
-  transform: scale(0.8);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 20;
-  padding: 0;
-}
-
-.next-banner__card:hover .next-banner__remove-btn {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.next-banner__remove-btn:hover {
-  background: linear-gradient(135deg, #dc2626, #991b1b);
-  border-color: rgba(220, 38, 38, 0.5);
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
-}
-
-.next-banner__remove-btn:active {
-  transform: scale(0.95);
-}
-
-/* Shuffle Button */
+/*
+ * Remove (×, top right) and shuffle (top left) on a Next card: the same
+ * dark glass as the round buttons of a cover, a white ring under the
+ * pointer, no colour of their own.
+ */
+.next-banner__remove-btn,
 .next-banner__shuffle-btn {
   position: absolute;
   top: 8px;
-  left: 8px;
-  width: 32px;
-  height: 32px;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(6px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 2px 8px rgba(0, 0, 0, 0.35);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   opacity: 0;
-  transform: scale(0.8);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.15s ease, background-color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
   z-index: 20;
-  padding: 0;
 }
+
+.next-banner__remove-btn { right: 8px; }
+.next-banner__shuffle-btn { left: 8px; }
 
 .next-banner__shuffle-btn svg {
   width: 16px;
   height: 16px;
 }
 
-.next-banner__card:hover .next-banner__shuffle-btn {
+.next-banner__card:hover .next-banner__remove-btn,
+.next-banner__card:hover .next-banner__shuffle-btn,
+.next-banner__remove-btn:focus-visible,
+.next-banner__shuffle-btn:focus-visible,
+.next-banner__shuffle-btn.loading {
   opacity: 1;
-  transform: scale(1);
 }
 
-.next-banner__shuffle-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
-  border-color: rgba(139, 92, 246, 0.5);
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+.next-banner__remove-btn:hover,
+.next-banner__remove-btn:focus-visible,
+.next-banner__shuffle-btn:hover:not(:disabled),
+.next-banner__shuffle-btn:focus-visible {
+  background: rgba(0, 0, 0, 0.85);
+  box-shadow: 0 0 0 1.5px #fff, 0 2px 8px rgba(0, 0, 0, 0.35);
+  outline: none;
 }
 
+.next-banner__remove-btn:active,
 .next-banner__shuffle-btn:active:not(:disabled) {
-  transform: scale(0.95);
+  transform: scale(0.9);
 }
 
 .next-banner__shuffle-btn:disabled {
   cursor: not-allowed;
 }
 
-.next-banner__shuffle-btn.loading {
-  opacity: 1;
-  transform: scale(1);
-  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+/* On a touch screen nothing is hovered: the buttons stay in sight. */
+@media (hover: none) {
+  .next-banner__remove-btn,
+  .next-banner__shuffle-btn {
+    opacity: 1;
+  }
 }
 
 .next-banner__shuffle-spinner {
