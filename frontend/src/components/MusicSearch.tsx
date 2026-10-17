@@ -26,6 +26,7 @@ import { BsCartFill, BsChevronRight, BsHeartFill } from 'react-icons/bs';
 import {
   DIGITAL_ON_KEY, buyOrder, buyReason, isDismissed, isLossy, isSuggested, isToBuy, useDigitalLibrary, type AlbumDigital,
 } from '../utils/digitalLibrary';
+import Button from './shared/Button';
 
 interface MusicSearchProps {
   cds: any;
@@ -959,13 +960,11 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           title="Welcome to MusicDex!"
           description="Your music collection is empty. Add your first album to get started and begin tracking your music library."
           action={
-            <button
-              className="btn btn-primary btn-lg mt-4"
+            <Button variant="primary" icon={<BsDisc />} className="mt-4"
               onClick={onOpenAddDialog}
             >
-              <BsDisc className="me-2" />
               Add Your First Album
-            </button>
+            </Button>
           }
         />
       );

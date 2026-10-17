@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import './ResizeCoversMigrationModal.css';
+import Button, { IconButton } from './shared/Button';
+import { BsX } from 'react-icons/bs';
 
 interface MigrationResult {
   total: number;
@@ -56,13 +58,10 @@ const ResizeCoversMigrationModal = ({ isOpen, onClose, onMigrate }: ResizeCovers
       <div className="resize-covers-modal" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         <div className="resize-covers-modal-header">
           <h2>Resize Album Covers</h2>
-          <button
-            className="resize-covers-modal-close"
+          <IconButton label="Close" className="resize-covers-modal-close"
             onClick={handleClose}
             disabled={isRunning}
-          >
-            ×
-          </button>
+          ><BsX /></IconButton>
         </div>
 
         <div className="resize-covers-modal-body">
@@ -150,27 +149,25 @@ const ResizeCoversMigrationModal = ({ isOpen, onClose, onMigrate }: ResizeCovers
         <div className="resize-covers-modal-footer">
           {!result && !error && !isRunning && (
             <>
-              <button
-                className="btn-secondary"
+              <Button variant="quiet"
                 onClick={handleClose}
                 disabled={isRunning}
               >
                 Cancel
-              </button>
-              <button
-                className="btn-primary"
+              </Button>
+              <Button variant="primary"
                 onClick={handleMigrate}
                 disabled={isRunning}
               >
                 Start Migration
-              </button>
+              </Button>
             </>
           )}
 
           {(result || error) && (
-            <button className="btn-primary" onClick={handleClose}>
+            <Button variant="quiet" onClick={handleClose}>
               Close
-            </button>
+            </Button>
           )}
         </div>
       </div>

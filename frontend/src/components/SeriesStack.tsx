@@ -1,9 +1,10 @@
 
 import React, { useRef, useEffect, useState } from 'react';
-import { Popover, Overlay, Button } from 'react-bootstrap';
+import { Popover, Overlay } from 'react-bootstrap';
 import { BsPencil, BsCheck, BsX, BsPlus } from 'react-icons/bs';
 import BookThumbnail from './BookThumbnail';
 import './SeriesStack.css';
+import Button, { IconButton } from './shared/Button';
 
 interface Book {
   id: number;
@@ -351,20 +352,14 @@ const SeriesStack: React.FC<SeriesStackProps> = ({ seriesName, books, onBookClic
                       className="series-name-input"
                       onClick={(e) => e.stopPropagation()}
                     />
-                    <button className="series-name-btn save" onClick={handleSaveName} title="Save">
-                      <BsCheck size={18} />
-                    </button>
-                    <button className="series-name-btn cancel" onClick={handleCancelEditName} title="Cancel">
-                      <BsX size={18} />
-                    </button>
+                    <IconButton label="Save" tone="confirm" size="sm" className="series-name-btn save" onClick={handleSaveName} title="Save"><BsCheck size={18} /></IconButton>
+                    <IconButton label="Cancel" size="sm" className="series-name-btn cancel" onClick={handleCancelEditName} title="Cancel"><BsX size={18} /></IconButton>
                   </div>
                 ) : (
                   <div className="series-name-display">
                     <h4 className="series-expansion-title">{seriesName}</h4>
                     {onSeriesRename && (
-                      <button className="series-name-btn edit" onClick={handleStartEditName} title="Edit series name">
-                        <BsPencil size={14} />
-                      </button>
+                      <IconButton label="Edit series name" size="sm" className="series-name-btn edit" onClick={handleStartEditName} title="Edit series name"><BsPencil size={14} /></IconButton>
                     )}
                   </div>
                 )}
@@ -397,15 +392,13 @@ const SeriesStack: React.FC<SeriesStackProps> = ({ seriesName, books, onBookClic
               </div>
               {onAddBooksToSeries && (
                 <div className="series-expansion-footer">
-                  <Button
-                    variant="outline-success"
+                  <Button icon={<BsPlus size={18} />}
                     size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       onAddBooksToSeries(seriesName, books);
                     }}
                   >
-                    <BsPlus size={18} className="me-1" />
                     Add Books to Series
                   </Button>
                 </div>

@@ -113,27 +113,6 @@
   min-width: 0;
 }
 
-.add-book-dialog .search-btn {
-  border-radius: 8px;
-  background-color: #fbbf24 !important;
-  border-color: #fbbf24 !important;
-  color: #1a202c !important;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  height: 38px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.add-book-dialog .search-btn:hover {
-  background-color: #f59e0b !important;
-  border-color: #f59e0b !important;
-  color: #1a202c !important;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(251, 191, 36, 0.3);
-}
-
 .add-book-dialog .search-btn:active {
   transform: translateY(0);
   box-shadow: 0 1px 2px rgba(251, 191, 36, 0.2);
@@ -271,10 +250,6 @@
   text-align: center;
 }
 
-.manual-entry-btn {
-  border-radius: 8px;
-}
-
 /* Grouped Search Results */
 .grouped-search-results {
   margin-top: 16px;
@@ -371,30 +346,6 @@
   gap: 8px;
   margin-left: auto;
   flex-shrink: 0;
-}
-
-.header-buttons .quick-add-btn {
-  background-color: #22c55e;
-  border-color: #16a34a;
-  color: #fff;
-  white-space: nowrap;
-}
-
-.header-buttons .quick-add-btn:hover:not(:disabled) {
-  background-color: #16a34a;
-  border-color: #15803d;
-}
-
-.header-buttons .select-book-btn-header {
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #ccc;
-  white-space: nowrap;
-}
-
-.header-buttons .select-book-btn-header:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #fff;
 }
 
 .book-action-buttons {
@@ -510,32 +461,6 @@
   gap: 8px;
 }
 
-.quick-add-buttons .quick-add-btn {
-  background-color: #22c55e;
-  border-color: #16a34a;
-  color: #fff;
-}
-
-.quick-add-buttons .quick-add-btn:hover:not(:disabled) {
-  background-color: #16a34a;
-  border-color: #15803d;
-}
-
-.quick-add-buttons .select-book-btn-header {
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #ccc;
-}
-
-.quick-add-buttons .select-book-btn-header:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #fff;
-}
-
-.select-book-btn-header {
-  white-space: nowrap;
-}
-
 .editions-table-container {
   padding: 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.15);
@@ -589,10 +514,6 @@
   background-color: rgba(255, 255, 255, 0.05);
   border-radius: 4px;
   color: rgba(255, 255, 255, 0.5);
-}
-
-.select-book-btn {
-  white-space: nowrap;
 }
 
 /* Badge styling for dark theme */
@@ -656,9 +577,7 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  z-index: 10;
-  background-color: rgba(0, 0, 0, 0.7);
-}
+  z-index: 10}
 
 .cover-dropzone-content {
   display: flex;
@@ -677,40 +596,8 @@
   margin: 0;
 }
 
-.add-book-dialog .btn-primary {
-  background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
-  color: #1a1a1a !important;
-  border: 1px solid rgba(251, 191, 36, 0.3) !important;
-}
-
-.add-book-dialog .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
-  border-color: rgba(251, 191, 36, 0.5) !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3) !important;
-}
-
-.add-book-dialog .btn-primary:focus {
-  background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
-  border-color: rgba(251, 191, 36, 0.5) !important;
-  box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.25) !important;
-}
-
-.add-book-dialog .btn-primary:disabled {
-  background-color: #555 !important;
-  color: #888 !important;
-  cursor: not-allowed;
-}
-
 .scan-btn {
-  width: 100%;
-  padding: 14px 20px !important;
-  font-size: 1rem !important;
-  font-weight: 600 !important;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  margin-bottom: 8px;
-}
+  margin-bottom: 8px}
 
 .scan-status {
   display: flex;
@@ -748,12 +635,6 @@
 .scan-divider span {
   position: relative;
   z-index: 1;
-}
-
-.scan-fallback-btn {
-  border-radius: 8px;
-  font-weight: 500;
-  padding: 12px 24px;
 }
 
 /* Mobile responsive styles for editions table */
@@ -874,13 +755,7 @@
     padding-right: 12px;
   }
 
-  .select-book-btn {
-    min-width: 100px !important;
-    font-size: 0.75rem;
-    padding: 6px 10px;
-    white-space: nowrap;
-    display: inline-block;
-  }
+  
 
   /* Adjust group header for mobile */
   .group-header-content {
@@ -919,10 +794,7 @@
     width: 100%;
   }
 
-  .select-book-btn-header {
-    width: auto;
-    font-size: 0.85rem;
-  }
+  
 
   .book-action-buttons {
     flex-direction: column;
@@ -959,8 +831,7 @@
 
   .quick-add-buttons .quick-add-btn,
   .quick-add-buttons .select-book-btn-header {
-    flex: 1;
-  }
+    flex: 1}
 
   /* Header buttons in mobile - stack below title */
   .header-buttons {
@@ -969,11 +840,6 @@
   }
 
   .header-buttons .quick-add-btn,
-  .header-buttons .select-book-btn-header {
-    font-size: 0.8rem;
-    padding: 4px 10px;
-  }
-
   /* Ensure table container doesn't cause horizontal scroll on parent */
   .result-group {
     overflow: visible;

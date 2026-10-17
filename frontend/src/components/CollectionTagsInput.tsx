@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FormControl, Dropdown, Badge, Button } from 'react-bootstrap';
+import { FormControl, Dropdown, Badge } from 'react-bootstrap';
 import { BsX, BsPlus } from 'react-icons/bs';
 import apiService from '../services/api';
 import './CollectionTagsInput.css';
+import { IconButton } from './shared/Button';
 
 interface CollectionTagsInputProps {
   value?: string[];
@@ -122,15 +123,13 @@ const CollectionTagsInput = ({
           <Badge key={index} bg="secondary" className="collection-tag">
             {tag}
             {!disabled && (
-              <Button
-                variant="link"
-                size="sm"
-                className="tag-remove-btn"
+              <IconButton label={`Remove ${tag}`}
+                size="sm" className="tag-remove-btn"
                 onClick={() => removeTag(tag)}
                 disabled={disabled}
               >
                 <BsX size={12} />
-              </Button>
+              </IconButton>
             )}
           </Badge>
         ))}

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import apiService from '../services/api';
 import './UnmatchedMovies.css';
+import Button from './shared/Button';
 
 interface UnmatchedMovie {
   title: string;
@@ -289,12 +290,11 @@ const UnmatchedMovies: React.FC<UnmatchedMoviesProps> = ({ importId, onImportCom
           <h3>🎉 All movies processed!</h3>
           <p>All movies from your CSV file have been processed.</p>
           <div className="completion-actions">
-            <button
-              onClick={onImportComplete}
-              className="next-button"
+            <Button variant="primary"
+              onClick={onImportComplete} className="next-button"
             >
               Continue to Import Summary
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -362,16 +362,14 @@ const UnmatchedMovies: React.FC<UnmatchedMoviesProps> = ({ importId, onImportCom
                           min="1900"
                           max="2030"
                         />
-                        <button type="submit" className="search-button" disabled={isLoading}>
+                        <Button variant="primary" type="submit" className="search-button" disabled={isLoading}>
                           {isLoading ? 'Searching...' : 'Search'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleCancelSearch}
-                          className="cancel-button"
+                        </Button>
+                        <Button variant="quiet"
+                          onClick={handleCancelSearch} className="cancel-button"
                         >
                           Cancel
-                        </button>
+                        </Button>
                       </div>
                     </form>
 
@@ -467,12 +465,11 @@ const UnmatchedMovies: React.FC<UnmatchedMoviesProps> = ({ importId, onImportCom
                     </div>
 
                     {movieSuggestions.length > 3 && (
-                      <button
-                        className="show-more-button"
+                      <Button variant="quiet" size="sm" className="show-more-button"
                         onClick={() => toggleExpanded(movie.title)}
                       >
                         {expandedMovies.has(movie.title) ? 'Show Less' : `... Show ${movieSuggestions.length - 3} More`}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 ) : (
@@ -486,29 +483,26 @@ const UnmatchedMovies: React.FC<UnmatchedMoviesProps> = ({ importId, onImportCom
                 {isIgnored ? (
                   <div className="ignored-status">
                     <span className="ignored-text">Ignored</span>
-                    <button
-                      onClick={() => handleUndoIgnore(movie.title)}
-                      className="undo-button"
+                    <Button variant="quiet" size="sm"
+                      onClick={() => handleUndoIgnore(movie.title)} className="undo-button"
                     >
                       Undo
-                    </button>
+                    </Button>
                   </div>
                 ) : (
                   <>
-                    <button
-                      onClick={() => handleSearchMovie(movie.title)}
-                      className="search-button"
+                    <Button variant="primary"
+                      onClick={() => handleSearchMovie(movie.title)} className="search-button"
                       disabled={isLoading}
                     >
                       Search...
-                    </button>
-                    <button
-                      onClick={() => handleIgnoreMovie(movie.title)}
-                      className="ignore-button"
+                    </Button>
+                    <Button size="sm"
+                      onClick={() => handleIgnoreMovie(movie.title)} className="ignore-button"
                       disabled={isResolving}
                     >
                       Ignore
-                    </button>
+                    </Button>
                   </>
                 )}
               </div>
@@ -518,13 +512,12 @@ const UnmatchedMovies: React.FC<UnmatchedMoviesProps> = ({ importId, onImportCom
       </div>
 
       <div className="bulk-actions">
-        <button
-          onClick={handleContinueProcessing}
-          className="continue-processing-button"
+        <Button
+          onClick={handleContinueProcessing} className="continue-processing-button"
           disabled={isResolving}
         >
           Continue processing...
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -108,48 +108,8 @@
   color: #666;
 }
 
-.remove-file {
-  background: none;
-  border: none;
-  font-size: 18px;
-  color: #dc3545;
-  cursor: pointer;
-  padding: 5px;
-  border-radius: 50%;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-}
-
-.remove-file:hover {
-  background-color: #f8d7da;
-}
-
 .import-actions {
   text-align: center;
-}
-
-.import-button {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  padding: 12px 30px;
-  font-size: 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.import-button:hover:not(:disabled) {
-  background-color: #0056b3;
-}
-
-.import-button:disabled {
-  background-color: #6c757d;
-  cursor: not-allowed;
 }
 
 .import-info {

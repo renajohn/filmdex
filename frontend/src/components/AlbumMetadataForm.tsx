@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Modal, Form, Button, Row, Col, Alert, Card, Image } from 'react-bootstrap';
+import { Modal, Form, Row, Col, Alert, Card, Image } from 'react-bootstrap';
 import { BsUpload, BsCheck } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
 import './AlbumMetadataForm.css';
 import Select from './shared/Select';
+import Button from './shared/Button';
 
 interface Release {
   title?: string;
@@ -670,10 +671,8 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
                       style={{ display: 'none' }}
                     />
                     <Button
-                      variant="outline-light"
                       onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadingCover}
-                      className="upload-button me-2"
+                      disabled={uploadingCover} className="upload-button me-2"
                     >
                       <BsUpload className="me-2" />
                       {uploadingCover ? 'Processing...' : 'Front Cover'}
@@ -687,10 +686,8 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
                       style={{ display: 'none' }}
                     />
                     <Button
-                      variant="outline-light"
                       onClick={() => backCoverInputRef.current?.click()}
-                      disabled={uploadingCover}
-                      className="upload-button"
+                      disabled={uploadingCover} className="upload-button"
                     >
                       <BsUpload className="me-2" />
                       {uploadingCover ? 'Processing...' : 'Back Cover'}
@@ -809,11 +806,10 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
         </Form>
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={handleClose} disabled={loading}>
+        <Button onClick={handleClose} disabled={loading}>
           Cancel
         </Button>
-        <Button
-          variant="primary"
+        <Button variant="primary"
           onClick={handleSubmit}
           disabled={loading}
         >

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Button, Row, Col, Badge, Form, Alert } from 'react-bootstrap';
+import { Modal, Row, Col, Badge, Form, Alert } from 'react-bootstrap';
 import { BsPencil, BsTrash, BsBook, BsCalendar, BsTag, BsTranslate, BsFileEarmark, BsStar, BsPerson, BsHouse, BsChatSquareText, BsPlus, BsX, BsCheck, BsArrowLeft, BsDownload, BsFiles, BsChevronDown, BsChevronUp, BsCamera } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import CoverButton from './shared/CoverButton';
@@ -13,6 +13,7 @@ import DetailSteps, { useScrollKeys, useStepKeys } from './shared/DetailSteps';
 import './BookDetailCard.css';
 import './VolumeSelector.css';
 import Select from './shared/Select';
+import Button, { IconButton } from './shared/Button';
 
 interface BookDetailCardProps {
   book: any;
@@ -1573,8 +1574,8 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                           )}
                         </div>
                         <div className="inline-edit-actions">
-                          <button className="save-btn" onClick={saveOwner}>✓</button>
-                          <button className="cancel-btn" onClick={cancelEditingOwner}>✕</button>
+                          <IconButton label="Save" tone="confirm" size="sm" className="save-btn" onClick={saveOwner}><BsCheck /></IconButton>
+                          <IconButton label="Cancel" size="sm" className="cancel-btn" onClick={cancelEditingOwner}><BsX /></IconButton>
                         </div>
                       </div>
                     ) : (
@@ -1589,13 +1590,10 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                         ) : (
                           <span className="placeholder-value">None</span>
                         )}
-                        <button 
-                          className="inline-edit-btn" 
+                        <IconButton label="Edit owner" size="sm" className="inline-edit-btn" 
                           onClick={(e) => { e.stopPropagation(); startEditingOwner(); }}
                           title="Edit owner"
-                        >
-                          <BsPencil size={12} />
-                        </button>
+                        ><BsPencil size={12} /></IconButton>
                       </>
                     )}
                   </div>
@@ -1653,8 +1651,8 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                           className="series-number-input"
                         />
                         <div className="inline-edit-actions">
-                          <button className="save-btn" onClick={saveSeries}>✓</button>
-                          <button className="cancel-btn" onClick={cancelEditingSeries}>✕</button>
+                          <IconButton label="Save" tone="confirm" size="sm" className="save-btn" onClick={saveSeries}><BsCheck /></IconButton>
+                          <IconButton label="Cancel" size="sm" className="cancel-btn" onClick={cancelEditingSeries}><BsX /></IconButton>
                         </div>
                       </div>
                     ) : (
@@ -1670,13 +1668,10 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                         ) : (
                           <span className="placeholder-value">None</span>
                         )}
-                        <button 
-                          className="inline-edit-btn" 
+                        <IconButton label="Edit series" size="sm" className="inline-edit-btn" 
                           onClick={(e) => { e.stopPropagation(); startEditingSeries(); }}
                           title="Edit series"
-                        >
-                          <BsPencil size={12} />
-                        </button>
+                        ><BsPencil size={12} /></IconButton>
                       </>
                     )}
                   </div>
@@ -1741,16 +1736,11 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                         )}
                       </div>
                       {isDescriptionLong && (
-                        <button 
-                          className="description-toggle-btn"
+                        <Button variant="quiet" size="sm" className="description-toggle-btn"
                           onClick={() => setDescriptionExpanded(!descriptionExpanded)}
                         >
-                          {descriptionExpanded ? (
-                            <>Show less <BsChevronUp className="ms-1" /></>
-                          ) : (
-                            <>Read more <BsChevronDown className="ms-1" /></>
-                          )}
-                        </button>
+                        {descriptionExpanded ? <>Show less <BsChevronUp /></> : <>Read more <BsChevronDown /></>}
+                      </Button>
                       )}
                     </div>
                   )}
@@ -1762,12 +1752,11 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                         <strong>Reviews {comments.length > 0 && `(${comments.length})`}</strong>
                           </div>
                       {!showCommentModal && (
-                        <Button 
-                          variant="outline-primary" 
+                        <Button icon={<BsPlus />} 
                           size="sm" 
                           onClick={handleAddComment}
                         >
-                          <BsPlus className="me-1" />Add Review
+                          Add Review
                         </Button>
                       )}
                           </div>
@@ -1863,11 +1852,10 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                             )}
                           </Form.Group>
                           <div className="d-flex justify-content-end gap-2">
-                            <Button variant="link" size="sm" onClick={handleCloseCommentModal} disabled={loadingComments} className="text-secondary">
+                            <Button variant="quiet" size="sm" onClick={handleCloseCommentModal} disabled={loadingComments}>
                               Cancel
                             </Button>
-                            <Button 
-                              variant="primary" 
+                            <Button variant="primary" 
                               size="sm"
                               onClick={handleSaveComment}
                               disabled={loadingComments}
@@ -1901,19 +1889,15 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                                   <div className="comment-actions">
                                     {deletingCommentId === comment.id ? (
                                       <>
-                                        <Button 
-                                          variant="link" 
-                                          size="sm" 
-                                          className="text-danger p-0 me-2"
+                                        <Button variant="danger" 
+                                          size="sm" className="me-2"
                                           onClick={() => handleDeleteComment(comment.id)}
                                           title="Confirm deletion"
                                         >
                                           Confirm deletion
                                         </Button>
-                                        <Button
-                                          variant="link"
+                                        <Button variant="quiet"
                                           size="sm"
-                                          className="text-secondary p-0"
                                           onClick={() => setDeletingCommentId(null)}
                                           title="Cancel"
                                         >
@@ -1922,19 +1906,15 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                                       </>
                                     ) : (
                                       <>
-                                        <Button
-                                          variant="link"
-                                          size="sm"
-                                          className="text-primary p-0 me-2"
+                                        <Button variant="quiet"
+                                          size="sm" className="me-2"
                                           onClick={() => handleEditComment(comment)}
                                           title="Edit review"
                                         >
                                           Edit
                                         </Button>
-                                        <Button
-                                          variant="link"
+                                        <Button variant="danger"
                                           size="sm"
-                                          className="text-danger p-0"
                                           onClick={() => handleDeleteComment(comment.id)}
                                           title="Delete review"
                                         >
@@ -2101,8 +2081,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                                 Format: {ebookInfo.format} • Size: {ebookInfo.sizeFormatted}
                               </small>
                             </div>
-                            <Button
-                              variant="outline-light"
+                            <Button icon={<BsDownload />}
                               size="sm"
                               onClick={async () => {
                                 try {
@@ -2113,7 +2092,6 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                                 }
                               }}
                             >
-                              <BsDownload className="me-1" />
                               Download
                             </Button>
                           </div>
@@ -2122,8 +2100,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                         <div className="d-flex align-items-center gap-2">
                           <BsFileEarmark className="me-2" />
                           <span>{book.ebookFile.split('_').slice(3).join('_') || book.ebookFile}</span>
-                          <Button
-                            variant="outline-light"
+                          <Button icon={<BsDownload />}
                             size="sm"
                             onClick={async () => {
                               try {
@@ -2132,10 +2109,8 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                                 console.error('Error downloading ebook:', error);
                                 alert('Failed to download ebook: ' + (error as any).message);
                               }
-                            }}
-                            className="ms-2"
+                            }} className="ms-2"
                           >
-                            <BsDownload className="me-1" />
                             Download
                           </Button>
                         </div>
@@ -2269,8 +2244,8 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                       )}
                     </div>
                     <div className="inline-edit-actions">
-                      <button className="save-btn" onClick={saveOwner}>✓</button>
-                      <button className="cancel-btn" onClick={cancelEditingOwner}>✕</button>
+                      <IconButton label="Save" tone="confirm" size="sm" className="save-btn" onClick={saveOwner}><BsCheck /></IconButton>
+                      <IconButton label="Cancel" size="sm" className="cancel-btn" onClick={cancelEditingOwner}><BsX /></IconButton>
                     </div>
                   </div>
                 ) : (
@@ -2285,13 +2260,10 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                     ) : (
                       <span className="placeholder-value">None</span>
                     )}
-                    <button 
-                      className="inline-edit-btn" 
+                    <IconButton label="Edit owner" size="sm" className="inline-edit-btn" 
                       onClick={(e) => { e.stopPropagation(); startEditingOwner(); }}
                       title="Edit owner"
-                    >
-                      <BsPencil size={12} />
-                    </button>
+                    ><BsPencil size={12} /></IconButton>
                   </>
                 )}
               </div>
@@ -2345,8 +2317,8 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                       className="series-number-input"
                     />
                     <div className="inline-edit-actions">
-                      <button className="save-btn" onClick={saveSeries}>✓</button>
-                      <button className="cancel-btn" onClick={cancelEditingSeries}>✕</button>
+                      <IconButton label="Save" tone="confirm" size="sm" className="save-btn" onClick={saveSeries}><BsCheck /></IconButton>
+                      <IconButton label="Cancel" size="sm" className="cancel-btn" onClick={cancelEditingSeries}><BsX /></IconButton>
                     </div>
                   </div>
                 ) : (
@@ -2362,13 +2334,10 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                     ) : (
                       <span className="placeholder-value">None</span>
                     )}
-                    <button 
-                      className="inline-edit-btn" 
+                    <IconButton label="Edit series" size="sm" className="inline-edit-btn" 
                       onClick={(e) => { e.stopPropagation(); startEditingSeries(); }}
                       title="Edit series"
-                    >
-                      <BsPencil size={12} />
-                    </button>
+                    ><BsPencil size={12} /></IconButton>
                   </>
                 )}
               </div>
@@ -2392,12 +2361,11 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                     <strong>Reviews {comments.length > 0 && `(${comments.length})`}</strong>
                   </div>
                   {!showCommentModal && (
-                    <Button 
-                      variant="outline-primary" 
+                    <Button icon={<BsPlus />} 
                       size="sm" 
                       onClick={handleAddComment}
                     >
-                      <BsPlus className="me-1" />Add Review
+                      Add Review
                     </Button>
                   )}
                 </div>
@@ -2411,14 +2379,12 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                   }}>
                     <div className="d-flex align-items-center justify-content-between mb-3">
                       <strong>{editingComment ? 'Edit Review' : 'Add Review'}</strong>
-                      <Button 
-                        variant="link" 
-                        size="sm" 
-                        className="text-secondary p-0"
+                      <IconButton label="Close" 
+                        size="sm"
                         onClick={handleCloseCommentModal}
                       >
                         <BsX size={20} />
-                      </Button>
+                      </IconButton>
                     </div>
                     {commentErrors.submit && (
                       <div className="alert alert-danger mb-3">{commentErrors.submit}</div>
@@ -2504,11 +2470,10 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                         )}
                       </Form.Group>
                       <div className="d-flex justify-content-end gap-2">
-                        <Button variant="secondary" onClick={handleCloseCommentModal} disabled={loadingComments}>
+                        <Button onClick={handleCloseCommentModal} disabled={loadingComments}>
                           Cancel
                         </Button>
-                        <Button 
-                          variant="primary" 
+                        <Button variant="primary" 
                           onClick={handleSaveComment}
                           disabled={loadingComments}
                         >
@@ -2541,19 +2506,15 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                               <div className="comment-actions">
                                 {deletingCommentId === comment.id ? (
                                   <>
-                                    <Button 
-                                      variant="link" 
-                                      size="sm" 
-                                      className="text-danger p-0 me-2"
+                                    <Button variant="danger" 
+                                      size="sm" className="me-2"
                                       onClick={() => handleDeleteComment(comment.id)}
                                       title="Confirm deletion"
                                     >
                                       Confirm deletion
                                     </Button>
-                                    <Button
-                                      variant="link"
+                                    <Button variant="quiet"
                                       size="sm"
-                                      className="text-secondary p-0"
                                       onClick={() => setDeletingCommentId(null)}
                                       title="Cancel"
                                     >
@@ -2562,19 +2523,15 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                                   </>
                                 ) : (
                                   <>
-                                    <Button
-                                      variant="link"
-                                      size="sm"
-                                      className="text-primary p-0 me-2"
+                                    <Button variant="quiet"
+                                      size="sm" className="me-2"
                                       onClick={() => handleEditComment(comment)}
                                       title="Edit review"
                                     >
                                       Edit
                                     </Button>
-                                    <Button
-                                      variant="link"
+                                    <Button variant="danger"
                                       size="sm"
-                                      className="text-danger p-0"
                                       onClick={() => handleDeleteComment(comment.id)}
                                       title="Delete review"
                                     >
@@ -2634,16 +2591,11 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                     )}
                   </div>
                   {isDescriptionLong && (
-                    <button 
-                      className="description-toggle-btn"
+                    <Button variant="quiet" size="sm" className="description-toggle-btn"
                       onClick={() => setDescriptionExpanded(!descriptionExpanded)}
                     >
-                      {descriptionExpanded ? (
-                        <>Show less <BsChevronUp className="ms-1" /></>
-                      ) : (
-                        <>Read more <BsChevronDown className="ms-1" /></>
-                      )}
-                    </button>
+                        {descriptionExpanded ? <>Show less <BsChevronUp /></> : <>Read more <BsChevronDown /></>}
+                      </Button>
                   )}
                 </div>
               )}
@@ -2781,8 +2733,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                             Format: {ebookInfo.format} • Size: {ebookInfo.sizeFormatted}
                           </small>
                         </div>
-                        <Button
-                          variant="outline-light"
+                        <Button icon={<BsDownload />}
                           size="sm"
                           onClick={async () => {
                             try {
@@ -2793,7 +2744,6 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                             }
                           }}
                         >
-                          <BsDownload className="me-1" />
                           Download
                         </Button>
                       </div>
@@ -2802,8 +2752,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                     <div className="d-flex align-items-center gap-2">
                       <BsFileEarmark className="me-2" />
                       <span>{book.ebookFile.split('_').slice(3).join('_') || book.ebookFile}</span>
-                      <Button
-                        variant="outline-light"
+                      <Button icon={<BsDownload />}
                         size="sm"
                         onClick={async () => {
                           try {
@@ -2812,10 +2761,8 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                             console.error('Error downloading ebook:', error);
                             alert('Failed to download ebook: ' + (error as any).message);
                           }
-                        }}
-                        className="ms-2"
+                        }} className="ms-2"
                       >
-                        <BsDownload className="me-1" />
                         Download
                       </Button>
                     </div>
@@ -2829,12 +2776,11 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                     <BsChatSquareText className="me-2" />
                     <strong>Reviews {comments.length > 0 && `(${comments.length})`}</strong>
                   </div>
-                  <Button 
-                    variant="outline-primary" 
+                  <Button icon={<BsPlus />} 
                     size="sm" 
                     onClick={handleAddComment}
                   >
-                    <BsPlus className="me-1" />Add Review
+                    Add Review
                   </Button>
                 </div>
                 {loadingComments ? (
@@ -2857,45 +2803,37 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                           <div className="comment-actions">
                             {deletingCommentId === comment.id ? (
                               <>
-                                <Button 
-                                  variant="link" 
-                                  size="sm" 
-                                  className="text-danger p-0 me-2"
+                                <Button variant="danger" 
+                                  size="sm" className="me-2"
                                   onClick={() => handleDeleteComment(comment.id)}
                                   title="Confirm deletion"
                                 >
                                   Confirm deletion
                                 </Button>
-                                <Button 
-                                  variant="link" 
-                                  size="sm" 
-                                  className="text-secondary p-0"
+                                <IconButton label="Cancel" 
+                                  size="sm"
                                   onClick={handleCancelDelete}
                                   title="Cancel"
                                 >
                                   <BsX />
-                                </Button>
+                                </IconButton>
                               </>
                             ) : (
                               <>
-                                <Button 
-                                  variant="link" 
-                                  size="sm" 
-                                  className="text-primary p-0 me-2"
+                                <IconButton label="Edit review" 
+                                  size="sm" className="me-2"
                                   onClick={() => handleEditComment(comment)}
                                   title="Edit review"
                                 >
                                   <BsPencil />
-                                </Button>
-                                <Button 
-                                  variant="link" 
-                                  size="sm" 
-                                  className="text-danger p-0"
+                                </IconButton>
+                                <IconButton label="Delete review" tone="danger" 
+                                  size="sm"
                                   onClick={() => handleDeleteComment(comment.id)}
                                   title="Delete review"
                                 >
                                   <BsTrash />
-                                </Button>
+                                </IconButton>
                               </>
                             )}
                           </div>
@@ -2946,10 +2884,10 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                       )}
                     </div>
                     <div>
-                      <Button variant="outline-secondary" size="sm" onClick={selectAllVolumes} className="me-2">
+                      <Button size="sm" onClick={selectAllVolumes} className="me-2">
                         Select All
                       </Button>
-                      <Button variant="outline-secondary" size="sm" onClick={deselectAllVolumes}>
+                      <Button size="sm" onClick={deselectAllVolumes}>
                         Deselect All
                       </Button>
                     </div>
@@ -3064,11 +3002,10 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
         <Modal.Footer>
           {view === 'edit' ? (
             <>
-              <Button variant="secondary" onClick={handleEditCancel} disabled={updatingBook}>
+              <Button onClick={handleEditCancel} disabled={updatingBook}>
                 Cancel
               </Button>
-              <Button 
-                variant="warning" 
+              <Button variant="primary" 
                 onClick={() => {
                   // Trigger form submit - find the form inside BookForm's modal
                   const form = editFormRef.current?.querySelector('form');
@@ -3091,12 +3028,10 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
             </>
           ) : view === 'volumes' ? (
             <>
-              <Button variant="secondary" onClick={handleBackToDetail} disabled={enrichingVolumes}>
-                <BsArrowLeft className="me-2" />
+              <Button icon={<BsArrowLeft />} onClick={handleBackToDetail} disabled={enrichingVolumes}>
                 Back
               </Button>
-              <Button
-                variant="warning"
+              <Button variant="primary"
                 onClick={handleAddSelectedVolumes}
                 disabled={enrichingVolumes || selectedVolumes.size === 0}
                 style={{ backgroundColor: '#fbbf24', borderColor: '#fbbf24', color: '#1a202c' }}
@@ -3118,36 +3053,28 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
               <div className="book-detail-footer-buttons d-flex justify-content-between w-100">
                 <div className="book-detail-footer-left">
                   {book.series && (
-                    <Button 
-                      variant="outline-warning" 
+                    <Button icon={<BsPlus />} 
                       onClick={handleShowVolumes}
-                      style={{ backgroundColor: 'rgba(251, 191, 36, 0.1)', borderColor: '#fbbf24', color: '#fbbf24' }}
-                      className="me-2"
+                      style={{ backgroundColor: 'rgba(251, 191, 36, 0.1)', borderColor: '#fbbf24', color: '#fbbf24' }} className="me-2"
                     >
-                      <BsPlus className="me-2" />
                       Add Next Volume
                     </Button>
                   )}
                 </div>
                 <div className="book-detail-footer-right">
-                  <Button 
-                    variant="outline-secondary" 
-                    onClick={handleShowEdit}
-                    className="me-2"
+                  <Button icon={<BsPencil />} 
+                    onClick={handleShowEdit} className="me-2"
                   >
-                    <BsPencil className="me-2" />
                     Edit
                   </Button>
-                  <Button 
-                    ref={deleteBtnRef}
-                    variant={confirmDelete ? "danger" : "outline-danger"} 
-                    onClick={handleDelete}
-                    className="me-2"
+                  <Button variant="danger" active={confirmDelete} 
+                    ref={deleteBtnRef} 
+                    onClick={handleDelete} className="me-2"
                   >
                     <BsTrash className="me-2" />
                     {confirmDelete ? 'Confirm Delete' : 'Delete'}
                   </Button>
-                  <Button variant="secondary" onClick={handleClose}>
+                  <Button onClick={handleClose}>
                     Close
                   </Button>
                 </div>

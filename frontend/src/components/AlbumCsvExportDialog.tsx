@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BsX, BsDownload } from 'react-icons/bs';
 import './AlbumCsvExportDialog.css';
+import Button, { IconButton } from './shared/Button';
 
 interface AlbumCsvExportDialogProps {
   isOpen: boolean;
@@ -121,13 +122,9 @@ const AlbumCsvExportDialog: React.FC<AlbumCsvExportDialogProps> = ({ isOpen, onC
       <div className="album-csv-export-dialog">
         <div className="album-csv-export-header">
           <h2>Export Albums to CSV</h2>
-          <button
-            className="album-csv-export-close"
+          <IconButton label="Close dialog" className="album-csv-export-close"
             onClick={onClose}
-            aria-label="Close dialog"
-          >
-            <BsX />
-          </button>
+          ><BsX /></IconButton>
         </div>
 
         <div className="album-csv-export-content">
@@ -137,18 +134,16 @@ const AlbumCsvExportDialog: React.FC<AlbumCsvExportDialogProps> = ({ isOpen, onC
           </p>
 
           <div className="album-csv-export-controls">
-            <button
-              className="album-csv-export-control-btn"
+            <Button variant="quiet" size="sm" className="album-csv-export-control-btn"
               onClick={handleSelectAll}
             >
               Select All
-            </button>
-            <button
-              className="album-csv-export-control-btn"
+            </Button>
+            <Button variant="quiet" size="sm" className="album-csv-export-control-btn"
               onClick={handleSelectNone}
             >
               Select None
-            </button>
+            </Button>
           </div>
 
           <div className="album-csv-export-columns">
@@ -168,20 +163,17 @@ const AlbumCsvExportDialog: React.FC<AlbumCsvExportDialogProps> = ({ isOpen, onC
         </div>
 
         <div className="album-csv-export-footer">
-          <button
-            className="album-csv-export-cancel-btn"
+          <Button variant="quiet" className="album-csv-export-cancel-btn"
             onClick={onClose}
           >
             Cancel
-          </button>
-          <button
-            className="album-csv-export-export-btn"
+          </Button>
+          <Button variant="primary" icon={<BsDownload className="album-csv-export-icon" />} className="album-csv-export-export-btn"
             onClick={handleExport}
             disabled={!Object.values(selectedColumns).some(selected => selected)}
           >
-            <BsDownload className="album-csv-export-icon" />
             Export CSV
-          </button>
+          </Button>
         </div>
       </div>
     </div>

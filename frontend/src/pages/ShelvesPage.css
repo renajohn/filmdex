@@ -319,31 +319,7 @@
 }
 
 .shelf-edit {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  color: #9aa4b2;
-}
-
-.shelf-edit:hover,
-.shelf-edit:focus-visible,
-.shelf-edit.active {
-  color: #f0b73c;
-  background: rgba(255, 255, 255, 0.06);
-  outline: none;
-}
-
-.shelf-edit:disabled {
-  color: #4b525c;
-  background: none;
-}
+  flex: 0 0 auto}
 
 /* The arrows to the shelf before and the next name the shelf they lead to. */
 .shelf-move {
@@ -610,25 +586,7 @@
 }
 
 .furniture-add-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 72px;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  color: #9aa4b2;
-  font-size: 0.95rem;
-}
-
-.furniture-add-button:hover,
-.furniture-add-button:focus-visible {
-  color: #f0b73c;
-  background: rgba(255, 255, 255, 0.04);
-  outline: none;
-}
+  min-height: 72px}
 
 .furniture-shelves {
   list-style: none;
@@ -858,13 +816,6 @@
 .furniture-capacity .form-control {
   width: 64px;
   text-align: right;
-}
-
-.furniture-lock {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
 }
 
 .furniture-break {

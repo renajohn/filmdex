@@ -235,15 +235,7 @@
 }
 
 .error-close {
-  background: none;
-  border: none;
-  font-size: 18px;
-  font-weight: bold;
-  color: #721c24;
-  cursor: pointer;
-  padding: 0;
-  margin-left: 10px;
-}
+  margin-left: 10px}
 
 /* Responsive styles */
 @media (max-width: 768px) {

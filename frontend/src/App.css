@@ -173,23 +173,7 @@
 .search-clear-button {
   position: absolute;
   right: 12px;
-  background: none;
-  border: none;
-  color: #888;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  z-index: 1;
-}
-
-.search-clear-button:hover {
-  background: #444;
-  color: #f8f9fa;
-}
+  z-index: 1}
 
 .search-filter-button {
   position: absolute;
@@ -227,8 +211,7 @@
 
 /* Adjust clear button position when filter button is present */
 .search-input-container:has(.search-filter-button) .search-clear-button {
-  right: 48px;
-}
+  right: 48px}
 
 /* Back button styling for analytics page */
 .App-title .back-button {

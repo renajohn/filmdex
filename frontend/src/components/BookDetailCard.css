@@ -412,9 +412,6 @@
 }
 
 /* Very small screens - adjust ribbon further */
-@media (max-width: 480px) {
-
-}
 
 .book-detail-modal .book-cover-container {
   margin-bottom: 1rem;
@@ -511,21 +508,7 @@
 
 /* Inline edit button */
 .inline-edit-btn {
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.3);
-  cursor: pointer;
-  padding: 4px 6px;
-  margin-left: 6px;
-  border-radius: 4px;
-  transition: all 0.2s;
-  vertical-align: middle;
-}
-
-.inline-edit-btn:hover {
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.15);
-}
+  margin-left: 6px}
 
 .placeholder-value {
   color: rgba(255, 255, 255, 0.4);
@@ -635,24 +618,6 @@
   transition: all 0.2s;
   padding: 0;
   flex-shrink: 0;
-}
-
-.inline-edit-actions .save-btn {
-  background: rgba(34, 197, 94, 0.25);
-  color: #22c55e;
-}
-
-.inline-edit-actions .save-btn:hover {
-  background: rgba(34, 197, 94, 0.5);
-}
-
-.inline-edit-actions .cancel-btn {
-  background: rgba(239, 68, 68, 0.25);
-  color: #ef4444;
-}
-
-.inline-edit-actions .cancel-btn:hover {
-  background: rgba(239, 68, 68, 0.5);
 }
 
 /* Input with dropdown wrapper */
@@ -1240,32 +1205,7 @@
 }
 
 .description-toggle-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  margin-top: 0.75rem;
-  padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(251, 191, 36, 0.08) 100%);
-  border: 1px solid rgba(251, 191, 36, 0.3);
-  border-radius: 20px;
-  color: #fbbf24;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.25s ease;
-}
-
-.description-toggle-btn:hover {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(251, 191, 36, 0.15) 100%);
-  border-color: rgba(251, 191, 36, 0.5);
-  transform: translateY(-1px);
-  box-shadow: 0 3px 12px rgba(251, 191, 36, 0.2);
-}
-
-.description-toggle-btn:active {
-  transform: translateY(0);
-}
+  margin-top: 0.75rem}
 
 .info-section {
   margin-top: 1rem;
@@ -1394,16 +1334,6 @@
   display: flex;
   align-items: center;
   gap: 0.25rem;
-}
-
-.comment-actions .btn-link {
-  text-decoration: none;
-  padding: 0.25rem 0.5rem;
-  line-height: 1;
-}
-
-.comment-actions .btn-link:hover {
-  opacity: 0.8;
 }
 
 /* Read & Gone, Borrowed, Wishlist (CoverTagStack, cover.css), top left of the cover. */
@@ -1540,7 +1470,6 @@
   text-align: center;
   margin-top: 4px;
 }
-
 
 /* The title takes the rest of the header, so ‹ › stay put whatever its length. */
 .book-detail-modal .modal-title {

@@ -115,32 +115,6 @@
   transition: all 0.2s ease;
 }
 
-.btn-primary {
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  color: #1a1a1a;
-  border: 1px solid rgba(251, 191, 36, 0.3);
-  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);
-}
-
-.btn-primary:hover {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  box-shadow: 0 6px 16px rgba(251, 191, 36, 0.3);
-  transform: translateY(-1px);
-}
-
-.btn-secondary {
-  background: transparent;
-  color: #f8f9fa;
-  border: 1px solid #444;
-}
-
-.btn-secondary:hover {
-  background: #2a2a2a;
-  color: #f8f9fa;
-  border-color: #555;
-  transform: translateY(-1px);
-}
-
 /* Responsive design */
 @media (max-width: 768px) {
   .column-mapping-modal {

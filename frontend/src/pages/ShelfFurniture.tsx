@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Form } from 'react-bootstrap';
+import { Form } from 'react-bootstrap';
 import { BsArrowBarDown, BsLock, BsPencil, BsPlusLg, BsTrash, BsUnlock, BsX } from 'react-icons/bs';
 import shelvingService, {
   type ShelfLevel, type ShelfSection, type ShelfUnit, type ShelvedItem, type ShelvingPlan,
 } from '../services/shelvingService';
 import { SECTION_LABELS } from './shelfLabels';
 import Select from '../components/shared/Select';
+import Button, { IconButton } from '../components/shared/Button';
 
 interface Props {
   plan: ShelvingPlan;
@@ -73,7 +74,7 @@ const ShelfPanel: React.FC<PanelProps> = ({ level, unit, items, run, onShowShelf
       <div className="furniture-panel-head">
         <strong>{level.code}</strong>
         <span className="furniture-panel-figures">{level.used} of {level.capacity} cases taken</span>
-        <button type="button" className="shelf-edit" aria-label={`Close ${level.code}`} onClick={onClose}><BsX /></button>
+        <IconButton label={`Close ${level.code}`} size="sm" className="shelf-edit" onClick={onClose}><BsX /></IconButton>
       </div>
 
       <div className="furniture-panel-field">
@@ -105,7 +106,7 @@ const ShelfPanel: React.FC<PanelProps> = ({ level, unit, items, run, onShowShelf
         {level.section && (
           <div className="furniture-panel-field">
             <span className="furniture-panel-label">Once arranged</span>
-            <Button size="sm" variant={level.locked ? 'success' : 'outline-secondary'} className="furniture-lock"
+            <Button active={Boolean(level.locked)} size="sm" className="furniture-lock"
               disabled={!level.locked && inOrder === 0}
               title={level.locked ? 'Keeps what it holds now. Click to let the order fill it again.' : inOrder === 0 ? 'Nothing stands on it in order to keep' : 'Keeps what it holds now, whatever comes before in the order'}
               onClick={() => run(() => shelvingService.updateLevel(level.id, { locked: !level.locked }))}>
@@ -119,7 +120,7 @@ const ShelfPanel: React.FC<PanelProps> = ({ level, unit, items, run, onShowShelf
         <div className="furniture-break">
           <BsArrowBarDown aria-hidden="true" />
           <span>No room from <strong>{level.breakBefore}</strong>: it and the ones after went on to the next shelf.</span>
-          <Button size="sm" variant="outline-secondary" onClick={() => run(() => shelvingService.updateLevel(level.id, { breakBefore: null }))}>
+          <Button size="sm" onClick={() => run(() => shelvingService.updateLevel(level.id, { breakBefore: null }))}>
             Forget
           </Button>
         </div>
@@ -176,8 +177,8 @@ const UnitColumn: React.FC<UnitProps> = ({ unit, itemsOf, selected, onSelect, ru
       <div className="furniture-unit-heading">
         <h3>{unit.letter}</h3>
         <span className="furniture-unit-meta">{unit.levels.length} shelves · {unit.capacity} cases each</span>
-        <button type="button" className={`shelf-edit ${editing ? 'active' : ''}`} aria-label={`Set up unit ${unit.letter}`}
-          aria-expanded={editing} onClick={() => { setEditing(!editing); setConfirmDelete(false); }}><BsPencil /></button>
+        <IconButton label={`Set up unit ${unit.letter}`} size="sm" className="shelf-edit" active={editing}
+          aria-expanded={editing} onClick={() => { setEditing(!editing); setConfirmDelete(false); }}><BsPencil /></IconButton>
       </div>
       {editing && (
         <Form className="furniture-unit-edit" onSubmit={event => {
@@ -199,12 +200,12 @@ const UnitColumn: React.FC<UnitProps> = ({ unit, itemsOf, selected, onSelect, ru
             <Form.Label>Cases per shelf</Form.Label>
             <Form.Control size="sm" type="number" min={1} value={capacity} onChange={event => setCapacity(event.target.value)} />
           </Form.Group>
-          <Button size="sm" variant="warning" type="submit" className="furniture-span">Save</Button>
+          <Button variant="primary" size="sm" type="submit" className="furniture-span">Save</Button>
           <div className="furniture-unit-tools furniture-span">
             {confirmDelete ? (
-              <Button size="sm" variant="danger" onClick={() => run(() => shelvingService.deleteUnit(unit.id))}>Delete {unit.letter}?</Button>
+              <Button variant="danger" size="sm" onClick={() => run(() => shelvingService.deleteUnit(unit.id))}>Delete {unit.letter}?</Button>
             ) : (
-              <Button size="sm" variant="outline-danger" aria-label={`Delete unit ${unit.letter}`} onClick={() => setConfirmDelete(true)}><BsTrash /> Delete</Button>
+              <Button variant="danger" icon={<BsTrash />} size="sm" aria-label={`Delete unit ${unit.letter}`} onClick={() => setConfirmDelete(true)}>Delete</Button>
             )}
           </div>
         </Form>
@@ -308,7 +309,7 @@ const ShelfFurniture: React.FC<Props> = ({ plan, run, onShowShelf, focusLevelId 
                 <h3>{letter.toUpperCase() || '?'}</h3>
                 <span className="furniture-unit-meta">New unit</span>
                 {plan.units.length > 0 && (
-                  <button type="button" className="shelf-edit" aria-label="Cancel adding a unit" onClick={() => setAdding(false)}><BsX /></button>
+                  <IconButton label="Cancel adding a unit" size="sm" className="shelf-edit" onClick={() => setAdding(false)}><BsX /></IconButton>
                 )}
               </div>
               <Form.Group controlId="furniture-letter" className="furniture-unit-letter">
@@ -333,13 +334,12 @@ const ShelfFurniture: React.FC<Props> = ({ plan, run, onShowShelf, focusLevelId 
               <p className="furniture-panel-hint furniture-span">
                 A case is a Blu-ray or CD jewel case; a DVD takes 1.2. You can give each shelf its own section and room afterwards.
               </p>
-              <Button size="sm" variant="warning" type="submit" className="furniture-span" disabled={!letter.trim()}>Add unit</Button>
+              <Button variant="primary" size="sm" type="submit" className="furniture-span" disabled={!letter.trim()}>Add unit</Button>
             </Form>
           ) : (
-            <button type="button" className="furniture-add-button" onClick={() => setAdding(true)}>
-              <BsPlusLg aria-hidden="true" />
+            <Button size="sm" icon={<BsPlusLg aria-hidden="true" />} className="furniture-add-button" onClick={() => setAdding(true)}>
               Add a unit
-            </button>
+            </Button>
           )}
         </section>
       </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import './CompactRatingsWidget.css';
+import { IconButton } from './shared/Button';
 
 interface CompactRatingsWidgetProps {
   tmdbRating?: number | null;
@@ -50,13 +51,11 @@ const CompactRatingsWidget = ({
     <div className="compact-ratings-widget">
       <div className="ratings-header">
         <h3>Ratings</h3>
-        <button
-          className="refresh-btn"
+        <IconButton label="Refresh ratings from external sources" size="sm" className="refresh-btn"
           onClick={onRefresh}
           disabled={refreshing}
           title="Refresh ratings from external sources"
-        >
-          <svg
+        ><svg
             className={`refresh-icon ${refreshing ? 'spinning' : ''}`}
             width="16"
             height="16"
@@ -70,8 +69,7 @@ const CompactRatingsWidget = ({
               fill="currentColor"
               d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"
             />
-          </svg>
-        </button>
+          </svg></IconButton>
       </div>
 
       <div className="ratings-container">

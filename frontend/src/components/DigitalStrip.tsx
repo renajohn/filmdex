@@ -3,6 +3,7 @@ import { BsArrowClockwise, BsCartFill, BsCloud } from 'react-icons/bs';
 import type { DigitalLibrary, EditionAdoption } from '../services/musicService';
 import { NotRippedIcon } from './shared/DigitalMarks';
 import './DigitalStrip.css';
+import { IconButton } from './shared/Button';
 
 /**
  * The head of MusicDex with Digital on, laid in the collection's own head:
@@ -60,9 +61,7 @@ export const DigitalRefresh: React.FC<DigitalRefreshProps> = ({ library, syncing
   const title = syncing ? 'Reading Navidrome…'
     : `Read Navidrome again${others.length > 0 ? ` (plays and likes of ${others.join(', ')} counted too)` : ''}`;
   return (
-    <button type="button" className="digital-refresh" onClick={onRefresh} disabled={syncing} title={title} aria-label={title}>
-      <BsArrowClockwise aria-hidden="true" className={syncing ? 'digital-spinning' : undefined} />
-    </button>
+    <IconButton label={title} size="sm" className="digital-refresh" onClick={onRefresh} disabled={syncing} title={title}><BsArrowClockwise aria-hidden="true" className={syncing ? 'digital-spinning' : undefined} /></IconButton>
   );
 };
 

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import apiService from '../services/api';
 import './MovieForm.css';
 import Select from './shared/Select';
+import Button from './shared/Button';
+import { BsCheck, BsX } from 'react-icons/bs';
 
 interface MovieData {
   id?: number | string;
@@ -452,12 +454,12 @@ const MovieForm: React.FC<MovieFormProps> = ({ movie = null, prefilledData = nul
         {error && <div className="error-message">{error}</div>}
 
         <div className="form-actions">
-          <button type="button" onClick={onCancel} className="cancel-btn">
+          <Button variant="quiet" onClick={onCancel} className="cancel-btn">
             Cancel
-          </button>
-          <button type="submit" disabled={loading} className="save-btn">
+          </Button>
+          <Button variant="primary" type="submit" loading={loading} className="save-btn">
             {loading ? 'Saving...' : (movie ? 'Update Movie' : 'Add Movie')}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

@@ -123,7 +123,6 @@
   z-index: 6;
 }
 
-
 /* Drag and drop styling for creating new series */
 .book-thumbnail.drag-over {
   outline: 3px dashed #10b981;

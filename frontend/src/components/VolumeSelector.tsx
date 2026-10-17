@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, Alert, Badge, Form } from 'react-bootstrap';
+import { Modal, Alert, Badge, Form } from 'react-bootstrap';
 import { BsCheck, BsX, BsBook } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import './VolumeSelector.css';
+import Button from './shared/Button';
 
 interface Volume {
   seriesNumber: number;
@@ -334,10 +335,10 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
                 )}
               </div>
               <div>
-                <Button variant="outline-secondary" size="sm" onClick={selectAll} className="me-2">
+                <Button size="sm" onClick={selectAll} className="me-2">
                   Select All
                 </Button>
-                <Button variant="outline-secondary" size="sm" onClick={deselectAll}>
+                <Button size="sm" onClick={deselectAll}>
                   Deselect All
                 </Button>
               </div>
@@ -432,11 +433,10 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
       </Modal.Body>
 
       <Modal.Footer>
-        <Button variant="secondary" onClick={onHide} disabled={enriching}>
+        <Button onClick={onHide} disabled={enriching}>
           Cancel
         </Button>
-        <Button
-          variant="warning"
+        <Button variant="primary"
           onClick={handleAddSelected}
           disabled={enriching || selectedVolumes.size === 0}
           style={{ backgroundColor: '#fbbf24', borderColor: '#fbbf24', color: '#1a202c' }}

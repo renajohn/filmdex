@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Button } from 'react-bootstrap';
 import { BsArrowClockwise, BsBoxArrowUpRight, BsChevronRight } from 'react-icons/bs';
 import musicService, { AlbumStory as Story, AlbumStoryLink, AlbumStorySection } from '../services/musicService';
 import './AlbumStory.css';
+import { IconButton } from './shared/Button';
 
 const MISSING: Record<NonNullable<Story['reason']>, string> = {
   no_musicbrainz: 'No story: this album is not linked to MusicBrainz.',
@@ -111,10 +111,10 @@ const AlbumStory: React.FC<AlbumStoryProps> = ({ albumId, open }) => {
   if (!open) return null;
 
   const refreshButton = (
-    <Button variant="link" size="sm" className="album-story-refresh" disabled={loading}
+    <IconButton label="Look up Wikipedia again" size="sm" className="album-story-refresh" disabled={loading}
       onClick={() => load(true)} title="Look up Wikipedia again">
       <BsArrowClockwise className={loading ? 'spinning' : ''} />
-    </Button>
+    </IconButton>
   );
 
   if (loading && !story) {

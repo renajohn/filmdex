@@ -37,13 +37,3 @@
   gap: 0.25rem;
 }
 
-.comment-actions .btn-link {
-  text-decoration: none;
-  padding: 0.25rem;
-  min-width: auto;
-}
-
-.comment-actions .btn-link:hover {
-  opacity: 0.8;
-}
-

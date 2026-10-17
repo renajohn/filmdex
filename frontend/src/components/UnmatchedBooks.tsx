@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './UnmatchedBooks.css';
 import apiService from '../services/api';
+import Button, { IconButton } from './shared/Button';
+import { BsX } from 'react-icons/bs';
 
 interface UnmatchedBook {
   title: string;
@@ -188,12 +190,12 @@ const UnmatchedBooks: React.FC<UnmatchedBooksProps> = ({ importId, onImportCompl
           <div className="error-content">
             <span className="error-icon">⚠️</span>
             <span className="error-text">{error}</span>
-            <button onClick={() => setError(null)} className="error-close">×</button>
+            <IconButton label="Close" onClick={() => setError(null)} className="error-close"><BsX /></IconButton>
           </div>
         </div>
-        <button onClick={handleStartOver} className="btn btn-secondary">
+        <Button onClick={handleStartOver}>
           Start Over
-        </button>
+        </Button>
       </div>
     );
   }
@@ -207,9 +209,9 @@ const UnmatchedBooks: React.FC<UnmatchedBooksProps> = ({ importId, onImportCompl
         {unmatchedBooks.length === 0 ? (
           <div className="empty-state">
             <p>No unmatched books found.</p>
-            <button onClick={handleStartOver} className="btn btn-primary">
+            <Button variant="primary" onClick={handleStartOver}>
               Back to Collection
-            </button>
+            </Button>
           </div>
         ) : (
           <>
@@ -225,13 +227,12 @@ const UnmatchedBooks: React.FC<UnmatchedBooksProps> = ({ importId, onImportCompl
                 </div>
 
                 <div className="unmatched-actions">
-                  <button
+                  <Button
                     onClick={() => handleIgnore(book.title)}
-                    className="btn btn-outline-secondary"
                     disabled={isResolving}
                   >
                     Ignore
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}
@@ -287,13 +288,12 @@ const UnmatchedBooks: React.FC<UnmatchedBooksProps> = ({ importId, onImportCompl
               {selectedBook.year && <p>{selectedBook.year}</p>}
             </div>
 
-            <button
+            <Button variant="primary"
               onClick={handleResolve}
-              className="btn btn-primary"
               disabled={isResolving}
             >
               {isResolving ? 'Resolving...' : 'Add to Collection'}
-            </button>
+            </Button>
           </div>
         )}
       </div>

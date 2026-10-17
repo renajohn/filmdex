@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Button, ListGroup, Modal } from 'react-bootstrap';
+import { Form, ListGroup, Modal } from 'react-bootstrap';
 import { BsPencil, BsTrash, BsPlus } from 'react-icons/bs';
 import bookCommentService from '../services/bookCommentService';
 import './BookComments.css';
+import Button, { IconButton } from './shared/Button';
 
 interface Comment {
   id: number;
@@ -158,13 +159,11 @@ const BookComments: React.FC<BookCommentsProps> = ({ bookId, onCommentsChange })
       <Form.Group className="mb-3">
         <div className="d-flex justify-content-between align-items-center mb-2">
           <Form.Label className="mb-0">Comments</Form.Label>
-          <Button
-            variant="outline-primary"
+          <Button icon={<BsPlus />}
             size="sm"
             onClick={handleAddNew}
             disabled={!bookId || loading}
           >
-            <BsPlus className="me-1" />
             Add Comment
           </Button>
         </div>
@@ -190,24 +189,20 @@ const BookComments: React.FC<BookCommentsProps> = ({ bookId, onCommentsChange })
                     <p className="comment-text mb-0">{comment.comment}</p>
                   </div>
                   <div className="comment-actions ms-2">
-                    <Button
-                      variant="link"
+                    <IconButton label="Edit comment"
                       size="sm"
-                      className="text-warning p-1"
                       onClick={() => handleEdit(comment)}
                       title="Edit comment"
                     >
                       <BsPencil />
-                    </Button>
-                    <Button
-                      variant="link"
+                    </IconButton>
+                    <IconButton label="Delete comment" tone="danger"
                       size="sm"
-                      className="text-danger p-1"
                       onClick={() => handleDelete(comment.id)}
                       title="Delete comment"
                     >
                       <BsTrash />
-                    </Button>
+                    </IconButton>
                   </div>
                 </div>
               </ListGroup.Item>
@@ -265,7 +260,7 @@ const BookComments: React.FC<BookCommentsProps> = ({ bookId, onCommentsChange })
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModal}>
+          <Button onClick={handleCloseModal}>
             Cancel
           </Button>
           <Button variant="primary" onClick={handleSave} disabled={loading}>

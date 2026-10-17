@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Form } from 'react-bootstrap';
+import { Form } from 'react-bootstrap';
 import musicService, { type AlbumGuide as Guide, type AlbumGuideSource } from '../services/musicService';
 import './AlbumGuide.css';
+import Button from './shared/Button';
 
 const SOURCE_LABELS: Record<AlbumGuideSource, string> = {
   claude: 'Written by Claude',
@@ -170,8 +171,8 @@ const AlbumGuide: React.FC<AlbumGuideProps> = ({ albumId, onLoaded }) => {
         />
         <p className="album-guide-muted small">### for a heading, **bold**, *italic*, - for a bullet.</p>
         <div className="album-guide-row">
-          <Button size="sm" variant="outline-light" onClick={save} disabled={busy !== null || !editing.trim()}>Save</Button>
-          <button type="button" className="album-guide-action" onClick={() => setEditing(null)}>Cancel</button>
+          <Button size="sm" onClick={save} disabled={busy !== null || !editing.trim()}>Save</Button>
+          <Button variant="quiet" size="sm" className="album-guide-action" onClick={() => setEditing(null)}>Cancel</Button>
         </div>
         {error && <p className="album-guide-error">{error}</p>}
       </div>
@@ -184,9 +185,9 @@ const AlbumGuide: React.FC<AlbumGuideProps> = ({ albumId, onLoaded }) => {
         {writing || (
           <p className="album-guide-muted small mb-0">
             No listening guide yet.{' '}
-            <button type="button" className="album-guide-action" onClick={write}>Write one with the local LLM</button>
+            <Button variant="quiet" size="sm" className="album-guide-action" onClick={write}>Write one with the local LLM</Button>
             {' · '}
-            <button type="button" className="album-guide-action" onClick={() => setEditing('')}>Write it yourself</button>
+            <Button variant="quiet" size="sm" className="album-guide-action" onClick={() => setEditing('')}>Write it yourself</Button>
           </p>
         )}
         {error && <p className="album-guide-error">{error}</p>}
@@ -199,9 +200,9 @@ const AlbumGuide: React.FC<AlbumGuideProps> = ({ albumId, onLoaded }) => {
   const brief = briefOf(reading);
   const folded = brief !== null && !more;
   const fold = brief !== null && (
-    <button type="button" className="album-guide-action album-guide-more" aria-expanded={more} onClick={() => setMore(!more)}>
+    <Button variant="quiet" size="sm" className="album-guide-action album-guide-more" aria-expanded={more} onClick={() => setMore(!more)}>
       {more ? 'See less…' : 'See more…'}
-    </button>
+    </Button>
   );
 
   return (
@@ -220,13 +221,13 @@ const AlbumGuide: React.FC<AlbumGuideProps> = ({ albumId, onLoaded }) => {
           {confirmReplace ? (
             <>
               <span>Replace it with the local LLM’s?</span>
-              <button type="button" className="album-guide-action" onClick={write} disabled={busy !== null}>Replace</button>
-              <button type="button" className="album-guide-action" onClick={() => setConfirmReplace(false)}>Keep</button>
+              <Button variant="quiet" size="sm" className="album-guide-action" onClick={write} disabled={busy !== null}>Replace</Button>
+              <Button variant="quiet" size="sm" className="album-guide-action" onClick={() => setConfirmReplace(false)}>Keep</Button>
             </>
           ) : (
             <>
-              <button type="button" className="album-guide-action" onClick={() => setEditing(guide.text)} disabled={busy !== null}>Edit</button>
-              <button type="button" className="album-guide-action" onClick={() => setConfirmReplace(true)} disabled={busy !== null}>Rewrite with the local LLM</button>
+              <Button variant="quiet" size="sm" className="album-guide-action" onClick={() => setEditing(guide.text)} disabled={busy !== null}>Edit</Button>
+              <Button variant="quiet" size="sm" className="album-guide-action" onClick={() => setConfirmReplace(true)} disabled={busy !== null}>Rewrite with the local LLM</Button>
             </>
           )}
         </span>

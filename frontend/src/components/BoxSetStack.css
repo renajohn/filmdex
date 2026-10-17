@@ -148,7 +148,6 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-
 /* Ensure movie thumbnails in stack don't have hover transform when stacked */
 .boxset-stack:not(.expanded) .movie-thumbnail:hover {
   transform: none;
@@ -318,7 +317,6 @@
   transition: opacity 0.3s ease, transform 0.3s ease;
   will-change: opacity, transform;
 }
-
 
 .boxset-movie-info {
   margin-top: 8px;

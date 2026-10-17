@@ -50,22 +50,6 @@
   gap: 12px;
 }
 
-/* Edit and Delete in a murmur, gold under the pointer. */
-.album-notes-action {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: #8f98a3;
-  font-size: 0.78rem;
-  transition: color 0.15s ease;
-}
-
-.album-notes-action:hover,
-.album-notes-action:focus-visible {
-  color: #fbbf24;
-  outline: none;
-}
-
 .album-notes-text {
   margin: 4px 0 0;
   color: #d6dbe1;

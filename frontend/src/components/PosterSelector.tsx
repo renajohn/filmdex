@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BsX, BsCheckCircleFill, BsCloudUpload } from 'react-icons/bs';
 import apiService from '../services/api';
 import './PosterSelector.css';
+import { IconButton } from './shared/Button';
 
 interface Poster {
   file_path: string;
@@ -177,9 +178,7 @@ const PosterSelector = ({ movie, onClose, onSelectPoster }: PosterSelectorProps)
       <div className="poster-selector-dialog" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         <div className="poster-selector-header">
           <h2>Select Poster</h2>
-          <button className="close-button" onClick={onClose}>
-            <BsX size={24} />
-          </button>
+          <IconButton label="Close" className="close-button" onClick={onClose}><BsX /></IconButton>
         </div>
 
         <div className="poster-selector-content">

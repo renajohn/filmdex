@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Boutons</title>
+<style>
+  :root {
+    --gold: #fbbf24; --gold-hover: #fcd34d; --gold-ink: #111;
+    --danger: #f87171; --text: #e5e5e5; --muted: #9ca3af;
+    --glass: rgba(255,255,255,.06); --glass-hover: rgba(255,255,255,.11); --edge: rgba(255,255,255,.12); --edge-hover: rgba(255,255,255,.24);
+    --ring: 0 0 0 3px rgba(251,191,36,.3);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(135deg,#1a1a1a,#2d2d2d) fixed; color: var(--text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .bar { position: sticky; top: 0; z-index: 5; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; padding: 12px 24px; background: #111; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .seg-ctl { display: inline-flex; border: 1px solid #444; border-radius: 8px; overflow: hidden; }
+  .seg-ctl button { background: #222; color: #ddd; border: 0; padding: 6px 12px; font: inherit; cursor: pointer; }
+  .seg-ctl button + button { border-left: 1px solid #444; }
+  .seg-ctl button.on { background: var(--gold); color: #111; }
+  main { padding: 16px 24px 80px; display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 18px; }
+  section { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); border-radius: 12px; padding: 16px 18px 20px; }
+  section h3 { margin: 0 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: #888; font-weight: 600; }
+  section p.note { margin: 0 0 14px; color: #777; font-size: 12.5px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .spread { justify-content: space-between; }
+  .stack { display: grid; gap: 12px; justify-items: start; }
+  .stack > .dialog, .stack > .row.spread { justify-self: stretch; }
+  svg.i { width: 15px; height: 15px; flex: none; }
+  .sm svg.i { width: 13px; height: 13px; }
+
+  /* ---------------- Button ---------------- */
+  .b { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 36px; padding: 0 14px; border-radius: 9px;
+    border: 1px solid transparent; font: 500 14px/1 inherit; white-space: nowrap; cursor: pointer; color: var(--text); background: none;
+    transition: background-color .12s, border-color .12s, color .12s, box-shadow .12s, transform .06s; }
+  .b.sm { height: 28px; padding: 0 10px; gap: 6px; font-size: 12.5px; border-radius: 7px; }
+  .b:active:not(:disabled) { transform: scale(.97); }
+  .b:focus-visible { outline: none; box-shadow: var(--ring); }
+  .b:disabled { opacity: .45; cursor: default; }
+  .b .spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .b.primary { background: var(--gold); color: var(--gold-ink); font-weight: 600; }
+  .b.primary:hover:not(:disabled) { background: var(--gold-hover); }
+  .b.quiet { color: var(--muted); padding: 0 8px; }
+  .b.quiet:hover:not(:disabled) { color: #fff; background: rgba(255,255,255,.06); }
+  .b.on { color: var(--gold); }
+
+  /* A · Verre: the covers' and menus' glass, a light edge. */
+  body.vA .b.secondary { background: var(--glass); border-color: var(--edge); }
+  body.vA .b.secondary:hover:not(:disabled) { background: var(--glass-hover); border-color: var(--edge-hover); color: #fff; }
+  body.vA .b.secondary.on { background: rgba(251,191,36,.12); border-color: rgba(251,191,36,.45); color: var(--gold); }
+  body.vA .b.danger { background: var(--glass); border-color: var(--edge); color: var(--danger); }
+  body.vA .b.danger:hover:not(:disabled) { background: rgba(248,113,113,.14); border-color: rgba(248,113,113,.5); }
+
+  /* B · Contour: no fill, a border; the fill comes under the pointer. */
+  body.vB .b.secondary { border-color: rgba(255,255,255,.22); }
+  body.vB .b.secondary:hover:not(:disabled) { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.4); color: #fff; }
+  body.vB .b.secondary.on { border-color: var(--gold); color: var(--gold); }
+  body.vB .b.danger { border-color: rgba(248,113,113,.55); color: var(--danger); }
+  body.vB .b.danger:hover:not(:disabled) { background: var(--danger); color: #111; }
+
+  /* ---------------- IconButton ---------------- */
+  .ib { width: 34px; height: 34px; display: inline-grid; place-items: center; border-radius: 9px; border: 1px solid transparent; background: none;
+    color: var(--muted); cursor: pointer; transition: background-color .12s, color .12s, border-color .12s; }
+  .ib.sm { width: 28px; height: 28px; border-radius: 7px; }
+  .ib:hover:not(:disabled) { color: #fff; background: rgba(255,255,255,.08); }
+  .ib:focus-visible { outline: none; box-shadow: var(--ring); }
+  body.vA .ib.boxed { background: var(--glass); border-color: var(--edge); }
+  body.vB .ib.boxed { border-color: rgba(255,255,255,.22); }
+  .ib.confirm { color: var(--gold); }
+  .ib.confirm:hover { background: rgba(251,191,36,.14); color: var(--gold); }
+  .ib.danger:hover { color: var(--danger); background: rgba(248,113,113,.12); }
+
+  /* ---------------- Segmented ---------------- */
+  .sg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px; background: rgba(0,0,0,.35); border: 1px solid var(--edge); }
+  .sg button { height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: none; color: var(--muted); font: 500 13px/1 inherit; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; transition: background-color .15s, color .15s; }
+  .sg button:hover:not([aria-pressed="true"]) { color: #fff; }
+  .sg button[aria-pressed="true"] { background: rgba(255,255,255,.12); color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.35); }
+  .sg.gold button[aria-pressed="true"] { background: var(--gold); color: var(--gold-ink); }
+  .sg .count { font-size: 11px; opacity: .65; font-variant-numeric: tabular-nums; }
+
+  /* ---------------- Chip ---------------- */
+  .chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 999px; font: 500 12.5px/1 inherit;
+    color: var(--muted); background: var(--glass); border: 1px solid var(--edge); cursor: pointer; transition: all .12s; }
+  .chip:hover { color: #fff; border-color: var(--edge-hover); }
+  .chip[aria-pressed="true"] { color: var(--gold); background: rgba(251,191,36,.12); border-color: rgba(251,191,36,.5); }
+  .chip .count { font-size: 11px; opacity: .7; font-variant-numeric: tabular-nums; }
+
+  /* context bits */
+  .dialog { border-radius: 12px; background: #1d1d1d; border: 1px solid #333; overflow: hidden; }
+  .dialog header { display: flex; align-items: center; justify-content: space-between; padding: 10px 10px 10px 16px; border-bottom: 1px solid #2c2c2c; font-weight: 600; }
+  .dialog .body { padding: 14px 16px; color: #aaa; font-size: 13px; }
+  .dialog footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid #2c2c2c; }
+  .grow { flex: 1; }
+  .input { height: 34px; flex: 1; min-width: 0; padding: 0 10px; border-radius: 8px; border: 1px solid #444; background: #2a2a2a; color: #eee; font: inherit; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); color: #d8d8d8; font: 500 12.5px/1 inherit; }
+  .label { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: #777; margin: 2px 0 6px; }
+</style>
+</head>
+<body class="vA">
+<div class="bar">
+  <span>Variante</span>
+  <span class="seg-ctl" id="variant"><button data-v="vA" class="on">A · Verre</button><button data-v="vB">B · Contour</button></span>
+  <span>Le doré plein reste l'action principale dans les deux ; seule l'action secondaire change.</span>
+</div>
+
+<main>
+  <section>
+    <h3>Button · les variantes</h3>
+    <p class="note">primary (une par fenêtre), secondary, quiet, danger ; md et sm ; avec icône, en cours, désactivé, « activé ».</p>
+    <div class="stack">
+      <div class="row">
+        <button class="b primary">Save</button>
+        <button class="b secondary">Cancel</button>
+        <button class="b quiet">Not now</button>
+        <button class="b danger"><span data-icon="trash"></span>Delete</button>
+      </div>
+      <div class="row">
+        <button class="b primary sm"><span data-icon="plus"></span>Add Movie</button>
+        <button class="b secondary sm"><span data-icon="pencil"></span>Edit</button>
+        <button class="b quiet sm"><span data-icon="note"></span>Write a listening note…</button>
+        <button class="b danger sm">Remove</button>
+      </div>
+      <div class="row">
+        <button class="b primary" id="saving"><span class="spin"></span>Saving…</button>
+        <button class="b secondary" disabled>Disabled</button>
+        <button class="b secondary on" id="toggle"><span data-icon="headphones"></span>In Listen Next</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Pied de la fiche d'un album</h3>
+    <p class="note">Aujourd'hui : quatre styles différents. Ici : le doré pour écouter, le reste secondaire, Delete rouge.</p>
+    <div class="dialog">
+      <header>Dinu Lipatti <button class="ib" aria-label="Close"><span data-icon="x"></span></button></header>
+      <div class="body">CD · 5 discs · 58 tracks · 5 h 17 min</div>
+      <footer>
+        <button class="b primary"><span data-icon="play"></span>Play</button>
+        <button class="b secondary"><span data-icon="apple"></span>Apple Music</button>
+        <button class="b secondary on"><span data-icon="headphones"></span>Listen Next</button>
+        <span class="grow"></span>
+        <button class="b secondary"><span data-icon="pencil"></span>Edit</button>
+        <button class="b danger"><span data-icon="trash"></span>Delete</button>
+      </footer>
+    </div>
+  </section>
+
+  <section>
+    <h3>Un dialogue de confirmation</h3>
+    <p class="note">L'action principale à droite ; Cancel discret ; une action destructrice prend la place du doré.</p>
+    <div class="stack">
+      <div class="dialog">
+        <header>Rename collection <button class="ib" aria-label="Close"><span data-icon="x"></span></button></header>
+        <div class="body"><input class="input" style="width:100%" value="Studio Ghibli"></div>
+        <footer><span class="grow"></span><button class="b quiet">Cancel</button><button class="b primary">Rename</button></footer>
+      </div>
+      <div class="dialog">
+        <header>Delete “Heat”?</header>
+        <div class="body">The movie, its cover and its notes go for good.</div>
+        <footer><span class="grow"></span><button class="b quiet">Cancel</button><button class="b danger"><span data-icon="trash"></span>Delete</button></footer>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>IconButton</h3>
+    <p class="note">Icône seule, carré arrondi ; nu (dans un en-tête, à côté d'un champ) ou « boxed » (seul dans une barre).</p>
+    <div class="stack">
+      <div class="label">Modifier un champ en place</div>
+      <div class="row" style="justify-self:stretch"><input class="input" value="Blu-ray 4K"><button class="ib confirm" aria-label="Save"><span data-icon="check"></span></button><button class="ib" aria-label="Cancel"><span data-icon="x"></span></button></div>
+      <div class="label">Une ligne de piste ou d'étagère</div>
+      <div class="row spread" style="padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.03)">
+        <span>A-3 · Classical</span>
+        <span class="row"><button class="ib sm" aria-label="Edit"><span data-icon="pencil"></span></button><button class="ib sm danger" aria-label="Remove"><span data-icon="trash"></span></button></span>
+      </div>
+      <div class="label">Seuls dans une barre</div>
+      <div class="row"><button class="ib boxed" aria-label="Refresh"><span data-icon="refresh"></span></button><button class="ib boxed" aria-label="Copy"><span data-icon="copy"></span></button><button class="ib boxed sm" aria-label="Search"><span data-icon="search"></span></button></div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Segmented</h3>
+    <p class="note">Un choix parmi quelques-uns, côte à côte. Neutre pour une vue, doré quand il filtre.</p>
+    <div class="stack">
+      <div class="label">Type de recherche</div>
+      <div class="sg" data-seg><button aria-pressed="true">Title</button><button aria-pressed="false">Artist</button><button aria-pressed="false">Track</button><button aria-pressed="false">Barcode</button></div>
+      <div class="label">Onglets des étagères</div>
+      <div class="sg" data-seg><button aria-pressed="false">Classical <span class="count">412</span></button><button aria-pressed="true">Music <span class="count">198</span></button><button aria-pressed="false">Movies <span class="count">217</span></button></div>
+      <div class="label">Variante dorée</div>
+      <div class="sg gold" data-seg><button aria-pressed="true">All</button><button aria-pressed="false">Owned</button><button aria-pressed="false">Wished</button></div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Chip</h3>
+    <p class="note">Des pastilles qu'on allume et éteint ; plusieurs à la fois si le filtre le permet.</p>
+    <div class="stack">
+      <div class="label">Filtres Digital de MusicDex</div>
+      <div class="row" data-chips><button class="chip" aria-pressed="true">All <span class="count">198</span></button><button class="chip" aria-pressed="false">Buy <span class="count">12</span></button><button class="chip" aria-pressed="false">Digital <span class="count">93</span></button><button class="chip" aria-pressed="false">Lossy <span class="count">4</span></button><button class="chip" aria-pressed="false">Unripped <span class="count">7</span></button></div>
+      <div class="label">Dates rapides</div>
+      <div class="row" data-chips><button class="chip" aria-pressed="false">Today</button><button class="chip" aria-pressed="false">Yesterday</button><button class="chip" aria-pressed="false">Last week</button></div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Dans la barre d'une collection</h3>
+    <p class="note">Avec les pilules de Menu déjà en place : tout à la même hauteur (28 px).</p>
+    <div class="row">
+      <span class="pill"><span data-icon="sort"></span>Sort: Title</span>
+      <span class="pill"><span data-icon="grid"></span>No grouping</span>
+      <button class="chip" aria-pressed="true">Digital</button>
+      <button class="b primary sm"><span data-icon="plus"></span>Add Album</button>
+      <span class="grow"></span>
+      <button class="ib sm" aria-label="Refresh"><span data-icon="refresh"></span></button>
+    </div>
+  </section>
+</main>
+
+<script>
+const I = {
+  trash: '<path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>',
+  plus: '<path d="M8 2a.75.75 0 0 1 .75.75v4.5h4.5a.75.75 0 0 1 0 1.5h-4.5v4.5a.75.75 0 0 1-1.5 0v-4.5h-4.5a.75.75 0 0 1 0-1.5h4.5v-4.5A.75.75 0 0 1 8 2z"/>',
+  pencil: '<path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5z"/>',
+  note: '<path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>',
+  headphones: '<path d="M8 3a5 5 0 0 0-5 5v1h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a6 6 0 1 1 12 0v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1V8a5 5 0 0 0-5-5z"/>',
+  play: '<path d="M11.6 8.7 5.5 12.3c-.5.3-1.1 0-1.1-.6V4.3c0-.6.6-.9 1.1-.6l6.1 3.6c.5.3.5 1.1 0 1.4z"/>',
+  apple: '<path d="M11.182.008C11.148-.03 9.923.023 8.857 1.18c-1.066 1.156-.902 2.482-.878 2.516.024.034 1.52.087 2.475-1.258.955-1.345.762-2.391.728-2.43zm3.314 11.733c-.048-.096-2.325-1.234-2.113-3.422.212-2.189 1.675-2.789 1.698-2.854.023-.065-.597-.79-1.254-1.157a3.692 3.692 0 0 0-1.563-.434c-.108-.003-.483-.095-1.254.116-.508.139-1.653.589-1.968.607-.316.018-1.256-.522-2.267-.665-.647-.125-1.333.131-1.824.328-.49.196-1.422.754-2.074 2.237-.652 1.482-.311 3.83-.067 4.56.244.729.625 1.924 1.273 2.796.576.984 1.34 1.667 1.659 1.899.319.232 1.219.386 1.843.067.502-.308 1.408-.485 1.766-.472.357.013 1.061.154 1.782.539.571.197 1.111.115 1.652-.105.541-.221 1.324-1.059 2.238-2.758.347-.79.505-1.217.473-1.282z"/>',
+  x: '<path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>',
+  check: '<path d="M13.485 3.929a.75.75 0 0 1 .086 1.057l-6.5 7.5a.75.75 0 0 1-1.11.04l-3.5-3.5a.75.75 0 1 1 1.06-1.06l2.93 2.93 5.977-6.897a.75.75 0 0 1 1.057-.07z"/>',
+  refresh: '<path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>',
+  copy: '<path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H6zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1H2z"/>',
+  search: '<path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>',
+  sort: '<path d="M3.5 2.5a.5.5 0 0 0-1 0v8.79L1.35 10.15a.5.5 0 1 0-.7.7l2 2a.5.5 0 0 0 .7 0l2-2a.5.5 0 0 0-.7-.7L3.5 11.29V2.5zM7.5 6a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1h-7z"/>',
+  grid: '<path d="M1 2a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2zm9 0a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1V2zM1 11a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1v-3zm9 0a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-3z"/>',
+};
+document.querySelectorAll('[data-icon]').forEach(el => {
+  el.outerHTML = `<svg class="i" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">${I[el.dataset.icon]}</svg>`;
+});
+document.querySelectorAll('[data-seg]').forEach(g => g.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  g.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+}));
+document.querySelectorAll('[data-chips] .chip').forEach(c => c.addEventListener('click', () => c.setAttribute('aria-pressed', String(c.getAttribute('aria-pressed') !== 'true'))));
+document.querySelectorAll('.b.on, #toggle').forEach(b => b.addEventListener('click', () => b.classList.toggle('on')));
+document.getElementById('variant').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.body.className = b.dataset.v;
+  document.querySelectorAll('#variant button').forEach(x => x.classList.toggle('on', x === b));
+});
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import MusicForm from './MusicForm';
 
@@ -128,7 +128,7 @@ describe('MusicForm — editing a track', () => {
 
     expect(screen.getByText('Claude Debussy — Ruth Schmid-Gagnebin (piano)')).toBeInTheDocument();
     const row = screen.getByText('Voiles').closest('tr')!;
-    fireEvent.click(row.querySelector('.btn-outline-primary')!);
+    fireEvent.click(within(row).getByRole('button', { name: 'Edit track' }));
 
     expect(screen.getByDisplayValue('Préludes, Book 1')).toBeInTheDocument();
     fireEvent.change(screen.getByDisplayValue('Claude Debussy'), { target: { value: 'Claude Debussy; Someone Else' } });

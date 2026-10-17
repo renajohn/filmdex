@@ -128,55 +128,11 @@
   color: #a8e6cf;
 }
 
-
-
 .form-actions {
   display: flex;
   gap: 15px;
   justify-content: flex-end;
   margin-top: 30px;
-}
-
-.cancel-btn {
-  background: linear-gradient(135deg, #b8c5d1, #9bb0c1);
-  color: #1a1a1a;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-.cancel-btn:hover {
-  background: linear-gradient(135deg, #9bb0c1, #7a9bb0);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-}
-
-.save-btn {
-  background: linear-gradient(135deg, #a8d8ea, #7bc4d4);
-  color: #1a1a1a;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-.save-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #7bc4d4, #5ab3d1);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-}
-
-.save-btn:disabled {
-  background: #3a3a3a;
-  color: #b8c5d1;
-  cursor: not-allowed;
 }
 
 .error-message {

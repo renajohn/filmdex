@@ -67,6 +67,13 @@ Every menu that opens from a button uses **`Menu`** (`frontend/src/components/sh
 - The covers' dark glass, blurred; a light veil under the pointer or the keys; gold only for the choice made, red for danger. In a modal it lies in the modal, which keeps the focus.
 - A form's list is **`Select`** (`shared/Select.tsx`), never a `<select>` or a `Form.Select`: the same `<option>`s and `<optgroup>`s as children, the same `onChange(event)` (`event.target.value`, `event.target.name`), `size`, and in a `Form.Group` its `controlId`. Closed it is a field like the others (`form-select`; `bare` keeps its own class instead), open a `Menu`; on an iPhone or iPad the system's own select. In tests, `frontend/src/test/select.ts` reads and chooses its value.
 
+### Buttons: Button and IconButton
+Every button uses **`Button`** or **`IconButton`** (`frontend/src/components/shared/Button.tsx`, look in `shared/button.css`): never a react-bootstrap `Button`, a `btn` class or a button styled by hand. On covers, `CoverButton` stays.
+- `Button` `variant`: **primary** (plain gold, the one action a window is for: one per window), **secondary** (the default: the menus' glass), **quiet** (words alone: Cancel, See more), **danger** (red; a destructive action never takes the gold, and in a confirmation it stands where the gold would). `size` sm/md, `icon` before the words, `loading` (a spinner, no second click), `active` for a toggle that is on (gold words; on `danger`, plain red: a deletion to confirm), `block`.
+- `IconButton`: an icon alone, `label` required (tooltip and screen readers), `size` sm/md, `tone` confirm (gold ✓ beside a field) or danger, `boxed` when it stands alone in a bar, `active`.
+- Side by side as one (Play and its ▾): a parent with the class `ui-button-group` (or a Bootstrap `ButtonGroup`).
+- A component's stylesheet only places a button (margins, position, flex), never its colours, borders, padding or size.
+
 ### Key Patterns
 - Each media type (movie, music, book) follows the same layered pattern: controller → service → model, with a corresponding frontend page, detail card, search component, and API service
 - Collections/box sets are shared across media types via `collection` and `movieCollection`/`albumCollection` models

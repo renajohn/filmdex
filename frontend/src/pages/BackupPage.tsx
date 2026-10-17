@@ -4,6 +4,8 @@ import backupService from '../services/backupService';
 import { BsDownload, BsTrash, BsArrowClockwise, BsPlus, BsUpload, BsCheckCircle, BsXCircle, BsClock } from 'react-icons/bs';
 import DropboxBackupCard from '../components/DropboxBackupCard';
 import './BackupPage.css';
+import Button, { IconButton } from '../components/shared/Button';
+import { BsX } from 'react-icons/bs';
 
 interface Backup {
   filename: string;
@@ -184,12 +186,9 @@ const BackupPage: React.FC = () => {
         <div className="alert alert-danger alert-dismissible fade show" role="alert">
           <BsXCircle className="me-2" />
           {error}
-          <button
-            type="button"
-            className="btn-close"
+          <IconButton label="Close"
             onClick={() => setError(null)}
-            aria-label="Close"
-          ></button>
+          ><BsX /></IconButton>
         </div>
       )}
 
@@ -197,12 +196,9 @@ const BackupPage: React.FC = () => {
         <div className="alert alert-success alert-dismissible fade show" role="alert">
           <BsCheckCircle className="me-2" />
           {success}
-          <button
-            type="button"
-            className="btn-close"
+          <IconButton label="Close"
             onClick={() => setSuccess(null)}
-            aria-label="Close"
-          ></button>
+          ><BsX /></IconButton>
         </div>
       )}
 
@@ -212,8 +208,7 @@ const BackupPage: React.FC = () => {
         <div className="backup-action-card">
           <h3>Create a new backup</h3>
           <p>Create a complete backup of your database, images and ebooks.</p>
-          <button
-            className="btn btn-primary"
+          <Button variant="primary"
             onClick={handleCreateBackup}
             disabled={creating}
           >
@@ -228,7 +223,7 @@ const BackupPage: React.FC = () => {
                 Create backup
               </>
             )}
-          </button>
+          </Button>
         </div>
 
         <div className="backup-action-card">
@@ -247,8 +242,7 @@ const BackupPage: React.FC = () => {
                 <small>Selected file: {uploadFile.name}</small>
               </div>
             )}
-            <button
-              className="btn btn-warning"
+            <Button variant="danger"
               onClick={handleUploadAndRestore}
               disabled={!uploadFile || uploading}
             >
@@ -263,7 +257,7 @@ const BackupPage: React.FC = () => {
                   Upload and restore
                 </>
               )}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -272,20 +266,18 @@ const BackupPage: React.FC = () => {
         <div className="backups-list-header">
           <h2>Available backups</h2>
           <div className="backups-list-actions">
-            <button
-              className="btn btn-sm btn-outline-warning"
+            <Button size="sm"
               onClick={handleCleanupRestoreBackups}
               title="Clean up temporary backup files (db.sqlite.backup.*, images.backup.*, ebooks.backup.*)"
             >
               Clean temporary files
-            </button>
-            <button
-              className="btn btn-sm btn-outline-secondary"
+            </Button>
+            <Button size="sm"
               onClick={loadBackups}
               disabled={loading}
             >
               {loading ? 'Loading...' : 'Refresh'}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -323,15 +315,11 @@ const BackupPage: React.FC = () => {
                     <td>{formatDate(backup.created)}</td>
                     <td>
                       <div className="backup-actions-buttons">
-                        <button
-                          className="btn btn-sm btn-outline-primary"
+                        <IconButton label="Download" size="sm"
                           onClick={() => handleDownloadBackup(backup.filename)}
                           title="Download"
-                        >
-                          <BsDownload />
-                        </button>
-                        <button
-                          className="btn btn-sm btn-outline-warning"
+                        ><BsDownload /></IconButton>
+                        <Button size="sm"
                           onClick={() => handleRestoreBackup(backup.filename)}
                           disabled={restoring === backup.filename}
                           title="Restore"
@@ -341,14 +329,11 @@ const BackupPage: React.FC = () => {
                           ) : (
                             <BsArrowClockwise />
                           )}
-                        </button>
-                        <button
-                          className="btn btn-sm btn-outline-danger"
+                        </Button>
+                        <IconButton label="Delete" tone="danger" size="sm"
                           onClick={() => handleDeleteBackup(backup.filename)}
                           title="Delete"
-                        >
-                          <BsTrash />
-                        </button>
+                        ><BsTrash /></IconButton>
                       </div>
                     </td>
                   </tr>

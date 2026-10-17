@@ -61,7 +61,7 @@ describe('MovieImport', () => {
     renderImport();
     select(csv());
 
-    fireEvent.click(screen.getByText('✕'));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove the file' }));
 
     expect(screen.queryByText('movies.csv')).not.toBeInTheDocument();
     expect(screen.getByText('Click to select')).toBeInTheDocument();
@@ -70,11 +70,11 @@ describe('MovieImport', () => {
   it('cannot start an import before a file is chosen', () => {
     renderImport();
 
-    expect(screen.getByText('Start Import')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Start Import' })).toBeDisabled();
 
     select(csv());
 
-    expect(screen.getByText('Start Import')).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Start Import' })).toBeEnabled();
   });
 
   it('hands the chosen file to the caller', async () => {
@@ -108,7 +108,7 @@ describe('MovieImport', () => {
     fireEvent.click(screen.getByText('Start Import'));
 
     await waitFor(() => expect(screen.getByText('Uploading...')).toBeInTheDocument());
-    expect(screen.getByText('Uploading...')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Uploading...' })).toBeDisabled();
 
     release();
     await waitFor(() => expect(screen.getByText('Start Import')).toBeInTheDocument());

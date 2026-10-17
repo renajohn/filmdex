@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Button, ButtonGroup } from 'react-bootstrap';
+import { Modal, ButtonGroup } from 'react-bootstrap';
 import Menu, { MenuChevron } from './shared/Menu';
 import { BsPencil, BsTrash, BsDisc, BsApple, BsTags, BsPlayFill, BsPauseFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight, BsStar, BsStarFill, BsArrowClockwise } from 'react-icons/bs';
 import musicService from '../services/musicService';
@@ -24,6 +24,7 @@ import DigitalMarks from './shared/DigitalMarks';
 import { BsArrowCounterclockwise, BsCartFill, BsHeart, BsHeartFill, BsSearch } from 'react-icons/bs';
 import type { DigitalTrack } from '../services/musicService';
 import { buyReason, formatLabel, isLossy, isSuggested, isToBuy, ricardoUrl, type AlbumDigital } from '../utils/digitalLibrary';
+import Button from './shared/Button';
 
 /** How often, and how many times, an album's tracks are asked after while their words are looked up. */
 const LYRICS_POLL_MS = 3000;
@@ -793,7 +794,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
             </div>
             <div className="album-buy-actions">
               {onWish && (
-                <Button size="sm" variant={cd.titleStatus === 'wish' ? 'warning' : 'outline-warning'} onClick={onWish} aria-pressed={cd.titleStatus === 'wish'}>
+                <Button active={cd.titleStatus === 'wish'} size="sm" onClick={onWish} aria-pressed={cd.titleStatus === 'wish'}>
                   {cd.titleStatus === 'wish' ? <BsHeartFill className="me-1" /> : <BsHeart className="me-1" />}
                   {cd.titleStatus === 'wish' ? 'Wished' : 'Add to wishlist'}
                 </Button>
@@ -802,7 +803,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                 <BsSearch className="me-1" />Ricardo
               </a>
               {onDismiss && cd.titleStatus !== 'wish' && (
-                <Button size="sm" variant="link" className="album-buy-dismiss" onClick={() => onDismiss(!digital.album!.dismissed)}>
+                <Button variant="quiet" size="sm" className="album-buy-dismiss" onClick={() => onDismiss(!digital.album!.dismissed)}>
                   {digital.album.dismissed ? 'Interested after all' : 'Not interested'}
                 </Button>
               )}
@@ -816,17 +817,15 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
         <div className="album-extras">
           {noteCount === 0 && (
             <>
-              <button type="button" className="album-extras-link" aria-expanded={writingNote} onClick={() => setWritingNote(!writingNote)}>
-                <BsPencil aria-hidden="true" />
+              <Button variant="quiet" size="sm" icon={<BsPencil aria-hidden="true" />} className="album-extras-link" aria-expanded={writingNote} onClick={() => setWritingNote(!writingNote)}>
                 Write a listening note…
-              </button>
+              </Button>
               <span className="album-extras-sep" aria-hidden="true">·</span>
             </>
           )}
-          <button type="button" className="album-extras-link" aria-expanded={showStory} onClick={() => setStoryOpen(!showStory)}>
-            <BsChevronRight aria-hidden="true" className={showStory ? 'album-extras-chevron-open' : undefined} />
+          <Button variant="quiet" size="sm" icon={<BsChevronRight aria-hidden="true" className={showStory ? 'album-extras-chevron-open' : undefined} />} className="album-extras-link" aria-expanded={showStory} onClick={() => setStoryOpen(!showStory)}>
             Read on Wikipedia…
-          </button>
+          </Button>
         </div>
         <AlbumStory albumId={cd.id} open={showStory} />
 
@@ -987,7 +986,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                 )}
               </Button>
               <Menu drop="up" label="More ways to listen" trigger={(props, open) => (
-                <Button {...props} variant="primary" className="music-detail-play-more" aria-label="More ways to listen">
+                <Button variant="primary" {...props} className="music-detail-play-more" aria-label="More ways to listen">
                   <MenuChevron open={open} />
                 </Button>
               )}>
@@ -998,8 +997,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
               </Menu>
             </ButtonGroup>
           ) : ripAlbum ? (
-            <Button variant="primary" onClick={() => openListen(ripAlbum)}>
-              <BsPlayFill className="me-1" />
+            <Button variant="primary" icon={<BsPlayFill />} onClick={() => openListen(ripAlbum)}>
               Listen
             </Button>
           ) : rip === undefined && !ripError ? (
@@ -1008,7 +1006,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
               Listen
             </Button>
           ) : (
-            <Button variant="outline-light" disabled={openingApple} onClick={handleOpenAppleMusic}>
+            <Button disabled={openingApple} onClick={handleOpenAppleMusic}>
               {openingApple ? (
                 <>
                   <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
@@ -1022,8 +1020,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
               )}
             </Button>
           )}
-          <Button
-            variant={isInListenNext ? 'warning' : 'outline-secondary'}
+          <Button active={isInListenNext}
             onClick={handleListenNextToggle}
             disabled={togglingListenNext}
           >
@@ -1033,22 +1030,19 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
         </div>
         <div className="music-detail-manage">
           {!hasCd && onBought && (
-            <Button variant="outline-warning" onClick={onBought}>
-              <BsDisc className="me-1" />
+            <Button icon={<BsDisc />} onClick={onBought}>
               I bought the CD
             </Button>
           )}
           {/* A digital album is Navidrome's: it goes when its files go, and it has nothing of a CD to edit. */}
           {onEdit && cd.titleStatus !== 'digital' && (
-            <Button variant="outline-primary" onClick={onEdit}>
-              <BsPencil className="me-1" />
+            <Button icon={<BsPencil />} onClick={onEdit}>
               Edit
             </Button>
           )}
           {cd.titleStatus !== 'digital' && (
-            <Button
+            <Button variant="danger" active={confirmDelete}
               ref={deleteBtnRef}
-              variant={confirmDelete ? 'danger' : 'outline-danger'}
               onClick={handleDelete}
             >
               <BsTrash className="me-1" />

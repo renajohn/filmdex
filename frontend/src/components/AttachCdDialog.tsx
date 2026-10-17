@@ -1,7 +1,8 @@
 import React from 'react';
-import { Button, Modal } from 'react-bootstrap';
+import { Modal } from 'react-bootstrap';
 import { BsCloud, BsHeartFill } from 'react-icons/bs';
 import musicService from '../services/musicService';
+import Button from './shared/Button';
 
 export interface AttachableAlbum {
   id: number;
@@ -48,7 +49,7 @@ const AttachCdDialog: React.FC<AttachCdDialogProps> = ({ albums, onChoose }) => 
       </div>
     </Modal.Body>
     <Modal.Footer>
-      <Button variant="outline-secondary" onClick={() => onChoose(null)}>Add it as a new album</Button>
+      <Button onClick={() => onChoose(null)}>Add it as a new album</Button>
     </Modal.Footer>
   </Modal>
 );

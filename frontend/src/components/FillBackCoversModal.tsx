@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './FillBackCoversModal.css';
+import Button, { IconButton } from './shared/Button';
+import { BsX } from 'react-icons/bs';
 
 interface Album {
   id: number;
@@ -193,13 +195,10 @@ const FillBackCoversModal = ({ isOpen, onClose, onFill }: FillBackCoversModalPro
       <div className="fill-back-covers-modal" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         <div className="fill-back-covers-modal-header">
           <h2>Fill Album Covers</h2>
-          <button
-            className="fill-back-covers-modal-close"
+          <IconButton label="Close" className="fill-back-covers-modal-close"
             onClick={handleClose}
             disabled={isRunning}
-          >
-            ×
-          </button>
+          ><BsX /></IconButton>
         </div>
 
         <div className="fill-back-covers-modal-body">
@@ -237,13 +236,12 @@ const FillBackCoversModal = ({ isOpen, onClose, onFill }: FillBackCoversModalPro
                     </div>
                   ) : (
                     <div className="fill-back-covers-actions">
-                      <button
-                        className="btn btn-primary btn-lg"
+                      <Button variant="primary"
                         onClick={handleFillCovers}
                         disabled={albums.length === 0}
                       >
                         Fill All Covers
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </>
@@ -300,12 +298,12 @@ const FillBackCoversModal = ({ isOpen, onClose, onFill }: FillBackCoversModalPro
               </div>
 
               <div className="fill-back-covers-result-actions">
-                <button className="btn btn-primary" onClick={loadAlbumsMissingCovers}>
+                <Button variant="primary" onClick={loadAlbumsMissingCovers}>
                   Refresh List
-                </button>
-                <button className="btn btn-secondary" onClick={handleClose}>
+                </Button>
+                <Button variant="quiet" onClick={handleClose}>
                   Close
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -315,12 +313,12 @@ const FillBackCoversModal = ({ isOpen, onClose, onFill }: FillBackCoversModalPro
               <h3>Error</h3>
               <p>{error}</p>
               <div className="fill-back-covers-error-actions">
-                <button className="btn btn-primary" onClick={loadAlbumsMissingCovers}>
+                <Button variant="primary" onClick={loadAlbumsMissingCovers}>
                   Try Again
-                </button>
-                <button className="btn btn-secondary" onClick={handleClose}>
+                </Button>
+                <Button variant="quiet" onClick={handleClose}>
                   Close
-                </button>
+                </Button>
               </div>
             </div>
           )}

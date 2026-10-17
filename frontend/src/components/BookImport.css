@@ -80,17 +80,7 @@
 }
 
 .remove-file {
-  background: none;
-  border: none;
-  font-size: 18px;
-  color: #666;
-  cursor: pointer;
-  margin-left: 15px;
-}
-
-.remove-file:hover {
-  color: #333;
-}
+  margin-left: 15px}
 
 .file-drop-content {
   display: flex;
@@ -110,25 +100,6 @@
 
 .import-actions {
   text-align: center;
-}
-
-.import-button {
-  padding: 12px 24px;
-  font-size: 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.import-button:hover:not(:disabled) {
-  background-color: #0056b3;
-}
-
-.import-button:disabled {
-  background-color: #ccc;
-  color: #666;
-  cursor: not-allowed;
 }
 
 .import-info {
@@ -199,10 +170,7 @@
   }
 
   .import-button {
-    width: 100%;
-    max-width: 300px;
-    margin: 0 auto;
-  }
+    margin: 0 auto}
 }
 
 /* Add styles for the search results if needed */

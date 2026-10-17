@@ -26,6 +26,7 @@ import './App.css';
 import { readStored, writeStored } from './utils/safeStorage';
 import { isDigitalOn } from './utils/digitalLibrary';
 import PlayerBar from './components/PlayerBar';
+import { IconButton } from './components/shared/Button';
 
 interface AutocompleteOption {
   keyword: string;
@@ -1299,16 +1300,12 @@ function AppContent() {
                   autoComplete="off"
                 />
                 {searchCriteria.searchText && (
-                  <button
-                    className="search-clear-button"
+                  <IconButton label="Clear the search" size="sm" className="search-clear-button"
                     onClick={() => {
                       setSearchCriteria({ searchText: '' });
                       setShowAutocomplete(false);
                     }}
-                    type="button"
-                  >
-                    <BsX />
-                  </button>
+                  ><BsX /></IconButton>
                 )}
                 {location.pathname !== '/musicdex' && location.pathname !== '/wishlist' && (
                   <Menu align="end" label="Advanced filters" onOpenChange={open => { if (open) fetchFilterData(); }}
@@ -1401,12 +1398,9 @@ function AppContent() {
       {showAlert && alertMessage && (
         <div className={`alert alert-${alertType} alert-dismissible fade show main-screen-alert`} role="alert">
           {alertMessage}
-          <button
-            type="button"
-            className="btn-close"
+          <IconButton label="Close"
             onClick={() => setShowAlert(false)}
-            aria-label="Close"
-          ></button>
+          ><BsX /></IconButton>
         </div>
       )}
 

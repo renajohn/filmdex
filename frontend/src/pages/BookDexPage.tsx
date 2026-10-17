@@ -2,6 +2,8 @@ import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } f
 import { useLocation } from 'react-router-dom';
 import BookSearchComponent from '../components/BookSearch';
 import bookService from '../services/bookService';
+import { IconButton } from '../components/shared/Button';
+import { BsX } from 'react-icons/bs';
 
 const BookSearch = BookSearchComponent;
 
@@ -152,15 +154,12 @@ const BookDexPage = forwardRef<BookDexPageRef, BookDexPageProps>(({ searchCriter
                  : 'rgba(59, 130, 246, 0.85)'
              }}>
           {alertMessage}
-          <button
-            type="button"
-            className="btn-close"
+          <IconButton label="Close"
             onClick={() => {
               setShowAlert(false);
               setAlertMessage('');
             }}
-            aria-label="Close"
-          ></button>
+          ><BsX /></IconButton>
         </div>
       )}
     </div>

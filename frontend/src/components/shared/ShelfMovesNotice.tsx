@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Button } from 'react-bootstrap';
 import { BsArrowCounterclockwise, BsBookshelf, BsDashLg } from 'react-icons/bs';
 import { markMovesDone, markMovesUndone, refreshShelfLocations, shelvesChanged, useShelfMoves, type ShelfMove } from '../../utils/shelfLocations';
 import shelvingService, { type LevelState, type ShelfLine } from '../../services/shelvingService';
 import './ShelfMovesNotice.css';
+import Button from './Button';
 
 /** Asked again this often while the page is in view, for a film added from elsewhere. */
 const POLL_MS = 60 * 1000;
@@ -249,11 +249,11 @@ const ShelfMovesNotice: React.FC = () => {
       {error && <div className="shelf-moves-error">{error}</div>}
       {levelId != null ? (
         <div className="shelf-moves-ask">
-          <Button size="sm" variant="warning" onClick={fits} disabled={saving || line == null}>Done</Button>
+          <Button variant="primary" size="sm" onClick={fits} disabled={saving || line == null}>Done</Button>
         </div>
       ) : (
         <div className="shelf-moves-ask">
-          <Button size="sm" variant="warning" onClick={fits} disabled={saving}>Done</Button>
+          <Button variant="primary" size="sm" onClick={fits} disabled={saving}>Done</Button>
         </div>
       )}
       <div className="shelf-moves-foot">

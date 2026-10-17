@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { GiSpiderAlt, GiSnake } from 'react-icons/gi';
 import apiService from '../services/api';
 import './MovieWarnings.css';
+import Button from './shared/Button';
 
 export type WarningTopic = 'spiders' | 'snakes';
 type Status = 'with' | 'without' | 'unknown';
@@ -140,14 +141,12 @@ const MovieWarnings: React.FC<Props> = ({ movieId, onSearch }) => {
                 onChange={e => setLinkInput(e.target.value)}
               />
             </label>
-            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={saveLink}>Save link</button>
-            <button
-              type="button"
-              className="btn btn-sm btn-outline-secondary"
+            <Button size="sm" onClick={saveLink}>Save link</Button>
+            <Button size="sm"
               onClick={() => apply(apiService.refreshMovieWarnings(movieId))}
             >
               Refresh
-            </button>
+            </Button>
           </div>
 
           <div className="movie-warning-meta">

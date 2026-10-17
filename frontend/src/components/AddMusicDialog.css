@@ -99,26 +99,6 @@
   color: #9ca3af !important;
 }
 
-.search-btn {
-  background: rgba(251, 191, 36, 0.2) !important;
-  border: 1px solid rgba(251, 191, 36, 0.4) !important;
-  color: #fbbf24 !important;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
-
-.search-btn:hover:not(:disabled) {
-  background: rgba(251, 191, 36, 0.3) !important;
-  border-color: rgba(251, 191, 36, 0.6) !important;
-  color: #ffffff !important;
-  transform: translateY(-1px);
-}
-
-.search-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 /* Results Header */
 .results-header {
   padding: 12px 0;
@@ -297,30 +277,9 @@
   background: transparent !important;
 }
 
-.select-release-btn,
-.select-release-btn-header {
-  background: rgba(251, 191, 36, 0.2) !important;
-  border: 1px solid rgba(251, 191, 36, 0.4) !important;
-  color: #fbbf24 !important;
-  font-weight: 600;
-  font-size: 0.75rem;
-  padding: 6px 12px;
-  white-space: nowrap;
-  transition: all 0.2s ease;
-}
-
-.select-release-btn:hover,
-.select-release-btn-header:hover {
-  background: rgba(251, 191, 36, 0.3) !important;
-  border-color: rgba(251, 191, 36, 0.6) !important;
-  color: #ffffff !important;
-  transform: translateY(-1px);
-}
-
 .select-release-btn-header {
   flex-shrink: 0;
-  margin-left: auto;
-}
+  margin-left: auto}
 
 /* Manual Entry Section */
 .manual-entry-section {
@@ -337,20 +296,6 @@
 
 .manual-entry-content .text-muted {
   color: #9ca3af !important;
-}
-
-.manual-entry-btn {
-  background: transparent !important;
-  border: 1px solid rgba(251, 191, 36, 0.4) !important;
-  color: #fbbf24 !important;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
-
-.manual-entry-btn:hover {
-  background: rgba(251, 191, 36, 0.1) !important;
-  border-color: rgba(251, 191, 36, 0.6) !important;
-  color: #ffffff !important;
 }
 
 /* Alert styling */
@@ -454,25 +399,15 @@
     margin-top: 8px;
   }
   
-  .select-release-btn {
-    width: 100%;
-    padding: 10px 16px;
-    font-size: 0.85rem;
-  }
   
-  .select-release-btn-header {
-    padding: 8px 12px;
-    font-size: 0.75rem;
-  }
+  
+  
   
   .manual-entry-content {
     padding: 12px;
   }
   
-  .manual-entry-btn {
-    width: 100%;
   }
-}
 
 /* Photo scan: the file input is driven by the button next to it */
 .photo-scan-input {
@@ -502,10 +437,7 @@
 }
 
 .quick-add-btn {
-  min-height: 40px;
-  font-weight: 600;
-  white-space: nowrap;
-}
+  min-height: 40px}
 
 /* On a phone the pair takes the full width, Add first and largest */
 @media (max-width: 768px) {
@@ -516,12 +448,10 @@
 
   .quick-add-btn {
     flex: 2 1 0;
-    min-height: 44px;
-  }
+    min-height: 44px}
 
   .release-actions .select-release-btn,
   .release-actions .select-release-btn-header {
     flex: 1 1 0;
-    min-height: 44px;
-  }
+    min-height: 44px}
 }

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback, useMemo } from 'react';
 import CoverButton from './shared/CoverButton';
-import { BsStar, BsStarFill } from 'react-icons/bs';
+import { BsStar, BsStarFill, BsX } from 'react-icons/bs';
 import apiService from '../services/api';
 import MovieThumbnail from './MovieThumbnail';
 import MovieDetailCard from './MovieDetailCard';
@@ -21,6 +21,7 @@ import { findById, shownIds, useDetailSteps, type Id } from '../utils/detailStep
 import { movieImages } from '../utils/detailImages';
 import ShelfCode from './shared/ShelfCode';
 import CoverTag, { CoverTagStack } from './shared/CoverTag';
+import Button, { IconButton } from './shared/Button';
 
 export interface FilmDexPageRef {
   refreshMovies: () => void;
@@ -1042,13 +1043,11 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
               title="Welcome to FilmDex!"
               description="Your movie collection is empty. Add your first movie to get started and begin tracking your film library."
               action={
-                <button
-                  className="btn btn-primary btn-lg mt-4"
+                <Button variant="primary" icon={<BsFilm />} className="mt-4"
                   onClick={() => onAddMovie && onAddMovie()}
                 >
-                  <BsFilm className="me-2" />
                   Add Your First Movie
-                </button>
+                </Button>
               }
             />
           )
@@ -1322,16 +1321,13 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
             >
               Yesterday
             </button>
-            <button
-              className="watched-prompt-dismiss"
+            <IconButton label="Dismiss" size="sm" className="watched-prompt-dismiss"
               onClick={() => {
                 setShowWatchedPrompt(false);
                 setPromptMovie(null);
               }}
               title="Dismiss"
-            >
-              ✕
-            </button>
+            ><BsX /></IconButton>
           </div>
         </div>
       )}

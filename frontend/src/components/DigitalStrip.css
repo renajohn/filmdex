@@ -29,23 +29,7 @@
 
 /* Refresh beside the count: a quiet round button. */
 .digital-refresh {
-  margin-left: 10px;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: transparent;
-  color: #9ca3af;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  vertical-align: middle;
-}
-
-.digital-refresh:hover:not(:disabled) {
-  color: #e5e5e5;
-  border-color: rgba(255, 255, 255, 0.35);
-}
+  margin-left: 10px}
 
 .digital-spinning { animation: digital-spin 1s linear infinite; }
 @keyframes digital-spin { to { transform: rotate(360deg); } }
@@ -130,5 +114,4 @@
 }
 
 .digital-dismissed-toggle:hover { color: #ddd; }
-
 

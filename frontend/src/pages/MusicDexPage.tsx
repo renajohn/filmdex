@@ -6,6 +6,8 @@ import ResizeCoversMigrationModal from '../components/ResizeCoversMigrationModal
 import FillBackCoversModal from '../components/FillBackCoversModal';
 import musicService from '../services/musicService';
 import AttachCdDialog, { type AttachableAlbum } from '../components/AttachCdDialog';
+import { IconButton } from '../components/shared/Button';
+import { BsX } from 'react-icons/bs';
 
 interface MigrationResult {
   total: number;
@@ -248,11 +250,9 @@ const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCri
         <div className={`alert alert-${alertType} alert-dismissible fade show position-fixed`}
              style={{ top: '20px', right: '20px', zIndex: 9999 }}>
           {alertMessage}
-          <button
-            type="button"
-            className="btn-close"
+          <IconButton label="Close"
             onClick={() => setShowAlert(false)}
-          ></button>
+          ><BsX /></IconButton>
         </div>
       )}
 

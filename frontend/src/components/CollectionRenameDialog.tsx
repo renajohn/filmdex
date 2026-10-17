@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Modal, Button, Form } from 'react-bootstrap';
+import { Modal, Form } from 'react-bootstrap';
 import apiService from '../services/api';
 import './CollectionRenameDialog.css';
+import Button from './shared/Button';
 
 interface CollectionRenameDialogProps {
   show: boolean;
@@ -90,11 +91,10 @@ const CollectionRenameDialog = ({
         </Form>
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={handleCancel} disabled={loading}>
+        <Button onClick={handleCancel} disabled={loading}>
           Cancel
         </Button>
-        <Button
-          variant="primary"
+        <Button variant="primary"
           onClick={handleConfirm}
           disabled={loading}
         >

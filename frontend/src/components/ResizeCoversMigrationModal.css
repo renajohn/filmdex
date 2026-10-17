@@ -41,30 +41,6 @@
   font-weight: 600;
 }
 
-.resize-covers-modal-close {
-  background: none;
-  border: none;
-  color: #999;
-  font-size: 32px;
-  cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.2s ease;
-}
-
-.resize-covers-modal-close:hover:not(:disabled) {
-  color: #fbbf24;
-}
-
-.resize-covers-modal-close:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .resize-covers-modal-body {
   padding: 24px;
   color: #e5e7eb;
@@ -212,44 +188,6 @@
   gap: 12px;
   padding: 16px 24px;
   border-top: 1px solid #333;
-}
-
-.btn-primary,
-.btn-secondary {
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  color: #1a1a1a;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #fcd34d, #fbbf24);
-  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
-}
-
-.btn-secondary {
-  background: #2a2a2a;
-  color: #e5e7eb;
-  border: 1px solid #444;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #333;
-  border-color: #555;
-}
-
-.btn-primary:disabled,
-.btn-secondary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 @keyframes fadeIn {

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Button, Form, Modal } from 'react-bootstrap';
+import { Form, Modal } from 'react-bootstrap';
 import { BsDisc } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import Select from './shared/Select';
+import Button from './shared/Button';
 
 type Edition = 'keep' | 'barcode' | 'musicbrainz';
 
@@ -103,8 +104,8 @@ const BoughtCdDialog: React.FC<BoughtCdDialogProps> = ({ album, onClose, onBough
           {error && <div className="text-danger small mt-3">{error}</div>}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="outline-secondary" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button type="submit" variant="primary" disabled={saving}>
+          <Button onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button variant="primary" type="submit" disabled={saving}>
             {saving && <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />}
             Into my collection
           </Button>

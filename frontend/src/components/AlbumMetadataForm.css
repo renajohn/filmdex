@@ -340,35 +340,6 @@
   }
 }
 
-/* Button styling - exact match to AddMusicDialog */
-.album-metadata-form .btn-primary {
-  background: rgba(251, 191, 36, 0.2) !important;
-  border: 1px solid rgba(251, 191, 36, 0.4) !important;
-  color: #fbbf24 !important;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
-
-.album-metadata-form .btn-primary:hover:not(:disabled) {
-  background: rgba(251, 191, 36, 0.3) !important;
-  border-color: rgba(251, 191, 36, 0.6) !important;
-  color: #ffffff !important;
-  transform: translateY(-1px);
-}
-
-.album-metadata-form .btn-secondary {
-  background: rgba(68, 68, 68, 0.6) !important;
-  border: 1px solid rgba(68, 68, 68, 0.6) !important;
-  color: #d1d5db !important;
-  transition: all 0.2s ease;
-}
-
-.album-metadata-form .btn-secondary:hover:not(:disabled) {
-  background: rgba(68, 68, 68, 0.8) !important;
-  border-color: rgba(68, 68, 68, 0.8) !important;
-  color: #f3f4f6 !important;
-}
-
 /* Text colors - exact match */
 .album-metadata-form .text-light {
   color: #f7fafc !important;

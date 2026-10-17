@@ -8,12 +8,13 @@ import AddBookDialog from './AddBookDialog';
 import SeriesStack from './SeriesStack';
 import AlphabeticalIndex from './AlphabeticalIndex';
 import { CollectionHeader, EmptyState } from './shared';
-import { Modal, Button, Form } from 'react-bootstrap';
+import { Modal, Form } from 'react-bootstrap';
 import { BsChevronDown, BsBook, BsX } from 'react-icons/bs';
 import './BookSearch.css';
 import { readStored, writeStored } from '../utils/safeStorage';
 import { findById, shownIds, useDetailSteps } from '../utils/detailSteps';
 import { bookImages } from '../utils/detailImages';
+import Button from './shared/Button';
 
 interface BookSearchProps {
   books: any;
@@ -1056,13 +1057,11 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
           title="Welcome to BookDex!"
           description="Your book collection is empty. Add your first book to get started and begin tracking your library."
           action={
-            <button
-              className="btn btn-primary btn-lg mt-4"
+            <Button variant="primary" icon={<BsBook />} className="mt-4"
               onClick={onOpenAddDialog}
             >
-              <BsBook className="me-2" />
               Add Your First Book
-            </button>
+            </Button>
           }
         />
       );
@@ -1450,12 +1449,11 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
                 </button>
               </span>
             ))}
-            <button
-              className="clear-all-filters"
+            <Button variant="quiet" size="sm" className="clear-all-filters"
               onClick={() => updateSearchViaUrl('')}
             >
               Clear all
-            </button>
+            </Button>
           </div>
         )}
 
@@ -1674,16 +1672,12 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
                 <p>Are you sure you want to remove this book from your collection?</p>
               </div>
               <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
+                <Button variant="quiet"
                   onClick={() => setShowDeleteModal({ show: false, bookId: null })}
                 >
                   Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-danger"
+                </Button>
+                <Button variant="danger"
                   onClick={async () => {
                     const id = showDeleteModal.bookId;
                     try {
@@ -1698,7 +1692,7 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
                   }}
                 >
                   Delete
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -1766,11 +1760,10 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={handleCancelCreateSeries}>
+          <Button onClick={handleCancelCreateSeries}>
             Cancel
           </Button>
-          <Button
-            variant="primary"
+          <Button variant="primary"
             onClick={handleConfirmCreateSeries}
             disabled={!seriesNameInput.trim()}
           >
@@ -1836,11 +1829,10 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
           </p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={handleCancelMergeSeries}>
+          <Button onClick={handleCancelMergeSeries}>
             Cancel
           </Button>
-          <Button
-            variant="primary"
+          <Button variant="primary"
             onClick={handleConfirmMergeSeries}
             disabled={!mergeSeriesData.selectedName}
           >

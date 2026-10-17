@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Button, Tabs, Tab, Form, Alert, Table, Badge } from 'react-bootstrap';
+import { Modal, Tabs, Tab, Form, Alert, Table, Badge } from 'react-bootstrap';
 import { BsX, BsSearch, BsUpcScan, BsPlus, BsPencil, BsChevronDown, BsChevronRight, BsCamera } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import LazyGroupCover from './LazyGroupCover';
@@ -8,6 +8,7 @@ import { decodeBarcode } from '../utils/decodeBarcode';
 import AlbumMetadataForm from './AlbumMetadataForm';
 import SleeveCapture, { type SleeveDraftResult } from './SleeveCapture';
 import './AddMusicDialog.css';
+import Button from './shared/Button';
 
 interface MusicRelease {
   id?: string;
@@ -563,8 +564,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
             <div className="photo-scan-section mb-3">
               <Button
                 onClick={openCamera}
-                disabled={scanning}
-                className="search-btn w-100 photo-scan-btn"
+                disabled={scanning} className="search-btn w-100 photo-scan-btn"
               >
                 {scanning ? (
                   <>
@@ -586,9 +586,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                 </div>
               )}
               {scanLookupFailed && scanSummary && (
-                <Button
-                  variant="outline-light"
-                  className="w-100 mt-2"
+                <Button className="w-100 mt-2"
                   disabled={searching}
                   onClick={() => {
                     setScanLookupFailed(false);
@@ -632,8 +630,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
               <div className="col-12 col-md-2">
                 <Button 
                   onClick={handleSearch}
-                  disabled={searching}
-                  className="search-btn w-100"
+                  disabled={searching} className="search-btn w-100"
                 >
                   {searching ? (
                     <span className="spinner-border spinner-border-sm" />
@@ -663,9 +660,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
               </div>
               {searchBy === 'barcode' && (
                 <div className="col-12">
-                  <Button
-                    variant="outline-light"
-                    className="w-100 barcode-scan-btn"
+                  <Button className="w-100 barcode-scan-btn"
                     disabled={decodingBarcode || searching}
                     onClick={() => barcodeInputRef.current?.click()}
                   >
@@ -686,8 +681,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
               <div className="col-12 col-md-2">
                 <Button 
                   onClick={handleSearch}
-                  disabled={searching}
-                  className="search-btn w-100"
+                  disabled={searching} className="search-btn w-100"
                 >
                   {searching ? (
                     <span className="spinner-border spinner-border-sm" />
@@ -718,12 +712,10 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
               </small>
               {onDraftEntry && (
                 <div className="mt-3">
-                  <Button
-                    variant="outline-primary"
+                  <Button icon={<BsCamera />}
                     size="sm"
                     onClick={() => setCapturingSleeve(true)}
                   >
-                    <BsCamera className="me-2" />
                     Fill the form from your photos
                   </Button>
                   <div className="mt-1">
@@ -782,8 +774,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                         ) : (
                           <div className="release-actions" onClick={(e) => e.stopPropagation()}>
                             <Button
-                              size="sm"
-                              className="quick-add-btn"
+                              size="sm" className="quick-add-btn"
                               disabled={addingReleaseId !== null}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -799,17 +790,14 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                                 </>
                               )}
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline-secondary"
-                              className="select-release-btn-header"
+                            <Button icon={<BsPencil />}
+                              size="sm" className="select-release-btn-header"
                               disabled={addingReleaseId !== null}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleSelectRelease(group.releases[0], group.releases);
                               }}
                             >
-                              <BsPencil className="me-1" />
                               Review
                             </Button>
                           </div>
@@ -847,8 +835,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                                   <td>
                                     <div className="release-actions">
                                       <Button
-                                        size="sm"
-                                        className="quick-add-btn"
+                                        size="sm" className="quick-add-btn"
                                         disabled={addingReleaseId !== null}
                                         onClick={(e) => {
                                           e.stopPropagation();
@@ -864,17 +851,14 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                                           </>
                                         )}
                                       </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline-secondary"
-                                        className="select-release-btn"
+                                      <Button icon={<BsPencil />}
+                                        size="sm" className="select-release-btn"
                                         disabled={addingReleaseId !== null}
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           handleSelectRelease(release, group.releases);
                                         }}
                                       >
-                                        <BsPencil className="me-1" />
                                         Review
                                       </Button>
                                     </div>
@@ -900,12 +884,9 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
             <p className="text-muted mb-2">
               Manually enter album information without searching external databases.
             </p>
-            <Button 
-              variant="outline-secondary"
-              onClick={handleManualEntry}
-              className="manual-entry-btn"
+            <Button icon={<BsPencil />}
+              onClick={handleManualEntry} className="manual-entry-btn"
             >
-              <BsPencil className="me-2" />
               Manual Entry
             </Button>
           </div>

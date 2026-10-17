@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Form, Button, Row, Col, Alert, Accordion, Card, Table } from 'react-bootstrap';
+import { Modal, Form, Row, Col, Alert, Accordion, Card, Table } from 'react-bootstrap';
 import { BsX, BsUpload, BsDisc, BsPlus, BsTrash, BsPencil, BsGripVertical } from 'react-icons/bs';
 import apiService from '../services/api';
 import musicService from '../services/musicService';
@@ -7,6 +7,7 @@ import CoverCropDialog from './CoverCropDialog';
 import { trackCredits, type TrackPerformer } from '../utils/trackCredits';
 import { joinNames, splitNames } from '../utils/trackDetail';
 import Select from './shared/Select';
+import Button, { IconButton } from './shared/Button';
 
 interface TrackData {
   trackNumber?: number;
@@ -994,7 +995,6 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                   />
                   {formData.urls?.appleMusic && (
                     <Button
-                      variant="outline-secondary"
                       onClick={() => {
                         setFormData(prev => ({
                           ...prev,
@@ -1182,10 +1182,8 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                   JPEG, PNG, WebP (max 10MB)
                 </Form.Text>
                 {cd && cd.id && (
-                  <Button
-                    variant="link"
-                    size="sm"
-                    className="p-0 mt-1"
+                  <Button variant="quiet"
+                    size="sm" className="mt-1"
                     style={{ fontSize: '0.75rem' }}
                     disabled={importingNavidromeCover}
                     onClick={handleImportNavidromeCover}
@@ -1582,8 +1580,8 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
           <hr className="my-3" />
           <div className="d-flex justify-content-between align-items-center mb-3">
             <h6 className="mb-0">Tracks</h6>
-            <Button variant="outline-primary" size="sm" onClick={addDisc}>
-              <BsPlus size={18} /> Add Disc
+            <Button icon={<BsPlus size={18} />} size="sm" onClick={addDisc}>
+              Add Disc
             </Button>
           </div>
 
@@ -1603,15 +1601,13 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                   </Accordion.Header>
                   <Accordion.Body>
                     <div className="d-flex justify-content-end mb-2 gap-2">
-                      <Button
-                        variant="outline-success"
+                      <Button icon={<BsPlus size={18} />}
                         size="sm"
                         onClick={() => addTrack(discIndex)}
                       >
-                        <BsPlus size={18} /> Add Track
+                        Add Track
                       </Button>
-                      <Button
-                        variant="outline-danger"
+                      <Button variant="danger" icon={<BsTrash />}
                         size="sm"
                         onClick={() => {
                           if (window.confirm(`Delete Disc ${disc.number}?`)) {
@@ -1619,7 +1615,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                           }
                         }}
                       >
-                        <BsTrash /> Delete Disc
+                        Delete Disc
                       </Button>
                     </div>
 
@@ -1693,8 +1689,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                                 <td style={{ userSelect: 'none' }}>{formatDuration(track.durationSec)}</td>
                                 <td>
                                   <div className="d-flex gap-1">
-                                    <Button
-                                      variant="outline-primary"
+                                    <IconButton label="Edit track"
                                       size="sm"
                                       onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation();
@@ -1702,9 +1697,8 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                                       }}
                                     >
                                       <BsPencil />
-                                    </Button>
-                                    <Button
-                                      variant="outline-danger"
+                                    </IconButton>
+                                    <IconButton label="Delete track" tone="danger"
                                       size="sm"
                                       onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation();
@@ -1714,7 +1708,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                                       }}
                                     >
                                       <BsTrash />
-                                    </Button>
+                                    </IconButton>
                                   </div>
                                 </td>
                               </tr>
@@ -1732,7 +1726,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
         </Modal.Body>
 
         <Modal.Footer>
-          <Button variant="secondary" onClick={onCancel} disabled={loading}>
+          <Button onClick={onCancel} disabled={loading}>
             Cancel
           </Button>
           <Button variant="primary" type="submit" disabled={loading}>
@@ -1842,12 +1836,11 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Form.Group className="mb-3">
               <div className="d-flex justify-content-between align-items-center mb-1">
                 <Form.Label className="mb-0">Performers</Form.Label>
-                <Button
-                  variant="outline-success"
+                <Button icon={<BsPlus size={16} />}
                   size="sm"
                   onClick={() => updateEditingTrack({ performers: [...(editingTrack.data.performers || []), { name: '', role: '' }] })}
                 >
-                  <BsPlus size={16} /> Add
+                  Add
                 </Button>
               </div>
               {(editingTrack.data.performers || []).length === 0 ? (
@@ -1872,16 +1865,14 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                       aria-label="Performer role"
                       style={{ maxWidth: '45%' }}
                     />
-                    <Button
-                      variant="outline-danger"
+                    <IconButton label={`Remove ${performer.name || 'performer'}`} tone="danger"
                       size="sm"
-                      aria-label={`Remove ${performer.name || 'performer'}`}
                       onClick={() => updateEditingTrack({
                         performers: (editingTrack.data.performers || []).filter((_: TrackPerformer, i: number) => i !== index)
                       })}
                     >
                       <BsTrash />
-                    </Button>
+                    </IconButton>
                   </div>
                 ))
               )}
@@ -1915,7 +1906,6 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
         </Modal.Body>
         <Modal.Footer>
           <Button
-            variant="secondary"
             onClick={() => {
               setShowTrackDialog(false);
               setEditingTrack(null);
@@ -1923,8 +1913,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
           >
             Cancel
           </Button>
-          <Button
-            variant="primary"
+          <Button variant="primary"
             onClick={saveTrack}
             disabled={!editingTrack.data.title.trim()}
           >

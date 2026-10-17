@@ -123,25 +123,6 @@
   flex: 1;
 }
 
-.error-close {
-  background: none;
-  border: none;
-  font-size: 20px;
-  color: #1a1a1a;
-  cursor: pointer;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.error-close:hover {
-  background-color: rgba(26, 26, 26, 0.1);
-  border-radius: 50%;
-}
-
 .import-content {
   background: linear-gradient(135deg, #2d2d2d 0%, #3a3a3a 100%);
   border-radius: 16px;
@@ -325,20 +306,3 @@
   transition: all 0.2s ease;
 }
 
-.complete-actions .btn-primary {
-  background-color: #007bff;
-  color: white;
-}
-
-.complete-actions .btn-primary:hover {
-  background-color: #0056b3;
-}
-
-.complete-actions .btn-secondary {
-  background-color: #6c757d;
-  color: white;
-}
-
-.complete-actions .btn-secondary:hover {
-  background-color: #545b62;
-}

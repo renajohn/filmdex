@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './ColumnMappingModal.css';
 import Select from './shared/Select';
+import Button from './shared/Button';
 
 interface DbField {
   key: string;
@@ -158,20 +159,16 @@ const ColumnMappingModal: React.FC<ColumnMappingModalProps> = ({
         </div>
 
         <div className="modal-footer">
-          <button
-            type="button"
-            className="btn btn-secondary"
+          <Button variant="quiet"
             onClick={handleCancel}
           >
             Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
+          </Button>
+          <Button variant="primary"
             onClick={handleConfirm}
           >
             Process CSV
-          </button>
+          </Button>
         </div>
       </div>
     </div>

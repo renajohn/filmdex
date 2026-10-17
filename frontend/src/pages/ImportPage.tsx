@@ -6,6 +6,8 @@ import UnmatchedMovies from '../components/UnmatchedMovies';
 import ColumnMappingModal from '../components/ColumnMappingModal';
 import apiService from '../services/api';
 import './ImportPage.css';
+import Button, { IconButton } from '../components/shared/Button';
+import { BsX } from 'react-icons/bs';
 
 interface ImportStats {
   totalMovies: number;
@@ -222,15 +224,14 @@ const ImportPage: React.FC = () => {
               )}
 
               <div className="complete-actions">
-                <button
+                <Button variant="primary"
                   onClick={() => navigate('/filmdex')}
-                  className="btn btn-primary"
                 >
                   View Collection
-                </button>
-                <button onClick={handleStartOver} className="btn btn-secondary">
+                </Button>
+                <Button onClick={handleStartOver}>
                   Import Another File
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -270,7 +271,7 @@ const ImportPage: React.FC = () => {
             <div className="error-content">
               <span className="error-icon">⚠️</span>
               <span className="error-text">{error}</span>
-              <button onClick={() => setError(null)} className="error-close">×</button>
+              <IconButton label="Close" onClick={() => setError(null)} className="error-close"><BsX /></IconButton>
             </div>
           </div>
         )}

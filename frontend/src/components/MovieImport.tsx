@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import './MovieImport.css';
+import Button, { IconButton } from './shared/Button';
+import { BsX } from 'react-icons/bs';
 
 interface MovieImportProps {
   onFileUpload: (file: File) => Promise<void>;
@@ -105,13 +107,9 @@ const MovieImport: React.FC<MovieImportProps> = ({ onFileUpload, onError }) => {
                   <div className="file-name">{file.name}</div>
                   <div className="file-size">{formatFileSize(file.size)}</div>
                 </div>
-                <button
-                  type="button"
-                  className="remove-file"
+                <IconButton label="Remove the file" size="sm" className="remove-file"
                   onClick={() => setFile(null)}
-                >
-                  ✕
-                </button>
+                ><BsX /></IconButton>
               </div>
             ) : (
               <div className="file-drop-content">
@@ -128,13 +126,12 @@ const MovieImport: React.FC<MovieImportProps> = ({ onFileUpload, onError }) => {
         </div>
 
         <div className="import-actions">
-          <button
+          <Button variant="primary"
             type="submit"
-            disabled={!file || isUploading}
-            className="import-button"
+            disabled={!file || isUploading} className="import-button"
           >
             {isUploading ? 'Uploading...' : 'Start Import'}
-          </button>
+          </Button>
         </div>
       </form>
 

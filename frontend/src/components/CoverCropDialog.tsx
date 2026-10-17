@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Modal, Button, Spinner } from 'react-bootstrap';
+import { Modal, Spinner } from 'react-bootstrap';
 import { BsArrowCounterclockwise, BsArrowClockwise } from 'react-icons/bs';
 import { detectSleeveQuad, defaultQuad, DEFAULT_QUAD, CONFIDENT, type Quad, type Point } from '../utils/detectSleeveQuad';
 import { warpQuad } from '../utils/warpQuad';
 import './CoverCropDialog.css';
+import Button from './shared/Button';
 
 const CORNERS: Array<keyof Quad> = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
 
@@ -293,24 +294,20 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
         </div>
 
         <div className="cover-crop-tools">
-          <Button
-            variant="secondary"
+          <Button icon={<BsArrowCounterclockwise />}
             size="sm"
             data-testid="rotate-left"
             disabled={!src || rotating || detecting}
             onClick={() => void rotate(-1)}
           >
-            <BsArrowCounterclockwise className="me-1" />
             Rotate left
           </Button>
-          <Button
-            variant="secondary"
+          <Button icon={<BsArrowClockwise />}
             size="sm"
             data-testid="rotate-right"
             disabled={!src || rotating || detecting}
             onClick={() => void rotate(1)}
           >
-            <BsArrowClockwise className="me-1" />
             Rotate right
           </Button>
         </div>
@@ -327,10 +324,10 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
       </Modal.Body>
 
       <Modal.Footer>
-        <Button variant="link" disabled={applying} onClick={() => working && onConfirm(working)}>
+        <Button variant="quiet" disabled={applying} onClick={() => working && onConfirm(working)}>
           Use the photo as it is
         </Button>
-        <Button variant="secondary" disabled={applying} onClick={onCancel}>
+        <Button disabled={applying} onClick={onCancel}>
           Cancel
         </Button>
         <Button onClick={apply} disabled={detecting || rotating || applying || !src}>

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Form } from 'react-bootstrap';
+import { Form } from 'react-bootstrap';
 import musicService, { type AlbumNote } from '../services/musicService';
 import './AlbumNotes.css';
+import Button from './shared/Button';
 
 const today = (): string => {
   const now = new Date();
@@ -105,7 +106,7 @@ const AlbumNotes: React.FC<AlbumNotesProps> = ({ albumId, writing = false, onCou
         />
         <div className="album-notes-form-row">
           <Form.Control type="date" size="sm" value={date} max={today()} onChange={e => setDate(e.target.value)} aria-label="Day of the listening" />
-          <Button type="submit" size="sm" variant="outline-light" disabled={saving || !draft.trim()}>Add note</Button>
+          <Button type="submit" size="sm" disabled={saving || !draft.trim()}>Add note</Button>
         </div>
       </Form>
 
@@ -126,8 +127,8 @@ const AlbumNotes: React.FC<AlbumNotesProps> = ({ albumId, writing = false, onCou
                   />
                   <div className="album-notes-form-row">
                     <Form.Control type="date" size="sm" value={editing.date.slice(0, 10)} max={today()} onChange={e => setEditing({ ...editing, date: e.target.value })} aria-label="Day of the listening" />
-                    <Button size="sm" variant="outline-light" onClick={save} disabled={saving || !editing.note.trim()}>Save</Button>
-                    <button type="button" className="album-notes-action" onClick={() => setEditing(null)}>Cancel</button>
+                    <Button size="sm" onClick={save} disabled={saving || !editing.note.trim()}>Save</Button>
+                    <Button variant="quiet" size="sm" className="album-notes-action" onClick={() => setEditing(null)}>Cancel</Button>
                   </div>
                 </div>
               ) : (
@@ -135,8 +136,8 @@ const AlbumNotes: React.FC<AlbumNotesProps> = ({ albumId, writing = false, onCou
                   <div className="album-notes-meta">
                     <time dateTime={note.date}>{dayLabel(note.date)}</time>
                     <span className="album-notes-actions">
-                      <button type="button" className="album-notes-action" onClick={() => setEditing({ id: note.id, note: note.note, date: note.date })}>Edit</button>
-                      <button type="button" className="album-notes-action" onClick={() => remove(note.id)} disabled={saving}>Delete</button>
+                      <Button variant="quiet" size="sm" className="album-notes-action" onClick={() => setEditing({ id: note.id, note: note.note, date: note.date })}>Edit</Button>
+                      <Button variant="danger" size="sm" className="album-notes-action" onClick={() => remove(note.id)} disabled={saving}>Delete</Button>
                     </span>
                   </div>
                   <p className="album-notes-text">{note.note}</p>

@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { BsCloudUpload, BsLink45Deg } from 'react-icons/bs';
+import { BsCloudUpload, BsLink45Deg, BsCheck, BsX } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import './InlineCoverSelector.css';
+import { IconButton } from './shared/Button';
 
 interface Book {
   id: number;
@@ -155,7 +156,7 @@ const InlineCoverSelector = ({ book, isOpen, onCoverSelected, currentCover, onCl
       <div className="inline-cover-content">
         <div className="cover-selector-header">
           <span>Change Cover</span>
-          <button className="cover-selector-close" onClick={onClose}>×</button>
+          <IconButton label="Close" className="cover-selector-close" onClick={onClose}><BsX /></IconButton>
         </div>
 
         <div className="cover-selector-options">
@@ -209,27 +210,21 @@ const InlineCoverSelector = ({ book, isOpen, onCoverSelected, currentCover, onCl
                 />
                 {urlError && <span className="url-error">{urlError}</span>}
                 <div className="url-actions">
-                  <button
-                    className="url-cancel"
+                  <IconButton label="Cancel" size="sm" className="url-cancel"
                     onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                       e.stopPropagation();
                       setShowUrlInput(false);
                       setUrlInput('');
                       setUrlError('');
                     }}
-                  >
-                    ✕
-                  </button>
-                  <button
-                    className="url-submit"
+                  ><BsX /></IconButton>
+                  <IconButton label="Use this address" tone="confirm" size="sm" className="url-submit"
                     onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                       e.stopPropagation();
                       handleUrlSubmit();
                     }}
                     disabled={uploading}
-                  >
-                    ✓
-                  </button>
+                  ><BsCheck /></IconButton>
                 </div>
               </div>
             ) : (

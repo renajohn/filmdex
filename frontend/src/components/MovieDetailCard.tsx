@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import CoverButton from './shared/CoverButton';
-import { BsStar, BsStarFill } from 'react-icons/bs';
+import { BsStar, BsStarFill, BsDashLg, BsPlusLg, BsChevronDown } from 'react-icons/bs';
 import { FormControl } from 'react-bootstrap';
 import CompactRatingsWidget from './CompactRatingsWidget';
 import InlinePosterSelector from './InlinePosterSelector';
@@ -18,6 +18,7 @@ import { CSS } from '@dnd-kit/utilities';
 import './MovieDetailCard.css';
 import ShelfCode from './shared/ShelfCode';
 import Select from './shared/Select';
+import Button, { IconButton } from './shared/Button';
 
 interface MovieData {
   id: number;
@@ -1376,9 +1377,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       <>
         <div className="movie-detail-overlay" onClick={onClose}>
           <div className="movie-detail-card skeleton-loading" onClick={(e) => e.stopPropagation()}>
-            <button className="movie-detail-close" onClick={onClose}>
-              <BsX />
-            </button>
+            <IconButton label="Close" className="movie-detail-close" onClick={onClose}><BsX /></IconButton>
             
             <div className="movie-detail-content">
               {/* Header Section Skeleton */}
@@ -1651,9 +1650,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
           {/* Close and ‹ › stay in the corner however far the card has scrolled. */}
           <div className="movie-detail-topbar">
             <DetailSteps onPrevious={onPrevious} onNext={onNext} noun="movie" className="movie-detail-steps" />
-            <button className="movie-detail-close" onClick={onClose}>
-              <BsX />
-            </button>
+            <IconButton label="Close" className="movie-detail-close" onClick={onClose}><BsX /></IconButton>
           </div>
 
           {/* Inline Poster Selector - positioned relative to card */}
@@ -1747,21 +1744,15 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                         style={{ fontSize: '2rem', fontWeight: '700', paddingRight: '60px' }}
                       />
                       <div className="input-group-append">
-                        <button 
-                          className="edit-action-btn" 
+                        <IconButton label="Sauver" tone="confirm" size="sm" className="edit-action-btn" 
                           onClick={saveEdit}
                           disabled={saving}
                           title="Sauver"
-                        >
-                          <BsCheck size={12} />
-                        </button>
-                        <button 
-                          className="edit-action-btn" 
+                        ><BsCheck size={12} /></IconButton>
+                        <IconButton label="Annuler" size="sm" className="edit-action-btn" 
                           onClick={cancelEditing}
                           title="Annuler"
-                        >
-                          <BsX size={12} />
-                        </button>
+                        ><BsX size={12} /></IconButton>
                       </div>
                     </div>
                   ) : (
@@ -1776,13 +1767,10 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                         }
                       </span>
                       {showCopyIcon && (
-                        <button 
-                          className="copy-title-btn"
+                        <IconButton label="Copier le titre" size="sm" className="copy-title-btn"
                           onClick={copyTitleToClipboard}
                           title="Copier le titre"
-                        >
-                          <BsCopy size={16} />
-                        </button>
+                        ><BsCopy size={16} /></IconButton>
                       )}
                     </div>
                   )}
@@ -1840,21 +1828,15 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                         style={{ paddingRight: '60px', resize: 'vertical' }}
                       />
                       <div className="input-group-append">
-                        <button 
-                          className="edit-action-btn" 
+                        <IconButton label="Sauver" tone="confirm" size="sm" className="edit-action-btn" 
                           onClick={saveEdit}
                           disabled={saving}
                           title="Sauver"
-                        >
-                          <BsCheck size={12} />
-                        </button>
-                        <button 
-                          className="edit-action-btn" 
+                        ><BsCheck size={12} /></IconButton>
+                        <IconButton label="Annuler" size="sm" className="edit-action-btn" 
                           onClick={cancelEditing}
                           title="Annuler"
-                        >
-                          <BsX size={12} />
-                        </button>
+                        ><BsX size={12} /></IconButton>
                       </div>
                     </div>
                   ) : (
@@ -1871,30 +1853,28 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                 <div className="movie-detail-actions">
                   <div className="action-buttons">
                     {trailerEmbedUrl ? (
-                      <button 
-                        className="action-btn play-trailer"
+                      <Button icon={<BsPlay className="action-icon" />} className="action-btn play-trailer"
                         onClick={() => setShowTrailer(true)}
                       >
-                        <BsPlay className="action-icon" />
                         Play Trailer
-                      </button>
+                      </Button>
                     ) : (
-                      <button className="action-btn play-trailer" disabled>
-                        <BsPlay className="action-icon" />
+                      <Button icon={<BsPlay className="action-icon" />} className="action-btn play-trailer" disabled>
                         No Trailer Available
-                      </button>
+                      </Button>
                     )}
                     
-                    <div className="watched-button-container" ref={datePickerRef}>
-                      <button 
-                        className={`action-btn watched-today ${(currentData!.watch_count || 0) > 0 ? 'has-watches' : ''}`}
+                    <div className="watched-button-container ui-button-group" ref={datePickerRef}>
+                      <Button
+                        className="action-btn watched-today"
+                        active={(currentData!.watch_count || 0) > 0}
+                        icon={<BsEye />}
                         onClick={() => handleMarkAsWatched()}
-                        disabled={markingWatched}
+                        loading={markingWatched}
                         title={currentData!.last_watched
                           ? `Last watched: ${new Date(currentData!.last_watched).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`
                           : 'Mark as watched today (adds +1 to count)'}
                       >
-                        <BsEye className="action-icon" />
                         {markingWatched ? 'Saving...' : (() => {
                           const count = currentData!.watch_count || 0;
                           if (count === 0) return 'Mark as Watched';
@@ -1904,15 +1884,17 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                           if (count === 1) return `Watched ${dateStr}`;
                           return `Watched ${count}× · ${dateStr}`;
                         })()}
-                      </button>
-                      <button 
-                        className="action-btn watched-date-toggle"
+                      </Button>
+                      <Button className="action-btn watched-date-toggle"
+                        active={(currentData!.watch_count || 0) > 0}
                         onClick={toggleDatePicker}
                         disabled={markingWatched}
                         title="More options"
+                        aria-label="More options"
+                        aria-expanded={showDatePicker}
                       >
-                        ▼
-                      </button>
+                        <BsChevronDown />
+                      </Button>
                       
                       {showDatePicker && (
                         <div 
@@ -1957,44 +1939,36 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                           <div className="date-picker-divider"></div>
                           <label>Watch count:</label>
                           <div className="watch-count-editor">
-                            <button 
-                              type="button"
-                              className="count-btn"
+                            <IconButton label="Fewer" size="sm" className="count-btn"
                               onClick={() => handleUpdateWatchCount(Math.max(0, (currentData!.watch_count || 0) - 1))}
                               disabled={(currentData!.watch_count || 0) <= 0}
-                            >
-                              −
-                            </button>
+                            ><BsDashLg /></IconButton>
                             <span className="count-value">{currentData!.watch_count || 0}</span>
-                            <button 
-                              type="button"
-                              className="count-btn"
+                            <IconButton label="More" size="sm" className="count-btn"
                               onClick={() => handleUpdateWatchCount((currentData!.watch_count || 0) + 1)}
-                            >
-                              +
-                            </button>
+                            ><BsPlusLg /></IconButton>
                           </div>
-                          <button 
-                            type="button" 
-                            className="clear-watched-btn"
+                          <Button variant="danger" size="sm" className="clear-watched-btn"
                             onClick={() => handleClearWatched()}
                           >
                             Reset Watch History
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </div>
                     
                     {onDelete && (
-                      <button 
+                      <Button
                         ref={deleteBtnRef}
-                        className={`action-btn ${confirmDelete ? 'delete-movie-confirm' : 'delete-movie'}`}
+                        variant="danger"
+                        active={confirmDelete}
+                        icon={<BsTrash />}
+                        className="action-btn"
                         onClick={handleDelete}
-                        disabled={deleting}
+                        loading={deleting}
                       >
-                        <BsTrash className="action-icon" />
                         {confirmDelete ? 'Are you sure?' : 'Delete Movie'}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -2158,21 +2132,15 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                             <option value="Digital">Digital</option>
                           </Select>
                           <div className="input-group-append">
-                            <button 
-                              className="edit-action-btn" 
+                            <IconButton label="Sauver" tone="confirm" size="sm" className="edit-action-btn" 
                               onClick={saveEdit}
                               disabled={saving}
                               title="Sauver"
-                            >
-                              <BsCheck size={12} />
-                            </button>
-                            <button 
-                              className="edit-action-btn" 
+                            ><BsCheck size={12} /></IconButton>
+                            <IconButton label="Annuler" size="sm" className="edit-action-btn" 
                               onClick={cancelEditing}
                               title="Annuler"
-                            >
-                              <BsX size={12} />
-                            </button>
+                            ><BsX size={12} /></IconButton>
                           </div>
                         </div>
                       ) : (
@@ -2200,21 +2168,15 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                             <option value="to_sell">To Sell</option>
                           </Select>
                           <div className="input-group-append">
-                            <button 
-                              className="edit-action-btn" 
+                            <IconButton label="Save" tone="confirm" size="sm" className="edit-action-btn" 
                               onClick={saveEdit}
                               disabled={saving}
                               title="Save"
-                            >
-                              <BsCheck size={12} />
-                            </button>
-                            <button 
-                              className="edit-action-btn" 
+                            ><BsCheck size={12} /></IconButton>
+                            <IconButton label="Cancel" size="sm" className="edit-action-btn" 
                               onClick={cancelEditing}
                               title="Cancel"
-                            >
-                              <BsX size={12} />
-                            </button>
+                            ><BsX size={12} /></IconButton>
                           </div>
                         </div>
                       ) : (
@@ -2242,21 +2204,15 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                               style={{ paddingRight: '60px' }}
                             />
                             <div className="input-group-append">
-                              <button 
-                                className="edit-action-btn" 
+                              <IconButton label="Sauver" tone="confirm" size="sm" className="edit-action-btn" 
                                 onClick={saveEdit}
                                 disabled={saving}
                                 title="Sauver"
-                              >
-                                <BsCheck size={12} />
-                              </button>
-                              <button 
-                                className="edit-action-btn" 
+                              ><BsCheck size={12} /></IconButton>
+                              <IconButton label="Annuler" size="sm" className="edit-action-btn" 
                                 onClick={cancelEditing}
                                 title="Annuler"
-                              >
-                                <BsX size={12} />
-                              </button>
+                              ><BsX size={12} /></IconButton>
                             </div>
                           </div>
                       ) : (
@@ -2286,21 +2242,15 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                               style={{ paddingRight: '60px' }}
                             />
                             <div className="input-group-append">
-                              <button 
-                                className="edit-action-btn" 
+                              <IconButton label="Sauver" tone="confirm" size="sm" className="edit-action-btn" 
                                 onClick={saveEdit}
                                 disabled={saving}
                                 title="Sauver"
-                              >
-                                <BsCheck size={12} />
-                              </button>
-                              <button 
-                                className="edit-action-btn" 
+                              ><BsCheck size={12} /></IconButton>
+                              <IconButton label="Annuler" size="sm" className="edit-action-btn" 
                                 onClick={cancelEditing}
                                 title="Annuler"
-                              >
-                                <BsX size={12} />
-                              </button>
+                              ><BsX size={12} /></IconButton>
                             </div>
                           </div>
                         ) : (
@@ -2370,21 +2320,15 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                           )}
                           
                           <div className="input-group-append">
-                            <button 
-                              className="edit-action-btn" 
+                            <IconButton label="Save" tone="confirm" size="sm" className="edit-action-btn" 
                               onClick={saveEdit}
                               disabled={saving}
                               title="Save"
-                            >
-                              <BsCheck size={12} />
-                            </button>
-                            <button 
-                              className="edit-action-btn" 
+                            ><BsCheck size={12} /></IconButton>
+                            <IconButton label="Cancel" size="sm" className="edit-action-btn" 
                               onClick={cancelEditing}
                               title="Cancel"
-                            >
-                              <BsX size={12} />
-                            </button>
+                            ><BsX size={12} /></IconButton>
                           </div>
                         </div>
                       ) : (
@@ -2430,21 +2374,15 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                           style={{ paddingRight: '60px', resize: 'vertical' }}
                         />
                         <div className="input-group-append">
-                          <button 
-                            className="edit-action-btn" 
+                          <IconButton label="Sauver" tone="confirm" size="sm" className="edit-action-btn" 
                             onClick={saveEdit}
                             disabled={saving}
                             title="Sauver"
-                          >
-                            <BsCheck size={12} />
-                          </button>
-                          <button 
-                            className="edit-action-btn" 
+                          ><BsCheck size={12} /></IconButton>
+                          <IconButton label="Annuler" size="sm" className="edit-action-btn" 
                             onClick={cancelEditing}
                             title="Annuler"
-                          >
-                            <BsX size={12} />
-                          </button>
+                          ><BsX size={12} /></IconButton>
                         </div>
                       </div>
                   ) : (
@@ -2467,9 +2405,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       {showTrailer && trailerEmbedUrl && (
         <div className="trailer-modal-overlay" onClick={() => setShowTrailer(false)}>
           <div className="trailer-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="trailer-modal-close" onClick={() => setShowTrailer(false)}>
-              <BsX />
-            </button>
+            <IconButton label="Close" className="trailer-modal-close" onClick={() => setShowTrailer(false)}><BsX /></IconButton>
             <div className="trailer-video-container">
               <iframe
                 src={trailerEmbedUrl}
@@ -2495,22 +2431,18 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
             <p>Are you sure you want to delete "{title}" from your collection?</p>
             <p className="delete-warning">This action cannot be undone.</p>
             <div className="delete-confirm-buttons">
-              <button 
-                className="cancel-btn"
+              <Button variant="quiet" className="cancel-btn"
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={deleting}
               >
-                <BsXIcon className="action-icon" />
                 Cancel
-              </button>
-              <button 
-                className="delete-btn"
+              </Button>
+              <Button variant="danger" icon={<BsTrash />} className="delete-btn"
                 onClick={handleDelete}
-                disabled={deleting}
+                loading={deleting}
               >
-                <BsTrash className="action-icon" />
                 {deleting ? 'Deleting...' : 'Delete Movie'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -2541,13 +2473,10 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
             >
               Yesterday
             </button>
-            <button 
-              className="watched-prompt-dismiss"
+            <IconButton label="Dismiss" size="sm" className="watched-prompt-dismiss"
               onClick={() => setShowWatchedPrompt(false)}
               title="Dismiss"
-            >
-              ✕
-            </button>
+            ><BsX /></IconButton>
           </div>
         </div>
       )}
@@ -2558,9 +2487,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
           <div className="propagation-dialog">
             <div className="propagation-dialog-header">
               <h3>Update Box Set</h3>
-              <button className="propagation-dialog-close" onClick={handlePropagationCancel}>
-                <BsX />
-              </button>
+              <IconButton label="Close" className="propagation-dialog-close" onClick={handlePropagationCancel}><BsX /></IconButton>
             </div>
             <div className="propagation-dialog-content">
               <p>
@@ -2568,20 +2495,18 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                 Would you like to apply this change to all movies in the "{collections.find(c => c.type === 'box_set')?.name}" box set?
               </p>
               <div className="propagation-dialog-buttons">
-                <button 
-                  className="propagation-btn this-movie"
+                <Button className="propagation-btn this-movie"
                   onClick={() => handlePropagationChoice(false)}
                   disabled={saving}
                 >
                   This movie only
-                </button>
-                <button 
-                  className="propagation-btn all-movies"
+                </Button>
+                <Button className="propagation-btn all-movies"
                   onClick={() => handlePropagationChoice(true)}
                   disabled={saving}
                 >
                   All movies in box set
-                </button>
+                </Button>
               </div>
             </div>
           </div>

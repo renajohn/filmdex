@@ -1,0 +1,275 @@
+/*
+ * The buttons of DexVault (Button.tsx): the menus' and covers' glass for a
+ * secondary action, plain gold for the one a window is for, words alone for a
+ * quiet one, red for danger. Use the components rather than these classes by
+ * hand, and never style a button anew: a stylesheet only places it.
+ */
+:root {
+  --button-gold: #fbbf24;
+  --button-gold-hover: #fcd34d;
+  --button-gold-ink: #111;
+  --button-text: #e5e5e5;
+  --button-muted: #9ca3af;
+  --button-glass: rgba(255, 255, 255, 0.06);
+  --button-glass-hover: rgba(255, 255, 255, 0.11);
+  --button-edge: rgba(255, 255, 255, 0.12);
+  --button-edge-hover: rgba(255, 255, 255, 0.24);
+  --button-danger: #f87171;
+  --button-ring: 0 0 0 3px rgba(251, 191, 36, 0.3);
+}
+
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: none;
+  color: var(--button-text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease;
+}
+
+.ui-button--sm {
+  height: 28px;
+  padding: 0 10px;
+  gap: 6px;
+  border-radius: 7px;
+  font-size: 12.5px;
+}
+
+.ui-button--block {
+  display: flex;
+  width: 100%;
+}
+
+.ui-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.ui-button:focus-visible {
+  outline: none;
+  box-shadow: var(--button-ring);
+}
+
+.ui-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ui-button[aria-busy="true"] {
+  opacity: 0.85;
+  cursor: progress;
+}
+
+.ui-button__icon {
+  display: inline-flex;
+  flex: none;
+}
+
+.ui-button__icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.ui-button--sm .ui-button__icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.ui-button__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui-button__spinner {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: ui-button-spin 0.7s linear infinite;
+}
+
+.ui-button--sm .ui-button__spinner,
+.ui-icon-button--sm .ui-button__spinner {
+  width: 12px;
+  height: 12px;
+}
+
+@keyframes ui-button-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* primary: plain gold, dark words. */
+.ui-button--primary {
+  background: var(--button-gold);
+  color: var(--button-gold-ink);
+  font-weight: 600;
+}
+
+.ui-button--primary:hover:not(:disabled) {
+  background: var(--button-gold-hover);
+  color: var(--button-gold-ink);
+}
+
+/* secondary: glass with a light edge. */
+.ui-button--secondary {
+  background: var(--button-glass);
+  border-color: var(--button-edge);
+}
+
+.ui-button--secondary:hover:not(:disabled) {
+  background: var(--button-glass-hover);
+  border-color: var(--button-edge-hover);
+  color: #fff;
+}
+
+/* quiet: words alone, a veil under the pointer. */
+.ui-button--quiet {
+  color: var(--button-muted);
+  padding: 0 8px;
+}
+
+.ui-button--quiet.ui-button--sm {
+  padding: 0 6px;
+}
+
+.ui-button--quiet:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* danger: red words on the glass, a red veil under the pointer. */
+.ui-button--danger {
+  background: var(--button-glass);
+  border-color: var(--button-edge);
+  color: var(--button-danger);
+}
+
+.ui-button--danger:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.14);
+  border-color: rgba(248, 113, 113, 0.5);
+  color: var(--button-danger);
+}
+
+/* On (in Listen Next, wished): gold words on a gold-tinted glass. */
+.ui-button--on,
+.ui-button--on:hover:not(:disabled) {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.45);
+  color: var(--button-gold);
+}
+
+.ui-button--quiet.ui-button--on {
+  background: none;
+  border-color: transparent;
+}
+
+/* ---------------------------------------------------------- IconButton */
+
+.ui-icon-button {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: none;
+  color: var(--button-muted);
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.ui-icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ui-icon-button--sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+}
+
+.ui-icon-button--sm svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ui-icon-button:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ui-icon-button:focus-visible {
+  outline: none;
+  box-shadow: var(--button-ring);
+}
+
+.ui-icon-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ui-icon-button--boxed {
+  background: var(--button-glass);
+  border-color: var(--button-edge);
+}
+
+.ui-icon-button--boxed:hover:not(:disabled) {
+  background: var(--button-glass-hover);
+  border-color: var(--button-edge-hover);
+}
+
+.ui-icon-button--confirm,
+.ui-icon-button--confirm:hover:not(:disabled),
+.ui-icon-button--on,
+.ui-icon-button--on:hover:not(:disabled) {
+  color: var(--button-gold);
+}
+
+.ui-icon-button--confirm:hover:not(:disabled) {
+  background: rgba(251, 191, 36, 0.14);
+}
+
+.ui-icon-button--danger:hover:not(:disabled) {
+  color: var(--button-danger);
+  background: rgba(248, 113, 113, 0.12);
+}
+
+/* danger, on: a deletion to confirm, plain red. */
+.ui-button--danger.ui-button--on,
+.ui-button--danger.ui-button--on:hover:not(:disabled) {
+  background: var(--button-danger);
+  border-color: var(--button-danger);
+  color: #111;
+}
+
+/* Side by side in a group (Play and its ▾): one shape. */
+.btn-group > .ui-button:not(:last-child),
+.ui-button-group > .ui-button:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.btn-group > .ui-button + .ui-button,
+.ui-button-group > .ui-button + .ui-button {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: 0;
+}

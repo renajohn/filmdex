@@ -633,19 +633,8 @@
 }
 
 .album-extras-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: #d6dbe1;
-  font-size: 0.85rem;
-  text-decoration: underline;
   text-decoration-color: rgba(255, 255, 255, 0.3);
-  text-underline-offset: 3px;
-  transition: color 0.15s ease;
-}
+  text-underline-offset: 3px}
 
 .album-extras-link svg {
   font-size: 0.75em;
@@ -655,10 +644,7 @@
 
 .album-extras-link:hover,
 .album-extras-link:focus-visible {
-  color: #fbbf24;
-  text-decoration-color: currentColor;
-  outline: none;
-}
+  text-decoration-color: currentColor}
 
 .album-extras-link:hover svg,
 .album-extras-link:focus-visible svg {
@@ -929,10 +915,6 @@
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-}
-
-.album-buy-dismiss {
-  color: #a3a3a3;
 }
 
 /* A track's stars, heart and plays of the last 90 days, with Digital on. */

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BsCloudUpload, BsExclamationTriangle } from 'react-icons/bs';
 import backupService, { BackupProgress, DropboxStatus } from '../services/backupService';
+import Button from './shared/Button';
 
 const HOUR = 3600 * 1000;
 const STALE_AFTER = 48 * HOUR;
@@ -129,17 +130,17 @@ const DropboxBackupCard: React.FC = () => {
         </p>
       )}
       {showError && status.lastRefused && (
-        <button className="btn btn-outline-danger mb-3" onClick={() => handleRun(true)} disabled={running}>
+        <Button variant="danger" className="mb-3" onClick={() => handleRun(true)} disabled={running}>
           Back up anyway
-        </button>
+        </Button>
       )}
       {status.lastWarning && <p className="text-warning">{status.lastWarning}</p>}
       {requestError && <p className="text-danger">{requestError}</p>}
       {status.nextRunAt && <p>Next run: {new Date(status.nextRunAt).toLocaleString()}</p>}
 
-      <button className="btn btn-primary" onClick={() => handleRun()} disabled={running}>
+      <Button variant="primary" onClick={() => handleRun()} disabled={running}>
         {running ? 'Backing up…' : 'Back up now'}
-      </button>
+      </Button>
       {status.progress && <div className="mt-3"><ProgressDisplay progress={status.progress} /></div>}
     </div>
   );

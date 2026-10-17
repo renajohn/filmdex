@@ -271,11 +271,6 @@
   border-top: 1px solid #e5e7eb;
 }
 
-.musicbrainz-results .btn-primary {
-  font-size: 14px;
-  padding: 6px 16px;
-}
-
 /* Empty State Styles */
 .empty-state {
   display: flex;

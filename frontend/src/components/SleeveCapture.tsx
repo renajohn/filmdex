@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, Alert, Spinner } from 'react-bootstrap';
+import { Alert, Spinner } from 'react-bootstrap';
 import { BsCamera, BsCheckCircleFill, BsArrowRepeat } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverCropDialog from './CoverCropDialog';
@@ -7,6 +7,7 @@ import { downscaleImage, base64ToFile } from '../utils/downscaleImage';
 import { detectSleeveQuad, CONFIDENT } from '../utils/detectSleeveQuad';
 import { warpQuad } from '../utils/warpQuad';
 import './SleeveCapture.css';
+import Button from './shared/Button';
 
 type Side = 'front' | 'back';
 
@@ -218,9 +219,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
 
     return (
       <div className="sleeve-capture-slot">
-        <Button
-          variant={photo ? 'outline-success' : 'outline-secondary'}
-          className="sleeve-capture-btn"
+        <Button active={Boolean(photo)} className="sleeve-capture-btn"
           disabled={reading}
           onClick={() => inputs[side].current?.click()}
         >
@@ -245,8 +244,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
         </div>
 
         {photo && hasFile[side] && (
-          <Button
-            variant="link"
+          <Button variant="quiet"
             size="sm"
             data-testid={`crop-${side}`}
             disabled={reading}
@@ -314,7 +312,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
       />
 
       <div className="sleeve-capture-actions">
-        <Button variant="link" onClick={onSkip} disabled={reading}>
+        <Button variant="quiet" onClick={onSkip} disabled={reading}>
           Enter it by hand instead
         </Button>
         <Button onClick={read} disabled={reading || (!photos.front && !photos.back)}>

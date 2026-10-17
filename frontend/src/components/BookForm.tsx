@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Modal, Form, Button, Row, Col, Alert } from 'react-bootstrap';
+import { Modal, Form, Row, Col, Alert } from 'react-bootstrap';
 import { BsX, BsUpload, BsBook, BsCloudDownload, BsFileEarmark, BsTrash, BsChevronDown, BsChevronRight } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import CoverModal from './CoverModal';
 import './BookForm.css';
 import { readStored, writeStored } from '../utils/safeStorage';
 import Select from './shared/Select';
+import Button from './shared/Button';
 
 interface MetadataSourceEntry {
   [field: string]: any;
@@ -1644,7 +1645,6 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
             </Modal.Title>
             {book?.id && (
               <Button
-                variant="outline-warning"
                 size="sm"
                 onClick={handleFetchFromSources}
                 disabled={enriching || loading}
@@ -1676,7 +1676,6 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
       {inline && book?.id && (
         <div className="mb-3 d-flex justify-content-end">
           <Button
-            variant="outline-warning"
             size="sm"
             onClick={handleFetchFromSources}
             disabled={enriching || loading}
@@ -2238,8 +2237,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                         <BsFileEarmark className="me-2" />
                         Ebook file uploaded: {book.ebookFile.split('_').slice(3).join('_') || book.ebookFile}
                       </Alert>
-                      <Button
-                        variant="outline-danger"
+                      <Button variant="danger"
                         size="sm"
                         onClick={async () => {
                           if (!confirmDeleteEbook) {
@@ -3053,8 +3051,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                         <BsFileEarmark className="me-2" />
                         Ebook file uploaded: {book.ebookFile.split('_').slice(3).join('_') || book.ebookFile}
                       </Alert>
-                      <Button
-                        variant="outline-danger"
+                      <Button variant="danger"
                         size="sm"
                         onClick={async () => {
                           if (!confirmDeleteEbook) {
@@ -3337,14 +3334,14 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
       {!inline && (
         <Modal.Footer>
           {onShowOtherResults && (
-            <Button variant="outline-secondary" onClick={onShowOtherResults} disabled={loading} className="me-auto">
+            <Button onClick={onShowOtherResults} disabled={loading} className="me-auto">
               Wrong book? Show other results
             </Button>
           )}
-          <Button variant="secondary" onClick={onCancel} disabled={loading}>
+          <Button onClick={onCancel} disabled={loading}>
             Cancel
           </Button>
-          <Button variant="warning" type="submit" disabled={loading} style={{ backgroundColor: '#fbbf24', borderColor: '#fbbf24', color: '#1a202c' }}>
+          <Button variant="primary" type="submit" disabled={loading} style={{ backgroundColor: '#fbbf24', borderColor: '#fbbf24', color: '#1a202c' }}>
             {loading ? 'Saving...' : (book?.id ? 'Update Book' : 'Create Book')}
           </Button>
         </Modal.Footer>

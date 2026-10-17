@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Form } from 'react-bootstrap';
+import { Form } from 'react-bootstrap';
 import { BsArrowBarDown, BsArrowBarUp, BsPencil, BsTrash, BsX } from 'react-icons/bs';
 import shelvingService, {
   type ShelfLevel, type ShelfSection, type ShelvedItem, type ShelvingPlan, type ShelfSettings,
@@ -9,6 +9,7 @@ import { onShelvesChanged, refreshShelfLocations } from '../utils/shelfLocations
 import { SECTION_LABELS } from './shelfLabels';
 import './ShelvesPage.css';
 import Select from '../components/shared/Select';
+import Button, { IconButton } from '../components/shared/Button';
 
 type Tab = ShelfSection | 'furniture' | 'places';
 
@@ -148,8 +149,8 @@ const ShelfItemEditor: React.FC<EditorProps> = ({ item, places, units: furniture
         </fieldset>
       )}
       <div className="shelf-editor-actions">
-        <Button size="sm" variant="outline-secondary" onClick={onClose} disabled={saving}>Cancel</Button>
-        <Button size="sm" variant="warning" type="submit" disabled={saving}>Save</Button>
+        <Button size="sm" onClick={onClose} disabled={saving}>Cancel</Button>
+        <Button variant="primary" size="sm" type="submit" disabled={saving}>Save</Button>
       </div>
       <p className="shelf-editor-help">
         <strong>Sort as</strong>: the name it is shelved by alphabetically, e.g. “Marriner, Neville” for a Marriner CD.
@@ -221,33 +222,25 @@ const ShelfRow: React.FC<RowProps> = ({
           </span>
         )}
         {movable && (
-          <button type="button" className="shelf-edit shelf-move" disabled={before === null}
-            aria-label={`Move ${item.title} back to ${before || 'the shelf before'}`}
+          <Button variant="quiet" size="sm" icon={<BsArrowBarUp />} aria-label={`Move ${item.title} back to ${before || 'the shelf before'}`} className="shelf-edit shelf-move" disabled={before === null}
             title={before === null
               ? `${item.code} is the first shelf of its section`
               : `It fits on ${before || 'the shelf before'}: move it back there, with what stands before it on ${item.code}`}
             onClick={event => { event.stopPropagation(); onMoveBack(); }}>
-            <BsArrowBarUp />
-            {before && <span className="shelf-move-target">{before}</span>}
-          </button>
+            {before && <span className="shelf-move-target">{before}</span>}</Button>
         )}
         {movable && (
-          <button type="button" className="shelf-edit shelf-move" disabled={after === null || firstOnShelf}
-            aria-label={`No room for ${item.title}: move it on to ${after || 'the next shelf'}`}
+          <Button variant="quiet" size="sm" icon={<BsArrowBarDown />} aria-label={`No room for ${item.title}: move it on to ${after || 'the next shelf'}`} className="shelf-edit shelf-move" disabled={after === null || firstOnShelf}
             title={after === null
               ? `${item.code} is the last shelf of its section`
               : firstOnShelf
                 ? `It stands first on ${item.code}: give the shelf more room instead`
                 : `No room on ${item.code}: it and the ones after it go on to ${after || 'the next shelf'}`}
             onClick={event => { event.stopPropagation(); onNoRoom(); }}>
-            <BsArrowBarDown />
-            {after && <span className="shelf-move-target">{after}</span>}
-          </button>
+            {after && <span className="shelf-move-target">{after}</span>}</Button>
         )}
         {!editing && (
-          <button type="button" className="shelf-edit" aria-label={`Edit shelving of ${item.title}`} onClick={event => { event.stopPropagation(); onEdit(); }}>
-            <BsPencil />
-          </button>
+          <IconButton label={`Edit shelving of ${item.title}`} size="sm" className="shelf-edit" onClick={event => { event.stopPropagation(); onEdit(); }}><BsPencil /></IconButton>
         )}
       </div>
       {editing && <ShelfItemEditor item={item} places={places} units={units} onSave={onSave} onClose={onClose} onTogether={onTogether} />}
@@ -514,7 +507,7 @@ const ShelvesPage: React.FC = () => {
           }}>
             <Form.Control size="sm" placeholder="New place, e.g. Wardrobe, top" value={newPlace}
               onChange={event => setNewPlace(event.target.value)} />
-            <Button size="sm" variant="warning" type="submit" disabled={!newPlace.trim()}>Add</Button>
+            <Button variant="primary" size="sm" type="submit" disabled={!newPlace.trim()}>Add</Button>
           </Form>
           {plan.places.length === 0 && <div className="shelves-empty">No place off the shelves yet.</div>}
           {plan.places.map(place => (
@@ -528,17 +521,17 @@ const ShelvesPage: React.FC = () => {
                   }}>
                     <Form.Control size="sm" value={renaming.name} autoFocus
                       onChange={event => setRenaming({ id: place.id, name: event.target.value })} />
-                    <Button size="sm" variant="warning" type="submit">Rename</Button>
-                    <button type="button" className="shelf-edit" aria-label="Cancel" onClick={() => setRenaming(null)}><BsX /></button>
+                    <Button variant="primary" size="sm" type="submit">Rename</Button>
+                    <IconButton label="Cancel" size="sm" className="shelf-edit" onClick={() => setRenaming(null)}><BsX /></IconButton>
                   </Form>
                 ) : (
                   <>
                     <h3>{place.name} <span className="shelves-tab-count">{place.items.length}</span></h3>
-                    <button type="button" className="shelf-edit" aria-label={`Rename ${place.name}`}
-                      onClick={() => setRenaming({ id: place.id, name: place.name })}><BsPencil /></button>
-                    <button type="button" className="shelf-edit" aria-label={`Delete ${place.name}`}
+                    <IconButton label={`Rename ${place.name}`} size="sm" className="shelf-edit"
+                      onClick={() => setRenaming({ id: place.id, name: place.name })}><BsPencil /></IconButton>
+                    <IconButton label={`Delete ${place.name}`} tone="danger" size="sm" className="shelf-edit"
                       title="Delete the place; what is kept there goes back to the shelves"
-                      onClick={() => run(() => shelvingService.deletePlace(place.id))}><BsTrash /></button>
+                      onClick={() => run(() => shelvingService.deletePlace(place.id))}><BsTrash /></IconButton>
                   </>
                 )}
               </div>

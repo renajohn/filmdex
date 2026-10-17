@@ -3,6 +3,8 @@ import apiService from '../services/api';
 import InlinePosterSelector from './InlinePosterSelector';
 import './AddMovieDialog.css';
 import Select from './shared/Select';
+import Button, { IconButton } from './shared/Button';
+import { BsX } from 'react-icons/bs';
 
 interface MovieEdition {
   title: string;
@@ -534,9 +536,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
       <div className="add-movie-dialog" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
         <div className="add-movie-dialog-header">
           <h2>Add Movie</h2>
-          <button className="close-button" onClick={loading ? undefined : handleClose} disabled={loading}>
-            &times;
-          </button>
+          <IconButton label="Close" className="close-button" onClick={loading ? undefined : handleClose} disabled={loading}><BsX /></IconButton>
         </div>
 
         {/* Inline Poster Selector */}
@@ -586,9 +586,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
               {coverScanAvailable === false && (
                 <div className="scan-error">
                   Cover scan service is not available.{' '}
-                  <button
-                    type="button"
-                    className="btn-link"
+                  <Button variant="quiet"
                     onClick={() => {
                       setCoverScanAvailable(null);
                       apiService.checkCoverScanHealth()
@@ -597,7 +595,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                     }}
                   >
                     Retry
-                  </button>
+                  </Button>
                 </div>
               )}
 
@@ -613,9 +611,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                 {coverPreview ? (
                   <div className="cover-preview">
                     <img src={coverPreview} alt="Cover preview" />
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-secondary add-movie-cover-change-btn"
+                    <Button size="sm" className="add-movie-cover-change-btn"
                       onClick={(e) => {
                         e.stopPropagation();
                         setCoverImage(null);
@@ -626,7 +622,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                       }}
                     >
                       Change Image
-                    </button>
+                    </Button>
                   </div>
                 ) : (
                   <div className="cover-dropzone-content">
@@ -653,14 +649,12 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
 
               {/* Scan button */}
               {coverImage && !scanning && (
-                <button
-                  type="button"
-                  className="btn btn-primary scan-btn"
+                <Button variant="primary" className="scan-btn"
                   onClick={handleScanCover}
                   disabled={coverScanAvailable === false}
                 >
                   Identify Movie
-                </button>
+                </Button>
               )}
 
               {/* Scanning status */}
@@ -683,13 +677,11 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                 <span>or</span>
               </div>
 
-              <button
-                type="button"
-                className="btn btn-outline-secondary scan-fallback-btn"
+              <Button className="scan-fallback-btn"
                 onClick={() => setCurrentStep(1)}
               >
                 Search by title
-              </button>
+              </Button>
             </div>
           ) : currentStep === 1 ? (
             /* Step 1: Search / Confirm Match */
@@ -711,13 +703,11 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
               )}
 
               {/* Back to cover scan */}
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-secondary back-to-scan-btn"
+              <Button size="sm" className="back-to-scan-btn"
                 onClick={handleBackToCoverScan}
               >
                 &larr; Back to cover scan
-              </button>
+              </Button>
 
               <div className="form-group">
                 <label htmlFor="title">Movie Title *</label>
@@ -814,13 +804,11 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                 <div className="selected-movie-info">
                   <div className="selected-movie-header">
                     <h4>Selected Movie: {selectedMovie.title}</h4>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-secondary"
+                    <Button size="sm"
                       onClick={handleBackToSearch}
                     >
                       Change Selection
-                    </button>
+                    </Button>
                   </div>
 
                   <div className="selected-movie-details">
@@ -982,17 +970,14 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                 </div>
 
                 <div className="form-actions">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
+                  <Button variant="quiet"
                     onClick={handleClose}
                     disabled={loading}
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button variant="primary"
                     type="submit"
-                    className="btn btn-primary"
                     disabled={loading || !formData.title.trim()}
                   >
                     {loading ? 'Adding...' :
@@ -1000,7 +985,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                         ? 'Move to Collection'
                         : `Add to ${mode === 'wishlist' ? 'Wish List' : 'Collection'}`
                     }
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>

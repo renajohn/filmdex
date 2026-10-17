@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Modal, Button, Form, Alert, Table, Badge } from 'react-bootstrap';
+import { Modal, Form, Alert, Table, Badge } from 'react-bootstrap';
 import { BsX, BsSearch, BsPlus, BsChevronDown, BsChevronRight, BsBook, BsCamera, BsUpload } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import BookForm from './BookForm';
@@ -8,6 +8,7 @@ import apiService from '../services/api';
 import './AddBookDialog.css';
 import { readStored, writeStored } from '../utils/safeStorage';
 import Select from './shared/Select';
+import Button from './shared/Button';
 
 interface BookData {
   title?: string;
@@ -1275,10 +1276,8 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
             {coverScanAvailable === false && (
               <Alert variant="warning" className="mb-3 scan-error">
                 Cover scan service is not available. Please use search instead.
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="ms-2 p-0"
+                <Button variant="quiet"
+                  size="sm" className="ms-2"
                   onClick={() => {
                     setCoverScanAvailable(null);
                     apiService.checkCoverScanHealth()
@@ -1303,9 +1302,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
               {coverPreview ? (
                 <div className="cover-preview">
                   <img src={coverPreview} alt="Cover preview" />
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-secondary add-book-cover-change-btn"
+                  <Button size="sm" className="add-book-cover-change-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       setCoverImage(null);
@@ -1316,7 +1313,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                     }}
                   >
                     Change Image
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <div className="cover-dropzone-content">
@@ -1339,14 +1336,12 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
 
             {/* Scan button */}
             {coverImage && !scanning && (
-              <button
-                type="button"
-                className="btn btn-primary scan-btn"
+              <Button variant="primary" className="scan-btn"
                 onClick={handleScanCover}
                 disabled={coverScanAvailable === false}
               >
                 Identify Book
-              </button>
+              </Button>
             )}
 
             {/* Scanning status */}
@@ -1370,8 +1365,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
             </div>
 
             <Button
-              type="button"
-              className="btn btn-outline-secondary scan-fallback-btn w-100"
+              type="button" className="btn btn-outline-secondary scan-fallback-btn w-100"
               onClick={() => setShowCoverScanStep(false)}
             >
               Search by ISBN or title
@@ -1425,8 +1419,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
               <div className="col-12 col-md-2">
                 <Button
                   onClick={handleSearch}
-                  disabled={searching}
-                  className="search-btn w-100"
+                  disabled={searching} className="search-btn w-100"
                 >
                   {searching ? (
                     <span className="spinner-border spinner-border-sm" />
@@ -1480,8 +1473,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
               <div className="col-12 col-md-2">
                 <Button
                   onClick={handleSearch}
-                  disabled={searching}
-                  className="search-btn w-100"
+                  disabled={searching} className="search-btn w-100"
                 >
                   {searching ? (
                     <span className="spinner-border spinner-border-sm" />
@@ -1634,10 +1626,8 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                       {/* Action buttons on separate line for single editions */}
                       {!hasMultipleEditions && (
                         <div className="book-action-buttons">
-                          <Button
-                            size="sm"
-                            variant="success"
-                            className="quick-add-btn"
+                          <Button variant="primary"
+                            size="sm" className="quick-add-btn"
                             onClick={(e: React.MouseEvent) => {
                               e.stopPropagation();
                               handleQuickAdd(group.books[0]);
@@ -1657,9 +1647,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                             )}
                           </Button>
                           <Button
-                            size="sm"
-                            variant="outline-secondary"
-                            className="select-book-btn-header"
+                            size="sm" className="select-book-btn-header"
                             onClick={(e: React.MouseEvent) => {
                               e.stopPropagation();
                               handleSelectBook(group.books[0], group.books, 0, groupIndex);
@@ -1740,9 +1728,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                                     <td>{book.pageCount || '-'}</td>
                                     <td>
                                       <Button
-                                        size="sm"
-                                        variant="outline-warning"
-                                        className="select-book-btn"
+                                        size="sm" className="select-book-btn"
                                         onClick={(e: React.MouseEvent) => {
                                           e.stopPropagation();
                                           handleSelectBook(book, group.books, bookIndex, groupIndex);
@@ -1777,12 +1763,9 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
             {!searching && searchResults.length === 0 && (searchIsbn || searchTitle || searchAuthor) && (
               <div className="manual-entry-section">
                 <p className="text-muted">Can't find what you're looking for?</p>
-                <Button
-                  variant="outline-warning"
-                  onClick={handleManualEntry}
-                  className="manual-entry-btn"
+                <Button icon={<BsPlus />}
+                  onClick={handleManualEntry} className="manual-entry-btn"
                 >
-                  <BsPlus className="me-1" />
                   Enter Book Manually
                 </Button>
               </div>
@@ -1800,15 +1783,12 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAddMultipleBooks(e.target.checked)}
             className="me-auto"
           />
-          <Button variant="secondary" onClick={() => handleClose(true)}>
+          <Button onClick={() => handleClose(true)}>
             Close
           </Button>
-          <Button
-            variant="outline-warning"
-            onClick={handleManualEntry}
-            className="manual-entry-btn"
+          <Button icon={<BsPlus />}
+            onClick={handleManualEntry} className="manual-entry-btn"
           >
-            <BsPlus className="me-1" />
             Enter Manually
           </Button>
         </Modal.Footer>

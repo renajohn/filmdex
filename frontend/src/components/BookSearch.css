@@ -546,17 +546,3 @@
   height: 12px;
 }
 
-.clear-all-filters {
-  border: none;
-  background: transparent;
-  color: #9ca3af;
-  font-size: 12px;
-  cursor: pointer;
-  padding: 4px 8px;
-  transition: color 0.15s ease;
-}
-
-.clear-all-filters:hover {
-  color: #e5e5e5;
-}
-

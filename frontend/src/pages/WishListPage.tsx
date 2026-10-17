@@ -19,6 +19,7 @@ import CircularProgressBar from '../components/CircularProgressBar';
 import './WishListPage.css';
 import CoverButton from '../components/shared/CoverButton';
 import Select from '../components/shared/Select';
+import Button, { IconButton } from '../components/shared/Button';
 
 export interface WishListPageRef {
   refreshItems: () => Promise<void>;
@@ -928,39 +929,30 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
         </div>
         <div className="wishlist-actions">
           {totalAllItems > 0 && (
-            <button
-              className="copy-clipboard-btn"
+            <IconButton label="Copy wishlist to clipboard as markdown" className="copy-clipboard-btn"
               onClick={handleCopyToClipboard}
               title="Copy wishlist to clipboard as markdown"
-            >
-              <BsClipboard />
-            </button>
+            ><BsClipboard /></IconButton>
           )}
           <div className="add-buttons">
-            <button
-              className="add-movie-btn"
+            <Button icon={<BsFilm />} className="add-movie-btn"
               onClick={handleAddMovie}
               title="Add Movie to Wish List"
             >
-              <BsFilm className="me-2" />
               Add Movie
-            </button>
-            <button
-              className="add-album-btn"
+            </Button>
+            <Button icon={<BsDisc />} className="add-album-btn"
               onClick={handleAddAlbum}
               title="Add Album to Wish List"
             >
-              <BsDisc className="me-2" />
               Add Album
-            </button>
-            <button
-              className="add-book-btn"
+            </Button>
+            <Button icon={<BsBook />} className="add-book-btn"
               onClick={handleAddBook}
               title="Add Book to Wish List"
             >
-              <BsBook className="me-2" />
               Add Book
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -976,27 +968,21 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
           <h3>Your wish list is empty</h3>
           <p>Add movies, albums, and books you'd like to acquire to your collection.</p>
           <div className="add-buttons">
-            <button
-              className="add-movie-btn"
+            <Button variant="primary" icon={<BsFilm />} className="add-movie-btn"
               onClick={handleAddMovie}
             >
-              <BsFilm className="me-2" />
               Add Your First Movie
-            </button>
-            <button
-              className="add-album-btn"
+            </Button>
+            <Button variant="primary" icon={<BsDisc />} className="add-album-btn"
               onClick={handleAddAlbum}
             >
-              <BsDisc className="me-2" />
               Add Your First Album
-            </button>
-            <button
-              className="add-book-btn"
+            </Button>
+            <Button variant="primary" icon={<BsBook />} className="add-book-btn"
               onClick={handleAddBook}
             >
-              <BsBook className="me-2" />
               Add Your First Book
-            </button>
+            </Button>
           </div>
         </div>
       ) : totalItems === 0 ? (
@@ -1102,29 +1088,21 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         <td>{formatDate(movie.acquired_date)}</td>
                         <td>
                           <div className="actions-cell">
-                            <button
-                              type="button"
-                              className="action-button delete"
+                            <IconButton label="Delete movie" tone="danger" size="sm" className="action-button delete"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteClick(movie.id, 'movie', e);
                               }}
                               disabled={deletingId === movie.id}
                               title="Delete movie"
-                            >
-                              <BsTrash />
-                            </button>
-                            <button
-                              type="button"
-                              className="action-button mark-owned"
+                            ><BsTrash /></IconButton>
+                            <IconButton label="Mark as owned" size="sm" className="action-button mark-owned"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleMarkOwnedClick(movie, 'movie', e);
                               }}
                               title="Mark as owned"
-                            >
-                              <BsCurrencyDollar />
-                            </button>
+                            ><BsCurrencyDollar /></IconButton>
                           </div>
                         </td>
                       </tr>
@@ -1190,29 +1168,21 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         <td>{formatDate(album.createdAt)}</td>
                         <td>
                           <div className="actions-cell">
-                            <button
-                              type="button"
-                              className="action-button delete"
+                            <IconButton label="Delete album" tone="danger" size="sm" className="action-button delete"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteClick(album.id, 'album', e);
                               }}
                               disabled={deletingId === album.id}
                               title="Delete album"
-                            >
-                              <BsTrash />
-                            </button>
-                            <button
-                              type="button"
-                              className="action-button mark-owned"
+                            ><BsTrash /></IconButton>
+                            <IconButton label="Mark as owned" size="sm" className="action-button mark-owned"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleMarkOwnedClick(album, 'album', e);
                               }}
                               title="Mark as owned"
-                            >
-                              <BsCurrencyDollar />
-                            </button>
+                            ><BsCurrencyDollar /></IconButton>
                           </div>
                         </td>
                       </tr>
@@ -1300,29 +1270,21 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         <td>{formatDate(book.createdAt)}</td>
                         <td>
                           <div className="actions-cell">
-                            <button
-                              type="button"
-                              className="action-button delete"
+                            <IconButton label="Delete book" tone="danger" size="sm" className="action-button delete"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteClick(book.id, 'book', e);
                               }}
                               disabled={deletingId === book.id}
                               title="Delete book"
-                            >
-                              <BsTrash />
-                            </button>
-                            <button
-                              type="button"
-                              className="action-button mark-owned"
+                            ><BsTrash /></IconButton>
+                            <IconButton label="Mark as owned" size="sm" className="action-button mark-owned"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleMarkOwnedClick(book, 'book', e);
                               }}
                               title="Mark as owned"
-                            >
-                              <BsCurrencyDollar />
-                            </button>
+                            ><BsCurrencyDollar /></IconButton>
                           </div>
                         </td>
                       </tr>
@@ -1414,21 +1376,17 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                 <p>Are you sure you want to remove this {showDeleteModal.itemType} from your wish list?</p>
               </div>
               <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
+                <Button variant="quiet"
                   onClick={() => setShowDeleteModal({ show: false, itemId: null, itemType: null })}
                 >
                   Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-danger"
+                </Button>
+                <Button variant="danger"
                   onClick={handleDeleteConfirm}
                   disabled={deletingId === showDeleteModal.itemId}
                 >
                   Delete
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -1540,21 +1498,17 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                 )}
               </div>
               <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
+                <Button variant="quiet"
                   onClick={() => setShowMarkOwnedModal({ show: false, item: null, itemType: null })}
                 >
                   Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-success"
+                </Button>
+                <Button variant="primary"
                   onClick={handleMarkOwnedConfirm}
                   disabled={!markOwnedForm.title.trim()}
                 >
                   Add to Collection
-                </button>
+                </Button>
               </div>
             </div>
           </div>

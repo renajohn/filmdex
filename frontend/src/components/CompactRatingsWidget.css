@@ -18,37 +18,11 @@
 }
 
 .refresh-btn {
-  padding: 4px !important;
-  font-size: 14px !important;
-  color: #fbbf24 !important;
-  border: 1px solid #fbbf24 !important;
-  background: rgba(251, 191, 36, 0.1) !important;
-  opacity: 0.8;
-  transition: all 0.2s ease;
-  border-radius: 4px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 28px !important;
-  height: 28px !important;
-  min-width: 28px !important;
   min-height: 28px !important;
-  margin-left: auto !important;
-}
-
-.refresh-btn:hover {
-  opacity: 1;
-  color: #1a1a1a !important;
-  background: #fbbf24 !important;
-  border-color: #fbbf24 !important;
-  transform: scale(1.05);
-}
+  margin-left: auto !important}
 
 .refresh-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-}
+  transform: none}
 
 .refresh-icon {
   transition: transform 0.2s ease;

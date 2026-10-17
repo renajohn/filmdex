@@ -15,14 +15,7 @@
 }
 
 .album-story-refresh {
-  color: #888;
-  padding: 0 0 0 0.5rem;
-  vertical-align: baseline;
-}
-
-.album-story-refresh:hover {
-  color: #fff;
-}
+  margin-left: 4px}
 
 .album-story-refresh .spinning {
   animation: album-story-spin 1s linear infinite;
