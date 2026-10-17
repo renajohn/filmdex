@@ -94,49 +94,18 @@
   }
 }
 
-/* Listen Next Toggle on Thumbnail: at the foot of the cover, on the right */
-.thumbnail-listen-next-toggle {
+/* Listen Next at the foot of the cover, on the right; ▶ takes the left. */
+.music-thumbnail .thumbnail-listen-next {
   position: absolute;
   bottom: 8px;
   right: 8px;
   z-index: 10;
-  background: linear-gradient(135deg, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.6));
-  backdrop-filter: blur(8px);
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  opacity: 0;
-  transform: scale(0.8);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Show toggle when active (in listen next) */
-.thumbnail-listen-next-toggle .listen-next-toggle.active {
+/* In Listen Next: in sight without the pointer, as the album playing keeps its ▶. */
+.music-thumbnail .thumbnail-listen-next.active {
   opacity: 1;
-  transform: scale(1);
 }
-
-.thumbnail-listen-next-toggle:has(.listen-next-toggle.active) {
-  opacity: 1;
-  transform: scale(1);
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(245, 158, 11, 0.3));
-  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.5);
-}
-
-.music-thumbnail:hover .thumbnail-listen-next-toggle {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.thumbnail-listen-next-toggle:hover {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.2));
-  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
-}
-
 
 /* ▶ at the foot of the cover, on the left; the album DexVault plays keeps its bars there. */
 .music-thumbnail .thumbnail-play {
@@ -171,29 +140,55 @@
   gap: 6px;
 }
 
-.thumbnail-buy-action {
+/*
+ * The round buttons on a cover, ▶ aside (AlbumPlayButton draws its own the
+ * same way): dark and blurred, a white icon, gold while what it says is on;
+ * shown under the pointer, darker under it.
+ */
+.cover-action {
   width: 34px;
   height: 34px;
-  border-radius: 50%;
-  border: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(8px);
-  color: #ddd;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 1.05rem;
   opacity: 0;
-  transform: scale(0.8);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.15s ease, background-color 0.12s ease, transform 0.08s ease;
 }
 
-.thumbnail-buy-wish { color: #fbbf24; }
+.cover-action.active {
+  color: #fbbf24;
+}
 
-/* Under the pointer only: a wished album already wears its heart at the top. */
-.music-thumbnail:hover .thumbnail-buy-action,
-.thumbnail-buy-action:focus-visible {
+.music-thumbnail:hover .cover-action,
+.cover-action:focus-visible {
   opacity: 1;
-  transform: scale(1);
 }
 
-.thumbnail-buy-action:hover { background: rgba(251, 191, 36, 0.25); }
+.cover-action:hover,
+.cover-action:focus-visible {
+  background: rgba(0, 0, 0, 0.88);
+  outline: none;
+}
+
+.cover-action:active {
+  transform: scale(0.9);
+}
+
+.cover-action:disabled {
+  cursor: wait;
+}
+
+/* On a touch screen nothing is hovered: the buttons stay in sight. */
+@media (hover: none) {
+  .cover-action {
+    opacity: 1;
+  }
+}
