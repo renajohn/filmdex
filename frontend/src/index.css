@@ -24,3 +24,59 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/*
+ * On a touch screen, a long press or a double tap selects nothing of the app
+ * itself: its bars, buttons, menus, covers and cards are not text. What is to
+ * read in a card (an overview, a note, a notice) and what is typed stay
+ * selectable; a cover gives no "Save image" bubble either.
+ */
+@media (hover: none) and (pointer: coarse) {
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"],
+  .modal-body,
+  .movie-detail-content,
+  .ui-notice__words,
+  .ui-toast__words {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  button,
+  a,
+  label,
+  img,
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  [role="menuitemradio"],
+  [role="option"],
+  .ui-chip,
+  .ui-segmented,
+  .menu-pill,
+  .cover-host,
+  .cover-tag,
+  .dialog-head,
+  .player-bar {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* A quick second tap on a button is a second tap, not a zoom or a word chosen. */
+  button,
+  [role="button"],
+  .cover-host {
+    touch-action: manipulation;
+  }
+
+  img,
+  .cover-host {
+    -webkit-touch-callout: none;
+  }
+}
