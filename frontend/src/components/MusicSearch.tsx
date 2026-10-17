@@ -18,8 +18,9 @@ import { artistLetter, artistSortKey, artistSortName } from '../utils/artistOrde
 import { isAppleMobile } from '../utils/navidrome';
 import AlbumPlayButton from './shared/AlbumPlayButton';
 import DigitalStrip, { type DigitalFilter } from './DigitalStrip';
+import DigitalMarks from './shared/DigitalMarks';
 import { Form } from 'react-bootstrap';
-import { BsCartFill, BsChevronRight, BsHeartFill } from 'react-icons/bs';
+import { BsCartFill, BsChevronRight, BsCloud, BsHeartFill } from 'react-icons/bs';
 import {
   buyOrder, buyReason, isDismissed, isLossy, isSuggested, isToBuy, useDigitalLibrary, type AlbumDigital,
 } from '../utils/digitalLibrary';
@@ -234,13 +235,13 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     refreshListenNextAlbums();
   }, [refreshTrigger, refreshListenNextAlbums]);
 
-  // Smart fill Listen Next with suggested albums
-  const handleSmartFill = useCallback(async () => {
+  // Smart fill Listen Next with suggested albums: from the CDs, or from anything with Digital on.
+  const handleSmartFill = useCallback(async (from: 'cds' | 'any' = 'cds') => {
     if (smartFillLoading) return;
 
     setSmartFillLoading(true);
     try {
-      const result = await musicService.smartFillListenNext() as SmartFillResult;
+      const result = await musicService.smartFillListenNext(from) as SmartFillResult;
       setListenNextAlbums(result.albums || []);
 
       if (result.added > 0 && onShowAlert) {
@@ -1087,8 +1088,14 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           getImageUrl={(album) => getCoverUrl(album.cover) || ''}
           getTitle={(album) => album.title || ''}
           getSubtitle={(album) => Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}
-          onSmartFill={handleSmartFill}
+          onSmartFill={() => handleSmartFill('cds')}
+          smartFillLabel={{ label: 'From CDs', hint: 'your shelves', icon: <BsDisc /> }}
+          smartFillAlso={digitalOn ? {
+            label: 'From anything', hint: 'CDs + digital', icon: <><BsDisc /><BsCloud /></>, onClick: () => handleSmartFill('any'),
+          } : undefined}
           smartFillLoading={smartFillLoading}
+          // With Digital on, what sets each album apart: a disc struck through is left out of the Navidrome playlist.
+          renderBadges={digitalOn ? (album) => <DigitalMarks digital={digitalOf(album as Album)} titleStatus={album.titleStatus} /> : undefined}
           onShuffle={(item) => handleShuffleAlbum(item as Album)}
           shufflingItemId={shufflingAlbumId}
           renderPlay={(album) => (

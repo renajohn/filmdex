@@ -17,6 +17,7 @@ import musicbrainzRefreshService from '../services/musicbrainzRefreshService';
 import ripStatusService from '../services/ripStatusService';
 import digitalLibraryService from '../services/digitalLibraryService';
 import digitalAlbumService from '../services/digitalAlbumService';
+import listenNextPlaylistService from '../services/listenNextPlaylistService';
 import navidromeService from '../services/navidromeService';
 import albumRatingService from '../services/albumRatingService';
 import communityRatingService from '../services/communityRatingService';
@@ -625,6 +626,8 @@ const musicController = {
       // After the editions: a rip of a CD DexVault did not know is that CD, not a digital album.
       await digitalAlbumService.reconcile().catch(error =>
         logger.warn(`Digital albums not brought in step with Navidrome: ${(error as Error).message}`));
+      // CDs ripped since have songs to give the playlist now.
+      listenNextPlaylistService.schedule();
       res.json({ editions, library: await digitalLibraryService.getLibrary() });
     } catch (error) {
       logger.error('Error syncing the digital library:', error);
@@ -1497,6 +1500,7 @@ const musicController = {
     try {
       const id = parseInt(req.params.id as string, 10);
       const result = await Album.toggleListenNext(id);
+      listenNextPlaylistService.schedule();
       res.json(result);
     } catch (error) {
       logger.error('Error toggling listen_next:', error);
@@ -1518,7 +1522,9 @@ const musicController = {
   // Smart fill Listen Next with suggested albums
   smartFillListenNext: async (req: Request, res: Response): Promise<void> => {
     try {
-      const result = await smartPlaylistService.smartFillListenNext();
+      // "From anything": the digital albums too, as MusicDex shows them with Digital on.
+      const result = await smartPlaylistService.smartFillListenNext({ withDigital: req.body?.from === 'any' });
+      listenNextPlaylistService.schedule();
 
       // Get the updated Listen Next albums to return
       const albums = await musicCollectionService.getListenNextAlbums();
@@ -1551,6 +1557,7 @@ const musicController = {
     try {
       const albumId = req.params.albumId as string;
       const result = await smartPlaylistService.shuffleAlbum(parseInt(albumId, 10));
+      listenNextPlaylistService.schedule();
 
       // Get the updated Listen Next albums to return
       const albums = await musicCollectionService.getListenNextAlbums();

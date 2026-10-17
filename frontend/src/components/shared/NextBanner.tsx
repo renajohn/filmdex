@@ -24,6 +24,9 @@ interface NextBannerProps {
   /** Always-visible markers laid over each image (the hover overlay stays for title/meta). */
   renderBadges?: (item: NextBannerItem) => React.ReactNode;
   onSmartFill?: () => void;
+  /** A second way to choose: the card splits in two, onSmartFill's half on top with its label. */
+  smartFillAlso?: { label: string; hint: string; icon?: React.ReactNode; onClick: () => void };
+  smartFillLabel?: { label: string; hint: string; icon?: React.ReactNode };
   smartFillLoading?: boolean;
   onShuffle?: (item: NextBannerItem) => void;
   shufflingItemId?: number | null;
@@ -45,6 +48,8 @@ const NextBanner: React.FC<NextBannerProps> = ({
   getFormat,
   renderBadges,
   onSmartFill,
+  smartFillAlso,
+  smartFillLabel,
   smartFillLoading = false,
   onShuffle,
   shufflingItemId = null,
@@ -229,7 +234,32 @@ const NextBanner: React.FC<NextBannerProps> = ({
           ))}
 
           {/* "Help me choose" placeholder card */}
-          {showHelpMeChoose && (
+          {showHelpMeChoose && smartFillAlso && (
+            // Two ways to choose, one above the other, each half its own button.
+            <div className={`next-banner__help-card next-banner__help-card--${type} next-banner__help-card--split ${smartFillLoading ? 'loading' : ''}`}>
+              {smartFillLoading ? (
+                <div className="next-banner__help-loading">
+                  <span className="next-banner__help-spinner" />
+                  <span className="next-banner__help-loading-text">Choosing...</span>
+                </div>
+              ) : (
+                [
+                  { ...smartFillLabel!, onClick: onSmartFill! },
+                  smartFillAlso,
+                ].map(half => (
+                  <button key={half.label} type="button" className="next-banner__help-half" onClick={half.onClick} title={half.hint}>
+                    {half.icon && <span className="next-banner__help-half-icon" aria-hidden="true">{half.icon}</span>}
+                    <span className="next-banner__help-half-label">
+                      {half.label}
+                      <small>{half.hint}</small>
+                    </span>
+                    <span className="next-banner__help-icon" aria-hidden="true">+</span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+          {showHelpMeChoose && !smartFillAlso && (
             <button
               className={`next-banner__help-card next-banner__help-card--${type} ${smartFillLoading ? 'loading' : ''}`}
               onClick={onSmartFill}

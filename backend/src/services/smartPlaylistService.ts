@@ -121,13 +121,13 @@ const smartPlaylistService = {
   /**
    * Get all albums with their artists and genres for selection
    */
-  getAllAlbumsForSelection: (): Promise<AlbumForSelection[]> => {
+  getAllAlbumsForSelection: (withDigital = false): Promise<AlbumForSelection[]> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
       const sql = `
         SELECT id, artist, title, cover, genres
         FROM albums
-        WHERE title_status = 'owned'
+        WHERE title_status IN (${withDigital ? "'owned', 'digital'" : "'owned'"})
       `;
       db.all(sql, [], (err: Error | null, rows: Array<{ id: number; artist: string; title: string; cover: string | null; genres: string | null }>) => {
         if (err) {
@@ -259,7 +259,7 @@ const smartPlaylistService = {
   /**
    * Smart fill the Listen Next playlist
    */
-  smartFillListenNext: async (): Promise<SmartFillResult> => {
+  smartFillListenNext: async ({ withDigital = false }: { withDigital?: boolean } = {}): Promise<SmartFillResult> => {
     try {
       await ensureTableExists();
 
@@ -268,7 +268,7 @@ const smartPlaylistService = {
       const excludeIds = new Set<number>([...currentIds, ...recentSuggestions]);
 
       const [allAlbums, artistDistribution] = await Promise.all([
-        smartPlaylistService.getAllAlbumsForSelection(),
+        smartPlaylistService.getAllAlbumsForSelection(withDigital),
         smartPlaylistService.getArtistDistribution()
       ]);
 

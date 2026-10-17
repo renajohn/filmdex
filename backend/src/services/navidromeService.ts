@@ -70,7 +70,7 @@ const authParams = (): Record<string, string> => {
   return { u: user, t: token, s: salt, v: '1.16.1', c: 'dexvault', f: 'json' };
 };
 
-const request = async <T>(endpoint: string, params: Record<string, string | number> = {}): Promise<T> => {
+const request = async <T>(endpoint: string, params: Record<string, string | number | string[]> = {}): Promise<T> => {
   const { url } = config();
   const auth = authParams();
 
@@ -78,6 +78,8 @@ const request = async <T>(endpoint: string, params: Record<string, string | numb
   try {
     const response = await axios.get<SubsonicResponse<T>>(`${url}/rest/${endpoint}`, {
       params: { ...params, ...auth },
+      // A list goes as the same name repeated, songId=1&songId=2, as Subsonic reads it.
+      paramsSerializer: { indexes: null },
       timeout: TIMEOUT_MS,
     });
     data = response.data;
@@ -91,6 +93,15 @@ const request = async <T>(endpoint: string, params: Record<string, string | numb
   if (body.status !== 'ok') throw new Error(`Navidrome refused ${endpoint}: ${body.error?.message || 'unknown error'}`);
   return body;
 };
+
+/** A playlist of Navidrome, as getPlaylists lists them. */
+export interface NavidromePlaylist {
+  id: string;
+  name: string;
+  owner: string;
+  comment: string | null;
+  songCount: number;
+}
 
 /** One file of a rip, as the track panel shows it. */
 export interface NavidromeTrackFile {
@@ -265,6 +276,31 @@ const navidromeService = {
     // A refusal comes back as a Subsonic error document, not as an image.
     if (!contentType.startsWith('image/')) throw new Error('Navidrome has no cover for this album');
     return { data: Buffer.from(response.data), contentType };
+  },
+
+  /** The playlists NAVIDROME_USER sees: its own and those others made public. */
+  getPlaylists: async (): Promise<NavidromePlaylist[]> => {
+    const body = await request<{ playlists?: { playlist?: Array<{ id: string; name: string; owner?: string; comment?: string; songCount?: number }> } }>('getPlaylists');
+    return (body.playlists?.playlist || []).map(playlist => ({
+      id: playlist.id, name: playlist.name, owner: playlist.owner || '', comment: playlist.comment ?? null, songCount: playlist.songCount || 0,
+    }));
+  },
+
+  /**
+   * Writes a playlist of NAVIDROME_USER's with these songs, in this order:
+   * a new one by its name, or the one given, whose songs it replaces.
+   */
+  savePlaylist: async (playlist: { id?: string; name: string; songIds: string[] }): Promise<string | null> => {
+    const body = await request<{ playlist?: { id: string } }>('createPlaylist', {
+      ...(playlist.id ? { playlistId: playlist.id } : { name: playlist.name }),
+      songId: playlist.songIds,
+    });
+    return body.playlist?.id ?? playlist.id ?? null;
+  },
+
+  /** The comment Navidrome and Amperfy show under a playlist's name. */
+  setPlaylistComment: async (playlistId: string, comment: string): Promise<void> => {
+    await request('updatePlaylist', { playlistId, comment });
   },
 
   /** The files of one album, with what a rip is judged by: format, bit depth, sampling rate. */

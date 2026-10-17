@@ -26,6 +26,7 @@ import navidromePluginController from './src/controllers/navidromePluginControll
 import albumGuideService from './src/services/albumGuideService';
 import lyricsService from './src/services/lyricsService';
 import digitalAlbumService from './src/services/digitalAlbumService';
+import listenNextPlaylistService from './src/services/listenNextPlaylistService';
 import shelvingController from './src/controllers/shelvingController';
 import shelvingService from './src/services/shelvingService';
 import warningsService from './src/services/warningsService';
@@ -556,6 +557,7 @@ const serverReady = startServer().then(() => {
     if (navidromeService.isConfigured()) listenHistoryService.startRecording(ripStatusService.refreshLibrary);
     albumGuideService.startAutoWrite();
     digitalAlbumService.startAutoSync();
+    listenNextPlaylistService.startAutoSync();
     lyricsService.startAutoFetch();
     shelvingService.startSortNameSync();
   }

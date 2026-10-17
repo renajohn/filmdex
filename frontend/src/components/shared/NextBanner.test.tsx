@@ -29,3 +29,28 @@ describe('NextBanner renderBadges', () => {
     expect(container.querySelectorAll('.next-banner__badges')).toHaveLength(0);
   });
 });
+
+describe('NextBanner Help me choose', () => {
+  it('reste une seule carte quand il n’y a qu’une façon de choisir', () => {
+    const fill = vi.fn();
+    render(<NextBanner items={items} type="music" onSmartFill={fill} smartFillLabel={{ label: 'From CDs', hint: 'your shelves' }} />);
+    screen.getByRole('button', { name: /Help me choose/ }).click();
+    expect(fill).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('From CDs')).toBeNull();
+  });
+
+  it('se coupe en deux quand il y en a deux, chaque moitié choisissant à sa façon', () => {
+    const fromCds = vi.fn();
+    const fromAnything = vi.fn();
+    render(
+      <NextBanner items={items} type="music" onSmartFill={fromCds}
+        smartFillLabel={{ label: 'From CDs', hint: 'your shelves' }}
+        smartFillAlso={{ label: 'From anything', hint: 'CDs + digital', onClick: fromAnything }} />
+    );
+    screen.getByRole('button', { name: /From anything/ }).click();
+    expect(fromAnything).toHaveBeenCalledTimes(1);
+    expect(fromCds).not.toHaveBeenCalled();
+    screen.getByRole('button', { name: /From CDs/ }).click();
+    expect(fromCds).toHaveBeenCalledTimes(1);
+  });
+});

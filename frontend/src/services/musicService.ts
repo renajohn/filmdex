@@ -929,11 +929,14 @@ class MusicService {
    * Smart fill Listen Next with suggested albums based on collection distribution
    * and listening history
    */
-  async smartFillListenNext(): Promise<unknown> {
+  /** Adds an album to Listen Next, picked from the CDs, or from anything: the digital albums too. */
+  async smartFillListenNext(from: 'cds' | 'any' = 'cds'): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();
       const response = await fetch(`${baseUrl}/collections/listen-next/smart-fill`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from }),
       });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
