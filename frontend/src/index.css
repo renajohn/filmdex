@@ -86,6 +86,24 @@ body {
   box-shadow: none;
 }
 
+/*
+ * Tags stacked in a column share one width, the widest one's and at least
+ * 38px (a DVD), so the column reads as one and keeps its width from poster to poster.
+ */
+.poster-badges-left,
+.warning-strip,
+.book-thumbnail-tags,
+.book-cover-tags {
+  align-items: stretch !important;
+}
+
+.poster-badges-left .cover-tag,
+.warning-strip .cover-tag,
+.book-thumbnail-tags .cover-tag,
+.book-cover-tags .cover-tag {
+  min-width: 38px;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
