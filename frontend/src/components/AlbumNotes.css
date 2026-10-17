@@ -1,16 +1,4 @@
-/* The listening journal: a quiet form, then the notes, the latest first. */
 
-.album-notes-form .form-control,
-.album-notes-edit .form-control {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: #d6dbe1;
-  font-size: 0.9rem;
-}
-
-.album-notes-form .form-control::placeholder {
-  color: #7d8691;
-}
 
 .album-notes-form-row {
   display: flex;

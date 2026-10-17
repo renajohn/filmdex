@@ -737,11 +737,6 @@
   font-size: 0.8rem;
 }
 
-.furniture-capacity .form-control {
-  width: 64px;
-  text-align: right;
-}
-
 .furniture-break {
   display: flex;
   flex-wrap: wrap;
@@ -819,4 +814,9 @@
   .shelves-page textarea {
     font-size: 16px;
   }
+}
+
+.furniture-capacity .ui-input {
+  width: 64px;
+  text-align: right;
 }

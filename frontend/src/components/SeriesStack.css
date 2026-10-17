@@ -350,19 +350,7 @@
 
 .series-name-input {
   flex: 1;
-  background-color: #2a2a2a;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: #f0f0f0;
-  padding: 6px 10px;
-  font-size: 1rem;
   font-weight: 600;
-}
-
-.series-name-input:focus {
-  outline: none;
-  border-color: #10b981;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
 }
 
 /* Series expansion footer */

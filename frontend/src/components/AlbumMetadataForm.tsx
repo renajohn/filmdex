@@ -7,6 +7,7 @@ import CoverModal from './CoverModal';
 import './AlbumMetadataForm.css';
 import Select from './shared/Select';
 import Button from './shared/Button';
+import { TextArea, TextField } from './shared/TextField';
 
 interface Release {
   title?: string;
@@ -744,7 +745,7 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
                 <Col md={6}>
                   <Form.Group className="mb-3" controlId="albumMetadataPurchasedAt">
                     <Form.Label>Purchase Date</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="date"
                       value={formData.ownership.purchasedAt}
                       onChange={(e) => handleInputChange('purchasedAt', e.target.value)}
@@ -754,7 +755,7 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
                 <Col md={6}>
                   <Form.Group className="mb-3" controlId="albumMetadataPriceChf">
                     <Form.Label>Price (CHF)</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="number"
                       step="0.01"
                       min="0"
@@ -784,8 +785,7 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
                 <Col md={6}>
                   <Form.Group className="mb-3" controlId="albumMetadataNotes">
                     <Form.Label>Notes</Form.Label>
-                    <Form.Control
-                      as="textarea"
+                    <TextArea
                       rows={3}
                       value={formData.ownership.notes}
                       onChange={(e) => handleInputChange('notes', e.target.value)}

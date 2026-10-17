@@ -10,6 +10,7 @@ import Select from './shared/Select';
 import Button, { IconButton } from './shared/Button';
 import Dialog from './shared/Dialog';
 import { confirm } from './shared/ConfirmDialog';
+import { FieldError, TextField } from './shared/TextField';
 
 interface TrackData {
   trackNumber?: number;
@@ -943,23 +944,21 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label>Title *</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={formData.title}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('title', e.target.value)}
                   isInvalid={!!errors.title}
                   placeholder="Enter album title"
                 />
-                <Form.Control.Feedback type="invalid">
-                  {errors.title}
-                </Form.Control.Feedback>
+                <FieldError>{errors.title}</FieldError>
               </Form.Group>
             </Col>
 
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label>Artist(s) *</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={getArrayDisplayValue(formData.artist)}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleArtistInputChange(e.target.value)}
@@ -967,9 +966,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                   isInvalid={!!errors.artist}
                   placeholder="Enter artist name or multiple artists (comma-separated)"
                 />
-                <Form.Control.Feedback type="invalid">
-                  {errors.artist}
-                </Form.Control.Feedback>
+                <FieldError>{errors.artist}</FieldError>
               </Form.Group>
             </Col>
           </Row>
@@ -979,7 +976,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
               <Form.Group className="mb-3">
                 <Form.Label>Apple Music URL</Form.Label>
                 <div className="d-flex gap-2">
-                  <Form.Control
+                  <TextField
                     type="url"
                     value={formData.urls?.appleMusic || ''}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1321,7 +1318,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Col md={3}>
               <Form.Group className="mb-3">
                 <Form.Label>Release Year</Form.Label>
-                <Form.Control
+                <TextField
                   type="number"
                   value={formData.releaseYear}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('releaseYear', e.target.value)}
@@ -1330,16 +1327,14 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                   min="1900"
                   max={new Date().getFullYear() + 1}
                 />
-                <Form.Control.Feedback type="invalid">
-                  {errors.releaseYear}
-                </Form.Control.Feedback>
+                <FieldError>{errors.releaseYear}</FieldError>
               </Form.Group>
             </Col>
 
             <Col md={3}>
               <Form.Group className="mb-3">
                 <Form.Label>Country</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={formData.country}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('country', e.target.value)}
@@ -1385,7 +1380,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Col md={4}>
               <Form.Group className="mb-3">
                 <Form.Label>Labels</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={getArrayDisplayValue(formData.labels)}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleArrayInputChange('labels', e.target.value)}
@@ -1397,7 +1392,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Col md={4}>
               <Form.Group className="mb-3">
                 <Form.Label>Catalog Number</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={formData.catalogNumber}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('catalogNumber', e.target.value)}
@@ -1409,7 +1404,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Col md={4}>
               <Form.Group className="mb-3">
                 <Form.Label>Barcode</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={formData.barcode}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('barcode', e.target.value)}
@@ -1423,7 +1418,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Col md={12}>
               <Form.Group className="mb-3">
                 <Form.Label>Edition Notes</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={formData.editionNotes}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('editionNotes', e.target.value)}
@@ -1437,7 +1432,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Col md={12}>
               <Form.Group className="mb-3">
                 <Form.Label>Genres</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={getArrayDisplayValue(formData.genres)}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleArrayInputChange('genres', e.target.value)}
@@ -1451,7 +1446,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label>Producer(s)</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={getArrayDisplayValue(formData.producer)}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleArrayInputChange('producer', e.target.value)}
@@ -1463,7 +1458,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label>Engineer(s)</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={getArrayDisplayValue(formData.engineer)}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleArrayInputChange('engineer', e.target.value)}
@@ -1477,7 +1472,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Col md={4}>
               <Form.Group className="mb-3">
                 <Form.Label>Recording Location</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={formData.recordingLocation}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('recordingLocation', e.target.value)}
@@ -1489,7 +1484,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Col md={4}>
               <Form.Group className="mb-3">
                 <Form.Label>Language</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={formData.language}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('language', e.target.value)}
@@ -1502,7 +1497,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Col md={4}>
               <Form.Group className="mb-3">
                 <Form.Label>Annotation</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={formData.annotation}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('annotation', e.target.value)}
@@ -1535,7 +1530,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Col md={3}>
               <Form.Group className="mb-3">
                 <Form.Label>Purchase Date</Form.Label>
-                <Form.Control
+                <TextField
                   type="date"
                   value={formData.ownership.purchasedAt}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleOwnershipChange('purchasedAt', e.target.value)}
@@ -1546,7 +1541,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Col md={2}>
               <Form.Group className="mb-3">
                 <Form.Label>Price (CHF)</Form.Label>
-                <Form.Control
+                <TextField
                   type="number"
                   step="0.01"
                   value={formData.ownership.priceChf}
@@ -1555,16 +1550,14 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                   placeholder="0.00"
                   min="0"
                 />
-                <Form.Control.Feedback type="invalid">
-                  {errors.priceChf}
-                </Form.Control.Feedback>
+                <FieldError>{errors.priceChf}</FieldError>
               </Form.Group>
             </Col>
 
             <Col md={4}>
               <Form.Group className="mb-3">
                 <Form.Label>Notes</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={formData.ownership.notes}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleOwnershipChange('notes', e.target.value)}
@@ -1744,7 +1737,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Title *</Form.Label>
-              <Form.Control
+              <TextField
                 type="text"
                 value={editingTrack.data.title}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingTrack(prev => prev ? ({
@@ -1758,7 +1751,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
 
             <Form.Group className="mb-3">
               <Form.Label>Duration (mm:ss)</Form.Label>
-              <Form.Control
+              <TextField
                 type="text"
                 value={editingTrack.data.durationSec ? formatDuration(editingTrack.data.durationSec) : ''}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1787,7 +1780,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
 
             <Form.Group className="mb-3">
               <Form.Label>Work</Form.Label>
-              <Form.Control
+              <TextField
                 type="text"
                 value={editingTrack.data.work || ''}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEditingTrack({ work: e.target.value })}
@@ -1800,7 +1793,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
 
             <Form.Group className="mb-3">
               <Form.Label>Composers</Form.Label>
-              <Form.Control
+              <TextField
                 type="text"
                 value={creditText.composers}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCreditText(prev => ({ ...prev, composers: e.target.value }))}
@@ -1811,7 +1804,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
 
             <Form.Group className="mb-3">
               <Form.Label>Track artist</Form.Label>
-              <Form.Control
+              <TextField
                 type="text"
                 value={creditText.artist}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCreditText(prev => ({ ...prev, artist: e.target.value }))}
@@ -1834,7 +1827,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
               ) : (
                 (editingTrack.data.performers || []).map((performer: TrackPerformer, index: number) => (
                   <div key={index} className="d-flex gap-2 mb-2">
-                    <Form.Control
+                    <TextField
                       type="text"
                       size="sm"
                       value={performer.name}
@@ -1842,7 +1835,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                       placeholder="Name"
                       aria-label="Performer name"
                     />
-                    <Form.Control
+                    <TextField
                       type="text"
                       size="sm"
                       value={performer.role}
@@ -1868,7 +1861,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
               <Col sm={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>ISRC</Form.Label>
-                  <Form.Control
+                  <TextField
                     type="text"
                     value={editingTrack.data.isrc || ''}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEditingTrack({ isrc: e.target.value })}
@@ -1879,7 +1872,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
               <Col sm={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>MusicBrainz recording</Form.Label>
-                  <Form.Control
+                  <TextField
                     type="text"
                     value={editingTrack.data.musicbrainzRecordingId || ''}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEditingTrack({ musicbrainzRecordingId: e.target.value })}

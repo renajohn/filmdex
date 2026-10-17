@@ -22,6 +22,7 @@ import Select from '../components/shared/Select';
 import Button, { IconButton } from '../components/shared/Button';
 import Dialog from '../components/shared/Dialog';
 import { ConfirmDialog } from '../components/shared/ConfirmDialog';
+import { TextArea, TextField } from '../components/shared/TextField';
 
 export interface WishListPageRef {
   refreshItems: () => Promise<void>;
@@ -1383,10 +1384,9 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
               <Dialog.Body>
                 <div className="form-group mb-3">
                   <label htmlFor="title">Title</label>
-                  <input
+                  <TextField
                     type="text"
                     id="title"
-                    className="form-control"
                     value={markOwnedForm.title}
                     onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, title: e.target.value }))}
                   />
@@ -1427,11 +1427,10 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                 </div>
                 <div className="form-group mb-3">
                   <label htmlFor="price">Price</label>
-                  <input
+                  <TextField
                     type="number"
                     id="price"
                     step="0.01"
-                    className="form-control"
                     value={markOwnedForm.price}
                     onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, price: e.target.value }))}
                     placeholder="Price paid"
@@ -1455,19 +1454,17 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                     </div>
                     <div className="form-group mb-3">
                       <label htmlFor="purchasedAt">Purchased At</label>
-                      <input
+                      <TextField
                         type="date"
                         id="purchasedAt"
-                        className="form-control"
                         value={markOwnedForm.purchasedAt}
                         onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, purchasedAt: e.target.value }))}
                       />
                     </div>
                     <div className="form-group mb-3">
                       <label htmlFor="notes">Notes</label>
-                      <textarea
+                      <TextArea
                         id="notes"
-                        className="form-control"
                         rows={3}
                         value={markOwnedForm.notes}
                         onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, notes: e.target.value }))}

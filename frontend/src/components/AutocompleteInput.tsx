@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import apiService from '../services/api';
+import './shared/menu.css';
 import './AutocompleteInput.css';
 import Select from './shared/Select';
+import { TextField } from './shared/TextField';
 
 interface AutocompleteInputProps {
   field: string;
@@ -140,7 +142,7 @@ const AutocompleteInput = ({
 
   return (
     <div className="autocomplete-container">
-      <input
+      <TextField
         ref={inputRef as React.RefObject<HTMLInputElement>}
         type={type}
         value={value}
@@ -161,14 +163,12 @@ const AutocompleteInput = ({
       )}
 
       {showSuggestions && suggestions.length > 0 && (
-        <div className="autocomplete-suggestions">
+        <div className="autocomplete-suggestions menu-surface">
           {suggestions.map((suggestion, index) => (
             <div
               key={index}
               ref={el => { suggestionRefs.current[index] = el; }}
-              className={`autocomplete-suggestion ${
-                index === highlightedIndex ? 'highlighted' : ''
-              }`}
+              className={`menu-item autocomplete-suggestion${index === highlightedIndex ? ' menu-item--active' : ''}`}
               onClick={() => handleSuggestionClick(suggestion)}
             >
               {typeof suggestion === 'object' ? (suggestion[field] as string) : suggestion}

@@ -1,0 +1,167 @@
+/*
+ * The fields of DexVault (TextField.tsx): a hollow a little darker than its
+ * dialog, a grey edge, gold when it has the focus, red when what is in it will
+ * not do. A form's Select, closed (Select.tsx), wears the same. The browser's
+ * own parts (a date's calendar, a number's arrows) are drawn for a dark page.
+ */
+:root {
+  --field-bg: #1f1f1f;
+  --field-edge: #444;
+  --field-edge-hover: #5a5a5a;
+  --field-placeholder: #7a7a7a;
+}
+
+.ui-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: var(--dv-height-md);
+  padding: 0 12px;
+  border: 1px solid var(--field-edge);
+  border-radius: var(--dv-radius-md);
+  background: var(--field-bg);
+  color: var(--dv-text);
+  color-scheme: dark;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  outline: none;
+  transition: border-color 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.ui-input::placeholder {
+  color: var(--field-placeholder);
+  opacity: 1;
+}
+
+.ui-input:hover:not(:disabled):not(:focus):not([aria-expanded="true"]) {
+  border-color: var(--field-edge-hover);
+}
+
+.ui-input:focus,
+.ui-input:focus-visible,
+.ui-input[aria-expanded="true"] {
+  border-color: var(--dv-gold);
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.18);
+}
+
+.ui-input:disabled,
+.ui-input[readonly] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.ui-input--invalid,
+.ui-input--invalid:hover:not(:disabled):not(:focus) {
+  border-color: rgba(248, 113, 113, 0.7);
+}
+
+.ui-input--invalid:focus {
+  border-color: var(--dv-danger);
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2);
+}
+
+.ui-input--sm {
+  height: var(--dv-height-sm);
+  padding: 0 10px;
+  border-radius: var(--dv-radius-sm);
+  font-size: 12.5px;
+}
+
+.ui-input--area {
+  height: auto;
+  min-height: 84px;
+  padding: 9px 12px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.ui-input--area.ui-input--sm {
+  min-height: 56px;
+  padding: 6px 10px;
+}
+
+/* A date's calendar and a number's arrows, light on the dark field. */
+.ui-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.ui-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* ---------------------------------------- an icon before, a unit after */
+
+.ui-input-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.ui-input-box__icon,
+.ui-input-box__suffix {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  color: var(--dv-text-muted);
+  pointer-events: none;
+}
+
+.ui-input-box__icon {
+  left: 11px;
+}
+
+.ui-input-box__icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ui-input-box__suffix {
+  right: 11px;
+  font-size: 12.5px;
+}
+
+.ui-input-box--icon .ui-input {
+  padding-left: 34px;
+}
+
+.ui-input-box--suffix .ui-input {
+  padding-right: 46px;
+}
+
+/* ------------------------------------------------ fields side by side */
+
+/* A label above its field, whatever the field beside it says below it: the fields line up. */
+.ui-fields {
+  display: grid;
+  grid-template-columns: repeat(var(--ui-fields, 2), minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+/* A Select, closed: the field's look; on an iPhone, the system's select with a chevron of ours. */
+select.ui-input {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px 12px;
+}
+
+/* Under a field: why it will not do, in red; what to put in it, muted. */
+.ui-field-error {
+  margin-top: 5px;
+  color: var(--dv-danger);
+  font-size: 12px;
+}
+
+.ui-field-hint {
+  margin-top: 5px;
+  color: var(--dv-text-faint);
+  font-size: 12px;
+}

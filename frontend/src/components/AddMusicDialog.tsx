@@ -11,6 +11,7 @@ import './AddMusicDialog.css';
 import Button from './shared/Button';
 import Segmented from './shared/Segmented';
 import Dialog from './shared/Dialog';
+import { TextField } from './shared/TextField';
 
 interface MusicRelease {
   id?: string;
@@ -590,24 +591,22 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
           ) : searchBy === 'title' ? (
             <div className="row g-2 mb-3">
               <div className="col-12 col-md-5">
-                <Form.Control
+                <TextField
                   ref={searchInputRef}
                   type="text"
                   placeholder="Album title..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => handleKeyPress(e, handleSearch)}
-                  className="search-input"
+                  onKeyPress={(e) => handleKeyPress(e, handleSearch)} className="search-input"
                 />
               </div>
               <div className="col-12 col-md-5">
-                <Form.Control
+                <TextField
                   type="text"
                   placeholder="Artist (optional)..."
                   value={searchArtist}
                   onChange={(e) => setSearchArtist(e.target.value)}
-                  onKeyPress={(e) => handleKeyPress(e, handleSearch)}
-                  className="search-input"
+                  onKeyPress={(e) => handleKeyPress(e, handleSearch)} className="search-input"
                 />
               </div>
               <div className="col-12 col-md-2">
@@ -629,7 +628,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
           ) : (
             <div className="row g-2 mb-3">
               <div className="col-12 col-md-10">
-                <Form.Control
+                <TextField
                   type="text"
                   inputMode={searchBy === 'barcode' ? 'numeric' : 'text'}
                   autoComplete="off"
@@ -637,8 +636,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                   placeholder={searchBy === 'catalog' ? 'Enter catalog number...' : 'Enter barcode...'}
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
-                  onKeyPress={(e) => handleKeyPress(e, handleSearch)}
-                  className="search-input"
+                  onKeyPress={(e) => handleKeyPress(e, handleSearch)} className="search-input"
                 />
               </div>
               {searchBy === 'barcode' && (

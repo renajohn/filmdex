@@ -4,6 +4,7 @@ import './MovieForm.css';
 import Select from './shared/Select';
 import Button from './shared/Button';
 import { BsCheck, BsX } from 'react-icons/bs';
+import { TextArea, TextField } from './shared/TextField';
 
 interface MovieData {
   id?: number | string;
@@ -370,7 +371,7 @@ const MovieForm: React.FC<MovieFormProps> = ({ movie = null, prefilledData = nul
         <div className="form-row">
           <div className="form-group">
             <label htmlFor="title">Title *</label>
-            <input
+            <TextField
               type="text"
               id="title"
               name="title"
@@ -400,7 +401,7 @@ const MovieForm: React.FC<MovieFormProps> = ({ movie = null, prefilledData = nul
         <div className="form-row">
           <div className="form-group">
             <label htmlFor="price">Price (CHF)</label>
-            <input
+            <TextField
               type="number"
               id="price"
               name="price"
@@ -414,7 +415,7 @@ const MovieForm: React.FC<MovieFormProps> = ({ movie = null, prefilledData = nul
 
           <div className="form-group">
             <label htmlFor="acquired_date">Acquired Date</label>
-            <input
+            <TextField
               type="date"
               id="acquired_date"
               name="acquired_date"
@@ -426,7 +427,7 @@ const MovieForm: React.FC<MovieFormProps> = ({ movie = null, prefilledData = nul
 
         <div className="form-group">
           <label htmlFor="comments">Comments</label>
-          <textarea
+          <TextArea
             id="comments"
             name="comments"
             value={formData.comments}

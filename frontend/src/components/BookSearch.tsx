@@ -18,6 +18,7 @@ import Button from './shared/Button';
 import Chip from './shared/Chip';
 import Dialog from './shared/Dialog';
 import { ConfirmDialog } from './shared/ConfirmDialog';
+import { TextField } from './shared/TextField';
 
 interface BookSearchProps {
   books: any;
@@ -1712,7 +1713,7 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
           </div>
           <Form.Group>
             <Form.Label>Series Name</Form.Label>
-            <Form.Control
+            <TextField
               type="text"
               value={seriesNameInput}
               onChange={(e) => setSeriesNameInput(e.target.value)}

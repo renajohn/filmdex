@@ -7,6 +7,7 @@ import shelvingService, {
 import { SECTION_LABELS } from './shelfLabels';
 import Select from '../components/shared/Select';
 import Button, { IconButton } from '../components/shared/Button';
+import { TextField } from '../components/shared/TextField';
 
 interface Props {
   plan: ShelvingPlan;
@@ -96,7 +97,7 @@ const ShelfPanel: React.FC<PanelProps> = ({ level, unit, items, run, onShowShelf
         <Form.Group className="furniture-panel-field" controlId={capacityId}>
           <Form.Label className="furniture-panel-label">Holds</Form.Label>
           <div className="furniture-capacity">
-            <Form.Control size="sm" inputMode="numeric" placeholder={String(unit.capacity)} value={capacity}
+            <TextField size="sm" inputMode="numeric" placeholder={String(unit.capacity)} value={capacity}
               onChange={event => setCapacity(event.target.value)} onBlur={saveCapacity}
               onKeyDown={event => { if (event.key === 'Enter') saveCapacity(); }} />
             <span>cases{level.ownCapacity == null ? ', like the rest of the unit' : ` (the unit's hold ${unit.capacity})`}</span>
@@ -190,15 +191,15 @@ const UnitColumn: React.FC<UnitProps> = ({ unit, itemsOf, selected, onSelect, ru
         }}>
           <Form.Group controlId={`unit-${unit.id}-letter`} className="furniture-unit-letter">
             <Form.Label>Letter</Form.Label>
-            <Form.Control size="sm" value={letter} onChange={event => setLetter(event.target.value)} />
+            <TextField size="sm" value={letter} onChange={event => setLetter(event.target.value)} />
           </Form.Group>
           <Form.Group controlId={`unit-${unit.id}-levels`}>
             <Form.Label>Shelves</Form.Label>
-            <Form.Control size="sm" type="number" min={1} max={20} value={levels} onChange={event => setLevels(event.target.value)} />
+            <TextField size="sm" type="number" min={1} max={20} value={levels} onChange={event => setLevels(event.target.value)} />
           </Form.Group>
           <Form.Group controlId={`unit-${unit.id}-capacity`}>
             <Form.Label>Cases per shelf</Form.Label>
-            <Form.Control size="sm" type="number" min={1} value={capacity} onChange={event => setCapacity(event.target.value)} />
+            <TextField size="sm" type="number" min={1} value={capacity} onChange={event => setCapacity(event.target.value)} />
           </Form.Group>
           <Button variant="primary" size="sm" type="submit" className="furniture-span">Save</Button>
           <div className="furniture-unit-tools furniture-span">
@@ -314,15 +315,15 @@ const ShelfFurniture: React.FC<Props> = ({ plan, run, onShowShelf, focusLevelId 
               </div>
               <Form.Group controlId="furniture-letter" className="furniture-unit-letter">
                 <Form.Label>Letter</Form.Label>
-                <Form.Control size="sm" value={letter} onChange={event => setLetter(event.target.value)} />
+                <TextField size="sm" value={letter} onChange={event => setLetter(event.target.value)} />
               </Form.Group>
               <Form.Group controlId="furniture-levels">
                 <Form.Label>Shelves</Form.Label>
-                <Form.Control size="sm" type="number" min={1} max={20} value={levels} onChange={event => setLevels(event.target.value)} />
+                <TextField size="sm" type="number" min={1} max={20} value={levels} onChange={event => setLevels(event.target.value)} />
               </Form.Group>
               <Form.Group controlId="furniture-capacity">
                 <Form.Label>Cases per shelf</Form.Label>
-                <Form.Control size="sm" type="number" min={1} value={capacity} onChange={event => setCapacity(event.target.value)} />
+                <TextField size="sm" type="number" min={1} value={capacity} onChange={event => setCapacity(event.target.value)} />
               </Form.Group>
               <Form.Group controlId="furniture-section" className="furniture-span">
                 <Form.Label>Its shelves are for</Form.Label>

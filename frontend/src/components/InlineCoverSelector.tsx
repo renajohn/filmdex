@@ -3,6 +3,7 @@ import { BsCloudUpload, BsLink45Deg, BsCheck, BsX } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import './InlineCoverSelector.css';
 import { IconButton } from './shared/Button';
+import { TextField } from './shared/TextField';
 
 interface Book {
   id: number;
@@ -199,14 +200,14 @@ const InlineCoverSelector = ({ book, isOpen, onCoverSelected, currentCover, onCl
           >
             {showUrlInput ? (
               <div className="url-input-container">
-                <input
+                <TextField
                   type="url"
                   value={urlInput}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUrlInput(e.target.value)}
                   onKeyDown={handleUrlKeyDown}
                   placeholder="https://..."
                   autoFocus
-                  className={urlError ? 'error' : ''}
+                  isInvalid={!!urlError}
                 />
                 {urlError && <span className="url-error">{urlError}</span>}
                 <div className="url-actions">

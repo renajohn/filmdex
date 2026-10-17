@@ -363,23 +363,6 @@
   margin-bottom: 4px;
 }
 
-.create-series-modal .form-control {
-  background-color: #2a2a2a;
-  border-color: rgba(255, 255, 255, 0.15);
-  color: #f0f0f0;
-}
-
-.create-series-modal .form-control:focus {
-  background-color: #333;
-  border-color: #10b981;
-  color: #f0f0f0;
-  box-shadow: 0 0 0 0.2rem rgba(16, 185, 129, 0.25);
-}
-
-.create-series-modal .form-control::placeholder {
-  color: #888;
-}
-
 .create-series-modal .form-label {
   color: #ccc;
 }

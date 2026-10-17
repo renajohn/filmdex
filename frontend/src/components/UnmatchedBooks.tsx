@@ -3,6 +3,7 @@ import './UnmatchedBooks.css';
 import apiService from '../services/api';
 import Button, { IconButton } from './shared/Button';
 import { BsX } from 'react-icons/bs';
+import { TextField } from './shared/TextField';
 
 interface UnmatchedBook {
   title: string;
@@ -243,7 +244,7 @@ const UnmatchedBooks: React.FC<UnmatchedBooksProps> = ({ importId, onImportCompl
       <div className="resolve-section">
         <h3>Search for a Book</h3>
         <div className="search-container">
-          <input
+          <TextField
             type="text"
             placeholder="Search for a book by title, author, or ISBN..."
             value={searchQuery}

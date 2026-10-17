@@ -5,6 +5,7 @@ import musicService from '../services/musicService';
 import Select from './shared/Select';
 import Button from './shared/Button';
 import Dialog from './shared/Dialog';
+import { TextArea, TextField } from './shared/TextField';
 
 type Edition = 'keep' | 'barcode' | 'musicbrainz';
 
@@ -66,12 +67,12 @@ const BoughtCdDialog: React.FC<BoughtCdDialogProps> = ({ album, onClose, onBough
             <Form.Check type="radio" id="edition-barcode" name="edition" checked={edition === 'barcode'} onChange={() => setEdition('barcode')}
               label="From the barcode on its back" />
             {edition === 'barcode' && (
-              <Form.Control className="mt-1 mb-2" inputMode="numeric" placeholder="e.g. 724384546526" value={barcode} onChange={e => setBarcode(e.target.value)} required />
+              <TextField className="mt-1 mb-2" inputMode="numeric" placeholder="e.g. 724384546526" value={barcode} onChange={e => setBarcode(e.target.value)} required />
             )}
             <Form.Check type="radio" id="edition-musicbrainz" name="edition" checked={edition === 'musicbrainz'} onChange={() => setEdition('musicbrainz')}
               label="A MusicBrainz release, its link or id" />
             {edition === 'musicbrainz' && (
-              <Form.Control className="mt-1" placeholder="https://musicbrainz.org/release/…" value={releaseId} onChange={e => setReleaseId(e.target.value)} required />
+              <TextField className="mt-1" placeholder="https://musicbrainz.org/release/…" value={releaseId} onChange={e => setReleaseId(e.target.value)} required />
             )}
             {edition !== 'keep' && <Form.Text muted>Its tracks are then taken from MusicBrainz; the words follow.</Form.Text>}
           </Form.Group>
@@ -88,16 +89,16 @@ const BoughtCdDialog: React.FC<BoughtCdDialogProps> = ({ album, onClose, onBough
             </Form.Group>
             <Form.Group className="mb-3 flex-fill" controlId="bought-date">
               <Form.Label>Bought</Form.Label>
-              <Form.Control type="date" value={purchasedAt} onChange={e => setPurchasedAt(e.target.value)} />
+              <TextField type="date" value={purchasedAt} onChange={e => setPurchasedAt(e.target.value)} />
             </Form.Group>
             <Form.Group className="mb-3" style={{ width: '7rem' }} controlId="bought-price">
               <Form.Label>Price CHF</Form.Label>
-              <Form.Control inputMode="decimal" value={price} onChange={e => setPrice(e.target.value)} />
+              <TextField inputMode="decimal" value={price} onChange={e => setPrice(e.target.value)} />
             </Form.Group>
           </div>
           <Form.Group controlId="bought-notes">
             <Form.Label>Notes</Form.Label>
-            <Form.Control as="textarea" rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Where, from whom…" />
+            <TextArea rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Where, from whom…" />
           </Form.Group>
           {error && <div className="text-danger small mt-3">{error}</div>}
         </Dialog.Body>

@@ -121,7 +121,7 @@ describe('AutocompleteInput', () => {
     await act(async () => {
       fireEvent.keyDown(input, { key: 'ArrowDown' });
     });
-    expect(screen.getByText('Inception')).toHaveClass('highlighted');
+    expect(screen.getByText('Inception')).toHaveClass('menu-item--active');
 
     // Test enter key with highlighted suggestion
     await act(async () => {

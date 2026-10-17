@@ -32,24 +32,6 @@
   margin: 16px 0;
 }
 
-/* Search Input & Button */
-.search-input {
-  background: rgba(68, 68, 68, 0.6) !important;
-  border: 1px solid rgba(68, 68, 68, 0.6) !important;
-  color: #f3f4f6 !important;
-}
-
-.search-input:focus {
-  background: rgba(68, 68, 68, 0.8) !important;
-  border-color: rgba(251, 191, 36, 0.6) !important;
-  box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.15) !important;
-  color: #ffffff !important;
-}
-
-.search-input::placeholder {
-  color: var(--dv-text-muted) !important;
-}
-
 /* Results Header */
 .results-header {
   padding: 12px 0;

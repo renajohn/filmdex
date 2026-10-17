@@ -133,21 +133,6 @@
 
 .url-input-container input {
   width: 100%;
-  padding: 0.4rem 0.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.3);
-  color: white;
-  font-size: 0.8rem;
-}
-
-.url-input-container input:focus {
-  outline: none;
-  border-color: #6ba3ff;
-}
-
-.url-input-container input.error {
-  border-color: #ef4444;
 }
 
 .url-error {

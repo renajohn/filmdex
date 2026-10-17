@@ -68,7 +68,14 @@ Every menu that opens from a button uses **`Menu`** (`frontend/src/components/sh
 - `trigger={(props, open) => <button {...props} …/>}`: spread the props, ref included, on any button (a `menu-pill`, a `CoverButton`, a Bootstrap `Button`); `MenuChevron` shows a turning chevron. `align` start/end, `drop` down/up (it flips when there is no room), `matchWidth` for a field.
 - Entries: `Menu.Item` (an action: `icon`, `hint`, `danger`, `disabled`), `Menu.Choice` (one of several: `selected` wears a gold ✓), `Menu.Section` (a small-capitals title), `Menu.Separator`.
 - The covers' dark glass, blurred; a light veil under the pointer or the keys; gold only for the choice made, red for danger. In a modal it lies in the modal, which keeps the focus.
-- A form's list is **`Select`** (`shared/Select.tsx`), never a `<select>` or a `Form.Select`: the same `<option>`s and `<optgroup>`s as children, the same `onChange(event)` (`event.target.value`, `event.target.name`), `size`, and in a `Form.Group` its `controlId`. Closed it is a field like the others (`form-select`; `bare` keeps its own class instead), open a `Menu`; on an iPhone or iPad the system's own select. In tests, `frontend/src/test/select.ts` reads and chooses its value.
+- A form's list is **`Select`** (`shared/Select.tsx`), never a `<select>` or a `Form.Select`: the same `<option>`s and `<optgroup>`s as children, the same `onChange(event)` (`event.target.value`, `event.target.name`), `size`, and in a `Form.Group` its `controlId`. Closed it is a field like the others (`ui-input`; `bare` keeps its own class instead), open a `Menu`; on an iPhone or iPad the system's own select. In tests, `frontend/src/test/select.ts` reads and chooses its value.
+
+### Fields: TextField and TextArea
+Every field uses **`TextField`** (one line) or **`TextArea`** (`frontend/src/components/shared/TextField.tsx`, look in `shared/field.css`): never a `Form.Control`, a `form-control` class or an `<input>` styled by hand (a checkbox, a radio, a file stay as they are).
+- The props of an `<input>`, its `ref`; `size` md (36 px, a form) or sm (28 px, a bar, an edit in place), `isInvalid` (red edge), `icon` before the words, `suffix` after; in a `Form.Group` its `controlId`. Under it `<FieldError>` (only when it has something to say) and `<FieldHint>`.
+- Suggestions under a field wear the menus' glass: `menu-surface` and `menu-item` (`menu-item--active` for the one the keys are on).
+- An edit in place with its ✓ ✕ over the field: a parent of its own, never Bootstrap's `input-group` (it squares the right corners).
+- A stylesheet only places a field, never its background, edge, padding, height or font size.
 
 ### Buttons: Button and IconButton
 Every button uses **`Button`** or **`IconButton`** (`frontend/src/components/shared/Button.tsx`, look in `shared/button.css`): never a react-bootstrap `Button`, a `btn` class or a button styled by hand. On covers, `CoverButton` stays.

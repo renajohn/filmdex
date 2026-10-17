@@ -55,15 +55,6 @@
   color: #8f98a3;
 }
 
-.album-guide-editor.form-control {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: #d6dbe1;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.85rem;
-  margin-bottom: 6px;
-}
-
 .album-guide-error {
   margin: 8px 0 0;
   color: var(--dv-gold);
@@ -76,4 +67,10 @@
   margin-top: 0.25rem;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+.album-guide-editor {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
 }

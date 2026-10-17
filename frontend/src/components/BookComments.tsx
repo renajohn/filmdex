@@ -6,6 +6,7 @@ import './BookComments.css';
 import Button, { IconButton } from './shared/Button';
 import Dialog from './shared/Dialog';
 import { confirm } from './shared/ConfirmDialog';
+import { FieldError, TextArea, TextField } from './shared/TextField';
 
 interface Comment {
   id: number;
@@ -220,21 +221,19 @@ const BookComments: React.FC<BookCommentsProps> = ({ bookId, onCommentsChange })
           )}
           <Form.Group className="mb-3">
             <Form.Label>Name *</Form.Label>
-            <Form.Control
+            <TextField
               type="text"
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
               isInvalid={!!errors.name}
               placeholder="Enter commenter name"
             />
-            <Form.Control.Feedback type="invalid">
-              {errors.name}
-            </Form.Control.Feedback>
+            <FieldError>{errors.name}</FieldError>
           </Form.Group>
 
           <Form.Group className="mb-3">
             <Form.Label>Date</Form.Label>
-            <Form.Control
+            <TextField
               type="date"
               value={formData.date}
               onChange={(e) => handleInputChange('date', e.target.value)}
@@ -243,17 +242,14 @@ const BookComments: React.FC<BookCommentsProps> = ({ bookId, onCommentsChange })
 
           <Form.Group className="mb-3">
             <Form.Label>Comment *</Form.Label>
-            <Form.Control
-              as="textarea"
+            <TextArea
               rows={4}
               value={formData.comment}
               onChange={(e) => handleInputChange('comment', e.target.value)}
               isInvalid={!!errors.comment}
               placeholder="Enter comment text"
             />
-            <Form.Control.Feedback type="invalid">
-              {errors.comment}
-            </Form.Control.Feedback>
+            <FieldError>{errors.comment}</FieldError>
           </Form.Group>
         </Dialog.Body>
         <Dialog.Footer>

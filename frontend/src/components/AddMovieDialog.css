@@ -83,15 +83,7 @@
   font-style: italic;
 }
 
-.add-movie-dialog {
-  background: #2a2a2a;
-  border-radius: 12px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-  max-width: 600px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  color: #fff;
+.add-movie-dialog .modal-content {
   position: relative; /* Positioning context for poster selector */
 }
 
@@ -268,31 +260,6 @@
   font-weight: 500;
   color: #fff;
   font-size: 0.9rem;
-}
-
-.form-control {
-  background-color: #2a2a2a;
-  border: 2px solid #555;
-  border-radius: 6px;
-  padding: 12px;
-  color: #fff !important;
-  font-size: 1rem;
-  transition: border-color 0.2s ease;
-}
-
-.form-control:focus {
-  outline: none;
-  border-color: var(--dv-gold);
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.25);
-  background-color: #333;
-}
-
-.form-control::placeholder {
-  color: #999;
-}
-
-.form-control:focus::placeholder {
-  color: #bbb;
 }
 
 .form-row {
@@ -532,16 +499,6 @@
 
 /* Responsive design */
 @media (max-width: 768px) {
-  
-  
-  .add-movie-dialog {
-    max-height: 95vh;
-  }
-  
-  
-  
-  
-  
   .add-movie-dialog-content {
     padding: 20px;
   }

@@ -525,23 +525,7 @@
 }
 
 .inline-edit-field input {
-  padding: 0.25rem 0.4rem;
-  border: 1px solid rgba(251, 191, 36, 0.4);
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.3);
-  color: white;
-  font-size: 0.85rem;
-  outline: none;
-  transition: border-color 0.2s;
   min-width: 0;
-}
-
-.inline-edit-field input:focus {
-  border-color: var(--dv-gold);
-}
-
-.inline-edit-field input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
 }
 
 /* Owner input should take available space */

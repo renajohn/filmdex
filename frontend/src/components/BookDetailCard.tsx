@@ -15,6 +15,7 @@ import './BookDetailCard.css';
 import './VolumeSelector.css';
 import Select from './shared/Select';
 import Button, { IconButton } from './shared/Button';
+import { FieldError, TextArea, TextField } from './shared/TextField';
 
 interface BookDetailCardProps {
   book: any;
@@ -1520,7 +1521,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                     {editingOwner ? (
                       <div className="inline-edit-field">
                         <div className="input-with-dropdown">
-                          <input
+                          <TextField size="sm"
                             ref={ownerInputRef}
                             type="text"
                             value={ownerValue}
@@ -1582,7 +1583,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                     {editingSeries ? (
                       <div className="inline-edit-field series-edit">
                         <div style={{ position: 'relative', flex: 1 }}>
-                          <input
+                          <TextField size="sm"
                             ref={seriesInputRef}
                             type="text"
                             value={seriesValue}
@@ -1611,7 +1612,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                           )}
                         </div>
                         <span className="series-number-label">#</span>
-                        <input
+                        <TextField size="sm"
                           type="number"
                           value={seriesNumberValue}
                           onChange={(e) => setSeriesNumberValue(e.target.value)}
@@ -1748,7 +1749,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                         <Form>
                           <Form.Group className="mb-3" style={{ position: 'relative', zIndex: 1000 }}>
                             <Form.Label>Name <span className="text-danger">*</span></Form.Label>
-                            <Form.Control
+                            <TextField
                               ref={nameInputRef}
                               type="text"
                               value={commentFormData.name}
@@ -1761,9 +1762,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                               autoComplete="off"
                             />
                             {commentErrors.name && (
-                              <Form.Control.Feedback type="invalid">
-                                {commentErrors.name}
-                              </Form.Control.Feedback>
+                              <FieldError>{commentErrors.name}</FieldError>
                             )}
                             {showNameSuggestions && nameSuggestions.length > 0 && (
                               <div
@@ -1805,8 +1804,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                           </Form.Group>
                           <Form.Group className="mb-3">
                             <Form.Label>Review <span className="text-danger">*</span></Form.Label>
-                            <Form.Control
-                              as="textarea"
+                            <TextArea
                               rows={6}
                               value={commentFormData.comment}
                               onChange={(e) => handleCommentInputChange('comment', e.target.value)}
@@ -1820,9 +1818,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                               }}
                             />
                             {commentErrors.comment && (
-                              <Form.Control.Feedback type="invalid">
-                                {commentErrors.comment}
-                              </Form.Control.Feedback>
+                              <FieldError>{commentErrors.comment}</FieldError>
                             )}
                           </Form.Group>
                           <div className="d-flex justify-content-end gap-2">
@@ -2190,7 +2186,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                 {editingOwner ? (
                   <div className="inline-edit-field">
                     <div className="input-with-dropdown">
-                      <input
+                      <TextField size="sm"
                         ref={ownerInputRef}
                         type="text"
                         value={ownerValue}
@@ -2248,7 +2244,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                 {editingSeries ? (
                   <div className="inline-edit-field series-edit">
                     <div style={{ position: 'relative', flex: 1 }}>
-                      <input
+                      <TextField size="sm"
                         ref={seriesInputRef}
                         type="text"
                         value={seriesValue}
@@ -2277,7 +2273,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                       )}
                     </div>
                     <span className="series-number-label">#</span>
-                    <input
+                    <TextField size="sm"
                       type="number"
                       value={seriesNumberValue}
                       onChange={(e) => setSeriesNumberValue(e.target.value)}
@@ -2366,7 +2362,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                     <Form>
                       <Form.Group className="mb-3" style={{ position: 'relative', zIndex: 1000 }}>
                         <Form.Label>Name <span className="text-danger">*</span></Form.Label>
-                        <Form.Control
+                        <TextField
                           ref={nameInputRef}
                           type="text"
                           value={commentFormData.name}
@@ -2379,9 +2375,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                           autoComplete="off"
                         />
                         {commentErrors.name && (
-                          <Form.Control.Feedback type="invalid">
-                            {commentErrors.name}
-                          </Form.Control.Feedback>
+                          <FieldError>{commentErrors.name}</FieldError>
                         )}
                         {showNameSuggestions && nameSuggestions.length > 0 && (
                           <div
@@ -2423,8 +2417,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                       </Form.Group>
                       <Form.Group className="mb-3">
                         <Form.Label>Review <span className="text-danger">*</span></Form.Label>
-                        <Form.Control
-                          as="textarea"
+                        <TextArea
                           rows={6}
                           value={commentFormData.comment}
                           onChange={(e) => handleCommentInputChange('comment', e.target.value)}
@@ -2438,9 +2431,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                           }}
                         />
                         {commentErrors.comment && (
-                          <Form.Control.Feedback type="invalid">
-                            {commentErrors.comment}
-                          </Form.Control.Feedback>
+                          <FieldError>{commentErrors.comment}</FieldError>
                         )}
                       </Form.Group>
                       <div className="d-flex justify-content-end gap-2">

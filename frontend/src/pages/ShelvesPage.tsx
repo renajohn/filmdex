@@ -12,6 +12,7 @@ import Select from '../components/shared/Select';
 import Button, { IconButton } from '../components/shared/Button';
 import Segmented from '../components/shared/Segmented';
 import Chip from '../components/shared/Chip';
+import { TextField } from '../components/shared/TextField';
 
 type Tab = ShelfSection | 'furniture' | 'places';
 
@@ -99,7 +100,7 @@ const ShelfItemEditor: React.FC<EditorProps> = ({ item, places, units: furniture
       )}
       <Form.Group className="shelf-editor-field shelf-editor-wide" controlId={fieldId('under')}>
         <Form.Label>Sort as</Form.Label>
-        <Form.Control
+        <TextField
           size="sm"
           value={shelveUnder}
           placeholder={item.sortSource === 'manual' ? '' : item.sortName}
@@ -109,7 +110,7 @@ const ShelfItemEditor: React.FC<EditorProps> = ({ item, places, units: furniture
       </Form.Group>
       <Form.Group className="shelf-editor-field shelf-editor-narrow" controlId={fieldId('units')}>
         <Form.Label>Width</Form.Label>
-        <Form.Control
+        <TextField
           size="sm"
           type="number"
           min={0.5}
@@ -418,7 +419,7 @@ const ShelvesPage: React.FC = () => {
           ]}
         />
         {tab !== 'places' && tab !== 'furniture' && (
-          <Form.Control className="shelves-search" size="sm" type="search" placeholder="Find on the shelves…"
+          <TextField className="shelves-search" size="sm" type="search" placeholder="Find on the shelves…"
             value={query} onChange={event => setQuery(event.target.value)} />
         )}
       </div>
@@ -499,7 +500,7 @@ const ShelvesPage: React.FC = () => {
             const name = newPlace.trim();
             if (name) run(async () => { await shelvingService.createPlace(name); setNewPlace(''); });
           }}>
-            <Form.Control size="sm" placeholder="New place, e.g. Wardrobe, top" value={newPlace}
+            <TextField size="sm" placeholder="New place, e.g. Wardrobe, top" value={newPlace}
               onChange={event => setNewPlace(event.target.value)} />
             <Button variant="primary" size="sm" type="submit" disabled={!newPlace.trim()}>Add</Button>
           </Form>
@@ -513,7 +514,7 @@ const ShelvesPage: React.FC = () => {
                     const name = renaming.name.trim();
                     if (name) run(async () => { await shelvingService.renamePlace(place.id, name); setRenaming(null); });
                   }}>
-                    <Form.Control size="sm" value={renaming.name} autoFocus
+                    <TextField size="sm" value={renaming.name} autoFocus
                       onChange={event => setRenaming({ id: place.id, name: event.target.value })} />
                     <Button variant="primary" size="sm" type="submit">Rename</Button>
                     <IconButton label="Cancel" size="sm" className="shelf-edit" onClick={() => setRenaming(null)}><BsX /></IconButton>

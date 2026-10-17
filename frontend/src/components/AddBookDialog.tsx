@@ -11,6 +11,7 @@ import { readStored, writeStored } from '../utils/safeStorage';
 import Select from './shared/Select';
 import Button from './shared/Button';
 import Segmented from './shared/Segmented';
+import { TextField } from './shared/TextField';
 
 interface BookData {
   title?: string;
@@ -1396,7 +1397,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
           {searchTab === 'isbn' && (
             <div className="row g-3 mb-3">
               <div className="col-12 col-md-10">
-                <Form.Control
+                <TextField
                   ref={isbnInputRef}
                   type="text"
                   placeholder="ISBN or Amazon URL"
@@ -1404,8 +1405,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                   onChange={handleIsbnChange}
                   onBlur={handleIsbnBlur}
                   onPaste={handleIsbnPaste}
-                  onKeyPress={handleKeyPress}
-                  className="search-input"
+                  onKeyPress={handleKeyPress} className="search-input"
                   inputMode="numeric"
                 />
               </div>
@@ -1431,24 +1431,22 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
           {searchTab === 'title' && (
             <div className="row g-3 mb-3">
               <div className="col-12 col-md-3">
-                <Form.Control
+                <TextField
                   ref={titleInputRef}
                   type="text"
                   placeholder="Title"
                   value={searchTitle}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTitle(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="search-input"
+                  onKeyPress={handleKeyPress} className="search-input"
                 />
               </div>
               <div className="col-12 col-md-4">
-                <Form.Control
+                <TextField
                   type="text"
                   placeholder="Author (optional)"
                   value={searchAuthor}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchAuthor(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="search-input"
+                  onKeyPress={handleKeyPress} className="search-input"
                 />
               </div>
               <div className="col-12 col-md-3">
@@ -1538,7 +1536,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                               <div className="quick-add-field owner-field">
                                 <label>Belongs to</label>
                                 <div className="owner-autocomplete">
-                                  <Form.Control
+                                  <TextField
                                     ref={ownerInputRef}
                                     size="sm"
                                     type="text"

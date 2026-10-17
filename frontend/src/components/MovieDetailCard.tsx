@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import CoverButton from './shared/CoverButton';
 import { BsStar, BsStarFill, BsDashLg, BsPlusLg, BsChevronDown, BsCollection } from 'react-icons/bs';
-import { FormControl } from 'react-bootstrap';
 import CompactRatingsWidget from './CompactRatingsWidget';
 import InlinePosterSelector from './InlinePosterSelector';
 import CollectionTagsInput from './CollectionTagsInput';
@@ -22,6 +21,7 @@ import Button, { IconButton } from './shared/Button';
 import { MenuChevron } from './shared/Menu';
 import Dialog, { DialogHeader } from './shared/Dialog';
 import { ConfirmDialog } from './shared/ConfirmDialog';
+import { TextArea, TextField } from './shared/TextField';
 
 interface MovieData {
   id: number;
@@ -509,7 +509,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   // Close box set dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (showBoxSetDropdown && !(event.target as HTMLElement).closest('.box-set-dropdown') && !(event.target as HTMLElement).closest('.input-group')) {
+      if (showBoxSetDropdown && !(event.target as HTMLElement).closest('.box-set-dropdown') && !(event.target as HTMLElement).closest('.edit-in-place')) {
         setShowBoxSetDropdown(false);
       }
     };
@@ -1665,17 +1665,16 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
             title={
               <span className="movie-detail-title" onMouseEnter={() => setShowCopyIcon(true)} onMouseLeave={() => setShowCopyIcon(false)}>
                   {editingField === 'title' ? (
-                    <div className="input-group">
-                      <input
+                    <div className="edit-in-place">
+                      <TextField
                         type="text"
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
                         onKeyDown={handleKeyDown}
                         autoFocus
-                        className="form-control"
                         style={{ paddingRight: '60px' }}
                       />
-                      <div className="input-group-append">
+                      <div className="edit-in-place-append">
                         <IconButton label="Sauver" tone="confirm" size="sm" className="edit-action-btn" 
                           onClick={saveEdit}
                           disabled={saving}
@@ -1828,18 +1827,17 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                 <div className="movie-detail-overview">
                   <h3>Overview</h3>
                   {editingField === 'overview' ? (
-                    <div className="input-group">
-                      <textarea
+                    <div className="edit-in-place">
+                      <TextArea
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
                         onKeyDown={handleKeyDown}
                         autoFocus
                         rows={4}
-                        className="form-control"
                         placeholder="Enter movie overview..."
                         style={{ paddingRight: '60px', resize: 'vertical' }}
                       />
-                      <div className="input-group-append">
+                      <div className="edit-in-place-append">
                         <IconButton label="Sauver" tone="confirm" size="sm" className="edit-action-btn" 
                           onClick={saveEdit}
                           disabled={saving}
@@ -1938,7 +1936,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                           </div>
                           <div className="date-picker-divider"></div>
                           <label>Or pick a date:</label>
-                          <input
+                          <TextField
                             type="date"
                             value={watchDate}
                             onChange={(e) => handleDateChange(e.target.value)}
@@ -2127,7 +2125,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                     <div className="fact-row">
                       <span className="fact-label">Format:</span>
                       {editingField === 'format' ? (
-                        <div className="input-group">
+                        <div className="edit-in-place">
                           <Select
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
@@ -2141,7 +2139,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                             <option value="DVD">DVD</option>
                             <option value="Digital">Digital</option>
                           </Select>
-                          <div className="input-group-append">
+                          <div className="edit-in-place-append">
                             <IconButton label="Sauver" tone="confirm" size="sm" className="edit-action-btn" 
                               onClick={saveEdit}
                               disabled={saving}
@@ -2165,7 +2163,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                     <div className="fact-row">
                       <span className="fact-label">Status:</span>
                       {editingField === 'title_status' ? (
-                        <div className="input-group">
+                        <div className="edit-in-place">
                           <Select
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
@@ -2177,7 +2175,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                             <option value="wish">Wish List</option>
                             <option value="to_sell">To Sell</option>
                           </Select>
-                          <div className="input-group-append">
+                          <div className="edit-in-place-append">
                             <IconButton label="Save" tone="confirm" size="sm" className="edit-action-btn" 
                               onClick={saveEdit}
                               disabled={saving}
@@ -2203,17 +2201,16 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                         {title_status === 'wish' ? 'Added to Wish List:' : 'Acquired:'}
                       </span>
                       {editingField === 'acquired_date' ? (
-                          <div className="input-group">
-                            <input
+                          <div className="edit-in-place">
+                            <TextField
                               type="date"
                               value={editValue}
                               onChange={(e) => setEditValue(e.target.value)}
                               onKeyDown={handleKeyDown}
                               autoFocus
-                              className="form-control"
                               style={{ paddingRight: '60px' }}
                             />
-                            <div className="input-group-append">
+                            <div className="edit-in-place-append">
                               <IconButton label="Sauver" tone="confirm" size="sm" className="edit-action-btn" 
                                 onClick={saveEdit}
                                 disabled={saving}
@@ -2238,8 +2235,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                       <div className="fact-row">
                         <span className="fact-label">Price:</span>
                         {editingField === 'price' ? (
-                          <div className="input-group">
-                            <input
+                          <div className="edit-in-place">
+                            <TextField
                               type="number"
                               step="0.01"
                               min="0"
@@ -2248,10 +2245,9 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                               onKeyDown={handleKeyDown}
                               autoFocus
                               placeholder="0.00"
-                              className="form-control"
                               style={{ paddingRight: '60px' }}
                             />
-                            <div className="input-group-append">
+                            <div className="edit-in-place-append">
                               <IconButton label="Sauver" tone="confirm" size="sm" className="edit-action-btn" 
                                 onClick={saveEdit}
                                 disabled={saving}
@@ -2279,8 +2275,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                       <div className="fact-row">
                         <span className="fact-label">Box Set:</span>
                         {editingField === 'box_set_collection' ? (
-                        <div className="input-group" style={{ position: 'relative' }}>
-                          <FormControl
+                        <div className="edit-in-place" style={{ position: 'relative' }}>
+                          <TextField
                             type="text"
                             value={editValue}
                             onChange={(e) => handleBoxSetInputChange(e.target.value)}
@@ -2293,43 +2289,24 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                           
                           {/* Box set suggestions dropdown */}
                           {showBoxSetDropdown && filteredBoxSets.length > 0 && (
-                            <div 
-                              className="box-set-dropdown"
-                              style={{
-                                position: 'absolute',
-                                top: '100%',
-                                left: 0,
-                                right: 0,
-                                backgroundColor: '#2d3748',
-                                border: '1px solid #4a5568',
-                                borderRadius: '4px',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                                zIndex: 1000,
-                                maxHeight: '200px',
-                                overflowY: 'auto'
-                              }}
-                            >
-                              {filteredBoxSets.map((name, index) => (
-                                <div
-                                  key={index}
-                                  className="box-set-suggestion"
+                            <div className="box-set-dropdown menu-surface" role="listbox">
+                              {filteredBoxSets.map((name) => (
+                                <button
+                                  key={name}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={false}
+                                  className="menu-item box-set-suggestion"
+                                  onMouseDown={(e) => e.preventDefault()}
                                   onClick={() => handleBoxSetSelect(name)}
-                                  style={{
-                                    padding: '8px 12px',
-                                    cursor: 'pointer',
-                                    color: '#e2e8f0',
-                                    borderBottom: index < filteredBoxSets.length - 1 ? '1px solid #4a5568' : 'none'
-                                  }}
-                                  onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => { (e.target as HTMLDivElement).style.backgroundColor = '#4a5568'; }}
-                                  onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => { (e.target as HTMLDivElement).style.backgroundColor = '#2d3748'; }}
                                 >
                                   {name}
-                                </div>
+                                </button>
                               ))}
                             </div>
                           )}
                           
-                          <div className="input-group-append">
+                          <div className="edit-in-place-append">
                             <IconButton label="Save" tone="confirm" size="sm" className="edit-action-btn" 
                               onClick={saveEdit}
                               disabled={saving}
@@ -2372,18 +2349,17 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                 <div className="sidebar-section">
                   <h4>Comments</h4>
                   {editingField === 'comments' ? (
-                      <div className="input-group">
-                        <textarea
+                      <div className="edit-in-place">
+                        <TextArea
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
                           onKeyDown={handleKeyDown}
                           autoFocus
                           rows={3}
                           placeholder="Add your comments..."
-                          className="form-control"
                           style={{ paddingRight: '60px', resize: 'vertical' }}
                         />
-                        <div className="input-group-append">
+                        <div className="edit-in-place-append">
                           <IconButton label="Sauver" tone="confirm" size="sm" className="edit-action-btn" 
                             onClick={saveEdit}
                             disabled={saving}

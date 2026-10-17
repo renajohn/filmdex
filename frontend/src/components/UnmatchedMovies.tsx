@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import apiService from '../services/api';
 import './UnmatchedMovies.css';
 import Button from './shared/Button';
+import { TextField } from './shared/TextField';
 
 interface UnmatchedMovie {
   title: string;
@@ -345,7 +346,7 @@ const UnmatchedMovies: React.FC<UnmatchedMoviesProps> = ({ importId, onImportCom
                   <div className="search-interface">
                     <form onSubmit={handleSearchSubmit} className="search-form">
                       <div className="search-inputs">
-                        <input
+                        <TextField
                           type="text"
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
@@ -353,7 +354,7 @@ const UnmatchedMovies: React.FC<UnmatchedMoviesProps> = ({ importId, onImportCom
                           className="search-input"
                           autoFocus
                         />
-                        <input
+                        <TextField
                           type="number"
                           value={searchYear}
                           onChange={(e) => setSearchYear(e.target.value)}

@@ -26,41 +26,6 @@
   filter: invert(1) grayscale(100%) brightness(200%);
 }
 
-.add-book-dialog .form-control,
-.add-book-dialog .form-select {
-  background-color: rgba(50, 50, 50, 0.95);
-  border-color: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.9);
-  height: 38px;
-  padding: 6px 12px;
-  font-size: 0.95rem;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.add-book-dialog .form-control:focus,
-.add-book-dialog .form-select:focus {
-  background-color: rgba(50, 50, 50, 0.95);
-  border-color: var(--dv-gold);
-  color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.25);
-  outline: none;
-}
-
-.add-book-dialog .form-control::placeholder {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.add-book-dialog .form-select {
-  cursor: pointer;
-}
-
-.add-book-dialog .form-select option {
-  background-color: rgba(50, 50, 50, 0.95);
-  color: rgba(255, 255, 255, 0.9);
-}
-
 .add-book-dialog .search-section {
   margin-bottom: 20px;
 }
@@ -73,7 +38,6 @@
 }
 
 .search-input {
-  border-radius: 8px;
   min-width: 0;
 }
 
@@ -94,18 +58,6 @@
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
-}
-
-/* Responsive adjustments for search form */
-@media (max-width: 768px) {
-  .add-book-dialog .form-control,
-  .add-book-dialog .form-select {
-    font-size: 16px; /* Prevents zoom on iOS */
-  }
-  
-  
-  
-  
 }
 
 /* Ensure columns don't overflow */
@@ -351,34 +303,6 @@
   color: rgba(255, 255, 255, 0.7);
   white-space: nowrap;
   margin: 0;
-}
-
-.quick-add-field .form-control,
-.quick-add-field .form-select {
-  height: 32px;
-  padding: 4px 8px;
-  font-size: 0.85rem;
-  min-width: 120px;
-  width: auto;
-  background-color: #2a2a2a;
-  border-color: rgba(255, 255, 255, 0.2);
-  color: #ccc;
-}
-
-.quick-add-field .form-select {
-  padding-right: 28px;
-}
-
-.quick-add-field .form-control:focus,
-.quick-add-field .form-select:focus {
-  border-color: var(--dv-gold);
-  box-shadow: 0 0 0 0.15rem rgba(251, 191, 36, 0.25);
-  background-color: #2a2a2a;
-  color: #ccc;
-}
-
-.quick-add-field .form-control::placeholder {
-  color: rgba(255, 255, 255, 0.4);
 }
 
 /* Owner autocomplete dropdown */
@@ -781,13 +705,7 @@
     font-size: 0.8rem;
   }
 
-  .quick-add-field .form-control,
-  .quick-add-field .form-select {
-    flex: 1;
-    min-width: 0;
-    font-size: 0.8rem;
-    height: 30px;
-  }
+  
 
   .quick-add-buttons {
     width: 100%;

@@ -3,6 +3,7 @@ import { Form } from 'react-bootstrap';
 import musicService, { type AlbumGuide as Guide, type AlbumGuideSource } from '../services/musicService';
 import './AlbumGuide.css';
 import Button from './shared/Button';
+import { TextArea } from './shared/TextField';
 
 const SOURCE_LABELS: Record<AlbumGuideSource, string> = {
   claude: 'Written by Claude',
@@ -161,13 +162,11 @@ const AlbumGuide: React.FC<AlbumGuideProps> = ({ albumId, onLoaded }) => {
     return (
       <div className="info-section album-guide">
         <h4>Before you listen</h4>
-        <Form.Control
-          as="textarea"
+        <TextArea
           rows={16}
           value={editing}
           onChange={e => setEditing(e.target.value)}
-          aria-label="Listening guide"
-          className="album-guide-editor"
+          aria-label="Listening guide" className="album-guide-editor"
         />
         <p className="album-guide-muted small">### for a heading, **bold**, *italic*, - for a bullet.</p>
         <div className="album-guide-row">

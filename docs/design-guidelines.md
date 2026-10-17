@@ -64,6 +64,9 @@ colour goes into `tokens.css` first.
 | A round button on a cover, a poster, a book | `CoverButton` |
 | A tag on a cover | `CoverTag`, several in a `CoverTagStack` |
 | A menu that opens from a button (actions or a choice) | `Menu` |
+| A field: words, a number, a date, a search | `TextField`, several lines `TextArea` |
+| Why a field will not do, a word on what to put in it | `FieldError`, `FieldHint` |
+| Suggestions under a field | `menu-surface` and `menu-item` (as `AutocompleteInput`) |
 | A list in a form | `Select` |
 | A dialog: a form, a search, a record's card | `Dialog` (`Dialog.Body`, `Dialog.Footer`) |
 | A question before doing something (delete, restore) | `confirm()`, or `ConfirmDialog` |
@@ -201,6 +204,36 @@ if (await confirm({ title: 'Delete this backup?', message: '“x.zip” goes for
 - Keys: ↑ ↓ Home End, a letter to jump, Enter, Esc, Tab. In a modal it lies in
   the modal, which keeps the focus.
 
+### TextField, TextArea (`TextField.tsx`, `field.css`)
+
+```tsx
+<Form.Group controlId="artist">
+  <Form.Label>Artist *</Form.Label>
+  <TextField value={artist} onChange={e => setArtist(e.target.value)} isInvalid={!artist} />
+  <FieldError>{!artist && 'An album needs its artist.'}</FieldError>
+</Form.Group>
+<TextField size="sm" type="search" icon={<BsSearch />} placeholder="Find on the shelves…" />
+<TextField inputMode="decimal" suffix="CHF" />
+<TextArea rows={3} value={notes} onChange={e => setNotes(e.target.value)} />
+```
+
+- A hollow a little darker than its dialog (`#1f1f1f`), a grey edge, lighter
+  under the pointer; **gold** edge and ring with the focus; **red** edge with
+  `isInvalid`. The same look closed for a `Select`.
+- `size` **md** (36 px) in a form, **sm** (28 px) in a bar or an edit in place.
+  `icon` before the words, `suffix` (a unit) after them, both inside.
+- The props of an `<input>` (or a `<textarea>`), its `ref`; in a `Form.Group`
+  its `controlId` names it.
+- A date's calendar and a number's arrows are drawn for a dark page
+  (`color-scheme: dark`): never paint them by hand.
+- Fields side by side under their labels: a grid `ui-fields` (`--ui-fields: 3`
+  for three), so a hint under one does not push the others.
+- An edit in place with ✓ ✕ inside the field: a parent of its own
+  (`edit-in-place` in a movie's card), never Bootstrap's `input-group`, which
+  squares the field's right corners.
+- A stylesheet only places a field (width, flex, margins, `text-align`), never
+  its background, edge, padding, height or font size.
+
 ### Select (`Select.tsx`)
 
 ```tsx
@@ -218,7 +251,7 @@ if (await confirm({ title: 'Delete this backup?', message: '“x.zip” goes for
 - The same `<option>`s and `<optgroup>`s as a `<select>`, the same
   `onChange(event)` (`event.target.value`, `event.target.name`), `size`,
   `disabled`, `id`, `name`; in a `Form.Group` its `controlId` names it.
-- Closed it is a field like the others (`form-select`); `bare` keeps a class of
+- Closed it is a field like the others (`ui-input`); `bare` keeps a class of
   its own instead, for a word to change inside a sentence.
 - An empty value (`""`) is the field's "Choose…": quiet in the list, never gold.
 - On an iPhone or an iPad it is the system's own select, its wheel.
@@ -260,6 +293,5 @@ to make. Counts are of October 2026.
 
 | Family | Today | To make |
 |---|---|---|
-| Text fields | 123 `Form.Control`, 28 raw `<input>`, each with its own look | `TextField` |
 | Notices | 19 react-bootstrap `Alert`, the page's own alert (`onShowAlert`) | `Notice`, a toast |
 | Loading | `spinner-border`, `Spinner` and spinners of their own in 33 files | `Spinner` |

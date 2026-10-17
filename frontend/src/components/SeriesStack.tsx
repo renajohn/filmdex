@@ -5,6 +5,7 @@ import { BsPencil, BsCheck, BsX, BsPlus } from 'react-icons/bs';
 import BookThumbnail from './BookThumbnail';
 import './SeriesStack.css';
 import Button, { IconButton } from './shared/Button';
+import { TextField } from './shared/TextField';
 
 interface Book {
   id: number;
@@ -343,13 +344,13 @@ const SeriesStack: React.FC<SeriesStackProps> = ({ seriesName, books, onBookClic
               <div className="series-expansion-header">
                 {isEditingName ? (
                   <div className="series-name-edit">
-                    <input
+                    <TextField
                       ref={nameInputRef}
                       type="text"
                       value={editedName}
                       onChange={(e) => setEditedName(e.target.value)}
                       onKeyDown={handleNameKeyDown}
-                      className="series-name-input"
+                      size="sm" className="series-name-input"
                       onClick={(e) => e.stopPropagation()}
                     />
                     <IconButton label="Save" tone="confirm" size="sm" className="series-name-btn save" onClick={handleSaveName} title="Save"><BsCheck size={18} /></IconButton>

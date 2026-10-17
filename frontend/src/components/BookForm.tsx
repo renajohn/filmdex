@@ -9,6 +9,7 @@ import './BookForm.css';
 import { readStored, writeStored } from '../utils/safeStorage';
 import Select from './shared/Select';
 import Button from './shared/Button';
+import { FieldError, TextArea, TextField } from './shared/TextField';
 
 interface MetadataSourceEntry {
   [field: string]: any;
@@ -1697,7 +1698,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
             <Col md={8}>
               <Form.Group className="mb-3">
                 <Form.Label>Title *</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={formData.title}
                   onChange={(e) => handleInputChange('title', e.target.value)}
@@ -1705,14 +1706,12 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                   isInvalid={!!errors.title}
                   required
                 />
-                <Form.Control.Feedback type="invalid">
-                  {errors.title}
-                </Form.Control.Feedback>
+                <FieldError>{errors.title}</FieldError>
               </Form.Group>
 
               <Form.Group className="mb-3">
                 <Form.Label>Subtitle</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={formData.subtitle}
                   onChange={(e) => handleInputChange('subtitle', e.target.value)}
@@ -1787,7 +1786,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                         </div>
                       )}
                     </div>
-                    <Form.Control
+                    <TextField
                       type="text"
                       value={formData.series}
                       onChange={(e) => handleInputChange('series', e.target.value)}
@@ -1798,7 +1797,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6} className="pe-0">
                   <Form.Group className="mb-3">
                     <Form.Label>Series Number</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="number"
                       value={formData.seriesNumber}
                       onChange={(e) => handleInputChange('seriesNumber', e.target.value)}
@@ -1810,7 +1809,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
 
               <Form.Group className="mb-3">
                 <Form.Label>Author(s)</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={Array.isArray(formData.authors) ? formData.authors.join(', ') : formData.authors}
                   onChange={(e) => handleAuthorsInputChange(e.target.value)}
@@ -1822,7 +1821,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
               <Form.Group className="mb-3">
                 <Form.Label>Belongs to</Form.Label>
                 <div style={{ position: 'relative' }}>
-                  <Form.Control
+                  <TextField
                     ref={ownerInputRef}
                     type="text"
                     value={formData.owner}
@@ -1915,7 +1914,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
 
               <Form.Group className="mb-3">
                 <Form.Label>Artist(s) / Illustrator(s)</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={Array.isArray(formData.artists) ? formData.artists.join(', ') : formData.artists}
                   onChange={(e) => handleArtistsInputChange(e.target.value)}
@@ -1928,7 +1927,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>ISBN-10</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="text"
                       value={formData.isbn}
                       onChange={(e) => handleInputChange('isbn', e.target.value)}
@@ -1939,7 +1938,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>ISBN-13</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="text"
                       value={formData.isbn13}
                       onChange={(e) => handleInputChange('isbn13', e.target.value)}
@@ -1953,7 +1952,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Publisher</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="text"
                       value={formData.publisher}
                       onChange={(e) => handleInputChange('publisher', e.target.value)}
@@ -1964,7 +1963,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Published Year</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="number"
                       value={formData.publishedYear}
                       onChange={(e) => handleInputChange('publishedYear', e.target.value)}
@@ -1978,7 +1977,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={4}>
                   <Form.Group className="mb-3">
                     <Form.Label>Language</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="text"
                       value={formData.language}
                       onChange={(e) => handleInputChange('language', e.target.value)}
@@ -2032,7 +2031,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                     <Col md={6}>
                       <Form.Group className="mb-3">
                         <Form.Label>File Type</Form.Label>
-                        <Form.Control
+                        <TextField
                           type="text"
                           value={formData.filetype}
                           onChange={(e) => handleInputChange('filetype', e.target.value)}
@@ -2043,7 +2042,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                     <Col md={6}>
                       <Form.Group className="mb-3">
                         <Form.Label>DRM</Form.Label>
-                        <Form.Control
+                        <TextField
                           type="text"
                           value={formData.drm}
                           onChange={(e) => handleInputChange('drm', e.target.value)}
@@ -2061,7 +2060,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                     <Col md={6}>
                       <Form.Group className="mb-3">
                         <Form.Label>Narrator</Form.Label>
-                        <Form.Control
+                        <TextField
                           type="text"
                           value={formData.narrator}
                           onChange={(e) => handleInputChange('narrator', e.target.value)}
@@ -2072,7 +2071,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                     <Col md={6}>
                       <Form.Group className="mb-3">
                         <Form.Label>Runtime (minutes)</Form.Label>
-                        <Form.Control
+                        <TextField
                           type="number"
                           value={formData.runtime}
                           onChange={(e) => handleInputChange('runtime', e.target.value)}
@@ -2093,7 +2092,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                     </small>
                   )}
                 </div>
-                <Form.Control
+                <TextField
                   type="text"
                   value={Array.isArray(formData.genres) ? formData.genres.join(', ') : (formData.genres || '')}
                   onChange={(e) => handleArrayInputChange('genres', e.target.value)}
@@ -2109,7 +2108,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
 
               <Form.Group className="mb-3">
                 <Form.Label>Tags</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={Array.isArray(formData.tags) ? formData.tags.join(', ') : (formData.tags || '')}
                   onChange={(e) => handleArrayInputChange('tags', e.target.value)}
@@ -2122,7 +2121,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Rating</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="number"
                       step="0.1"
                       min="0"
@@ -2136,7 +2135,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Page Count</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="number"
                       value={formData.pageCount}
                       onChange={(e) => handleInputChange('pageCount', e.target.value)}
@@ -2150,7 +2149,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Read Date</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="date"
                       value={formData.readDate}
                       onChange={(e) => handleInputChange('readDate', e.target.value)}
@@ -2191,8 +2190,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                     </div>
                   )}
                 </div>
-                <Form.Control
-                  as="textarea"
+                <TextArea
                   rows={4}
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
@@ -2510,7 +2508,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
             <Col md={8}>
               <Form.Group className="mb-3">
                 <Form.Label>Title *</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={formData.title}
                   onChange={(e) => handleInputChange('title', e.target.value)}
@@ -2518,14 +2516,12 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                   isInvalid={!!errors.title}
                   required
                 />
-                <Form.Control.Feedback type="invalid">
-                  {errors.title}
-                </Form.Control.Feedback>
+                <FieldError>{errors.title}</FieldError>
               </Form.Group>
 
               <Form.Group className="mb-3">
                 <Form.Label>Subtitle</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={formData.subtitle}
                   onChange={(e) => handleInputChange('subtitle', e.target.value)}
@@ -2600,7 +2596,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                         </div>
                       )}
                     </div>
-                    <Form.Control
+                    <TextField
                       type="text"
                       value={formData.series}
                       onChange={(e) => handleInputChange('series', e.target.value)}
@@ -2611,7 +2607,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6} className="pe-0">
                   <Form.Group className="mb-3">
                     <Form.Label>Series Number</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="number"
                       value={formData.seriesNumber}
                       onChange={(e) => handleInputChange('seriesNumber', e.target.value)}
@@ -2623,7 +2619,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
 
               <Form.Group className="mb-3">
                 <Form.Label>Author(s)</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={Array.isArray(formData.authors) ? formData.authors.join(', ') : formData.authors}
                   onChange={(e) => handleAuthorsInputChange(e.target.value)}
@@ -2636,7 +2632,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
               <Form.Group className="mb-3">
                 <Form.Label>Belongs to</Form.Label>
                 <div style={{ position: 'relative' }}>
-                  <Form.Control
+                  <TextField
                     ref={ownerInputRef}
                     type="text"
                     value={formData.owner}
@@ -2729,7 +2725,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
 
               <Form.Group className="mb-3">
                 <Form.Label>Artist(s) / Illustrator(s)</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={Array.isArray(formData.artists) ? formData.artists.join(', ') : formData.artists}
                   onChange={(e) => handleArtistsInputChange(e.target.value)}
@@ -2742,7 +2738,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>ISBN-10</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="text"
                       value={formData.isbn}
                       onChange={(e) => handleInputChange('isbn', e.target.value)}
@@ -2753,7 +2749,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>ISBN-13</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="text"
                       value={formData.isbn13}
                       onChange={(e) => handleInputChange('isbn13', e.target.value)}
@@ -2767,7 +2763,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Publisher</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="text"
                       value={formData.publisher}
                       onChange={(e) => handleInputChange('publisher', e.target.value)}
@@ -2778,7 +2774,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Published Year</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="number"
                       value={formData.publishedYear}
                       onChange={(e) => handleInputChange('publishedYear', e.target.value)}
@@ -2792,7 +2788,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={4}>
                   <Form.Group className="mb-3">
                     <Form.Label>Language</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="text"
                       value={formData.language}
                       onChange={(e) => handleInputChange('language', e.target.value)}
@@ -2846,7 +2842,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                     <Col md={6}>
                       <Form.Group className="mb-3">
                         <Form.Label>File Type</Form.Label>
-                        <Form.Control
+                        <TextField
                           type="text"
                           value={formData.filetype}
                           onChange={(e) => handleInputChange('filetype', e.target.value)}
@@ -2857,7 +2853,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                     <Col md={6}>
                       <Form.Group className="mb-3">
                         <Form.Label>DRM</Form.Label>
-                        <Form.Control
+                        <TextField
                           type="text"
                           value={formData.drm}
                           onChange={(e) => handleInputChange('drm', e.target.value)}
@@ -2875,7 +2871,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                     <Col md={6}>
                       <Form.Group className="mb-3">
                         <Form.Label>Narrator</Form.Label>
-                        <Form.Control
+                        <TextField
                           type="text"
                           value={formData.narrator}
                           onChange={(e) => handleInputChange('narrator', e.target.value)}
@@ -2886,7 +2882,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                     <Col md={6}>
                       <Form.Group className="mb-3">
                         <Form.Label>Runtime (minutes)</Form.Label>
-                        <Form.Control
+                        <TextField
                           type="number"
                           value={formData.runtime}
                           onChange={(e) => handleInputChange('runtime', e.target.value)}
@@ -2907,7 +2903,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                     </small>
                   )}
                 </div>
-                <Form.Control
+                <TextField
                   type="text"
                   value={Array.isArray(formData.genres) ? formData.genres.join(', ') : (formData.genres || '')}
                   onChange={(e) => handleArrayInputChange('genres', e.target.value)}
@@ -2923,7 +2919,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
 
               <Form.Group className="mb-3">
                 <Form.Label>Tags</Form.Label>
-                <Form.Control
+                <TextField
                   type="text"
                   value={Array.isArray(formData.tags) ? formData.tags.join(', ') : (formData.tags || '')}
                   onChange={(e) => handleArrayInputChange('tags', e.target.value)}
@@ -2936,7 +2932,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Rating</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="number"
                       step="0.1"
                       min="0"
@@ -2950,7 +2946,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Page Count</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="number"
                       value={formData.pageCount}
                       onChange={(e) => handleInputChange('pageCount', e.target.value)}
@@ -2964,7 +2960,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label>Read Date</Form.Label>
-                    <Form.Control
+                    <TextField
                       type="date"
                       value={formData.readDate}
                       onChange={(e) => handleInputChange('readDate', e.target.value)}
@@ -3005,8 +3001,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                     </div>
                   )}
                 </div>
-                <Form.Control
-                  as="textarea"
+                <TextArea
                   rows={4}
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}

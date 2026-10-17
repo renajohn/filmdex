@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useRef } from 'react';
 import FormContext from 'react-bootstrap/FormContext';
 import Menu, { MenuChevron } from './Menu';
 import { isAppleMobile } from '../../utils/navidrome';
+import './field.css';
 
 interface SelectOption {
   value: string;
@@ -66,7 +67,7 @@ const changeEvent = (value: string, name?: string) => {
 
 /**
  * The one select of DexVault's forms. Closed, a field like the others
- * (form-select); open, the list is DexVault's Menu, a ✓ on the value. On an
+ * (ui-input, field.css); open, the list is DexVault's Menu, a ✓ on the value. On an
  * iPhone or an iPad, the system's own wheel, easier under a finger.
  */
 const Select: React.FC<SelectProps> = ({
@@ -77,7 +78,7 @@ const Select: React.FC<SelectProps> = ({
   // In a Form.Group, its controlId, for the group's label to name it.
   const { controlId } = useContext(FormContext);
   const fieldId = id ?? controlId;
-  const fieldClass = (bare ? `menu-select menu-select--bare ${className}` : `form-select${size ? ` form-select-${size}` : ''} menu-select ${className}`).trim();
+  const fieldClass = (bare ? `menu-select menu-select--bare ${className}` : `ui-input${size === 'sm' ? ' ui-input--sm' : ''} menu-select ${className}`).trim();
 
   useEffect(() => {
     if (autoFocus && !native) triggerRef.current?.focus();

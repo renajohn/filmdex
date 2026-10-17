@@ -3,6 +3,7 @@ import { GiSpiderAlt, GiSnake } from 'react-icons/gi';
 import apiService from '../services/api';
 import './MovieWarnings.css';
 import Button from './shared/Button';
+import { TextField } from './shared/TextField';
 
 export type WarningTopic = 'spiders' | 'snakes';
 type Status = 'with' | 'without' | 'unknown';
@@ -133,7 +134,7 @@ const MovieWarnings: React.FC<Props> = ({ movieId, onSearch }) => {
           <div className="movie-warning-actions">
             <label className="movie-warning-input">
               DoesTheDogDie ID
-              <input
+              <TextField
                 type="text"
                 inputMode="numeric"
                 value={linkInput}

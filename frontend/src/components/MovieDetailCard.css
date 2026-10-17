@@ -386,18 +386,7 @@
 
 .watched-date-picker input[type="date"] {
   width: 100%;
-  padding: 8px 10px;
-  background: var(--dv-glass);
-  border: 1px solid var(--dv-edge);
-  border-radius: 6px;
-  color: #f8f9fa;
-  font-size: 0.9rem;
   box-sizing: border-box;
-}
-
-.watched-date-picker input[type="date"]:focus {
-  outline: none;
-  border-color: #4a9f4d;
 }
 
 .watch-count-editor {
@@ -880,58 +869,16 @@
   to { transform: rotate(360deg); }
 }
 
-/* Bootstrap form controls in dark theme */
-.form-control, .form-select {
-  background-color: #2d2d2d !important;
-  border: 1px solid #555 !important;
-  color: #f8f9fa !important;
-}
-
-.form-control:focus, .form-select:focus {
-  background-color: #2d2d2d !important;
-  border-color: var(--dv-gold) !important;
-  color: #f8f9fa !important;
-  box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.25) !important;
-}
-
-.form-control::placeholder {
-  color: #6c757d !important;
-}
-
-/* Specific styles for inline editing inputs */
-.input-group input[type="text"],
-.input-group input[type="number"],
-.input-group input[type="date"],
-.input-group select,
-.input-group textarea {
-  background-color: #2d2d2d !important;
-  border: 1px solid #555 !important;
-  color: #f8f9fa !important;
-}
-
-.input-group input[type="text"]:focus,
-.input-group input[type="number"]:focus,
-.input-group input[type="date"]:focus,
-.input-group select:focus,
-.input-group textarea:focus {
-  background-color: #2d2d2d !important;
-  border-color: var(--dv-gold) !important;
-  color: #f8f9fa !important;
-  box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.25) !important;
-}
-
-.input-group input[type="text"]::placeholder,
-.input-group input[type="number"]::placeholder,
-.input-group textarea::placeholder {
-  color: #6c757d !important;
-}
-
 /* New integrated edit buttons */
-.input-group {
+.edit-in-place {
   position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
 }
 
-.input-group-append {
+.edit-in-place-append {
   position: absolute;
   right: 4px;
   top: 50%;
@@ -942,30 +889,28 @@
   pointer-events: none;
 }
 
-.input-group-append .edit-action-btn {
+.edit-in-place-append .edit-action-btn {
   pointer-events: auto}
 
 .edit-action-btn:disabled {
   transform: none}
 
 /* Ensure text doesn't overlap with buttons */
-.input-group .form-control,
-.input-group .form-select,
-.input-group textarea {
+.edit-in-place .ui-input {
   padding-right: 60px !important;
 }
 
 /* Limit width of title editing input to avoid overlapping with close button */
-.movie-detail-title .input-group {
+.movie-detail-title .edit-in-place {
   max-width: calc(100% - 80px);
 }
 
 /* Special handling for textarea */
-.input-group textarea {
+.edit-in-place textarea {
   padding-bottom: 30px !important;
 }
 
-.input-group textarea + .input-group-append {
+.edit-in-place textarea + .edit-in-place-append {
   top: auto;
   bottom: 4px;
   transform: none;
@@ -2116,3 +2061,15 @@
   to { opacity: 0; }
 }
 
+
+/* A box set's names to choose from, under its field: the menus' glass. */
+.box-set-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 6px;
+}

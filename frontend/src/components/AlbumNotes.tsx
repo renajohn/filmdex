@@ -3,6 +3,7 @@ import { Form } from 'react-bootstrap';
 import musicService, { type AlbumNote } from '../services/musicService';
 import './AlbumNotes.css';
 import Button from './shared/Button';
+import { TextArea, TextField } from './shared/TextField';
 
 const today = (): string => {
   const now = new Date();
@@ -95,8 +96,7 @@ const AlbumNotes: React.FC<AlbumNotesProps> = ({ albumId, writing = false, onCou
       <h4>Listening notes</h4>
 
       <Form className="album-notes-form" onSubmit={add}>
-        <Form.Control
-          as="textarea"
+        <TextArea
           rows={2}
           placeholder="What did you hear this time?"
           autoFocus={writing && notes.length === 0}
@@ -105,7 +105,7 @@ const AlbumNotes: React.FC<AlbumNotesProps> = ({ albumId, writing = false, onCou
           aria-label="New listening note"
         />
         <div className="album-notes-form-row">
-          <Form.Control type="date" size="sm" value={date} max={today()} onChange={e => setDate(e.target.value)} aria-label="Day of the listening" />
+          <TextField type="date" size="sm" value={date} max={today()} onChange={e => setDate(e.target.value)} aria-label="Day of the listening" />
           <Button type="submit" size="sm" disabled={saving || !draft.trim()}>Add note</Button>
         </div>
       </Form>
@@ -118,15 +118,14 @@ const AlbumNotes: React.FC<AlbumNotesProps> = ({ albumId, writing = false, onCou
             <li key={note.id}>
               {editing?.id === note.id ? (
                 <div className="album-notes-edit">
-                  <Form.Control
-                    as="textarea"
+                  <TextArea
                     rows={3}
                     value={editing.note}
                     onChange={e => setEditing({ ...editing, note: e.target.value })}
                     aria-label="Edit the note"
                   />
                   <div className="album-notes-form-row">
-                    <Form.Control type="date" size="sm" value={editing.date.slice(0, 10)} max={today()} onChange={e => setEditing({ ...editing, date: e.target.value })} aria-label="Day of the listening" />
+                    <TextField type="date" size="sm" value={editing.date.slice(0, 10)} max={today()} onChange={e => setEditing({ ...editing, date: e.target.value })} aria-label="Day of the listening" />
                     <Button size="sm" onClick={save} disabled={saving || !editing.note.trim()}>Save</Button>
                     <Button variant="quiet" size="sm" className="album-notes-action" onClick={() => setEditing(null)}>Cancel</Button>
                   </div>

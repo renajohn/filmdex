@@ -7,6 +7,7 @@ import Button from './shared/Button';
 import Dialog from './shared/Dialog';
 import { BsX, BsPlus } from 'react-icons/bs';
 import Segmented from './shared/Segmented';
+import { TextArea, TextField } from './shared/TextField';
 
 interface MovieEdition {
   title: string;
@@ -382,7 +383,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
     if (selectedMovie?.id) {
       if (posterRef.current) {
         const posterElement = posterRef.current;
-        const dialog = posterRef.current.closest('.add-movie-dialog') as HTMLElement | null;
+        const dialog = posterRef.current.closest('.add-movie-dialog .modal-content') as HTMLElement | null;
 
         if (posterElement && dialog) {
           const posterRect = posterElement.getBoundingClientRect();
@@ -706,7 +707,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
 
               <div className="form-group">
                 <label htmlFor="title">Movie Title *</label>
-                <input
+                <TextField
                   ref={searchInputRef}
                   type="text"
                   id="title"
@@ -715,7 +716,6 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                   onChange={handleSearchChange}
                   placeholder="Search for a movie..."
                   required
-                  className="form-control"
                 />
 
                 {searching && (
@@ -883,7 +883,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
               <form onSubmit={handleSubmit} className="add-movie-form">
                 <div className="form-group">
                   <label htmlFor="title">Edition Title *</label>
-                  <input
+                  <TextField
                     type="text"
                     id="title"
                     name="title"
@@ -891,7 +891,6 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                     onChange={handleInputChange}
                     placeholder="e.g., Am&eacute;lie (Director's Cut)"
                     required
-                    className="form-control"
                   />
                   <small className="form-text text-muted">
                     Customize the title to indicate the edition (e.g., "Director's Cut", "Extended Edition", "Anniversary Edition")
@@ -918,7 +917,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                   <div className="form-row">
                     <div className="form-group">
                       <label htmlFor="price">Price</label>
-                      <input
+                      <TextField
                         type="number"
                         step="0.01"
                         id="price"
@@ -926,19 +925,17 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                         value={formData.price}
                         onChange={handleInputChange}
                         placeholder="Price paid"
-                        className="form-control"
                       />
                     </div>
 
                     <div className="form-group">
                       <label htmlFor="acquired_date">Acquired Date</label>
-                      <input
+                      <TextField
                         type="date"
                         id="acquired_date"
                         name="acquired_date"
                         value={formData.acquired_date}
                         onChange={handleInputChange}
-                        className="form-control"
                       />
                     </div>
                   </div>
@@ -946,14 +943,13 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
 
                 <div className="form-group">
                   <label htmlFor="comments">Comments</label>
-                  <textarea
+                  <TextArea
                     id="comments"
                     name="comments"
                     value={formData.comments}
                     onChange={handleInputChange}
                     placeholder="Add any comments..."
                     rows={3}
-                    className="form-control"
                   />
                 </div>
 
