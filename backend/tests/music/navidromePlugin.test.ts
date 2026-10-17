@@ -123,6 +123,19 @@ describe('le plugin DexVault dans Navidrome', () => {
     })]);
   });
 
+  it('garde quinze mois les débuts et rapports de lecture, les écoutes pour toujours', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const day = 86400;
+    const [kept, old, play] = [`s-${tag()}`, `s-${tag()}`, `s-${tag()}`];
+    await NavidromeListener.addEvent('nowPlaying', 'violaine', kept, now - 440 * day, {}, now);
+    await NavidromeListener.addEvent('nowPlaying', 'violaine', old, now - 470 * day, {}, now);
+    await NavidromeListener.addEvent('scrobble', 'violaine', play, now - 900 * day, {}, now);
+    await library('violaine', {}).expect(200);
+
+    const left = await rows<{ song_id: string }>('SELECT song_id FROM navidrome_events WHERE song_id IN (?, ?, ?)', [kept, old, play]);
+    expect(left.map(row => row.song_id).sort()).toEqual([kept, play].sort());
+  });
+
   it('refuse ce qui n’est pas une écoute', async () => {
     expect((await listen({ user: 'violaine', songId: '../etc', playedAt: NOON })).status).toBe(400);
     expect((await listen({ user: 'violaine', songId: 's1', playedAt: 'hier' })).status).toBe(400);

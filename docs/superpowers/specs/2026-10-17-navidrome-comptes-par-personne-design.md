@@ -51,7 +51,7 @@ dans DexVault.**
 - Chaque heure, et une minute après le démarrage : pour chaque compte, `search3` (pistes, artistes) et
   `getAlbumList2` au nom du compte, en entier et sans tri, puis
   `PUT /api/music/navidrome/plugin/library/:user` `{ user, songs, albums, artists }`.
-- DexVault garde les événements dans `navidrome_events` (début et rapports de lecture un an, écoutes
+- DexVault garde les événements dans `navidrome_events` (début et rapports de lecture quinze mois, de quoi faire « l'année en musique », écoutes
   pour toujours) et la dernière bibliothèque de chaque compte dans `navidrome_library`.
 
 ## Écoutes

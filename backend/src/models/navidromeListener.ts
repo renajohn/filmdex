@@ -95,8 +95,18 @@ export interface RecentEvent {
   data: unknown;
 }
 
-/** Playing and playback reports are kept a year; plays, for good. */
-const EVENTS_KEPT_SEC = 365 * 86400;
+/**
+ * Playing and playback reports are kept fifteen months, for a year in music
+ * looked back on with the months before it; plays, for good.
+ */
+const EVENTS_KEPT_MONTHS = 15;
+
+/** Unix seconds of the same moment `months` calendar months earlier. */
+const monthsBefore = (seconds: number, months: number): number => {
+  const date = new Date(seconds * 1000);
+  date.setMonth(date.getMonth() - months);
+  return Math.floor(date.getTime() / 1000);
+};
 
 /**
  * Everything the DexVault plugin in Navidrome hands on, kept as it came:
@@ -225,7 +235,7 @@ const NavidromeListener = {
       await run(`INSERT INTO navidrome_listeners (navidrome_user, favourites_at, account) VALUES (?, ?, ?)
         ON CONFLICT(navidrome_user) DO UPDATE SET favourites_at = excluded.favourites_at, account = excluded.account`,
       [user, now, account == null ? null : JSON.stringify(account)]);
-      await run("DELETE FROM navidrome_events WHERE type != 'scrobble' AND at < ?", [now - EVENTS_KEPT_SEC]);
+      await run("DELETE FROM navidrome_events WHERE type != 'scrobble' AND at < ?", [monthsBefore(now, EVENTS_KEPT_MONTHS)]);
       return { written: changed.length, removed: gone.length };
     });
   }),
