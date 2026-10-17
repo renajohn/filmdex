@@ -34,6 +34,8 @@ interface CollectionHeaderProps {
   onAdd?: () => void;
   loading?: boolean;
   extraControls?: React.ReactNode;
+  /** Beside the count, at the right end: a button that acts on the whole list, say. */
+  countExtra?: React.ReactNode;
 }
 
 const CollectionHeader: React.FC<CollectionHeaderProps> = ({
@@ -56,7 +58,8 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
   addButtonLabel = 'Add Item',
   onAdd,
   loading = false,
-  extraControls
+  extraControls,
+  countExtra
 }) => {
   // Default: show stack toggle when no grouping is active
   const shouldShowStackToggle = showStackToggle !== undefined
@@ -183,6 +186,7 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
       {/* Item Count */}
       <div className="collection-count">
         Showing {filteredCount} of {totalCount} {itemLabel}
+        {countExtra}
       </div>
     </div>
   );

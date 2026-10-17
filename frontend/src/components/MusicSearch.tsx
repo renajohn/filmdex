@@ -17,7 +17,7 @@ import { useAlbumOrder } from '../utils/shelfLocations';
 import { artistLetter, artistSortKey, artistSortName } from '../utils/artistOrder';
 import { isAppleMobile } from '../utils/navidrome';
 import AlbumPlayButton from './shared/AlbumPlayButton';
-import DigitalStrip, { type DigitalFilter } from './DigitalStrip';
+import { DigitalChips, DigitalNotices, DigitalRefresh, type DigitalFilter } from './DigitalStrip';
 import DigitalMarks from './shared/DigitalMarks';
 import BoughtCdDialog from './BoughtCdDialog';
 import { Form } from 'react-bootstrap';
@@ -1138,30 +1138,23 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           onAdd={() => setShowAddDialog(true)}
           loading={loading}
           extraControls={
-            <Form.Check
-              type="switch"
-              id="musicdex-digital"
-              className="musicdex-digital-switch"
-              label="Digital"
-              checked={digitalOn}
-              onChange={toggleDigital}
-              title={digitalOn ? 'Hide the albums with no CD and what sets each album apart' : 'Show the albums with no CD, how good the files are, and what to buy'}
-            />
+            <>
+              <Form.Check
+                type="switch"
+                id="musicdex-digital"
+                className="musicdex-digital-switch"
+                label="Digital"
+                checked={digitalOn}
+                onChange={toggleDigital}
+                title={digitalOn ? 'Hide the albums with no CD and what sets each album apart' : 'Show the albums with no CD, how good the files are, and what to buy'}
+              />
+              {digitalOn && <DigitalChips filter={digitalFilter} onFilter={chooseFilter} counts={filterCounts} />}
+            </>
           }
+          countExtra={digitalOn && <DigitalRefresh library={digital.library} syncing={digital.syncing} onRefresh={digital.sync} />}
         />
 
-        {digitalOn && (
-          <DigitalStrip
-            library={digital.library}
-            error={digital.error}
-            editions={digital.editions}
-            syncing={digital.syncing}
-            onRefresh={digital.sync}
-            filter={digitalFilter}
-            onFilter={chooseFilter}
-            counts={filterCounts}
-          />
-        )}
+        {digitalOn && <DigitalNotices library={digital.library} error={digital.error} editions={digital.editions} />}
 
         {/* Album Grid or Grouped Albums */}
         {renderCdGrid()}

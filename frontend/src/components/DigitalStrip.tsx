@@ -4,6 +4,13 @@ import type { DigitalLibrary, EditionAdoption } from '../services/musicService';
 import { NotRippedIcon } from './shared/DigitalMarks';
 import './DigitalStrip.css';
 
+/**
+ * The head of MusicDex with Digital on, laid in the collection's own head:
+ * the filters after the Digital switch, each with the colour of the mark it
+ * picks; Refresh beside the count; below, only when there is one, what
+ * DexVault did at the last sync and what needs doing.
+ */
+
 export type DigitalFilter = 'all' | 'buy' | 'digital' | 'lossy' | 'unripped';
 
 /** What DexVault did with the editions Picard wrote into the rips; tracks and credits follow each time. */
@@ -13,17 +20,6 @@ const EDITION_NOTICES: Array<{ action: NonNullable<EditionAdoption['action']>; i
   { action: 'edition', intro: 'Edition taken from your rip, as Picard identified the disc:' },
 ];
 
-interface DigitalStripProps {
-  library: DigitalLibrary | null;
-  error: string | null;
-  editions: EditionAdoption[];
-  syncing: boolean;
-  onRefresh: () => void;
-  filter: DigitalFilter;
-  onFilter: (filter: DigitalFilter) => void;
-  counts: Record<DigitalFilter, number>;
-}
-
 const CHIPS: Array<{ key: DigitalFilter; label: string; icon?: React.ReactNode; className?: string }> = [
   { key: 'all', label: 'All' },
   { key: 'buy', label: 'Buy', icon: <BsCartFill aria-hidden="true" />, className: 'digital-chip-buy' },
@@ -32,64 +28,86 @@ const CHIPS: Array<{ key: DigitalFilter; label: string; icon?: React.ReactNode; 
   { key: 'unripped', label: 'Not ripped', icon: <NotRippedIcon />, className: 'digital-chip-unripped' },
 ];
 
-/**
- * The head of MusicDex with Digital on: what DexVault did at the last sync,
- * what needs doing, and the filters, each with the colour of the mark it
- * picks; Lossy says how many copies are to do again.
- */
-const DigitalStrip: React.FC<DigitalStripProps> = ({ library, error, editions, syncing, onRefresh, filter, onFilter, counts }) => {
-  return (
-    <div className="digital-strip">
-      {library && !library.configured && (
-        <div className="digital-notice">
-          Navidrome is not configured: add <code>NAVIDROME_USER</code> and <code>NAVIDROME_PASSWORD</code> to the DexVault stack.
-        </div>
-      )}
-      {EDITION_NOTICES.map(({ action, intro }) => {
-        const done = editions.filter(edition => edition.action === action);
-        return done.length > 0 && (
-          <div key={action} className="digital-notice digital-notice-done">
-            {intro}
-            <ul>{done.map(edition => <li key={edition.releaseId}>{edition.title}</li>)}</ul>
-          </div>
-        );
-      })}
-      {library?.plugin?.stale && (
-        <div className="digital-notice digital-notice-error">
-          The DexVault plugin in Navidrome has not reported for over three hours
-          {library.plugin.lastReportAt ? ` (last ${new Date(library.plugin.lastReportAt * 1000).toLocaleString()})` : ''}:
-          the plays and likes of other accounts are not counted. Check that it is enabled in Navidrome, and its token.
-        </div>
-      )}
-      {(error || library?.error) && (
-        <div className="digital-notice digital-notice-error">Could not read Navidrome: {error || library?.error}</div>
-      )}
-      {library && library.oldCopies.length > 0 && (
-        <div className="digital-notice">
-          {library.oldCopies.length} old {library.oldCopies.length > 1 ? 'copies' : 'copy'} of CDs already in lossless, to delete
-          from the library: {library.oldCopies.map(copy => `${copy.name} (${copy.formats.join('+')})`).join(', ')}
-        </div>
-      )}
+interface DigitalChipsProps {
+  filter: DigitalFilter;
+  onFilter: (filter: DigitalFilter) => void;
+  counts: Record<DigitalFilter, number>;
+}
 
-      <div className="digital-strip-row">
-        <div className="digital-chips" role="tablist" aria-label="Show">
-          {CHIPS.filter(({ key }) => key === 'all' || counts[key] > 0 || filter === key).map(({ key, label, icon, className }) => (
-            <button key={key} type="button" role="tab" aria-selected={filter === key}
-              className={`digital-chip ${className || ''}${filter === key ? ' active' : ''}`} onClick={() => onFilter(key)}>
-              {icon}
-              {label}
-              {key !== 'all' && <span className="digital-chip-count">{counts[key]}</span>}
-            </button>
-          ))}
-        </div>
-        <button type="button" className="btn btn-sm btn-outline-secondary digital-refresh" onClick={onRefresh} disabled={syncing}
-          title={library?.plugin && library.plugin.accounts.length > 0 ? `Plays and likes of ${library.plugin.accounts.join(', ')} counted too` : undefined}>
-          <BsArrowClockwise className={`me-1${syncing ? ' digital-spinning' : ''}`} />
-          {syncing ? 'Reading Navidrome…' : 'Refresh'}
-        </button>
-      </div>
-    </div>
+/** The filters; one with nothing in it is left out, unless it is the one shown. */
+export const DigitalChips: React.FC<DigitalChipsProps> = ({ filter, onFilter, counts }) => (
+  <div className="digital-chips" role="tablist" aria-label="Show">
+    {CHIPS.filter(({ key }) => key === 'all' || counts[key] > 0 || filter === key).map(({ key, label, icon, className }) => (
+      <button key={key} type="button" role="tab" aria-selected={filter === key}
+        className={`digital-chip ${className || ''}${filter === key ? ' active' : ''}`} onClick={() => onFilter(key)}>
+        {icon}
+        {label}
+        {key !== 'all' && <span className="digital-chip-count">{counts[key]}</span>}
+      </button>
+    ))}
+  </div>
+);
+
+interface DigitalRefreshProps {
+  library: DigitalLibrary | null;
+  syncing: boolean;
+  onRefresh: () => void;
+}
+
+/** Reads Navidrome again: a round button beside the count, turning while it reads. */
+export const DigitalRefresh: React.FC<DigitalRefreshProps> = ({ library, syncing, onRefresh }) => {
+  const others = library?.plugin?.accounts ?? [];
+  const title = syncing ? 'Reading Navidrome…'
+    : `Read Navidrome again${others.length > 0 ? ` (plays and likes of ${others.join(', ')} counted too)` : ''}`;
+  return (
+    <button type="button" className="digital-refresh" onClick={onRefresh} disabled={syncing} title={title} aria-label={title}>
+      <BsArrowClockwise aria-hidden="true" className={syncing ? 'digital-spinning' : undefined} />
+    </button>
   );
 };
 
-export default DigitalStrip;
+interface DigitalNoticesProps {
+  library: DigitalLibrary | null;
+  error: string | null;
+  editions: EditionAdoption[];
+}
+
+/** What DexVault did at the last sync and what needs doing; nothing at all when all is well. */
+export const DigitalNotices: React.FC<DigitalNoticesProps> = ({ library, error, editions }) => {
+  const notices: React.ReactNode[] = [];
+  if (library && !library.configured) {
+    notices.push(
+      <div key="configured" className="digital-notice">
+        Navidrome is not configured: add <code>NAVIDROME_USER</code> and <code>NAVIDROME_PASSWORD</code> to the DexVault stack.
+      </div>);
+  }
+  for (const { action, intro } of EDITION_NOTICES) {
+    const done = editions.filter(edition => edition.action === action);
+    if (done.length > 0) {
+      notices.push(
+        <div key={action} className="digital-notice digital-notice-done">
+          {intro}
+          <ul>{done.map(edition => <li key={edition.releaseId}>{edition.title}</li>)}</ul>
+        </div>);
+    }
+  }
+  if (library?.plugin?.stale) {
+    notices.push(
+      <div key="plugin" className="digital-notice digital-notice-error">
+        The DexVault plugin in Navidrome has not reported for over three hours
+        {library.plugin.lastReportAt ? ` (last ${new Date(library.plugin.lastReportAt * 1000).toLocaleString()})` : ''}:
+        the plays and likes of other accounts are not counted. Check that it is enabled in Navidrome, and its token.
+      </div>);
+  }
+  if (error || library?.error) {
+    notices.push(<div key="error" className="digital-notice digital-notice-error">Could not read Navidrome: {error || library?.error}</div>);
+  }
+  if (library && library.oldCopies.length > 0) {
+    notices.push(
+      <div key="old" className="digital-notice">
+        {library.oldCopies.length} old {library.oldCopies.length > 1 ? 'copies' : 'copy'} of CDs already in lossless, to delete
+        from the library: {library.oldCopies.map(copy => `${copy.name} (${copy.formats.join('+')})`).join(', ')}
+      </div>);
+  }
+  return notices.length > 0 ? <div className="digital-notices">{notices}</div> : null;
+};

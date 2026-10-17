@@ -1,5 +1,5 @@
-.digital-strip {
-  margin-top: 12px;
+.digital-notices {
+  margin: -8px 0 16px;
 }
 
 .digital-notice {
@@ -27,15 +27,25 @@
   border-color: rgba(220, 53, 69, 0.35);
 }
 
-.digital-strip-row {
-  display: flex;
+/* Refresh beside the count: a quiet round button. */
+.digital-refresh {
+  margin-left: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: transparent;
+  color: #9ca3af;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 14px;
+  justify-content: center;
+  vertical-align: middle;
 }
 
-.digital-refresh { flex: none; }
+.digital-refresh:hover:not(:disabled) {
+  color: #e5e5e5;
+  border-color: rgba(255, 255, 255, 0.35);
+}
 
 .digital-spinning { animation: digital-spin 1s linear infinite; }
 @keyframes digital-spin { to { transform: rotate(360deg); } }
@@ -121,6 +131,4 @@
 
 .digital-dismissed-toggle:hover { color: #ddd; }
 
-@media (max-width: 600px) {
-  .digital-strip-row { flex-direction: column; align-items: flex-start; gap: 8px; }
-}
+
