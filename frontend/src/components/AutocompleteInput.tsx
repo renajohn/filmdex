@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import apiService from '../services/api';
 import './AutocompleteInput.css';
+import Select from './shared/Select';
 
 interface AutocompleteInputProps {
   field: string;
@@ -120,8 +121,8 @@ const AutocompleteInput = ({
   if (options) {
     return (
       <div className="autocomplete-container">
-        <select
-          ref={inputRef as React.RefObject<HTMLSelectElement>}
+        <Select
+          bare
           value={value}
           onChange={onChange as React.ChangeEventHandler<HTMLSelectElement>}
           className="autocomplete-input"
@@ -132,7 +133,7 @@ const AutocompleteInput = ({
               {option}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
     );
   }

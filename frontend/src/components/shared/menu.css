@@ -127,6 +127,17 @@
   visibility: visible;
 }
 
+/* A field's "Choose…": quiet, never gold, its ✓ grey. */
+.menu-item.menu-item--muted,
+.menu-item.menu-item--muted[aria-checked="true"] {
+  color: var(--menu-muted);
+  font-weight: 400;
+}
+
+.menu-item--muted .menu-item__check {
+  color: var(--menu-muted);
+}
+
 .menu-item--danger,
 .menu-item--danger .menu-item__icon,
 .menu-item--danger:hover,
@@ -216,4 +227,47 @@
 .menu-pill__muted {
   color: #9ca3af;
   font-weight: 400;
+}
+
+/*
+ * A form's Select (Select.tsx), closed: a field as the others around it
+ * (form-select), the chosen value in it, its chevron Menu's. Open, a Menu.
+ */
+button.menu-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.menu-select:not(.menu-select--bare) {
+  background-image: none;
+  padding-right: 10px;
+}
+
+/* A bare one keeps the look of its own class, a word within a sentence say. */
+button.menu-select--bare {
+  display: inline-flex;
+}
+
+button.menu-select:disabled {
+  cursor: default;
+}
+
+.menu-select__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-select--placeholder .menu-select__value {
+  opacity: 0.6;
+}
+
+button.menu-select:not(.menu-select--bare)[aria-expanded="true"] {
+  border-color: var(--menu-on);
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.15);
 }

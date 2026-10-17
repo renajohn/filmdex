@@ -17,6 +17,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import './MovieDetailCard.css';
 import ShelfCode from './shared/ShelfCode';
+import Select from './shared/Select';
 
 interface MovieData {
   id: number;
@@ -2143,12 +2144,11 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                       <span className="fact-label">Format:</span>
                       {editingField === 'format' ? (
                         <div className="input-group">
-                          <select
+                          <Select
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
                             onKeyDown={handleKeyDown}
                             autoFocus
-                            className="form-select"
                             style={{ paddingRight: '60px' }}
                           >
                             <option value="">Select format</option>
@@ -2156,7 +2156,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                             <option value="Blu-ray 4K">Blu-ray 4K</option>
                             <option value="DVD">DVD</option>
                             <option value="Digital">Digital</option>
-                          </select>
+                          </Select>
                           <div className="input-group-append">
                             <button 
                               className="edit-action-btn" 
@@ -2188,18 +2188,17 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                       <span className="fact-label">Status:</span>
                       {editingField === 'title_status' ? (
                         <div className="input-group">
-                          <select
+                          <Select
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
                             onKeyDown={handleKeyDown}
                             autoFocus
-                            className="form-select"
                             style={{ paddingRight: '60px' }}
                           >
                             <option value="owned">Owned</option>
                             <option value="wish">Wish List</option>
                             <option value="to_sell">To Sell</option>
-                          </select>
+                          </Select>
                           <div className="input-group-append">
                             <button 
                               className="edit-action-btn" 

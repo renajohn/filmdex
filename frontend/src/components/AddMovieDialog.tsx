@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import apiService from '../services/api';
 import InlinePosterSelector from './InlinePosterSelector';
 import './AddMovieDialog.css';
+import Select from './shared/Select';
 
 interface MovieEdition {
   title: string;
@@ -923,19 +924,18 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
 
                 <div className="form-group">
                   <label htmlFor="format">Format</label>
-                  <select
+                  <Select
                     id="format"
                     name="format"
                     value={formData.format}
                     onChange={handleInputChange}
-                    className="form-control"
                     key={`format-${formData.format}`}
                   >
                     <option value="Blu-ray 4K">Blu-ray 4K</option>
                     <option value="Blu-ray">Blu-ray</option>
                     <option value="DVD">DVD</option>
                     <option value="Digital">Digital</option>
-                  </select>
+                  </Select>
                 </div>
 
                 {mode === 'collection' && (

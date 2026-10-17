@@ -5,6 +5,7 @@ import shelvingService, {
   type ShelfLevel, type ShelfSection, type ShelfUnit, type ShelvedItem, type ShelvingPlan,
 } from '../services/shelvingService';
 import { SECTION_LABELS } from './shelfLabels';
+import Select from '../components/shared/Select';
 
 interface Props {
   plan: ShelvingPlan;
@@ -324,10 +325,10 @@ const ShelfFurniture: React.FC<Props> = ({ plan, run, onShowShelf, focusLevelId 
               </Form.Group>
               <Form.Group controlId="furniture-section" className="furniture-span">
                 <Form.Label>Its shelves are for</Form.Label>
-                <Form.Select size="sm" value={section} onChange={event => setSection(event.target.value)}>
+                <Select size="sm" value={section} onChange={event => setSection(event.target.value)}>
                   {(Object.keys(SECTION_LABELS) as ShelfSection[]).map(key => <option key={key} value={key}>{SECTION_LABELS[key]}</option>)}
                   <option value="">Nothing yet: free shelves</option>
-                </Form.Select>
+                </Select>
               </Form.Group>
               <p className="furniture-panel-hint furniture-span">
                 A case is a Blu-ray or CD jewel case; a DVD takes 1.2. You can give each shelf its own section and room afterwards.

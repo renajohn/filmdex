@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import apiService from '../services/api';
 import './MovieForm.css';
+import Select from './shared/Select';
 
 interface MovieData {
   id?: number | string;
@@ -379,7 +380,7 @@ const MovieForm: React.FC<MovieFormProps> = ({ movie = null, prefilledData = nul
 
           <div className="form-group">
             <label htmlFor="format">Format</label>
-            <select
+            <Select
               id="format"
               name="format"
               value={formData.format}
@@ -390,7 +391,7 @@ const MovieForm: React.FC<MovieFormProps> = ({ movie = null, prefilledData = nul
               <option value="Blu-ray 4K">Blu-ray 4K</option>
               <option value="DVD">DVD</option>
               <option value="Digital">Digital</option>
-            </select>
+            </Select>
           </div>
         </div>
 

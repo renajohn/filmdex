@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ShelvesPage from './ShelvesPage';
 import shelvingService, { type ShelvingPlan, type ShelvedItem } from '../services/shelvingService';
+import { chooseValue, selectedValue } from '../test/select';
 
 vi.mock('../services/shelvingService', () => ({
   default: {
@@ -76,7 +77,7 @@ describe('ShelvesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit shelving of Water Music' }));
 
     fireEvent.change(screen.getByLabelText('Sort as'), { target: { value: 'Marriner, Neville' } });
-    fireEvent.change(screen.getByLabelText('Location'), { target: { value: 'place:9' } });
+    chooseValue(screen.getByLabelText('Location'), 'place:9');
     fireEvent.change(screen.getByLabelText('Width'), { target: { value: '3' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -239,8 +240,8 @@ describe('ShelvesPage', () => {
     expect(within(screen.getByRole('navigation', { name: 'Shelves of Films' })).getByTitle('A-6: empty')).toHaveClass('empty');
     expect(screen.queryByRole('button', { name: 'No room for Harry Potter box' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Edit shelving of Harry Potter box' }));
-    expect(screen.getByLabelText('Location')).toHaveValue('level:6');
-    fireEvent.change(screen.getByLabelText('Location'), { target: { value: '' } });
+    expect(selectedValue(screen.getByLabelText('Location'))).toBe('level:6');
+    chooseValue(screen.getByLabelText('Location'), '');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(shelvingService.saveItem).toHaveBeenCalledWith('box_set', 3,
       { section: null, shelveUnder: null, placeId: null, levelId: null, units: null }));

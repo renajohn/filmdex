@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button, Form, Modal } from 'react-bootstrap';
 import { BsDisc } from 'react-icons/bs';
 import musicService from '../services/musicService';
+import Select from './shared/Select';
 
 type Edition = 'keep' | 'barcode' | 'musicbrainz';
 
@@ -78,13 +79,13 @@ const BoughtCdDialog: React.FC<BoughtCdDialogProps> = ({ album, onClose, onBough
           <div className="d-flex gap-2">
             <Form.Group className="mb-3 flex-fill" controlId="bought-condition">
               <Form.Label>Condition</Form.Label>
-              <Form.Select value={condition} onChange={e => setCondition(e.target.value)}>
+              <Select value={condition} onChange={e => setCondition(e.target.value)}>
                 <option value="">—</option>
                 <option value="M">Mint</option>
                 <option value="NM">Near Mint</option>
                 <option value="VG+">Very Good Plus</option>
                 <option value="VG">Very Good</option>
-              </Form.Select>
+              </Select>
             </Form.Group>
             <Form.Group className="mb-3 flex-fill" controlId="bought-date">
               <Form.Label>Bought</Form.Label>

@@ -18,6 +18,7 @@ vi.mock('../services/api', () => ({
 }));
 
 import apiService from '../services/api';
+import { chooseValue, selectedValue, selectValues } from '../test/select';
 
 describe('MovieForm', () => {
   const mockOnSave = vi.fn();
@@ -66,7 +67,7 @@ describe('MovieForm', () => {
     );
 
     expect(screen.getByLabelText('Title *')).toHaveValue('Test Movie');
-    expect(screen.getByLabelText('Format')).toHaveValue('Blu-ray 4K');
+    expect(selectedValue(screen.getByLabelText('Format'))).toBe('Blu-ray 4K');
     expect(screen.getByLabelText('Price (CHF)')).toHaveValue(19.99);
     expect(screen.getByLabelText('Acquired Date')).toHaveValue('2023-12-01');
     expect(screen.getByLabelText('Comments')).toHaveValue('Bought secondhand');
@@ -75,9 +76,7 @@ describe('MovieForm', () => {
   it('offers only the formats the collection uses', () => {
     render(<MovieForm onSave={mockOnSave} onCancel={mockOnCancel} />);
 
-    const values = Array.from((screen.getByLabelText('Format') as HTMLSelectElement).options).map(
-      o => o.value
-    );
+    const values = selectValues(screen.getByLabelText('Format'));
 
     expect(values).toEqual(['', 'Blu-ray', 'Blu-ray 4K', 'DVD', 'Digital']);
   });
@@ -129,7 +128,7 @@ describe('MovieForm', () => {
     render(<MovieForm onSave={mockOnSave} onCancel={mockOnCancel} />);
 
     fireEvent.change(screen.getByLabelText('Title *'), { target: { value: 'Heat' } });
-    fireEvent.change(screen.getByLabelText('Format'), { target: { value: 'DVD' } });
+    chooseValue(screen.getByLabelText('Format'), 'DVD');
     fireEvent.change(screen.getByLabelText('Price (CHF)'), { target: { value: '12.50' } });
     fireEvent.change(screen.getByLabelText('Comments'), { target: { value: 'Flea market' } });
     fireEvent.click(screen.getByText('Add Movie'));

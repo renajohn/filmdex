@@ -8,6 +8,7 @@ import ShelfFurniture from './ShelfFurniture';
 import { onShelvesChanged, refreshShelfLocations } from '../utils/shelfLocations';
 import { SECTION_LABELS } from './shelfLabels';
 import './ShelvesPage.css';
+import Select from '../components/shared/Select';
 
 type Tab = ShelfSection | 'furniture' | 'places';
 
@@ -87,10 +88,10 @@ const ShelfItemEditor: React.FC<EditorProps> = ({ item, places, units: furniture
       {SECTIONS_FOR[item.kind].length > 1 && (
         <Form.Group className="shelf-editor-field" controlId={fieldId('section')}>
           <Form.Label>Section</Form.Label>
-          <Form.Select size="sm" value={section} onChange={event => setSection(event.target.value)}>
+          <Select size="sm" value={section} onChange={event => setSection(event.target.value)}>
             <option value="">Automatic</option>
             {SECTIONS_FOR[item.kind].map(key => <option key={key} value={key}>{SECTION_LABELS[key]}</option>)}
-          </Form.Select>
+          </Select>
         </Form.Group>
       )}
       <Form.Group className="shelf-editor-field shelf-editor-wide" controlId={fieldId('under')}>
@@ -118,7 +119,7 @@ const ShelfItemEditor: React.FC<EditorProps> = ({ item, places, units: furniture
       </Form.Group>
       <Form.Group className="shelf-editor-field" controlId={fieldId('place')}>
         <Form.Label>Location</Form.Label>
-        <Form.Select size="sm" value={location} onChange={event => setLocation(event.target.value)}>
+        <Select size="sm" value={location} onChange={event => setLocation(event.target.value)}>
           <option value="">In order{item.code && !item.pinned ? ` (now ${item.code})` : ''}</option>
           {furniture.length > 0 && (
             <optgroup label="On a shelf, by hand">
@@ -134,7 +135,7 @@ const ShelfItemEditor: React.FC<EditorProps> = ({ item, places, units: furniture
               {places.map(place => <option key={place.id} value={`place:${place.id}`}>{place.name}</option>)}
             </optgroup>
           )}
-        </Form.Select>
+        </Select>
       </Form.Group>
       {item.collections && item.collections.length > 0 && (
         <fieldset className="shelf-editor-field shelf-editor-collections">

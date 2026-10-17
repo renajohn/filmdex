@@ -6,6 +6,7 @@ import bookService from '../services/bookService';
 import CoverModal from './CoverModal';
 import './BookForm.css';
 import { readStored, writeStored } from '../utils/safeStorage';
+import Select from './shared/Select';
 
 interface MetadataSourceEntry {
   [field: string]: any;
@@ -1747,7 +1748,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6} className="ps-0">
                   <Form.Group className="mb-2">
                     <Form.Label>Book Type</Form.Label>
-                    <Form.Select
+                    <Select
                       value={formData.bookType || 'book'}
                       onChange={(e) => {
                         const newValue = e.target.value;
@@ -1766,20 +1767,20 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                       <option value="book">Book</option>
                       <option value="graphic-novel">Graphic Novel</option>
                       <option value="score">Score</option>
-                    </Form.Select>
+                    </Select>
                   </Form.Group>
                 </Col>
                 <Col md={6} className="pe-0">
                   <Form.Group className="mb-2">
                     <Form.Label>Status</Form.Label>
-                    <Form.Select
+                    <Select
                       value={formData.titleStatus}
                       onChange={(e) => handleInputChange('titleStatus', e.target.value)}
                     >
                       <option value="owned">Owned</option>
                       <option value="borrowed">Borrowed</option>
                       <option value="wish">Wish</option>
-                    </Form.Select>
+                    </Select>
                   </Form.Group>
                 </Col>
               </Row>
@@ -1791,7 +1792,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                       <Form.Label className="mb-0">Series</Form.Label>
                       {book?._metadataSources && (book._metadataSources.googleBooks?.series || book._metadataSources.openLibrary?.series) && (
                         <div className="d-flex align-items-center gap-2">
-                          <Form.Select
+                          <Select
                             size="sm"
                             style={{ width: 'auto', minWidth: '120px' }}
                             value={selectedMetadataSource.series}
@@ -1806,7 +1807,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                             {getAvailableSources('series').map(source => (
                               <option key={source.key} value={source.key}>{source.label}</option>
                             ))}
-                          </Form.Select>
+                          </Select>
                         </div>
                       )}
                     </div>
@@ -2012,7 +2013,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={4}>
                   <Form.Group className="mb-3">
                     <Form.Label>Book Type</Form.Label>
-                    <Form.Select
+                    <Select
                       value={formData.bookType || 'book'}
                       onChange={(e) => {
                         const newValue = e.target.value;
@@ -2031,20 +2032,20 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                       <option value="book">Book</option>
                       <option value="graphic-novel">Graphic Novel</option>
                       <option value="score">Score</option>
-                    </Form.Select>
+                    </Select>
                   </Form.Group>
                 </Col>
                 <Col md={4}>
                   <Form.Group className="mb-3">
                     <Form.Label>Format</Form.Label>
-                    <Form.Select
+                    <Select
                       value={formData.format}
                       onChange={(e) => handleInputChange('format', e.target.value)}
                     >
                       <option value="physical">Physical</option>
                       <option value="ebook">E-book</option>
                       <option value="audiobook">Audiobook</option>
-                    </Form.Select>
+                    </Select>
                   </Form.Group>
                 </Col>
               </Row>
@@ -2192,7 +2193,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                   {book?._metadataSources && (book._metadataSources.googleBooks || book._metadataSources.openLibrary) && (
                     <div className="d-flex align-items-center gap-2">
                       <small className="text-muted">Source:</small>
-                      <Form.Select
+                      <Select
                         size="sm"
                         style={{ width: 'auto', minWidth: '150px' }}
                         value={selectedMetadataSource.description}
@@ -2207,7 +2208,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                         {getAvailableSources('description').map(source => (
                           <option key={source.key} value={source.key}>{source.label}</option>
                         ))}
-                      </Form.Select>
+                      </Select>
                       <small style={{ color: '#fbbf24' }}>
                         ✓ Enriched
                       </small>
@@ -2561,7 +2562,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={6} className="ps-0">
                   <Form.Group className="mb-2">
                     <Form.Label>Book Type</Form.Label>
-                    <Form.Select
+                    <Select
                       value={formData.bookType || 'book'}
                       onChange={(e) => {
                         const newValue = e.target.value;
@@ -2580,20 +2581,20 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                       <option value="book">Book</option>
                       <option value="graphic-novel">Graphic Novel</option>
                       <option value="score">Score</option>
-                    </Form.Select>
+                    </Select>
                   </Form.Group>
                 </Col>
                 <Col md={6} className="pe-0">
                   <Form.Group className="mb-2">
                     <Form.Label>Status</Form.Label>
-                    <Form.Select
+                    <Select
                       value={formData.titleStatus}
                       onChange={(e) => handleInputChange('titleStatus', e.target.value)}
                     >
                       <option value="owned">Owned</option>
                       <option value="borrowed">Borrowed</option>
                       <option value="wish">Wish</option>
-                    </Form.Select>
+                    </Select>
                   </Form.Group>
                 </Col>
               </Row>
@@ -2605,7 +2606,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                       <Form.Label className="mb-0">Series</Form.Label>
                       {book?._metadataSources && (book._metadataSources.googleBooks?.series || book._metadataSources.openLibrary?.series) && (
                         <div className="d-flex align-items-center gap-2">
-                          <Form.Select
+                          <Select
                             size="sm"
                             style={{ width: 'auto', minWidth: '120px' }}
                             value={selectedMetadataSource.series}
@@ -2620,7 +2621,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                             {getAvailableSources('series').map(source => (
                               <option key={source.key} value={source.key}>{source.label}</option>
                             ))}
-                          </Form.Select>
+                          </Select>
                         </div>
                       )}
                     </div>
@@ -2827,7 +2828,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 <Col md={4}>
                   <Form.Group className="mb-3">
                     <Form.Label>Book Type</Form.Label>
-                    <Form.Select
+                    <Select
                       value={formData.bookType || 'book'}
                       onChange={(e) => {
                         const newValue = e.target.value;
@@ -2846,20 +2847,20 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                       <option value="book">Book</option>
                       <option value="graphic-novel">Graphic Novel</option>
                       <option value="score">Score</option>
-                    </Form.Select>
+                    </Select>
                   </Form.Group>
                 </Col>
                 <Col md={4}>
                   <Form.Group className="mb-3">
                     <Form.Label>Format</Form.Label>
-                    <Form.Select
+                    <Select
                       value={formData.format}
                       onChange={(e) => handleInputChange('format', e.target.value)}
                     >
                       <option value="physical">Physical</option>
                       <option value="ebook">E-book</option>
                       <option value="audiobook">Audiobook</option>
-                    </Form.Select>
+                    </Select>
                   </Form.Group>
                 </Col>
               </Row>
@@ -3007,7 +3008,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                   {book?._metadataSources && (book._metadataSources.googleBooks || book._metadataSources.openLibrary) && (
                     <div className="d-flex align-items-center gap-2">
                       <small className="text-muted">Source:</small>
-                      <Form.Select
+                      <Select
                         size="sm"
                         style={{ width: 'auto', minWidth: '150px' }}
                         value={selectedMetadataSource.description}
@@ -3022,7 +3023,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                         {getAvailableSources('description').map(source => (
                           <option key={source.key} value={source.key}>{source.label}</option>
                         ))}
-                      </Form.Select>
+                      </Select>
                       <small style={{ color: '#fbbf24' }}>
                         ✓ Enriched
                       </small>

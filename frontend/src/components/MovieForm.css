@@ -79,6 +79,7 @@
 
 .form-group input,
 .form-group select,
+.form-group .menu-select,
 .form-group textarea {
   width: 100%;
   padding: 10px 12px;
@@ -93,6 +94,8 @@
 
 .form-group input:focus,
 .form-group select:focus,
+.form-group .menu-select:focus-visible,
+.form-group .menu-select[aria-expanded="true"],
 .form-group textarea:focus {
   outline: none;
   border-color: #fbbf24;

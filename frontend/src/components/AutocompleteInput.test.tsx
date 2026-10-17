@@ -9,6 +9,7 @@ vi.mock('../services/api', () => ({
 }));
 
 import apiService from '../services/api';
+import { selectedValue, selectValues } from '../test/select';
 
 describe('AutocompleteInput', () => {
   const mockOnChange = vi.fn();
@@ -142,9 +143,9 @@ describe('AutocompleteInput', () => {
       />
     );
 
-    const select = screen.getByDisplayValue('Blu-ray');
-    expect(select).toBeInTheDocument();
-    expect(select.tagName).toBe('SELECT');
+    const select = screen.getByRole('button', { name: 'Blu-ray' });
+    expect(selectedValue(select)).toBe('Blu-ray');
+    expect(selectValues(select)).toEqual(['', ...options]);
   });
 
   it('should show loading state while fetching suggestions', async () => {

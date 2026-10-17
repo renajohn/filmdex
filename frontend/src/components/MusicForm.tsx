@@ -6,6 +6,7 @@ import musicService from '../services/musicService';
 import CoverCropDialog from './CoverCropDialog';
 import { trackCredits, type TrackPerformer } from '../utils/trackCredits';
 import { joinNames, splitNames } from '../utils/trackDetail';
+import Select from './shared/Select';
 
 interface TrackData {
   trackNumber?: number;
@@ -1354,7 +1355,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Col md={3}>
               <Form.Group className="mb-3">
                 <Form.Label>Format</Form.Label>
-                <Form.Select
+                <Select
                   value={formData.format}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange('format', e.target.value)}
                 >
@@ -1363,14 +1364,14 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                   <option value="Cassette">Cassette</option>
                   <option value="Digital Media">Digital Media</option>
                   <option value="Other">Other</option>
-                </Form.Select>
+                </Select>
               </Form.Group>
             </Col>
 
             <Col md={3}>
               <Form.Group className="mb-3">
                 <Form.Label>Recording Quality</Form.Label>
-                <Form.Select
+                <Select
                   value={formData.recordingQuality}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange('recordingQuality', e.target.value)}
                 >
@@ -1379,7 +1380,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                   <option value="reference">Reference</option>
                   <option value="good">Good</option>
                   <option value="average">Average</option>
-                </Form.Select>
+                </Select>
               </Form.Group>
             </Col>
           </Row>
@@ -1522,7 +1523,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
             <Col md={3}>
               <Form.Group className="mb-3">
                 <Form.Label>Condition</Form.Label>
-                <Form.Select
+                <Select
                   value={formData.ownership.condition}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleOwnershipChange('condition', e.target.value)}
                 >
@@ -1531,7 +1532,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                   <option value="NM">Near Mint (NM)</option>
                   <option value="VG+">Very Good Plus (VG+)</option>
                   <option value="VG">Very Good (VG)</option>
-                </Form.Select>
+                </Select>
               </Form.Group>
             </Col>
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './ColumnMappingModal.css';
+import Select from './shared/Select';
 
 interface DbField {
   key: string;
@@ -135,7 +136,8 @@ const ColumnMappingModal: React.FC<ColumnMappingModalProps> = ({
                 {field.required && <span className="required">*</span>}
               </div>
 
-              <select
+              <Select
+                bare
                 value={mappings[field.key] || ''}
                 onChange={(e) => handleMappingChange(field.key, e.target.value)}
                 className={`mapping-select ${errors[field.key] ? 'error' : ''}`}
@@ -146,7 +148,7 @@ const ColumnMappingModal: React.FC<ColumnMappingModalProps> = ({
                     {header}
                   </option>
                 ))}
-              </select>
+              </Select>
 
               {errors[field.key] && (
                 <span className="error-message">{errors[field.key]}</span>

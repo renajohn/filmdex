@@ -132,7 +132,15 @@ const MenuRoot: React.FC<MenuProps> = ({ trigger, align = 'start', drop = 'down'
       case 'End': go(items.length - 1); break;
       case 'Escape': event.preventDefault(); event.stopPropagation(); close(true); break;
       case 'Tab': close(); break;
-      default: break;
+      default:
+        // A letter goes to the next entry it begins, as in a select.
+        if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
+          const letter = event.key.toLocaleLowerCase();
+          const next = [...items.slice(at + 1), ...items.slice(0, at + 1)]
+            .find(item => (item.querySelector('.menu-item__label')?.textContent ?? '').trim().toLocaleLowerCase().startsWith(letter));
+          if (next) { event.preventDefault(); next.focus(); }
+        }
+        break;
     }
   };
 
@@ -202,13 +210,17 @@ const Item: React.FC<ItemProps> = ({ onSelect, icon, hint, danger, disabled, tit
 
 interface ChoiceProps extends Omit<ItemProps, 'icon' | 'danger'> {
   selected: boolean;
+  /** What it stands for, kept on the entry (data-value) for a form's tests and tools. */
+  value?: string;
+  /** Quiet, never gold: a field's "Choose…", which chooses nothing. */
+  muted?: boolean;
 }
 
 /** One of several, the chosen one with a gold ✓. */
-const Choice: React.FC<ChoiceProps> = ({ selected, onSelect, hint, disabled, title, children }) => {
+const Choice: React.FC<ChoiceProps> = ({ selected, value, muted, onSelect, hint, disabled, title, children }) => {
   const select = useSelect(onSelect);
   return (
-    <button type="button" role="menuitemradio" aria-checked={selected} className="menu-item" disabled={disabled}
+    <button type="button" role="menuitemradio" aria-checked={selected} className={`menu-item${muted ? ' menu-item--muted' : ''}`} disabled={disabled} data-value={value}
       title={title} tabIndex={-1} onClick={select} onMouseMove={event => event.currentTarget.focus({ preventScroll: true })}>
       <span className="menu-item__check" aria-hidden="true"><BsCheck2 /></span>
       <span className="menu-item__label">{children}</span>

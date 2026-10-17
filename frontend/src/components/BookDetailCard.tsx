@@ -12,6 +12,7 @@ import InlineCoverSelector from './InlineCoverSelector';
 import DetailSteps, { useScrollKeys, useStepKeys } from './shared/DetailSteps';
 import './BookDetailCard.css';
 import './VolumeSelector.css';
+import Select from './shared/Select';
 
 interface BookDetailCardProps {
   book: any;
@@ -944,7 +945,8 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
     return (
       <span className="metadata-with-type">
         {prefix}
-        <select
+        <Select
+          bare
           className="inline-book-type-select"
           value={bookType}
           onChange={(e) => handleBookTypeChange(e.target.value)}
@@ -955,7 +957,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
           <option value="book">{capitalizeOptions ? 'Book' : 'book'}</option>
           <option value="graphic-novel">{capitalizeOptions ? 'Graphic novel' : 'graphic novel'}</option>
           <option value="score">{capitalizeOptions ? 'Score' : 'score'}</option>
-        </select>
+        </Select>
         {formatSuffix}.
       </span>
     );

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import musicService from '../services/musicService';
 import BoughtCdDialog from './BoughtCdDialog';
+import { chooseValue } from '../test/select';
 
 describe('BoughtCdDialog', () => {
   it('garde l’édition de l’album par défaut, et dit comment le CD a été acheté', async () => {
@@ -10,7 +11,7 @@ describe('BoughtCdDialog', () => {
     const onBought = vi.fn();
     render(<BoughtCdDialog album={{ id: 7, title: 'Play' }} onClose={() => undefined} onBought={onBought} />);
 
-    fireEvent.change(screen.getByLabelText('Condition'), { target: { value: 'NM' } });
+    chooseValue(screen.getByLabelText('Condition'), 'NM');
     fireEvent.change(screen.getByLabelText('Price CHF'), { target: { value: '12' } });
     fireEvent.click(screen.getByRole('button', { name: 'Into my collection' }));
 

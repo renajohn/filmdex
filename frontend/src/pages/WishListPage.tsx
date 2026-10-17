@@ -18,6 +18,7 @@ import MusicForm from '../components/MusicForm';
 import CircularProgressBar from '../components/CircularProgressBar';
 import './WishListPage.css';
 import CoverButton from '../components/shared/CoverButton';
+import Select from '../components/shared/Select';
 
 export interface WishListPageRef {
   refreshItems: () => Promise<void>;
@@ -1455,9 +1456,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                 </div>
                 <div className="form-group mb-3">
                   <label htmlFor="format">Format</label>
-                  <select
+                  <Select
                     id="format"
-                    className="form-control"
                     value={markOwnedForm.format}
                     onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, format: e.target.value }))}
                   >
@@ -1486,7 +1486,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         <option value="Other">Other</option>
                       </>
                     )}
-                  </select>
+                  </Select>
                 </div>
                 <div className="form-group mb-3">
                   <label htmlFor="price">Price</label>
@@ -1504,9 +1504,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                   <>
                     <div className="form-group mb-3">
                       <label htmlFor="condition">Condition</label>
-                      <select
+                      <Select
                         id="condition"
-                        className="form-control"
                         value={markOwnedForm.condition}
                         onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, condition: e.target.value }))}
                       >
@@ -1515,7 +1514,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         <option value="NM">Near Mint (NM)</option>
                         <option value="VG+">Very Good Plus (VG+)</option>
                         <option value="VG">Very Good (VG)</option>
-                      </select>
+                      </Select>
                     </div>
                     <div className="form-group mb-3">
                       <label htmlFor="purchasedAt">Purchased At</label>

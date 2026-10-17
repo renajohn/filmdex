@@ -926,6 +926,10 @@
   text-align: left;
 }
 
+.inline-book-type-select .menu-chevron {
+  display: none;
+}
+
 .inline-book-type-select:hover {
   border-bottom-color: #fbbf24;
   color: #fbbf24;

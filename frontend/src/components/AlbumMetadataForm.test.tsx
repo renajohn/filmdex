@@ -16,6 +16,7 @@ vi.mock('../services/musicService', () => ({
 }));
 
 import musicService from '../services/musicService';
+import { chooseValue, selectedValue, selectValues } from '../test/select';
 
 const releaseA = {
   title: 'Kind of Blue',
@@ -42,7 +43,7 @@ describe('AlbumMetadataForm — ownership payload', () => {
   it('sends a condition code the database accepts', async () => {
     renderForm(releaseA);
 
-    userEvent.selectOptions(screen.getByLabelText('Condition'), 'NM');
+    chooseValue(screen.getByLabelText('Condition'), 'NM');
     userEvent.click(screen.getByRole('button', { name: 'Add Album' }));
 
     await waitFor(() => expect(musicService.addAlbumFromSource).toHaveBeenCalled());
@@ -54,11 +55,7 @@ describe('AlbumMetadataForm — ownership payload', () => {
   it('offers only the condition codes the albums table allows', () => {
     renderForm(releaseA);
 
-    const values = Array.from(
-      (screen.getByLabelText('Condition') as HTMLSelectElement).options
-    )
-      .map((option) => option.value)
-      .filter((value) => value !== '');
+    const values = selectValues(screen.getByLabelText('Condition')).filter((value) => value !== '');
 
     expect(values).toEqual(['M', 'NM', 'VG+', 'VG']);
   });
@@ -69,7 +66,7 @@ describe('AlbumMetadataForm — state between two consecutive adds', () => {
     const { rerender } = renderForm(releaseA);
 
     userEvent.type(screen.getByLabelText('Price (CHF)'), '12.5');
-    userEvent.selectOptions(screen.getByLabelText('Condition'), 'NM');
+    chooseValue(screen.getByLabelText('Condition'), 'NM');
     userEvent.click(screen.getByRole('button', { name: 'Add Album' }));
 
     await waitFor(() => expect(musicService.addAlbumFromSource).toHaveBeenCalled());
@@ -86,7 +83,7 @@ describe('AlbumMetadataForm — state between two consecutive adds', () => {
 
     await waitFor(() => {
       expect((screen.getByLabelText('Price (CHF)') as HTMLInputElement).value).toBe('');
-      expect((screen.getByLabelText('Condition') as HTMLSelectElement).value).toBe('');
+      expect(selectedValue(screen.getByLabelText('Condition'))).toBe('');
     });
   });
 });

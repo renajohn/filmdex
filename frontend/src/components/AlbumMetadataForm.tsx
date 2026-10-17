@@ -4,6 +4,7 @@ import { BsUpload, BsCheck } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
 import './AlbumMetadataForm.css';
+import Select from './shared/Select';
 
 interface Release {
   title?: string;
@@ -778,7 +779,7 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
                 <Col md={6}>
                   <Form.Group className="mb-3" controlId="albumMetadataCondition">
                     <Form.Label>Condition</Form.Label>
-                    <Form.Select
+                    <Select
                       value={formData.ownership.condition}
                       onChange={(e) => handleInputChange('condition', e.target.value)}
                     >
@@ -787,7 +788,7 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
                       <option value="NM">Near Mint (NM)</option>
                       <option value="VG+">Very Good Plus (VG+)</option>
                       <option value="VG">Very Good (VG)</option>
-                    </Form.Select>
+                    </Select>
                   </Form.Group>
                 </Col>
                 <Col md={6}>

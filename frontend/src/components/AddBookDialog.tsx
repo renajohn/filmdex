@@ -7,6 +7,7 @@ import VolumeSelector from './VolumeSelector';
 import apiService from '../services/api';
 import './AddBookDialog.css';
 import { readStored, writeStored } from '../utils/safeStorage';
+import Select from './shared/Select';
 
 interface BookData {
   title?: string;
@@ -1465,7 +1466,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                 />
               </div>
               <div className="col-12 col-md-3">
-                <Form.Select
+                <Select
                   value={searchLanguage}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleLanguageChange(e.target.value)}
                   className="language-select"
@@ -1474,7 +1475,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                   <option value="fr">Fran&ccedil;ais</option>
                   <option value="en">English</option>
                   <option value="de">Deutsch</option>
-                </Form.Select>
+                </Select>
               </div>
               <div className="col-12 col-md-2">
                 <Button
@@ -1587,7 +1588,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                               </div>
                               <div className="quick-add-field">
                                 <label>Status</label>
-                                <Form.Select
+                                <Select
                                   size="sm"
                                   value={quickAddTitleStatus}
                                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setQuickAddTitleStatus(e.target.value)}
@@ -1595,11 +1596,11 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                                 >
                                   <option value="owned">Owned</option>
                                   <option value="borrowed">Borrowed</option>
-                                </Form.Select>
+                                </Select>
                               </div>
                               <div className="quick-add-field">
                                 <label>Type</label>
-                                <Form.Select
+                                <Select
                                   size="sm"
                                   value={quickAddBookType}
                                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -1612,7 +1613,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                                   <option value="book">Book</option>
                                   <option value="graphic-novel">Graphic Novel</option>
                                   <option value="score">Score</option>
-                                </Form.Select>
+                                </Select>
                               </div>
                             </div>
                           )}
