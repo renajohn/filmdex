@@ -807,6 +807,37 @@
   .music-detail-modal .modal-footer .ui-button__label:has(> .music-detail-long):not(:has(> .music-detail-short)) {
     display: none;
   }
+
+  /* Five buttons in a phone's width: tighter, a button with words gives way
+     before it overlaps the next (its words end in …), an icon alone is square. */
+  .music-detail-modal .modal-footer .ui-button {
+    flex: 0 1 auto;
+    min-width: 0;
+    padding: 0 10px;
+    gap: 6px;
+  }
+
+  .music-detail-modal .modal-footer .ui-button:has(> .ui-button__label:has(> .music-detail-long):not(:has(> .music-detail-short))) {
+    flex: none;
+    width: var(--dv-height-md);
+    padding: 0;
+  }
+
+  .music-detail-listen,
+  .music-detail-manage {
+    flex: 0 1 auto;
+  }
+
+  .music-detail-play {
+    flex: none;
+  }
+}
+
+/* A small phone: the short words without their icon, rather than cut. */
+@media (max-width: 399.98px) {
+  .music-detail-modal .modal-footer .ui-button:has(.music-detail-short) > .ui-button__icon {
+    display: none;
+  }
 }
 
 @media (min-width: 768px) {
