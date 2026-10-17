@@ -1,5 +1,5 @@
 import musicService from './musicService';
-import { LISTEN_NEXT_LEFT_EVENT, player } from './player';
+import { LISTEN_NEXT_LEFT_EVENT, player, registerQueue, type PlayOptions } from './player';
 import { playAlbumById } from '../utils/playAlbum';
 
 /**
@@ -16,8 +16,8 @@ import { playAlbumById } from '../utils/playAlbum';
 
 /** The list as last read, the album playing kept at its place even once out of it. */
 let order: number[] = [];
-/** The list as last read, as it is. */
-let listed: number[] = [];
+/** The list as last read, as it is; null until read after a reload. */
+let listed: number[] | null = null;
 let currentId: number | null = null;
 let repeat = false;
 const skipped = new Set<number>();
@@ -55,20 +55,23 @@ const playFrom = async (candidates: number[]): Promise<boolean> => {
   return false;
 };
 
+/** How the player goes on once album `id` of Listen Next is over. */
+const optionsFor = (id: number): PlayOptions => ({
+  queue: 'listenNext',
+  onAlbumEnd: async how => {
+    if (how === 'skipped') skipped.add(id);
+    else played.add(id);
+    const ids = await listIds();
+    order = withCurrent(ids, order, id);
+    listed = ids;
+    return playFrom(albumsAfter(order, id, repeat));
+  },
+  // Taken out by hand while it plays: its track ends, then the next album.
+  leaveAfterTrack: () => currentId === id && listed !== null && !listed.includes(id) && !departed.has(id),
+});
+
 const play = async (id: number): Promise<boolean> => {
-  const started = await playAlbumById(id, {
-    queue: 'listenNext',
-    onAlbumEnd: async how => {
-      if (how === 'skipped') skipped.add(id);
-      else played.add(id);
-      const ids = await listIds();
-      order = withCurrent(ids, order, id);
-      listed = ids;
-      return playFrom(albumsAfter(order, id, repeat));
-    },
-    // Taken out by hand while it plays: its track ends, then the next album.
-    leaveAfterTrack: () => currentId === id && !listed.includes(id) && !departed.has(id),
-  }).catch(() => false);
+  const started = await playAlbumById(id, optionsFor(id)).catch(() => false);
   if (started) currentId = id;
   return started;
 };
@@ -81,6 +84,24 @@ if (typeof window !== 'undefined') {
 }
 
 export const listenNextQueue = {
+  /**
+   * After a reload, album `albumId` back in the player, paused: Listen Next
+   * goes on after it as before, the list read again meanwhile.
+   */
+  restore: (albumId: number): PlayOptions => {
+    skipped.clear();
+    played.clear();
+    currentId = albumId;
+    order = [albumId];
+    listed = null;
+    listIds().then(ids => {
+      if (currentId !== albumId) return;
+      order = withCurrent(ids, order, albumId);
+      listed = ids;
+    }).catch(() => undefined);
+    return optionsFor(albumId);
+  },
+
   /** Plays Listen Next from `albumId`, from the top without it. False when nothing could be played. */
   start: async (albumId?: number): Promise<boolean> => {
     skipped.clear();
@@ -107,10 +128,13 @@ export const listenNextQueue = {
   },
 };
 
+// A play of Listen Next left by a reload goes on from here.
+registerQueue('listenNext', listenNextQueue.restore);
+
 /** For tests: back to nothing played. */
 export const resetListenNextQueue = (): void => {
   order = [];
-  listed = [];
+  listed = null;
   currentId = null;
   repeat = false;
   skipped.clear();

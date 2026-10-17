@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { LISTEN_NEXT_LEFT_EVENT, player, resetPlayer } from './player';
+import { LISTEN_NEXT_LEFT_EVENT, player, resetPlayer, restorePlayer } from './player';
 
 const album = { id: 7, title: 'Come Away With Me', artist: 'Norah Jones', cover: null };
 const tracks = [
@@ -141,5 +141,60 @@ describe('player', () => {
     await vi.waitFor(() => expect(heard).toHaveBeenCalled());
     expect((heard.mock.calls[0][0] as CustomEvent).detail).toEqual({ id: 3, albumId: 7 });
     window.removeEventListener(LISTEN_NEXT_LEFT_EVENT, heard);
+  });
+  describe('after a reload', () => {
+    /** Plays the album up to `at` seconds into its second track, then reloads the page. */
+    const playThenReload = (at: number) => {
+      player.playAlbum(album, tracks, 1);
+      const audio = playingAudio();
+      audio.dispatchEvent(new Event('playing'));
+      audio.currentTime = at;
+      audio.dispatchEvent(new Event('timeupdate'));
+      resetPlayer();
+      created = [];
+      vi.mocked(fetch).mockClear();
+      vi.mocked(HTMLMediaElement.prototype.play).mockClear();
+    };
+
+    it('brings the bar back, paused on the same track at the same moment, and plays on from there on ▶', () => {
+      playThenReload(42);
+
+      restorePlayer();
+
+      expect(player.getState()).toMatchObject({ album, index: 1, position: 42, playing: false, barShown: true, resume: null });
+      expect(created[0].src).toContain('/stream/s2');
+      expect(created[0].currentTime).toBe(42);
+      // No sound before ▶: a browser plays nothing a click has not asked for.
+      const play = vi.mocked(HTMLMediaElement.prototype.play);
+      expect(play).not.toHaveBeenCalled();
+      player.toggle();
+      expect(play).toHaveBeenCalledTimes(1);
+    });
+
+    it('tells Navidrome only once it really plays, and does not count again a track counted before', () => {
+      playThenReload(100);
+      restorePlayer();
+      expect(fetch).not.toHaveBeenCalled();
+
+      const audio = playingAudio();
+      audio.dispatchEvent(new Event('playing'));
+      Object.defineProperty(audio, 'duration', { value: 145, configurable: true });
+      audio.currentTime = 110;
+      audio.dispatchEvent(new Event('timeupdate'));
+
+      const bodies = vi.mocked(fetch).mock.calls.map(call => JSON.parse(String((call[1] as RequestInit).body)));
+      expect(bodies).toEqual([{ submission: false }]);
+    });
+
+    it('brings nothing back after ✕: the album’s card still offers Resume', () => {
+      player.playAlbum(album, tracks, 1);
+      player.stop();
+      resetPlayer();
+
+      restorePlayer();
+
+      expect(player.getState()).toMatchObject({ album: null, barShown: false });
+      expect(player.getState().resume).toMatchObject({ album, index: 1, barOpen: false });
+    });
   });
 });

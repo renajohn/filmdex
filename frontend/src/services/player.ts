@@ -30,6 +30,10 @@ export interface PlayerResume {
   tracks: PlayerTrack[];
   index: number;
   position: number;
+  /** The bar was out: a reload brings it back, paused there. False once ✕ took it away. */
+  barOpen?: boolean;
+  /** The list the album was played from, to go on with once it is over. */
+  queue?: PlayerQueue | null;
 }
 
 /** A list the player goes on with once an album is over: Listen Next. */
@@ -132,7 +136,7 @@ const post = (songId: string, submission: boolean) => {
 const endAlbum = (how: 'ended' | 'skipped' | 'removed') => {
   const finish = () => {
     if (!state.album || state.tracks.length === 0) return;
-    writeResume({ album: state.album, tracks: state.tracks, index: 0, position: 0 });
+    writeResume(here(0, 0));
     set({ playing: false, position: 0, index: 0, resume: readResume() });
     current().src = streamUrl(state.tracks[0].songId);
     preloadNext();
@@ -146,11 +150,18 @@ const endAlbum = (how: 'ended' | 'skipped' | 'removed') => {
   goOn(how).then(played => { if (!played && state.album === album) finish(); }, () => { if (state.album === album) finish(); });
 };
 
-const saveResume = () => {
+/** Where the play is, kept: the bar is out while an album is in the player. */
+const here = (index: number, position: number, barOpen = true): PlayerResume | null =>
+  state.album ? { album: state.album, tracks: state.tracks, index, position: Math.floor(position), barOpen, queue: state.queue } : null;
+
+const saveResume = (barOpen = true) => {
   if (!state.album || state.tracks.length === 0) return;
-  const resume = { album: state.album, tracks: state.tracks, index: state.index, position: Math.floor(current()?.currentTime || state.position) };
-  writeResume(resume);
+  writeResume(here(state.index, current()?.currentTime || state.position, barOpen));
 };
+
+/** Whether a track heard up to `at` seconds was counted already: half of it, or four minutes. */
+const countedAt = (track: PlayerTrack, at: number) =>
+  at >= SCROBBLE_AFTER_SEC || (Boolean(track.durationSec) && at >= (track.durationSec as number) / 2);
 
 /** Loads the track after the current one into the spare element, ready to take over. */
 const preloadNext = () => {
@@ -192,7 +203,8 @@ const start = (index: number, at = 0) => {
   if (spare().src.endsWith(url)) active = 1 - active;
   const audio = current();
   if (!audio.src.endsWith(url)) audio.src = url;
-  scrobbled = false;
+  // Played on from where it was left: counted then already if far enough in.
+  scrobbled = countedAt(track, at);
   announced = false;
   set({ index, position: at, duration: track.durationSec || 0, playing: true, error: null });
   const play = () => {
@@ -204,7 +216,7 @@ const start = (index: number, at = 0) => {
   preloadNext();
   updateMediaSession();
   // Where it starts, kept at once: a reload right away still offers Resume.
-  if (state.album) writeResume({ album: state.album, tracks: state.tracks, index, position: Math.floor(at) });
+  writeResume(here(index, at));
 };
 
 /**
@@ -333,10 +345,10 @@ export const player = {
     set({ position: audio.currentTime });
   },
 
-  /** ✕: stops, keeps where it was for Resume, and takes the bar away. */
+  /** ✕: stops, keeps where it was for Resume, and takes the bar away: a reload does not bring it back. */
   stop: () => {
     if (!state.album) return;
-    saveResume();
+    saveResume(false);
     audios.forEach(audio => { audio.pause(); audio.removeAttribute('src'); audio.load(); });
     waitingForBar?.disconnect();
     waitingForBar = null;
@@ -353,6 +365,56 @@ export const player = {
   },
 
   getState: (): PlayerState => state,
+};
+
+/**
+ * A list that goes on once an album is over registers how to pick it up
+ * again after a reload: the player cannot import the list, the list imports
+ * the player.
+ */
+const queues = new Map<PlayerQueue, (albumId: number) => PlayOptions>();
+let waitingQueue: { queue: PlayerQueue; album: PlayerAlbum } | null = null;
+
+export const registerQueue = (queue: PlayerQueue, restore: (albumId: number) => PlayOptions): void => {
+  queues.set(queue, restore);
+  if (waitingQueue?.queue === queue && state.album === waitingQueue.album && waitingQueue.album.id != null) {
+    options = restore(waitingQueue.album.id);
+    waitingQueue = null;
+  }
+};
+
+/**
+ * After a reload: the bar comes back, paused where the play was, its track in
+ * the audio element at its moment. No sound until ▶: a browser plays nothing
+ * a click has not asked for.
+ */
+export const restorePlayer = (): void => {
+  const saved = readResume();
+  if (!saved?.barOpen || saved.tracks.length === 0 || typeof Audio === 'undefined') return;
+  setUp();
+  const index = Math.max(0, Math.min(saved.index, saved.tracks.length - 1));
+  const track = saved.tracks[index];
+  const queue = saved.queue ?? null;
+  options = {};
+  waitingQueue = null;
+  if (queue && saved.album.id != null) {
+    const restore = queues.get(queue);
+    if (restore) options = restore(saved.album.id);
+    else waitingQueue = { queue, album: saved.album };
+  }
+  set({ album: saved.album, queue, tracks: saved.tracks, index, playing: false, position: saved.position,
+    duration: track.durationSec || 0, barShown: true, resume: null, error: null });
+  if (waitingQueue) waitingQueue.album = state.album!;
+  const audio = current();
+  audio.src = streamUrl(track.songId);
+  if (saved.position > 0) {
+    audio.addEventListener('loadedmetadata', () => { audio.currentTime = saved.position; }, { once: true });
+    audio.currentTime = saved.position;
+  }
+  scrobbled = countedAt(track, saved.position);
+  announced = false;
+  preloadNext();
+  updateMediaSession();
 };
 
 const subscribe = (listener: () => void) => {
@@ -372,6 +434,9 @@ export const resetPlayer = () => {
   waitingForBar?.disconnect();
   waitingForBar = null;
   options = {};
+  waitingQueue = null;
   state = { album: null, queue: null, tracks: [], index: 0, playing: false, position: 0, duration: 0, barShown: false, resume: readResume(), error: null };
   listeners.forEach(listener => listener());
 };
+
+if (typeof window !== 'undefined') restorePlayer();

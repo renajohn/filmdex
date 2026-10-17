@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { AlbumEnd, PlayOptions } from './player';
 
 const list = vi.hoisted(() => ({ ids: [] as number[], ripped: new Set<number>() }));
@@ -16,6 +16,7 @@ vi.mock('../utils/playAlbum', () => ({
 }));
 
 import { albumsAfter, listenNextQueue, resetListenNextQueue, withCurrent } from './listenNextQueue';
+import { player, resetPlayer, restorePlayer } from './player';
 
 const playing = () => plays[plays.length - 1];
 /** The album playing ends as `how` says; true when another one starts. */
@@ -96,12 +97,55 @@ describe('listenNextQueue', () => {
     const { leaveAfterTrack } = playing().options;
     expect(leaveAfterTrack!()).toBe(false);
     const { player } = await import('./player');
-    vi.spyOn(player, 'getState').mockReturnValue({ ...player.getState(), queue: 'listenNext' });
+    const getState = vi.spyOn(player, 'getState').mockReturnValue({ ...player.getState(), queue: 'listenNext' });
 
     listenNextQueue.noteList([2, 3]);
     expect(leaveAfterTrack!()).toBe(true);
 
     window.dispatchEvent(new CustomEvent('dexvault:listen-next-left', { detail: { albumId: 1 } }));
     expect(leaveAfterTrack!()).toBe(false);
+    getState.mockRestore();
+  });
+});
+
+describe('Listen Next after a reload', () => {
+  let made: HTMLAudioElement[] = [];
+
+  beforeEach(() => {
+    made = [];
+    const RealAudio = window.Audio;
+    vi.stubGlobal('Audio', function Audio() { const element = new RealAudio(); made.push(element); return element; });
+    vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    vi.spyOn(window.HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
+    vi.spyOn(window.HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined);
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('{}'))));
+    const stored = new Map<string, string>();
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => stored.set(key, value), removeItem: (key: string) => stored.delete(key) },
+    });
+    resetPlayer();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('goes on with the next album once the album taken up again is over', async () => {
+    window.localStorage.setItem('dexvault.player.resume', JSON.stringify({
+      album: { id: 1, title: 'One', artist: 'A', cover: null },
+      tracks: [{ songId: 's1', title: 't', disc: 1, no: 1, durationSec: 100 }],
+      index: 0, position: 30, barOpen: true, queue: 'listenNext',
+    }));
+
+    restorePlayer();
+    expect(player.getState()).toMatchObject({ queue: 'listenNext', playing: false, barShown: true });
+
+    // Played on to its end: Listen Next takes over, as before the reload.
+    player.toggle(true);
+    made.find(audio => audio.src.endsWith('/stream/s1'))!.dispatchEvent(new Event('ended'));
+
+    await vi.waitFor(() => expect(plays.map(play => play.id)).toEqual([2]));
   });
 });

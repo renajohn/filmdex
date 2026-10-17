@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BsPauseFill, BsPlayFill, BsSkipBackwardFill, BsSkipForwardFill, BsX } from 'react-icons/bs';
 import { player, usePlayer } from '../services/player';
+// Listen Next registers itself with the player, to go on after a reload whatever the page.
+import '../services/listenNextQueue';
 import './PlayerBar.css';
 
 /** The bar's height, which the rest of the app gives up while it is out. */
