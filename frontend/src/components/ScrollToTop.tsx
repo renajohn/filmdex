@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BsChevronUp } from 'react-icons/bs';
+import CoverButton from './shared/CoverButton';
 import './ScrollToTop.css';
 
 /**
@@ -55,14 +56,16 @@ function ScrollToTop() {
   }
 
   return (
-    <button
+    <CoverButton
+      label="Scroll to top"
+      size="large"
+      reveal="always"
       className={`scroll-to-top ${isVisible ? 'visible' : ''}`}
       onClick={scrollToTop}
-      aria-label="Scroll to top"
-      title="Scroll to top"
+      tabIndex={isVisible ? 0 : -1}
     >
       <BsChevronUp />
-    </button>
+    </CoverButton>
   );
 }
 
