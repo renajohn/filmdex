@@ -3,6 +3,7 @@ import { BsX, BsFilm, BsDisc } from 'react-icons/bs';
 import ShelfCode from './ShelfCode';
 import CoverButton from './CoverButton';
 import './shared.css';
+import Spinner from './Spinner';
 
 interface NextBannerItem {
   id: number;
@@ -178,7 +179,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
                   label="Shuffle"
                 >
                   {shufflingItemId === item.id ? (
-                    <span className="next-banner__shuffle-spinner" />
+                    <Spinner size="sm" />
                   ) : (
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
@@ -251,7 +252,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
             <div className={`next-banner__help-card next-banner__help-card--${type} next-banner__help-card--split ${smartFillLoading ? 'loading' : ''}`}>
               {smartFillLoading ? (
                 <div className="next-banner__help-loading">
-                  <span className="next-banner__help-spinner" />
+                  <Spinner size="lg" />
                   <span className="next-banner__help-loading-text">Choosing...</span>
                 </div>
               ) : (
@@ -280,7 +281,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
             >
               {smartFillLoading ? (
                 <div className="next-banner__help-loading">
-                  <span className="next-banner__help-spinner" />
+                  <Spinner size="lg" />
                   <span className="next-banner__help-loading-text">Choosing...</span>
                 </div>
               ) : (

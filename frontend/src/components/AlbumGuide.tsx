@@ -4,6 +4,7 @@ import musicService, { type AlbumGuide as Guide, type AlbumGuideSource } from '.
 import './AlbumGuide.css';
 import Button from './shared/Button';
 import { TextArea } from './shared/TextField';
+import Spinner from './shared/Spinner';
 
 const SOURCE_LABELS: Record<AlbumGuideSource, string> = {
   claude: 'Written by Claude',
@@ -153,7 +154,7 @@ const AlbumGuide: React.FC<AlbumGuideProps> = ({ albumId, onLoaded }) => {
 
   const writing = busy === 'writing' && (
     <p className="album-guide-muted small mb-0">
-      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+      <Spinner size="sm" className="me-2" />
       The local LLM is writing the guide, checking each fact against Wikipedia… about a minute.
     </p>
   );

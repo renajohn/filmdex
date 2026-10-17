@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
 import './button.css';
+import Spinner from './Spinner';
 
 /**
  * The buttons of DexVault (button.css), as CoverButton is on covers.
@@ -44,7 +45,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
     {...(active !== undefined ? { 'aria-pressed': active } : {})}
     {...rest}
   >
-    {loading ? <span className="ui-button__spinner" aria-hidden="true" /> : icon && <span className="ui-button__icon" aria-hidden="true">{icon}</span>}
+    {loading ? <Spinner size={size === 'sm' ? 'sm' : 'md'} /> : icon && <span className="ui-button__icon" aria-hidden="true">{icon}</span>}
     {children != null && children !== false && <span className="ui-button__label">{children}</span>}
   </button>
 ));
@@ -110,7 +111,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(({
     {...(active !== undefined ? { 'aria-pressed': active } : {})}
     {...rest}
   >
-    {loading ? <span className="ui-button__spinner" aria-hidden="true" /> : children}
+    {loading ? <Spinner size={size === 'sm' ? 'sm' : 'md'} /> : children}
   </button>
 ));
 

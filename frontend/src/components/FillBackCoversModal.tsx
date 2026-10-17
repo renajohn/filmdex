@@ -3,6 +3,7 @@ import './FillBackCoversModal.css';
 import Button from './shared/Button';
 import Dialog from './shared/Dialog';
 import { BsX, BsImage } from 'react-icons/bs';
+import Spinner from './shared/Spinner';
 
 interface Album {
   id: number;
@@ -206,7 +207,7 @@ const FillBackCoversModal = ({ isOpen, onClose, onFill }: FillBackCoversModalPro
 
               {isLoading ? (
                 <div className="fill-back-covers-loading">
-                  <div className="fill-back-covers-spinner"></div>
+                  <Spinner size="lg" />
                   <p>Loading albums missing covers...</p>
                 </div>
               ) : (
@@ -261,7 +262,7 @@ const FillBackCoversModal = ({ isOpen, onClose, onFill }: FillBackCoversModalPro
                 </div>
               )}
 
-              <div className="fill-back-covers-spinner"></div>
+              <Spinner size="lg" />
               <p>Downloading covers... Please wait.</p>
               <p className="fill-back-covers-progress-note">
                 This may take a few minutes depending on the number of albums and internet speed.

@@ -12,6 +12,7 @@ import Button from './shared/Button';
 import { FieldError, TextArea, TextField } from './shared/TextField';
 import Notice from './shared/Notice';
 import { toneOf } from './shared/Toast';
+import Spinner from './shared/Spinner';
 
 interface MetadataSourceEntry {
   [field: string]: any;
@@ -1669,7 +1670,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
           >
             {enriching ? (
               <>
-                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                <Spinner size="sm" />
                 Fetching...
               </>
             ) : (
@@ -2257,9 +2258,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                       >
                         {uploadingEbook ? (
                           <div className="upload-progress">
-                            <div className="spinner-border spinner-border-sm" role="status">
-                              <span className="visually-hidden">Uploading...</span>
-                            </div>
+                            <Spinner size="sm" />
                             <span className="ms-2">Uploading ebook...</span>
                           </div>
                         ) : (
@@ -2482,9 +2481,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 />
                 {uploadingCover && (
                   <div className="upload-progress">
-                    <div className="spinner-border spinner-border-sm" role="status">
-                      <span className="visually-hidden">Uploading...</span>
-                    </div>
+                    <Spinner size="sm" />
                     <span className="ms-2">Uploading...</span>
                   </div>
                 )}
@@ -3068,9 +3065,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                       >
                         {uploadingEbook ? (
                           <div className="upload-progress">
-                            <div className="spinner-border spinner-border-sm" role="status">
-                              <span className="visually-hidden">Uploading...</span>
-                            </div>
+                            <Spinner size="sm" />
                             <span className="ms-2">Uploading ebook...</span>
                           </div>
                         ) : (
@@ -3293,9 +3288,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                 />
                 {uploadingCover && (
                   <div className="upload-progress">
-                    <div className="spinner-border spinner-border-sm" role="status">
-                      <span className="visually-hidden">Uploading...</span>
-                    </div>
+                    <Spinner size="sm" />
                     <span className="ms-2">Uploading...</span>
                   </div>
                 )}

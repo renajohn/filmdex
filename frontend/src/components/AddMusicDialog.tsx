@@ -13,6 +13,7 @@ import Segmented from './shared/Segmented';
 import Dialog from './shared/Dialog';
 import { TextField } from './shared/TextField';
 import Notice from './shared/Notice';
+import Spinner from './shared/Spinner';
 
 interface MusicRelease {
   id?: string;
@@ -553,7 +554,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
               >
                 {scanning ? (
                   <>
-                    <span className="spinner-border spinner-border-sm me-2" />
+                    <Spinner size="sm" className="me-2" />
                     Reading the cover...
                   </>
                 ) : (
@@ -580,7 +581,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                 >
                   {searching ? (
                     <>
-                      <span className="spinner-border spinner-border-sm me-2" />
+                      <Spinner size="sm" className="me-2" />
                       Searching...
                     </>
                   ) : (
@@ -616,7 +617,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                   disabled={searching} className="search-btn w-100"
                 >
                   {searching ? (
-                    <span className="spinner-border spinner-border-sm" />
+                    <Spinner size="sm" />
                   ) : (
                     <>
                       <BsSearch className="me-2" />
@@ -648,7 +649,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                   >
                     {decodingBarcode ? (
                       <>
-                        <span className="spinner-border spinner-border-sm me-2" />
+                        <Spinner size="sm" className="me-2" />
                         Reading the barcode...
                       </>
                     ) : (
@@ -666,7 +667,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                   disabled={searching} className="search-btn w-100"
                 >
                   {searching ? (
-                    <span className="spinner-border spinner-border-sm" />
+                    <Spinner size="sm" />
                   ) : (
                     <>
                       <BsSearch className="me-2" />
@@ -764,7 +765,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                               }}
                             >
                               {addingReleaseId === releaseKey(group.releases[0]) ? (
-                                <span className="spinner-border spinner-border-sm" />
+                                <Spinner size="sm" />
                               ) : (
                                 <>
                                   <BsPlus className="me-1" />
@@ -825,7 +826,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
                                         }}
                                       >
                                         {addingReleaseId === releaseKey(release) ? (
-                                          <span className="spinner-border spinner-border-sm" />
+                                          <Spinner size="sm" />
                                         ) : (
                                           <>
                                             <BsPlus className="me-1" />

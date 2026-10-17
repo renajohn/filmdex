@@ -9,6 +9,7 @@ import './BookImportPage.css';
 import Button, { IconButton } from '../components/shared/Button';
 import { BsX } from 'react-icons/bs';
 import Notice from '../components/shared/Notice';
+import Spinner from '../components/shared/Spinner';
 
 interface ImportStats {
   totalBooks: number;
@@ -180,7 +181,7 @@ const BookImportPage: React.FC = () => {
         return (
           <div className="processing-step">
             <div className="processing-content">
-              <div className="spinner"></div>
+              <Spinner size="lg" />
               <h3>Processing your CSV file...</h3>
               <p>We're enriching your book data with information from external APIs.</p>
               <p>This may take a few minutes depending on the number of books.</p>

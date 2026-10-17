@@ -14,6 +14,7 @@ import Segmented from './shared/Segmented';
 import { TextField } from './shared/TextField';
 import Notice from './shared/Notice';
 import { toneOf } from './shared/Toast';
+import Spinner, { Loading } from './shared/Spinner';
 
 interface BookData {
   title?: string;
@@ -1216,11 +1217,8 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     if (enriching) {
       return (
         <Dialog show={show} onClose={handleClose} size="lg" zIndex={10100} className="add-book-dialog" icon={<BsPlus />} title="Add New Book">
-          <Dialog.Body className="text-center py-5">
-            <div className="spinner-border text-warning mb-3" role="status" style={{ color: '#fbbf24' }}>
-              <span className="visually-hidden">Loading...</span>
-            </div>
-            <p>Enriching book metadata...</p>
+          <Dialog.Body>
+            <Loading>Enriching book metadata…</Loading>
           </Dialog.Body>
         </Dialog>
       );
@@ -1349,7 +1347,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
             {/* Scanning status */}
             {scanning && (
               <div className="scan-status">
-                <div className="scan-spinner"></div>
+                <Spinner size="md" />
                 <span>Analyzing cover image...</span>
               </div>
             )}
@@ -1417,7 +1415,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                   disabled={searching} className="search-btn w-100"
                 >
                   {searching ? (
-                    <span className="spinner-border spinner-border-sm" />
+                    <Spinner size="sm" />
                   ) : (
                     <>
                       <BsSearch className="me-2" />
@@ -1469,7 +1467,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                   disabled={searching} className="search-btn w-100"
                 >
                   {searching ? (
-                    <span className="spinner-border spinner-border-sm" />
+                    <Spinner size="sm" />
                   ) : (
                     <>
                       <BsSearch className="me-2" />
@@ -1484,7 +1482,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
           {/* Show message when searching */}
           {searching && (
             <div className="text-center mb-3" style={{ color: '#fbbf24' }}>
-              <div className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
+              <Spinner size="sm" className="me-2" />
               Searching for books...
             </div>
           )}
@@ -1629,7 +1627,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                           >
                             {quickAdding ? (
                               <>
-                                <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                <Spinner size="sm" className="me-1" />
                                 Adding...
                               </>
                             ) : (
@@ -1649,7 +1647,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                           >
                             {enriching && enrichingBookIndex === `group-${groupIndex}-book-0` ? (
                               <>
-                                <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                <Spinner size="sm" className="me-1" />
                                 Loading...
                               </>
                             ) : (
@@ -1730,7 +1728,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                                       >
                                         {enriching && enrichingBookIndex === `group-${groupIndex}-book-${bookIndex}` ? (
                                           <>
-                                            <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                            <Spinner size="sm" className="me-1" />
                                             Loading...
                                           </>
                                         ) : (

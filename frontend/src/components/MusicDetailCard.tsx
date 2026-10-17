@@ -26,6 +26,7 @@ import { BsArrowCounterclockwise, BsCartFill, BsHeart, BsHeartFill, BsSearch } f
 import type { DigitalTrack } from '../services/musicService';
 import { buyReason, formatLabel, isLossy, isSuggested, isToBuy, ricardoUrl, type AlbumDigital } from '../utils/digitalLibrary';
 import Button, { LinkButton } from './shared/Button';
+import Spinner from './shared/Spinner';
 
 /** How often, and how many times, an album's tracks are asked after while their words are looked up. */
 const LYRICS_POLL_MS = 3000;
@@ -1005,14 +1006,14 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
             </Button>
           ) : rip === undefined && !ripError ? (
             <Button variant="primary" disabled>
-              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              <Spinner size="sm" className="me-2" />
               Listen
             </Button>
           ) : (
             <Button disabled={openingApple} onClick={handleOpenAppleMusic}>
               {openingApple ? (
                 <>
-                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  <Spinner size="sm" className="me-2" />
                   Opening Apple Music…
                 </>
               ) : (

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Spinner } from 'react-bootstrap';
+import Spinner from './shared/Spinner';
 import { BsCamera, BsCheckCircleFill, BsArrowRepeat } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverCropDialog from './CoverCropDialog';
@@ -319,7 +319,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
         <Button onClick={read} disabled={reading || (!photos.front && !photos.back)}>
           {reading ? (
             <>
-              <Spinner as="span" animation="border" size="sm" className="me-2" />
+              <Spinner size="sm" className="me-2" />
               Reading the sleeve…
             </>
           ) : (

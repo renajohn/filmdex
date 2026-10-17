@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import backupService from '../services/backupService';
-import { BsDownload, BsTrash, BsArrowClockwise, BsPlus, BsUpload, BsClock } from 'react-icons/bs';
+import { BsDownload, BsTrash, BsArrowClockwise, BsPlus, BsUpload } from 'react-icons/bs';
 import DropboxBackupCard from '../components/DropboxBackupCard';
 import './BackupPage.css';
 import Button, { IconButton } from '../components/shared/Button';
 
 import { confirm } from '../components/shared/ConfirmDialog';
 import Notice from '../components/shared/Notice';
+import Spinner from '../components/shared/Spinner';
 
 interface Backup {
   filename: string;
@@ -204,7 +205,7 @@ const BackupPage: React.FC = () => {
           >
             {creating ? (
               <>
-                <BsClock className="me-2 spinning" />
+                <Spinner size="sm" className="me-2" />
                 Creating...
               </>
             ) : (
@@ -238,7 +239,7 @@ const BackupPage: React.FC = () => {
             >
               {uploading ? (
                 <>
-                  <BsClock className="me-2 spinning" />
+                  <Spinner size="sm" className="me-2" />
                   Restoring...
                 </>
               ) : (
@@ -277,7 +278,7 @@ const BackupPage: React.FC = () => {
 
         {loading && backups.length === 0 ? (
           <div className="loading-message">
-            <BsClock className="spinning me-2" />
+            <Spinner size="sm" className="me-2" />
             Loading backups...
           </div>
         ) : backups.length === 0 ? (
@@ -315,7 +316,7 @@ const BackupPage: React.FC = () => {
                           title="Restore"
                         >
                           {restoring === backup.filename ? (
-                            <BsClock className="spinning" />
+                            <Spinner size="sm" />
                           ) : (
                             <BsArrowClockwise />
                           )}

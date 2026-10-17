@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Spinner } from 'react-bootstrap';
+import Spinner from './shared/Spinner';
 import { BsArrowCounterclockwise, BsArrowClockwise } from 'react-icons/bs';
 import { detectSleeveQuad, defaultQuad, DEFAULT_QUAD, CONFIDENT, type Quad, type Point } from '../utils/detectSleeveQuad';
 import { warpQuad } from '../utils/warpQuad';
@@ -283,7 +283,7 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
 
           {detecting && (
             <div className="cover-crop-detecting">
-              <Spinner animation="border" size="sm" className="me-2" />
+              <Spinner size="sm" className="me-2" />
               Looking for the sleeve…
             </div>
           )}
@@ -330,7 +330,7 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
         <Button onClick={apply} disabled={detecting || rotating || applying || !src}>
           {applying ? (
             <>
-              <Spinner as="span" animation="border" size="sm" className="me-2" />
+              <Spinner size="sm" className="me-2" />
               Straightening…
             </>
           ) : (

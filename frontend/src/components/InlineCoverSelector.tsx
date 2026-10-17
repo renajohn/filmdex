@@ -4,6 +4,7 @@ import bookService from '../services/bookService';
 import './InlineCoverSelector.css';
 import { IconButton } from './shared/Button';
 import { TextField } from './shared/TextField';
+import Spinner from './shared/Spinner';
 
 interface Book {
   id: number;
@@ -180,7 +181,7 @@ const InlineCoverSelector = ({ book, isOpen, onCoverSelected, currentCover, onCl
             <div className="upload-card-content">
               {uploading ? (
                 <>
-                  <div className="upload-spinner"></div>
+                  <Spinner size="md" />
                   <span className="upload-text">Uploading...</span>
                 </>
               ) : (

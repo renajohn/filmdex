@@ -22,6 +22,7 @@ import { MenuChevron } from './shared/Menu';
 import Dialog, { DialogHeader } from './shared/Dialog';
 import { ConfirmDialog } from './shared/ConfirmDialog';
 import { TextArea, TextField } from './shared/TextField';
+import Spinner from './shared/Spinner';
 
 interface MovieData {
   id: number;
@@ -1427,7 +1428,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
               
               {/* Loading Spinner */}
               <div className="skeleton-loading-spinner">
-                <div className="poster-spinner"></div>
+                <Spinner size="lg" />
               </div>
             </div>
           </div>
@@ -1764,7 +1765,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                   {/* Loading spinner overlay */}
                   {posterLoading && (
                     <div className="poster-loading-overlay">
-                      <div className="poster-spinner"></div>
+                      <Spinner size="lg" />
                     </div>
                   )}
                   

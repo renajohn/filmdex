@@ -8,6 +8,7 @@ import Dialog from './shared/Dialog';
 import { BsX, BsPlus } from 'react-icons/bs';
 import Segmented from './shared/Segmented';
 import { TextArea, TextField } from './shared/TextField';
+import Spinner from './shared/Spinner';
 
 interface MovieEdition {
   title: string;
@@ -524,7 +525,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
       {/* Loading Overlay */}
       {loading && (
         <div className="loading-overlay">
-          <div className="loading-spinner"></div>
+          <Spinner size="lg" />
           <div className="loading-message">
             {selectedMovie?.existingStatus === 'wish' && mode === 'collection'
               ? `Moving "${formData.title}" from your wishlist to your collection...`
@@ -656,7 +657,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
               {/* Scanning status */}
               {scanning && (
                 <div className="scan-status">
-                  <div className="scan-spinner"></div>
+                  <Spinner size="md" />
                   <span>Analyzing cover image...</span>
                 </div>
               )}
@@ -828,7 +829,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
 
                       {posterLoading && (
                         <div className="poster-loading-overlay">
-                          <div className="poster-spinner"></div>
+                          <Spinner size="lg" />
                         </div>
                       )}
                     </div>

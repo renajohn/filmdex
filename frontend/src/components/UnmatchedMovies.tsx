@@ -4,6 +4,7 @@ import apiService from '../services/api';
 import './UnmatchedMovies.css';
 import Button from './shared/Button';
 import { TextField } from './shared/TextField';
+import Spinner from './shared/Spinner';
 
 interface UnmatchedMovie {
   title: string;
@@ -307,7 +308,7 @@ const UnmatchedMovies: React.FC<UnmatchedMoviesProps> = ({ importId, onImportCom
     return (
       <div className="unmatched-movies">
         <div className="processing-content">
-          <div className="spinner"></div>
+          <Spinner size="lg" />
           <h3>Processing resolved movies...</h3>
           <p>We're enriching your resolved movies with information from TMDB and OMDB.</p>
           <p>This may take a few moments.</p>

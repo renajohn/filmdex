@@ -6,6 +6,7 @@ import Select from './shared/Select';
 import Button from './shared/Button';
 import Dialog from './shared/Dialog';
 import { TextArea, TextField } from './shared/TextField';
+import Spinner from './shared/Spinner';
 
 type Edition = 'keep' | 'barcode' | 'musicbrainz';
 
@@ -105,7 +106,7 @@ const BoughtCdDialog: React.FC<BoughtCdDialogProps> = ({ album, onClose, onBough
         <Dialog.Footer>
           <Button variant="quiet" onClick={onClose} disabled={saving}>Cancel</Button>
           <Button variant="primary" type="submit" disabled={saving}>
-            {saving && <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />}
+            {saving && <Spinner size="sm" className="me-2" />}
             Into my collection
           </Button>
         </Dialog.Footer>

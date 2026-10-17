@@ -489,7 +489,7 @@ describe('AddMusicDialog — results from either source', () => {
     userEvent.click(screen.getByRole('button', { name: /^add$/i }));
 
     await waitFor(() =>
-      expect(document.querySelector('.quick-add-btn .spinner-border')).toBeInTheDocument()
+      expect(document.querySelector('.quick-add-btn .ui-spinner')).toBeInTheDocument()
     );
   });
 });

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BsCheckCircleFill, BsCloudUpload } from 'react-icons/bs';
 import apiService from '../services/api';
 import './InlinePosterSelector.css';
+import Spinner from './shared/Spinner';
 
 interface Poster {
   file_path: string;
@@ -228,7 +229,7 @@ const InlinePosterSelector = ({ movie, isOpen, onSelectPoster, currentPosterPath
               <div className="upload-card-content">
                 {uploading ? (
                   <>
-                    <div className="upload-spinner"></div>
+                    <Spinner size="md" />
                     <span className="upload-text">Uploading...</span>
                   </>
                 ) : (

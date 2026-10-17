@@ -4,6 +4,7 @@ import './shared/menu.css';
 import './AutocompleteInput.css';
 import Select from './shared/Select';
 import { TextField } from './shared/TextField';
+import Spinner from './shared/Spinner';
 
 interface AutocompleteInputProps {
   field: string;
@@ -158,7 +159,7 @@ const AutocompleteInput = ({
 
       {isLoading && (
         <div className="autocomplete-loading">
-          <div className="loading-spinner" data-testid="loading-spinner"></div>
+          <Spinner size="sm" data-testid="loading-spinner" />
         </div>
       )}
 

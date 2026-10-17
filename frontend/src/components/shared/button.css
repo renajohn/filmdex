@@ -92,26 +92,6 @@
   text-overflow: ellipsis;
 }
 
-.ui-button__spinner {
-  width: 14px;
-  height: 14px;
-  flex: none;
-  border-radius: 50%;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
-  animation: ui-button-spin 0.7s linear infinite;
-}
-
-.ui-button--sm .ui-button__spinner,
-.ui-icon-button--sm .ui-button__spinner {
-  width: 12px;
-  height: 12px;
-}
-
-@keyframes ui-button-spin {
-  to { transform: rotate(360deg); }
-}
-
 /* primary: plain gold, dark words. */
 .ui-button--primary {
   background: var(--button-gold);

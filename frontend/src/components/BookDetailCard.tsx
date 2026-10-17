@@ -17,6 +17,7 @@ import Select from './shared/Select';
 import Button, { IconButton } from './shared/Button';
 import { FieldError, TextArea, TextField } from './shared/TextField';
 import Notice from './shared/Notice';
+import Spinner, { Loading } from './shared/Spinner';
 
 interface BookDetailCardProps {
   book: any;
@@ -1407,9 +1408,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
           {enrichingVolumes && (
             <div className="enrichment-overlay">
               <div className="enrichment-loading-indicator">
-                <div className="spinner-border text-warning mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
-                  <span className="visually-hidden">Loading...</span>
-                </div>
+                <Spinner size="lg" className="mb-3" />
                 <div className="text-center">
                   <strong>Enriching volumes...</strong>
                   <div className="mt-2">
@@ -2037,9 +2036,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                       <h4>Ebook File</h4>
                       {loadingEbookInfo ? (
                         <div className="d-flex align-items-center gap-2">
-                          <div className="spinner-border spinner-border-sm" role="status">
-                            <span className="visually-hidden">Loading...</span>
-                          </div>
+                          <Spinner size="sm" />
                           <span>Loading ebook info...</span>
                         </div>
                       ) : ebookInfo ? (
@@ -2684,9 +2681,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                   <h4>Ebook File</h4>
                   {loadingEbookInfo ? (
                     <div className="d-flex align-items-center gap-2">
-                      <div className="spinner-border spinner-border-sm" role="status">
-                        <span className="visually-hidden">Loading...</span>
-                      </div>
+                      <Spinner size="sm" />
                       <span>Loading ebook info...</span>
                     </div>
                   ) : ebookInfo ? (
@@ -2818,12 +2813,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
             <div className={`book-volumes-view ${view === 'volumes' ? 'active' : ''}`}>
 
               {loadingVolumes && (
-                <div className="text-center py-5">
-                  <div className="spinner-border text-warning mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                  <p>Searching for volumes...</p>
-                </div>
+                <Loading>Searching for volumes…</Loading>
               )}
 
               {volumeError && (
@@ -2943,12 +2933,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
             {/* Edit View */}
             <div className={`book-edit-view ${view === 'edit' ? 'active' : ''}`}>
               {updatingBook && (
-                <div className="text-center py-5">
-                  <div className="spinner-border text-warning mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                  <p>Updating book...</p>
-                </div>
+                <Loading>Updating book…</Loading>
               )}
               <div className="book-edit-form-container" ref={editFormRef} style={{ display: updatingBook ? 'none' : 'block' }}>
                 {view === 'edit' && book && (
@@ -2984,7 +2969,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
               >
                 {updatingBook ? (
                   <>
-                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    <Spinner size="sm" className="me-2" />
                     Updating...
                   </>
                 ) : (
@@ -3004,7 +2989,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
               >
                 {enrichingVolumes ? (
                   <>
-                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    <Spinner size="sm" className="me-2" />
                     Processing...
                   </>
                 ) : (

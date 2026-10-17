@@ -7,6 +7,7 @@ import { amperfyUrl, isAppleMobile } from '../utils/navidrome';
 import { readStored, writeStored } from '../utils/safeStorage';
 import CoverButton from './shared/CoverButton';
 import './ListenNextPlay.css';
+import Spinner from './shared/Spinner';
 
 /** How long an album played to its end stays on the page, greyed, to be kept. */
 export const GRACE_MS = 10_000;
@@ -208,7 +209,7 @@ export const ListenNextControls: React.FC<ControlsProps> = ({ count, play, onRep
     <span className="listen-next-controls">
       <CoverButton className="listen-next-controls__play" reveal="always" active={here || undefined}
         onClick={click} disabled={nothing || starting} title={title} label={title}>
-        {starting ? <span className="spinner-border spinner-border-sm" /> : pause ? <BsPauseFill /> : <BsPlayFill />}
+        {starting ? <Spinner size="sm" /> : pause ? <BsPauseFill /> : <BsPlayFill />}
       </CoverButton>
       <button type="button" className={`listen-next-controls__repeat${repeat ? ' listen-next-controls__repeat--on' : ''}`}
         onClick={() => onRepeat(!repeat)} aria-pressed={repeat}

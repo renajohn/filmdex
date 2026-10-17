@@ -4,6 +4,7 @@ import { BsX, BsCheckCircleFill, BsCloudUpload, BsImage } from 'react-icons/bs';
 import apiService from '../services/api';
 import './PosterSelector.css';
 import Dialog from './shared/Dialog';
+import Spinner from './shared/Spinner';
 
 interface Poster {
   file_path: string;
@@ -199,7 +200,7 @@ const PosterSelector = ({ movie, onClose, onSelectPoster }: PosterSelectorProps)
                 <div className="upload-card-content">
                   {uploading ? (
                     <>
-                      <div className="upload-spinner"></div>
+                      <Spinner size="lg" />
                       <span className="upload-text">Uploading...</span>
                     </>
                   ) : (

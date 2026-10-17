@@ -7,6 +7,7 @@ import './VolumeSelector.css';
 import Button from './shared/Button';
 import Dialog from './shared/Dialog';
 import Notice from './shared/Notice';
+import Spinner, { Loading } from './shared/Spinner';
 
 interface Volume {
   seriesNumber: number;
@@ -291,12 +292,7 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
     <Dialog show={show} onClose={onHide} size="lg" zIndex={10100} className="volume-selector-modal" title={<>Select Volumes: {seriesName}</>} icon={<BsBook />}>
       <Dialog.Body className="volume-selector-body">
         {loading && (
-          <div className="text-center py-5">
-            <div className="spinner-border text-warning mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
-              <span className="visually-hidden">Loading...</span>
-            </div>
-            <p>Searching for volumes...</p>
-          </div>
+          <Loading>Searching for volumes…</Loading>
         )}
 
         {error && (
@@ -348,7 +344,7 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
 
             {enriching && (
               <Notice tone="info" className="mb-3">
-                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                <Spinner size="sm" className="me-2" />
                 Enriching volumes... ({enrichmentProgress.current}/{enrichmentProgress.total})
               </Notice>
             )}
@@ -431,7 +427,7 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
         >
           {enriching ? (
             <>
-              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              <Spinner size="sm" className="me-2" />
               Processing...
             </>
           ) : (

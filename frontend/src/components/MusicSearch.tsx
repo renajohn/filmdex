@@ -28,6 +28,7 @@ import {
 } from '../utils/digitalLibrary';
 import Button from './shared/Button';
 import Notice from './shared/Notice';
+import Spinner, { Loading } from './shared/Spinner';
 
 interface MusicSearchProps {
   cds: any;
@@ -926,11 +927,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const renderCdGrid = () => {
     if (loading) {
       return (
-        <div className="d-flex justify-content-center align-items-center" style={{ height: '200px' }}>
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-        </div>
+        <Loading />
       );
     }
 
@@ -1304,7 +1301,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
 
       {addingAlbum && (
         <div className="loading-overlay">
-          <div className="loading-spinner"></div>
+          <Spinner size="lg" />
           <div className="loading-message">
             Adding album to your collection...
           </div>

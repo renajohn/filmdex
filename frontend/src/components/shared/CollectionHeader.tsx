@@ -3,6 +3,7 @@ import Menu, { MenuChevron } from './Menu';
 import Button from './Button';
 import { BsSortDown, BsGrid3X3Gap, BsPlus } from 'react-icons/bs';
 import './shared.css';
+import Spinner from './Spinner';
 
 interface SortOption {
   value: string;
@@ -81,7 +82,7 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
               disabled={sortLoading}>
               {sortLoading ? (
                 <>
-                  <span className="sort-loading-spinner"></span>
+                  <Spinner size="sm" />
                   Sorting...
                 </>
               ) : (
@@ -109,7 +110,7 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
               disabled={groupLoading}>
               {groupLoading ? (
                 <>
-                  <span className="group-loading-spinner"></span>
+                  <Spinner size="sm" />
                   Grouping...
                 </>
               ) : (

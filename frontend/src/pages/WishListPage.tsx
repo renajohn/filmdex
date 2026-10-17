@@ -24,6 +24,7 @@ import Dialog from '../components/shared/Dialog';
 import { ConfirmDialog } from '../components/shared/ConfirmDialog';
 import { TextArea, TextField } from '../components/shared/TextField';
 import Notice from '../components/shared/Notice';
+import Spinner, { Loading } from '../components/shared/Spinner';
 
 export interface WishListPageRef {
   refreshItems: () => Promise<void>;
@@ -1353,11 +1354,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
       {/* Loading indicator for detail cards */}
       {loadingDetails && (
         <Dialog onClose={() => undefined} size="sm" modal header={false} title="Loading details" className="dialog-waiting">
-          <Dialog.Body className="text-center">
-            <div className="spinner-border text-warning" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-            <p className="mt-3 mb-0">Loading details...</p>
+          <Dialog.Body>
+            <Loading>Loading details…</Loading>
           </Dialog.Body>
         </Dialog>
       )}
@@ -1569,7 +1567,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
       {/* Loading indicator for album addition */}
       {addingAlbum && (
         <div className="loading-overlay">
-          <div className="loading-spinner"></div>
+          <Spinner size="lg" />
           <div className="loading-message">
             Adding album to your wish list...
           </div>
@@ -1579,7 +1577,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
       {/* Loading indicator for book addition */}
       {addingBook && (
         <div className="loading-overlay">
-          <div className="loading-spinner"></div>
+          <Spinner size="lg" />
           <div className="loading-message">
             Adding book to your wish list...
           </div>

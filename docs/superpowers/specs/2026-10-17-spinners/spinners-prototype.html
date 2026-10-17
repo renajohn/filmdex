@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Spinners</title>
+<style>
+  :root { --dv-gold: #fbbf24; --dv-gold-ink: #111; --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a; --dv-glass: rgba(255,255,255,.06); --dv-edge: rgba(255,255,255,.12);
+    --dv-glass-image: rgba(0,0,0,.68); --dv-edge-image: inset 0 0 0 1px rgba(255,255,255,.16); --tone: var(--dv-gold); }
+  body.neutral { --tone: var(--dv-text-muted); }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(135deg,#1a1a1a,#2d2d2d) fixed; color: var(--dv-text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .bar { position: sticky; top: 0; z-index: 5; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; padding: 12px 24px; background: #111; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .seg { display: inline-flex; border: 1px solid #444; border-radius: 8px; overflow: hidden; }
+  .seg button { background: #222; color: #ddd; border: 0; padding: 6px 12px; font: inherit; cursor: pointer; }
+  .seg button + button { border-left: 1px solid #444; }
+  .seg button.on { background: var(--dv-gold); color: #111; }
+  .note { padding: 0 24px; color: #888; max-width: 960px; margin: 16px 0 0; }
+  main { padding: 20px 24px 60px; display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 18px; }
+  section { background: #2d2d2d; border: 1px solid #3a3a3a; border-radius: 14px; overflow: hidden; }
+  section h3 { margin: 0; padding: 14px 20px; border-bottom: 1px solid #3a3a3a; font-size: 1.05rem; color: #f0f0f0; }
+  section.page { background: transparent; border-style: dashed; }
+  .body { padding: 18px 20px 20px; display: grid; gap: 14px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .b { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--dv-edge); background: var(--dv-glass); font: 500 14px/1 inherit; color: var(--dv-text); }
+  .b.primary { background: var(--dv-gold); color: var(--dv-gold-ink); border-color: transparent; font-weight: 600; }
+  .b.sm { height: 28px; padding: 0 10px; font-size: 12.5px; border-radius: 7px; }
+  .b:disabled { opacity: .75; }
+  .muted { color: var(--dv-text-muted); font-size: 13px; }
+  .loading { display: grid; justify-items: center; gap: 12px; padding: 36px 0 30px; color: var(--dv-text-muted); font-size: 13.5px; }
+  .covers { display: flex; gap: 12px; }
+  .cover { position: relative; width: 120px; aspect-ratio: 1; border-radius: 6px; background: linear-gradient(135deg,#5b4a3a,#2b2420); overflow: hidden; }
+  .cover.poster { aspect-ratio: 2/3; background: linear-gradient(160deg,#3a4a5b,#1d232b); }
+  .cover .veil { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.45); }
+  .round { position: absolute; right: 8px; bottom: 8px; width: 34px; height: 34px; border-radius: 50%; background: var(--dv-glass-image); box-shadow: var(--dv-edge-image); display: grid; place-items: center; color: #fff; }
+  .field { position: relative; }
+  .field input { width: 100%; height: 36px; padding: 0 36px 0 12px; border-radius: 9px; background: #1f1f1f; border: 1px solid #444; color: var(--dv-text); font: inherit; }
+  .field .sp { position: absolute; right: 11px; top: 50%; transform: translateY(-50%); }
+
+  /* the spinner: 3 sizes, the shape by variant */
+  .sp { --s: 16px; display: inline-block; width: var(--s); height: var(--s); flex: none; color: var(--tone); }
+  .sp.sm { --s: 12px; } .sp.lg { --s: 32px; }
+  .in-button .sp, .round .sp { color: currentColor; }
+
+  /* A · Anneau: a faint track, an arc of its colour going round. */
+  body.vA .sp { border-radius: 50%; border: calc(var(--s) / 8 + .5px) solid color-mix(in srgb, currentColor 18%, transparent); border-top-color: currentColor; animation: spin .75s linear infinite; }
+  /* B · Arc: three quarters of a circle, no track (the buttons' spinner today). */
+  body.vB .sp { border-radius: 50%; border: calc(var(--s) / 8 + .5px) solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite; }
+  /* C · Points: three dots that breathe in turn. */
+  body.vC .sp { width: calc(var(--s) * 1.6); display: inline-flex; align-items: center; justify-content: space-between; }
+  body.vC .sp i { width: calc(var(--s) / 3.6); height: calc(var(--s) / 3.6); border-radius: 50%; background: currentColor; animation: dot 1s ease-in-out infinite; }
+  body.vC .sp i:nth-child(2) { animation-delay: .15s; } body.vC .sp i:nth-child(3) { animation-delay: .3s; }
+  body:not(.vC) .sp i { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes dot { 0%, 80%, 100% { opacity: .25; transform: scale(.8); } 40% { opacity: 1; transform: none; } }
+</style>
+</head>
+<body class="vA">
+<div class="bar">
+  <span>Forme</span>
+  <span class="seg" id="variant"><button data-v="vA" class="on">A · Anneau</button><button data-v="vB">B · Arc</button><button data-v="vC">C · Points</button></span>
+  <span>Couleur seul</span>
+  <span class="seg" id="tone"><button data-t="" class="on">Or</button><button data-t="neutral">Gris</button></span>
+</div>
+<p class="note">Un seul spinner, trois tailles : <b>sm</b> 12 px (dans un petit bouton, à côté d’un mot), <b>md</b> 16 px (dans un bouton, un champ), <b>lg</b> 32 px (une page ou une section qui charge, avec ses mots dessous). Dans un bouton ou sur une pochette il prend la couleur de ce qu’il remplace ; seul, la couleur choisie en haut.</p>
+<main>
+  <section>
+    <h3>Dans les boutons</h3>
+    <div class="body">
+      <div class="row in-button">
+        <button class="b primary" disabled><span class="sp"><i></i><i></i><i></i></span>Into my collection</button>
+        <button class="b" disabled><span class="sp"><i></i><i></i><i></i></span>Looking up MusicBrainz</button>
+        <button class="b sm" disabled><span class="sp sm"><i></i><i></i><i></i></span>Write the story</button>
+      </div>
+      <div class="row muted"><span class="sp sm"><i></i><i></i><i></i></span>Saving…</div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Add Book · Search</h3>
+    <div class="body">
+      <div class="field"><input value="Les Rougon-Macquart"><span class="sp"><i></i><i></i><i></i></span></div>
+      <div class="loading"><span class="sp lg"><i></i><i></i><i></i></span>Searching for volumes…</div>
+    </div>
+  </section>
+
+  <section class="page">
+    <h3>Une page qui charge</h3>
+    <div class="body">
+      <div class="loading"><span class="sp lg"><i></i><i></i><i></i></span>Loading your albums…</div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Sur une pochette, une affiche</h3>
+    <div class="body">
+      <div class="covers">
+        <div class="cover"><div class="round"><span class="sp"><i></i><i></i><i></i></span></div></div>
+        <div class="cover"><div class="veil"><span class="sp lg" style="color:#fff"><i></i><i></i><i></i></span></div></div>
+        <div class="cover poster" style="width:80px"><div class="veil"><span class="sp" style="color:#fff"><i></i><i></i><i></i></span></div></div>
+      </div>
+      <div class="muted">▶ qui démarre (Listen Next, un album) · une pochette qui se télécharge · une affiche qui change</div>
+    </div>
+  </section>
+</main>
+<script>
+const pick = (id, attr, apply) => document.getElementById(id).onclick = e => { const b = e.target.closest('button'); if (!b) return; apply(b.dataset[attr]); document.querySelectorAll('#' + id + ' button').forEach(x => x.classList.toggle('on', x === b)); };
+let v = 'vA', t = '';
+const set = () => document.body.className = (v + ' ' + t).trim();
+pick('variant', 'v', x => { v = x; set(); });
+pick('tone', 't', x => { t = x; set(); });
+</script>
+</body>
+</html>

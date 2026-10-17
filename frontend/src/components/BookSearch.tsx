@@ -19,6 +19,7 @@ import Chip from './shared/Chip';
 import Dialog from './shared/Dialog';
 import { ConfirmDialog } from './shared/ConfirmDialog';
 import { TextField } from './shared/TextField';
+import Spinner, { Loading } from './shared/Spinner';
 
 interface BookSearchProps {
   books: any;
@@ -1032,11 +1033,7 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
   const renderBookGrid = () => {
     if (loading) {
       return (
-        <div className="d-flex justify-content-center align-items-center" style={{ height: '200px' }}>
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-        </div>
+        <Loading />
       );
     }
 
@@ -1650,7 +1647,7 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
 
       {addingBook && (
         <div className="loading-overlay">
-          <div className="loading-spinner"></div>
+          <Spinner size="lg" />
           <div className="loading-message">
             Adding book to your collection...
           </div>

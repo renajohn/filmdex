@@ -74,6 +74,8 @@ colour goes into `tokens.css` first.
 | ‹ › to the item before or after, in a detail dialog | `DetailSteps` (in a `Dialog`, its `steps`) |
 | A word in a window or on a page: to know, done, to check, failed | `Notice` |
 | A word that passes (exported, added, failed, with Undo) | `toast()` |
+| A wait: in a button, a field, beside a word | `Spinner` (in a `Button`, its `loading`) |
+| A page or a section that loads | `Loading` |
 | An empty page | `EmptyState` |
 | ▶ / ❚❚ on an album's cover | `AlbumPlayButton` |
 
@@ -289,6 +291,26 @@ toast('“Heat” left your Watch Next.', { action: { label: 'Undo', onClick: pu
 - What a window did (saved, uploaded) is a toast; why a form cannot go on is a
   Notice in the form; why one field will not do is a `FieldError` under it.
 
+### Spinner, Loading (`Spinner.tsx`, `spinner.css`)
+
+```tsx
+<Button variant="primary" loading={saving}>Into my collection</Button>
+<TextField suffix={searching && <Spinner />} … />
+<span className="muted"><Spinner size="sm" /> Saving…</span>
+{loading && <Loading>Searching for volumes…</Loading>}
+```
+
+- One spinner: a faint ring and an arc going round. **sm** 12 px (a small
+  button, beside a word), **md** 16 px (a button, a field), **lg** 32 px (a
+  page, a section).
+- **Grey** on its own: a wait is neither on nor to do, so never gold. In a
+  button, a field or on a cover it takes the colour of what it stands in for.
+- A button that waits takes `loading`, never a spinner put in by hand.
+- `label` makes it say what it waits for to a screen reader; without one it
+  is only seen. `Loading` says it itself (`role="status"`).
+- Its own transform is the turn: centre it with flex, a grid or a margin,
+  **never a `translate`**, which the turn undoes (the spinner jumps).
+
 ### CoverTag, CoverButton (`CoverTag.tsx`, `CoverButton.tsx`, `cover.css`)
 
 Everything laid over an album cover, a poster or a book cover.
@@ -318,12 +340,3 @@ Everything laid over an album cover, a poster or a book cover.
 - [ ] Your stylesheet only places the shared components, and its colours are tokens.
 - [ ] Checked in the browser, light on an image and on the page, with the
       keyboard too.
-
-## Not yet unified
-
-These still have their own styles, file by file, and are the next components
-to make. Counts are of October 2026.
-
-| Family | Today | To make |
-|---|---|---|
-| Loading | `spinner-border`, `Spinner` and spinners of their own in 33 files | `Spinner` |

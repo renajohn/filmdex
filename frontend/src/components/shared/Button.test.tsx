@@ -26,7 +26,7 @@ describe('Button', () => {
 
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute('aria-busy', 'true');
-    expect(button.querySelector('.ui-button__spinner')).not.toBeNull();
+    expect(button.querySelector('.ui-spinner')).not.toBeNull();
     expect(onClick).not.toHaveBeenCalled();
   });
 

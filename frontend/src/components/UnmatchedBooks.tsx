@@ -5,6 +5,7 @@ import Button, { IconButton } from './shared/Button';
 import { BsX } from 'react-icons/bs';
 import { TextField } from './shared/TextField';
 import Notice from './shared/Notice';
+import Spinner from './shared/Spinner';
 
 interface UnmatchedBook {
   title: string;
@@ -247,7 +248,7 @@ const UnmatchedBooks: React.FC<UnmatchedBooksProps> = ({ importId, onImportCompl
             className="search-input"
             disabled={isSearching}
           />
-          {isSearching && <span className="search-spinner">🔍 Searching...</span>}
+          {isSearching && <span className="search-spinner"><Spinner size="sm" /> Searching…</span>}
         </div>
 
         {searchResults.length > 0 && (

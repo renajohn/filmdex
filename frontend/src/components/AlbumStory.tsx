@@ -3,6 +3,7 @@ import { BsArrowClockwise, BsBoxArrowUpRight, BsChevronRight } from 'react-icons
 import musicService, { AlbumStory as Story, AlbumStoryLink, AlbumStorySection } from '../services/musicService';
 import './AlbumStory.css';
 import { IconButton } from './shared/Button';
+import Spinner from './shared/Spinner';
 
 const MISSING: Record<NonNullable<Story['reason']>, string> = {
   no_musicbrainz: 'No story: this album is not linked to MusicBrainz.',
@@ -122,7 +123,7 @@ const AlbumStory: React.FC<AlbumStoryProps> = ({ albumId, open }) => {
       <div className="info-section album-story">
         <h4>Story</h4>
         <p className="album-story-muted small mb-0">
-          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+          <Spinner size="sm" className="me-2" />
           Looking up Wikipedia…
         </p>
       </div>

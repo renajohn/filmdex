@@ -5,6 +5,7 @@ import { playAlbumById } from '../../utils/playAlbum';
 import NowPlayingBars from './NowPlayingBars';
 import CoverButton from './CoverButton';
 import './AlbumPlayButton.css';
+import Spinner from './Spinner';
 
 interface AlbumPlayButtonProps {
   albumId: number | string;
@@ -54,7 +55,7 @@ const AlbumPlayButton: React.FC<AlbumPlayButtonProps> = ({ albumId, title, offer
       onClick={click} label={label} title={here ? (playing ? 'Pause' : 'Play on') : 'Play'} disabled={loading}>
       {here && <span className="album-play-button-bars"><NowPlayingBars playing={playing} /></span>}
       <span className="album-play-button-action" aria-hidden="true">
-        {loading ? <span className="spinner-border spinner-border-sm" /> : here && playing ? <BsPauseFill /> : <BsPlayFill />}
+        {loading ? <Spinner size="sm" /> : here && playing ? <BsPauseFill /> : <BsPlayFill />}
       </span>
     </CoverButton>
   );

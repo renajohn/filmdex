@@ -22,26 +22,11 @@
   z-index: 11000;
 }
 
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(251, 191, 36, 0.2);
-  border-top-color: var(--dv-gold);
-  border-radius: 50%;
-  animation: shared-spin 0.8s linear infinite;
-  margin-bottom: 16px;
-}
-
 .loading-message {
   color: #fff;
   font-size: 16px;
   font-weight: 500;
   text-align: center;
-}
-
-@keyframes shared-spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
 }
 
 /* ===================================================================
@@ -104,17 +89,6 @@
 .group-icon {
   margin-right: 4px;
   color: var(--dv-text-muted);
-}
-
-/* Loading Spinners for Sort/Group */
-.sort-loading-spinner,
-.group-loading-spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-top-color: var(--dv-gold);
-  border-radius: 50%;
-  animation: shared-spin 0.6s linear infinite;
 }
 
 /* Stack Toggle */
@@ -583,21 +557,6 @@
   gap: 12px;
 }
 
-.next-banner__help-spinner {
-  width: 28px;
-  height: 28px;
-  border: 3px solid rgba(251, 191, 36, 0.2);
-  border-top-color: rgba(251, 191, 36, 0.8);
-  border-radius: 50%;
-  animation: help-spin 0.8s linear infinite;
-}
-
-@keyframes help-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .next-banner__help-loading-text {
   color: rgba(251, 191, 36, 0.7);
   font-size: 0.9rem;
@@ -706,21 +665,6 @@
 .next-banner__shuffle-btn svg {
   width: 16px;
   height: 16px;
-}
-
-.next-banner__shuffle-spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: shuffle-spin 0.8s linear infinite;
-}
-
-@keyframes shuffle-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 /* Card shuffling state */

@@ -4,6 +4,7 @@ import Button from './shared/Button';
 import Dialog from './shared/Dialog';
 import { BsX, BsArrowsAngleContract } from 'react-icons/bs';
 import Notice from './shared/Notice';
+import Spinner from './shared/Spinner';
 
 interface MigrationResult {
   total: number;
@@ -72,7 +73,7 @@ const ResizeCoversMigrationModal = ({ isOpen, onClose, onMigrate }: ResizeCovers
 
           {isRunning && (
             <div className="resize-covers-modal-progress">
-              <div className="resize-covers-spinner"></div>
+              <Spinner size="lg" />
               <p>Downloading and resizing album covers... Please wait.</p>
             </div>
           )}

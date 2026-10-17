@@ -1,0 +1,48 @@
+/*
+ * The spinner (Spinner.tsx): a faint ring, an arc of its colour going round.
+ * Its own transform is the turn: to centre it, use flex, a grid or a margin,
+ * never a translate, which the turn would undo.
+ */
+.ui-spinner {
+  --spinner-size: 16px;
+  display: inline-block;
+  flex: none;
+  width: var(--spinner-size);
+  height: var(--spinner-size);
+  border-radius: 50%;
+  border: calc(var(--spinner-size) / 8 + 0.5px) solid color-mix(in srgb, currentColor 18%, transparent);
+  border-top-color: currentColor;
+  color: var(--dv-text-muted);
+  vertical-align: -0.15em;
+  animation: ui-spin 0.75s linear infinite;
+}
+
+.ui-spinner--sm { --spinner-size: 12px; }
+.ui-spinner--lg { --spinner-size: 32px; }
+
+/* In a button, a field, on a cover: the colour of what it stands in for. */
+.ui-button .ui-spinner,
+.ui-icon-button .ui-spinner,
+.cover-button .ui-spinner,
+.ui-input-box .ui-spinner {
+  color: currentColor;
+}
+
+@keyframes ui-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-spinner { animation-duration: 1.6s; }
+}
+
+/* A page or a section that loads. */
+.ui-loading {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 36px 16px 30px;
+  color: var(--dv-text-muted);
+  font-size: 13.5px;
+  text-align: center;
+}
