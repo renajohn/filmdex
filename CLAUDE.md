@@ -53,6 +53,9 @@ cd frontend && npx vitest --run ComponentName  # single test file
 ### Build System
 - `build.js` — custom Node.js build script that assembles `dist/` with frontend build, backend source, Dockerfile, start script, and version info
 
+### Design guidelines
+**Read `docs/design-guidelines.md` before writing any UI**: the principles (one material, gold means on, one gold action per window, red never gold), the colours, and which shared component to use for what. The sections below are its short form.
+
 ### On covers, posters and books' covers: CoverTag and CoverButton
 Everything laid over an image (an album cover, a movie poster, a book cover) uses the shared components in `frontend/src/components/shared/`; never style a tag or a button on an image by hand.
 - **`CoverTag`** (`variant`: plain, gold, orange, muted, alert, on) for a tag: square-cornered, small capitals, dark glass with a light edge, its meaning in the colour of its words. Several together go in a **`CoverTagStack`** (a column of one width, at least 38px; or `direction="row"`).
