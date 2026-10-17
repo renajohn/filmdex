@@ -1404,7 +1404,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
         steps={{ onPrevious: steps.onPrevious, onNext: steps.onNext, noun: 'book' }}
       >
 
-        <Dialog.Body className="book-detail-modal-body" style={{ maxHeight: 'calc(90vh - 120px)', overflow: 'hidden', position: 'relative' }}>
+        <Dialog.Body className="book-detail-modal-body">
           {enrichingVolumes && (
             <div className="enrichment-overlay">
               <div className="enrichment-loading-indicator">
