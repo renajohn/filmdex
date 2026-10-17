@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './ColumnMappingModal.css';
 import Select from './shared/Select';
 import Button from './shared/Button';
+import Dialog from './shared/Dialog';
 
 interface DbField {
   key: string;
@@ -119,16 +120,10 @@ const ColumnMappingModal: React.FC<ColumnMappingModalProps> = ({
     onCancel();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="modal-overlay">
-      <div className="modal-content column-mapping-modal">
-        <div className="modal-header">
-          <h2>Map Columns</h2>
-          <p>Map your CSV columns to the movie database fields</p>
-        </div>
-
+    <Dialog show={isOpen} onClose={handleCancel} modal title="Map Columns" className="column-mapping-modal">
+      <Dialog.Body>
+        <p className="column-mapping-intro">Map your CSV columns to the movie database fields</p>
         <div className="mapping-container">
           {dbFields.map(field => (
             <div key={field.key} className="mapping-row">
@@ -157,8 +152,10 @@ const ColumnMappingModal: React.FC<ColumnMappingModalProps> = ({
             </div>
           ))}
         </div>
+      </Dialog.Body>
 
-        <div className="modal-footer">
+      <Dialog.Footer>
+          <span style={{ flex: 1 }} />
           <Button variant="quiet"
             onClick={handleCancel}
           >
@@ -169,9 +166,8 @@ const ColumnMappingModal: React.FC<ColumnMappingModalProps> = ({
           >
             Process CSV
           </Button>
-        </div>
-      </div>
-    </div>
+      </Dialog.Footer>
+    </Dialog>
   );
 };
 

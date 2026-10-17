@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './FillBackCoversModal.css';
-import Button, { IconButton } from './shared/Button';
-import { BsX } from 'react-icons/bs';
+import Button from './shared/Button';
+import Dialog from './shared/Dialog';
+import { BsX, BsImage } from 'react-icons/bs';
 
 interface Album {
   id: number;
@@ -188,20 +189,9 @@ const FillBackCoversModal = ({ isOpen, onClose, onFill }: FillBackCoversModalPro
     return artist || 'Unknown Artist';
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fill-back-covers-modal-overlay" onClick={handleClose}>
-      <div className="fill-back-covers-modal" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-        <div className="fill-back-covers-modal-header">
-          <h2>Fill Album Covers</h2>
-          <IconButton label="Close" className="fill-back-covers-modal-close"
-            onClick={handleClose}
-            disabled={isRunning}
-          ><BsX /></IconButton>
-        </div>
-
-        <div className="fill-back-covers-modal-body">
+    <Dialog show={isOpen} onClose={handleClose} modal={isRunning} modalProps={{ keyboard: !isRunning }} icon={<BsImage />} title="Fill Album Covers" className="fill-back-covers-modal">
+        <Dialog.Body className="fill-back-covers-modal-body">
           {!result && !error && !isRunning && (
             <>
               <div className="fill-back-covers-info">
@@ -322,9 +312,8 @@ const FillBackCoversModal = ({ isOpen, onClose, onFill }: FillBackCoversModalPro
               </div>
             </div>
           )}
-        </div>
-      </div>
-    </div>
+        </Dialog.Body>
+    </Dialog>
   );
 };
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BsTrash, BsCurrencyDollar, BsClipboard, BsDisc, BsFilm, BsBook, BsFileEarmark } from 'react-icons/bs';
+import { BsTrash, BsCurrencyDollar, BsClipboard, BsDisc, BsFilm, BsBook, BsFileEarmark, BsPlus } from 'react-icons/bs';
 import apiService from '../services/api';
 import musicService from '../services/musicService';
 import { base64ToFile } from '../utils/downscaleImage';
@@ -20,6 +20,8 @@ import './WishListPage.css';
 import CoverButton from '../components/shared/CoverButton';
 import Select from '../components/shared/Select';
 import Button, { IconButton } from '../components/shared/Button';
+import Dialog from '../components/shared/Dialog';
+import { ConfirmDialog } from '../components/shared/ConfirmDialog';
 
 export interface WishListPageRef {
   refreshItems: () => Promise<void>;
@@ -1350,58 +1352,35 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
 
       {/* Loading indicator for detail cards */}
       {loadingDetails && (
-        <div className="modal show" style={{ display: 'block' }} tabIndex={-1}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-body text-center">
-                <div className="spinner-border text-primary" role="status">
-                  <span className="visually-hidden">Loading...</span>
-                </div>
-                <p className="mt-3 mb-0">Loading details...</p>
-              </div>
+        <Dialog onClose={() => undefined} size="sm" modal header={false} title="Loading details" className="dialog-waiting">
+          <Dialog.Body className="text-center">
+            <div className="spinner-border text-warning" role="status">
+              <span className="visually-hidden">Loading...</span>
             </div>
-          </div>
-        </div>
+            <p className="mt-3 mb-0">Loading details...</p>
+          </Dialog.Body>
+        </Dialog>
       )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal.show && (
-        <div className="modal show" style={{ display: 'block' }} tabIndex={-1}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Delete {showDeleteModal.itemType === 'movie' ? 'Movie' : showDeleteModal.itemType === 'album' ? 'Album' : 'Book'}</h5>
-              </div>
-              <div className="modal-body">
-                <p>Are you sure you want to remove this {showDeleteModal.itemType} from your wish list?</p>
-              </div>
-              <div className="modal-footer">
-                <Button variant="quiet"
-                  onClick={() => setShowDeleteModal({ show: false, itemId: null, itemType: null })}
-                >
-                  Cancel
-                </Button>
-                <Button variant="danger"
-                  onClick={handleDeleteConfirm}
-                  disabled={deletingId === showDeleteModal.itemId}
-                >
-                  Delete
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={`Delete this ${showDeleteModal.itemType === 'movie' ? 'movie' : showDeleteModal.itemType === 'album' ? 'album' : 'book'}?`}
+          message={`It leaves your wish list for good.`}
+          confirmLabel="Delete"
+          danger
+          loading={deletingId === showDeleteModal.itemId}
+          onAnswer={yes => {
+            if (yes) handleDeleteConfirm();
+            else setShowDeleteModal({ show: false, itemId: null, itemType: null });
+          }}
+        />
       )}
 
       {/* Mark as Owned Modal */}
       {showMarkOwnedModal.show && (
-        <div className="modal show" style={{ display: 'block' }} tabIndex={-1}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Add to Collection</h5>
-              </div>
-              <div className="modal-body">
+        <Dialog onClose={() => setShowMarkOwnedModal({ show: false, item: null, itemType: null })} icon={<BsPlus />} title="Add to Collection">
+              <Dialog.Body>
                 <div className="form-group mb-3">
                   <label htmlFor="title">Title</label>
                   <input
@@ -1496,8 +1475,9 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                     </div>
                   </>
                 )}
-              </div>
-              <div className="modal-footer">
+              </Dialog.Body>
+              <Dialog.Footer>
+                <span style={{ flex: 1 }} />
                 <Button variant="quiet"
                   onClick={() => setShowMarkOwnedModal({ show: false, item: null, itemType: null })}
                 >
@@ -1509,10 +1489,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                 >
                   Add to Collection
                 </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+              </Dialog.Footer>
+        </Dialog>
       )}
 
       {/* Add Music Dialog */}
@@ -1626,7 +1604,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
 
 
       {/* Modal backdrop */}
-      {(showDeleteModal.show || showMarkOwnedModal.show || loadingDetails || showAddMusicDialog || showMusicForm || addingAlbum || showAddBookDialog || addingBook) && (
+      {(showAddMusicDialog || showMusicForm || addingAlbum || showAddBookDialog || addingBook) && (
         <div className="modal-backdrop show"></div>
       )}
 

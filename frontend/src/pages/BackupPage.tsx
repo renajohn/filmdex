@@ -6,6 +6,7 @@ import DropboxBackupCard from '../components/DropboxBackupCard';
 import './BackupPage.css';
 import Button, { IconButton } from '../components/shared/Button';
 import { BsX } from 'react-icons/bs';
+import { confirm } from '../components/shared/ConfirmDialog';
 
 interface Backup {
   filename: string;
@@ -66,7 +67,7 @@ const BackupPage: React.FC = () => {
   };
 
   const handleRestoreBackup = async (filename: string) => {
-    if (!window.confirm(`Are you sure you want to restore the backup "${filename}"? This action will replace all your current data.`)) {
+    if (!(await confirm({ title: 'Restore this backup?', message: `“${filename}” replaces all your current data.`, confirmLabel: 'Restore', danger: true }))) {
       return;
     }
 
@@ -86,7 +87,7 @@ const BackupPage: React.FC = () => {
   };
 
   const handleDeleteBackup = async (filename: string) => {
-    if (!window.confirm(`Are you sure you want to delete the backup "${filename}"?`)) {
+    if (!(await confirm({ title: 'Delete this backup?', message: `“${filename}” goes for good.`, confirmLabel: 'Delete', danger: true }))) {
       return;
     }
 
@@ -102,7 +103,7 @@ const BackupPage: React.FC = () => {
   };
 
   const handleCleanupRestoreBackups = async () => {
-    if (!window.confirm('Do you want to clean up temporary backup files created during previous restorations? (db.sqlite.backup.*, images.backup.*, ebooks.backup.*)')) {
+    if (!(await confirm({ title: 'Clean up temporary files?', message: 'The copies left by earlier restorations (db.sqlite.backup.*, images.backup.*, ebooks.backup.*) go.', confirmLabel: 'Clean up' }))) {
       return;
     }
 
@@ -134,7 +135,7 @@ const BackupPage: React.FC = () => {
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to restore the backup "${uploadFile.name}"? This action will replace all your current data.`)) {
+    if (!(await confirm({ title: 'Restore this backup?', message: `“${uploadFile.name}” replaces all your current data.`, confirmLabel: 'Restore', danger: true }))) {
       return;
     }
 

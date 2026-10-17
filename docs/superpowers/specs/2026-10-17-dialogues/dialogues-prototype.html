@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Dialogues</title>
+<style>
+  :root {
+    --dv-gold: #fbbf24; --dv-gold-hover: #fcd34d; --dv-gold-ink: #111; --dv-gold-tint: rgba(251,191,36,.12); --dv-gold-tint-edge: rgba(251,191,36,.45);
+    --dv-danger: #f87171; --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+    --dv-glass: rgba(255,255,255,.06); --dv-glass-hover: rgba(255,255,255,.11); --dv-edge: rgba(255,255,255,.12); --dv-edge-hover: rgba(255,255,255,.24); --dv-veil: rgba(255,255,255,.08);
+    --dv-surface-edge: rgba(255,255,255,.1); --dv-ring: 0 0 0 3px rgba(251,191,36,.3);
+    --dialog-bg: #1f1f1f; --dialog-head: #1f1f1f;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(135deg,#1a1a1a,#2d2d2d) fixed; color: var(--dv-text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .bar { position: sticky; top: 0; z-index: 50; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; padding: 12px 24px; background: #111; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .seg { display: inline-flex; border: 1px solid #444; border-radius: 8px; overflow: hidden; }
+  .seg button { background: #222; color: #ddd; border: 0; padding: 6px 12px; font: inherit; cursor: pointer; }
+  .seg button + button { border-left: 1px solid #444; }
+  .seg button.on { background: var(--dv-gold); color: #111; }
+  .launch { display: flex; gap: 10px; flex-wrap: wrap; padding: 20px 24px; }
+  .launch button { height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--dv-edge); background: var(--dv-glass); color: var(--dv-text); font: 500 14px/1 inherit; cursor: pointer; }
+  .launch button:hover { background: var(--dv-glass-hover); }
+  .note { padding: 0 24px; color: #888; max-width: 900px; }
+  .page { padding: 0 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 16px; margin-top: 20px; opacity: .55; }
+  .page div { aspect-ratio: 1; border-radius: 10px; background: linear-gradient(160deg,#3a3a3a,#232323); }
+
+  /* buttons (from button.css) */
+  .b { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid transparent; font: 500 14px/1 inherit; color: var(--dv-text); background: none; cursor: pointer; white-space: nowrap; }
+  .b.sm { height: 28px; padding: 0 10px; font-size: 12.5px; border-radius: 7px; }
+  .b.primary { background: var(--dv-gold); color: var(--dv-gold-ink); font-weight: 600; } .b.primary:hover { background: var(--dv-gold-hover); }
+  .b.secondary { background: var(--dv-glass); border-color: var(--dv-edge); } .b.secondary:hover { background: var(--dv-glass-hover); border-color: var(--dv-edge-hover); color: #fff; }
+  .b.on { background: var(--dv-gold-tint); border-color: var(--dv-gold-tint-edge); color: var(--dv-gold); }
+  .b.quiet { color: var(--dv-text-muted); padding: 0 8px; } .b.quiet:hover { color: #fff; background: rgba(255,255,255,.06); }
+  .b.danger { background: var(--dv-glass); border-color: var(--dv-edge); color: var(--dv-danger); } .b.danger:hover { background: rgba(248,113,113,.14); border-color: rgba(248,113,113,.5); }
+  .ib { width: 34px; height: 34px; display: inline-grid; place-items: center; border-radius: 9px; border: 1px solid transparent; background: none; color: var(--dv-text-muted); cursor: pointer; flex: none; }
+  .ib:hover:not(:disabled) { color: #fff; background: var(--dv-veil); } .ib:disabled { opacity: .35; cursor: default; }
+  .ib svg { width: 16px; height: 16px; } .ib.close svg { width: 18px; height: 18px; }
+  svg { width: 16px; height: 16px; flex: none; }
+  .b svg { width: 15px; height: 15px; } .sm svg { width: 13px; height: 13px; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 6px; border-radius: 4px; background: rgba(0,0,0,.45); box-shadow: inset 0 0 0 1px rgba(255,255,255,.16); color: var(--dv-gold); font: 700 10.5px/1 inherit; letter-spacing: .5px; text-transform: uppercase; }
+  .tag svg { width: 12px; height: 12px; }
+
+  /* ---------------- Dialog ---------------- */
+  .backdrop { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.55); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .backdrop.open { opacity: 1; pointer-events: auto; }
+  .backdrop.panel-shade { background: rgba(0,0,0,.35); }
+  .dialog { position: fixed; z-index: 101; display: flex; flex-direction: column; background: var(--dialog-bg); color: var(--dv-text); border: 1px solid #333; box-shadow: 0 24px 64px rgba(0,0,0,.55); }
+  .dialog[hidden] { display: none; }
+  /* centred: forms and confirmations */
+  .dialog.center { left: 50%; top: 50%; transform: translate(-50%,-48%) scale(.98); opacity: 0; border-radius: 14px; max-height: calc(100vh - 48px); width: min(560px, calc(100vw - 32px)); transition: transform .18s ease-out, opacity .18s; }
+  .dialog.center.open { transform: translate(-50%,-50%); opacity: 1; }
+  .dialog.center.size-sm { width: min(420px, calc(100vw - 32px)); }
+  .dialog.center.size-lg { width: min(860px, calc(100vw - 32px)); }
+  /* side panel: a record's card */
+  .dialog.panel { top: 0; right: 0; bottom: 0; width: min(1080px, 65vw); border-width: 0 0 0 1px; transform: translateX(100%); transition: transform .25s ease-out; box-shadow: -16px 0 48px rgba(0,0,0,.45); }
+  .dialog.panel.open { transform: none; }
+  @media (max-width: 760px) { .dialog.panel, .dialog.center.size-lg { width: 100vw; left: 0; top: 0; bottom: 0; transform: none; border-radius: 0; max-height: none; } .dialog.center.size-lg.open { transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .dialog, .backdrop { transition: none; } }
+
+  .d-head { display: flex; align-items: center; gap: 10px; padding: 14px 14px 14px 20px; flex: none; }
+  .d-head .icon { display: inline-flex; color: var(--dv-text); flex: none; }
+  .d-head .icon svg { width: 22px; height: 22px; }
+  .d-title { flex: 1; min-width: 0; margin: 0; font-weight: 600; color: #f0f0f0; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .panel .d-title { font-size: 1.6rem; }
+  .center .d-title { font-size: 1.2rem; }
+  .size-sm .d-title { font-size: 1.1rem; }
+  .d-aside { display: inline-flex; gap: 6px; flex: none; }
+  .d-steps { display: inline-flex; gap: 4px; margin-left: 4px; flex: none; }
+  .d-body { padding: 4px 20px 20px; overflow-y: auto; flex: 1; min-height: 0; color: #cfcfcf; }
+  .d-foot { display: flex; align-items: center; gap: 8px; padding: 12px 16px; flex: none; flex-wrap: wrap; }
+  .d-foot .grow { flex: 1; }
+  .d-sub { margin: 2px 0 0; color: var(--dv-text-muted); font-size: 13px; }
+  /* A · lines */
+  body.vA .d-head { border-bottom: 1px solid #333; }
+  body.vA .d-foot { border-top: 1px solid #333; }
+  body.vA .d-body { padding-top: 18px; }
+  /* B · no lines: the head and foot are the dialog's own, a shade when the body scrolls under them */
+  body.vB .d-head.scrolled { box-shadow: 0 6px 12px -8px rgba(0,0,0,.8); }
+  body.vB .d-foot.scrolled { box-shadow: 0 -6px 12px -8px rgba(0,0,0,.8); }
+  body.vB .d-head, body.vB .d-foot { position: relative; z-index: 1; background: var(--dialog-bg); }
+
+  /* content bits */
+  .album { display: flex; gap: 18px; padding: 14px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); }
+  .cover { width: 120px; height: 120px; border-radius: 8px; background: linear-gradient(140deg,#5a4630,#20160f); flex: none; }
+  .facts { display: grid; grid-template-columns: 90px 1fr; gap: 6px 14px; font-size: 13px; }
+  .facts span:nth-child(odd) { color: var(--dv-text-faint); }
+  .tracks { margin-top: 16px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); padding: 10px 14px; }
+  .tracks div { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+  .tracks div:last-child { border: 0; }
+  .field { display: grid; gap: 6px; margin-bottom: 14px; }
+  .field label { font-size: 12.5px; color: #aaa; }
+  .input { height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid #444; background: #2a2a2a; color: #eee; font: inherit; }
+  .input:focus { outline: none; border-color: var(--dv-gold); box-shadow: 0 0 0 3px rgba(251,191,36,.15); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .radio { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
+  .sgm { display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px; background: rgba(0,0,0,.35); border: 1px solid var(--dv-edge); margin-bottom: 14px; }
+  .sgm button { height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: none; color: var(--dv-text-muted); font: 500 13px/1 inherit; cursor: pointer; }
+  .sgm button.on { background: rgba(255,255,255,.12); color: #fff; }
+  .result { display: flex; gap: 12px; align-items: center; padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.06); margin-bottom: 8px; background: rgba(255,255,255,.02); }
+  .result .cover { width: 56px; height: 56px; }
+  .result .grow { flex: 1; }
+</style>
+</head>
+<body class="vA">
+<div class="bar">
+  <span>Variante</span>
+  <span class="seg" id="variant"><button data-v="vA" class="on">A · Lignes sous l'en-tête et sur le pied</button><button data-v="vB">B · Sans lignes, une ombre au défilement</button></span>
+</div>
+<div class="launch">
+  <button data-open="card">Fiche d'un album (panneau)</button>
+  <button data-open="bought">Dialogue : I bought the CD</button>
+  <button data-open="add">Dialogue large : Add Album</button>
+  <button data-open="confirm">Confirmation : supprimer</button>
+</div>
+<p class="note">Partout le même en-tête que la fiche d'un CD : l'icône, le titre (coupé par « … » s'il est long), ce qui le précise à droite, ‹ › pour l'élément d'avant ou d'après quand il y en a, ✕. Échap ferme, le clic à côté aussi (sauf dans une confirmation). Sur un téléphone, la fiche et les grands dialogues prennent tout l'écran.</p>
+<div class="page"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+
+<div class="backdrop" id="shade"></div>
+
+<!-- Fiche: side panel -->
+<section class="dialog panel" id="card" role="dialog" aria-modal="true" aria-labelledby="t-card" hidden>
+  <header class="d-head">
+    <span class="icon" data-icon="disc"></span>
+    <h2 class="d-title" id="t-card">Préludes · Piano Sonata No. 2 — Chopin, Argerich</h2>
+    <span class="d-aside"><span class="tag"><span data-icon="shelf"></span>A-3</span></span>
+    <span class="d-steps"><button class="ib" aria-label="Previous album"><span data-icon="left"></span></button><button class="ib" aria-label="Next album"><span data-icon="right"></span></button></span>
+    <button class="ib close" data-close aria-label="Close"><span data-icon="x"></span></button>
+  </header>
+  <div class="d-body">
+    <div class="album"><div class="cover"></div><div><div style="font-weight:600;margin-bottom:4px">Frédéric Chopin, Martha Argerich</div><div class="d-sub" style="margin-bottom:10px">CD · 30 tracks · 1 h 01 min</div>
+      <div class="facts"><span>Released</span><span>1977 · Germany · DG</span><span>Genres</span><span>Classical, Romantic</span><span>Digital</span><span>FLAC · 30 tracks</span></div></div></div>
+    <div class="tracks">
+      <div><span>1. 24 Préludes, op. 28: No. 1 in C major</span><span>0:36</span></div>
+      <div><span>2. No. 2 in A minor</span><span>2:07</span></div>
+      <div><span>3. No. 3 in G major</span><span>0:56</span></div>
+      <div><span>4. No. 4 in E minor</span><span>1:46</span></div>
+      <div><span>5. No. 5 in D major</span><span>0:33</span></div>
+      <div><span>6. No. 6 in B minor</span><span>1:47</span></div>
+      <div><span>7. No. 7 in A major</span><span>0:42</span></div>
+      <div><span>8. No. 8 in F-sharp minor</span><span>1:40</span></div>
+      <div><span>9. No. 9 in E major</span><span>1:12</span></div>
+      <div><span>10. No. 10 in C-sharp minor</span><span>0:30</span></div>
+      <div><span>11. No. 11 in B major</span><span>0:36</span></div>
+      <div><span>12. No. 12 in G-sharp minor</span><span>1:00</span></div>
+    </div>
+  </div>
+  <footer class="d-foot">
+    <button class="b primary"><span data-icon="play"></span>Play</button>
+    <button class="b secondary on"><span data-icon="headphones"></span>Listen Next</button>
+    <span class="grow"></span>
+    <button class="b secondary"><span data-icon="pencil"></span>Edit</button>
+    <button class="b danger"><span data-icon="trash"></span>Delete</button>
+  </footer>
+</section>
+
+<!-- Form dialog -->
+<section class="dialog center" id="bought" role="dialog" aria-modal="true" aria-labelledby="t-bought" hidden>
+  <header class="d-head">
+    <span class="icon" data-icon="disc"></span>
+    <h2 class="d-title" id="t-bought">I bought the CD</h2>
+    <button class="ib close" data-close aria-label="Close"><span data-icon="x"></span></button>
+  </header>
+  <div class="d-body">
+    <p class="d-sub" style="margin:0 0 14px">This Is the Life · Amy MacDonald</p>
+    <div class="field"><label>Which edition</label>
+      <label class="radio"><input type="radio" name="e" checked> The album's edition, as it is in DexVault</label>
+      <label class="radio"><input type="radio" name="e"> From the barcode on its back</label></div>
+    <div class="row2"><div class="field"><label>Condition</label><input class="input" value="Near mint"></div><div class="field"><label>Price CHF</label><input class="input" placeholder="12.00"></div></div>
+  </div>
+  <footer class="d-foot"><span class="grow"></span><button class="b quiet" data-close>Cancel</button><button class="b primary">Into my collection</button></footer>
+</section>
+
+<!-- Large dialog -->
+<section class="dialog center size-lg" id="add" role="dialog" aria-modal="true" aria-labelledby="t-add" hidden>
+  <header class="d-head">
+    <span class="icon" data-icon="plus"></span>
+    <h2 class="d-title" id="t-add">Add Album</h2>
+    <button class="ib close" data-close aria-label="Close"><span data-icon="x"></span></button>
+  </header>
+  <div class="d-body">
+    <div class="sgm"><button>Photo</button><button class="on">Album Title</button><button>Catalog Number</button><button>Barcode</button></div>
+    <div class="row2"><div class="field"><label>Album title</label><input class="input" value="This Is the Life"></div><div class="field"><label>Artist</label><input class="input" value="Amy MacDonald"></div></div>
+    <div class="result"><div class="cover"></div><div class="grow"><div style="font-weight:600">This Is the Life</div><div class="d-sub">2007 · UK · Vertigo · 14 tracks</div></div><button class="b secondary sm">Select</button><button class="b primary sm"><span data-icon="plus"></span>Add</button></div>
+    <div class="result"><div class="cover"></div><div class="grow"><div style="font-weight:600">This Is the Life (Deluxe)</div><div class="d-sub">2008 · EU · Mercury · 2 discs</div></div><button class="b secondary sm">Select</button></div>
+  </div>
+  <footer class="d-foot"><button class="b quiet">Enter it by hand instead</button><span class="grow"></span><button class="b quiet" data-close>Close</button></footer>
+</section>
+
+<!-- Confirmation -->
+<section class="dialog center size-sm" id="confirm" role="alertdialog" aria-modal="true" aria-labelledby="t-confirm" aria-describedby="m-confirm" hidden>
+  <header class="d-head">
+    <span class="icon" style="color:var(--dv-danger)" data-icon="trash"></span>
+    <h2 class="d-title" id="t-confirm">Delete “Heat”?</h2>
+  </header>
+  <div class="d-body" id="m-confirm">The movie, its cover and its notes go for good. This cannot be undone.</div>
+  <footer class="d-foot"><span class="grow"></span><button class="b quiet" data-close>Cancel</button><button class="b danger" data-close><span data-icon="trash"></span>Delete</button></footer>
+</section>
+
+<script>
+const P = {
+  disc: '<path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M10 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 4a4 4 0 0 0-4 4 .5.5 0 0 1-1 0 5 5 0 0 1 5-5 .5.5 0 0 1 0 1zm4.5 3.5a.5.5 0 0 1 .5.5 5 5 0 0 1-5 5 .5.5 0 0 1 0-1 4 4 0 0 0 4-4 .5.5 0 0 1 .5-.5z"/>',
+  shelf: '<path d="M2.5 0a.5.5 0 0 1 .5.5V2h10V.5a.5.5 0 0 1 1 0v15a.5.5 0 0 1-1 0V15H3v.5a.5.5 0 0 1-1 0V.5a.5.5 0 0 1 .5-.5zM3 14h10V9H3v5zm0-6h10V3H3v5z"/>',
+  left: '<path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>',
+  right: '<path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>',
+  x: '<path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>',
+  play: '<path d="M11.6 8.7 5.5 12.3c-.5.3-1.1 0-1.1-.6V4.3c0-.6.6-.9 1.1-.6l6.1 3.6c.5.3.5 1.1 0 1.4z"/>',
+  headphones: '<path d="M8 3a5 5 0 0 0-5 5v1h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a6 6 0 1 1 12 0v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1V8a5 5 0 0 0-5-5z"/>',
+  pencil: '<path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5z"/>',
+  trash: '<path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>',
+  plus: '<path d="M8 2a.75.75 0 0 1 .75.75v4.5h4.5a.75.75 0 0 1 0 1.5h-4.5v4.5a.75.75 0 0 1-1.5 0v-4.5h-4.5a.75.75 0 0 1 0-1.5h4.5v-4.5A.75.75 0 0 1 8 2z"/>',
+};
+document.querySelectorAll('[data-icon]').forEach(el => { el.style.display = 'inline-flex'; el.innerHTML = `<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">${P[el.dataset.icon]}</svg>`; });
+const shade = document.getElementById('shade');
+let open = null;
+function show(id) {
+  close();
+  const d = document.getElementById(id); open = d;
+  d.hidden = false;
+  shade.classList.toggle('panel-shade', d.classList.contains('panel'));
+  requestAnimationFrame(() => { d.classList.add('open'); shade.classList.add('open'); });
+  (d.querySelector('[data-close].b.quiet') || d.querySelector('.d-body input') || d.querySelector('.ib.close'))?.focus();
+  watchScroll(d);
+}
+function close() {
+  if (!open) return;
+  const d = open; open = null;
+  d.classList.remove('open'); shade.classList.remove('open');
+  setTimeout(() => { d.hidden = true; }, 250);
+}
+function watchScroll(d) {
+  const body = d.querySelector('.d-body'), head = d.querySelector('.d-head'), foot = d.querySelector('.d-foot');
+  const f = () => { head.classList.toggle('scrolled', body.scrollTop > 0); foot && foot.classList.toggle('scrolled', body.scrollTop + body.clientHeight < body.scrollHeight - 1); };
+  body.onscroll = f; f();
+}
+document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => show(b.dataset.open));
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = close);
+shade.onclick = () => { if (open && open.getAttribute('role') !== 'alertdialog') close(); };
+addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+document.getElementById('variant').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.body.className = b.dataset.v;
+  document.querySelectorAll('#variant button').forEach(x => x.classList.toggle('on', x === b));
+  if (open) watchScroll(open);
+};
+show('card');
+</script>
+</body>
+</html>

@@ -1,18 +1,4 @@
-.fill-back-covers-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 10000;
-  padding: 20px;
-}
+
 
 .fill-back-covers-modal {
   background: #1a1a1a;
@@ -25,22 +11,6 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-}
-
-.fill-back-covers-modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid #333;
-  background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
-}
-
-.fill-back-covers-modal-header h2 {
-  margin: 0;
-  color: #ffffff;
-  font-size: 1.5rem;
-  font-weight: 600;
 }
 
 .fill-back-covers-modal-body {
@@ -387,9 +357,7 @@
     max-height: 95vh;
   }
   
-  .fill-back-covers-modal-header {
-    padding: 16px 20px;
-  }
+  
   
   .fill-back-covers-modal-body {
     padding: 20px;

@@ -150,32 +150,6 @@
 .action-button {
   flex: 1}
 
-/* Modal Styling */
-.modal-content {
-  background-color: #2a2a2a;
-  color: #fff;
-}
-
-.modal-header {
-  border-bottom: 1px solid #444;
-}
-
-.modal-title {
-  color: #fff !important;
-}
-
-.modal-body {
-  color: #fff;
-}
-
-.modal-body p {
-  color: #fff;
-}
-
-.modal-footer {
-  border-top: 1px solid #444;
-}
-
 .form-control {
   background-color: #3a3a3a;
   border: 1px solid #555;

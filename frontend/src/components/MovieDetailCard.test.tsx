@@ -94,10 +94,10 @@ describe('MovieDetailCard', () => {
     const onClose = vi.fn();
     render(<MovieDetailCard movieDetails={movie()} onClose={onClose} />);
 
-    await waitFor(() => expect(document.querySelector('.movie-detail-close')).toBeInTheDocument());
-    (document.querySelector('.movie-detail-close') as HTMLButtonElement).click();
+    fireEvent.click(await screen.findByRole('button', { name: 'Close' }));
 
-    expect(onClose).toHaveBeenCalledTimes(1);
+    // It slides out first.
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 
   it('reloads the spider and snake votes after refreshing the ratings', async () => {

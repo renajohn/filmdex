@@ -69,30 +69,50 @@
   }
 }
 
-/* A bar of no height that sticks to the top of the card as it scrolls, so
-   the close button and ‹ › placed in it stay in the corner. */
-.movie-detail-topbar {
+/* The head of every dialog (DialogHeader), stuck to the top of the card as
+   it scrolls. The backdrop and the poster run on under it: the head is a
+   glass, half seen through, blurred. */
+.movie-detail-card {
+  --movie-head-h: 65px;
+}
+
+.movie-detail-head {
   position: sticky;
   top: 0;
-  height: 0;
-  z-index: 10;
+  /* Above the poster and its buttons (110, 115), below the poster picker (10003). */
+  z-index: 200;
+  background: rgba(30, 30, 30, 0.55);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
-.movie-detail-steps.detail-steps {
-  position: absolute;
-  top: 19px;
-  right: 65px;
-  margin: 0;
+.movie-detail-card .movie-detail-content {
+  margin-top: calc(-1 * var(--movie-head-h));
 }
 
-.movie-detail-close {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  z-index: 10}
+.movie-detail-card .movie-detail-header {
+  padding-top: calc(20px + var(--movie-head-h));
+}
 
-.movie-detail-close svg {
-  font-size: 18px;
+@media (max-width: 767.98px) {
+  .movie-detail-card {
+    --movie-head-h: 57px;
+  }
+}
+
+/* The title in it, editable on a click, at the head's size. */
+.dialog-title .movie-detail-title {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+.dialog-title .movie-detail-title .title-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
 }
 
 .movie-detail-content {
@@ -725,23 +745,6 @@
   }
 }
 
-/* Trailer Modal Styles */
-.trailer-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.9);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 10003;
-  padding: 20px;
-}
-
 .trailer-modal {
   position: relative;
   width: 100%;
@@ -750,16 +753,6 @@
   background: #1a1a1a;
   border-radius: 8px;
   overflow: hidden;
-}
-
-.trailer-modal-close {
-  position: absolute;
-  top: 10px;
-  right: 15px;
-  z-index: 10004}
-
-.trailer-modal-close svg {
-  font-size: 18px;
 }
 
 .trailer-video-container {
@@ -785,9 +778,7 @@
     max-height: 85vh;
   }
   
-  .trailer-modal-overlay {
-    padding: 10px;
-  }
+  
 }
 
 /* Action Buttons */
@@ -804,58 +795,6 @@
 .action-btn.delete-movie:hover {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px)}
-
-/* Delete Confirmation Modal */
-.delete-confirm-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 10003;
-  padding: 20px;
-}
-
-.delete-confirm-modal {
-  background: linear-gradient(135deg, #2d2d2d 0%, #3a3a3a 100%);
-  border-radius: 16px;
-  padding: 30px;
-  max-width: 400px;
-  width: 100%;
-  text-align: center;
-  color: #f8f9fa;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
-  border: 1px solid #3a3a3a;
-}
-
-.delete-confirm-modal h3 {
-  margin: 0 0 15px 0;
-  color: #ff9aa2;
-  font-size: 24px;
-}
-
-.delete-confirm-modal p {
-  margin: 10px 0;
-  line-height: 1.5;
-}
-
-.delete-warning {
-  color: #ff9aa2;
-  font-weight: 600;
-}
-
-.delete-confirm-buttons {
-  display: flex;
-  gap: 15px;
-  justify-content: center;
-  margin-top: 25px;
-}
 
 .comments-text {
   color: #b8c5d1;
@@ -1438,23 +1377,6 @@
   }
 }
 
-/* Box Set Propagation Dialog */
-.propagation-dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 10004; /* Above movie detail card (10003) */
-  padding: 20px;
-}
-
 .propagation-dialog {
   background: linear-gradient(135deg, #2d2d2d 0%, #3a3a3a 100%);
   border-radius: 12px;
@@ -1465,43 +1387,6 @@
   overflow: hidden;
 }
 
-.propagation-dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.propagation-dialog-header h3 {
-  color: #ffffff;
-  font-size: 1.3rem;
-  font-weight: 600;
-  margin: 0;
-}
-
-.propagation-dialog-content {
-  padding: 24px;
-}
-
-.propagation-dialog-content p {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 1rem;
-  line-height: 1.5;
-  margin: 0 0 24px 0;
-}
-
-.propagation-dialog-content strong {
-  color: #ffffff;
-  font-weight: 600;
-}
-
-.propagation-dialog-buttons {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-}
-
 /* Responsive adjustments for propagation dialog */
 @media (max-width: 768px) {
   .propagation-dialog {
@@ -1509,9 +1394,7 @@
     max-width: none;
   }
   
-  .propagation-dialog-buttons {
-    flex-direction: column;
-  }
+  
   
   
 }
@@ -2202,7 +2085,34 @@
   }
 }
 
-/* A title long enough to reach the corner wraps before ‹ › and the close button. */
-.movie-detail-card:has(.movie-detail-steps) .movie-detail-title {
-  padding-right: 110px;
+/* Leaving: as it came, backwards. */
+.movie-detail-overlay.leaving {
+  animation: movieDetailShadeOut 0.25s ease-in forwards;
+  pointer-events: none;
 }
+
+.movie-detail-card.leaving {
+  animation: movieDetailCardOut 0.25s ease-in forwards;
+}
+
+@media (min-width: 992px) {
+  .movie-detail-card.leaving {
+    animation: movieDetailPanelOut 0.25s ease-in forwards;
+  }
+}
+
+@keyframes movieDetailPanelOut {
+  from { transform: none; }
+  to { transform: translateX(100%); }
+}
+
+@keyframes movieDetailCardOut {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: scale(0.96) translateY(-12px); }
+}
+
+@keyframes movieDetailShadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+

@@ -1,0 +1,144 @@
+/*
+ * The one dialog of DexVault (Dialog.tsx): its head as an album's card first
+ * had it (icon, title, what tells it apart, ‹ ›, ✕) over a line, its body,
+ * its foot over a line, the action it is for on the right. A centred dialog
+ * for a form or a question; a panel along the right edge for a record's card
+ * (side-panel-modal, App.css).
+ */
+:root {
+  --dialog-bg: #2d2d2d;
+  --dialog-edge: #3a3a3a;
+  --dialog-line: #3a3a3a;
+}
+
+.dialog .modal-content {
+  background: var(--dialog-bg);
+  border: 1px solid var(--dialog-edge);
+  border-radius: 14px;
+  color: var(--dv-text);
+}
+
+.dialog--panel .modal-content {
+  border-radius: 0;
+}
+
+/* ---------------------------------------------------------------- Head */
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  min-width: 0;
+  padding: 14px 14px 14px 20px;
+  border-bottom: 1px solid var(--dialog-line);
+}
+
+.dialog-head__icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--dv-text);
+}
+
+.dialog-head__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.dialog--sm .dialog-head__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* .dialog-head before it: a page's own h2 rules (FilmDex's, say) do not reach it. */
+.dialog-head .dialog-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: #f0f0f0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A record's card names its record large. */
+.dialog--panel .dialog-title,
+.dialog-head--record .dialog-title {
+  font-size: 1.6rem;
+}
+
+.dialog--sm .dialog-title {
+  font-size: 1.1rem;
+}
+
+.dialog-head__aside {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.dialog-head .dialog-head__steps {
+  margin: 0;
+}
+
+.dialog-head__close {
+  flex: none;
+}
+
+.dialog-head__close svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 767.98px) {
+  .dialog-head {
+    padding: 10px 8px 10px 14px;
+  }
+
+  .dialog--panel .dialog-title,
+  .dialog-head--record .dialog-title {
+    font-size: 1.25rem;
+  }
+}
+
+/* ---------------------------------------------------------------- Body */
+
+.dialog-body {
+  color: #d6d6d6;
+}
+
+/* ---------------------------------------------------------------- Foot */
+
+.dialog-foot.modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--dialog-line);
+}
+
+.dialog-foot.modal-footer > * {
+  margin: 0;
+}
+
+/* A question that cannot be undone: its icon red. */
+.dialog-confirm__danger {
+  color: var(--dv-danger);
+}
+
+.dialog-confirm .dialog-head {
+  padding-right: 20px;
+}
+
+/* After the title, a murmur that places it: CD · US · 2007. */
+.dialog-head__meta {
+  color: var(--dv-text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}

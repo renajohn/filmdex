@@ -1,12 +1,4 @@
-/* Make close button (X) white */
-.modal-header .btn-close {
-  filter: brightness(0) invert(1);
-  opacity: 0.8;
-}
 
-.modal-header .btn-close:hover {
-  opacity: 1;
-}
 
 /* Ensure modal appears above header */
 .modal {
@@ -63,14 +55,6 @@
     font-size: 0.8rem;
   }
 
-}
-
-.modal-title {
-  font-size: 1.75rem;
-  font-weight: 600;
-  color: #f0f0f0;
-  margin: 0;
-  line-height: 1.2;
 }
 
 /* The title takes the rest of the header, so ‹ › stay put whatever its length. */

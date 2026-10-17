@@ -1,18 +1,4 @@
-.album-csv-export-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000;
-  padding: 20px;
-}
+
 
 .album-csv-export-dialog {
   background: #1a1a1a;
@@ -25,22 +11,6 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-.album-csv-export-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid #333;
-  background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
-}
-
-.album-csv-export-header h2 {
-  margin: 0;
-  color: #f8f9fa;
-  font-size: 20px;
-  font-weight: 600;
 }
 
 .album-csv-export-content {
@@ -121,9 +91,7 @@
     max-height: 90vh;
   }
   
-  .album-csv-export-header {
-    padding: 16px 20px;
-  }
+  
   
   .album-csv-export-content {
     padding: 20px;

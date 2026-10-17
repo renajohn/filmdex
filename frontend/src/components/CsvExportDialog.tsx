@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { BsX, BsDownload } from 'react-icons/bs';
 import './CsvExportDialog.css';
-import Button, { IconButton } from './shared/Button';
+import Button from './shared/Button';
+import Dialog from './shared/Dialog';
 
 interface CsvExportDialogProps {
   isOpen: boolean;
@@ -101,19 +102,9 @@ const CsvExportDialog: React.FC<CsvExportDialogProps> = ({ isOpen, onClose, onEx
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="csv-export-overlay">
-      <div className="csv-export-dialog">
-        <div className="csv-export-header">
-          <h2>Export Movies to CSV</h2>
-          <IconButton label="Close dialog" className="csv-export-close"
-            onClick={onClose}
-          ><BsX /></IconButton>
-        </div>
-
-        <div className="csv-export-content">
+    <Dialog show={isOpen} onClose={onClose} icon={<BsDownload />} title="Export Movies to CSV" className="csv-export-dialog">
+        <Dialog.Body className="csv-export-content">
           <p className="csv-export-description">
             Select which columns you want to include in your CSV export.
             This export is designed for users migrating away from DexVault.
@@ -146,9 +137,10 @@ const CsvExportDialog: React.FC<CsvExportDialogProps> = ({ isOpen, onClose, onEx
               </label>
             ))}
           </div>
-        </div>
+        </Dialog.Body>
 
-        <div className="csv-export-footer">
+        <Dialog.Footer className="csv-export-footer">
+          <span style={{ flex: 1 }} />
           <Button variant="quiet" className="csv-export-cancel-btn"
             onClick={onClose}
           >
@@ -160,9 +152,8 @@ const CsvExportDialog: React.FC<CsvExportDialogProps> = ({ isOpen, onClose, onEx
           >
             Export CSV
           </Button>
-        </div>
-      </div>
-    </div>
+        </Dialog.Footer>
+    </Dialog>
   );
 };
 

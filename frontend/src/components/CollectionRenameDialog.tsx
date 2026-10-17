@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Modal, Form } from 'react-bootstrap';
+import { Form } from 'react-bootstrap';
 import apiService from '../services/api';
 import './CollectionRenameDialog.css';
 import Button from './shared/Button';
+import Dialog from './shared/Dialog';
 
 interface CollectionRenameDialogProps {
   show: boolean;
@@ -42,11 +43,8 @@ const CollectionRenameDialog = ({
   };
 
   return (
-    <Modal show={show} onHide={handleCancel} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Collection Name Change</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
+    <Dialog show={show} onClose={handleCancel} title="Collection Name Change">
+      <Dialog.Body>
         <p>
           The collection name has changed from <strong>"{oldName}"</strong> to <strong>"{newName}"</strong>.
         </p>
@@ -89,9 +87,9 @@ const CollectionRenameDialog = ({
             }
           />
         </Form>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button onClick={handleCancel} disabled={loading}>
+      </Dialog.Body>
+      <Dialog.Footer>
+        <Button variant="quiet" onClick={handleCancel} disabled={loading}>
           Cancel
         </Button>
         <Button variant="primary"
@@ -100,8 +98,8 @@ const CollectionRenameDialog = ({
         >
           {loading ? 'Processing...' : 'Confirm'}
         </Button>
-      </Modal.Footer>
-    </Modal>
+      </Dialog.Footer>
+    </Dialog>
   );
 };
 

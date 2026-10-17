@@ -151,7 +151,7 @@ const ShelfItemEditor: React.FC<EditorProps> = ({ item, places, units: furniture
         </fieldset>
       )}
       <div className="shelf-editor-actions">
-        <Button size="sm" onClick={onClose} disabled={saving}>Cancel</Button>
+        <Button variant="quiet" size="sm" onClick={onClose} disabled={saving}>Cancel</Button>
         <Button variant="primary" size="sm" type="submit" disabled={saving}>Save</Button>
       </div>
       <p className="shelf-editor-help">

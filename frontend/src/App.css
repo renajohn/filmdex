@@ -363,25 +363,6 @@
   padding: 0;
 }
 
-/* Modal styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  background-color: rgba(0, 0, 0, 0.8) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  animation: fadeIn 0.2s ease-in !important;
-  cursor: pointer !important;
-}
-
 /* Bootstrap Modal Backdrop - Global Style */
 .modal-backdrop {
   
@@ -483,6 +464,15 @@ body {
     transition: transform 0.25s ease-out, bottom 0.25s ease-out;
   }
 
+  /* The panel slides out as it slid in. Bootstrap fades its .modal out in
+     0.15s and takes it away when that is done, before the slide: the .modal
+     stays opaque, and the 0.25s it is said to take is what Bootstrap waits. */
+  .modal.side-panel-modal.fade,
+  .modal.side-panel-modal.fade:not(.show) {
+    opacity: 1;
+    transition: opacity 0.25s linear;
+  }
+
   .modal.side-panel-modal.show .modal-dialog {
     transform: none;
   }
@@ -490,41 +480,6 @@ body {
   .modal-backdrop.side-panel-backdrop.show {
     opacity: 0.35;
   }
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #3a3a3a;
-}
-
-.modal-header h2 {
-  margin: 0;
-  color: #f8f9fa;
-  font-size: 1.5rem;
-}
-
-.modal-close {
-  background: none;
-  border: none;
-  color: #b8c5d1;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 0;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-}
-
-.modal-close:hover {
-  background-color: #3a3a3a;
-  color: #f8f9fa;
 }
 
 .import-modal {

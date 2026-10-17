@@ -16,6 +16,8 @@ import { findById, shownIds, useDetailSteps } from '../utils/detailSteps';
 import { bookImages } from '../utils/detailImages';
 import Button from './shared/Button';
 import Chip from './shared/Chip';
+import Dialog from './shared/Dialog';
+import { ConfirmDialog } from './shared/ConfirmDialog';
 
 interface BookSearchProps {
   books: any;
@@ -1656,58 +1658,33 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
 
 
       {showDeleteModal.show && (
-        <div className="modal show" style={{ display: 'block', zIndex: 10210 }} tabIndex={-1}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Delete Book</h5>
-              </div>
-              <div className="modal-body">
-                <p>Are you sure you want to remove this book from your collection?</p>
-              </div>
-              <div className="modal-footer">
-                <Button variant="quiet"
-                  onClick={() => setShowDeleteModal({ show: false, bookId: null })}
-                >
-                  Cancel
-                </Button>
-                <Button variant="danger"
-                  onClick={async () => {
-                    const id = showDeleteModal.bookId;
-                    try {
-                      await onDeleteBook(id!);
-                      if (selectedBookDetails && selectedBookDetails.id === id) {
-                        setSelectedBookDetails(null);
-                      }
-                      await loadBooks();
-                    } finally {
-                      setShowDeleteModal({ show: false, bookId: null });
-                    }
-                  }}
-                >
-                  Delete
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {(showDeleteModal.show) && (
-        <div className="modal-backdrop show" style={{ zIndex: 10200 }}></div>
+        <ConfirmDialog
+          title="Delete this book?"
+          message="It leaves your collection for good."
+          confirmLabel="Delete"
+          danger
+          onAnswer={async yes => {
+            if (!yes) {
+              setShowDeleteModal({ show: false, bookId: null });
+              return;
+            }
+            const id = showDeleteModal.bookId;
+            try {
+              await onDeleteBook(id!);
+              if (selectedBookDetails && selectedBookDetails.id === id) {
+                setSelectedBookDetails(null);
+              }
+              await loadBooks();
+            } finally {
+              setShowDeleteModal({ show: false, bookId: null });
+            }
+          }}
+        />
       )}
 
       {/* Create Series Modal */}
-      <Modal
-        show={showCreateSeriesModal}
-        onHide={handleCancelCreateSeries}
-        centered
-        className="create-series-modal"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Create New Series</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
+      <Dialog show={showCreateSeriesModal} onClose={handleCancelCreateSeries} className="create-series-modal" title="Create New Series">
+        <Dialog.Body>
           <p className="text-muted mb-3">
             You're about to create a new series with these two books:
           </p>
@@ -1752,9 +1729,9 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
               Series numbers will be inferred from the titles if possible
             </Form.Text>
           </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button onClick={handleCancelCreateSeries}>
+        </Dialog.Body>
+        <Dialog.Footer>
+          <Button variant="quiet" onClick={handleCancelCreateSeries}>
             Cancel
           </Button>
           <Button variant="primary"
@@ -1763,20 +1740,12 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
           >
             Create Series
           </Button>
-        </Modal.Footer>
-      </Modal>
+        </Dialog.Footer>
+      </Dialog>
 
       {/* Merge Series Modal */}
-      <Modal
-        show={showMergeSeriesModal}
-        onHide={handleCancelMergeSeries}
-        centered
-        className="create-series-modal"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Merge Series</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
+      <Dialog show={showMergeSeriesModal} onClose={handleCancelMergeSeries} className="create-series-modal" title="Merge Series">
+        <Dialog.Body>
           <p className="text-muted mb-3">
             You're about to merge two series. Choose which series name to keep:
           </p>
@@ -1821,9 +1790,9 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
           <p className="text-muted small mb-0">
             Total: {mergeSeriesData.sourceBooks.length + mergeSeriesData.targetBooks.length} books will be in the merged series
           </p>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button onClick={handleCancelMergeSeries}>
+        </Dialog.Body>
+        <Dialog.Footer>
+          <Button variant="quiet" onClick={handleCancelMergeSeries}>
             Cancel
           </Button>
           <Button variant="primary"
@@ -1832,8 +1801,8 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
           >
             Merge Series
           </Button>
-        </Modal.Footer>
-      </Modal>
+        </Dialog.Footer>
+      </Dialog>
     </div>
   );
 });

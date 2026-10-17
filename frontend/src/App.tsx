@@ -27,6 +27,7 @@ import './App.css';
 import { readStored, writeStored } from './utils/safeStorage';
 import { isDigitalOn } from './utils/digitalLibrary';
 import PlayerBar from './components/PlayerBar';
+import { ConfirmHost } from './components/shared/ConfirmDialog';
 import { IconButton } from './components/shared/Button';
 
 interface AutocompleteOption {
@@ -1373,6 +1374,7 @@ function AppContent() {
         </Routes>
       </main>
       <PlayerBar />
+      <ConfirmHost />
 
       {/* Main Screen Alert */}
       {showAlert && alertMessage && (

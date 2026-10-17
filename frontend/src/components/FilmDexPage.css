@@ -1102,74 +1102,8 @@
   }
 }
 
-/* Modal Styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: #1a1a1a;
-  border-radius: 12px;
-  padding: 0;
-  overflow: auto;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-}
-
 /* See App.css: the same cap, from a second stylesheet. Both had to go for a
    dialog to reach the edges of a phone. */
-@media (min-width: 768px) {
-  .modal-content {
-    max-width: 90vw;
-    max-height: 90vh;
-  }
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid #333;
-}
-
-.modal-header h2 {
-  color: #fff;
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.modal-close {
-  background: none;
-  border: none;
-  color: #888;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.modal-close:hover {
-  background: #333;
-  color: #fff;
-}
 
 .import-modal {
   width: 800px;

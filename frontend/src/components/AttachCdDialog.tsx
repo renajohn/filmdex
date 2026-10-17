@@ -1,8 +1,8 @@
 import React from 'react';
-import { Modal } from 'react-bootstrap';
 import { BsCloud, BsHeartFill } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import Button from './shared/Button';
+import Dialog from './shared/Dialog';
 
 export interface AttachableAlbum {
   id: number;
@@ -24,11 +24,8 @@ interface AttachCdDialogProps {
  * Next, where a new album beside it would start from nothing.
  */
 const AttachCdDialog: React.FC<AttachCdDialogProps> = ({ albums, onChoose }) => (
-  <Modal show onHide={() => onChoose(null)} centered style={{ zIndex: 11500 }} backdropClassName="attach-cd-backdrop">
-    <Modal.Header closeButton>
-      <Modal.Title>Already in DexVault</Modal.Title>
-    </Modal.Header>
-    <Modal.Body>
+  <Dialog show onClose={() => onChoose(null)} zIndex={11500} backdropClassName="attach-cd-backdrop" title="Already in DexVault">
+    <Dialog.Body>
       <p className="mb-3">You have this album already, without the CD. Attach the CD to it: its words, notes, plays and place in Listen Next stay.</p>
       <div className="d-flex flex-column gap-2">
         {albums.map(album => (
@@ -47,11 +44,11 @@ const AttachCdDialog: React.FC<AttachCdDialogProps> = ({ albums, onChoose }) => 
           </button>
         ))}
       </div>
-    </Modal.Body>
-    <Modal.Footer>
+    </Dialog.Body>
+    <Dialog.Footer>
       <Button onClick={() => onChoose(null)}>Add it as a new album</Button>
-    </Modal.Footer>
-  </Modal>
+    </Dialog.Footer>
+  </Dialog>
 );
 
 export default AttachCdDialog;

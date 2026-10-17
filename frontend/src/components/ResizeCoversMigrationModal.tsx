@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import './ResizeCoversMigrationModal.css';
-import Button, { IconButton } from './shared/Button';
-import { BsX } from 'react-icons/bs';
+import Button from './shared/Button';
+import Dialog from './shared/Dialog';
+import { BsX, BsArrowsAngleContract } from 'react-icons/bs';
 
 interface MigrationResult {
   total: number;
@@ -51,20 +52,9 @@ const ResizeCoversMigrationModal = ({ isOpen, onClose, onMigrate }: ResizeCovers
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="resize-covers-modal-overlay" onClick={handleClose}>
-      <div className="resize-covers-modal" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-        <div className="resize-covers-modal-header">
-          <h2>Resize Album Covers</h2>
-          <IconButton label="Close" className="resize-covers-modal-close"
-            onClick={handleClose}
-            disabled={isRunning}
-          ><BsX /></IconButton>
-        </div>
-
-        <div className="resize-covers-modal-body">
+    <Dialog show={isOpen} onClose={handleClose} modal={isRunning} modalProps={{ keyboard: !isRunning }} icon={<BsArrowsAngleContract />} title="Resize Album Covers" className="resize-covers-modal">
+        <Dialog.Body className="resize-covers-modal-body">
           {!result && !error && !isRunning && (
             <>
               <p>
@@ -144,9 +134,10 @@ const ResizeCoversMigrationModal = ({ isOpen, onClose, onMigrate }: ResizeCovers
               <p>{error}</p>
             </div>
           )}
-        </div>
+        </Dialog.Body>
 
-        <div className="resize-covers-modal-footer">
+        <Dialog.Footer className="resize-covers-modal-footer">
+          <span style={{ flex: 1 }} />
           {!result && !error && !isRunning && (
             <>
               <Button variant="quiet"
@@ -169,9 +160,8 @@ const ResizeCoversMigrationModal = ({ isOpen, onClose, onMigrate }: ResizeCovers
               Close
             </Button>
           )}
-        </div>
-      </div>
-    </div>
+        </Dialog.Footer>
+    </Dialog>
   );
 };
 

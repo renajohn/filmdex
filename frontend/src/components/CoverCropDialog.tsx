@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Modal, Spinner } from 'react-bootstrap';
+import { Spinner } from 'react-bootstrap';
 import { BsArrowCounterclockwise, BsArrowClockwise } from 'react-icons/bs';
 import { detectSleeveQuad, defaultQuad, DEFAULT_QUAD, CONFIDENT, type Quad, type Point } from '../utils/detectSleeveQuad';
 import { warpQuad } from '../utils/warpQuad';
 import './CoverCropDialog.css';
 import Button from './shared/Button';
+import Dialog from './shared/Dialog';
 
 const CORNERS: Array<keyof Quad> = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
 
@@ -213,12 +214,8 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
   const polygon = CORNERS.map(c => `${quad[c][0] * 100}% ${quad[c][1] * 100}%`).join(', ');
 
   return (
-    <Modal show={show} onHide={onCancel} centered size="lg" fullscreen="md-down" className="cover-crop-dialog" style={{ zIndex: 10200 }}>
-      <Modal.Header closeButton>
-        <Modal.Title>{slot === 'back' ? 'Straighten the back cover' : 'Straighten the cover'}</Modal.Title>
-      </Modal.Header>
-
-      <Modal.Body>
+    <Dialog show={show} onClose={onCancel} size="lg" className="cover-crop-dialog" zIndex={10200} title={slot === 'back' ? 'Straighten the back cover' : 'Straighten the cover'}>
+      <Dialog.Body>
         <div className="cover-crop-frame">
           <div className="cover-crop-stage" ref={stageRef}>
           {src && (
@@ -321,13 +318,13 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
               ? 'Found the sleeve — drag a corner if it sits wrong.'
               : 'Could not pick out the sleeve; drag the corners onto it.'}
         </div>
-      </Modal.Body>
+      </Dialog.Body>
 
-      <Modal.Footer>
+      <Dialog.Footer>
         <Button variant="quiet" disabled={applying} onClick={() => working && onConfirm(working)}>
           Use the photo as it is
         </Button>
-        <Button disabled={applying} onClick={onCancel}>
+        <Button variant="quiet" disabled={applying} onClick={onCancel}>
           Cancel
         </Button>
         <Button onClick={apply} disabled={detecting || rotating || applying || !src}>
@@ -340,8 +337,8 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
             'Straighten and use'
           )}
         </Button>
-      </Modal.Footer>
-    </Modal>
+      </Dialog.Footer>
+    </Dialog>
   );
 };
 

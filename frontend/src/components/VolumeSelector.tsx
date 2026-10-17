@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { Modal, Alert, Badge, Form } from 'react-bootstrap';
+import { Alert, Badge, Form } from 'react-bootstrap';
 import { BsCheck, BsX, BsBook } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import './VolumeSelector.css';
 import Button from './shared/Button';
+import Dialog from './shared/Dialog';
 
 interface Volume {
   seriesNumber: number;
@@ -286,22 +287,8 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
   };
 
   return (
-    <Modal
-      show={show}
-      onHide={onHide}
-      size="lg"
-      centered
-      style={{ zIndex: 10100 }}
-      className="volume-selector-modal"
-    >
-      <Modal.Header closeButton>
-        <Modal.Title>
-          <BsBook className="me-2" />
-          Select Volumes: {seriesName}
-        </Modal.Title>
-      </Modal.Header>
-
-      <Modal.Body className="volume-selector-body">
+    <Dialog show={show} onClose={onHide} size="lg" zIndex={10100} className="volume-selector-modal" title={<>Select Volumes: {seriesName}</>} icon={<BsBook />}>
+      <Dialog.Body className="volume-selector-body">
         {loading && (
           <div className="text-center py-5">
             <div className="spinner-border text-warning mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
@@ -430,10 +417,10 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
             </div>
           </>
         )}
-      </Modal.Body>
+      </Dialog.Body>
 
-      <Modal.Footer>
-        <Button onClick={onHide} disabled={enriching}>
+      <Dialog.Footer>
+        <Button variant="quiet" onClick={onHide} disabled={enriching}>
           Cancel
         </Button>
         <Button variant="primary"
@@ -452,8 +439,8 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
             </>
           )}
         </Button>
-      </Modal.Footer>
-    </Modal>
+      </Dialog.Footer>
+    </Dialog>
   );
 };
 

@@ -12,3 +12,5 @@ export { default as Menu, MenuChevron } from './Menu';
 export { default as Select } from './Select';
 export { default as Segmented } from './Segmented';
 export { default as Chip } from './Chip';
+export { default as Dialog, DialogHeader, useDialogClose } from './Dialog';
+export { ConfirmDialog, ConfirmHost, confirm } from './ConfirmDialog';

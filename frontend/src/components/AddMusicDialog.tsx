@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Tabs, Tab, Form, Alert, Table, Badge } from 'react-bootstrap';
+import { Tabs, Tab, Form, Alert, Table, Badge } from 'react-bootstrap';
 import { BsX, BsSearch, BsUpcScan, BsPlus, BsPencil, BsChevronDown, BsChevronRight, BsCamera } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import LazyGroupCover from './LazyGroupCover';
@@ -10,6 +10,7 @@ import SleeveCapture, { type SleeveDraftResult } from './SleeveCapture';
 import './AddMusicDialog.css';
 import Button from './shared/Button';
 import Segmented from './shared/Segmented';
+import Dialog from './shared/Dialog';
 
 interface MusicRelease {
   id?: string;
@@ -481,12 +482,8 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
 
   return (
     <>
-      <Modal show={show} onHide={handleClose} size="lg" centered fullscreen="md-down" style={{ zIndex: 10100 }} className="add-music-dialog">
-      <Modal.Header closeButton className="add-music-dialog-header">
-        <Modal.Title>{capturingSleeve ? 'Read the sleeve' : 'Add New Album'}</Modal.Title>
-      </Modal.Header>
-      
-      <Modal.Body className="add-music-dialog-body">
+      <Dialog show={show} onClose={handleClose} size="lg" zIndex={10100} className="add-music-dialog" title={capturingSleeve ? 'Read the sleeve' : 'Add New Album'}>
+      <Dialog.Body className="add-music-dialog-body">
         {capturingSleeve ? (
           <SleeveCapture
             initialFront={scannedFront}
@@ -878,8 +875,8 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
           </div>
         </div>
         </>)}
-      </Modal.Body>
-    </Modal>
+      </Dialog.Body>
+    </Dialog>
 
     {/* Album Metadata Form */}
     <AlbumMetadataForm

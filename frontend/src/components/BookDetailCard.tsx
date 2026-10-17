@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Row, Col, Badge, Form, Alert } from 'react-bootstrap';
+import { Row, Col, Badge, Form, Alert } from 'react-bootstrap';
+import Dialog from './shared/Dialog';
 import { BsPencil, BsTrash, BsBook, BsCalendar, BsTag, BsTranslate, BsFileEarmark, BsStar, BsPerson, BsHouse, BsChatSquareText, BsPlus, BsX, BsCheck, BsArrowLeft, BsDownload, BsFiles, BsChevronDown, BsChevronUp, BsCamera } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import CoverButton from './shared/CoverButton';
@@ -1375,9 +1376,9 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
 
   return (
     <>
-      <Modal 
-        show={true} 
-        onHide={() => {
+      <Dialog
+        variant="panel"
+        onClose={() => {
           // Check if a dropdown is open before closing
           const openDropdown = document.querySelector('.dropdown-menu.show');
           if (openDropdown) {
@@ -1385,49 +1386,22 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
             return;
           }
           handleClose();
-        }} 
-        size={"md" as any}
-        centered 
-        fullscreen="md-down"
-        style={{ zIndex: 10100 }}
-        className="book-detail-modal side-panel-modal"
-        backdropClassName="side-panel-backdrop"
-        backdrop={true}
-        keyboard={true}
-        restoreFocus={false}
-        autoFocus={false}
-        enforceFocus={false}
+        }}
+        zIndex={10100}
+        className="book-detail-modal"
+        modalProps={{ restoreFocus: false, autoFocus: false, enforceFocus: false }}
+        onBack={view === 'volumes' || view === 'edit' ? handleBackToDetail : undefined}
+        icon={view === 'edit' ? <BsPencil /> : <BsBook />}
+        title={view === 'volumes' ? `Select Volumes: ${book.series}`
+          : view === 'edit' ? `Edit Book: ${book.title}`
+          : `${book.title}${book.subtitle ? ` – ${book.subtitle}` : ''}`}
+        aside={view !== 'volumes' && view !== 'edit' ? (
+          <IconButton label="Copy reference" size="sm" className="book-copy-ref-icon" onClick={handleCopyRef}><BsFiles /></IconButton>
+        ) : undefined}
+        steps={{ onPrevious: steps.onPrevious, onNext: steps.onNext, noun: 'book' }}
       >
-        <Modal.Header closeButton style={{ position: 'relative' }}>
-          <Modal.Title>
-            {view === 'volumes' ? (
-              <>
-                <BsArrowLeft className="me-2" style={{ cursor: 'pointer' }} onClick={handleBackToDetail} />
-                <BsBook className="me-2" />
-                Select Volumes: {book.series}
-              </>
-            ) : view === 'edit' ? (
-              <>
-                <BsArrowLeft className="me-2" style={{ cursor: 'pointer' }} onClick={handleBackToDetail} />
-                <BsPencil className="me-2" />
-                Edit Book: {book.title}
-              </>
-            ) : (
-              <>
-                <BsBook className="me-2" />
-                {book.title}{book.subtitle ? ` – ${book.subtitle}` : ''}
-                <BsFiles 
-                  className="ms-2 book-copy-ref-icon" 
-                  onClick={handleCopyRef}
-                  title="Copy reference"
-                />
-              </>
-            )}
-          </Modal.Title>
-          <DetailSteps onPrevious={steps.onPrevious} onNext={steps.onNext} noun="book" />
-        </Modal.Header>
-        
-        <Modal.Body className="book-detail-modal-body" style={{ maxHeight: 'calc(90vh - 120px)', overflow: 'hidden', position: 'relative' }}>
+
+        <Dialog.Body className="book-detail-modal-body" style={{ maxHeight: 'calc(90vh - 120px)', overflow: 'hidden', position: 'relative' }}>
           {enrichingVolumes && (
             <div className="enrichment-overlay">
               <div className="enrichment-loading-indicator">
@@ -2470,7 +2444,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                         )}
                       </Form.Group>
                       <div className="d-flex justify-content-end gap-2">
-                        <Button onClick={handleCloseCommentModal} disabled={loadingComments}>
+                        <Button variant="quiet" onClick={handleCloseCommentModal} disabled={loadingComments}>
                           Cancel
                         </Button>
                         <Button variant="primary" 
@@ -2997,12 +2971,12 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
               </div>
             </div>
           </div>
-        </Modal.Body>
+        </Dialog.Body>
         
-        <Modal.Footer>
+        <Dialog.Footer>
           {view === 'edit' ? (
             <>
-              <Button onClick={handleEditCancel} disabled={updatingBook}>
+              <Button variant="quiet" onClick={handleEditCancel} disabled={updatingBook}>
                 Cancel
               </Button>
               <Button variant="primary" 
@@ -3074,15 +3048,15 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                     <BsTrash className="me-2" />
                     {confirmDelete ? 'Confirm Delete' : 'Delete'}
                   </Button>
-                  <Button onClick={handleClose}>
+                  <Button variant="quiet" onClick={handleClose}>
                     Close
                   </Button>
                 </div>
               </div>
             </>
           )}
-        </Modal.Footer>
-      </Modal>
+        </Dialog.Footer>
+      </Dialog>
       
       <CoverModal
         isOpen={showCoverModal}

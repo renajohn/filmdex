@@ -3,8 +3,9 @@ import apiService from '../services/api';
 import InlinePosterSelector from './InlinePosterSelector';
 import './AddMovieDialog.css';
 import Select from './shared/Select';
-import Button, { IconButton } from './shared/Button';
-import { BsX } from 'react-icons/bs';
+import Button from './shared/Button';
+import Dialog from './shared/Dialog';
+import { BsX, BsPlus } from 'react-icons/bs';
 import Segmented from './shared/Segmented';
 
 interface MovieEdition {
@@ -517,10 +518,8 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="add-movie-dialog-overlay" onClick={handleClose}>
+    <Dialog show={isOpen} onClose={handleClose} modal={loading} size="lg" icon={<BsPlus />} title="Add Movie" className="add-movie-dialog">
       {/* Loading Overlay */}
       {loading && (
         <div className="loading-overlay">
@@ -534,11 +533,6 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
         </div>
       )}
 
-      <div className="add-movie-dialog" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
-        <div className="add-movie-dialog-header">
-          <h2>Add Movie</h2>
-          <IconButton label="Close" className="close-button" onClick={loading ? undefined : handleClose} disabled={loading}><BsX /></IconButton>
-        </div>
 
         {/* Inline Poster Selector */}
         <InlinePosterSelector
@@ -549,7 +543,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
           position={selectorPosition}
         />
 
-        <div className="add-movie-dialog-content">
+        <Dialog.Body className="add-movie-dialog-content" onKeyDown={handleKeyDown}>
           {/* Overlay when poster selector is open */}
           {showPosterSelector && (
             <div
@@ -984,10 +978,8 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
               </form>
             </div>
           )}
-        </div>
-      </div>
-
-    </div>
+        </Dialog.Body>
+    </Dialog>
   );
 };
 

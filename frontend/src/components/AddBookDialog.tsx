@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Modal, Form, Alert, Table, Badge } from 'react-bootstrap';
+import { Form, Alert, Table, Badge } from 'react-bootstrap';
+import Dialog from './shared/Dialog';
 import { BsX, BsSearch, BsPlus, BsChevronDown, BsChevronRight, BsBook, BsCamera, BsUpload } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import BookForm from './BookForm';
@@ -1211,14 +1212,14 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   if (showMetadataForm) {
     if (enriching) {
       return (
-        <Modal show={show} onHide={handleClose} size="lg" centered fullscreen="md-down" style={{ zIndex: 10100 }} className="add-book-dialog">
-          <Modal.Body className="text-center py-5">
+        <Dialog show={show} onClose={handleClose} size="lg" zIndex={10100} className="add-book-dialog" icon={<BsPlus />} title="Add New Book">
+          <Dialog.Body className="text-center py-5">
             <div className="spinner-border text-warning mb-3" role="status" style={{ color: '#fbbf24' }}>
               <span className="visually-hidden">Loading...</span>
             </div>
             <p>Enriching book metadata...</p>
-          </Modal.Body>
-        </Modal>
+          </Dialog.Body>
+        </Dialog>
       );
     }
 
@@ -1260,12 +1261,9 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
 
 
   return (
-    <Modal show={show} onHide={handleClose} size="lg" centered fullscreen="md-down" style={{ zIndex: 10100 }} className="add-book-dialog">
-      <Modal.Header closeButton className="add-book-dialog-header">
-        <Modal.Title>Add New Book</Modal.Title>
-      </Modal.Header>
+    <Dialog show={show} onClose={handleClose} size="lg" zIndex={10100} className="add-book-dialog" icon={<BsPlus />} title="Add New Book">
 
-      <Modal.Body className="add-book-dialog-body">
+      <Dialog.Body className="add-book-dialog-body">
         {/* Cover Scan Step */}
         {showCoverScanStep && (
           <div className="scan-section mb-4">
@@ -1767,9 +1765,9 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
             )}
           </div>
         )}
-        </Modal.Body>
+        </Dialog.Body>
 
-        <Modal.Footer className="add-book-dialog-footer">
+        <Dialog.Footer className="add-book-dialog-footer">
           <Form.Check
             type="checkbox"
             id="add-multiple-books"
@@ -1778,7 +1776,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAddMultipleBooks(e.target.checked)}
             className="me-auto"
           />
-          <Button onClick={() => handleClose(true)}>
+          <Button variant="quiet" onClick={() => handleClose(true)}>
             Close
           </Button>
           <Button icon={<BsPlus />}
@@ -1786,8 +1784,8 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
           >
             Enter Manually
           </Button>
-        </Modal.Footer>
-      </Modal>
+        </Dialog.Footer>
+      </Dialog>
     );
   }
 

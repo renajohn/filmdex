@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Form, Modal } from 'react-bootstrap';
+import { Form } from 'react-bootstrap';
 import { BsDisc } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import Select from './shared/Select';
 import Button from './shared/Button';
+import Dialog from './shared/Dialog';
 
 type Edition = 'keep' | 'barcode' | 'musicbrainz';
 
@@ -52,12 +53,9 @@ const BoughtCdDialog: React.FC<BoughtCdDialogProps> = ({ album, onClose, onBough
   };
 
   return (
-    <Modal show onHide={onClose} centered style={{ zIndex: 10200 }} backdropClassName="bought-cd-backdrop">
+    <Dialog show onClose={onClose} zIndex={10200} backdropClassName="bought-cd-backdrop" title="I bought the CD" icon={<BsDisc />}>
       <Form onSubmit={save}>
-        <Modal.Header closeButton>
-          <Modal.Title><BsDisc className="me-2" />I bought the CD</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
+        <Dialog.Body>
           <p className="small mb-3" style={{ color: '#a3a3a3' }}>
             <strong>{album.title}</strong> becomes a CD of your collection: its words, notes, plays and place in Listen Next stay with it.
           </p>
@@ -102,16 +100,16 @@ const BoughtCdDialog: React.FC<BoughtCdDialogProps> = ({ album, onClose, onBough
             <Form.Control as="textarea" rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Where, from whom…" />
           </Form.Group>
           {error && <div className="text-danger small mt-3">{error}</div>}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button onClick={onClose} disabled={saving}>Cancel</Button>
+        </Dialog.Body>
+        <Dialog.Footer>
+          <Button variant="quiet" onClick={onClose} disabled={saving}>Cancel</Button>
           <Button variant="primary" type="submit" disabled={saving}>
             {saving && <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />}
             Into my collection
           </Button>
-        </Modal.Footer>
+        </Dialog.Footer>
       </Form>
-    </Modal>
+    </Dialog>
   );
 };
 

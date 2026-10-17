@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { BsX, BsCheckCircleFill, BsCloudUpload } from 'react-icons/bs';
+import { BsX, BsCheckCircleFill, BsCloudUpload, BsImage } from 'react-icons/bs';
 import apiService from '../services/api';
 import './PosterSelector.css';
-import { IconButton } from './shared/Button';
+import Dialog from './shared/Dialog';
 
 interface Poster {
   file_path: string;
@@ -174,14 +174,8 @@ const PosterSelector = ({ movie, onClose, onSelectPoster }: PosterSelectorProps)
   };
 
   return (
-    <div className="poster-selector-overlay" onClick={onClose}>
-      <div className="poster-selector-dialog" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-        <div className="poster-selector-header">
-          <h2>Select Poster</h2>
-          <IconButton label="Close" className="close-button" onClick={onClose}><BsX /></IconButton>
-        </div>
-
-        <div className="poster-selector-content">
+    <Dialog onClose={onClose} size="lg" zIndex={12000} icon={<BsImage />} title="Select Poster" className="poster-selector-dialog">
+        <Dialog.Body className="poster-selector-content">
           {loading ? (
             <div className="poster-selector-loading">Loading posters...</div>
           ) : (
@@ -271,9 +265,8 @@ const PosterSelector = ({ movie, onClose, onSelectPoster }: PosterSelectorProps)
               )}
             </div>
           )}
-        </div>
-      </div>
-    </div>
+        </Dialog.Body>
+    </Dialog>
   );
 };
 

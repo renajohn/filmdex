@@ -83,33 +83,6 @@
   font-style: italic;
 }
 
-/* Disabled State - Remove old styles */
-.add-movie-dialog-overlay.disabled {
-  pointer-events: none;
-  opacity: 0.7;
-}
-
-.add-movie-dialog-overlay.disabled .add-movie-dialog {
-  pointer-events: auto;
-}
-
-/* Add Movie Dialog Styles */
-.add-movie-dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
 .add-movie-dialog {
   background: #2a2a2a;
   border-radius: 12px;
@@ -120,21 +93,6 @@
   overflow-y: auto;
   color: #fff;
   position: relative; /* Positioning context for poster selector */
-}
-
-.add-movie-dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid #444;
-}
-
-.add-movie-dialog-header h2 {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #fff;
 }
 
 .add-movie-dialog-content {
@@ -574,21 +532,15 @@
 
 /* Responsive design */
 @media (max-width: 768px) {
-  .add-movie-dialog-overlay {
-    padding: 10px;
-  }
+  
   
   .add-movie-dialog {
     max-height: 95vh;
   }
   
-  .add-movie-dialog-header {
-    padding: 16px 20px;
-  }
   
-  .add-movie-dialog-header h2 {
-    font-size: 1.3rem;
-  }
+  
+  
   
   .add-movie-dialog-content {
     padding: 20px;

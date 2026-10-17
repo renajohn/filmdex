@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { BsX, BsDownload } from 'react-icons/bs';
 import './AlbumCsvExportDialog.css';
-import Button, { IconButton } from './shared/Button';
+import Button from './shared/Button';
+import Dialog from './shared/Dialog';
 
 interface AlbumCsvExportDialogProps {
   isOpen: boolean;
@@ -115,19 +116,9 @@ const AlbumCsvExportDialog: React.FC<AlbumCsvExportDialogProps> = ({ isOpen, onC
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="album-csv-export-overlay">
-      <div className="album-csv-export-dialog">
-        <div className="album-csv-export-header">
-          <h2>Export Albums to CSV</h2>
-          <IconButton label="Close dialog" className="album-csv-export-close"
-            onClick={onClose}
-          ><BsX /></IconButton>
-        </div>
-
-        <div className="album-csv-export-content">
+    <Dialog show={isOpen} onClose={onClose} icon={<BsDownload />} title="Export Albums to CSV" className="album-csv-export-dialog">
+        <Dialog.Body className="album-csv-export-content">
           <p className="album-csv-export-description">
             Select which columns you want to include in your CSV export.
             This export is designed for users migrating away from MusicDex.
@@ -160,9 +151,10 @@ const AlbumCsvExportDialog: React.FC<AlbumCsvExportDialogProps> = ({ isOpen, onC
               </label>
             ))}
           </div>
-        </div>
+        </Dialog.Body>
 
-        <div className="album-csv-export-footer">
+        <Dialog.Footer className="album-csv-export-footer">
+          <span style={{ flex: 1 }} />
           <Button variant="quiet" className="album-csv-export-cancel-btn"
             onClick={onClose}
           >
@@ -174,9 +166,8 @@ const AlbumCsvExportDialog: React.FC<AlbumCsvExportDialogProps> = ({ isOpen, onC
           >
             Export CSV
           </Button>
-        </div>
-      </div>
-    </div>
+        </Dialog.Footer>
+    </Dialog>
   );
 };
 

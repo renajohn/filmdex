@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Modal, Form, Row, Col, Alert, Card, Image } from 'react-bootstrap';
-import { BsUpload, BsCheck } from 'react-icons/bs';
+import { Form, Row, Col, Alert, Card, Image } from 'react-bootstrap';
+import Dialog from './shared/Dialog';
+import { BsUpload, BsCheck, BsDisc } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
 import './AlbumMetadataForm.css';
@@ -526,24 +527,16 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
   console.log('AlbumMetadataForm render - availableCovers:', availableCovers);
 
   return (
-    <Modal show={show} onHide={handleClose} size="lg" centered className="album-metadata-form" fullscreen="md-down">
-      <Modal.Header closeButton>
-        <div className="album-info-inline">
-                <div className="album-info-main">
-                  <span className="album-title">{release.title || '-'}</span>
-                  <span className="album-sep">—</span>
-                  <span className="album-artist">{Array.isArray(release.artist) ? release.artist.join(', ') : release.artist || '-'}</span>
-                </div>
-                <div className="album-info-meta">
-                  <span>{release.format || '-'}</span>
-                  <span className="dot">•</span>
-                  <span>{release.country || '-'}</span>
-                  <span className="dot">•</span>
-                  <span>{release.releaseYear || '-'}</span>
-                </div>
-              </div>
-      </Modal.Header>
-      <Modal.Body>
+    <Dialog
+      show={show}
+      onClose={handleClose}
+      size="lg"
+      className="album-metadata-form"
+      icon={<BsDisc />}
+      title={`${release.title || '-'} — ${Array.isArray(release.artist) ? release.artist.join(', ') : release.artist || '-'}`}
+      aside={<span className="dialog-head__meta">{[release.format, release.country, release.releaseYear].map(part => part || '-').join(' · ')}</span>}
+    >
+      <Dialog.Body>
         <Form onSubmit={handleSubmit}>
           {/* Album Info Display (super compact, inline) */}
 
@@ -804,9 +797,9 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
             </Card.Body>
           </Card>
         </Form>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button onClick={handleClose} disabled={loading}>
+      </Dialog.Body>
+      <Dialog.Footer>
+        <Button variant="quiet" onClick={handleClose} disabled={loading}>
           Cancel
         </Button>
         <Button variant="primary"
@@ -815,7 +808,7 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
         >
           {loading ? 'Adding Album...' : 'Add Album'}
         </Button>
-      </Modal.Footer>
+      </Dialog.Footer>
 
       {/* Cover Modal */}
       {modalCoverData && (
@@ -828,7 +821,7 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
           coverType={modalCoverData.coverType}
         />
       )}
-    </Modal>
+    </Dialog>
   );
 };
 

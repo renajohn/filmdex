@@ -65,7 +65,9 @@ colour goes into `tokens.css` first.
 | A tag on a cover | `CoverTag`, several in a `CoverTagStack` |
 | A menu that opens from a button (actions or a choice) | `Menu` |
 | A list in a form | `Select` |
-| ‹ › to the item before or after, in a detail dialog | `DetailSteps` |
+| A dialog: a form, a search, a record's card | `Dialog` (`Dialog.Body`, `Dialog.Footer`) |
+| A question before doing something (delete, restore) | `confirm()`, or `ConfirmDialog` |
+| ‹ › to the item before or after, in a detail dialog | `DetailSteps` (in a `Dialog`, its `steps`) |
 | An empty page | `EmptyState` |
 | ▶ / ❚❚ on an album's cover | `AlbumPlayButton` |
 
@@ -96,6 +98,42 @@ colour goes into `tokens.css` first.
   picture.
 - Side by side as one shape (Play and its ▾): wrap them in an element with the
   class `ui-button-group`.
+
+### Dialog, confirm() (`Dialog.tsx`, `ConfirmDialog.tsx`, `dialog.css`)
+
+```tsx
+<Dialog onClose={close} icon={<BsDisc />} title="I bought the CD">
+  <Dialog.Body>…</Dialog.Body>
+  <Dialog.Footer>
+    <span style={{ flex: 1 }} />
+    <Button variant="quiet" onClick={close}>Cancel</Button>
+    <Button variant="primary" onClick={save}>Into my collection</Button>
+  </Dialog.Footer>
+</Dialog>
+
+<Dialog variant="panel" onClose={close} icon={<BsDisc />} title={album.title}
+  aside={<ShelfCode … />} steps={{ onPrevious, onNext, noun: 'album' }}>…</Dialog>
+
+if (await confirm({ title: 'Delete this backup?', message: '“x.zip” goes for good.', confirmLabel: 'Delete', danger: true })) { … }
+```
+
+- **One head everywhere**, the one an album's card first had: `icon`, `title` (a
+  long one ends in "…"), `aside` (what tells it apart: a shelf, marks, a
+  murmur), `steps` (‹ ›), ✕; `onBack` puts ← before the icon. Under it a line,
+  and a line over the foot.
+- `variant="center"` (a form, a search, a question) or `variant="panel"` (a
+  record's card along the right edge). `size` sm/md/lg; a panel and a large
+  dialog take the whole screen on a phone.
+- `modal` for a question to answer: no ✕, a click beside it does nothing.
+- It leaves before it tells: ✕, Esc or a click beside it slide or fade it
+  out, then `onClose` runs. A button inside that closes it should call
+  `useDialogClose()` rather than unmount it.
+- In the foot, what the dialog is for goes right and in gold, Cancel before it, quiet.
+- **Never `window.confirm`**: `await confirm({ title, message, confirmLabel, danger })`
+  asks in DexVault's own dialog (`ConfirmHost` is mounted once in `App`). A
+  question that cannot be undone is `danger`: red, a bin, never gold.
+- A movie's card keeps its own card and backdrop, under the same `DialogHeader`,
+  a glass the backdrop runs under.
 
 ### Segmented (`Segmented.tsx`, `segmented.css`)
 
@@ -208,7 +246,7 @@ Everything laid over an album cover, a poster or a book cover.
 
 ## Before you open a pull request
 
-- [ ] No `react-bootstrap` `Button` or `Dropdown`, no `btn` class, no `<select>`, no hand-made tabs or chips.
+- [ ] No `react-bootstrap` `Button`, `Dropdown` or `Modal`, no `btn` class, no `<select>`, no hand-made tabs, chips or overlays, no `window.confirm`.
 - [ ] At most one `primary` button per window; nothing destructive in gold.
 - [ ] Every `IconButton` has a `label` that says what it does.
 - [ ] Your stylesheet only places the shared components, and its colours are tokens.
@@ -222,7 +260,6 @@ to make. Counts are of October 2026.
 
 | Family | Today | To make |
 |---|---|---|
-| Dialogs | 14 files with react-bootstrap `Modal`, 19 with an overlay of their own (`*-overlay`, `*-modal`), `window.confirm` in 3 | `Dialog`, `ConfirmDialog` |
 | Text fields | 123 `Form.Control`, 28 raw `<input>`, each with its own look | `TextField` |
 | Notices | 19 react-bootstrap `Alert`, the page's own alert (`onShowAlert`) | `Notice`, a toast |
 | Loading | `spinner-border`, `Spinner` and spinners of their own in 33 files | `Spinner` |

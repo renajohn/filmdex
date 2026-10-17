@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Form, Row, Col, Alert, Accordion, Card, Table } from 'react-bootstrap';
+import { Form, Row, Col, Alert, Accordion, Card, Table } from 'react-bootstrap';
 import { BsX, BsUpload, BsDisc, BsPlus, BsTrash, BsPencil, BsGripVertical } from 'react-icons/bs';
 import apiService from '../services/api';
 import musicService from '../services/musicService';
@@ -8,6 +8,8 @@ import { trackCredits, type TrackPerformer } from '../utils/trackCredits';
 import { joinNames, splitNames } from '../utils/trackDetail';
 import Select from './shared/Select';
 import Button, { IconButton } from './shared/Button';
+import Dialog from './shared/Dialog';
+import { confirm } from './shared/ConfirmDialog';
 
 interface TrackData {
   trackNumber?: number;
@@ -807,7 +809,7 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
 
   return (
     <>
-    <Modal show={true} onHide={onCancel} size="lg" centered fullscreen="md-down" style={{ zIndex: 10100 }} className="music-form-modal">
+    <Dialog show={true} onClose={onCancel} size="lg" zIndex={10100} className="music-form-modal" title={cd ? 'Edit Album' : 'Add New Album'}>
       {/* Floating Upload Message */}
       {uploadMessage && (
         <Alert
@@ -831,12 +833,8 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
         </Alert>
       )}
 
-      <Modal.Header closeButton>
-        <Modal.Title>{cd ? 'Edit Album' : 'Add New Album'}</Modal.Title>
-      </Modal.Header>
-
       <Form onSubmit={handleSubmit}>
-        <Modal.Body>
+        <Dialog.Body>
           {/* Cover Art Picker - Only show when inserting new album with multiple covers */}
           {availableCovers.length > 1 && cd && !cd.id && (
             <Form.Group className="mb-4">
@@ -1609,8 +1607,8 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                       </Button>
                       <Button variant="danger" icon={<BsTrash />}
                         size="sm"
-                        onClick={() => {
-                          if (window.confirm(`Delete Disc ${disc.number}?`)) {
+                        onClick={async () => {
+                          if (await confirm({ title: `Delete Disc ${disc.number}?`, message: 'Its tracks go with it.', confirmLabel: 'Delete', danger: true })) {
                             deleteDisc(discIndex);
                           }
                         }}
@@ -1700,9 +1698,9 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
                                     </IconButton>
                                     <IconButton label="Delete track" tone="danger"
                                       size="sm"
-                                      onClick={(e: React.MouseEvent) => {
+                                      onClick={async (e: React.MouseEvent) => {
                                         e.stopPropagation();
-                                        if (window.confirm(`Delete track "${track.title}"?`)) {
+                                        if (await confirm({ title: `Delete “${track.title}”?`, confirmLabel: 'Delete', danger: true })) {
                                           deleteTrack(discIndex, trackIndex);
                                         }
                                       }}
@@ -1723,38 +1721,26 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
               ))}
             </Accordion>
           )}
-        </Modal.Body>
+        </Dialog.Body>
 
-        <Modal.Footer>
-          <Button onClick={onCancel} disabled={loading}>
+        <Dialog.Footer>
+          <Button variant="quiet" onClick={onCancel} disabled={loading}>
             Cancel
           </Button>
           <Button variant="primary" type="submit" disabled={loading}>
             {loading ? 'Saving...' : (cd?.id ? 'Update Album' : 'Create Album')}
           </Button>
-        </Modal.Footer>
+        </Dialog.Footer>
       </Form>
-    </Modal>
+    </Dialog>
 
     {/* Track Edit Dialog */}
     {showTrackDialog && editingTrack && (
-      <Modal
-        show={showTrackDialog}
-        onHide={() => {
+      <Dialog show={showTrackDialog} onClose={() => {
           setShowTrackDialog(false);
           setEditingTrack(null);
-        }}
-        centered
-        scrollable
-        fullscreen="sm-down"
-        style={{ zIndex: 10200 }}
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {editingTrack.trackIndex === -1 ? 'Add Track' : 'Edit Track'}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
+        }} scrollable fullscreen="sm" zIndex={10200} title={editingTrack.trackIndex === -1 ? 'Add Track' : 'Edit Track'}>
+        <Dialog.Body>
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Title *</Form.Label>
@@ -1903,9 +1889,9 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
               </Col>
             </Row>
           </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
+        </Dialog.Body>
+        <Dialog.Footer>
+          <Button variant="quiet"
             onClick={() => {
               setShowTrackDialog(false);
               setEditingTrack(null);
@@ -1919,8 +1905,8 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
           >
             {editingTrack.trackIndex === -1 ? 'Add Track' : 'Save Changes'}
           </Button>
-        </Modal.Footer>
-      </Modal>
+        </Dialog.Footer>
+      </Dialog>
     )}
 
       <CoverCropDialog

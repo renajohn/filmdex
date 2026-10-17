@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, ButtonGroup } from 'react-bootstrap';
+import { ButtonGroup } from 'react-bootstrap';
+import Dialog from './shared/Dialog';
 import Menu, { MenuChevron } from './shared/Menu';
 import { BsPencil, BsTrash, BsDisc, BsApple, BsTags, BsPlayFill, BsPauseFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight, BsStar, BsStarFill, BsArrowClockwise } from 'react-icons/bs';
 import musicService from '../services/musicService';
@@ -533,27 +534,18 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const backCover = getBackCoverImage();
 
   return (
-    <Modal
-      show={true}
-      onHide={handleClose}
-      size={"md" as any}
-      centered
-      fullscreen="md-down"
-      style={{ zIndex: 10100 }}
-      className="music-detail-modal side-panel-modal"
-      backdropClassName="side-panel-backdrop"
+    <Dialog
+      variant="panel"
+      onClose={handleClose}
+      zIndex={10100}
+      className="music-detail-modal"
+      icon={<BsDisc />}
+      title={cd.title}
+      aside={hasCd ? <ShelfCode kind="album" id={cd.id} variant="inline" className="music-detail-shelf" />
+        : <DigitalMarks digital={digital ?? { album: null, notRipped: false }} titleStatus={cd.titleStatus as string} className="digital-marks-inline music-detail-shelf" />}
+      steps={{ onPrevious, onNext, noun: 'album' }}
     >
-      <Modal.Header closeButton>
-        <Modal.Title>
-          <BsDisc className="me-2" />
-          {cd.title}
-        </Modal.Title>
-        {hasCd ? <ShelfCode kind="album" id={cd.id} variant="inline" className="music-detail-shelf" />
-          : <DigitalMarks digital={digital ?? { album: null, notRipped: false }} titleStatus={cd.titleStatus as string} className="digital-marks-inline music-detail-shelf" />}
-        <DetailSteps onPrevious={onPrevious} onNext={onNext} noun="album" />
-      </Modal.Header>
-
-      <Modal.Body ref={bodyRef}>
+      <Dialog.Body ref={bodyRef}>
         {/* The head: the cover, who and what, how to listen, then the facts of this edition. */}
         <div className="album-head">
           <div className="album-head-covers">
@@ -975,9 +967,9 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
           </div>
         )}
 
-      </Modal.Body>
+      </Dialog.Body>
 
-      <Modal.Footer>
+      <Dialog.Footer>
         {/* How to listen on the left, always at hand however far the body has scrolled. */}
         <div className="music-detail-listen">
           {ownPlayer && ripAlbum ? (
@@ -1061,7 +1053,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
             </Button>
           )}
         </div>
-      </Modal.Footer>
+      </Dialog.Footer>
 
       {/* Cover Zoom Modal */}
       <CoverModal
@@ -1072,7 +1064,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
         artist={coverModalData.artist}
         coverType={coverModalData.coverType}
       />
-    </Modal>
+    </Dialog>
   );
 };
 

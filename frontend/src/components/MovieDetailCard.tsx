@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import CoverButton from './shared/CoverButton';
-import { BsStar, BsStarFill, BsDashLg, BsPlusLg, BsChevronDown } from 'react-icons/bs';
+import { BsStar, BsStarFill, BsDashLg, BsPlusLg, BsChevronDown, BsCollection } from 'react-icons/bs';
 import { FormControl } from 'react-bootstrap';
 import CompactRatingsWidget from './CompactRatingsWidget';
 import InlinePosterSelector from './InlinePosterSelector';
@@ -20,6 +20,8 @@ import ShelfCode from './shared/ShelfCode';
 import Select from './shared/Select';
 import Button, { IconButton } from './shared/Button';
 import { MenuChevron } from './shared/Menu';
+import Dialog, { DialogHeader } from './shared/Dialog';
+import { ConfirmDialog } from './shared/ConfirmDialog';
 
 interface MovieData {
   id: number;
@@ -188,6 +190,14 @@ const SortableCollectionMember = ({ movie, collectionName, onMovieClick, getPost
 };
 
 const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert, onRefresh, onMovieClick, onSearch, loading = false, onPrevious, onNext }: MovieDetailCardProps) => {
+  // ✕, Esc or a click beside it: the card slides out, as it slid in, then the page is told.
+  const [leaving, setLeaving] = useState(false);
+  const leave = useCallback(() => {
+    if (leaving) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { onClose(); return; }
+    setLeaving(true);
+    window.setTimeout(onClose, 250);
+  }, [leaving, onClose]);
   const [showTrailer, setShowTrailer] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -336,7 +346,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !showTrailer) {
-        onClose();
+        leave();
       }
     };
 
@@ -345,7 +355,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showTrailer, onClose]);
+  }, [showTrailer, leave]);
 
   // Handle ESC key press for trailer modal
   useEffect(() => {
@@ -1376,10 +1386,10 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     console.log('MovieDetailCard: Rendering loading skeleton');
     return (
       <>
-        <div className="movie-detail-overlay" onClick={onClose}>
-          <div className="movie-detail-card skeleton-loading" onClick={(e) => e.stopPropagation()}>
-            <IconButton label="Close" boxed className="movie-detail-close" onClick={onClose}><BsX /></IconButton>
-            
+        <div className={`movie-detail-overlay${leaving ? ' leaving' : ''}`} onClick={leave}>
+          <div className={`movie-detail-card skeleton-loading${leaving ? ' leaving' : ''}`} onClick={(e) => e.stopPropagation()}>
+            <DialogHeader icon={<BsFilm />} title="Loading…" onClose={leave} className="dialog-head--record movie-detail-head" />
+
             <div className="movie-detail-content">
               {/* Header Section Skeleton */}
               <div className="movie-detail-header skeleton-header">
@@ -1625,8 +1635,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   return (
     <>
       <div 
-        className="movie-detail-overlay" 
-        onClick={onClose}
+        className={`movie-detail-overlay${leaving ? ' leaving' : ''}`}
+        onClick={leave}
         onWheel={(e) => {
           e.stopPropagation();
           e.preventDefault();
@@ -1642,17 +1652,66 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       >
         <div 
           ref={cardRef}
-          className="movie-detail-card" 
+          className={`movie-detail-card${leaving ? ' leaving' : ''}`}
           onClick={(e) => e.stopPropagation()}
           onWheel={(e) => e.stopPropagation()}
           onScroll={(e) => e.stopPropagation()}
           onTouchMove={(e) => e.stopPropagation()}
         >
-          {/* Close and ‹ › stay in the corner however far the card has scrolled. */}
-          <div className="movie-detail-topbar">
-            <DetailSteps onPrevious={onPrevious} onNext={onNext} noun="movie" className="movie-detail-steps" boxed />
-            <IconButton label="Close" boxed className="movie-detail-close" onClick={onClose}><BsX /></IconButton>
-          </div>
+          {/* The head of every dialog, above the backdrop, in sight however far the card has scrolled. */}
+          <DialogHeader
+            className="dialog-head--record movie-detail-head"
+            icon={<BsFilm />}
+            title={
+              <span className="movie-detail-title" onMouseEnter={() => setShowCopyIcon(true)} onMouseLeave={() => setShowCopyIcon(false)}>
+                  {editingField === 'title' ? (
+                    <div className="input-group">
+                      <input
+                        type="text"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        autoFocus
+                        className="form-control"
+                        style={{ paddingRight: '60px' }}
+                      />
+                      <div className="input-group-append">
+                        <IconButton label="Sauver" tone="confirm" size="sm" className="edit-action-btn" 
+                          onClick={saveEdit}
+                          disabled={saving}
+                          title="Sauver"
+                        ><BsCheck size={12} /></IconButton>
+                        <IconButton label="Annuler" size="sm" className="edit-action-btn" 
+                          onClick={cancelEditing}
+                          title="Annuler"
+                        ><BsX size={12} /></IconButton>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="title-container">
+                      <span 
+                        className="editable" 
+                        onClick={() => startEditing('title', title)}
+                      >
+                        {title}
+                        {(release_date ? new Date(release_date).getFullYear() : year) && 
+                          ` (${release_date ? new Date(release_date).getFullYear() : year})`
+                        }
+                      </span>
+                      {showCopyIcon && (
+                        <IconButton label="Copier le titre" size="sm" className="copy-title-btn"
+                          onClick={copyTitleToClipboard}
+                          title="Copier le titre"
+                        ><BsCopy size={16} /></IconButton>
+                      )}
+                    </div>
+                  )}
+              </span>
+            }
+            aside={<ShelfCode kind="movie" id={currentData!.id} variant="inline" className="movie-detail-shelf" />}
+            steps={{ onPrevious, onNext, noun: 'movie' }}
+            onClose={leave}
+          />
 
           {/* Inline Poster Selector - positioned relative to card */}
           <InlinePosterSelector
@@ -1728,54 +1787,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
               </div>
               
               <div className="movie-detail-main-info">
-                <h1 
-                  className="movie-detail-title"
-                  onMouseEnter={() => setShowCopyIcon(true)}
-                  onMouseLeave={() => setShowCopyIcon(false)}
-                >
-                  {editingField === 'title' ? (
-                    <div className="input-group">
-                      <input
-                        type="text"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        autoFocus
-                        className="form-control"
-                        style={{ fontSize: '2rem', fontWeight: '700', paddingRight: '60px' }}
-                      />
-                      <div className="input-group-append">
-                        <IconButton label="Sauver" tone="confirm" size="sm" className="edit-action-btn" 
-                          onClick={saveEdit}
-                          disabled={saving}
-                          title="Sauver"
-                        ><BsCheck size={12} /></IconButton>
-                        <IconButton label="Annuler" size="sm" className="edit-action-btn" 
-                          onClick={cancelEditing}
-                          title="Annuler"
-                        ><BsX size={12} /></IconButton>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="title-container">
-                      <span 
-                        className="editable" 
-                        onClick={() => startEditing('title', title)}
-                      >
-                        {title}
-                        {(release_date ? new Date(release_date).getFullYear() : year) && 
-                          ` (${release_date ? new Date(release_date).getFullYear() : year})`
-                        }
-                      </span>
-                      {showCopyIcon && (
-                        <IconButton label="Copier le titre" size="sm" className="copy-title-btn"
-                          onClick={copyTitleToClipboard}
-                          title="Copier le titre"
-                        ><BsCopy size={16} /></IconButton>
-                      )}
-                    </div>
-                  )}
-                </h1>
+
                 {director && (
                     <span className="fact-item director">
                       Directed by <span 
@@ -1786,7 +1798,6 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                       </span>
                     </span>
                   )}
-                <ShelfCode kind="movie" id={currentData!.id} variant="inline" className="movie-detail-shelf" />
                 <div className="movie-detail-facts">
                   <span className="fact-item">
                     {renderGenres(genres)} | {formatRuntime(runtime)} | {renderClickableAge(recommended_age)}
@@ -2402,49 +2413,33 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
 
       {/* Trailer Modal - Now rendered at the same level as the main overlay */}
       {showTrailer && trailerEmbedUrl && (
-        <div className="trailer-modal-overlay" onClick={() => setShowTrailer(false)}>
-          <div className="trailer-modal" onClick={(e) => e.stopPropagation()}>
-            <IconButton label="Close" className="trailer-modal-close" onClick={() => setShowTrailer(false)}><BsX /></IconButton>
-            <div className="trailer-video-container">
-              <iframe
-                src={trailerEmbedUrl}
-                title={`${title} Trailer`}
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="trailer-video"
-                onError={(e) => {
-                  console.error('YouTube iframe error:', e);
-                }}
-              />
-            </div>
-          </div>
-        </div>
+        <Dialog onClose={() => setShowTrailer(false)} size="lg" zIndex={12000} icon={<BsPlay />} title={`${title} · Trailer`} className="trailer-modal">
+          <Dialog.Body className="trailer-video-container">
+            <iframe
+              src={trailerEmbedUrl}
+              title={`${title} Trailer`}
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="trailer-video"
+              onError={(e) => {
+                console.error('YouTube iframe error:', e);
+              }}
+            />
+          </Dialog.Body>
+        </Dialog>
       )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="delete-confirm-overlay" onClick={() => setShowDeleteConfirm(false)}>
-          <div className="delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Delete Movie</h3>
-            <p>Are you sure you want to delete "{title}" from your collection?</p>
-            <p className="delete-warning">This action cannot be undone.</p>
-            <div className="delete-confirm-buttons">
-              <Button variant="quiet" className="cancel-btn"
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={deleting}
-              >
-                Cancel
-              </Button>
-              <Button variant="danger" icon={<BsTrash />} className="delete-btn"
-                onClick={handleDelete}
-                loading={deleting}
-              >
-                {deleting ? 'Deleting...' : 'Delete Movie'}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={`Delete “${title}”?`}
+          message="The movie, its cover and its notes leave your collection for good."
+          confirmLabel="Delete Movie"
+          danger
+          loading={deleting}
+          onAnswer={yes => { if (yes) handleDelete(); else setShowDeleteConfirm(false); }}
+        />
       )}
 
       {/* "Did you watch?" prompt after removing from Watch Next */}
@@ -2482,34 +2477,21 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
 
       {/* Box Set Propagation Dialog */}
       {showPropagationDialog && pendingUpdate && (
-        <div className="propagation-dialog-overlay">
-          <div className="propagation-dialog">
-            <div className="propagation-dialog-header">
-              <h3>Update Box Set</h3>
-              <IconButton label="Close" className="propagation-dialog-close" onClick={handlePropagationCancel}><BsX /></IconButton>
-            </div>
-            <div className="propagation-dialog-content">
-              <p>
-                You're updating the <strong>{pendingUpdate.field}</strong> field. 
-                Would you like to apply this change to all movies in the "{collections.find(c => c.type === 'box_set')?.name}" box set?
-              </p>
-              <div className="propagation-dialog-buttons">
-                <Button className="propagation-btn this-movie"
-                  onClick={() => handlePropagationChoice(false)}
-                  disabled={saving}
-                >
-                  This movie only
-                </Button>
-                <Button className="propagation-btn all-movies"
-                  onClick={() => handlePropagationChoice(true)}
-                  disabled={saving}
-                >
-                  All movies in box set
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <Dialog onClose={handlePropagationCancel} size="sm" zIndex={12000} icon={<BsCollection />} title="Update Box Set" className="propagation-dialog">
+          <Dialog.Body>
+            You're updating the <strong>{pendingUpdate.field}</strong> field.
+            Would you like to apply this change to all movies in the "{collections.find(c => c.type === 'box_set')?.name}" box set?
+          </Dialog.Body>
+          <Dialog.Footer>
+            <span style={{ flex: 1 }} />
+            <Button onClick={() => handlePropagationChoice(false)} disabled={saving}>
+              This movie only
+            </Button>
+            <Button variant="primary" onClick={() => handlePropagationChoice(true)} loading={saving}>
+              All movies in box set
+            </Button>
+          </Dialog.Footer>
+        </Dialog>
       )}
 
       {/* Collection Rename Dialog */}

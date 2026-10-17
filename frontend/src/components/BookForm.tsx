@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Modal, Form, Row, Col, Alert } from 'react-bootstrap';
+import {Form, Row, Col, Alert } from 'react-bootstrap';
+import Dialog, { DialogHeader } from './shared/Dialog';
 import { BsX, BsUpload, BsBook, BsCloudDownload, BsFileEarmark, BsTrash, BsChevronDown, BsChevronRight } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import CoverModal from './CoverModal';
@@ -1637,40 +1638,16 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
   const formContent = (
       <Form onSubmit={handleSubmit}>
       {!inline && (
-        <Modal.Header closeButton>
-          <div className="d-flex align-items-center justify-content-between w-100 me-3">
-            <Modal.Title className="mb-0">
-              <BsBook className="me-2" />
-              {book?.id ? 'Edit Book' : 'Add New Book'}
-            </Modal.Title>
-            {book?.id && (
-              <Button
-                size="sm"
-                onClick={handleFetchFromSources}
-                disabled={enriching || loading}
-                style={{ 
-                  borderColor: '#fbbf24', 
-                  color: '#fbbf24',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                {enriching ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    Fetching...
-                  </>
-                ) : (
-                  <>
-                    <BsCloudDownload />
-                    Fetch from Sources
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
-        </Modal.Header>
+        <DialogHeader
+          icon={<BsBook />}
+          title={book?.id ? 'Edit Book' : 'Add New Book'}
+          aside={book?.id && (
+            <Button size="sm" icon={<BsCloudDownload />} onClick={handleFetchFromSources} loading={enriching} disabled={loading}>
+              {enriching ? 'Fetching...' : 'Fetch from Sources'}
+            </Button>
+          )}
+          onClose={() => onCancel?.()}
+        />
       )}
       
       {inline && book?.id && (
@@ -2516,7 +2493,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
           </Row>
         </div>
       ) : (
-        <Modal.Body>
+        <Dialog.Body>
           {errors.submit && (
             <Alert variant="danger" className="mb-3">
               {errors.submit}
@@ -3328,23 +3305,24 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
               </Form.Group>
             </Col>
           </Row>
-        </Modal.Body>
+        </Dialog.Body>
       )}
         
       {!inline && (
-        <Modal.Footer>
+        <Dialog.Footer>
           {onShowOtherResults && (
-            <Button onClick={onShowOtherResults} disabled={loading} className="me-auto">
+            <Button variant="quiet" onClick={onShowOtherResults} disabled={loading}>
               Wrong book? Show other results
             </Button>
           )}
-          <Button onClick={onCancel} disabled={loading}>
+          <span style={{ flex: 1 }} />
+          <Button variant="quiet" onClick={onCancel} disabled={loading}>
             Cancel
           </Button>
-          <Button variant="primary" type="submit" disabled={loading} style={{ backgroundColor: '#fbbf24', borderColor: '#fbbf24', color: '#1a202c' }}>
+          <Button variant="primary" type="submit" loading={loading}>
             {loading ? 'Saving...' : (book?.id ? 'Update Book' : 'Create Book')}
           </Button>
-        </Modal.Footer>
+        </Dialog.Footer>
       )}
       </Form>
   );
@@ -3366,14 +3344,13 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
   }
 
   return (
-    <Modal 
-      show={true} 
-      onHide={onCancel} 
-      size="lg" 
-      centered 
-      fullscreen="md-down"
-      style={{ zIndex: 10100 }}
+    <Dialog
+      onClose={() => onCancel?.()}
+      size="lg"
+      zIndex={10100}
       className="book-form-modal"
+      title={book?.id ? 'Edit Book' : 'Add New Book'}
+      header={false}
     >
       {formContent}
       
@@ -3385,7 +3362,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
         artist={coverModalData.author}
         coverType={coverModalData.coverType || 'Cover'}
       />
-    </Modal>
+    </Dialog>
   );
 };
 

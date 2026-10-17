@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Form, ListGroup, Modal } from 'react-bootstrap';
+import { Form, ListGroup } from 'react-bootstrap';
 import { BsPencil, BsTrash, BsPlus } from 'react-icons/bs';
 import bookCommentService from '../services/bookCommentService';
 import './BookComments.css';
 import Button, { IconButton } from './shared/Button';
+import Dialog from './shared/Dialog';
+import { confirm } from './shared/ConfirmDialog';
 
 interface Comment {
   id: number;
@@ -107,7 +109,7 @@ const BookComments: React.FC<BookCommentsProps> = ({ bookId, onCommentsChange })
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this comment?')) {
+    if (!(await confirm({ title: 'Delete this comment?', message: 'It goes for good.', confirmLabel: 'Delete', danger: true }))) {
       return;
     }
 
@@ -211,13 +213,8 @@ const BookComments: React.FC<BookCommentsProps> = ({ bookId, onCommentsChange })
         )}
       </Form.Group>
 
-      <Modal show={showEditModal} onHide={handleCloseModal} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {editingComment ? 'Edit Comment' : 'Add Comment'}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
+      <Dialog show={showEditModal} onClose={handleCloseModal} title={editingComment ? 'Edit Comment' : 'Add Comment'}>
+        <Dialog.Body>
           {errors.submit && (
             <div className="alert alert-danger">{errors.submit}</div>
           )}
@@ -258,16 +255,16 @@ const BookComments: React.FC<BookCommentsProps> = ({ bookId, onCommentsChange })
               {errors.comment}
             </Form.Control.Feedback>
           </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button onClick={handleCloseModal}>
+        </Dialog.Body>
+        <Dialog.Footer>
+          <Button variant="quiet" onClick={handleCloseModal}>
             Cancel
           </Button>
           <Button variant="primary" onClick={handleSave} disabled={loading}>
             {loading ? 'Saving...' : (editingComment ? 'Update' : 'Create')}
           </Button>
-        </Modal.Footer>
-      </Modal>
+        </Dialog.Footer>
+      </Dialog>
     </>
   );
 };
