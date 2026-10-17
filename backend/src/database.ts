@@ -333,6 +333,7 @@ const initDatabase = async (): Promise<sqlite3.Database> => {
           const ShelfItem = (await import('./models/shelfItem')).default;
           const ShelfFurniture = (await import('./models/shelfFurniture')).default;
           const NavidromePlay = (await import('./models/navidromePlay')).default;
+          const NavidromeListener = (await import('./models/navidromeListener')).default;
 
           // Create all tables with their final schema
           await Movie.createTable();
@@ -357,6 +358,7 @@ const initDatabase = async (): Promise<sqlite3.Database> => {
           await ShelfItem.createTable();
           await ShelfFurniture.createTable();
           await NavidromePlay.createTable();
+          await NavidromeListener.createTable();
 
           // Run auto-migrations for schema updates
           await runAutoMigrations();

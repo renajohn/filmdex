@@ -1,0 +1,48 @@
+{
+  "name": "DexVault",
+  "author": "Renault John Lecoultre",
+  "version": "1.0.0",
+  "description": "Tells DexVault what every account plays, and each account's stars and hearts every hour",
+  "website": "https://dexvault.lab.crog.org/musicdex/digital",
+  "permissions": {
+    "users": {
+      "reason": "Report the plays, stars and hearts of the accounts assigned to the plugin"
+    },
+    "subsonicapi": {
+      "reason": "Read each account's stars and hearts, which Navidrome keeps per account"
+    },
+    "scheduler": {
+      "reason": "Report the stars and hearts every hour"
+    },
+    "http": {
+      "reason": "Send the reports to DexVault, which runs beside Navidrome on the home network",
+      "requiredHosts": ["dexvault", "dexvault.lab.crog.org", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.1"]
+    }
+  },
+  "config": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "title": "DexVault address",
+          "description": "Where Navidrome reaches DexVault; on the same Docker network, http://dexvault:3001",
+          "default": "http://dexvault:3001"
+        },
+        "token": {
+          "type": "string",
+          "title": "Token",
+          "description": "The same secret as NAVIDROME_PLUGIN_TOKEN in the DexVault stack"
+        }
+      },
+      "required": ["token"]
+    },
+    "uiSchema": {
+      "type": "VerticalLayout",
+      "elements": [
+        { "type": "Control", "scope": "#/properties/url" },
+        { "type": "Control", "scope": "#/properties/token", "options": { "format": "password" } }
+      ]
+    }
+  }
+}

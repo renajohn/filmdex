@@ -40,6 +40,9 @@ services:
       - NAVIDROME_PASSWORD=${NAVIDROME_PASSWORD:-}
       # Where a browser opens an album in Navidrome, from an album's Listen button.
       - NAVIDROME_PUBLIC_URL=${NAVIDROME_PUBLIC_URL:-https://music.lab.crog.org}
+      # The secret the DexVault plugin in Navidrome sends with every account's
+      # plays and likes (see navidrome-plugin/). Without it, they are refused.
+      - NAVIDROME_PLUGIN_TOKEN=${NAVIDROME_PLUGIN_TOKEN:-}
       # The mount above, where Navidrome's song paths are resolved.
       - MUSIC_LIBRARY_PATH=/music
       # The backup runs at 3 a.m. local time: without TZ the container runs on UTC.

@@ -154,6 +154,8 @@ export interface DigitalLibrary {
   albums: DigitalAlbum[];
   physicalOnly: Array<{ id: number; title: string; artist: string[]; cover: string | null }>;
   oldCopies: Array<{ albumId: number; title: string; navidromeId: string; name: string; formats: string[] }>;
+  /** What the DexVault plugin in Navidrome reports; absent or null until it first has. */
+  plugin?: { accounts: string[]; lastReportAt: number | null; stale: boolean } | null;
 }
 
 /** A track of a Navidrome album with its plays of the last 90 days. */

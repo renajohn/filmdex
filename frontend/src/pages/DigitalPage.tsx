@@ -501,6 +501,9 @@ const DigitalPage: React.FC = () => {
           {total > 0 && (
             <p className="digital-subtitle">
               {total} albums in Navidrome · {fromCds} from your CDs · {total - fromCds} with no CD
+              {library?.plugin && library.plugin.accounts.length > 0 && (
+                <> · plays and likes of {library.plugin.accounts.join(', ')} counted too</>
+              )}
             </p>
           )}
         </div>
@@ -527,6 +530,13 @@ const DigitalPage: React.FC = () => {
           </div>
         );
       })}
+      {library?.plugin?.stale && (
+        <div className="digital-notice digital-notice-error">
+          The DexVault plugin in Navidrome has not reported for over three hours
+          {library.plugin.lastReportAt ? ` (last ${new Date(library.plugin.lastReportAt * 1000).toLocaleString()})` : ''}:
+          the plays and likes of other accounts are not counted. Check that it is enabled in Navidrome, and its token.
+        </div>
+      )}
       {(error || library?.error) && (
         <div className="digital-notice digital-notice-error">Could not read Navidrome: {error || library?.error}</div>
       )}

@@ -1,5 +1,6 @@
 import Album from '../models/album';
 import NavidromePlay from '../models/navidromePlay';
+import NavidromeListener, { type Favourite } from '../models/navidromeListener';
 import type { DayPlays } from '../models/navidromePlay';
 import type { AlbumFormatted } from '../types';
 import navidromeService, { type NavidromeAlbum, type NavidromeSong } from './navidromeService';
@@ -92,7 +93,33 @@ export interface DigitalLibrary {
   albums: DigitalAlbum[];
   physicalOnly: PhysicalOnlyAlbum[];
   oldCopies: OldCopy[];
+  /** What the DexVault plugin in Navidrome reports, null until it first has. */
+  plugin: PluginReports | null;
 }
+
+/** The plugin's reports: the other accounts counted, and whether it still reports. */
+export interface PluginReports {
+  /** Accounts besides NAVIDROME_USER whose plays and likes count too. */
+  accounts: string[];
+  /** Unix seconds of its last hourly report. */
+  lastReportAt: number | null;
+  /** No hourly report for three hours: the plugin is off, or cannot reach DexVault. */
+  stale: boolean;
+}
+
+const STALE_AFTER_SEC = 3 * 3600;
+
+const pluginReports = async (main: string, now: number = Date.now() / 1000): Promise<PluginReports | null> => {
+  const listeners = await NavidromeListener.listeners();
+  if (listeners.length === 0) return null;
+  const reports = listeners.map(listener => listener.favouritesAt ?? 0);
+  const lastReportAt = Math.max(...reports) || null;
+  return {
+    accounts: listeners.map(listener => listener.user).filter(user => user !== main),
+    lastReportAt,
+    stale: !lastReportAt || now - lastReportAt > STALE_AFTER_SEC,
+  };
+};
 
 export interface DigitalTrack {
   id: string | null;
@@ -188,6 +215,11 @@ const build = async (navidrome: Library, configured: boolean, error?: string): P
   const dismissed = await NavidromePlay.dismissed();
   const today = localDay(new Date());
   const bySong = playsBySong(await listenHistoryService.recent(LISTEN_WINDOW_DAYS));
+  // A heart or 4-5 stars from any account puts an album in Buy; what is shown stays NAVIDROME_USER's.
+  const main = process.env.NAVIDROME_USER || '';
+  const others = await NavidromeListener.othersFavourites(main);
+  const liked = (own: { rating: number; starred: boolean }, other: Favourite | undefined) =>
+    own.rating >= EXPLICIT_RATING || own.starred || (other ? other.rating >= EXPLICIT_RATING || other.starred : false);
   const songsByAlbum = groupSongs(navidrome.songs);
   const qualities = new Map(navidrome.albums.map(album => [album.id, qualityOf(songsByAlbum.get(album.id) || [])]));
 
@@ -222,10 +254,11 @@ const build = async (navidrome: Library, configured: boolean, error?: string): P
     const songs = songsByAlbum.get(album.id) || [];
     const owner = cdOf.get(album.id);
     const listening = listeningOf(songs, bySong, today);
-    const favouriteTracks = songs.filter(song => (song.userRating ?? 0) >= EXPLICIT_RATING || song.starred).length;
+    const favouriteTracks = songs.filter(song =>
+      liked({ rating: song.userRating ?? 0, starred: Boolean(song.starred) }, song.id ? others.songs.get(song.id) : undefined)).length;
     const wishAlbumId = owner ? null : wished.find(wish => matchesOf(wish, [album], navidrome.lengths).length > 0)?.id ?? null;
     const listened = listening.needed > 0 && listening.favourites >= listening.needed;
-    const rated = album.userRating >= EXPLICIT_RATING || Boolean(album.starred) || favouriteTracks > 0;
+    const rated = liked({ rating: album.userRating, starred: Boolean(album.starred) }, others.albums.get(album.id)) || favouriteTracks > 0;
     const wishedNow = wishAlbumId !== null;
     return {
       navidromeId: album.id,
@@ -251,7 +284,7 @@ const build = async (navidrome: Library, configured: boolean, error?: string): P
   }).sort(byName);
 
   physicalOnly.sort((a, b) => a.artist.join(', ').localeCompare(b.artist.join(', ')) || a.title.localeCompare(b.title));
-  return { configured, ...(error ? { error } : {}), albums, physicalOnly, oldCopies };
+  return { configured, ...(error ? { error } : {}), albums, physicalOnly, oldCopies, plugin: await pluginReports(main) };
 };
 
 const digitalLibraryService = {

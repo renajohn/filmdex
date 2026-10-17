@@ -240,6 +240,16 @@ describe('DigitalPage', () => {
     expect(reloadedService.syncDigitalLibrary).not.toHaveBeenCalled();
   });
 
+  it('dit quels autres comptes Navidrome sont comptés, et quand le plugin ne fait plus son rapport', async () => {
+    const library = { ...LIBRARY, plugin: { accounts: ['violaine'], lastReportAt: 1792234449, stale: true } };
+    vi.mocked(musicService.getDigitalLibrary).mockResolvedValue(library);
+    vi.mocked(musicService.syncDigitalLibrary).mockResolvedValue({ editions: [], library });
+    renderPage();
+
+    expect(await screen.findByText(/plays and likes of violaine counted too/)).toBeInTheDocument();
+    expect(screen.getByText(/plugin in Navidrome has not reported for over three hours/)).toBeInTheDocument();
+  });
+
   it('cherche le CD sur Ricardo sans ce que le titre digital ajoute', () => {
     expect(ricardoUrl({ artist: 'Pink Floyd', name: 'Relics (Remastered) [Disc 1]' }))
       .toBe('https://www.ricardo.ch/fr/s/Pink%20Floyd%20Relics/');
