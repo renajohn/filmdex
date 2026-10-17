@@ -4,9 +4,13 @@ import { getDatabase } from '../../src/database';
 import navidromeService, { type NavidromeSong } from '../../src/services/navidromeService';
 import ripStatusService from '../../src/services/ripStatusService';
 import NavidromeListener from '../../src/models/navidromeListener';
+import listenHistoryService from '../../src/services/listenHistoryService';
 
 const TOKEN = 'plugin-secret';
 const tag = () => Math.random().toString(36).slice(2, 8);
+
+const sql = (statement: string, params: unknown[] = []) =>
+  new Promise<void>((resolve, reject) => getDatabase().run(statement, params, (err: Error | null) => (err ? reject(err) : resolve())));
 
 const playsOf = (songId: string) =>
   new Promise<Array<{ day: string; plays: number }>>((resolve, reject) =>
@@ -40,21 +44,52 @@ describe('le plugin DexVault dans Navidrome', () => {
     expect((await listen(play)).status).toBe(503);
   });
 
-  it('compte une écoute d’un autre compte à son jour, une seule fois même renvoyée', async () => {
+  it('compte une écoute à son jour, une seule fois même renvoyée', async () => {
     const songId = `s-${tag()}`;
     const play = { user: 'violaine', songId, playedAt: NOON };
 
-    expect((await listen(play)).body).toMatchObject({ added: true, counted: true });
-    expect((await listen(play)).body).toMatchObject({ added: false, counted: false });
+    expect((await listen(play)).body).toMatchObject({ added: true });
+    expect((await listen(play)).body).toMatchObject({ added: false });
     await listen({ ...play, playedAt: NOON + 300 });
 
     expect(await playsOf(songId)).toEqual([{ day: '2026-10-10', plays: 2 }]);
   });
 
-  it('garde les écoutes de NAVIDROME_USER sans les compter : ses compteurs le font déjà', async () => {
+  it('compte aussi les écoutes de NAVIDROME_USER : ses compteurs ne sont plus que notés', async () => {
     const songId = `s-${tag()}`;
-    expect((await listen({ user: 'renault', songId, playedAt: NOON })).body).toMatchObject({ added: true, counted: false });
-    expect(await playsOf(songId)).toEqual([]);
+    await listen({ user: 'renault', songId, playedAt: NOON }).expect(200);
+    const song: NavidromeSong = { albumId: 'a', id: songId, suffix: 'mp3', bitDepth: null, playCount: 1, played: '2026-10-10T12:00:00' };
+    await listenHistoryService.record([song]);
+    await listenHistoryService.record([{ ...song, playCount: 3 }]);
+
+    expect(await playsOf(songId)).toEqual([{ day: '2026-10-10', plays: 1 }]);
+  });
+
+  it('rattrape une fois les écoutes de NAVIDROME_USER gardées avant la bascule que ses compteurs n’avaient pas prises', async () => {
+    const [before, after] = [`s-${tag()}`, `s-${tag()}`];
+    // Counters noted at 12:30 UTC; one play kept from before that, one after it.
+    for (const songId of [before, after]) {
+      await sql(`INSERT INTO navidrome_play_counts (song_id, play_count, updated_at) VALUES (?, 1, '2026-10-10 12:30:00')`, [songId]);
+    }
+    const noted = Date.UTC(2026, 9, 10, 12, 30) / 1000;
+    await sql('INSERT INTO navidrome_listens (navidrome_user, song_id, played_at, counted) VALUES (?, ?, ?, 0)', ['renault', before, noted - 600]);
+    await sql('INSERT INTO navidrome_listens (navidrome_user, song_id, played_at, counted) VALUES (?, ?, ?, 0)', ['renault', after, noted + 600]);
+
+    expect(await NavidromeListener.countUncounted('renault')).toBe(1);
+    expect(await NavidromeListener.countUncounted('renault')).toBe(0);
+
+    expect(await playsOf(before)).toEqual([]);
+    expect((await playsOf(after)).map(row => row.plays)).toEqual([1]);
+  });
+
+  it('sans le plugin, compte comme avant ce que les compteurs ont gagné', async () => {
+    delete process.env.NAVIDROME_PLUGIN_TOKEN;
+    const songId = `s-${tag()}`;
+    const song: NavidromeSong = { albumId: 'a', id: songId, suffix: 'mp3', bitDepth: null, playCount: 1, played: '2026-10-10T12:00:00' };
+    await listenHistoryService.record([song]);
+    await listenHistoryService.record([{ ...song, playCount: 3 }]);
+
+    expect(await playsOf(songId)).toEqual([{ day: '2026-10-10', plays: 3 }]);
   });
 
   it('refuse ce qui n’est pas une écoute', async () => {

@@ -51,11 +51,19 @@ avec son heure et son compte.
 
 ## Écoutes
 
-- `navidrome_listens (navidrome_user, song_id, played_at)` garde chaque écoute, une seule fois même
-  renvoyée.
-- Les écoutes d'un compte autre que `NAVIDROME_USER` s'ajoutent à `navidrome_plays`, à leur jour.
-- Celles de `NAVIDROME_USER` sont seulement gardées : le relevé horaire de ses compteurs les compte
-  déjà, comme avant. Rien n'est compté deux fois, et sans plugin DexVault fait comme avant.
+Un seul système (décidé le 17.10.2026, après l'installation) : **le plugin compte toutes les écoutes**,
+de tous les comptes, `NAVIDROME_USER` compris.
+
+- `navidrome_listens (navidrome_user, song_id, played_at, counted)` garde chaque écoute, une seule fois
+  même renvoyée, et l'ajoute à `navidrome_plays` à son jour exact.
+- Avec `NAVIDROME_PLUGIN_TOKEN`, le relevé horaire ne fait plus que noter les compteurs de
+  `NAVIDROME_USER`, sans rien ajouter : si l'on retire le plugin, on revient au relevé sans recompter
+  le passé. Sans jeton, DexVault compte comme avant.
+- À la bascule, les écoutes de `NAVIDROME_USER` que le plugin avait envoyées sans les compter sont
+  rattrapées une fois : celles d'après la dernière note du compteur de leur piste (les autres, le
+  relevé les avait comptées).
+- Risque accepté : un plugin en panne laisse des écoutes non comptées ; la page Digital le signale
+  après trois heures, et Navidrome garde ses propres compteurs.
 - `navidrome_plays` reste une somme, sans dire qui. `navidrome_listens` permettra « qui a écouté ».
 
 ## Étoiles et cœurs
@@ -95,7 +103,9 @@ lui, a déjà tout gardé jour par jour.
 ## Tests
 
 - une écoute d'un autre compte compte à son jour, une seule fois même renvoyée ;
-- une écoute de `NAVIDROME_USER` est gardée sans être comptée ;
+- une écoute de `NAVIDROME_USER` compte aussi, et le relevé n'ajoute plus rien ;
+- à la bascule, ses écoutes non comptées sont rattrapées une fois, sans doublon ;
+- sans jeton, le relevé compte comme avant ;
 - Buy : un cœur posé par un autre compte suffit, et le retirer sort l'album de Buy ;
 - sans jeton ou avec un faux : refusé ;
 - plugin muet depuis trois heures : signalé ;

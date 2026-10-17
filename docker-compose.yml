@@ -41,7 +41,8 @@ services:
       # Where a browser opens an album in Navidrome, from an album's Listen button.
       - NAVIDROME_PUBLIC_URL=${NAVIDROME_PUBLIC_URL:-https://music.lab.crog.org}
       # The secret the DexVault plugin in Navidrome sends with every account's
-      # plays and likes (see navidrome-plugin/). Without it, they are refused.
+      # plays and likes (see navidrome-plugin/). With it, the plugin counts all
+      # the plays; without it, they are refused and the counters count as before.
       - NAVIDROME_PLUGIN_TOKEN=${NAVIDROME_PLUGIN_TOKEN:-}
       # The mount above, where Navidrome's song paths are resolved.
       - MUSIC_LIBRARY_PATH=/music

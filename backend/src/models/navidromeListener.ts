@@ -1,5 +1,5 @@
 import { getDatabase } from '../database';
-import { localDay } from '../services/listenHistoryService';
+import { localDay } from '../utils/localDay';
 
 /** A song's or an album's stars and heart, as one Navidrome account gave them. */
 export interface Favourite {
@@ -52,6 +52,10 @@ const serial = <T>(work: () => Promise<T>): Promise<T> => {
   return next;
 };
 
+const addPlay = (songId: string, playedAt: number): Promise<number> =>
+  run(`INSERT INTO navidrome_plays (song_id, day, plays) VALUES (?, ?, 1)
+    ON CONFLICT(song_id, day) DO UPDATE SET plays = plays + 1`, [songId, localDay(new Date(playedAt * 1000))]);
+
 const best = (rows: Array<{ item_id: string; rating: number; starred: number }>): Map<string, Favourite> => {
   const byId = new Map<string, Favourite>();
   for (const row of rows) {
@@ -67,10 +71,8 @@ const best = (rows: Array<{ item_id: string; rating: number; starred: number }>)
 
 /**
  * What every Navidrome account plays and likes, as the DexVault plugin in
- * Navidrome tells it: each play with who and when, and each account's stars
- * and hearts. The plays of accounts other than NAVIDROME_USER go into the
- * day-by-day plays; NAVIDROME_USER's are counted from its own counters, as
- * before, and only kept here.
+ * Navidrome tells it: each play with who and when, added to the day-by-day
+ * plays, and each account's stars and hearts.
  */
 const NavidromeListener = {
   createTable: async (): Promise<void> => {
@@ -78,8 +80,15 @@ const NavidromeListener = {
       navidrome_user TEXT NOT NULL,
       song_id TEXT NOT NULL,
       played_at INTEGER NOT NULL,
+      counted INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (navidrome_user, song_id, played_at)
     )`);
+    // The first plays, of 2026-10-17, came before the flag: the other accounts' were counted on arrival.
+    const columns = await all<{ name: string }>('PRAGMA table_info(navidrome_listens)');
+    if (!columns.some(column => column.name === 'counted')) {
+      await run('ALTER TABLE navidrome_listens ADD COLUMN counted INTEGER NOT NULL DEFAULT 0');
+      await run('UPDATE navidrome_listens SET counted = 1 WHERE navidrome_user != ?', [process.env.NAVIDROME_USER || '']);
+    }
     await run(`CREATE TABLE IF NOT EXISTS navidrome_favourites (
       navidrome_user TEXT NOT NULL,
       kind TEXT NOT NULL CHECK (kind IN ('song', 'album')),
@@ -95,18 +104,34 @@ const NavidromeListener = {
   },
 
   /**
-   * Notes a play, once: Navidrome sends again what it could not deliver, so
-   * the same play may come twice. `counts` adds it to its day's plays.
-   * True when it was new.
+   * Notes a play and adds it to its day's plays, once: Navidrome sends again
+   * what it could not deliver, so the same play may come twice. True when it
+   * was new.
    */
-  addListen: (user: string, songId: string, playedAt: number, counts: boolean): Promise<boolean> => serial(() => inTransaction(async () => {
+  addListen: (user: string, songId: string, playedAt: number): Promise<boolean> => serial(() => inTransaction(async () => {
     await run('INSERT OR IGNORE INTO navidrome_listeners (navidrome_user) VALUES (?)', [user]);
-    const added = await run('INSERT OR IGNORE INTO navidrome_listens (navidrome_user, song_id, played_at) VALUES (?, ?, ?)', [user, songId, playedAt]);
-    if (added > 0 && counts) {
-      await run(`INSERT INTO navidrome_plays (song_id, day, plays) VALUES (?, ?, 1)
-        ON CONFLICT(song_id, day) DO UPDATE SET plays = plays + 1`, [songId, localDay(new Date(playedAt * 1000))]);
-    }
+    const added = await run('INSERT OR IGNORE INTO navidrome_listens (navidrome_user, song_id, played_at, counted) VALUES (?, ?, ?, 1)',
+      [user, songId, playedAt]);
+    if (added > 0) await addPlay(songId, playedAt);
     return added > 0;
+  })),
+
+  /**
+   * Counts `user`'s plays kept uncounted, from before the plugin counted
+   * them, which the counters had not taken in yet: those after the song's
+   * counter was last noted. The others are left, counted already. How many.
+   */
+  countUncounted: (user: string): Promise<number> => serial(() => inTransaction(async () => {
+    const pending = await all<{ song_id: string; played_at: number }>(`
+      SELECT l.song_id, l.played_at FROM navidrome_listens l
+      LEFT JOIN navidrome_play_counts c ON c.song_id = l.song_id
+      WHERE l.navidrome_user = ? AND l.counted = 0
+        AND (c.updated_at IS NULL OR l.played_at > CAST(strftime('%s', c.updated_at) AS INTEGER))`, [user]);
+    for (const play of pending) {
+      await addPlay(play.song_id, play.played_at);
+      await run('UPDATE navidrome_listens SET counted = 1 WHERE navidrome_user = ? AND song_id = ? AND played_at = ?', [user, play.song_id, play.played_at]);
+    }
+    return pending.length;
   })),
 
   /** Replaces an account's stars and hearts with what it has now. */

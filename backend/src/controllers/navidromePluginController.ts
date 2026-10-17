@@ -57,11 +57,9 @@ const navidromePluginController = {
       return;
     }
     try {
-      // NAVIDROME_USER's plays are counted from its own counters already: only kept here.
-      const counted = user !== (process.env.NAVIDROME_USER || '');
-      const added = await NavidromeListener.addListen(user, songId, at, counted);
-      if (added && counted) logger.info(`Navidrome: a play by ${user} noted`);
-      res.json({ ok: true, added, counted: added && counted });
+      const added = await NavidromeListener.addListen(user, songId, at);
+      if (added) logger.info(`Navidrome: a play by ${user} noted`);
+      res.json({ ok: true, added });
     } catch (error) {
       logger.warn(`Noting a play by ${user}: ${(error as Error).message}`);
       res.status(500).json({ error: (error as Error).message });

@@ -1,12 +1,10 @@
 import NavidromePlay, { type DayPlays, type PlayChange } from '../models/navidromePlay';
 import type { NavidromeSong } from './navidromeService';
+import NavidromeListener from '../models/navidromeListener';
+import { localDay } from '../utils/localDay';
 import logger from '../logger';
 
-/** A day as YYYY-MM-DD in the server's time zone: a late evening play is not the next day's. */
-export const localDay = (date: Date): string => {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-};
+export { localDay };
 
 const dayOf = (played: string | null | undefined, now: Date): string => {
   const date = played ? new Date(played) : now;
@@ -29,14 +27,29 @@ export const changesFrom = (songs: NavidromeSong[], known: Map<string, number>, 
     return [{ songId: song.id, playCount: count, day: dayOf(song.played, now), plays: Math.max(0, count - (before ?? 0)) }];
   });
 
+/** Whether the DexVault plugin in Navidrome counts the plays. */
+const pluginCounts = (): boolean => Boolean(process.env.NAVIDROME_PLUGIN_TOKEN);
+
 // Two readings of the library at once must not both count the same plays.
 let queue: Promise<unknown> = Promise.resolve();
 
 const listenHistoryService = {
-  /** Turns what Navidrome's counters gained into dated plays. */
+  /**
+   * Turns what Navidrome's counters gained into dated plays. With the DexVault
+   * plugin in Navidrome (NAVIDROME_PLUGIN_TOKEN set), the plugin counts every
+   * play, NAVIDROME_USER's too: the counters are only noted, for a way back
+   * without counting the past again.
+   */
   record: (songs: NavidromeSong[]): Promise<number> => {
     const next = queue.then(async () => {
       const changes = changesFrom(songs, await NavidromePlay.counts());
+      if (pluginCounts()) {
+        // NAVIDROME_USER's plays the plugin sent before it counted them, past the counters' last note: once.
+        const caughtUp = await NavidromeListener.countUncounted(process.env.NAVIDROME_USER || '');
+        await NavidromePlay.record(changes.map(change => ({ ...change, plays: 0 })));
+        if (caughtUp > 0) logger.info(`Navidrome: ${caughtUp} plays from the plugin caught up`);
+        return caughtUp;
+      }
       await NavidromePlay.record(changes);
       const plays = changes.reduce((sum, change) => sum + change.plays, 0);
       if (plays > 0) logger.info(`Navidrome: ${plays} plays noted`);

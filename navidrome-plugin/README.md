@@ -8,9 +8,12 @@ envoie le reste :
   avec le compte et l'heure ;
 - **les étoiles et les cœurs** de chaque compte, toutes les heures, et une minute après le démarrage.
 
-DexVault ajoute les écoutes des autres comptes à son historique jour par jour (celles de
-`NAVIDROME_USER` restent comptées par ses compteurs, comme avant) et, pour l'onglet Buy, compte un
-cœur ou 4-5 étoiles de n'importe quel compte. Aucun mot de passe d'un autre compte n'entre dans DexVault.
+Le plugin est le seul à compter les écoutes, de tous les comptes, `NAVIDROME_USER` compris : DexVault
+les ajoute à son historique jour par jour, à l'heure exacte. Ses compteurs ne sont plus que notés, pour
+pouvoir revenir en arrière sans recompter le passé (sans `NAVIDROME_PLUGIN_TOKEN`, DexVault compte comme
+avant). Les notes de `NAVIDROME_USER` restent lues directement par DexVault, sans attendre l'heure ;
+celles des autres comptes viennent du plugin, et pour l'onglet Buy un cœur ou 4-5 étoiles de n'importe
+quel compte comptent. Aucun mot de passe d'un autre compte n'entre dans DexVault.
 
 Si DexVault ne répond pas, Navidrome garde les écoutes dans sa base et les renvoie jusqu'à ce qu'il
 réponde : rien ne se perd. La page Digital signale un plugin muet depuis plus de trois heures.
