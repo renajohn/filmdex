@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lyrics · karaoke</title>
+<style>
+  :root {
+    --dv-gold: #fbbf24; --dv-gold-ink: #111;
+    --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+    --dv-page: #1a1a1a; --dv-veil: rgba(255,255,255,.08);
+    --dv-glass: rgba(255,255,255,.06); --dv-edge: rgba(255,255,255,.12);
+    --dv-surface: rgba(24,24,24,.86); --dv-surface-edge: rgba(255,255,255,.1);
+    --bar-h: 54px;
+    --lead: 0.2s;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--dv-page); color: var(--dv-text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; overflow: hidden; }
+
+  /* ───── the prototype's own controls ───── */
+  .controls { position: fixed; top: 0; left: 0; right: 0; z-index: 2000; padding: 10px 16px; display: flex; gap: 14px;
+    flex-wrap: wrap; align-items: center; background: #0d0d0d; border-bottom: 1px solid #333; font-size: 12.5px; color: #aaa; }
+  .controls b { color: #eee; font-weight: 600; }
+  .seg { display: inline-flex; background: #1c1c1c; border: 1px solid #383838; border-radius: 8px; padding: 2px; }
+  .seg button { background: none; border: 0; color: #ccc; padding: 5px 10px; border-radius: 6px; font: inherit; cursor: pointer; }
+  .seg button.on { background: var(--dv-gold); color: #111; }
+  .controls .note { flex-basis: 100%; color: #888; margin: 0; }
+  #sim { color: var(--dv-gold); display: none; }
+
+  /* ───── a stand-in for the app behind ───── */
+  .stage { position: fixed; top: var(--controls-h, 92px); left: 0; right: 0; bottom: 0; overflow: hidden; }
+  .stage.phone { left: 50%; right: auto; width: 390px; transform: translateX(-50%); border-left: 1px solid #333; border-right: 1px solid #333; }
+  .app { position: absolute; inset: 0 0 var(--bar-h) 0; padding: 20px 24px; overflow: hidden;
+    background: linear-gradient(135deg,#1a1a1a,#262626); }
+  .app h2 { margin: 0 0 14px; font-size: 1.4rem; color: #ddd; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 16px; }
+  .grid div { aspect-ratio: 1; border-radius: 10px; background: #2b2b2b; }
+  .grid div:first-child { background: center/cover url(cover-21.jpg); }
+
+  /* ───── the player bar, as it is ───── */
+  .bar { position: absolute; left: 0; right: 0; bottom: 0; height: var(--bar-h); z-index: 990; background: #181818;
+    border-top: 1px solid #333; color: #d6dbe1; display: flex; align-items: center; gap: 10px; padding: 3px 14px 0; }
+  .bar .progress { position: absolute; left: 0; right: 0; top: -1px; height: 4px; background: rgba(255,255,255,.1); cursor: pointer; }
+  .bar .progress span { display: block; height: 100%; background: var(--dv-gold); width: 0; }
+  .bar .album { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
+  .bar img { width: 38px; height: 38px; border-radius: 5px; }
+  .bar .meta { min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+  .bar .meta span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar .t { font-size: .88rem; } .bar .f, .bar .time { font-size: .75rem; color: #9aa4b2; }
+  .bar .time { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rb { flex: none; width: 34px; height: 34px; display: inline-grid; place-items: center; padding: 0; border: 0; border-radius: 50%;
+    background: none; color: #d6dbe1; cursor: pointer; transition: background-color .12s, transform .08s; }
+  .rb:hover { background: rgba(255,255,255,.1); } .rb:active { transform: scale(.9); }
+  .rb svg { width: 18px; height: 18px; }
+  .rb.play { width: 38px; height: 38px; background: #d6dbe1; color: #1a1a1a; } .rb.play:hover { background: #fff; }
+  .rb.play svg { width: 22px; height: 22px; }
+  /* New: the lyrics button. Gold when the words are out: gold means on. */
+  .rb.lyr.on { color: var(--dv-gold); }
+  .rb.lyr.on::after { content: ""; position: absolute; width: 4px; height: 4px; border-radius: 50%; background: var(--dv-gold); transform: translateY(15px); }
+  .rb.lyr { position: relative; }
+  .rb.stop { color: #9aa4b2; }
+  .phone .bar .time, .phone .bar .prev { display: none; }
+
+  /* ───── the words: shared ───── */
+  .lyrics { position: relative; overflow: hidden; min-height: 0; cursor: default; }
+  .lyrics .mask { height: 100%; overflow: hidden; -webkit-mask-image: linear-gradient(transparent 0, #000 12%, #000 78%, transparent 100%);
+    mask-image: linear-gradient(transparent 0, #000 12%, #000 78%, transparent 100%); }
+  .lyrics.untimed .mask { overflow-y: auto; padding-top: 40px; }
+  .lyrics ol { list-style: none; margin: 0; padding: 0; transition: transform .6s cubic-bezier(.22,.8,.3,1); will-change: transform; }
+  .lyrics li { font-weight: 700; letter-spacing: -.01em; color: rgba(255,255,255,.32); cursor: pointer; border-radius: 10px;
+    transition: color .35s, opacity .35s, filter .35s, transform .35s; transform-origin: left center; padding: 4px 10px; margin: 0 -10px; }
+  .lyrics li:hover { background: var(--dv-veil); }
+  .lyrics li.past { color: rgba(255,255,255,.22); }
+  .lyrics li.now { color: #fff; }
+  /* Karaoke: the line fills as it is sung, from the time it starts to the next one. */
+  .fill .lyrics li.now { color: transparent; -webkit-background-clip: text; background-clip: text;
+    background-image: linear-gradient(90deg, var(--ink) var(--p, 0%), rgba(255,255,255,.38) calc(var(--p, 0%) + 6%)); }
+  .ink-white { --ink: #fff; } .ink-gold { --ink: var(--dv-gold); }
+  .ink-gold:not(.fill) .lyrics li.now { color: var(--dv-gold); }
+  .blur .lyrics li.far { filter: blur(1.6px); }
+  .lyrics li.dots { display: flex; gap: 9px; padding-top: 14px; padding-bottom: 14px; }
+  .lyrics li.dots i { width: 11px; height: 11px; border-radius: 50%; background: rgba(255,255,255,.3); transition: background .2s, transform .2s; }
+  .lyrics li.dots.now i { animation: breathe 1.6s ease-in-out infinite; }
+  .lyrics li.dots.now i:nth-child(2) { animation-delay: .2s } .lyrics li.dots.now i:nth-child(3) { animation-delay: .4s }
+  @keyframes breathe { 0%,100% { transform: scale(.75); background: rgba(255,255,255,.35) } 50% { transform: scale(1.1); background: #fff } }
+  .lyrics.untimed ol { transition: none; }
+  .lyrics.untimed li { color: rgba(255,255,255,.85); cursor: default; }
+  .lyrics.untimed li:hover { background: none; }
+  .untimed-tag { font-size: 11px; letter-spacing: .6px; text-transform: uppercase; color: var(--dv-text-faint); margin-bottom: 14px; }
+  .follow { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 3; display: none;
+    border: 1px solid var(--dv-surface-edge); background: var(--dv-surface); backdrop-filter: blur(16px); color: #fff;
+    border-radius: 999px; padding: 7px 14px; font: 600 12.5px/1 inherit; cursor: pointer; }
+  .follow.shown { display: block; }
+
+  /* ───── A: the whole window, Apple Music's way ───── */
+  .va { position: absolute; inset: 0 0 var(--bar-h) 0; z-index: 980; display: none; overflow: hidden; background: #111; }
+  .va.open { display: block; animation: rise .32s cubic-bezier(.2,.8,.3,1); }
+  @keyframes rise { from { transform: translateY(30px); opacity: 0 } to { transform: none; opacity: 1 } }
+  .va .bg { position: absolute; inset: -20%; background: center/cover url(cover-21.jpg); filter: blur(70px) saturate(1.4) brightness(.55);
+    animation: drift 40s ease-in-out infinite alternate; }
+  @keyframes drift { from { transform: scale(1.1) rotate(0) } to { transform: scale(1.35) rotate(8deg) } }
+  .va .shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,.35), rgba(0,0,0,.1)); }
+  .va .inner { position: relative; height: 100%; display: grid; grid-template-columns: minmax(260px, 36%) 1fr; grid-template-rows: 100%; gap: 6vw; padding: 5vh 6vw 0; }
+  .va .side { align-self: center; padding-bottom: 6vh; }
+  .va .side img { width: 100%; max-width: 380px; aspect-ratio: 1; border-radius: 12px; box-shadow: 0 24px 60px rgba(0,0,0,.55); display: block;
+    transition: transform .4s; }
+  .va.paused .side img { transform: scale(.92); }
+  .va .side .t { margin-top: 18px; font-size: 1.25rem; font-weight: 700; color: #fff; }
+  .va .side .a { color: rgba(255,255,255,.65); }
+  .va .lyrics { height: 100%; }
+  .va .lyrics li { font-size: clamp(24px, 2.6vw, 38px); line-height: 1.22; margin-bottom: .45em; }
+  .va .close { position: absolute; top: 16px; right: 18px; z-index: 4; }
+  .va .close, .vb .close, .vc .close { width: 34px; height: 34px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer;
+    background: rgba(0,0,0,.35); color: #fff; }
+  .va .close:hover, .vb .close:hover, .vc .close:hover { background: rgba(0,0,0,.6); }
+  .phone .va .inner { grid-template-columns: 1fr; grid-template-rows: auto minmax(0,1fr); gap: 14px; padding: 16px 20px 0; }
+  .phone .va .side { display: flex; gap: 12px; align-items: center; padding: 0; }
+  .phone .va .side img { width: 54px; border-radius: 6px; }
+  .phone .va .side .t { margin: 0; font-size: 1rem; }
+  .phone .va .lyrics li { font-size: 27px; }
+
+  /* ───── B: a panel along the right edge, as a record's card ───── */
+  .vb { position: absolute; top: 0; right: 0; bottom: var(--bar-h); width: min(440px, 100%); z-index: 980; display: none;
+    background: rgba(18,18,18,.9); backdrop-filter: blur(24px); border-left: 1px solid var(--dv-surface-edge); box-shadow: -20px 0 50px rgba(0,0,0,.4); }
+  .vb.open { display: flex; flex-direction: column; animation: slide .25s ease-out; }
+  @keyframes slide { from { transform: translateX(40px); opacity: 0 } to { transform: none; opacity: 1 } }
+  .vb .head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--dv-surface-edge); }
+  .vb .head img { width: 44px; height: 44px; border-radius: 6px; }
+  .vb .head div { flex: 1; min-width: 0; } .vb .head .t { font-weight: 700; } .vb .head .a { color: var(--dv-text-muted); font-size: 12.5px; }
+  .vb .lyrics { flex: 1; padding: 0 26px; }
+  .vb .lyrics li { font-size: 24px; line-height: 1.25; margin-bottom: .5em; }
+  .vb .bg { display: none; }
+
+  /* ───── C: the bar grows into a sheet, a few lines at a time ───── */
+  .vc { position: absolute; left: 0; right: 0; bottom: var(--bar-h); height: 46%; min-height: 260px; z-index: 980; display: none; overflow: hidden;
+    border-top: 1px solid #333; background: #141414; }
+  .vc.open { display: block; animation: grow .3s cubic-bezier(.2,.8,.3,1); transform-origin: bottom; }
+  @keyframes grow { from { transform: translateY(40px); opacity: 0 } to { transform: none; opacity: 1 } }
+  .vc .bg { position: absolute; inset: -30%; background: center/cover url(cover-21.jpg); filter: blur(80px) saturate(1.3) brightness(.4); }
+  .vc .lyrics { position: relative; height: 100%; max-width: 900px; margin: 0 auto; padding: 0 30px; text-align: center; }
+  .vc .lyrics li { font-size: clamp(22px, 2.4vw, 34px); line-height: 1.25; margin-bottom: .4em; transform-origin: center; }
+  .vc .lyrics li.dots { justify-content: center; }
+  .vc .close { position: absolute; top: 12px; right: 14px; z-index: 4; }
+  .vc .lyrics li.now { transform: scale(1.04); }
+</style>
+</head>
+<body class="ink-white fill">
+
+<div class="controls" id="controls">
+  <span><b>Variante</b></span>
+  <span class="seg" data-k="variant">
+    <button data-v="a" class="on">A · Plein écran</button><button data-v="b">B · Panneau</button><button data-v="c">C · Tiroir</button>
+  </span>
+  <span><b>Ligne chantée</b></span>
+  <span class="seg" data-k="fill">
+    <button data-v="fill" class="on">Se remplit</button><button data-v="whole">Allumée d'un coup</button>
+  </span>
+  <span class="seg" data-k="ink">
+    <button data-v="white" class="on">Blanc</button><button data-v="gold">Or</button>
+  </span>
+  <span class="seg" data-k="blur">
+    <button data-v="blur" class="on">Flou au loin</button><button data-v="sharp">Net</button>
+  </span>
+  <span class="seg" data-k="screen">
+    <button data-v="desk" class="on">Ordinateur</button><button data-v="phone">iPhone</button>
+  </span>
+  <span class="seg" data-k="timed">
+    <button data-v="timed" class="on">Synchronisées</button><button data-v="untimed">Non synchronisées</button>
+  </span>
+  <span id="sim">● flux injoignable : lecture simulée, sans son</span>
+  <p class="note">Le vrai <i>21</i> d'Adele joue depuis Navidrome (pistes 1, 2 et 11, ⏮ ⏭ pour changer). Les paroles viennent de LRCLIB, synchronisées à la ligne : le remplissage d'une ligne va de son début au début de la suivante. Clic sur une ligne : la musique y va. Défiler à la main suspend le suivi ; « Back to the song » le reprend. ⌨ L ouvre et ferme les paroles, espace = lecture/pause.</p>
+</div>
+
+<div class="stage" id="stage">
+  <div class="app">
+    <h2>MusicDex</h2>
+    <div class="grid"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+  </div>
+
+  <!-- A -->
+  <section class="va" id="va" aria-label="Lyrics">
+    <div class="bg"></div><div class="shade"></div>
+    <button class="close" data-close title="Close lyrics (L)" aria-label="Close lyrics"><svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M1.6 4.7a.6.6 0 0 1 .85 0L8 10.25l5.55-5.55a.6.6 0 1 1 .85.85l-5.97 5.97a.6.6 0 0 1-.85 0L1.6 5.55a.6.6 0 0 1 0-.85z"/></svg></button>
+    <div class="inner">
+      <div class="side"><img src="cover-21.jpg" alt=""><div><div class="t" data-title></div><div class="a">Adele · 21</div></div></div>
+      <div class="lyrics" data-lyrics><div class="mask"><ol></ol></div><button class="follow" data-follow>Back to the song</button></div>
+    </div>
+  </section>
+
+  <!-- B -->
+  <section class="vb" id="vb" aria-label="Lyrics">
+    <div class="head"><img src="cover-21.jpg" alt=""><div><div class="t" data-title></div><div class="a">Adele · 21</div></div>
+      <button class="close" data-close title="Close lyrics (L)" aria-label="Close lyrics"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4.65 4.65a.5.5 0 0 1 .7 0L8 7.29l2.65-2.64a.5.5 0 1 1 .7.7L8.71 8l2.64 2.65a.5.5 0 0 1-.7.7L8 8.71l-2.65 2.64a.5.5 0 0 1-.7-.7L7.29 8 4.65 5.35a.5.5 0 0 1 0-.7z"/></svg></button></div>
+    <div class="lyrics" data-lyrics><div class="mask"><ol></ol></div><button class="follow" data-follow>Back to the song</button></div>
+  </section>
+
+  <!-- C -->
+  <section class="vc" id="vc" aria-label="Lyrics">
+    <div class="bg"></div>
+    <button class="close" data-close title="Close lyrics (L)" aria-label="Close lyrics"><svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M1.6 4.7a.6.6 0 0 1 .85 0L8 10.25l5.55-5.55a.6.6 0 1 1 .85.85l-5.97 5.97a.6.6 0 0 1-.85 0L1.6 5.55a.6.6 0 0 1 0-.85z"/></svg></button>
+    <div class="lyrics" data-lyrics><div class="mask"><ol></ol></div><button class="follow" data-follow>Back to the song</button></div>
+  </section>
+
+  <div class="bar">
+    <div class="progress" id="progress"><span id="progressFill"></span></div>
+    <div class="album"><img src="cover-21.jpg" alt=""><div class="meta"><span class="t" data-title></span><span class="f">21 · Adele</span></div></div>
+    <span class="time" id="time">0:00 / 0:00</span>
+    <button class="rb lyr on" id="lyr" title="Lyrics (L)" aria-label="Lyrics" aria-pressed="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4h0A1.5 1.5 0 0 1 4 14.5z"/><path d="M8.5 8.2h1.8v2.3a1.8 1.8 0 0 1-1.8 1.8M13.7 8.2h1.8v2.3a1.8 1.8 0 0 1-1.8 1.8"/></svg>
+    </button>
+    <button class="rb prev" id="prev" aria-label="Previous"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 3.5A.5.5 0 0 1 1 4v3.25l6.52-3.78c.53-.31 1.23.07 1.23.72v2.56l6.02-3.48c.53-.31 1.23.07 1.23.72v8.02c0 .65-.7 1.03-1.23.72L8.75 9.25v2.56c0 .65-.7 1.03-1.23.72L1 8.75V12a.5.5 0 0 1-1 0V4a.5.5 0 0 1 .5-.5z"/></svg></button>
+    <button class="rb play" id="play" aria-label="Play"><svg id="playIcon" viewBox="0 0 16 16" fill="currentColor"><path d="m11.6 8.7-6.4 3.7A.8.8 0 0 1 4 11.7V4.3a.8.8 0 0 1 1.2-.7l6.4 3.7a.8.8 0 0 1 0 1.4z"/></svg></button>
+    <button class="rb" id="next" aria-label="Next"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M15.5 3.5a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-1 0V8.75l-6.52 3.78c-.53.31-1.23-.07-1.23-.72V9.25L1.23 12.73C.7 13.04 0 12.66 0 12.01V3.99c0-.65.7-1.03 1.23-.72L7.25 6.75V4.19c0-.65.7-1.03 1.23-.72L15 7.25V4a.5.5 0 0 1 .5-.5z"/></svg></button>
+    <button class="rb stop" aria-label="Stop"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M4.65 4.65a.5.5 0 0 1 .7 0L8 7.29l2.65-2.64a.5.5 0 1 1 .7.7L8.71 8l2.64 2.65a.5.5 0 0 1-.7.7L8 8.71l-2.65 2.64a.5.5 0 0 1-.7-.7L7.29 8 4.65 5.35a.5.5 0 0 1 0-.7z"/></svg></button>
+  </div>
+</div>
+
+<audio id="audio" preload="auto"></audio>
+
+<script>
+const TRACKS = [
+ {
+  "no": 1,
+  "title": "Rolling in the Deep",
+  "songId": "7G8rYwdyfdQ3KQp8AUwqRZ",
+  "synced": "[00:05.15] There's a fire starting in my heart\n[00:09.74] Reaching a fever pitch, it's bringing me out the dark\n[00:14.24] Finally I can see you crystal clear\n[00:19.05] Go ahead and sell me out and I'll lay your ship bare\n[00:23.44] See how I'll leave with every piece of you\n[00:27.88] Don't underestimate the things that I will do\n[00:32.55] There's a fire starting in my heart\n[00:37.21] Reaching a fever pitch and it's bringing me out the dark\n[00:42.77] The scars of your love remind me of us\n[00:47.22] They keep me thinking that we almost had it all\n[00:51.82] The scars of your love they leave me breathless\n[00:56.34] I can't help feeling\n[00:58.76] We could've had it all (you're gonna wish you)\n[01:02.27] (Never had met me)\n[01:03.59] Rolling in the deep (tears are gonna fall)\n[01:06.99] (Rolling in the deep)\n[01:07.92] You had my heart inside (you're gonna wish you)\n[01:10.72] Of your hands (never had met me)\n[01:12.88] And you played it (tears are gonna fall)\n[01:15.28] To the beat (rolling in the deep)\n[01:18.30] Baby, I have no story to be told\n[01:22.70] But I've heard one on you, now I'm gonna make your head burn\n[01:27.56] Think of me in the depths of your despair\n[01:32.03] Make a home down there, as mine sure won't be shared\n[01:36.56] (You're gonna wish you)\n[01:37.62] The scars of your love (never had met me)\n[01:39.95] Remind me of us (tears are gonna fall)\n[01:42.15] They keep me thinking (rolling in the deep)\n[01:44.28] That we almost had it all (you're gonna wish you)\n[01:46.97] The scars of your love (never had met me)\n[01:49.06] They leave me breathless (tears are gonna fall)\n[01:51.37] I can't help feeling (rolling in the deep)\n[01:53.46] We could've had it all (you're gonna wish you)\n[01:57.22] (Never had met me)\n[01:58.61] Rolling in the deep (tears are gonna fall)\n[02:02.05] (Rolling in the deep)\n[02:02.84] You had my heart inside (you're gonna wish you)\n[02:05.68] Of your hands (never had met me)\n[02:07.75] And you played it (tears are gonna fall)\n[02:10.09] To the beat (rolling in the deep)\n[02:12.02] We could've had it all\n[02:16.48] Rolling in the deep\n[02:21.13] You had my heart inside of your hand\n[02:26.18] But you played it with a beating\n[02:31.75] Throw your soul through every open door (whoa)\n[02:36.23] Count your blessings to find what you look for (whoa)\n[02:40.67] Turn my sorrow into treasured gold (whoa)\n[02:45.07] You pay me back in kind and reap just what you've sown\n[02:49.95] (You're gonna wish you never had met me)\n[02:53.26] We could've had it all (tears are gonna fall, rolling in the deep)\n[02:57.66] We could've had it all (you're gonna wish you never had met me)\n[03:03.25] It all, it all, it all (tears are gonna fall, rolling in the deep)\n[03:06.96] We could've had it all (you're gonna wish you)\n[03:10.42] (Never had met me)\n[03:11.59] Rolling in the deep (tears are gonna fall)\n[03:14.83] (Rolling in the deep)\n[03:15.95] You had my heart inside (you're gonna wish you)\n[03:18.84] Of your hands (never had met me)\n[03:21.18] And you played it (tears are gonna fall)\n[03:23.13] To the beat (rolling in the deep)\n[03:25.22] Could've had it all (you're gonna wish you)\n[03:28.64] (Never had met me)\n[03:29.90] Rolling in the deep (tears are gonna fall)\n[03:33.38] (Rolling in the deep)\n[03:34.17] You had my heart inside (you're gonna wish you)\n[03:36.92] Of your hands (never had met me)\n[03:39.53] But you played it, you played it, you played it\n[03:42.92] You played it to the beat\n[03:44.79] ",
+  "plain": "There's a fire starting in my heart\nReaching a fever pitch, it's bringing me out the dark\nFinally I can see you crystal clear\nGo ahead and sell me out and I'll lay your ship bare\nSee how I'll leave with every piece of you\nDon't underestimate the things that I will do\nThere's a fire starting in my heart\nReaching a fever pitch and it's bringing me out the dark\nThe scars of your love remind me of us\nThey keep me thinking that we almost had it all\nThe scars of your love they leave me breathless\nI can't help feeling\nWe could've had it all (you're gonna wish you)\n(Never had met me)\nRolling in the deep (tears are gonna fall)\n(Rolling in the deep)\nYou had my heart inside (you're gonna wish you)\nOf your hands (never had met me)\nAnd you played it (tears are gonna fall)\nTo the beat (rolling in the deep)\nBaby, I have no story to be told\nBut I've heard one on you, now I'm gonna make your head burn\nThink of me in the depths of your despair\nMake a home down there, as mine sure won't be shared\n(You're gonna wish you)\nThe scars of your love (never had met me)\nRemind me of us (tears are gonna fall)\nThey keep me thinking (rolling in the deep)\nThat we almost had it all (you're gonna wish you)\nThe scars of your love (never had met me)\nThey leave me breathless (tears are gonna fall)\nI can't help feeling (rolling in the deep)\nWe could've had it all (you're gonna wish you)\n(Never had met me)\nRolling in the deep (tears are gonna fall)\n(Rolling in the deep)\nYou had my heart inside (you're gonna wish you)\nOf your hands (never had met me)\nAnd you played it (tears are gonna fall)\nTo the beat (rolling in the deep)\nWe could've had it all\nRolling in the deep\nYou had my heart inside of your hand\nBut you played it with a beating\nThrow your soul through every open door (whoa)\nCount your blessings to find what you look for (whoa)\nTurn my sorrow into treasured gold (whoa)\nYou pay me back in kind and reap just what you've sown\n(You're gonna wish you never had met me)\nWe could've had it all (tears are gonna fall, rolling in the deep)\nWe could've had it all (you're gonna wish you never had met me)\nIt all, it all, it all (tears are gonna fall, rolling in the deep)\nWe could've had it all (you're gonna wish you)\n(Never had met me)\nRolling in the deep (tears are gonna fall)\n(Rolling in the deep)\nYou had my heart inside (you're gonna wish you)\nOf your hands (never had met me)\nAnd you played it (tears are gonna fall)\nTo the beat (rolling in the deep)\nCould've had it all (you're gonna wish you)\n(Never had met me)\nRolling in the deep (tears are gonna fall)\n(Rolling in the deep)\nYou had my heart inside (you're gonna wish you)\nOf your hands (never had met me)\nBut you played it, you played it, you played it\nYou played it to the beat\n"
+ },
+ {
+  "no": 2,
+  "title": "Rumour Has It",
+  "songId": "3xiWL87g4rz2Lttp7vb1Vj",
+  "synced": "[00:04.29] Ooh-ooh\n[00:06.36] Ooh-ooh\n[00:08.22] Ooh-ooh\n[00:10.13] Ooh-ooh\n[00:12.25] She, she ain't real\n[00:15.50] She ain't gon' be able to love you like I will\n[00:20.11] She is a stranger\n[00:24.04] You and I have history, or don't you remember?\n[00:28.10] Sure, she's got it all\n[00:31.94] But baby, is that really what you want?\n[00:38.52] Bless your soul, you've got your head in the clouds\n[00:41.67] She made a fool out of you and boy, she's bringing you down\n[00:45.61] She made your heart melt, but you're cold to the core\n[00:50.03] Now rumour has it, she ain't got your love anymore\n[00:53.32] Rumour has it (rumour)\n[00:55.23] Rumour has it (rumour)\n[00:57.11] Rumour has it (rumour)\n[00:59.14] Rumour has it (rumour)\n[01:01.48] Rumour has it (rumour)\n[01:03.40] Rumour has it (rumour)\n[01:05.18] Rumour has it (rumour)\n[01:07.38] Rumour has it (rumour)\n[01:10.94] ♪\n[01:14.05] She is half your age\n[01:17.64] But I'm guessing that's the reason that you strayed\n[01:21.59] I heard you've been missing me\n[01:25.64] You've been telling people things you shouldn't be\n[01:29.71] Like when we creep out when she ain't around\n[01:34.09] Haven't you heard the rumours?\n[01:37.45] (Bless your soul)\n[01:38.22] Bless your soul, you've got your head in the clouds\n[01:41.52] You made a fool out of me and, boy, you're bringing me down\n[01:45.54] You made my heart melt, yet I'm cold to the core\n[01:50.08] But rumour has it, I'm the one you're leaving her for\n[01:53.14] Rumour has it (rumour)\n[01:55.28] Rumour has it (rumour)\n[01:57.14] Rumour has it (rumour)\n[01:59.14] Rumour has it (rumour)\n[02:01.49] Rumour has it (rumour)\n[02:03.29] Rumour has it (rumour)\n[02:05.25] Rumour has it (rumour)\n[02:07.44] Rumour has it (rumour)\n[02:10.99] ♪\n[02:20.11] All of these words whispered in my ear\n[02:27.83] Tell a story that I cannot bear to hear\n[02:35.06] Just 'cause I said it, it don't mean that I meant it\n[02:42.65] People say crazy things\n[02:48.55] Just 'cause I said it, don't mean that I meant it\n[02:55.00] Just 'cause you heard it\n[02:58.84] ♪\n[03:02.46] Rumour has it (rumour)\n[03:04.10] Rumour has it (rumour)\n[03:06.09] Rumour has it (rumour)\n[03:08.36] Rumour has it (rumour)\n[03:10.28] Rumour has it (rumour)\n[03:12.27] Rumour has it (rumour)\n[03:14.12] Rumour has it (rumour)\n[03:16.12] Rumour has it (rumour, rumour)\n[03:20.47] Rumour has it (rumour)\n[03:22.36] Rumour has it (rumour)\n[03:24.34] Rumour has it (rumour)\n[03:26.26] Rumour has it (rumour)\n[03:28.51] Rumour has it (rumour)\n[03:30.26] Rumour has it\n[03:31.08] But rumour has it, he's the one I'm leaving you for\n[03:34.33] ",
+  "plain": "Ooh-ooh\nOoh-ooh\nOoh-ooh\nOoh-ooh\nShe, she ain't real\nShe ain't gon' be able to love you like I will\nShe is a stranger\nYou and I have history, or don't you remember?\nSure, she's got it all\nBut baby, is that really what you want?\nBless your soul, you've got your head in the clouds\nShe made a fool out of you and boy, she's bringing you down\nShe made your heart melt, but you're cold to the core\nNow rumour has it, she ain't got your love anymore\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\n♪\nShe is half your age\nBut I'm guessing that's the reason that you strayed\nI heard you've been missing me\nYou've been telling people things you shouldn't be\nLike when we creep out when she ain't around\nHaven't you heard the rumours?\n(Bless your soul)\nBless your soul, you've got your head in the clouds\nYou made a fool out of me and, boy, you're bringing me down\nYou made my heart melt, yet I'm cold to the core\nBut rumour has it, I'm the one you're leaving her for\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\n♪\nAll of these words whispered in my ear\nTell a story that I cannot bear to hear\nJust 'cause I said it, it don't mean that I meant it\nPeople say crazy things\nJust 'cause I said it, don't mean that I meant it\nJust 'cause you heard it\n♪\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour, rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it (rumour)\nRumour has it\nBut rumour has it, he's the one I'm leaving you for\n"
+ },
+ {
+  "no": 11,
+  "title": "Someone Like You",
+  "songId": "3yNBQcI0mrrqoMHOMkHvJk",
+  "synced": "[00:14.74] I heard that you're settled down\n[00:21.38] That you found a girl and you're married now\n[00:29.24] I heard that your dreams came true\n[00:35.61] Guess she gave you things I didn't give to you\n[00:43.47] Old friend, why are you so shy?\n[00:49.62] Ain't like you to hold back or hide from the light\n[00:57.22] I hate to turn up out of the blue, uninvited\n[01:01.14] But I couldn't stay away, I couldn't fight it\n[01:04.86] I had hoped you'd see my face\n[01:06.87] And that you'd be reminded that for me, it isn't over\n[01:14.10] Never mind, I'll find someone like you\n[01:20.09] I wish nothing but the best for you, too\n[01:27.02] Don't forget me, I beg\n[01:30.22] I'll remember, you said\n[01:34.28] Sometimes it lasts in love, but sometimes it hurts instead\n[01:40.88] Sometimes it lasts in love, but sometimes it hurts instead\n[01:48.54] \n[01:51.70] You know how the time flies\n[01:57.10] Only yesterday was the time of our lives\n[02:04.06] We were born and raised in a summer haze\n[02:11.23] Bound by the surprise of our glory days\n[02:19.96] I hate to turn up out of the blue, uninvited\n[02:23.22] But I couldn't stay away, I couldn't fight it\n[02:26.85] I had hoped you'd see my face\n[02:29.05] And that you'd be reminded that for me, it isn't over\n[02:36.10] \n[02:38.18] Never mind, I'll find someone like you\n[02:44.07] I wish nothing but the best for you, too\n[02:50.96] Don't forget me, I beg\n[02:54.87] I'll remember, you said\n[02:58.46] Sometimes it lasts in love, but sometimes it hurts instead\n[03:06.62] Nothing compares, no worries or cares\n[03:09.81] Regrets and mistakes, they're memories made\n[03:13.15] Who would have known how bittersweet this would taste?\n[03:25.14] Never mind, I'll find someone like you\n[03:30.88] I wish nothing but the best for you\n[03:37.75] Don't forget me, I beg\n[03:41.69] I'll remember, you said\n[03:44.92] Sometimes it lasts in love, but sometimes it hurts instead\n[03:53.28] Never mind, I'll find someone like you\n[03:59.73] I wish nothing but the best for you, too\n[04:06.18] Don't forget me, I beg\n[04:09.75] I'll remember, you said\n[04:13.53] Sometimes it lasts in love, but sometimes it hurts instead\n[04:20.67] Sometimes it lasts in love, but sometimes it hurts instead...\n[04:28.63] ",
+  "plain": "I heard that you're settled down\nThat you found a girl and you're married now\nI heard that your dreams came true\nGuess she gave you things I didn't give to you\nOld friend, why are you so shy?\nAin't like you to hold back or hide from the light\n\nI hate to turn up out of the blue, uninvited\nBut I couldn't stay away, I couldn't fight it\nI had hoped you'd see my face\nAnd that you'd be reminded that for me, it isn't over\n\nNever mind, I'll find someone like you\nI wish nothing but the best for you, too\nDon't forget me, I beg\nI'll remember, you said\nSometimes it lasts in love, but sometimes it hurts instead\nSometimes it lasts in love, but sometimes it hurts instead\n\nYou know how the time flies\nOnly yesterday was the time of our lives\nWe were born and raised in a summer haze\nBound by the surprise of our glory days\n\nI hate to turn up out of the blue, uninvited\nBut I couldn't stay away, I couldn't fight it\nI had hoped you'd see my face\nAnd that you'd be reminded that for me, it isn't over\n\nNever mind, I'll find someone like you\nI wish nothing but the best for you, too\nDon't forget me, I beg\nI'll remember, you said\nSometimes it lasts in love, but sometimes it hurts instead\n\nNothing compares, no worries or cares\nRegrets and mistakes, they're memories made\nWho would have known how bittersweet this would taste?\n\nNever mind, I'll find someone like you\nI wish nothing but the best for you\nDon't forget me, I beg\nI'll remember, you said\nSometimes it lasts in love, but sometimes it hurts instead\n\nNever mind, I'll find someone like you\nI wish nothing but the best for you, too\nDon't forget me, I beg\nI'll remember, you said\nSometimes it lasts in love, but sometimes it hurts instead\n\nSometimes it lasts in love, but sometimes it hurts instead..."
+ }
+];
+
+const STREAM = id => `https://dexvault.lab.crog.org/api/music/navidrome/stream/${id}`;
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const audio = $('#audio');
+const opt = { variant: 'a', fill: 'fill', ink: 'white', blur: 'blur', screen: 'desk', timed: 'timed' };
+let ti = 0, open = true, lines = [], cur = -1, follow = true, followTimer = null;
+
+// The fake clock when the stream does not answer: the words still move.
+const sim = { on: false, t: 0, playing: false, at: 0, dur: 0 };
+const now = () => sim.on ? (sim.playing ? sim.t + (performance.now() - sim.at) / 1000 : sim.t) : audio.currentTime;
+const duration = () => sim.on ? sim.dur : (audio.duration || 0);
+const playing = () => sim.on ? sim.playing : !audio.paused;
+
+const parse = lrc => {
+  const out = [];
+  for (const raw of lrc.split('\n')) {
+    const m = raw.match(/^\[(\d+):(\d+(?:\.\d+)?)\]\s?(.*)$/);
+    if (m) out.push({ t: +m[1] * 60 + +m[2], text: m[3].trim() });
+  }
+  // A silence of the voice: the three dots, as Apple Music does. Before the first line, and at each empty line.
+  const res = [];
+  if (out.length && out[0].t > 4) res.push({ t: 0, dots: true });
+  out.forEach((l, i) => {
+    if (!l.text) { if (out[i + 1] && out[i + 1].t - l.t > 4) res.push({ t: l.t, dots: true }); return; }
+    res.push(l);
+    // A long gap after a line: dots from a little after it was sung.
+    const next = out[i + 1];
+    if (next && next.text && next.t - l.t > 12) res.push({ t: l.t + 6, dots: true });
+  });
+  return res;
+};
+
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const panel = () => $('#v' + opt.variant);
+const list = () => panel().querySelector('[data-lyrics]');
+
+function render() {
+  const t = TRACKS[ti];
+  $$('[data-title]').forEach(e => e.textContent = t.title);
+  const untimed = opt.timed === 'untimed';
+  lines = untimed ? [] : parse(t.synced);
+  $$('[data-lyrics]').forEach(box => {
+    box.classList.toggle('untimed', untimed);
+    const ol = box.querySelector('ol');
+    ol.style.transform = '';
+    ol.innerHTML = untimed
+      ? '<div class="untimed-tag">Not timed</div>' + t.plain.split('\n').map(l => l.trim() ? `<li>${esc(l)}</li>` : '<li style="height:.6em;padding:0"></li>').join('')
+      : lines.map((l, i) => l.dots ? `<li class="dots" data-i="${i}"><i></i><i></i><i></i></li>` : `<li data-i="${i}">${esc(l.text)}</li>`).join('');
+    box.querySelector('.mask').scrollTop = 0;
+  });
+  cur = -1; follow = true; $$('[data-follow]').forEach(b => b.classList.remove('shown'));
+}
+
+function load(i, autoplay) {
+  ti = (i + TRACKS.length) % TRACKS.length;
+  render();
+  if (sim.on) { sim.t = 0; sim.at = performance.now(); sim.dur = 240; if (autoplay) sim.playing = true; return; }
+  audio.src = STREAM(TRACKS[ti].songId);
+  if (autoplay) audio.play().catch(() => {});
+}
+
+function seek(s) {
+  if (sim.on) { sim.t = s; sim.at = performance.now(); } else audio.currentTime = s;
+  follow = true; $$('[data-follow]').forEach(b => b.classList.remove('shown'));
+}
+
+function toggle() {
+  if (sim.on) { if (sim.playing) { sim.t = now(); sim.playing = false; } else { sim.at = performance.now(); sim.playing = true; } return; }
+  audio.paused ? audio.play().catch(() => {}) : audio.pause();
+}
+
+audio.addEventListener('error', () => {
+  if (sim.on) return;
+  sim.on = true; sim.dur = 240; sim.t = 0; sim.at = performance.now();
+  $('#sim').style.display = 'inline';
+});
+
+function tick() {
+  const t = now(), d = duration();
+  $('#time').textContent = `${fmt(t)} / ${fmt(d)}`;
+  $('#progressFill').style.width = d ? `${Math.min(100, t / d * 100)}%` : '0';
+  $('#playIcon').innerHTML = playing()
+    ? '<path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>'
+    : '<path d="m11.6 8.7-6.4 3.7A.8.8 0 0 1 4 11.7V4.3a.8.8 0 0 1 1.2-.7l6.4 3.7a.8.8 0 0 1 0 1.4z"/>';
+  $('#va').classList.toggle('paused', !playing());
+  if (sim.on && sim.playing && t >= sim.dur) load(ti + 1, true);
+
+  if (open && lines.length) {
+    const lead = t + 0.2;   // a fifth of a second early: the eye reads before the voice sings
+    let i = -1;
+    for (let k = 0; k < lines.length; k++) if (lines[k].t <= lead) i = k; else break;
+    const box = list(), lis = box.querySelectorAll('li[data-i]');
+    if (i !== cur) {
+      cur = i;
+      lis.forEach((li, k) => {
+        li.classList.toggle('now', k === i);
+        li.classList.toggle('past', k < i);
+        li.classList.toggle('far', Math.abs(k - i) > 2);
+        li.style.removeProperty('--p');
+      });
+      if (follow) place(box, lis[Math.max(0, i)]);
+    }
+    if (i >= 0 && !lines[i].dots) {
+      const end = lines[i + 1] ? lines[i + 1].t : lines[i].t + 4;
+      // Sung a little faster than the gap: most lines end before the next one starts.
+      const p = Math.max(0, Math.min(1, (lead - lines[i].t) / Math.max(0.6, (end - lines[i].t) * 0.85)));
+      lis[i].style.setProperty('--p', `${(p * 106).toFixed(1)}%`);
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+// The line being sung sits at a third of the height (A, B), in the middle (C).
+function place(box, li) {
+  if (!li) return;
+  const anchor = opt.variant === 'c' ? box.clientHeight / 2 - li.offsetHeight / 2 : box.clientHeight * 0.3;
+  box.querySelector('ol').style.transform = `translateY(${anchor - li.offsetTop}px)`;
+}
+
+// Scrolling by hand: the words stop following for a while, and a pill brings them back.
+$$('[data-lyrics]').forEach(box => {
+  box.addEventListener('wheel', e => {
+    if (box.classList.contains('untimed')) return;
+    e.preventDefault();
+    const ol = box.querySelector('ol');
+    const y = (parseFloat((ol.style.transform.match(/-?[\d.]+/) || [0])[0]) || 0) - e.deltaY;
+    ol.style.transition = 'none'; ol.style.transform = `translateY(${y}px)`;
+    requestAnimationFrame(() => ol.style.transition = '');
+    follow = false; box.querySelector('[data-follow]').classList.add('shown');
+    clearTimeout(followTimer);
+    followTimer = setTimeout(() => backToSong(), 5000);
+  }, { passive: false });
+  box.addEventListener('click', e => {
+    const li = e.target.closest('li[data-i]');
+    if (li && !box.classList.contains('untimed')) { seek(Math.max(0, lines[+li.dataset.i].t - 0.05)); if (!playing()) toggle(); }
+  });
+});
+const backToSong = () => {
+  follow = true; $$('[data-follow]').forEach(b => b.classList.remove('shown'));
+  const box = list(); place(box, box.querySelectorAll('li[data-i]')[Math.max(0, cur)]);
+};
+$$('[data-follow]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); backToSong(); }));
+
+function show() {
+  ['a', 'b', 'c'].forEach(v => $('#v' + v).classList.toggle('open', open && opt.variant === v));
+  $('#lyr').classList.toggle('on', open);
+  $('#lyr').setAttribute('aria-pressed', open);
+  cur = -1;
+  requestAnimationFrame(() => { cur = -1; });
+}
+
+$('#lyr').onclick = () => { open = !open; show(); };
+$$('[data-close]').forEach(b => b.onclick = () => { open = false; show(); });
+$('#play').onclick = toggle;
+$('#next').onclick = () => load(ti + 1, true);
+$('#prev').onclick = () => (now() > 3 ? seek(0) : load(ti - 1, true));
+$('#progress').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * duration()); };
+audio.addEventListener('ended', () => load(ti + 1, true));
+document.addEventListener('keydown', e => {
+  if (e.key === 'l' || e.key === 'L') { open = !open; show(); }
+  if (e.key === ' ') { e.preventDefault(); toggle(); }
+  if (e.key === 'Escape' && open) { open = false; show(); }
+});
+
+$$('.seg').forEach(seg => seg.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  const k = seg.dataset.k; opt[k] = b.dataset.v;
+  document.body.classList.toggle('fill', opt.fill === 'fill');
+  document.body.classList.toggle('ink-white', opt.ink === 'white');
+  document.body.classList.toggle('ink-gold', opt.ink === 'gold');
+  document.body.classList.toggle('blur', opt.blur === 'blur');
+  $('#stage').classList.toggle('phone', opt.screen === 'phone');
+  if (k === 'timed') render();
+  open = true; show();
+}));
+
+const fitControls = () => document.documentElement.style.setProperty('--controls-h', $('#controls').offsetHeight + 'px');
+addEventListener('resize', () => { fitControls(); cur = -1; });
+fitControls();
+document.body.classList.add('blur');
+load(0, false);
+show();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

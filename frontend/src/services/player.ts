@@ -68,9 +68,13 @@ export interface PlayerState {
   /** What ✕ or a reload left, to resume from the album's card. */
   resume: PlayerResume | null;
   error: string | null;
+  /** The words of the track, in their panel along the left edge, on a desktop. */
+  lyricsOpen: boolean;
 }
 
 const RESUME_KEY = 'dexvault.player.resume';
+/** The words were out: they come out again with the next play, in this browser. */
+const LYRICS_KEY = 'dexvault.player.lyrics';
 /** A play counts once half the track is heard, or four minutes of it, as the other players count it. */
 const SCROBBLE_AFTER_SEC = 240;
 /** ⏮ goes back to the start of the track past this many seconds, to the one before within them. */
@@ -91,9 +95,12 @@ const readResume = (): PlayerResume | null => {
 /** A private window keeps nothing: Resume is a convenience. An empty value stands for none. */
 const writeResume = (resume: PlayerResume | null) => writeStored(RESUME_KEY, resume ? JSON.stringify(resume) : '');
 
+const readLyricsOpen = (): boolean => readStored(LYRICS_KEY) === '1';
+
 let state: PlayerState = {
   album: null, queue: null, tracks: [], index: 0, playing: false, position: 0, duration: 0, barShown: false,
   resume: typeof window !== 'undefined' ? readResume() : null, error: null,
+  lyricsOpen: typeof window !== 'undefined' ? readLyricsOpen() : false,
 };
 const listeners = new Set<() => void>();
 const set = (changes: Partial<PlayerState>) => {
@@ -364,6 +371,16 @@ export const player = {
     player.playAlbum(saved.album, saved.tracks, saved.index, saved.position);
   },
 
+  /** Shows or hides the words; without `open`, the other way from now. */
+  showLyrics: (open?: boolean) => {
+    const lyricsOpen = open ?? !state.lyricsOpen;
+    writeStored(LYRICS_KEY, lyricsOpen ? '1' : '');
+    set({ lyricsOpen });
+  },
+
+  /** Seconds into the track now, finer than `position`, which the audio element updates a few times a second. */
+  currentTime: (): number => current()?.currentTime ?? state.position,
+
   getState: (): PlayerState => state,
 };
 
@@ -435,7 +452,8 @@ export const resetPlayer = () => {
   waitingForBar = null;
   options = {};
   waitingQueue = null;
-  state = { album: null, queue: null, tracks: [], index: 0, playing: false, position: 0, duration: 0, barShown: false, resume: readResume(), error: null };
+  state = { album: null, queue: null, tracks: [], index: 0, playing: false, position: 0, duration: 0, barShown: false, resume: readResume(), error: null,
+    lyricsOpen: readLyricsOpen() };
   listeners.forEach(listener => listener());
 };
 

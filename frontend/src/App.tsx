@@ -27,6 +27,7 @@ import './App.css';
 import { readStored, writeStored } from './utils/safeStorage';
 import { isDigitalOn } from './utils/digitalLibrary';
 import PlayerBar from './components/PlayerBar';
+import LyricsPanel from './components/LyricsPanel';
 import { ConfirmHost } from './components/shared/ConfirmDialog';
 import { IconButton } from './components/shared/Button';
 import { toast, toneOf, ToastHost } from './components/shared/Toast';
@@ -1364,6 +1365,7 @@ function AppContent() {
         </Routes>
       </main>
       <PlayerBar />
+      <LyricsPanel />
       <ConfirmHost />
       <ToastHost />
 

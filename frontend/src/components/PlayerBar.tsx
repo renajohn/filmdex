@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BsPauseFill, BsPlayFill, BsSkipBackwardFill, BsSkipForwardFill, BsX } from 'react-icons/bs';
+import { BsChatQuote, BsPauseFill, BsPlayFill, BsSkipBackwardFill, BsSkipForwardFill, BsX } from 'react-icons/bs';
 import { player, usePlayer } from '../services/player';
 // Listen Next registers itself with the player, to go on after a reload whatever the page.
 import '../services/listenNextQueue';
@@ -30,6 +30,7 @@ const PlayerBar: React.FC = () => {
   const duration = usePlayer(state => state.duration);
   const shown = usePlayer(state => state.barShown);
   const error = usePlayer(state => state.error);
+  const lyricsOpen = usePlayer(state => state.lyricsOpen);
 
   // The room the bar takes, for the pages and the cards: --player-h on the root.
   useEffect(() => {
@@ -76,6 +77,13 @@ const PlayerBar: React.FC = () => {
               </span>
             </button>
             <span className="player-bar-time">{time(position)} / {time(length)}</span>
+            {/* The words, in their panel on the left: of an album DexVault holds, on a desktop. */}
+            {album.id != null && (
+              <button type="button" className={`player-bar-button player-bar-lyrics${lyricsOpen ? ' player-bar-lyrics-on' : ''}`}
+                onClick={() => player.showLyrics()} aria-label="Lyrics" aria-pressed={lyricsOpen} title="Lyrics">
+                <BsChatQuote aria-hidden="true" />
+              </button>
+            )}
             <button type="button" className="player-bar-button player-bar-previous" onClick={() => player.previous()} aria-label="Previous">
               <BsSkipBackwardFill aria-hidden="true" />
             </button>

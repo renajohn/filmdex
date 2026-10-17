@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lyrics · cover behind</title>
+<style>
+  :root {
+    --dv-gold: #fbbf24; --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-page: #1a1a1a;
+    --dv-veil: rgba(255,255,255,.08); --dv-surface: rgba(24,24,24,.86); --dv-surface-edge: rgba(255,255,255,.1);
+    --bar-h: 54px;
+    /* The cover behind the words: how close, how blurred, how dark. */
+    --ink: #fff; --zoom: 1.6; --blur: 60px; --bright: .5; --sat: 1.5;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--dv-page); color: var(--dv-text); overflow: hidden;
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+  .controls { position: fixed; top: 0; left: 0; right: 0; z-index: 2000; padding: 10px 16px; display: flex; gap: 10px 14px;
+    flex-wrap: wrap; align-items: center; background: #0d0d0d; border-bottom: 1px solid #333; font-size: 12.5px; color: #aaa; }
+  .controls b { color: #eee; font-weight: 600; }
+  .seg { display: inline-flex; background: #1c1c1c; border: 1px solid #383838; border-radius: 8px; padding: 2px; }
+  .seg button { background: none; border: 0; color: #ccc; padding: 5px 10px; border-radius: 6px; font: inherit; cursor: pointer; }
+  .seg button.on { background: var(--dv-gold); color: #111; }
+  .group { display: inline-flex; gap: 6px; align-items: center; }
+  .controls .note { flex-basis: 100%; color: #888; margin: 0; }
+  #sim { color: var(--dv-gold); display: none; }
+
+  .stage { position: fixed; top: var(--controls-h, 120px); left: 0; right: 0; bottom: 0; overflow: hidden; }
+  .app { position: absolute; inset: 0 0 var(--bar-h) 0; padding: 20px 24px; background: linear-gradient(135deg,#1a1a1a,#262626); }
+  .app h2 { margin: 0 0 14px; font-size: 1.4rem; color: #ddd; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); gap: 16px; max-width: calc(100% - 460px); }
+  .grid img { width: 100%; aspect-ratio: 1; border-radius: 10px; object-fit: cover; display: block; cursor: pointer; }
+  .grid img.on { outline: 2px solid var(--dv-gold); outline-offset: 3px; }
+
+  /* ───── the bar, as it is ───── */
+  .bar { position: absolute; left: 0; right: 0; bottom: 0; height: var(--bar-h); z-index: 990; background: #181818;
+    border-top: 1px solid #333; color: #d6dbe1; display: flex; align-items: center; gap: 10px; padding: 3px 14px 0; }
+  .bar .progress { position: absolute; left: 0; right: 0; top: -1px; height: 4px; background: rgba(255,255,255,.1); cursor: pointer; }
+  .bar .progress span { display: block; height: 100%; background: var(--dv-gold); width: 0; }
+  .bar .album { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
+  .bar img { width: 38px; height: 38px; border-radius: 5px; object-fit: cover; }
+  .bar .meta { min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+  .bar .meta span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar .t { font-size: .88rem; } .bar .f, .bar .time { font-size: .75rem; color: #9aa4b2; }
+  .bar .time { font-variant-numeric: tabular-nums; }
+  .rb { flex: none; position: relative; width: 34px; height: 34px; display: inline-grid; place-items: center; padding: 0; border: 0; border-radius: 50%;
+    background: none; color: #d6dbe1; cursor: pointer; }
+  .rb:hover { background: rgba(255,255,255,.1); } .rb svg { width: 18px; height: 18px; }
+  .rb.play { width: 38px; height: 38px; background: #d6dbe1; color: #1a1a1a; } .rb.play:hover { background: #fff; } .rb.play svg { width: 22px; height: 22px; }
+  .rb.lyr.on { color: var(--dv-gold); }
+  .rb.lyr.on::after { content: ""; position: absolute; width: 4px; height: 4px; border-radius: 50%; background: var(--dv-gold); transform: translateY(15px); }
+
+  /* ───── B2: the panel, the cover behind ───── */
+  .panel { position: absolute; top: 0; right: 0; bottom: var(--bar-h); width: min(440px, 100%); z-index: 980; display: flex; flex-direction: column;
+    background: #111; overflow: hidden; box-shadow: -20px 0 50px rgba(0,0,0,.4); }
+  .panel.closed { display: none; }
+  .pbg { position: absolute; inset: 0; overflow: hidden; }
+  .pbg i { position: absolute; inset: 0; background: center/cover var(--cover); transform: scale(var(--zoom));
+    filter: blur(var(--blur)) saturate(var(--sat)) brightness(var(--bright)); transition: opacity .8s; }
+  .pbg i.old { opacity: 0; }
+  .drift .pbg i { animation: drift 38s ease-in-out infinite alternate; }
+  @keyframes drift { 0% { transform: scale(var(--zoom)) translate(0, 0) rotate(0) } 50% { transform: scale(calc(var(--zoom) * 1.12)) translate(-4%, 3%) rotate(6deg) }
+    100% { transform: scale(var(--zoom)) translate(3%, -4%) rotate(-4deg) } }
+  /* Two copies turning against each other: the colours mix as Apple Music's do. */
+  .swirl .pbg i { animation: drift 38s ease-in-out infinite alternate; }
+  .swirl .pbg i + i { mix-blend-mode: screen; opacity: .55; animation: drift2 52s ease-in-out infinite alternate; }
+  @keyframes drift2 { from { transform: scale(calc(var(--zoom) * 1.3)) rotate(180deg) translate(5%, 0) } to { transform: scale(calc(var(--zoom) * 1.5)) rotate(220deg) translate(-5%, 4%) } }
+  .pbg::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.1), rgba(0,0,0,.4)); }
+  .panel > *:not(.pbg) { position: relative; }
+  .head { display: flex; align-items: center; gap: 12px; padding: 18px 20px 6px; }
+  .head img { width: 44px; height: 44px; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.45); object-fit: cover; }
+  .head div { flex: 1; min-width: 0; } .head .t { font-weight: 700; color: #fff; } .head .a { color: rgba(255,255,255,.7); font-size: 12.5px; }
+  .close { width: 34px; height: 34px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; background: rgba(0,0,0,.3); color: #fff; }
+  .close:hover { background: rgba(0,0,0,.55); }
+
+  .lyrics { flex: 1; min-height: 0; padding: 0 14px; }
+  .lyrics .mask { padding: 0 12px; }
+  .mask { height: 100%; overflow: hidden; -webkit-mask-image: linear-gradient(transparent 0, #000 10%, #000 80%, transparent 100%);
+    mask-image: linear-gradient(transparent 0, #000 10%, #000 80%, transparent 100%); }
+  .lyrics ol { list-style: none; margin: 0; padding: 0; transition: transform .6s cubic-bezier(.22,.8,.3,1); }
+  .lyrics li { font-size: 27px; line-height: 1.25; margin: 0 -10px .5em; padding: 4px 10px; font-weight: 700; letter-spacing: -.01em; border-radius: 10px;
+    color: rgba(255,255,255,.38); cursor: pointer; transition: color .35s, filter .35s; }
+  .lyrics li:hover { background: var(--dv-veil); }
+  .lyrics li.past { color: rgba(255,255,255,.26); }
+  .lyrics li.now { color: var(--ink); text-shadow: 0 1px 14px rgba(0,0,0,.35); }
+  .lyrics li { position: relative; }
+  /* White words, gold kept for "playing": a short gold rule beside the line sung. */
+  .rule .mini li.now::before { left: -11px !important; }
+  .rule .lyrics li.now::before, .rule .mini li.now::before { content: ""; position: absolute; left: 0; top: .32em; bottom: .32em; width: 3px; border-radius: 2px; background: var(--dv-gold); }
+  .mini li { position: relative; }
+  .lyrics li.far { filter: blur(1.6px); }
+  .lyrics li.dots { display: flex; gap: 9px; padding-top: 14px; padding-bottom: 14px; }
+  .lyrics li.dots i { width: 11px; height: 11px; border-radius: 50%; background: rgba(255,255,255,.3); }
+  .lyrics li.dots.now i { animation: breathe 1.6s ease-in-out infinite; }
+  .lyrics li.dots.now i:nth-child(2) { animation-delay: .2s } .lyrics li.dots.now i:nth-child(3) { animation-delay: .4s }
+  @keyframes breathe { 0%,100% { transform: scale(.75); background: rgba(255,255,255,.35) } 50% { transform: scale(1.1); background: var(--ink) } }
+
+  /* ───── all six side by side, still ───── */
+  .wall { position: absolute; inset: 0 0 var(--bar-h) 0; z-index: 985; display: none; gap: 14px; padding: 16px; background: #0f0f0f;
+    grid-template-columns: repeat(3, 1fr); align-content: start; overflow: auto; }
+  .walled .wall { display: grid; }
+  .mini > *:not(.pbg) { position: relative; }
+  .mini { position: relative; height: 330px; border-radius: 12px; overflow: hidden; background: #111; display: flex; flex-direction: column; }
+  .mini .head { padding: 14px 16px 4px; } .mini .head img { width: 36px; height: 36px; }
+  .mini ol { list-style: none; margin: 0; padding: 18px 20px 0; }
+  .mini li { font-size: 21px; line-height: 1.25; font-weight: 700; color: rgba(255,255,255,.38); margin-bottom: .55em; }
+  .mini li.past { color: rgba(255,255,255,.26); } .mini li.now { color: var(--ink); text-shadow: 0 1px 14px rgba(0,0,0,.35); }
+  .mini li.far { filter: blur(1.4px); }
+</style>
+</head>
+<body class="drift">
+
+<div class="controls" id="controls">
+  <span class="group"><b>Variante</b>
+    <span class="seg" data-k="preset">
+      <button data-v="brume" class="on">B2a · Brume</button><button data-v="gros">B2b · Gros plan</button><button data-v="vitrail">B2c · Pochette visible</button><button data-v="tourbillon">B2d · Tourbillon</button>
+    </span></span>
+  <span class="group"><b>Zoom</b>
+    <span class="seg" data-k="zoom"><button data-v="1.05">×1</button><button data-v="1.6" class="on">×1,6</button><button data-v="2.6">×2,6</button><button data-v="4">×4</button></span></span>
+  <span class="group"><b>Flou</b>
+    <span class="seg" data-k="blur"><button data-v="14px">Léger</button><button data-v="35px">Moyen</button><button data-v="60px" class="on">Fort</button><button data-v="110px">Très fort</button></span></span>
+  <span class="group"><b>Voile</b>
+    <span class="seg" data-k="bright"><button data-v=".72">Clair</button><button data-v=".5" class="on">Moyen</button><button data-v=".32">Sombre</button></span></span>
+  <span class="group"><b>Mouvement</b>
+    <span class="seg" data-k="motion"><button data-v="still">Fixe</button><button data-v="drift" class="on">Dérive</button><button data-v="swirl">Tourbillon</button></span></span>
+  <span class="group"><b>Ligne chantée</b>
+    <span class="seg" data-k="ink"><button data-v="gold">Or</button><button data-v="white" class="on">Blanc</button><button data-v="rule">Blanc + filet or</button></span></span>
+  <span class="group"><b>Vue</b>
+    <span class="seg" data-k="view"><button data-v="play" class="on">Lecteur</button><button data-v="wall">Les 6 côte à côte</button></span></span>
+  <span id="sim">● flux injoignable : lecture simulée, sans son</span>
+  <p class="note">B2 : le panneau prend les couleurs de la pochette. Six albums aux pochettes différentes (choisis-en un dans la grille, ou ⏮ ⏭) ; chacun joue vraiment depuis Navidrome. « Les 6 côte à côte » montre les mêmes réglages sur toutes les pochettes d'un coup.</p>
+</div>
+
+<div class="stage" id="stage">
+  <div class="app"><h2>MusicDex</h2><div class="grid" id="grid"></div></div>
+
+  <section class="panel" id="panel" aria-label="Lyrics">
+    <div class="pbg" id="pbg"></div>
+    <div class="head"><img data-cover alt=""><div><div class="t" data-title></div><div class="a" data-from></div></div>
+      <button class="close" id="close" aria-label="Close lyrics" title="Close lyrics (L)"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4.65 4.65a.5.5 0 0 1 .7 0L8 7.29l2.65-2.64a.5.5 0 1 1 .7.7L8.71 8l2.64 2.65a.5.5 0 0 1-.7.7L8 8.71l-2.65 2.64a.5.5 0 0 1-.7-.7L7.29 8 4.65 5.35a.5.5 0 0 1 0-.7z"/></svg></button></div>
+    <div class="lyrics" id="lyrics"><div class="mask"><ol></ol></div></div>
+  </section>
+
+  <div class="wall" id="wall"></div>
+
+  <div class="bar">
+    <div class="progress" id="progress"><span id="progressFill"></span></div>
+    <div class="album"><img data-cover alt=""><div class="meta"><span class="t" data-title></span><span class="f" data-from></span></div></div>
+    <span class="time" id="time">0:00 / 0:00</span>
+    <button class="rb lyr on" id="lyr" aria-label="Lyrics" title="Lyrics (L)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4h0A1.5 1.5 0 0 1 4 14.5z"/><path d="M8.5 8.2h1.8v2.3a1.8 1.8 0 0 1-1.8 1.8M13.7 8.2h1.8v2.3a1.8 1.8 0 0 1-1.8 1.8"/></svg></button>
+    <button class="rb" id="prev" aria-label="Previous"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 3.5A.5.5 0 0 1 1 4v3.25l6.52-3.78c.53-.31 1.23.07 1.23.72v2.56l6.02-3.48c.53-.31 1.23.07 1.23.72v8.02c0 .65-.7 1.03-1.23.72L8.75 9.25v2.56c0 .65-.7 1.03-1.23.72L1 8.75V12a.5.5 0 0 1-1 0V4a.5.5 0 0 1 .5-.5z"/></svg></button>
+    <button class="rb play" id="play" aria-label="Play"><svg id="playIcon" viewBox="0 0 16 16" fill="currentColor"></svg></button>
+    <button class="rb" id="next" aria-label="Next"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M15.5 3.5a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-1 0V8.75l-6.52 3.78c-.53.31-1.23-.07-1.23-.72V9.25L1.23 12.73C.7 13.04 0 12.66 0 12.01V3.99c0-.65.7-1.03 1.23-.72L7.25 6.75V4.19c0-.65.7-1.03 1.23-.72L15 7.25V4a.5.5 0 0 1 .5-.5z"/></svg></button>
+  </div>
+</div>
+
+<audio id="audio" preload="auto"></audio>
+
+<script>
+const TRACKS = [{"album": "21", "artist": "Adele", "cover": "cover-25.jpg", "no": 1, "title": "Rolling in the Deep", "songId": "7G8rYwdyfdQ3KQp8AUwqRZ", "synced": "[00:05.15] There's a fire starting in my heart\n[00:09.74] Reaching a fever pitch, it's bringing me out the dark\n[00:14.24] Finally I can see you crystal clear\n[00:19.05] Go ahead and sell me out and I'll lay your ship bare\n[00:23.44] See how I'll leave with every piece of you\n[00:27.88] Don't underestimate the things that I will do\n[00:32.55] There's a fire starting in my heart\n[00:37.21] Reaching a fever pitch and it's bringing me out the dark\n[00:42.77] The scars of your love remind me of us\n[00:47.22] They keep me thinking that we almost had it all\n[00:51.82] The scars of your love they leave me breathless\n[00:56.34] I can't help feeling\n[00:58.76] We could've had it all (you're gonna wish you)\n[01:02.27] (Never had met me)\n[01:03.59] Rolling in the deep (tears are gonna fall)\n[01:06.99] (Rolling in the deep)\n[01:07.92] You had my heart inside (you're gonna wish you)\n[01:10.72] Of your hands (never had met me)\n[01:12.88] And you played it (tears are gonna fall)\n[01:15.28] To the beat (rolling in the deep)\n[01:18.30] Baby, I have no story to be told\n[01:22.70] But I've heard one on you, now I'm gonna make your head burn\n[01:27.56] Think of me in the depths of your despair\n[01:32.03] Make a home down there, as mine sure won't be shared\n[01:36.56] (You're gonna wish you)\n[01:37.62] The scars of your love (never had met me)\n[01:39.95] Remind me of us (tears are gonna fall)\n[01:42.15] They keep me thinking (rolling in the deep)\n[01:44.28] That we almost had it all (you're gonna wish you)\n[01:46.97] The scars of your love (never had met me)\n[01:49.06] They leave me breathless (tears are gonna fall)\n[01:51.37] I can't help feeling (rolling in the deep)\n[01:53.46] We could've had it all (you're gonna wish you)\n[01:57.22] (Never had met me)\n[01:58.61] Rolling in the deep (tears are gonna fall)\n[02:02.05] (Rolling in the deep)\n[02:02.84] You had my heart inside (you're gonna wish you)\n[02:05.68] Of your hands (never had met me)\n[02:07.75] And you played it (tears are gonna fall)\n[02:10.09] To the beat (rolling in the deep)\n[02:12.02] We could've had it all\n[02:16.48] Rolling in the deep\n[02:21.13] You had my heart inside of your hand\n[02:26.18] But you played it with a beating\n[02:31.75] Throw your soul through every open door (whoa)\n[02:36.23] Count your blessings to find what you look for (whoa)\n[02:40.67] Turn my sorrow into treasured gold (whoa)\n[02:45.07] You pay me back in kind and reap just what you've sown\n[02:49.95] (You're gonna wish you never had met me)\n[02:53.26] We could've had it all (tears are gonna fall, rolling in the deep)\n[02:57.66] We could've had it all (you're gonna wish you never had met me)\n[03:03.25] It all, it all, it all (tears are gonna fall, rolling in the deep)\n[03:06.96] We could've had it all (you're gonna wish you)\n[03:10.42] (Never had met me)\n[03:11.59] Rolling in the deep (tears are gonna fall)\n[03:14.83] (Rolling in the deep)\n[03:15.95] You had my heart inside (you're gonna wish you)\n[03:18.84] Of your hands (never had met me)\n[03:21.18] And you played it (tears are gonna fall)\n[03:23.13] To the beat (rolling in the deep)\n[03:25.22] Could've had it all (you're gonna wish you)\n[03:28.64] (Never had met me)\n[03:29.90] Rolling in the deep (tears are gonna fall)\n[03:33.38] (Rolling in the deep)\n[03:34.17] You had my heart inside (you're gonna wish you)\n[03:36.92] Of your hands (never had met me)\n[03:39.53] But you played it, you played it, you played it\n[03:42.92] You played it to the beat\n[03:44.79] ", "plain": "There's a fire starting in my heart\nReaching a fever pitch, it's bringing me out the dark\nFinally I can see you crystal clear\nGo ahead and sell me out and I'll lay your ship bare\nSee how I'll leave with every piece of you\nDon't underestimate the things that I will do\nThere's a fire starting in my heart\nReaching a fever pitch and it's bringing me out the dark\nThe scars of your love remind me of us\nThey keep me thinking that we almost had it all\nThe scars of your love they leave me breathless\nI can't help feeling\nWe could've had it all (you're gonna wish you)\n(Never had met me)\nRolling in the deep (tears are gonna fall)\n(Rolling in the deep)\nYou had my heart inside (you're gonna wish you)\nOf your hands (never had met me)\nAnd you played it (tears are gonna fall)\nTo the beat (rolling in the deep)\nBaby, I have no story to be told\nBut I've heard one on you, now I'm gonna make your head burn\nThink of me in the depths of your despair\nMake a home down there, as mine sure won't be shared\n(You're gonna wish you)\nThe scars of your love (never had met me)\nRemind me of us (tears are gonna fall)\nThey keep me thinking (rolling in the deep)\nThat we almost had it all (you're gonna wish you)\nThe scars of your love (never had met me)\nThey leave me breathless (tears are gonna fall)\nI can't help feeling (rolling in the deep)\nWe could've had it all (you're gonna wish you)\n(Never had met me)\nRolling in the deep (tears are gonna fall)\n(Rolling in the deep)\nYou had my heart inside (you're gonna wish you)\nOf your hands (never had met me)\nAnd you played it (tears are gonna fall)\nTo the beat (rolling in the deep)\nWe could've had it all\nRolling in the deep\nYou had my heart inside of your hand\nBut you played it with a beating\nThrow your soul through every open door (whoa)\nCount your blessings to find what you look for (whoa)\nTurn my sorrow into treasured gold (whoa)\nYou pay me back in kind and reap just what you've sown\n(You're gonna wish you never had met me)\nWe could've had it all (tears are gonna fall, rolling in the deep)\nWe could've had it all (you're gonna wish you never had met me)\nIt all, it all, it all (tears are gonna fall, rolling in the deep)\nWe could've had it all (you're gonna wish you)\n(Never had met me)\nRolling in the deep (tears are gonna fall)\n(Rolling in the deep)\nYou had my heart inside (you're gonna wish you)\nOf your hands (never had met me)\nAnd you played it (tears are gonna fall)\nTo the beat (rolling in the deep)\nCould've had it all (you're gonna wish you)\n(Never had met me)\nRolling in the deep (tears are gonna fall)\n(Rolling in the deep)\nYou had my heart inside (you're gonna wish you)\nOf your hands (never had met me)\nBut you played it, you played it, you played it\nYou played it to the beat\n"}, {"album": "In Rainbows", "artist": "Radiohead", "cover": "cover-336.jpg", "no": 4, "title": "Weird Fishes/Arpeggi", "songId": "53dyk8K6QSF0vUWR6pDeP3", "synced": "[00:58.19] In the deepest ocean\n[01:04.07] The bottom of the sea\n[01:09.72] Your eyes\n[01:16.14] They turn me\n[01:23.23] Why should I stay here?\n[01:29.41] Why should I stay?\n[01:47.53] I'd be crazy not to follow\n[01:54.47] Follow where you lead\n[02:00.03] Your eyes\n[02:06.28] They turn me\n[02:13.32] Turn me on to phantoms\n[02:19.45] I follow to the edge of the earth\n[02:31.48] And fall off\n[02:38.12] Yeah everybody leaves\n[02:44.75] If they get the chance\n[02:50.26] And this is my chance\n[03:03.09] I get eaten by the worms\n[03:08.90] And weird fishes\n[03:15.96] Picked over by the worms\n[03:21.48] And weird fishes\n[03:27.90] Weird fishes\n[03:34.18] Weird fishes\n[04:24.66] Yeah I\n[04:30.53] I hit the bottom\n[04:33.75] Hit the bottom and escape\n[04:40.19] Escape\n[04:46.78] I\n[04:52.42] I hit the bottom\n[04:55.59] Hit the bottom and escape\n[05:02.05] Escape\n[05:01.65] ", "plain": "In the deepest ocean\nThe bottom of the sea\nYour eyes\nThey turn me\nWhy should I stay here?\nWhy should I stay?\nI'd be crazy not to follow\nFollow where you lead\nYour eyes\nThey turn me\nTurn me on to phantoms\nI follow to the edge of the earth\nAnd fall off\nYeah everybody leaves\nIf they get the chance\nAnd this is my chance\nI get eaten by the worms\nAnd weird fishes\nPicked over by the worms\nAnd weird fishes\nWeird fishes\nWeird fishes\nYeah I\nI hit the bottom\nHit the bottom and escape\nEscape\nI\nI hit the bottom\nHit the bottom and escape\nEscape\n"}, {"album": "Californication", "artist": "Red Hot Chili Peppers", "cover": "cover-302.jpg", "no": 6, "title": "Californication", "songId": "7HmwYbEjVgAF6dYLik6ttZ", "synced": "[00:20.58] Psychic spies from China try to steal your mind's elation\n[00:25.61] And little girls from Sweden dream of silver-screen quotation\n[00:30.62] And if you want these kind of dreams\n[00:33.03] It's Californication\n[00:36.44] \n[00:45.19] It's the edge of the world, end all of western civilization\n[00:50.58] The Sun may rise in the East, at least it's settled in the final location\n[00:55.57] It's understood that Hollywood sells Californication\n[01:00.97] \n[01:10.85] Pay your surgeon very well to break the spell of aging\n[01:15.50] Celebrity skin, is this your chin, or is that war you're waging?\n[01:21.83] Firstborn unicorn\n[01:26.12] Hardcore soft-porn\n[01:30.39] Dream of Californication\n[01:35.38] Dream of Californication\n[01:41.02] \n[01:50.39] Marry me, girl, be my fairy to the world, be my very own constellation\n[01:55.06] A teenage bride with a baby inside, gettin' high on information\n[02:00.24] And buy me a star on the boulevard\n[02:02.49] It's Californication\n[02:07.39] \n[02:15.09] Space may be the final frontier, but it's made in a Hollywood basement\n[02:19.93] And Cobain, can you hear the spheres, singing songs off station to station?\n[02:25.00] And Alderaan's not far away\n[02:27.26] It's Californication\n[02:30.93] \n[02:40.24] Born and raised by those who praise control of population\n[02:44.77] Well, everybody's been there, and I don't mean on vacation\n[02:51.26] Firstborn unicorn\n[02:55.44] Hardcore soft-porn\n[02:59.67] Dream of Californication\n[03:04.71] Dream of Californication\n[03:09.49] Dream of Californication\n[03:14.51] Dream of Californication\n[03:19.40] \n[04:08.72] Destruction leads to a very rough road, but it also breeds creation\n[04:13.70] And earthquakes are to a girl's guitar, they're just another good vibration\n[04:18.63] And tidal waves couldn't save the world from Californication\n[04:24.15] \n[04:33.65] Pay your surgeon very well to break the spell of aging\n[04:38.40] Sicker than the rest, there is no test, but this is what you're craving\n[04:44.42] Firstborn unicorn\n[04:48.62] Hardcore soft-porn\n[04:53.06] Dream of Californication\n[04:57.92] Dream of Californication\n[05:02.74] Dream of Californication\n[05:07.80] Dream of Californication\n[05:14.00] ", "plain": "Psychic spies from China try to steal your mind's elation\nAnd little girls from Sweden dream of silver-screen quotation\nAnd if you want these kind of dreams\nIt's Californication\n\nIt's the edge of the world, end all of western civilization\nThe Sun may rise in the East, at least it's settled in the final location\nIt's understood that Hollywood sells Californication\n\nPay your surgeon very well to break the spell of aging\nCelebrity skin, is this your chin, or is that war you're waging?\nFirstborn unicorn\nHardcore soft-porn\nDream of Californication\nDream of Californication\n\nMarry me, girl, be my fairy to the world, be my very own constellation\nA teenage bride with a baby inside, gettin' high on information\nAnd buy me a star on the boulevard\nIt's Californication\n\nSpace may be the final frontier, but it's made in a Hollywood basement\nAnd Cobain, can you hear the spheres, singing songs off station to station?\nAnd Alderaan's not far away\nIt's Californication\n\nBorn and raised by those who praise control of population\nWell, everybody's been there, and I don't mean on vacation\nFirstborn unicorn\nHardcore soft-porn\nDream of Californication\nDream of Californication\nDream of Californication\nDream of Californication\n\nDestruction leads to a very rough road, but it also breeds creation\nAnd earthquakes are to a girl's guitar, they're just another good vibration\nAnd tidal waves couldn't save the world from Californication\n\nPay your surgeon very well to break the spell of aging\nSicker than the rest, there is no test, but this is what you're craving\nFirstborn unicorn\nHardcore soft-porn\nDream of Californication\nDream of Californication\nDream of Californication\nDream of Californication\n"}, {"album": "Life In Cartoon Motion", "artist": "MIKA", "cover": "cover-344.jpg", "no": 1, "title": "Grace Kelly", "songId": "1vx9Gjv6vtcJsAAhhxuvXc", "synced": "[00:01.83] I wanna talk to you\n[00:03.79] The last time we talked, Mr. Smith, you reduced me to tears\n[00:07.38] I promise you it won't happen again\n[00:10.47] Do I attract you? Do I repulse you with my queasy smile?\n[00:14.55] Am I too dirty, am I too flirty? Do I like what you like?\n[00:18.50] I could be wholesome, I could be loathsome, I guess I'm a little bit shy\n[00:22.43] Why don't you like me, why don't you like me, without making me try?\n[00:26.34] I tried to be like Grace Kelly, mmh\n[00:30.26] But all her looks were too sad, aah\n[00:34.09] So I tried a little Freddie, mmh\n[00:38.28] I've gone identity mad!\n[00:42.00] I could be brown, I could be blue, I could be violet sky\n[00:46.09] I could be hurtful, I could be purple, I could be anything you like\n[00:49.86] Gotta be green, gotta be mean, gotta be everything more\n[00:53.84] Why don't you like me, why don't you like me?\n[00:54.89] Why don't you walk out the door?\n[00:57.79] Getting angry doesn't solve anything\n[01:01.53] How can I help it, how can I help it? How can I help what you think?\n[01:05.60] Hello my baby, hello my baby, putting my life on my brink\n[01:10.66] Why don't you like me, why don't you like me? Why don't you like yourself?\n[01:13.39] Should I bend over, should I look older, just to be put on your shelf?\n[01:17.17] I tried to be like Grace Kelly, mmh\n[01:21.29] But all her looks were too sad, aah\n[01:25.14] So I tried a little Freddie, mmh\n[01:29.00] I've gone identity mad!\n[01:33.01] I could be brown, I could be blue, I could be violet sky\n[01:37.09] I could be hurtful, I could be purple, I could be anything you like\n[01:40.81] Gotta be green, gotta be mean, gotta be everything more\n[01:44.82] Why don't you like me, why don't you like me?\n[01:47.10] Walk out the door!\n[01:50.13] Say what you want to satisfy yourself, hey\n[01:57.85] But you only want what everybody else says you should want\n[02:07.10] You want\n[02:12.22] I could be brown, I could be blue, I could be violet sky\n[02:16.12] I could be hurtful, I could be purple, I could be anything you like\n[02:20.25] Gotta be green, gotta be mean, gotta be everything more\n[02:24.02] Why don't you like me, why don't you like me?\n[02:26.67] Walk out the door!\n[02:28.11] I could be brown, I could be blue, I could be violet sky\n[02:31.99] I could be hurtful, I could be purple, I could be anything you like\n[02:35.85] Gotta be green, gotta be mean, gotta be everything more\n[02:39.88] Why don't you like me, why don't you like me?\n[02:42.39] Walk out the door!\n[02:45.46] Uuh, ah\n[02:52.44] Humphry, we're leaving\n[02:54.74] Ca-ching!\n[02:54.88] ", "plain": "I wanna talk to you\nThe last time we talked, Mr. Smith, you reduced me to tears\nI promise you it won't happen again\n\nDo I attract you? Do I repulse you with my queasy smile?\nAm I too dirty, am I too flirty? Do I like what you like?\nI could be wholesome, I could be loathsome, I guess I'm a little bit shy\nWhy don't you like me, why don't you like me, without making me try?\n\nI tried to be like Grace Kelly, mmh\nBut all her looks were too sad, aah\nSo I tried a little Freddie, mmh\nI've gone identity mad!\n\nI could be brown, I could be blue, I could be violet sky\nI could be hurtful, I could be purple, I could be anything you like\nGotta be green, gotta be mean, gotta be everything more\nWhy don't you like me, why don't you like me?\nWhy don't you walk out the door?\n\nGetting angry doesn't solve anything\n\nHow can I help it, how can I help it? How can I help what you think?\nHello my baby, hello my baby, putting my life on my brink\nWhy don't you like me, why don't you like me? Why don't you like yourself?\nShould I bend over, should I look older, just to be put on your shelf?\n\nI tried to be like Grace Kelly, mmh\nBut all her looks were too sad, aah\nSo I tried a little Freddie, mmh\nI've gone identity mad!\n\nI could be brown, I could be blue, I could be violet sky\nI could be hurtful, I could be purple, I could be anything you like\nGotta be green, gotta be mean, gotta be everything more\nWhy don't you like me, why don't you like me?\nWalk out the door!\n\nSay what you want to satisfy yourself, hey\nBut you only want what everybody else says you should want\nYou want\n\nI could be brown, I could be blue, I could be violet sky\nI could be hurtful, I could be purple, I could be anything you like\nGotta be green, gotta be mean, gotta be everything more\nWhy don't you like me, why don't you like me?\nWalk out the door!\n\nI could be brown, I could be blue, I could be violet sky\nI could be hurtful, I could be purple, I could be anything you like\nGotta be green, gotta be mean, gotta be everything more\nWhy don't you like me, why don't you like me?\nWalk out the door!\n\nUuh, ah\nHumphry, we're leaving\nCa-ching!"}, {"album": "Franz Ferdinand", "artist": "Franz Ferdinand", "cover": "cover-282.jpg", "no": 3, "title": "Take Me Out", "songId": "5dVkyCWtYeQ24wzoHSf93s", "synced": "[00:00.00] \n[00:04.37] So if you're lonely\n[00:08.85] You know I'm here waiting for you\n[00:12.24] I'm just a cross-hair\n[00:15.51] I'm just a shot away from you\n[00:19.25] And if you leave here\n[00:22.00] You leave me broken, shattered I lie\n[00:25.98] I'm just a cross-hair\n[00:29.16] I'm just a shot, then we can die\n[00:33.78] Ah-ah-ah\n[00:38.03] \n[00:40.74] I know I won't be leaving here\n[00:46.38] With you\n[00:51.00] \n[01:13.73] I say, \"Don't you know?\"\n[01:24.85] You say, \"You don't know\"\n[01:27.26] I say\n[01:30.31] \"Take me out\"\n[01:32.05] I say, \"You don't show\"\n[01:34.25] Don't move, time is slow\n[01:36.43] I say\n[01:39.48] \"Take me out\"\n[01:42.73] \n[01:50.34] I say, \"You don't know\"\n[01:52.59] You say, \"You don't know\"\n[01:54.82] I say\n[01:57.84] \"Take me out\"\n[01:59.58] If I move, this could die\n[02:01.55] If eyes move, this could die\n[02:03.73] I want you\n[02:06.73] To take me out\n[02:10.35] \n[02:13.08] I know, I won't be leaving here (with you)\n[02:17.55] Oh, I know I won't be leaving here\n[02:21.85] I know, I won't be leaving here (with you)\n[02:26.57] I know, I won't be leaving here\n[02:29.93] With you\n[02:32.63] \n[02:39.61] I say, \"Don't you know?\"\n[02:42.11] You say, \"You don't know\"\n[02:44.34] I say\n[02:46.96] \"Take me out\"\n[02:49.02] If I wane, this could die\n[02:51.32] If I wait, this could die\n[02:53.73] I want you\n[02:57.51] To take me out\n[02:59.17] If I move, this could die\n[03:01.32] Eyes move, this can die\n[03:03.63] Come on\n[03:06.73] Take me out\n[03:10.01] \n[03:21.58] I know, I won't be leaving here (with you)\n[03:26.05] Oh, I know I won't be leaving here\n[03:30.69] I know, I won't be leaving here (with you)\n[03:35.14] I know, I won't be leaving here\n[03:38.89] With you\n[03:40.07]", "plain": "\nSo if you're lonely\nYou know I'm here waiting for you\nI'm just a cross-hair\nI'm just a shot away from you\nAnd if you leave here\nYou leave me broken, shattered I lie\nI'm just a cross-hair\nI'm just a shot, then we can die\nAh-ah-ah\n\nI know I won't be leaving here\nWith you\n\nI say, \"Don't you know?\"\nYou say, \"You don't know\"\nI say\n\"Take me out\"\nI say, \"You don't show\"\nDon't move, time is slow\nI say\n\"Take me out\"\n\nI say, \"You don't know\"\nYou say, \"You don't know\"\nI say\n\"Take me out\"\nIf I move, this could die\nIf eyes move, this could die\nI want you\nTo take me out\n\nI know, I won't be leaving here (with you)\nOh, I know I won't be leaving here\nI know, I won't be leaving here (with you)\nI know, I won't be leaving here\nWith you\n\nI say, \"Don't you know?\"\nYou say, \"You don't know\"\nI say\n\"Take me out\"\nIf I wane, this could die\nIf I wait, this could die\nI want you\nTo take me out\nIf I move, this could die\nEyes move, this can die\nCome on\nTake me out\n\nI know, I won't be leaving here (with you)\nOh, I know I won't be leaving here\nI know, I won't be leaving here (with you)\nI know, I won't be leaving here\nWith you\n"}, {"album": "No Angel", "artist": "Dido", "cover": "cover-205.jpg", "no": 3, "title": "Don’t Think of Me", "songId": "4wVki8kFvkemdo9w6OCKBa", "synced": "[00:01.04] So you're with her, and not with me,\n[00:05.45] I hope she's sweet, and so pretty\n[00:10.24] I hear she cooks delightfully,\n[00:13.71] A little angel beside you\n[00:20.93] So you're with her, and not with me,\n[00:25.62] Oh how lucky one man can be\n[00:30.99] I hear your house is small and clean,\n[00:35.27] Oh how lovely with your homecoming queen\n[00:41.10] Oh how lovely it must be\n[00:45.46] When you see her sweet smile baby, don't think of me\n[00:56.33] When she lays in your warm arms, don't think of me\n[01:06.09] So you're with her, and not with me,\n[01:14.24] I know she spreads sweet honey\n[01:19.06] In fact your best friend,\n[01:21.63] I heard he spent last night with her\n[01:31.77] Now how do you feel, how do you feel\n[01:37.73] When you see her sweet smile baby, don't think of me\n[01:50.18] When she lays in your warm arms, don't think of me\n[02:00.29] And it's too late and it's too bad, don't think of me\n[02:10.44] Oh it's too late and it's too bad, don't think of me\n[02:23.65] Does it bother you now all the mess I made\n[02:28.53] Does it bother you now the clothes you told me not to wear\n[02:34.37] Does it bother you now all the angry games we played\n[02:41.79] Does it bother you now when I'm not there\n[02:46.46] When you see her sweet smile baby, don't think of me\n[02:56.74] When she lays in your warm arms, don't think of me\n[03:06.47] And it's too late and it's too bad, don't think of me\n[03:17.05] And it's too late, and it's too bad, don't think of me.", "plain": "So you're with her, and not with me,\nI hope she's sweet, and so pretty\nI hear she cooks delightfully,\nA little angel beside you\nSo you're with her, and not with me,\nOh how lucky one man can be\nI hear your house is small and clean,\nOh how lovely with your homecoming queen\nOh how lovely it must be\nWhen you see her sweet smile baby, don't think of me\nWhen she lays in your warm arms, don't think of me\nSo you're with her, and not with me,\nI know she spreads sweet honey\nIn fact your best friend,\nI heard he spent last night with her\nNow how do you feel, how do you feel\nWhen you see her sweet smile baby, don't think of me\nWhen she lays in your warm arms, don't think of me\nAnd it's too late and it's too bad, don't think of me\nOh it's too late and it's too bad, don't think of me\nDoes it bother you now all the mess I made\nDoes it bother you now the clothes you told me not to wear\nDoes it bother you now all the angry games we played\nDoes it bother you now when I'm not there\nWhen you see her sweet smile baby, don't think of me\nWhen she lays in your warm arms, don't think of me\nAnd it's too late and it's too bad, don't think of me\nAnd it's too late, and it's too bad, don't think of me."}];
+
+const STREAM = id => `https://dexvault.lab.crog.org/api/music/navidrome/stream/${id}`;
+const PRESETS = {
+  brume:      { zoom: '1.6',  blur: '60px',  bright: '.5',  motion: 'drift' },
+  gros:       { zoom: '4',    blur: '35px',  bright: '.5',  motion: 'drift' },
+  vitrail:    { zoom: '1.05', blur: '14px',  bright: '.32', motion: 'still' },
+  tourbillon: { zoom: '2.6',  blur: '110px', bright: '.72', motion: 'swirl' },
+};
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const audio = $('#audio');
+let ti = 0, open = true, lines = [], cur = -1;
+const sim = { on: false, t: 0, playing: false, at: 0, dur: 240 };
+const now = () => sim.on ? (sim.playing ? sim.t + (performance.now() - sim.at) / 1000 : sim.t) : audio.currentTime;
+const duration = () => sim.on ? sim.dur : (audio.duration || 0);
+const playing = () => sim.on ? sim.playing : !audio.paused;
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+
+const parse = lrc => {
+  const out = [];
+  for (const raw of (lrc || '').split('\n')) {
+    const m = raw.match(/^\[(\d+):(\d+(?:\.\d+)?)\]\s?(.*)$/);
+    if (m) out.push({ t: +m[1] * 60 + +m[2], text: m[3].trim() });
+  }
+  const res = [];
+  if (out.length && out[0].t > 4) res.push({ t: 0, dots: true });
+  out.forEach((l, i) => {
+    if (!l.text) { if (out[i + 1] && out[i + 1].t - l.t > 4) res.push({ t: l.t, dots: true }); return; }
+    res.push(l);
+    const next = out[i + 1];
+    if (next && next.text && next.t - l.t > 12) res.push({ t: l.t + 6, dots: true });
+  });
+  return res;
+};
+
+// The cover behind: a new one fades in over the old, so changing album is not a cut.
+function setBackground(box, cover) {
+  const layers = [...box.querySelectorAll('i')];
+  layers.forEach(l => { l.classList.add('old'); setTimeout(() => l.remove(), 900); });
+  for (let k = 0; k < 2; k++) {
+    const i = document.createElement('i');
+    i.style.setProperty('--cover', `url(${cover})`);
+    i.classList.add('old');
+    box.appendChild(i);
+    requestAnimationFrame(() => requestAnimationFrame(() => i.classList.remove('old')));
+  }
+}
+
+function render() {
+  const t = TRACKS[ti];
+  $$('[data-title]').forEach(e => e.textContent = t.title);
+  $$('[data-from]').forEach(e => e.textContent = `${t.artist} · ${t.album}`);
+  $$('[data-cover]').forEach(e => e.src = t.cover);
+  $$('#grid img').forEach((img, k) => img.classList.toggle('on', k === ti));
+  setBackground($('#pbg'), t.cover);
+  lines = parse(t.synced);
+  const ol = $('#lyrics ol');
+  ol.style.transform = '';
+  ol.innerHTML = lines.map((l, i) => l.dots ? `<li class="dots" data-i="${i}"><i></i><i></i><i></i></li>` : `<li data-i="${i}">${esc(l.text)}</li>`).join('');
+  cur = -1;
+}
+
+function load(i, autoplay) {
+  ti = (i + TRACKS.length) % TRACKS.length;
+  render();
+  if (sim.on) { sim.t = 0; sim.at = performance.now(); if (autoplay) sim.playing = true; return; }
+  audio.src = STREAM(TRACKS[ti].songId);
+  if (autoplay) audio.play().catch(() => {});
+}
+const seek = s => { if (sim.on) { sim.t = s; sim.at = performance.now(); } else audio.currentTime = s; };
+const toggle = () => {
+  if (sim.on) { if (sim.playing) { sim.t = now(); sim.playing = false; } else { sim.at = performance.now(); sim.playing = true; } return; }
+  audio.paused ? audio.play().catch(() => {}) : audio.pause();
+};
+audio.addEventListener('error', () => { if (!sim.on) { sim.on = true; sim.at = performance.now(); $('#sim').style.display = 'inline'; } });
+audio.addEventListener('ended', () => load(ti + 1, true));
+
+function place(li) {
+  if (!li) return;
+  const box = $('#lyrics');
+  $('#lyrics ol').style.transform = `translateY(${box.clientHeight * 0.3 - li.offsetTop}px)`;
+}
+
+function tick() {
+  const t = now(), d = duration();
+  $('#time').textContent = `${fmt(t)} / ${fmt(d)}`;
+  $('#progressFill').style.width = d ? `${Math.min(100, t / d * 100)}%` : '0';
+  $('#playIcon').innerHTML = playing()
+    ? '<path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>'
+    : '<path d="m11.6 8.7-6.4 3.7A.8.8 0 0 1 4 11.7V4.3a.8.8 0 0 1 1.2-.7l6.4 3.7a.8.8 0 0 1 0 1.4z"/>';
+  if (sim.on && sim.playing && t >= sim.dur) load(ti + 1, true);
+  if (open && lines.length) {
+    const lead = t + 0.2;
+    let i = -1;
+    for (let k = 0; k < lines.length; k++) if (lines[k].t <= lead) i = k; else break;
+    if (i !== cur) {
+      cur = i;
+      const lis = $('#lyrics').querySelectorAll('li');
+      lis.forEach((li, k) => { li.classList.toggle('now', k === i); li.classList.toggle('past', k < i); li.classList.toggle('far', Math.abs(k - i) > 2); });
+      place(lis[Math.max(0, i)]);
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+$('#lyrics').addEventListener('click', e => {
+  const li = e.target.closest('li[data-i]');
+  if (li) { seek(Math.max(0, lines[+li.dataset.i].t - 0.05)); if (!playing()) toggle(); }
+});
+
+// The wall: each album's panel, still, at a line well into its song.
+function buildWall() {
+  $('#wall').innerHTML = TRACKS.map((t, k) => {
+    const ls = parse(t.synced).filter(l => !l.dots);
+    const at = Math.min(6, ls.length - 1), from = Math.max(0, at - 2);
+    const shown = ls.slice(from, from + 7);
+    return `<div class="mini"><div class="pbg"></div>
+      <div class="head"><img src="${t.cover}" alt=""><div><div class="t">${esc(t.title)}</div><div class="a">${esc(t.artist)} · ${esc(t.album)}</div></div></div>
+      <ol>${shown.map((l, j) => { const n = from + j; return `<li class="${n === at ? 'now' : n < at ? 'past' : ''}${Math.abs(n - at) > 2 ? ' far' : ''}">${esc(l.text)}</li>`; }).join('')}</ol></div>`;
+  }).join('');
+  $$('#wall .mini').forEach((m, k) => setBackground(m.querySelector('.pbg'), TRACKS[k].cover));
+}
+
+const opt = { preset: 'tourbillon', zoom: '2.6', blur: '110px', bright: '.72', motion: 'swirl', view: 'play', ink: 'white' };
+function apply() {
+  const root = document.documentElement.style;
+  root.setProperty('--zoom', opt.zoom); root.setProperty('--blur', opt.blur); root.setProperty('--bright', opt.bright);
+  document.body.classList.toggle('drift', opt.motion === 'drift');
+  document.body.classList.toggle('swirl', opt.motion === 'swirl');
+  document.body.classList.toggle('walled', opt.view === 'wall');
+  root.setProperty('--ink', opt.ink === 'gold' ? 'var(--dv-gold)' : '#fff');
+  document.body.classList.toggle('rule', opt.ink === 'rule');
+  $$('.seg').forEach(seg => seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', opt[seg.dataset.k] === b.dataset.v)));
+}
+$$('.seg').forEach(seg => seg.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const k = seg.dataset.k;
+  if (k === 'preset') Object.assign(opt, PRESETS[b.dataset.v], { preset: b.dataset.v });
+  else { opt[k] = b.dataset.v; if (k !== 'view' && k !== 'ink') opt.preset = null; }
+  apply();
+}));
+
+$('#grid').innerHTML = TRACKS.map((t, k) => `<img src="${t.cover}" alt="${esc(t.album)}" data-k="${k}" title="${esc(t.artist)} · ${esc(t.album)}">`).join('');
+$('#grid').addEventListener('click', e => { const img = e.target.closest('img'); if (img) load(+img.dataset.k, true); });
+const showPanel = () => { $('#panel').classList.toggle('closed', !open); $('#lyr').classList.toggle('on', open); cur = -1; };
+$('#lyr').onclick = () => { open = !open; showPanel(); };
+$('#close').onclick = () => { open = false; showPanel(); };
+$('#play').onclick = toggle;
+$('#next').onclick = () => load(ti + 1, true);
+$('#prev').onclick = () => (now() > 3 ? seek(0) : load(ti - 1, true));
+$('#progress').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * duration()); };
+document.addEventListener('keydown', e => {
+  if (e.key === 'l' || e.key === 'L') { open = !open; showPanel(); }
+  if (e.key === ' ') { e.preventDefault(); toggle(); }
+});
+const fit = () => document.documentElement.style.setProperty('--controls-h', $('#controls').offsetHeight + 'px');
+addEventListener('resize', () => { fit(); cur = -1; });
+fit(); apply(); buildWall(); load(0, false); requestAnimationFrame(tick);
+</script>
+</body>
+</html>

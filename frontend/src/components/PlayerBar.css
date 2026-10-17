@@ -172,6 +172,35 @@
   font-size: 1.3rem;
 }
 
+/* The words: gold while they are out, a dot under them as under a tab that is on. */
+.player-bar-lyrics {
+  position: relative;
+  font-size: 1rem;
+}
+
+.player-bar-lyrics-on {
+  color: var(--dv-gold);
+}
+
+.player-bar-lyrics-on::after {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--dv-gold);
+}
+
+/* Their panel is for a desktop only: on an iPhone or an iPad, Amperfy plays. */
+@media (max-width: 991px) {
+  .player-bar-lyrics {
+    display: none;
+  }
+}
+
 /* On a phone: the cover, the track, ⏯, ⏭ and ✕. */
 @media (max-width: 767px) {
   .player-bar-time,

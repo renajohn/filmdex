@@ -42,6 +42,17 @@ afterEach(() => {
 });
 
 describe('player', () => {
+  it('shows the words or hides them, and remembers it in this browser', () => {
+    expect(player.getState().lyricsOpen).toBe(false);
+    player.showLyrics();
+    expect(player.getState().lyricsOpen).toBe(true);
+    resetPlayer();
+    expect(player.getState().lyricsOpen).toBe(true);
+    player.showLyrics(false);
+    resetPlayer();
+    expect(player.getState().lyricsOpen).toBe(false);
+  });
+
   it('plays an album from a track, from Navidrome through DexVault, the next one loading beside it', () => {
     player.playAlbum(album, tracks, 0);
 
