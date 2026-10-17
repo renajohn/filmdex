@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useId, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import { Modal, type ModalProps } from 'react-bootstrap';
 import { BsArrowLeft, BsX } from 'react-icons/bs';
 import { IconButton } from './Button';
@@ -84,13 +84,29 @@ const DialogRoot: React.FC<DialogProps> = ({
   // Asked to close, it leaves on its own first: the page that holds it may take it away at once,
   // and a panel would vanish rather than slide out. Once it has left, the page is told.
   const [leaving, setLeaving] = useState(false);
-  const close = useCallback(() => setLeaving(true), []);
+  const leavingRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const close = useCallback(() => { leavingRef.current = true; setLeaving(true); }, []);
+  const left = useCallback(() => {
+    if (!leavingRef.current) return;
+    leavingRef.current = false;
+    setLeaving(false);
+    onCloseRef.current();
+  }, []);
+  // Should its exit never tell it is done (a transition that does not end), it is over all the same:
+  // a dialog left on the page, unseen, would keep the page from scrolling.
+  useEffect(() => {
+    if (!leaving) return undefined;
+    const timer = window.setTimeout(left, 600);
+    return () => window.clearTimeout(timer);
+  }, [leaving, left]);
   return (
     <DialogClose.Provider value={close}>
     <Modal
       show={show && !leaving}
       onHide={close}
-      onExited={() => { if (leaving) { setLeaving(false); onClose(); } }}
+      onExited={left}
       onEntered={onEntered}
       // react-bootstrap gives a role prop to its inner box: an alert dialog is the outer one that bears the title.
       onEnter={(node: HTMLElement) => { if (role !== 'dialog') node.setAttribute('role', role); }}

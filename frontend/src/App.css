@@ -465,12 +465,18 @@ body {
   }
 
   /* The panel slides out as it slid in. Bootstrap fades its .modal out in
-     0.15s and takes it away when that is done, before the slide: the .modal
-     stays opaque, and the 0.25s it is said to take is what Bootstrap waits. */
-  .modal.side-panel-modal.fade,
-  .modal.side-panel-modal.fade:not(.show) {
+     0.15s and takes it away when that is done, before the slide. So the
+     .modal stays all but opaque, taking the slide's 0.25s, and that must be
+     a transition of its own: Bootstrap waits for the .modal's transitionend,
+     and the slide's, bubbling up from the dialog, would cancel its fallback
+     timer without counting as the end, and the panel would never be gone. */
+  .modal.side-panel-modal.fade {
     opacity: 1;
     transition: opacity 0.25s linear;
+  }
+
+  .modal.side-panel-modal.fade:not(.show) {
+    opacity: 0.999;
   }
 
   .modal.side-panel-modal.show .modal-dialog {
