@@ -142,8 +142,9 @@
 
 /*
  * The round buttons on a cover, ▶ aside (AlbumPlayButton draws its own the
- * same way): dark and blurred, a white icon, gold while what it says is on;
- * shown under the pointer, darker under it.
+ * same way): dark and blurred with a white icon; under the pointer a light
+ * white veil; on (in Listen Next, wished) a denser veil and a deep gold icon,
+ * denser still under the pointer. Shown while the card is hovered.
  */
 .cover-action {
   width: 34px;
@@ -160,11 +161,13 @@
   color: #fff;
   font-size: 1.05rem;
   opacity: 0;
-  transition: opacity 0.15s ease, background-color 0.12s ease, transform 0.08s ease;
+  transition: opacity 0.15s ease, background-color 0.12s ease, color 0.12s ease, transform 0.08s ease;
 }
 
 .cover-action.active {
-  color: #fbbf24;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(10px);
+  color: #f59e0b;
 }
 
 .music-thumbnail:hover .cover-action,
@@ -174,8 +177,14 @@
 
 .cover-action:hover,
 .cover-action:focus-visible {
-  background: rgba(0, 0, 0, 0.88);
+  background: rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(10px);
   outline: none;
+}
+
+.cover-action.active:hover,
+.cover-action.active:focus-visible {
+  background: rgba(255, 255, 255, 0.78);
 }
 
 .cover-action:active {

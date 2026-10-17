@@ -20,11 +20,14 @@
   color: #fff;
   font-size: 1.05rem;
   opacity: 0;
-  transition: opacity 0.15s ease, background-color 0.12s ease, transform 0.08s ease;
+  transition: opacity 0.15s ease, background-color 0.12s ease, color 0.12s ease, transform 0.08s ease;
 }
 
+/* The album playing: a white veil, its bars in deep gold; always in sight. */
 .album-play-button-here {
-  color: #fbbf24;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(10px);
+  color: #f59e0b;
   opacity: 1;
 }
 
@@ -36,10 +39,22 @@
   opacity: 1;
 }
 
+/* Under the pointer: a light white veil, the cover showing through; on the album playing, a denser one. */
 .album-play-button:hover,
 .album-play-button:focus-visible {
-  background: rgba(0, 0, 0, 0.88);
+  background: rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(10px);
   outline: none;
+}
+
+.album-play-button-here:hover,
+.album-play-button-here:focus-visible {
+  background: rgba(255, 255, 255, 0.78);
+}
+
+/* Its bars in the button's deep gold: the lighter gold of the lists fades on the white veil. */
+.album-play-button-here .now-playing-bars i {
+  background: currentColor;
 }
 
 .album-play-button:active {
