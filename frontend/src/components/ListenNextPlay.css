@@ -1,0 +1,176 @@
+/* Listen Next's own controls, in its banner's header in place of the count: ▶ and Repeat. */
+.listen-next-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.listen-next-controls__play svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Repeat: a small icon, grey when off, gold when on, as the title. */
+.listen-next-controls__repeat {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+
+.listen-next-controls__repeat:hover,
+.listen-next-controls__repeat:focus-visible {
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.listen-next-controls__repeat--on,
+.listen-next-controls__repeat--on:hover,
+.listen-next-controls__repeat--on:focus-visible {
+  color: var(--cover-on);
+}
+
+.listen-next-controls__repeat svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* The line under the cards: discs, tracks, length. */
+.listen-next-summary {
+  margin-top: 10px;
+  text-align: right;
+  color: #a8a29e;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * An album played to its end, leaving the list: greyed, Played, and Keep here
+ * in a gold ring that runs down clockwise. The card's own buttons step aside.
+ */
+.next-banner__card--leaving .next-banner__image img {
+  filter: grayscale(1) brightness(0.5);
+  transition: filter 0.4s ease;
+}
+
+.next-banner__card--leaving .next-banner__remove-btn,
+.next-banner__card--leaving .next-banner__shuffle-btn,
+.next-banner__card--leaving .next-banner__play,
+.next-banner__card--leaving .next-banner__badges,
+.next-banner__card--leaving .shelf-code-overlay {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* An album gone from the list on the server but still playing its last track: no shuffling it. */
+.next-banner__card--departed .next-banner__shuffle-btn {
+  display: none;
+}
+
+.next-banner__card--leaving .next-banner__info {
+  opacity: 0.45;
+}
+
+.next-banner__card--leaving:hover {
+  transform: none;
+}
+
+.listen-next-leaving {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+}
+
+.listen-next-leaving__played {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+}
+
+.listen-next-leaving__played svg {
+  color: var(--cover-on);
+}
+
+.listen-next-leaving .listen-next-leaving__keep {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.listen-next-leaving .listen-next-leaving__keep:active:not(:disabled) {
+  transform: translate(-50%, -50%) scale(0.94);
+}
+
+.listen-next-leaving__icon {
+  width: 18px;
+  height: 18px;
+}
+
+.listen-next-leaving__ring {
+  position: absolute;
+  inset: -5px;
+  width: calc(100% + 10px);
+  height: calc(100% + 10px);
+  transform: rotate(-90deg);
+  pointer-events: none;
+  overflow: visible;
+}
+
+.listen-next-leaving__ring circle {
+  fill: none;
+  stroke-width: 2.5;
+}
+
+.listen-next-leaving__ring-track {
+  stroke: rgba(255, 255, 255, 0.14);
+}
+
+/* The gold left: what is gone grows clockwise from noon. */
+.listen-next-leaving__ring-left {
+  stroke: var(--cover-on);
+  stroke-dasharray: 113.1;
+  animation: listen-next-ring var(--leave-ms, 10s) linear var(--leave-delay, 0s) forwards;
+}
+
+@keyframes listen-next-ring {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -113.1; }
+}
+
+.listen-next-leaving__label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% + 34px);
+  text-align: center;
+  font-size: 12px;
+  color: #ddd;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+
+/* Gone: the cover fades and shrinks, then its place closes. */
+.next-banner__card--collapsing {
+  animation: listen-next-collapse 0.6s ease forwards;
+  overflow: hidden;
+}
+
+@keyframes listen-next-collapse {
+  0% { opacity: 1; transform: scale(1); max-width: 180px; margin-right: 0; }
+  55% { opacity: 0; transform: scale(0.88); max-width: 180px; margin-right: 0; }
+  100% { opacity: 0; transform: scale(0.88); max-width: 0; margin-right: -20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listen-next-leaving__ring-left { animation: none; }
+  .next-banner__card--collapsing { animation: none; display: none; }
+}

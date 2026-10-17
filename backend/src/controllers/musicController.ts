@@ -17,6 +17,7 @@ import musicbrainzRefreshService from '../services/musicbrainzRefreshService';
 import ripStatusService from '../services/ripStatusService';
 import digitalLibraryService from '../services/digitalLibraryService';
 import digitalAlbumService from '../services/digitalAlbumService';
+import listenNextPlayService from '../services/listenNextPlayService';
 import listenNextPlaylistService from '../services/listenNextPlaylistService';
 import albumPurchaseService, { PurchaseError } from '../services/albumPurchaseService';
 import navidromeService from '../services/navidromeService';
@@ -1592,6 +1593,45 @@ const musicController = {
       });
     } catch (error) {
       logger.error('Error shuffling Listen Next album:', error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  },
+
+  /** Playing Listen Next: Repeat, the albums leaving it, every album's length, the playlist for Amperfy. */
+  getListenNextPlay: async (req: Request, res: Response): Promise<void> => {
+    try {
+      res.json(await listenNextPlayService.getState());
+    } catch (error) {
+      logger.error('Error getting Listen Next play state:', error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  },
+
+  setListenNextRepeat: async (req: Request, res: Response): Promise<void> => {
+    if (typeof req.body?.repeat !== 'boolean') {
+      res.status(400).json({ error: 'Expected { repeat: boolean }' });
+      return;
+    }
+    try {
+      await listenNextPlayService.setRepeat(req.body.repeat);
+      res.json({ repeat: req.body.repeat });
+    } catch (error) {
+      logger.error('Error setting Listen Next repeat:', error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  },
+
+  /** Keep here: an album that left Listen Next once played goes back at its place. */
+  keepListenNextDeparture: async (req: Request, res: Response): Promise<void> => {
+    const id = parseInt(req.params.id as string, 10);
+    try {
+      if (!(await listenNextPlayService.keep(id))) {
+        res.status(404).json({ error: 'No such departure' });
+        return;
+      }
+      res.json({ albums: await musicCollectionService.getListenNextAlbums() });
+    } catch (error) {
+      logger.error('Error keeping a Listen Next album:', error);
       res.status(500).json({ error: (error as Error).message });
     }
   },

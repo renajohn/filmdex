@@ -1,5 +1,5 @@
 import musicService, { type RipTracks } from '../services/musicService';
-import { player, type PlayerAlbum, type PlayerTrack } from '../services/player';
+import { player, type PlayerAlbum, type PlayOptions, type PlayerTrack } from '../services/player';
 import { ripFileFor } from './trackDetail';
 
 interface AlbumLike {
@@ -34,13 +34,13 @@ export const playerTracksOf = (album: AlbumLike, rip: RipTracks | null | undefin
  * open: its tracks and its rip are asked for first. False when it has no rip
  * to play, for the caller to offer something else.
  */
-export const playAlbumById = async (albumId: number | string): Promise<boolean> => {
+export const playAlbumById = async (albumId: number | string, options?: PlayOptions): Promise<boolean> => {
   const [album, rip] = await Promise.all([
     musicService.getAlbumById(albumId) as Promise<AlbumLike>,
     musicService.getNavidromeTracks(albumId).catch(() => null),
   ]);
   const tracks = playerTracksOf(album, rip);
   if (tracks.length === 0) return false;
-  player.playAlbum(playerAlbumOf(album, rip), tracks, 0);
+  player.playAlbum(playerAlbumOf(album, rip), tracks, 0, 0, options);
   return true;
 };

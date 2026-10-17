@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { player, resetPlayer } from './player';
+import { LISTEN_NEXT_LEFT_EVENT, player, resetPlayer } from './player';
 
 const album = { id: 7, title: 'Come Away With Me', artist: 'Norah Jones', cover: null };
 const tracks = [
@@ -96,5 +96,50 @@ describe('player', () => {
     expect(player.getState()).toMatchObject({ index: 1, position: 0 });
     player.previous();
     expect(player.getState().index).toBe(0);
+  });
+  it('goes on with its list once the album is over, or once ⏭ skips its last track', async () => {
+    const onAlbumEnd = vi.fn(() => Promise.resolve(true));
+    player.playAlbum(album, tracks, 1, 0, { queue: 'listenNext', onAlbumEnd });
+    expect(player.getState().queue).toBe('listenNext');
+
+    player.next();
+    expect(onAlbumEnd).toHaveBeenLastCalledWith('skipped');
+
+    playingAudio().dispatchEvent(new Event('ended'));
+    expect(onAlbumEnd).toHaveBeenLastCalledWith('ended');
+  });
+
+  it('leaves an album taken out of its list once its track ends', () => {
+    const onAlbumEnd = vi.fn(() => Promise.resolve(true));
+    player.playAlbum(album, tracks, 0, 0, { queue: 'listenNext', onAlbumEnd, leaveAfterTrack: () => true });
+
+    playingAudio().dispatchEvent(new Event('ended'));
+
+    expect(onAlbumEnd).toHaveBeenCalledWith('removed');
+  });
+
+  it('waits on the first track of an album played alone once it is over, and ⏭ does nothing on its last', () => {
+    player.playAlbum(album, tracks, 1);
+    player.next();
+    expect(player.getState().index).toBe(1);
+
+    playingAudio().dispatchEvent(new Event('ended'));
+
+    expect(player.getState()).toMatchObject({ index: 0, playing: false, queue: null });
+  });
+
+  it('tells the page an album of Listen Next left it, as the server answers a scrobble', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({ ok: true, left: { id: 3, albumId: 7 } })))));
+    const heard = vi.fn();
+    window.addEventListener(LISTEN_NEXT_LEFT_EVENT, heard);
+    player.playAlbum(album, tracks, 0);
+    const audio = playingAudio();
+    Object.defineProperty(audio, 'duration', { value: 186, configurable: true });
+    audio.currentTime = 100;
+    audio.dispatchEvent(new Event('timeupdate'));
+
+    await vi.waitFor(() => expect(heard).toHaveBeenCalled());
+    expect((heard.mock.calls[0][0] as CustomEvent).detail).toEqual({ id: 3, albumId: 7 });
+    window.removeEventListener(LISTEN_NEXT_LEFT_EVENT, heard);
   });
 });

@@ -32,8 +32,27 @@ export interface PlayerResume {
   position: number;
 }
 
+/** A list the player goes on with once an album is over: Listen Next. */
+export type PlayerQueue = 'listenNext';
+
+/**
+ * What a list does when an album is over: played to its end, skipped with ⏭
+ * on its last track, or taken out of the list by hand while it played. True
+ * when it went on with another album.
+ */
+export type AlbumEnd = (how: 'ended' | 'skipped' | 'removed') => Promise<boolean>;
+
+export interface PlayOptions {
+  queue?: PlayerQueue;
+  onAlbumEnd?: AlbumEnd;
+  /** Asked at the end of each track: the album is to be left there, taken out of its list. */
+  leaveAfterTrack?: () => boolean;
+}
+
 export interface PlayerState {
   album: PlayerAlbum | null;
+  /** The list the album is played from, null for an album played alone. */
+  queue: PlayerQueue | null;
   tracks: PlayerTrack[];
   index: number;
   playing: boolean;
@@ -69,7 +88,7 @@ const readResume = (): PlayerResume | null => {
 const writeResume = (resume: PlayerResume | null) => writeStored(RESUME_KEY, resume ? JSON.stringify(resume) : '');
 
 let state: PlayerState = {
-  album: null, tracks: [], index: 0, playing: false, position: 0, duration: 0, barShown: false,
+  album: null, queue: null, tracks: [], index: 0, playing: false, position: 0, duration: 0, barShown: false,
   resume: typeof window !== 'undefined' ? readResume() : null, error: null,
 };
 const listeners = new Set<() => void>();
@@ -88,6 +107,10 @@ let scrobbled = false;
 let announced = false;
 let lastSaved = 0;
 let waitingForBar: MutationObserver | null = null;
+let options: PlayOptions = {};
+
+/** An album of Listen Next that left it once played, as the server answered a scrobble. */
+export const LISTEN_NEXT_LEFT_EVENT = 'dexvault:listen-next-left';
 
 const current = (): HTMLAudioElement => audios[active];
 const spare = (): HTMLAudioElement => audios[1 - active];
@@ -97,7 +120,30 @@ const post = (songId: string, submission: boolean) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ submission }),
-  }).catch(() => undefined);
+  })
+    .then(response => (response.ok ? response.json() : null))
+    .then(body => {
+      if (body?.left) window.dispatchEvent(new CustomEvent(LISTEN_NEXT_LEFT_EVENT, { detail: body.left }));
+    })
+    .catch(() => undefined);
+};
+
+/** The album is over: the list it is played from goes on, or it waits on its first track to be played again. */
+const endAlbum = (how: 'ended' | 'skipped' | 'removed') => {
+  const finish = () => {
+    if (!state.album || state.tracks.length === 0) return;
+    writeResume({ album: state.album, tracks: state.tracks, index: 0, position: 0 });
+    set({ playing: false, position: 0, index: 0, resume: readResume() });
+    current().src = streamUrl(state.tracks[0].songId);
+    preloadNext();
+  };
+  const goOn = options.onAlbumEnd;
+  if (!goOn) {
+    if (how !== 'skipped') finish();
+    return;
+  }
+  const album = state.album;
+  goOn(how).then(played => { if (!played && state.album === album) finish(); }, () => { if (state.album === album) finish(); });
 };
 
 const saveResume = () => {
@@ -222,14 +268,10 @@ const setUp = () => {
     });
     audio.addEventListener('ended', () => {
       if (!mine()) return;
-      if (state.index + 1 < state.tracks.length) start(state.index + 1);
-      else {
-        // The album is over: it can be played again from its card, from the start.
-        writeResume({ album: state.album!, tracks: state.tracks, index: 0, position: 0 });
-        set({ playing: false, position: 0, index: 0, resume: readResume() });
-        current().src = streamUrl(state.tracks[0].songId);
-        preloadNext();
-      }
+      if (options.leaveAfterTrack?.()) endAlbum('removed');
+      else if (state.index + 1 < state.tracks.length) start(state.index + 1);
+      // The album is over: its list goes on, or it can be played again from its card, from the start.
+      else endAlbum('ended');
     });
     audio.addEventListener('error', () => {
       if (!mine() || !audio.src) return;
@@ -251,11 +293,12 @@ const setUp = () => {
 };
 
 export const player = {
-  /** Plays an album's tracks from `index`, the rest of the album after it. */
-  playAlbum: (album: PlayerAlbum, tracks: PlayerTrack[], index = 0, at = 0) => {
+  /** Plays an album's tracks from `index`, the rest of the album after it; a list goes on after it when given. */
+  playAlbum: (album: PlayerAlbum, tracks: PlayerTrack[], index = 0, at = 0, playOptions: PlayOptions = {}) => {
     if (tracks.length === 0) return;
     setUp();
-    set({ album, tracks, resume: null });
+    options = playOptions;
+    set({ album, queue: playOptions.queue ?? null, tracks, resume: null });
     writeResume(null);
     spare().removeAttribute('src');
     start(Math.max(0, Math.min(index, tracks.length - 1)), at);
@@ -271,8 +314,10 @@ export const player = {
     else audio.pause();
   },
 
+  /** The next track; on the last one, the next album of the list it is played from. */
   next: () => {
     if (state.index + 1 < state.tracks.length) start(state.index + 1);
+    else if (options.onAlbumEnd) endAlbum('skipped');
   },
 
   /** Back to the start of the track, or to the one before in its first seconds. */
@@ -295,7 +340,8 @@ export const player = {
     audios.forEach(audio => { audio.pause(); audio.removeAttribute('src'); audio.load(); });
     waitingForBar?.disconnect();
     waitingForBar = null;
-    set({ album: null, tracks: [], index: 0, playing: false, position: 0, duration: 0, barShown: false, resume: readResume() });
+    options = {};
+    set({ album: null, queue: null, tracks: [], index: 0, playing: false, position: 0, duration: 0, barShown: false, resume: readResume() });
     if ('mediaSession' in navigator) navigator.mediaSession.metadata = null;
   },
 
@@ -325,6 +371,7 @@ export const resetPlayer = () => {
   active = 0;
   waitingForBar?.disconnect();
   waitingForBar = null;
-  state = { album: null, tracks: [], index: 0, playing: false, position: 0, duration: 0, barShown: false, resume: readResume(), error: null };
+  options = {};
+  state = { album: null, queue: null, tracks: [], index: 0, playing: false, position: 0, duration: 0, barShown: false, resume: readResume(), error: null };
   listeners.forEach(listener => listener());
 };

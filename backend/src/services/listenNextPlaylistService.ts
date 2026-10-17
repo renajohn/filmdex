@@ -39,12 +39,20 @@ const songsOfListenNext = async (): Promise<{ songIds: string[]; albums: number;
   return { songIds, albums: albums.length, notRipped };
 };
 
+/** The playlist as last written or found, for Amperfy to open it. */
+let knownPlaylistId: string | null = null;
+
+const findPlaylist = async () => {
+  const user = process.env.NAVIDROME_USER || '';
+  return (await navidromeService.getPlaylists()).find(playlist => playlist.name === PLAYLIST_NAME && (!playlist.owner || playlist.owner === user));
+};
+
 const write = async (): Promise<PlaylistReport | null> => {
   if (!navidromeService.isConfigured()) return null;
   const { songIds, albums, notRipped } = await songsOfListenNext();
-  const user = process.env.NAVIDROME_USER || '';
-  const existing = (await navidromeService.getPlaylists()).find(playlist => playlist.name === PLAYLIST_NAME && (!playlist.owner || playlist.owner === user));
+  const existing = await findPlaylist();
   const playlistId = await navidromeService.savePlaylist({ id: existing?.id, name: PLAYLIST_NAME, songIds });
+  knownPlaylistId = playlistId;
   if (playlistId && existing?.comment !== PLAYLIST_COMMENT) await navidromeService.setPlaylistComment(playlistId, PLAYLIST_COMMENT);
   return { playlistId, albums, notRipped, songs: songIds.length };
 };
@@ -70,6 +78,13 @@ const listenNextPlaylistService = {
         logger.warn(`Listen Next not written to Navidrome: ${(error as Error).message}`));
     }, SETTLE_MS);
     timer.unref?.();
+  },
+
+  /** The playlist's id in Navidrome, null when it has none yet. */
+  playlistId: async (): Promise<string | null> => {
+    if (!navidromeService.isConfigured()) return null;
+    if (!knownPlaylistId) knownPlaylistId = (await findPlaylist())?.id ?? null;
+    return knownPlaylistId;
   },
 
   /** At the start, then every half hour: CDs ripped since give their songs. */

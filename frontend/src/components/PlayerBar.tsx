@@ -21,7 +21,8 @@ const PlayerBar: React.FC = () => {
   const navigate = useNavigate();
   const album = usePlayer(state => state.album);
   const track = usePlayer(state => state.tracks[state.index]);
-  const hasNext = usePlayer(state => state.index + 1 < state.tracks.length);
+  // From a list, ⏭ on an album's last track goes on to the next album.
+  const hasNext = usePlayer(state => state.index + 1 < state.tracks.length || state.queue !== null);
   const playing = usePlayer(state => state.playing);
   const position = usePlayer(state => state.position);
   const duration = usePlayer(state => state.duration);

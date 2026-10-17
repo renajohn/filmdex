@@ -33,6 +33,14 @@ interface NextBannerProps {
   shufflingItemId?: number | null;
   /** A play button laid on each image, at its foot on the left. */
   renderPlay?: (item: NextBannerItem) => React.ReactNode;
+  /** In the header in place of the count: controls of the list's own. */
+  headerControls?: React.ReactNode;
+  /** A line under the cards. */
+  footer?: React.ReactNode;
+  /** A class of a card's own: one leaving the list, say. */
+  getCardClassName?: (item: NextBannerItem) => string;
+  /** Laid over each image, above everything else on it. */
+  renderOverlay?: (item: NextBannerItem) => React.ReactNode;
 }
 
 const NextBanner: React.FC<NextBannerProps> = ({
@@ -54,7 +62,11 @@ const NextBanner: React.FC<NextBannerProps> = ({
   smartFillLoading = false,
   onShuffle,
   shufflingItemId = null,
-  renderPlay
+  renderPlay,
+  headerControls,
+  footer,
+  getCardClassName,
+  renderOverlay
 }) => {
   const bannerRef = useRef<HTMLDivElement>(null);
 
@@ -136,9 +148,11 @@ const NextBanner: React.FC<NextBannerProps> = ({
         <div className="next-banner__title-section">
           {renderIcon()}
           <h2 className="next-banner__title">{title}</h2>
-          <span className="next-banner__count">
-            {items.length} {items.length === 1 ? itemLabel : itemLabelPlural}
-          </span>
+          {headerControls ?? (
+            <span className="next-banner__count">
+              {items.length} {items.length === 1 ? itemLabel : itemLabelPlural}
+            </span>
+          )}
         </div>
       </div>
 
@@ -147,7 +161,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
           {items.map((item) => (
             <div
               key={item.id}
-              className={`next-banner__card cover-host ${shufflingItemId === item.id ? 'shuffling' : ''}`}
+              className={`next-banner__card cover-host ${shufflingItemId === item.id ? 'shuffling' : ''} ${getCardClassName ? getCardClassName(item) : ''}`}
             >
               <CoverButton className="next-banner__remove-btn" onClick={(e) => handleRemove(e, item)} label={`Remove from ${title}`}>
                 <BsX size={20} />
@@ -195,6 +209,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
                 {renderBadges && <div className="next-banner__badges">{renderBadges(item)}</div>}
                 {renderPlay && renderPlay(item)}
                 <ShelfCode kind={type === 'music' ? 'album' : 'movie'} id={item.id} />
+                {renderOverlay && renderOverlay(item)}
 
                 {/* Movie-style hover overlay */}
                 {type === 'movie' && (
@@ -278,6 +293,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
           )}
         </div>
       </div>
+      {footer}
     </div>
   );
 };

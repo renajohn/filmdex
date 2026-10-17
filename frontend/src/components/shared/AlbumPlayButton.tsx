@@ -13,6 +13,8 @@ interface AlbumPlayButtonProps {
   offerPlay?: boolean;
   /** An album with no rip to play: its card, say, opens instead. */
   onUnripped?: () => void;
+  /** Plays it some other way than alone: Listen Next from this album, say. False when it has no rip. */
+  onPlay?: () => Promise<boolean>;
   className?: string;
 }
 
@@ -21,7 +23,7 @@ interface AlbumPlayButtonProps {
  * bars, ⏸ or ▶ under the pointer; another one shows ▶ on hover, when offered,
  * which plays it from the start.
  */
-const AlbumPlayButton: React.FC<AlbumPlayButtonProps> = ({ albumId, title, offerPlay = false, onUnripped, className = '' }) => {
+const AlbumPlayButton: React.FC<AlbumPlayButtonProps> = ({ albumId, title, offerPlay = false, onUnripped, onPlay, className = '' }) => {
   const here = usePlayer(state => state.album?.id === Number(albumId));
   const playing = usePlayer(state => state.playing);
   const [loading, setLoading] = useState(false);
@@ -36,7 +38,7 @@ const AlbumPlayButton: React.FC<AlbumPlayButtonProps> = ({ albumId, title, offer
     }
     setLoading(true);
     try {
-      if (!(await playAlbumById(albumId))) onUnripped?.();
+      if (!(await (onPlay ? onPlay() : playAlbumById(albumId)))) onUnripped?.();
     } catch {
       onUnripped?.();
     } finally {

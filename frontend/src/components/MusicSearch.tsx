@@ -8,7 +8,7 @@ import MusicDetailCard from './MusicDetailCard';
 import AddMusicDialog from './AddMusicDialog';
 import AlphabeticalIndex from './AlphabeticalIndex';
 import { NextBanner, CollectionHeader, EmptyState } from './shared';
-import { BsChevronDown, BsDisc } from 'react-icons/bs';
+import { BsChevronDown, BsDisc, BsHeadphones } from 'react-icons/bs';
 import './MusicSearch.css';
 import { readStored, writeStored } from '../utils/safeStorage';
 import { findById, useDetailSteps } from '../utils/detailSteps';
@@ -17,6 +17,8 @@ import { useAlbumOrder } from '../utils/shelfLocations';
 import { artistLetter, artistSortKey, artistSortName } from '../utils/artistOrder';
 import { isAppleMobile } from '../utils/navidrome';
 import AlbumPlayButton from './shared/AlbumPlayButton';
+import { LeavingOverlay, ListenNextControls, ListenNextSummary, useListenNextPlay } from './ListenNextPlay';
+import { listenNextQueue } from '../services/listenNextQueue';
 import { DigitalChips, DigitalNotices, DigitalRefresh, type DigitalFilter } from './DigitalStrip';
 import DigitalMarks from './shared/DigitalMarks';
 import BoughtCdDialog from './BoughtCdDialog';
@@ -231,6 +233,9 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   useEffect(() => {
     refreshListenNextAlbums();
   }, [refreshTrigger, refreshListenNextAlbums]);
+
+  // Playing Listen Next from its banner: ▶, Repeat, the albums leaving it once played.
+  const listenNext = useListenNextPlay(listenNextAlbums, refreshListenNextAlbums, albums => setListenNextAlbums(albums as Album[]));
 
   // Smart fill Listen Next with suggested albums: from the CDs, or from anything with Digital on.
   const handleSmartFill = useCallback(async (from: 'cds' | 'any' = 'cds') => {
@@ -1091,12 +1096,30 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
       {/* Listen Next Banner - show when there are albums OR when we have albums in collection to suggest */}
       {!searchCriteria?.searchText && (listenNextAlbums.length > 0 || allCds.length > 0) && (
         <NextBanner
-          items={listenNextAlbums}
+          items={listenNext.items}
           type="music"
           title="Listen Next"
-          icon="🎧"
+          icon={<BsHeadphones className="next-banner__icon" aria-hidden="true" />}
+          headerControls={<ListenNextControls count={listenNextAlbums.length} play={listenNext.play} onRepeat={listenNext.setRepeat} />}
+          footer={<ListenNextSummary albums={listenNext.items.filter(album => !listenNext.leavingState(album.id))} play={listenNext.play} />}
+          getCardClassName={(album) => {
+            const leaving = listenNext.leavingState(album.id);
+            if (leaving) return `next-banner__card--leaving${leaving.collapsing ? ' next-banner__card--collapsing' : ''}`;
+            return listenNext.departureOf(album.id) ? 'next-banner__card--departed' : '';
+          }}
+          renderOverlay={(album) => {
+            const leaving = listenNext.leavingState(album.id);
+            return leaving && (
+              <LeavingOverlay title={album.title || ''} startedAt={leaving.startedAt} onKeep={() => listenNext.keep(leaving.departureId)} />
+            );
+          }}
           onItemClick={(id) => handleCdClick(id, 'listenNext')}
-          onRemove={(e, item) => handleListenNextToggle(e, item as Album)}
+          onRemove={(e, item) => {
+            // Gone from the list already, played to its end: only off the banner.
+            const departure = listenNext.departureOf(item.id);
+            if (departure) listenNext.dismiss(departure.id);
+            else handleListenNextToggle(e, item as Album);
+          }}
           getImageUrl={(album) => getCoverUrl(album.cover) || ''}
           getTitle={(album) => album.title || ''}
           getSubtitle={(album) => Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}
@@ -1111,8 +1134,9 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           onShuffle={(item) => handleShuffleAlbum(item as Album)}
           shufflingItemId={shufflingAlbumId}
           renderPlay={(album) => (
-            // ▶ plays the album in DexVault; an album with no rip opens its card instead. An iPhone plays in Amperfy.
+            // ▶ plays Listen Next in DexVault from this album; one with no rip opens its card instead. An iPhone plays in Amperfy.
             <AlbumPlayButton albumId={album.id} title={album.title || ''} offerPlay={!isAppleMobile()}
+              onPlay={() => listenNextQueue.start(album.id)}
               onUnripped={() => handleCdClick(album.id, 'listenNext')} className="next-banner__play" />
           )}
         />

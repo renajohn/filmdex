@@ -81,6 +81,35 @@ export interface RipTrackFile {
   path: string | null;
 }
 
+/** An album of Listen Next played to its end, gone from the list. */
+export interface ListenNextDeparture {
+  id: number;
+  albumId: number;
+  collectionOrder: number | null;
+  /** Unix seconds. */
+  leftAt: number;
+  /** The album now after its place in the list, null at the end. */
+  beforeAlbumId: number | null;
+  album: { id: number; title: string; artist?: string | string[]; cover?: string | null; [key: string]: unknown };
+}
+
+export interface AlbumLength {
+  discs: number;
+  tracks: number;
+  durationSec: number;
+  /** Tracks whose length is not known. */
+  missing: number;
+}
+
+export interface ListenNextPlayState {
+  repeat: boolean;
+  playlistId: string | null;
+  departures: ListenNextDeparture[];
+  /** The albums of Listen Next the player can play. */
+  ripped: number[];
+  lengths: Record<number, AlbumLength>;
+}
+
 export type RatingSync = 'synced' | 'not_ripped' | 'not_configured' | 'failed';
 
 /** One entry of a CD's listening journal. */
@@ -982,6 +1011,32 @@ class MusicService {
    * Classical albums are replaced with other classical albums
    * Non-classical albums are replaced with other non-classical albums
    */
+  /** Playing Listen Next: Repeat, the albums leaving it, every album's length, the playlist for Amperfy. */
+  async getListenNextPlay(): Promise<ListenNextPlayState> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/collections/listen-next/play`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  }
+
+  async setListenNextRepeat(repeat: boolean): Promise<void> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/collections/listen-next/repeat`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repeat }),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  /** Keep here: the album that left Listen Next goes back at its place; the list as it now is. */
+  async keepListenNextDeparture(departureId: number): Promise<{ albums: unknown[] }> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/collections/listen-next/departures/${departureId}/keep`, { method: 'POST' });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  }
+
   async shuffleListenNextAlbum(albumId: number | string): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();

@@ -353,6 +353,9 @@ app.get('/api/collections/listen-next/albums', musicController.getListenNextAlbu
 app.post('/api/collections/listen-next/smart-fill', musicController.smartFillListenNext);
 app.post('/api/collections/listen-next/shuffle/:albumId', musicController.shuffleListenNextAlbum);
 app.get('/api/collections/listen-next/stats', musicController.getSmartPlaylistStats);
+app.get('/api/collections/listen-next/play', musicController.getListenNextPlay);
+app.put('/api/collections/listen-next/repeat', musicController.setListenNextRepeat);
+app.post('/api/collections/listen-next/departures/:id/keep', musicController.keepListenNextDeparture);
 
 // Book routes
 app.get('/api/books', bookController.getAllBooks);

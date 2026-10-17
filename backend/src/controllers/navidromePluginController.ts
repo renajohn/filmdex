@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'crypto';
 import { NextFunction, Request, Response } from 'express';
 import NavidromeListener, { type EventType, type LibraryItem } from '../models/navidromeListener';
+import listenNextPlayService from '../services/listenNextPlayService';
 import logger from '../logger';
 
 /** A Navidrome id: letters, digits, dashes and underscores, never a path. */
@@ -71,6 +72,11 @@ const navidromePluginController = {
       const added = await NavidromeListener.addEvent(type as EventType, user, song, at, data, now);
       if (type === 'scrobble' && added && await NavidromeListener.addListen(user, song!, at)) {
         logger.info(`Navidrome: a play by ${user} noted`);
+      }
+      // Played in Amperfy, say: the album of Listen Next it ends leaves it. The plugin need not wait.
+      if (type === 'scrobble' && added) {
+        listenNextPlayService.noteScrobble(user, song!, at).catch(error =>
+          logger.warn(`Listen Next after a play by ${user}: ${(error as Error).message}`));
       }
       res.json({ ok: true, added });
     } catch (error) {
