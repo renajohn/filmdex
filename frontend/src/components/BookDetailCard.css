@@ -1673,12 +1673,12 @@
   min-width: 0;
 }
 
-/* As a panel on a desktop, the book runs the full height of the screen, so the
-   heights capped at 90vh above give way. */
+/* As a panel on a desktop, the book runs the full height of the screen, down to
+   the player's bar when it is out, so the heights capped at 90vh above give way. */
 @media (min-width: 992px) {
   .modal.book-detail-modal .modal-dialog {
     max-height: none !important;
-    height: 100vh !important;
+    height: calc(100vh - var(--player-h, 0px)) !important;
   }
 
   .modal.book-detail-modal .modal-content {

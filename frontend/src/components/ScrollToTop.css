@@ -1,7 +1,7 @@
 /* Scroll to Top Button - Floating Action Button (FAB) */
 .scroll-to-top {
   position: fixed;
-  bottom: 24px;
+  bottom: calc(24px + var(--player-h, 0px));
   right: 24px;
   width: 56px;
   height: 56px;
@@ -73,7 +73,7 @@
     width: 48px;
     height: 48px;
     font-size: 20px;
-    bottom: 20px;
+    bottom: calc(20px + var(--player-h, 0px));
     right: 20px;
   }
 }

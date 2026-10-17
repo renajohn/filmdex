@@ -1,14 +1,16 @@
 /*
  * The player at the foot of the screen. It slides up from the edge, and the
- * room it takes is given up by the pages and the album's card (--player-h),
- * so nothing is ever under it.
+ * room it takes is given up by the pages and the record cards that slide in
+ * from the side (--player-h). It stands above the pages and below every
+ * dialog and overlay (all from 1000 up): one that reaches the foot of the
+ * screen covers it rather than hiding under it.
  */
 .player-bar {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 10200;
+  z-index: 990;
   height: 54px;
   background: #181818;
   border-top: 1px solid #333;

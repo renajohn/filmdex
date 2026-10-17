@@ -1,7 +1,7 @@
 /* Main Screen Alert - Dark Theme Compatible */
 .main-screen-alert {
   position: fixed;
-  bottom: 24px; /* Moved to bottom to avoid blocking UI */
+  bottom: calc(24px + var(--player-h, 0px)); /* Moved to bottom to avoid blocking UI; above the player's bar */
   left: 50%; /* Center horizontally */
   transform: translateX(-50%);
   z-index: 1050;
@@ -618,6 +618,13 @@ body {
 .modal.side-panel-modal {
   height: calc(100% - var(--player-h));
   transition: height 0.25s ease-out;
+}
+
+/* Its shade ends there too: the bar below stays in reach while the card is open.
+   Important, as the book card's styles hold every shown backdrop to 100vh. */
+.modal-backdrop.side-panel-backdrop.show,
+.modal-backdrop.side-panel-backdrop {
+  height: calc(100vh - var(--player-h)) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

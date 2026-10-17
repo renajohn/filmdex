@@ -4,9 +4,10 @@
   top: 0 !important;
   left: 0 !important;
   right: 0 !important;
-  bottom: 0 !important;
+  /* Down to the player's bar when it is out, which stays in reach below, as under a record's card. */
+  bottom: var(--player-h, 0px) !important;
   width: 100vw !important;
-  height: 100vh !important;
+  height: calc(100vh - var(--player-h, 0px)) !important;
   background-color: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -895,7 +896,7 @@
     padding-top: 10px;
     padding-bottom: 10px;
     width: 100vw;
-    height: 100vh;
+    height: calc(100vh - var(--player-h, 0px));
   }
   
   .movie-detail-card {
@@ -2602,7 +2603,7 @@
 /* "Did you watch?" prompt toast */
 .watched-prompt-toast {
   position: fixed;
-  bottom: 24px;
+  bottom: calc(24px + var(--player-h, 0px));
   left: 50%;
   transform: translateX(-50%);
   background: #1e2530;
@@ -2674,7 +2675,7 @@
 
 @media (max-width: 600px) {
   .watched-prompt-toast {
-    bottom: 16px;
+    bottom: calc(16px + var(--player-h, 0px));
     left: 16px;
     right: 16px;
     transform: none;
@@ -2714,8 +2715,8 @@
   .movie-detail-card {
     width: min(1080px, 65vw);
     max-width: none;
-    height: 100vh;
-    max-height: 100vh;
+    height: calc(100vh - var(--player-h, 0px));
+    max-height: calc(100vh - var(--player-h, 0px));
     align-self: stretch;
     border-width: 0 0 0 1px;
     border-radius: 0;
