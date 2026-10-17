@@ -543,12 +543,19 @@
   color: #fbbf24;
 }
 
-/* The ▾ beside Play stays an arrow's width, whatever the dropdowns of the grid ask for. */
-.music-detail-play.btn-group .dropdown-toggle.dropdown-toggle-split {
+/* The ▾ beside Play, an arrow's width, its menu Menu's. */
+.music-detail-play.btn-group .music-detail-play-more {
   min-width: 0;
   flex: none;
-  padding-left: 9px;
-  padding-right: 9px;
+  display: inline-flex;
+  align-items: center;
+  padding-left: 10px;
+  padding-right: 10px;
+  border-left: 1px solid rgba(0, 0, 0, 0.18);
+}
+
+.music-detail-play-more .menu-chevron {
+  color: currentColor;
 }
 
 /* Play, Pause or Resume, and where Resume picks up, in a lighter murmur. */

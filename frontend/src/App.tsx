@@ -11,6 +11,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import BackupPage from './pages/BackupPage';
 import ShelvesPage from './pages/ShelvesPage';
 import CogDropdown from './components/CogDropdown';
+import Menu from './components/shared/Menu';
 import ShelfMovesNotice from './components/shared/ShelfMovesNotice';
 import { refreshShelfLocations } from './utils/shelfLocations';
 import CsvExportDialog from './components/CsvExportDialog';
@@ -89,9 +90,6 @@ function AppContent() {
   const autocompleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const emptyFieldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mouseEnterTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const filterDropdownRef = useRef<HTMLDivElement>(null);
-  const filterButtonRef = useRef<HTMLButtonElement>(null);
-  const [showFilterDropdown, setShowFilterDropdown] = useState<boolean>(false);
   const [collections, setCollections] = useState<string[]>([]);
   const [boxSets, setBoxSets] = useState<string[]>([]);
   const [owners, setOwners] = useState<string[]>([]);
@@ -568,7 +566,31 @@ function AppContent() {
       }
     }
 
-    setShowFilterDropdown(false);
+  };
+
+  /** The search's filters, by section, for the page shown: each one adds its words to the search. */
+  const filterSections = (): Array<{ title: string; options: Array<{ label: string; type: string; value: string }> }> => {
+    const plain = (type: string, labels: Array<[string, string]>) => labels.map(([value, label]) => ({ label, type, value }));
+    const of = (type: string, values: string[]) => values.map(value => ({ label: value, type, value }));
+    const sections = location.pathname === '/bookdex' ? [
+      { title: 'Book Type', options: plain('type', [['book', 'Book'], ['graphic-novel', 'Graphic Novel'], ['score', 'Score']]) },
+      { title: 'Formats', options: plain('format', [['physical', 'Physical'], ['ebook', 'E-book'], ['audiobook', 'Audiobook']]) },
+      { title: 'Title Status', options: plain('title_status', [['owned', 'Owned'], ['borrowed', 'Borrowed']]) },
+      { title: 'Special', options: [{ label: 'Has E-book File', type: 'has_ebook', value: '' }] },
+      { title: 'Owners', options: of('owner', owners) },
+    ] : [
+      { title: 'Age Groups', options: of('age_group', ['All Ages (0-3)', 'Children (4-9)', 'Pre-teens (10-14)', 'Teens & Adults (15+)']) },
+      { title: 'Formats', options: of('format', ['Blu-ray 4K', 'Blu-ray', 'DVD']) },
+      { title: 'Special', options: [
+        { label: 'Has Comments', type: 'comments', value: '' },
+        { label: 'No spiders', type: 'no_spiders', value: '' },
+        { label: 'No snakes', type: 'no_snakes', value: '' },
+        { label: 'No spiders or snakes', type: 'no_spiders_snakes', value: '' },
+      ] },
+      { title: 'Collections', options: of('collection', collections) },
+      { title: 'Box Sets', options: of('box_set', boxSets) },
+    ];
+    return sections.filter(section => section.options.length > 0);
   };
   const handleMouseEnter = (index: number) => {
     if (mouseEnterTimeoutRef.current) {
@@ -1032,30 +1054,24 @@ function AppContent() {
     }, 100);
   };
 
-  // Close autocomplete and filter dropdown on click outside
+  // Close the autocomplete on a click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const searchInput = searchInputRef.current;
-      const filterDropdown = filterDropdownRef.current;
-      const filterButton = filterButtonRef.current;
-
-      if (searchInput && !searchInput.contains(event.target as Node) &&
-          (!filterDropdown || !filterDropdown.contains(event.target as Node)) &&
-          (!filterButton || !filterButton.contains(event.target as Node))) {
+      if (searchInput && !searchInput.contains(event.target as Node)) {
         setShowAutocomplete(false);
         setAutocompleteIndex(-1);
-        setShowFilterDropdown(false);
       }
     };
 
-    if (showAutocomplete || showFilterDropdown) {
+    if (showAutocomplete) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => {
         document.removeEventListener('mousedown', handleClickOutside);
       };
     }
     return undefined;
-  }, [showAutocomplete, showFilterDropdown]);
+  }, [showAutocomplete]);
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -1295,21 +1311,22 @@ function AppContent() {
                   </button>
                 )}
                 {location.pathname !== '/musicdex' && location.pathname !== '/wishlist' && (
-                  <button
-                    ref={filterButtonRef}
-                    className={`search-filter-button ${showFilterDropdown ? 'active' : ''}`}
-                    onClick={() => {
-                      if (!showFilterDropdown) {
-                        // Fetch data when opening dropdown
-                        fetchFilterData();
-                      }
-                      setShowFilterDropdown(!showFilterDropdown);
-                    }}
-                    type="button"
-                    title="Advanced Filters"
-                  >
-                    <BsChevronDown className={`chevron-icon ${showFilterDropdown ? 'rotated' : ''}`} />
-                  </button>
+                  <Menu align="end" label="Advanced filters" onOpenChange={open => { if (open) fetchFilterData(); }}
+                    trigger={(props, open) => (
+                      <button type="button" {...props} className={`search-filter-button ${open ? 'active' : ''}`} title="Advanced Filters">
+                        <BsChevronDown className={`chevron-icon ${open ? 'rotated' : ''}`} />
+                      </button>
+                    )}>
+                    {filterSections().map((section, index) => (
+                      <React.Fragment key={section.title}>
+                        {index > 0 && <Menu.Separator />}
+                        <Menu.Section title={section.title} />
+                        {section.options.map(option => (
+                          <Menu.Item key={option.label} onSelect={() => handleFilterSelection(option.type, option.value)}>{option.label}</Menu.Item>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </Menu>
                 )}
                 {showAutocomplete && autocompleteOptions.length > 0 && location.pathname !== '/wishlist' && (
                   <div className="search-autocomplete-dropdown">
@@ -1336,283 +1353,6 @@ function AppContent() {
                         </span>
                       </div>
                     ))}
-                  </div>
-                )}
-                {showFilterDropdown && location.pathname !== '/wishlist' && (
-                  <div className="search-filter-dropdown" ref={filterDropdownRef}>
-                    {location.pathname === '/bookdex' ? (
-                      <>
-                        <div className="filter-section">
-                          <div className="filter-section-title">Book Type</div>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('type', 'book');
-                            }}
-                          >
-                            Book
-                          </button>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('type', 'graphic-novel');
-                            }}
-                          >
-                            Graphic Novel
-                          </button>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('type', 'score');
-                            }}
-                          >
-                            Score
-                          </button>
-                        </div>
-
-                        <div className="filter-section">
-                          <div className="filter-section-title">Formats</div>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('format', 'physical');
-                            }}
-                          >
-                            Physical
-                          </button>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('format', 'ebook');
-                            }}
-                          >
-                            E-book
-                          </button>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('format', 'audiobook');
-                            }}
-                          >
-                            Audiobook
-                          </button>
-                        </div>
-
-                        <div className="filter-section">
-                          <div className="filter-section-title">Title Status</div>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('title_status', 'owned');
-                            }}
-                          >
-                            Owned
-                          </button>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('title_status', 'borrowed');
-                            }}
-                          >
-                            Borrowed
-                          </button>
-                        </div>
-
-                        <div className="filter-section">
-                          <div className="filter-section-title">Special</div>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('has_ebook', '');
-                            }}
-                          >
-                            Has E-book File
-                          </button>
-                        </div>
-
-                        {owners.length > 0 && (
-                          <div className="filter-section">
-                            <div className="filter-section-title">Owners</div>
-                            {owners.map(owner => (
-                              <button
-                                key={owner}
-                                className="filter-option"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleFilterSelection('owner', owner);
-                                }}
-                              >
-                                {owner}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div className="filter-section">
-                          <div className="filter-section-title">Age Groups</div>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('age_group', 'All Ages (0-3)');
-                            }}
-                          >
-                            All Ages (0-3)
-                          </button>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('age_group', 'Children (4-9)');
-                            }}
-                          >
-                            Children (4-9)
-                          </button>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('age_group', 'Pre-teens (10-14)');
-                            }}
-                          >
-                            Pre-teens (10-14)
-                          </button>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('age_group', 'Teens & Adults (15+)');
-                            }}
-                          >
-                            Teens & Adults (15+)
-                          </button>
-                        </div>
-
-                        <div className="filter-section">
-                          <div className="filter-section-title">Formats</div>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('format', 'Blu-ray 4K');
-                            }}
-                          >
-                            Blu-ray 4K
-                          </button>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('format', 'Blu-ray');
-                            }}
-                          >
-                            Blu-ray
-                          </button>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('format', 'DVD');
-                            }}
-                          >
-                            DVD
-                          </button>
-                        </div>
-
-                        <div className="filter-section">
-                          <div className="filter-section-title">Special</div>
-                          <button
-                            className="filter-option"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleFilterSelection('comments', '');
-                            }}
-                          >
-                            Has Comments
-                          </button>
-                          {([['no_spiders', 'No spiders'], ['no_snakes', 'No snakes'], ['no_spiders_snakes', 'No spiders or snakes']] as const).map(([type, label]) => (
-                            <button
-                              key={type}
-                              className="filter-option"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleFilterSelection(type, '');
-                              }}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-
-                        {collections.length > 0 && (
-                          <div className="filter-section">
-                            <div className="filter-section-title">Collections</div>
-                            {collections.map(collection => (
-                              <button
-                                key={collection}
-                                className="filter-option"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleFilterSelection('collection', collection);
-                                }}
-                              >
-                                {collection}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-
-                        {boxSets.length > 0 && (
-                          <div className="filter-section">
-                            <div className="filter-section-title">Box Sets</div>
-                            {boxSets.map(boxSet => (
-                              <button
-                                key={boxSet}
-                                className="filter-option"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleFilterSelection('box_set', boxSet);
-                                }}
-                              >
-                                {boxSet}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
                   </div>
                 )}
               </div>

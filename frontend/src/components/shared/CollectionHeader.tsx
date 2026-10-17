@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dropdown } from 'react-bootstrap';
+import Menu, { MenuChevron } from './Menu';
 import { BsSortDown, BsGrid3X3Gap, BsPlus } from 'react-icons/bs';
 import './shared.css';
 
@@ -72,14 +72,12 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
   return (
     <div className="collection-header">
       <div className="collection-controls">
-        {/* Sort Dropdown */}
+        {/* Sort */}
         {sortOptions.length > 0 && (
-          <Dropdown className="sort-dropdown-container">
-            <Dropdown.Toggle
-              as="button"
-              className={`filter-pill sort-dropdown-button ${loading || sortLoading ? 'filter-pill-loading' : ''}`}
-              disabled={sortLoading}
-            >
+          <Menu label="Sort" trigger={(props, open) => (
+            <button type="button" {...props}
+              className={`menu-pill sort-dropdown-button ${loading || sortLoading ? 'filter-pill-loading' : ''}`}
+              disabled={sortLoading}>
               {sortLoading ? (
                 <>
                   <span className="sort-loading-spinner"></span>
@@ -87,34 +85,27 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
                 </>
               ) : (
                 <>
-                  <BsSortDown className="sort-icon" />
-                  Sort: {currentSortLabel}
+                  <span className="menu-pill__lead"><BsSortDown /></span>
+                  <span className="menu-pill__muted">Sort:</span> {currentSortLabel}
+                  <MenuChevron open={open} />
                 </>
               )}
-            </Dropdown.Toggle>
-
-            <Dropdown.Menu className="sort-dropdown-menu">
-              {sortOptions.map(option => (
-                <Dropdown.Item
-                  key={option.value}
-                  className={`sort-dropdown-item ${sortBy === option.value ? 'active' : ''}`}
-                  onClick={() => onSortChange && onSortChange(option.value)}
-                >
-                  {option.label}
-                </Dropdown.Item>
-              ))}
-            </Dropdown.Menu>
-          </Dropdown>
+            </button>
+          )}>
+            {sortOptions.map(option => (
+              <Menu.Choice key={option.value} selected={sortBy === option.value} onSelect={() => onSortChange && onSortChange(option.value)}>
+                {option.label}
+              </Menu.Choice>
+            ))}
+          </Menu>
         )}
 
-        {/* Group Dropdown */}
+        {/* Grouping */}
         {groupOptions.length > 0 && (
-          <Dropdown className="group-dropdown-container">
-            <Dropdown.Toggle
-              as="button"
-              className={`filter-pill group-dropdown-button ${loading || groupLoading ? 'filter-pill-loading' : ''}`}
-              disabled={groupLoading}
-            >
+          <Menu label="Grouping" trigger={(props, open) => (
+            <button type="button" {...props}
+              className={`menu-pill group-dropdown-button ${loading || groupLoading ? 'filter-pill-loading' : ''}`}
+              disabled={groupLoading}>
               {groupLoading ? (
                 <>
                   <span className="group-loading-spinner"></span>
@@ -122,24 +113,19 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
                 </>
               ) : (
                 <>
-                  <BsGrid3X3Gap className="group-icon" />
+                  <span className="menu-pill__lead"><BsGrid3X3Gap /></span>
                   {currentGroupLabel}
+                  <MenuChevron open={open} />
                 </>
               )}
-            </Dropdown.Toggle>
-
-            <Dropdown.Menu className="group-dropdown-menu">
-              {groupOptions.map(option => (
-                <Dropdown.Item
-                  key={option.value}
-                  className={`group-dropdown-item ${groupBy === option.value ? 'active' : ''}`}
-                  onClick={() => onGroupChange && onGroupChange(option.value)}
-                >
-                  {option.label}
-                </Dropdown.Item>
-              ))}
-            </Dropdown.Menu>
-          </Dropdown>
+            </button>
+          )}>
+            {groupOptions.map(option => (
+              <Menu.Choice key={option.value} selected={groupBy === option.value} onSelect={() => onGroupChange && onGroupChange(option.value)}>
+                {option.label}
+              </Menu.Choice>
+            ))}
+          </Menu>
         )}
 
         {/* Collapse All Button - Only show when grouping is enabled */}

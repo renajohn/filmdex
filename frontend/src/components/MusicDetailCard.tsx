@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Button, ButtonGroup, Dropdown } from 'react-bootstrap';
+import { Modal, Button, ButtonGroup } from 'react-bootstrap';
+import Menu, { MenuChevron } from './shared/Menu';
 import { BsPencil, BsTrash, BsDisc, BsApple, BsTags, BsPlayFill, BsPauseFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight, BsStar, BsStarFill, BsArrowClockwise } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
@@ -20,7 +21,7 @@ import './MusicDetailCard.css';
 import ShelfCode from './shared/ShelfCode';
 import NowPlayingBars from './shared/NowPlayingBars';
 import DigitalMarks from './shared/DigitalMarks';
-import { BsCartFill, BsHeart, BsHeartFill, BsSearch } from 'react-icons/bs';
+import { BsArrowCounterclockwise, BsCartFill, BsHeart, BsHeartFill, BsSearch } from 'react-icons/bs';
 import type { DigitalTrack } from '../services/musicService';
 import { buyReason, formatLabel, isLossy, isSuggested, isToBuy, ricardoUrl, type AlbumDigital } from '../utils/digitalLibrary';
 
@@ -971,7 +972,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
         <div className="music-detail-listen">
           {ownPlayer && ripAlbum ? (
             // Play, Pause or Resume what DexVault plays; Navidrome a click away.
-            <Dropdown as={ButtonGroup} drop="up" className="music-detail-play">
+            <ButtonGroup className="music-detail-play">
               <Button variant="primary" onClick={() => {
                 if (playingHere) player.toggle();
                 else if (resumeHere) player.resume();
@@ -985,14 +986,17 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                   </span>
                 )}
               </Button>
-              <Dropdown.Toggle split variant="primary" aria-label="More ways to listen" />
-              <Dropdown.Menu>
+              <Menu drop="up" label="More ways to listen" trigger={(props, open) => (
+                <Button {...props} variant="primary" className="music-detail-play-more" aria-label="More ways to listen">
+                  <MenuChevron open={open} />
+                </Button>
+              )}>
                 {(playingHere || resumeHere) && (
-                  <Dropdown.Item as="button" onClick={() => player.playAlbum(playerAlbum(), playerTracks, 0)}>Play from the start</Dropdown.Item>
+                  <Menu.Item icon={<BsArrowCounterclockwise />} onSelect={() => player.playAlbum(playerAlbum(), playerTracks, 0)}>Play from the start</Menu.Item>
                 )}
-                <Dropdown.Item as="button" onClick={() => openListen(ripAlbum)}>Open in Navidrome</Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
+                <Menu.Item icon={<BsBoxArrowUpRight />} hint="new tab" onSelect={() => openListen(ripAlbum)}>Open in Navidrome</Menu.Item>
+              </Menu>
+            </ButtonGroup>
           ) : ripAlbum ? (
             <Button variant="primary" onClick={() => openListen(ripAlbum)}>
               <BsPlayFill className="me-1" />

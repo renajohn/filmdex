@@ -56,9 +56,15 @@ cd frontend && npx vitest --run ComponentName  # single test file
 ### On covers, posters and books' covers: CoverTag and CoverButton
 Everything laid over an image (an album cover, a movie poster, a book cover) uses the shared components in `frontend/src/components/shared/`; never style a tag or a button on an image by hand.
 - **`CoverTag`** (`variant`: plain, gold, orange, muted, alert, on) for a tag: square-cornered, small capitals, dark glass with a light edge, its meaning in the colour of its words. Several together go in a **`CoverTagStack`** (a column of one width, at least 38px; or `direction="row"`).
-- **`CoverButton`** (`label`, `active`, `size`: small/normal/large, `reveal`: hover/dim/always) for a round button: dark glass, a white ring under the pointer, plain gold with a dark icon when `active`. A button with `reveal="hover"` shows while the card holding it, which carries the class `cover-host`, is hovered. A react-bootstrap `Dropdown.Toggle` takes it with `as={CoverButton}`.
+- **`CoverButton`** (`label`, `active`, `size`: small/normal/large, `reveal`: hover/dim/always) for a round button: dark glass, a white ring under the pointer, plain gold with a dark icon when `active`. A button with `reveal="hover"` shows while the card holding it, which carries the class `cover-host`, is hovered. A `Menu` takes it as its trigger: `trigger={props => <CoverButton {...props} … />}`.
 - The look lives in `shared/cover.css` alone. A component's own stylesheet only places a tag or a button in its corner (position, z-index), nothing else.
 - Gold means "on" or "to do" (wished, to buy, in Listen/Watch Next, playing), red an alert (spiders, snakes, a book lent), orange a copy to do again.
+
+### Menus: Menu
+Every menu that opens from a button uses **`Menu`** (`frontend/src/components/shared/Menu.tsx`, look in `shared/menu.css`): never a react-bootstrap `Dropdown`, never a panel by hand.
+- `trigger={(props, open) => <button {...props} …/>}`: spread the props, ref included, on any button (a `menu-pill`, a `CoverButton`, a Bootstrap `Button`); `MenuChevron` shows a turning chevron. `align` start/end, `drop` down/up (it flips when there is no room), `matchWidth` for a field.
+- Entries: `Menu.Item` (an action: `icon`, `hint`, `danger`, `disabled`), `Menu.Choice` (one of several: `selected` wears a gold ✓), `Menu.Section` (a small-capitals title), `Menu.Separator`.
+- The covers' dark glass, blurred; a light veil under the pointer or the keys; gold only for the choice made, red for danger. In a modal it lies in the modal, which keeps the focus.
 
 ### Key Patterns
 - Each media type (movie, music, book) follows the same layered pattern: controller → service → model, with a corresponding frontend page, detail card, search component, and API service

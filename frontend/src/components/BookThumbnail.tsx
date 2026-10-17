@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dropdown } from 'react-bootstrap';
+import Menu from './shared/Menu';
 import { BsBook, BsThreeDots, BsPencil, BsTrash, BsClipboard, BsFileEarmark, BsBoxArrowRight } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import './BookThumbnail.css';
@@ -131,25 +131,25 @@ const BookThumbnail: React.FC<BookThumbnailProps> = ({ book, onClick, onEdit, on
     }
   };
 
-  const handleEditClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleEditClick = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     onEdit();
   };
 
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteClick = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     onDelete();
   };
 
-  const handleRemoveFromSeriesClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleRemoveFromSeriesClick = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (onRemoveFromSeries) {
       onRemoveFromSeries();
     }
   };
 
-  const handleCopyRef = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCopyRef = async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     try {
       // Format: <Title> <subtitle> - <Author>
       const title = book.title || '';
@@ -284,36 +284,19 @@ const BookThumbnail: React.FC<BookThumbnailProps> = ({ book, onClick, onEdit, on
 
       {!disableMenu && (
         <div className="book-thumbnail-menu" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-          <Dropdown align="end">
-            <Dropdown.Toggle as={CoverButton} label="More" reveal="always" className="book-thumbnail-dropdown-toggle">
+          <Menu align="end" label="More" trigger={props => (
+            <CoverButton {...props} label="More" reveal="always" className="book-thumbnail-dropdown-toggle">
               <BsThreeDots />
-            </Dropdown.Toggle>
-
-            <Dropdown.Menu
-              popperConfig={{
-                strategy: 'fixed',
-                modifiers: [
-                  { name: 'preventOverflow', options: { boundary: 'viewport' } }
-                ]
-              }}
-              renderOnMount
-            >
-              <Dropdown.Item onClick={handleCopyRef}>
-                <BsClipboard className="me-2" /> Copy ref.
-              </Dropdown.Item>
-              <Dropdown.Item onClick={handleEditClick}>
-                <BsPencil className="me-2" /> Edit
-              </Dropdown.Item>
-              {onRemoveFromSeries && (
-                <Dropdown.Item onClick={handleRemoveFromSeriesClick}>
-                  <BsBoxArrowRight className="me-2" /> Remove from series
-                </Dropdown.Item>
-              )}
-              <Dropdown.Item onClick={handleDeleteClick} className="text-danger">
-                <BsTrash className="me-2" /> Delete
-              </Dropdown.Item>
-            </Dropdown.Menu>
-          </Dropdown>
+            </CoverButton>
+          )}>
+            <Menu.Item icon={<BsClipboard />} onSelect={() => handleCopyRef()}>Copy ref.</Menu.Item>
+            <Menu.Item icon={<BsPencil />} onSelect={() => handleEditClick()}>Edit</Menu.Item>
+            {onRemoveFromSeries && (
+              <Menu.Item icon={<BsBoxArrowRight />} onSelect={() => handleRemoveFromSeriesClick()}>Remove from series</Menu.Item>
+            )}
+            <Menu.Separator />
+            <Menu.Item icon={<BsTrash />} danger onSelect={() => handleDeleteClick()}>Delete</Menu.Item>
+          </Menu>
         </div>
       )}
     </div>

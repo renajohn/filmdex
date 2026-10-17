@@ -261,64 +261,6 @@
   align-items: center;
 }
 
-/* Filter dropdown styling */
-.search-filter-dropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: #2d2d2d;
-  border: 1px solid #555;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  min-width: 200px;
-  max-height: 400px;
-  overflow-y: auto;
-  z-index: 1000;
-  margin-top: 4px;
-}
-
-.filter-section {
-  padding: 8px 0;
-  border-bottom: 1px solid #404040;
-}
-
-.filter-section:last-child {
-  border-bottom: none;
-}
-
-.filter-section-title {
-  padding: 8px 12px 4px 12px;
-  font-size: 10px;
-  font-weight: 600;
-  color: #888;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.filter-option {
-  display: block;
-  width: 100%;
-  padding: 8px 12px;
-  background: none;
-  border: none;
-  color: #d2d2d2;
-  font-size: 12px;
-  font-weight: 500;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.filter-option:hover {
-  background: #404040;
-  color: #fff;
-}
-
-.filter-option:active {
-  background: #fbbf24;
-  color: #1a1a1a;
-}
-
 .App-search .search-loading-indicator {
   position: absolute;
   right: 16px;
@@ -341,11 +283,6 @@
   background: #2a2a2a;
   color: #f8f9fa;
   outline: none;
-}
-
-/* Ensure all dropdowns appear above content */
-.dropdown-menu {
-  z-index: 9999 !important;
 }
 
 .App-search .search-input-large:focus {
@@ -418,7 +355,6 @@
   color: #999;
   font-style: italic;
 }
-
 
 .App-toolbar {
   display: flex;

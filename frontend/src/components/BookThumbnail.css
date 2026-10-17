@@ -104,61 +104,7 @@
   opacity: 1;
 }
 
-/* The "…" menu's toggle is a round button of the covers (CoverButton, cover.css); its menu shows while the book is hovered. */
-
-.book-thumbnail-menu .dropdown-menu {
-  min-width: 160px;
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 12px;
-  padding: 6px 0;
-  background: rgba(22,22,22,0.98);
-  color: #f2f2f2;
-  backdrop-filter: blur(8px);
-}
-
-.book-thumbnail-menu .dropdown-item {
-  font-size: 0.95rem;
-  padding: 12px 14px;
-  color: #f0f0f0;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.book-thumbnail-menu .dropdown-item svg {
-  color: #f0f0f0;
-  fill: currentColor;
-}
-
-.book-thumbnail-menu .dropdown-item:hover,
-.book-thumbnail-menu .dropdown-item:focus {
-  background-color: #333;
-  color: #ffffff;
-}
-
-.book-thumbnail-menu .dropdown-item:hover svg,
-.book-thumbnail-menu .dropdown-item:focus svg {
-  color: #ffffff;
-  fill: currentColor;
-}
-
-.book-thumbnail-menu .dropdown-item.text-danger {
-  color: #ff8b8b !important;
-}
-
-.book-thumbnail-menu .dropdown-item.text-danger svg {
-  color: #ff8b8b !important;
-  fill: currentColor;
-}
-
-.book-thumbnail-menu .dropdown-item.text-danger:hover {
-  background-color: rgba(255, 139, 139, 0.15);
-  color: #ffc0c0 !important;
-}
-
-.book-thumbnail-menu .dropdown-item.text-danger:hover svg {
-  color: #ffc0c0 !important;
-  fill: currentColor;
-}
+/* The "…" menu's toggle is a round button of the covers (CoverButton, cover.css), shown while the book is hovered; its menu is Menu's. */
 
 /* The series number and Borrowed (CoverTagStack, cover.css), top left, the menu keeping the top right. */
 .book-thumbnail-tags {
@@ -177,12 +123,6 @@
   z-index: 6;
 }
 
-
-/* Ensure dropdown menu escapes overflow containers */
-.book-thumbnail-menu .dropdown-menu {
-  position: fixed !important;
-  z-index: 9999 !important;
-}
 
 /* Drag and drop styling for creating new series */
 .book-thumbnail.drag-over {

@@ -106,49 +106,6 @@
   color: #9ca3af;
 }
 
-/* Dropdown Menus */
-.sort-dropdown-container .dropdown-menu,
-.group-dropdown-container .dropdown-menu,
-.sort-dropdown-menu,
-.group-dropdown-menu {
-  min-width: 200px;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: #1f1f1f !important;
-  padding: 4px 0;
-  margin-top: 4px;
-}
-
-.sort-dropdown-container .dropdown-item,
-.group-dropdown-container .dropdown-item,
-.sort-dropdown-item,
-.group-dropdown-item {
-  padding: 10px 16px;
-  font-size: 14px;
-  color: #e5e5e5 !important;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-  background: transparent;
-}
-
-.sort-dropdown-container .dropdown-item:hover,
-.group-dropdown-container .dropdown-item:hover,
-.sort-dropdown-item:hover,
-.group-dropdown-item:hover {
-  background-color: rgba(255, 255, 255, 0.08) !important;
-  color: #fff !important;
-}
-
-.sort-dropdown-container .dropdown-item.active,
-.group-dropdown-container .dropdown-item.active,
-.sort-dropdown-item.active,
-.group-dropdown-item.active {
-  background-color: rgba(251, 191, 36, 0.15) !important;
-  color: #fbbf24 !important;
-  font-weight: 500;
-}
-
 /* Loading Spinners for Sort/Group */
 .sort-loading-spinner,
 .group-loading-spinner {
@@ -1045,7 +1002,6 @@
     height: 140px;
   }
 }
-
 
 /* The play button of a Listen Next album, at the foot of its cover, on the left. */
 .next-banner__image .next-banner__play {

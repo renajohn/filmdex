@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Menus</title>
+<style>
+  :root {
+    --cover-glass: rgba(0,0,0,.68); --cover-edge: inset 0 0 0 1px rgba(255,255,255,.16);
+    --cover-ring: 0 0 0 1.5px #fff; --cover-on: #fbbf24; --cover-on-icon: #111;
+    --danger: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(135deg,#1a1a1a,#2d2d2d) fixed; color: #e5e5e5;
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .bar { position: sticky; top: 0; z-index: 50; display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+    padding: 12px 24px; background: #111; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .seg { display: inline-flex; border: 1px solid #444; border-radius: 8px; overflow: hidden; }
+  .seg button { background: #222; color: #ddd; border: 0; padding: 6px 12px; font: inherit; cursor: pointer; }
+  .seg button + button { border-left: 1px solid #444; }
+  .seg button.on { background: var(--cover-on); color: #111; }
+  .note { color: #888; max-width: 760px; }
+  main { padding: 8px 24px 120px; display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 18px; }
+  section { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); border-radius: 12px; padding: 16px 18px 22px; min-height: 150px; }
+  section h3 { margin: 0 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: #888; font-weight: 600; }
+  section p { margin: 0 0 14px; color: #777; font-size: 12.5px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+  /* ---------------- Triggers ---------------- */
+  .pill { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 14px; border-radius: 8px;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); color: #e5e5e5; font: 500 14px/1 inherit; cursor: pointer;
+    transition: background .12s, border-color .12s; }
+  .pill:hover, .pill[aria-expanded="true"] { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.2); }
+  .pill .lead { color: #9ca3af; display: inline-flex; }
+  .pill .muted { color: #9ca3af; font-weight: 400; }
+  .chev { width: 12px; height: 12px; color: #9ca3af; transition: transform .15s; flex: none; }
+  [aria-expanded="true"] > .chev { transform: rotate(180deg); }
+  .round { width: 34px; height: 34px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer;
+    background: var(--cover-glass); box-shadow: var(--cover-edge); color: #fff; }
+  .round:hover, .round[aria-expanded="true"] { box-shadow: var(--cover-ring); }
+  .cog { width: 44px; height: 44px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05);
+    color: #eee; display: grid; place-items: center; cursor: pointer; }
+  .cog:hover, .cog[aria-expanded="true"] { border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.09); }
+  .split { display: inline-flex; border-radius: 8px; overflow: hidden; }
+  .split > button { border: 0; background: var(--cover-on); color: #111; font: 600 14px inherit; cursor: pointer; height: 38px; }
+  .split .main { padding: 0 16px; display: inline-flex; align-items: center; gap: 6px; }
+  .split .more { width: 34px; border-left: 1px solid rgba(0,0,0,.18); display: grid; place-items: center; }
+  .split > button:hover { background: #fcd34d; }
+  .split .more .chev { color: #111; }
+  .field { display: grid; gap: 6px; width: 260px; }
+  .field label { font-size: 12.5px; color: #aaa; }
+  .select { justify-content: space-between; width: 100%; height: 38px; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; padding: 0 12px; }
+  .select:hover { border-color: #555; background: #2f2f2f; }
+  .select[aria-expanded="true"], .select:focus-visible { border-color: var(--cover-on); box-shadow: 0 0 0 3px rgba(251,191,36,.15); outline: none; }
+  .select .placeholder { color: #777; font-weight: 400; }
+  .cover { position: relative; width: 140px; height: 200px; border-radius: 8px; overflow: hidden;
+    background: linear-gradient(160deg,#5b3a29,#1e2a3a); box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+  .cover .title { position: absolute; left: 12px; bottom: 12px; right: 12px; font: 700 15px/1.2 Georgia, serif; color: #f3e9d2; }
+  .cover .round { position: absolute; top: 8px; right: 8px; }
+  svg.i { width: 16px; height: 16px; flex: none; }
+
+  /* ---------------- The menu ---------------- */
+  .menu { position: fixed; z-index: 100; min-width: 220px; max-width: 320px; max-height: min(420px, 70vh); overflow-y: auto;
+    padding: 6px; border-radius: 12px; display: none; transform-origin: var(--origin, top left); }
+  .menu.open { display: block; animation: menu-in .14s ease-out; }
+  @keyframes menu-in { from { opacity: 0; transform: scale(.96) translateY(var(--from-y, -4px)); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .menu.open { animation: none; } }
+  .item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px; padding: 7px 10px; border: 0; border-radius: 8px;
+    background: transparent; color: #e5e5e5; font: 14px/1.25 inherit; text-align: left; cursor: pointer; }
+  .item .icon { width: 18px; display: inline-flex; justify-content: center; color: #9ca3af; flex: none; }
+  .item .label { flex: 1; }
+  .item .hint { color: #8a8a8a; font-size: 12px; }
+  .item .check { width: 16px; display: inline-flex; color: var(--cover-on); flex: none; visibility: hidden; }
+  .item[aria-checked="true"] .check { visibility: visible; }
+  .item[aria-checked="true"] { color: var(--cover-on); font-weight: 500; }
+  .item.danger, .item.danger .icon { color: var(--danger); }
+  .item:disabled { opacity: .4; cursor: default; }
+  .section-title { padding: 8px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: #8a8a8a; }
+  .sep { height: 1px; margin: 6px 4px; background: rgba(255,255,255,.08); }
+
+  /* Variant A · glass: the covers' dark glass, blurred, a light edge; hover a light veil. */
+  body.vA .menu { background: rgba(24,24,24,.86); backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    border: 1px solid rgba(255,255,255,.1); box-shadow: 0 16px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04); }
+  body.vA .item:hover:not(:disabled), body.vA .item.kb { background: rgba(255,255,255,.08); color: #fff; }
+  body.vA .item[aria-checked="true"]:hover { color: var(--cover-on); }
+  body.vA .item:hover .icon, body.vA .item.kb .icon { color: #e5e5e5; }
+  body.vA .item.danger:hover { background: rgba(248,113,113,.12); color: var(--danger); }
+
+  /* Variant B · solid: an opaque panel; hover a gold tint, the chosen one marked by a gold edge on the left. */
+  body.vB .menu { background: #1d1d1d; border: 1px solid #343434; box-shadow: 0 12px 32px rgba(0,0,0,.5); }
+  body.vB .item:hover:not(:disabled), body.vB .item.kb { background: rgba(251,191,36,.1); color: #fff; }
+  body.vB .item:hover .icon, body.vB .item.kb .icon { color: var(--cover-on); }
+  body.vB .item[aria-checked="true"] { box-shadow: inset 3px 0 0 var(--cover-on); background: rgba(251,191,36,.07); }
+  body.vB .item.danger:hover { background: rgba(248,113,113,.12); color: var(--danger); }
+  body.vB .item.danger:hover .icon { color: var(--danger); }
+
+  /* Variant C · gold: as the ⚙︎ menu today, the item under the pointer plain gold with dark words. */
+  body.vC .menu { background: #1a1a1a; border: 1px solid #333; box-shadow: 0 12px 32px rgba(0,0,0,.5); }
+  body.vC .item:hover:not(:disabled), body.vC .item.kb { background: var(--cover-on); color: #111; }
+  body.vC .item:hover .icon, body.vC .item.kb .icon, body.vC .item:hover .check, body.vC .item.kb .check, body.vC .item:hover .hint { color: #111; }
+  body.vC .item.danger:hover { background: var(--danger); color: #111; }
+  body.vC .item.danger:hover .icon { color: #111; }
+
+  /* iPhone: the form's Select opens the system's wheel, shown here as a sheet. */
+  .sheet-note { margin-top: 10px; font-size: 12px; color: #777; }
+</style>
+</head>
+<body class="vA">
+<div class="bar">
+  <span>Variante</span>
+  <span class="seg" id="variant">
+    <button data-v="vA" class="on">A · Verre</button><button data-v="vB">B · Plein, liseré doré</button><button data-v="vC">C · Survol doré</button>
+  </span>
+  <span class="note">Cliquez sur chaque déclencheur. Clavier : ↑ ↓ pour se déplacer, Entrée pour choisir, Échap pour fermer.</span>
+</div>
+
+<main>
+  <section>
+    <h3>Trier et grouper</h3>
+    <p>Choix exclusifs : ✓ doré sur le choix actif. La pilule dit le choix.</p>
+    <div class="row">
+      <button class="pill" data-menu="sort"><span class="lead" data-icon="sort"></span><span class="muted">Sort:</span> <span data-value>Title A–Z</span><svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg></button>
+      <button class="pill" data-menu="group"><span class="lead" data-icon="grid"></span><span data-value>No grouping</span><svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg></button>
+    </div>
+  </section>
+
+  <section>
+    <h3>Menu ⚙︎</h3>
+    <p>Actions avec icône, en sections, séparateurs.</p>
+    <div class="row"><button class="cog" data-menu="cog" data-align="end" aria-label="Settings"><span data-icon="gear"></span></button></div>
+  </section>
+
+  <section>
+    <h3>« … » sur une couverture</h3>
+    <p>Le bouton rond des pochettes ouvre le même menu ; Delete en rouge, à part.</p>
+    <div class="cover"><span class="title">The Name of the Wind</span><button class="round" data-menu="book" data-align="end" aria-label="More"><span data-icon="dots"></span></button></div>
+  </section>
+
+  <section>
+    <h3>Play ▾ dans la fiche d'un album</h3>
+    <p>Bouton accolé ; le menu s'ouvre vers le haut, au pied de la fiche.</p>
+    <div class="row" style="margin-top:70px">
+      <span class="split"><button class="main"><span data-icon="play"></span>Resume <span style="font-weight:400;opacity:.75">· Seven Years 1:12</span></button><button class="more" data-menu="play" data-drop="up" aria-label="More ways to listen"><svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg></button></span>
+    </div>
+  </section>
+
+  <section>
+    <h3>Filtre de la recherche</h3>
+    <p>Choix exclusifs en sections, avec un détail à droite.</p>
+    <div class="row"><button class="pill" data-menu="filter"><span class="lead" data-icon="filter"></span><span data-value>All movies</span><svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg></button></div>
+  </section>
+
+  <section>
+    <h3>Select d'un formulaire</h3>
+    <p>Même menu, à la largeur du champ. Sur iPhone : la roue du système.</p>
+    <div class="field">
+      <label>Condition</label>
+      <button class="pill select" data-menu="condition" data-width="trigger"><span data-value class="placeholder">Choose…</span><svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg></button>
+    </div>
+    <div class="field" style="margin-top:12px">
+      <label>Language</label>
+      <button class="pill select" data-menu="language" data-width="trigger"><span data-value>English</span><svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg></button>
+    </div>
+  </section>
+</main>
+
+<div class="menu" id="menu" role="menu"></div>
+
+<script>
+const I = {
+  sort: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M3.5 2.5a.5.5 0 0 0-1 0v8.79L1.35 10.15a.5.5 0 1 0-.7.7l2 2a.5.5 0 0 0 .7 0l2-2a.5.5 0 0 0-.7-.7L3.5 11.29V2.5zm3.5 1a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5zM7.5 6a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1h-3zm0 3a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zm0 3a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1h-7z"/></svg>',
+  grid: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2zm9 0a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1V2zM1 11a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1v-3zm9 0a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-3z"/></svg>',
+  gear: '<svg class="i" style="width:20px;height:20px" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"/></svg>',
+  dots: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
+  play: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M11.6 8.7 5.5 12.3c-.5.3-1.1 0-1.1-.6V4.3c0-.6.6-.9 1.1-.6l6.1 3.6c.5.3.5 1.1 0 1.4z"/></svg>',
+  filter: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M6 10.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm-2-3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z"/></svg>',
+  check: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M13.485 3.929a.75.75 0 0 1 .086 1.057l-6.5 7.5a.75.75 0 0 1-1.11.04l-3.5-3.5a.75.75 0 1 1 1.06-1.06l2.93 2.93 5.977-6.897a.75.75 0 0 1 1.057-.07z"/></svg>',
+  plus: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a.75.75 0 0 1 .75.75v4.5h4.5a.75.75 0 0 1 0 1.5h-4.5v4.5a.75.75 0 0 1-1.5 0v-4.5h-4.5a.75.75 0 0 1 0-1.5h4.5v-4.5A.75.75 0 0 1 8 2z"/></svg>',
+  upload: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/></svg>',
+  download: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>',
+  shelf: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 0a.5.5 0 0 1 .5.5V2h10V.5a.5.5 0 0 1 1 0v15a.5.5 0 0 1-1 0V15H3v.5a.5.5 0 0 1-1 0V.5a.5.5 0 0 1 .5-.5zM3 14h10V9H3v5zm0-6h10V3H3v5z"/></svg>',
+  archive: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M0 2a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1v7.5a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 1 12.5V5a1 1 0 0 1-1-1V2zm2 3v7.5A1.5 1.5 0 0 0 3.5 14h9a1.5 1.5 0 0 0 1.5-1.5V5H2zm13-3H1v2h14V2zM5 7.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5z"/></svg>',
+  image: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/><path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/></svg>',
+  clip: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg>',
+  pencil: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5z"/></svg>',
+  out: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M6 3.5a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 0-1 0v2A1.5 1.5 0 0 0 6.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-8A1.5 1.5 0 0 0 5 3.5v2a.5.5 0 0 0 1 0v-2z"/><path d="M11.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H1.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/></svg>',
+  trash: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg>',
+  restart: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2v1z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466z"/></svg>',
+  ext: '<svg class="i" viewBox="0 0 16 16" fill="currentColor"><path d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/><path d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/></svg>',
+};
+document.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = I[el.dataset.icon]; });
+
+/* Each menu: items are {label, icon?, hint?, value?, danger?, disabled?}, 'sep', or {title}. A choice menu has a value. */
+const MENUS = {
+  sort: { choice: true, value: 'title', items: [
+    { value: 'title', label: 'Title A–Z' }, { value: 'title-desc', label: 'Title Z–A' }, { value: 'artist', label: 'Artist' },
+    { value: 'added', label: 'Recently added' }, { value: 'year', label: 'Release year' }, { value: 'rating', label: 'Rating' }, { value: 'shelf', label: 'Shelf order' } ] },
+  group: { choice: true, value: 'none', items: [
+    { value: 'none', label: 'No grouping' }, { value: 'genre', label: 'Genre' }, { value: 'decade', label: 'Decade' }, { value: 'artist', label: 'Artist' }, { value: 'format', label: 'Format' } ] },
+  cog: { items: [
+    { title: 'MusicDex' }, { icon: 'plus', label: 'Add CD' }, { icon: 'download', label: 'Export CSV' }, { icon: 'image', label: 'Fill missing covers' },
+    'sep', { title: 'DexVault' }, { icon: 'shelf', label: 'Shelves' }, { icon: 'archive', label: 'Backup' } ] },
+  book: { items: [
+    { icon: 'clip', label: 'Copy ref.' }, { icon: 'pencil', label: 'Edit' }, { icon: 'out', label: 'Remove from series' }, 'sep',
+    { icon: 'trash', label: 'Delete', danger: true } ] },
+  play: { items: [ { icon: 'restart', label: 'Play from the start' }, { icon: 'ext', label: 'Open in Navidrome', hint: 'new tab' } ] },
+  filter: { choice: true, value: 'all', items: [
+    { title: 'Status' }, { value: 'all', label: 'All movies', hint: '1 204' }, { value: 'owned', label: 'Owned', hint: '1 160' }, { value: 'wish', label: 'Wish list', hint: '44' },
+    'sep', { title: 'Collections' }, { value: 'mcu', label: 'Marvel Cinematic Universe', hint: '32' }, { value: 'bond', label: 'James Bond', hint: '25' }, { value: 'ghibli', label: 'Studio Ghibli', hint: '12' } ] },
+  condition: { choice: true, value: null, items: [
+    { value: 'M', label: 'Mint' }, { value: 'NM', label: 'Near mint' }, { value: 'VG+', label: 'Very good +' }, { value: 'VG', label: 'Very good' }, { value: 'G', label: 'Good' }, { value: 'P', label: 'Poor', disabled: true } ] },
+  language: { choice: true, value: 'en', items: [
+    { value: 'en', label: 'English' }, { value: 'fr', label: 'French' }, { value: 'de', label: 'German' }, { value: 'it', label: 'Italian' }, { value: 'es', label: 'Spanish' }, { value: 'ja', label: 'Japanese' } ] },
+};
+
+const menu = document.getElementById('menu');
+let trigger = null;
+let current = null;
+
+function render(key) {
+  const def = MENUS[key];
+  menu.setAttribute('role', def.choice ? 'listbox' : 'menu');
+  menu.innerHTML = def.items.map((it, i) => {
+    if (it === 'sep') return '<div class="sep" role="separator"></div>';
+    if (it.title) return `<div class="section-title">${it.title}</div>`;
+    const checked = def.choice ? ` aria-checked="${def.value === it.value}"` : '';
+    return `<button class="item${it.danger ? ' danger' : ''}" role="${def.choice ? 'option' : 'menuitem'}" data-i="${i}"${checked}${it.disabled ? ' disabled' : ''} tabindex="-1">
+      ${def.choice ? `<span class="check">${I.check}</span>` : it.icon ? `<span class="icon">${I[it.icon]}</span>` : ''}
+      <span class="label">${it.label}</span>${it.hint ? `<span class="hint">${it.hint}</span>` : ''}</button>`;
+  }).join('');
+}
+
+function place() {
+  const r = trigger.getBoundingClientRect();
+  const up = trigger.dataset.drop === 'up';
+  const end = trigger.dataset.align === 'end';
+  if (trigger.dataset.width === 'trigger') menu.style.minWidth = r.width + 'px'; else menu.style.minWidth = '';
+  menu.style.left = menu.style.right = menu.style.top = menu.style.bottom = '';
+  const m = menu.getBoundingClientRect();
+  const gap = 6;
+  let top = up ? r.top - m.height - gap : r.bottom + gap;
+  if (!up && top + m.height > innerHeight - 8) top = Math.max(8, r.top - m.height - gap);
+  let left = end ? r.right - m.width : r.left;
+  left = Math.max(8, Math.min(left, innerWidth - m.width - 8));
+  menu.style.top = top + 'px';
+  menu.style.left = left + 'px';
+  menu.style.setProperty('--origin', `${end ? 'right' : 'left'} ${top < r.top ? 'bottom' : 'top'}`);
+  menu.style.setProperty('--from-y', top < r.top ? '4px' : '-4px');
+}
+
+function open(t) {
+  close();
+  trigger = t; current = t.dataset.menu;
+  render(current);
+  menu.classList.add('open');
+  t.setAttribute('aria-expanded', 'true');
+  place();
+  const items = [...menu.querySelectorAll('.item:not(:disabled)')];
+  const chosen = items.find(it => it.getAttribute('aria-checked') === 'true') || items[0];
+  focusItem(chosen);
+}
+function close() {
+  if (!trigger) return;
+  menu.classList.remove('open');
+  trigger.setAttribute('aria-expanded', 'false');
+  const t = trigger; trigger = null; current = null;
+  return t;
+}
+function focusItem(el) {
+  menu.querySelectorAll('.kb').forEach(x => x.classList.remove('kb'));
+  if (!el) return;
+  el.classList.add('kb'); el.focus({ preventScroll: true }); el.scrollIntoView({ block: 'nearest' });
+}
+function pick(el) {
+  const def = MENUS[current];
+  const it = def.items[+el.dataset.i];
+  if (def.choice) {
+    def.value = it.value;
+    const v = trigger.querySelector('[data-value]');
+    if (v) { v.textContent = it.label; v.classList.remove('placeholder'); }
+  }
+  close()?.focus();
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-menu]');
+  if (t) { e.stopPropagation(); if (trigger === t) close(); else open(t); return; }
+  const it = e.target.closest('.item');
+  if (it && menu.contains(it)) { pick(it); return; }
+  if (!menu.contains(e.target)) close();
+});
+menu.addEventListener('mousemove', e => { const it = e.target.closest('.item:not(:disabled)'); if (it && !it.classList.contains('kb')) focusItem(it); });
+document.addEventListener('keydown', e => {
+  if (!trigger) return;
+  const items = [...menu.querySelectorAll('.item:not(:disabled)')];
+  const at = items.indexOf(menu.querySelector('.kb'));
+  if (e.key === 'Escape') { e.preventDefault(); close()?.focus(); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); focusItem(items[(at + 1) % items.length]); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); focusItem(items[(at - 1 + items.length) % items.length]); }
+  else if (e.key === 'Home') { e.preventDefault(); focusItem(items[0]); }
+  else if (e.key === 'End') { e.preventDefault(); focusItem(items[items.length - 1]); }
+  else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (items[at]) pick(items[at]); }
+  else if (e.key === 'Tab') close();
+});
+addEventListener('resize', () => trigger && place());
+addEventListener('scroll', () => trigger && place(), true);
+
+document.querySelectorAll('#variant button').forEach(b => b.onclick = () => {
+  document.body.className = b.dataset.v;
+  document.querySelectorAll('#variant button').forEach(x => x.classList.toggle('on', x === b));
+});
+</script>
+</body>
+</html>
