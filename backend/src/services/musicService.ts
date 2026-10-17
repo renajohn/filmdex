@@ -92,7 +92,7 @@ interface AlbumTrack {
   work: string | null;
   composers: string[];
   performers: TrackPerformer[];
-  /** One of the few tracks listened to much more than the rest, on Deezer. */
+  /** One of the few tracks listened to much more than the rest, on ListenBrainz or Deezer. */
   popular?: boolean;
 }
 

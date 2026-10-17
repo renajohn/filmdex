@@ -604,7 +604,7 @@ const musicController = {
     }
   },
 
-  /** Rereads on Deezer how much each track of the album is listened to. */
+  /** Rereads on ListenBrainz and Deezer how much each track of the album is listened to. */
   refreshTrackPopularity: async (req: Request, res: Response): Promise<void> => {
     try {
       const id = parseInt(req.params.id as string, 10);

@@ -887,7 +887,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                         <span className={`track-number${playUrl || ownPlay ? ' track-playable' : ''}`}>
                           {/* A grey dot before the number of the tracks most listened to: an invitation, not a grade. */}
                           {track.popular && (
-                            <span className="track-popular" title="One of the album's most listened tracks, on Deezer">
+                            <span className="track-popular" title="One of the album's most listened tracks">
                               <span className="visually-hidden">Popular: </span>
                             </span>
                           )}

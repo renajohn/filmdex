@@ -255,6 +255,16 @@ const runAutoMigrations = async (): Promise<void> => {
         });
         console.log('  ✓ albums.musicbrainz_release_id is now unique');
       }
+    },
+    {
+      name: '015_track_popularity_listenbrainz',
+      up: async () => {
+        // Deezer's rank alone could not tell the tracks of a well-known album
+        // apart; every album is read again, with ListenBrainz's listens.
+        const TrackPopularity = (await import('./models/trackPopularity')).default;
+        await TrackPopularity.forgetAll();
+        console.log('  ✓ Track popularity to be read again, with ListenBrainz');
+      }
     }
   ];
 

@@ -1,24 +1,46 @@
-import { popularTracks } from '../../src/services/trackPopularityService';
+import { isCompilation, popularTracks } from '../../src/services/trackPopularityService';
 
-const album = (ranks: number[]) => ranks.map((rank, i) => ({ discNumber: 1, trackNumber: i + 1, rank }));
+const byRank = (ranks: number[]) => ranks.map((rank, i) => ({ discNumber: 1, trackNumber: i + 1, rank, listens: null }));
+const byListens = (listens: number[], rank = 600000) => listens.map((count, i) => ({ discNumber: 1, trackNumber: i + 1, rank, listens: count }));
+const marked = (set: Set<string>) => [...set].sort();
 
 describe('popularTracks', () => {
-  it('points at the few tracks well above the album, at most a quarter of it', () => {
-    // Renaud, Boucan d'enfer, as Deezer counted it.
-    const ranks = album([701058, 5473, 370719, 42142, 927260, 376306, 370487, 499952, 361774, 362859, 342327, 310935, 332214, 555882]);
-    expect([...popularTracks(ranks, 14)].sort()).toEqual(['1-1', '1-14', '1-5', '1-8']);
+  it('marks the tracks above the deepest clean break among the first four', () => {
+    // Eagles, Hotel California: the hit far ahead, then two more before Wasted Time.
+    const ranks = byListens([1507705, 233337, 133831, 116057, 105561, 262732, 76364, 55786, 90000]);
+    expect(marked(popularTracks(ranks, 9))).toEqual(['1-1', '1-2', '1-6']);
   });
 
-  it('points at none when nothing stands out', () => {
-    // Steely Dan, Aja: every track a hit.
-    expect(popularTracks(album([497376, 468244, 471724, 521915, 445365, 300000, 420000]), 7).size).toBe(0);
+  it('marks pieces that hold together, not only the first', () => {
+    // Pink Floyd, Animals: three long pieces, two short ones.
+    expect(marked(popularTracks(byListens([33153, 716412, 594928, 728800, 27079]), 5))).toEqual(['1-2', '1-3', '1-4']);
   });
 
-  it('points at none when Deezer knows too few of the tracks', () => {
-    expect(popularTracks(album([900000, 1000, 1000, 1000]), 10).size).toBe(0);
+  it('takes ListenBrainz when enough listen there', () => {
+    // Dire Straits, Brothers in Arms: Deezer squeezes every track around 600 000.
+    const ranks = byListens([523540, 1118843, 962748, 263452, 201835, 171869, 179141, 162129, 920988]);
+    expect(marked(popularTracks(ranks, 9))).toEqual(['1-1', '1-2', '1-3', '1-9']);
   });
 
-  it('points at two at most on a short album', () => {
-    expect(popularTracks(album([900000, 800000, 700000, 1000, 1000, 1000]), 6).size).toBe(2);
+  it('takes Deezer, with a finer break, when too few listen on ListenBrainz', () => {
+    // The Killers, Hot Fuss.
+    const ranks = byRank([467056, 404913, 353887, 314661, 300985, 297708, 280000, 270000, 260000, 250000, 240000]);
+    expect(marked(popularTracks(ranks, 11))).toEqual(['1-1', '1-2', '1-3']);
+  });
+
+  it('marks none when nothing stands out', () => {
+    expect(popularTracks(byListens([157618, 150000, 148000, 152000, 149000, 151000]), 6).size).toBe(0);
+  });
+
+  it('marks none when too few of the tracks are known', () => {
+    expect(popularTracks(byRank([900000, 1000, 1000, 1000]), 10).size).toBe(0);
+  });
+});
+
+describe('isCompilation', () => {
+  it('knows a best-of by MusicBrainz or by its title, not an album with a word alike', () => {
+    expect(isCompilation({ title: 'Anthology 1', releaseGroupSecondaryTypes: ['Compilation'] })).toBe(true);
+    expect(isCompilation({ title: 'The Greatest Hits' })).toBe(true);
+    expect(isCompilation({ title: 'Love Over Gold', releaseGroupSecondaryTypes: [] })).toBe(false);
   });
 });
