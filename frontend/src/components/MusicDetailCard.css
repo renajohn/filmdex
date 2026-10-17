@@ -77,18 +77,17 @@
 }
 
 /*
- * The head of the album: one quiet surface. The cover sits in its own column,
- * who and what are beside it with the way to listen, and the facts of the
- * edition hang below as a label/value grid, like a track's details.
+ * The head of the album, with no frame of its own: the panel is one. The cover
+ * in its column; beside it who and what; under them a line each for how to
+ * listen, the genres, the stars and the links; the rest in one fold.
  */
 .album-head {
   display: grid;
-  grid-template-columns: 144px 1fr;
-  grid-template-rows: auto 1fr;
-  gap: 10px 18px;
-  padding: 12px 14px 14px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  grid-template-columns: 144px minmax(0, 1fr);
+  /* The cover's extra height goes under the fold, not between the lines. */
+  grid-template-rows: auto auto 1fr;
+  gap: 6px 20px;
+  align-items: start;
   font-size: 0.85rem;
   line-height: 1.45;
   color: #d6dbe1;
@@ -96,7 +95,8 @@
 
 /* The front cover, and the back as a small one under it. Both open full size. */
 .album-head-covers {
-  grid-row: 1 / 3;
+  grid-column: 1;
+  grid-row: 1 / span 3;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -144,13 +144,15 @@
   opacity: 1;
 }
 
-/* Who, then what it is as an object in a murmur, then how to listen. */
-.album-head-identity {
+/* Who, then what it is and which edition, in a murmur. */
+.album-head-who,
+.album-head-rest {
+  grid-column: 2;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  min-width: 0;
+  gap: 5px;
 }
 
 .album-head-artist {
@@ -161,35 +163,14 @@
   text-align: left;
 }
 
-.album-head-shape {
+.album-head-shape,
+.album-head-line {
   color: #9aa4b2;
-  font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
 }
 
-/* The facts: right under who and what, the label column starting where the identity does. */
-.album-head-facts {
-  grid-column: 2;
-  align-self: start;
-  display: grid;
-  grid-template-columns: 6.5rem 1fr;
-  align-items: baseline;
-  gap: 4px 12px;
-  margin: 0;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.album-head-facts dt {
-  color: #8f98a3;
-  font-size: 0.78rem;
-  font-weight: 400;
-}
-
-.album-head-facts dd {
-  margin: 0;
-  color: #d6dbe1;
-  overflow-wrap: anywhere;
+.album-head-genres {
+  color: #9aa4b2;
 }
 
 .album-head-muted {
@@ -203,6 +184,68 @@
 
 .album-head-lossy {
   color: #f59e0b;
+}
+
+/* One's own stars, then the community's: one line, whose end is cut rather than sent to the next. */
+.album-head-rating {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+  margin-top: 2px;
+}
+
+.album-head-stars {
+  flex: none;
+}
+
+.album-head-community-line {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.album-head-cut {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Quiet external links on one line; Picard among them as an action. */
+.album-head-links {
+  display: flex;
+  gap: 4px 16px;
+  max-width: 100%;
+  margin-top: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* The fold: its edition, credits, copy and codes as a label/value grid. */
+.album-head-more {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.album-head-facts {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 8px 0 0;
+}
+
+.album-head-facts dt {
+  color: #8f98a3;
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+
+.album-head-facts dd {
+  margin: 0;
+  color: #d6dbe1;
+  overflow-wrap: anywhere;
 }
 
 .album-head-code {
@@ -238,13 +281,6 @@
   outline: none;
 }
 
-/* Quiet external links, side by side; Picard among them as an action. */
-.album-head-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-}
-
 .album-head-link {
   display: inline-flex;
   align-items: center;
@@ -278,17 +314,50 @@
   color: inherit;
 }
 
-/* On a phone: a smaller cover beside the identity, the facts under both, labels above their values. */
-@media (max-width: 768px) {
+.album-head-toggle {
+  color: #9aa4b2;
+  font-size: 0.82rem;
+}
+
+.album-head-toggle svg {
+  font-size: 0.7em;
+  transition: transform 0.15s ease;
+}
+
+.album-head-toggle .album-head-chevron-open {
+  transform: rotate(90deg);
+}
+
+.album-head-annotation {
+  white-space: pre-wrap;
+}
+
+/* A summary that opens on a click: the ISRC codes. Plain text, no button's look. */
+.album-head-clamp {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/*
+ * On a phone: beside the cover only who and what, as high as it is, so that
+ * nothing leaves a hole under it; the rest under both, full width. The back
+ * cover sits on the front's corner rather than lengthening its column.
+ */
+@media (max-width: 767.98px) {
   .album-head {
-    grid-template-columns: 112px 1fr;
-    grid-template-rows: auto auto;
-    gap: 10px 14px;
-    padding: 12px;
+    grid-template-columns: 104px minmax(0, 1fr);
+    grid-template-rows: auto;
+    gap: 6px 14px;
   }
 
   .album-head-covers {
     grid-row: 1;
+    position: relative;
   }
 
   .album-head-cover {
@@ -297,23 +366,80 @@
   }
 
   .album-head-back {
-    width: 36px;
-    height: 36px;
+    position: absolute;
+    right: -6px;
+    bottom: -6px;
+    width: 34px;
+    height: 34px;
+    opacity: 1;
+    box-shadow: 0 0 0 2px var(--dialog-bg, #2d2d2d), 0 2px 6px rgba(0, 0, 0, 0.4);
+  }
+
+  .album-head-who {
+    grid-row: 1;
+    align-self: center;
+    gap: 4px;
   }
 
   .album-head-artist {
     font-size: 1rem;
   }
 
-  .album-head-facts {
+  .album-head-rest,
+  .album-head-more {
     grid-column: 1 / -1;
+  }
+
+  .album-head-rest {
+    margin-top: 10px;
+  }
+
+  /* A line each, cut at its end rather than sent to the next. */
+  .album-head-rest > .album-head-line {
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .album-head-facts {
     grid-template-columns: 1fr;
-    gap: 2px;
+    gap: 1px;
   }
 
   .album-head-facts dt:not(:first-child) {
     margin-top: 6px;
   }
+}
+
+/*
+ * The parts under the head (the guide, the notes, the story): a title in small
+ * capitals and air, no frame, no hover; the tracks under a hairline, untitled.
+ */
+.music-detail-modal .info-section {
+  margin-top: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  overflow-x: visible;
+}
+
+.music-detail-modal .info-section:hover {
+  background: none;
+}
+
+.music-detail-modal .info-section h4 {
+  margin-bottom: 8px;
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  color: #8a8a8a;
+}
+
+.album-tracks {
+  margin-top: 26px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .tags-section {
@@ -725,57 +851,6 @@
     text-overflow: ellipsis;
     overflow: hidden;
   }
-}
-
-/* The rarely wanted facts, folded away: credits, the copy owned, codes one looks up, old notes. */
-.album-head-toggle svg {
-  font-size: 0.7em;
-  transition: transform 0.15s ease;
-}
-
-.album-head-toggle .album-head-chevron-open {
-  transform: rotate(90deg);
-}
-
-.album-head-advanced {
-  display: contents;
-}
-
-.album-head-annotation {
-  white-space: pre-wrap;
-}
-
-/* One's own stars, then the community's beside them; under them when there is no room. */
-.album-head-rating {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 12px;
-}
-
-/* A long edition note: two lines and an ellipsis, the whole of it on a click. */
-.album-head-clamp {
-  display: block;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.album-head-clamped {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-}
-
-.album-head-clamp:focus-visible {
-  outline: 1px solid rgba(251, 191, 36, 0.75);
-  outline-offset: 2px;
 }
 
 /*

@@ -1502,3 +1502,444 @@
     min-height: 0 !important;
   }
 }
+
+/*
+ * The head of the book, as an album's, with no frame of its own (the panel is
+ * one): the cover in its column; beside it who wrote it, what it is and its
+ * series; under them a line for the stars and whose it is, a line of links;
+ * the rest in one fold. The cover's extra height goes under the fold.
+ */
+.book-detail-modal .book-head {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
+  gap: 6px 22px;
+  align-items: start;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #d6dbe1;
+}
+
+.book-detail-modal .book-head .book-cover-container {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  width: 150px;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.book-detail-modal .book-head .book-cover-image,
+.book-detail-modal .book-head .book-cover-placeholder {
+  width: 150px !important;
+  max-width: 150px !important;
+}
+
+.book-detail-modal .book-head .book-cover-placeholder {
+  height: 210px;
+  background: linear-gradient(180deg, #2a2a2a, #1a1a1a);
+  color: #777;
+  border-radius: 6px;
+}
+
+.book-head-who,
+.book-head-rest {
+  grid-column: 2;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.book-head-author {
+  font-size: 1.15rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: #f0f0f0;
+}
+
+.book-head-artist {
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+.book-head-facts-line,
+.book-head-muted {
+  color: #9aa4b2;
+}
+
+.book-head-facts-line {
+  font-variant-numeric: tabular-nums;
+}
+
+.book-head-series {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.book-head-series .inline-edit-field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The stars and whose it is: one line, its end cut rather than sent to the next. */
+.book-head-rating {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 100%;
+  margin-top: 2px;
+}
+
+.book-head-rating > :first-child {
+  flex: none;
+}
+
+.book-head-owner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  color: #9aa4b2;
+}
+
+.book-head-owner .inline-edit-field {
+  min-width: 0;
+}
+
+.book-head-owner-name {
+  color: #d6dbe1;
+}
+
+.book-head-cut {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.book-head-links {
+  display: flex;
+  gap: 4px 16px;
+  max-width: 100%;
+  margin-top: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.book-head-links-all {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+}
+
+/* A value that searches the collection: an author, a genre, the owner. Plain text, gold under the pointer. */
+.book-head-filter {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.book-head-filter:hover,
+.book-head-filter:focus-visible {
+  color: var(--dv-gold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  outline: none;
+}
+
+/* A quiet link: underlined words, gold under the pointer. */
+.book-head-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: #d6dbe1;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.3);
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.book-head-link svg {
+  font-size: 0.75em;
+  color: #9aa4b2;
+}
+
+.book-head-link:hover,
+.book-head-link:focus-visible {
+  color: var(--dv-gold);
+  text-decoration-color: currentColor;
+  outline: none;
+}
+
+.book-head-link:hover svg,
+.book-head-link:focus-visible svg {
+  color: inherit;
+}
+
+.book-head-quiet,
+.book-head-toggle {
+  color: #9aa4b2;
+  font-size: 0.85rem;
+}
+
+.book-head-toggle svg {
+  font-size: 0.7em;
+  transition: transform 0.15s ease;
+}
+
+.book-head-toggle .book-head-chevron-open {
+  transform: rotate(90deg);
+}
+
+/* The fold: label and value, as an album's. */
+.book-head-more {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.book-head-facts {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+}
+
+.book-head-facts dt {
+  color: #8f98a3;
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.book-head-facts dd {
+  margin: 0;
+  color: #d6dbe1;
+  overflow-wrap: anywhere;
+}
+
+.book-head-code {
+  color: #c3cad3;
+  font-family: inherit;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+}
+
+.book-head-note {
+  display: block;
+  margin-top: 2px;
+  color: #9aa4b2;
+}
+
+.book-head-annotation {
+  white-space: pre-wrap;
+}
+
+.book-head-cover-selector {
+  grid-column: 1 / -1;
+}
+
+/* The parts under the head: a title in small capitals and air, no frame. */
+.book-detail-modal .book-part {
+  margin-top: 26px;
+}
+
+.book-detail-modal .book-part-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #8a8a8a;
+}
+
+.book-detail-modal .book-part-count {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.book-detail-modal .book-part .series-books-horizontal {
+  height: auto;
+  padding: 4px 2px 8px;
+  background: none;
+  border-radius: 0;
+}
+
+.book-detail-modal .book-part .series-book-item {
+  width: 112px;
+  min-width: 112px;
+  max-width: 112px;
+  height: auto;
+}
+
+.book-detail-modal .book-part .series-book-container {
+  height: 160px;
+  flex: none;
+  border-radius: 6px;
+}
+
+.book-detail-modal .book-part .series-book-item:hover {
+  transform: none;
+}
+
+.book-detail-modal .book-part .series-book-item.current {
+  box-shadow: none;
+}
+
+.book-detail-modal .book-part .series-book-item.current .series-book-container {
+  box-shadow: 0 0 0 2px var(--dv-gold);
+}
+
+.book-detail-modal .book-description .description-text {
+  max-width: 72ch;
+  margin-bottom: 6px;
+  color: #e0e0e0;
+  line-height: 1.65;
+}
+
+.book-detail-modal .comments-section {
+  margin-top: 26px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.book-detail-modal .comments-section .comment-item {
+  padding: 10px 0;
+  margin-bottom: 0 !important;
+  background: none;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 0;
+}
+
+.book-detail-modal .comments-section .comment-item:hover {
+  background: none;
+  transform: none;
+}
+
+.book-detail-modal .comments-section .comments-list {
+  margin: 0 0 8px;
+}
+
+/*
+ * On a phone: beside the cover only who, what and the series, as high as it
+ * is, so that nothing leaves a hole under it; the rest under both, full width.
+ */
+@media (max-width: 767.98px) {
+  .book-detail-modal .book-head {
+    grid-template-columns: 104px minmax(0, 1fr);
+    grid-template-rows: auto;
+    gap: 6px 14px;
+  }
+
+  .book-detail-modal .book-head .book-cover-container {
+    grid-row: 1;
+    width: 104px;
+  }
+
+  .book-detail-modal .book-head .book-cover-image,
+  .book-detail-modal .book-head .book-cover-placeholder {
+    width: 104px !important;
+    max-width: 104px !important;
+  }
+
+  .book-detail-modal .book-head .book-cover-placeholder {
+    height: 150px;
+  }
+
+  .book-head-who {
+    grid-row: 1;
+    align-self: center;
+    gap: 5px;
+  }
+
+  .book-head-author {
+    font-size: 1.05rem;
+  }
+
+  .book-head-rest,
+  .book-head-more {
+    grid-column: 1 / -1;
+  }
+
+  .book-head-rest {
+    margin-top: 12px;
+  }
+
+  .book-head-facts {
+    grid-template-columns: 1fr;
+    gap: 1px;
+  }
+
+  .book-head-facts dt:not(:first-child) {
+    margin-top: 6px;
+  }
+
+  .book-detail-modal .book-part .series-book-item {
+    width: 92px;
+    min-width: 92px;
+    max-width: 92px;
+  }
+
+  .book-detail-modal .book-part .series-book-container {
+    height: 132px;
+  }
+}
+
+/*
+ * The foot: on a phone one line, as an album's: "Volume" for Add next volume,
+ * Edit and Delete as their icons alone (square), "Sure?" for a deletion to confirm.
+ */
+.book-detail-footer-right {
+  display: flex;
+  gap: 8px;
+}
+
+@media (min-width: 768px) {
+  .book-detail-short {
+    display: none;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .book-detail-footer-buttons {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .book-detail-footer-right {
+    gap: 6px;
+  }
+
+  .book-detail-long {
+    display: none;
+  }
+
+  .book-detail-modal .modal-footer .ui-button__label:has(> .book-detail-long):not(:has(> .book-detail-short)) {
+    display: none;
+  }
+
+  .book-detail-modal .modal-footer .ui-button:has(> .ui-button__label:has(> .book-detail-long):not(:has(> .book-detail-short))) {
+    width: var(--dv-height-md);
+    padding: 0;
+    justify-content: center;
+  }
+}

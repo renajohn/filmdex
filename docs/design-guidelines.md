@@ -142,6 +142,16 @@ if (await confirm({ title: 'Delete this backup?', message: '“x.zip” goes for
   question that cannot be undone is `danger`: red, a bin, never gold.
 - A movie's card keeps its own card and backdrop, under the same `DialogHeader`,
   a glass the backdrop runs under.
+- **A record's card is a page, not boxes** (an album's, a book's): the panel is
+  the frame, nothing inside wears one. The head: the cover; beside it who and
+  what in a murmur (format, length, year, label; publisher, pages, language);
+  under them a line each (how to listen, the genres, the stars, the links),
+  cut at its end rather than wrapped; what is rarely wanted (codes, ISBN,
+  credits, the copy owned) in **one** fold, "Edition, codes and more". On a
+  phone only who and what stand beside the cover, the rest goes under both,
+  full width, so nothing leaves a hole under it. The parts under the head
+  take a title in small capitals and air, the tracks a hairline. Nothing
+  empty is shown: no "None", no "No reviews yet", a quiet link to add one.
 
 ### Segmented (`Segmented.tsx`, `segmented.css`)
 

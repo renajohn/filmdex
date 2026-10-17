@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Row, Col, Badge, Form } from 'react-bootstrap';
+import { Badge, Form } from 'react-bootstrap';
 import Dialog from './shared/Dialog';
-import { BsPencil, BsTrash, BsBook, BsCalendar, BsTag, BsTranslate, BsFileEarmark, BsStar, BsPerson, BsHouse, BsChatSquareText, BsPlus, BsX, BsCheck, BsArrowLeft, BsDownload, BsFiles, BsChevronDown, BsChevronUp, BsCamera } from 'react-icons/bs';
+import { BsPencil, BsTrash, BsBook, BsFileEarmark, BsPlus, BsX, BsCheck, BsArrowLeft, BsDownload, BsFiles, BsCamera, BsChevronRight, BsBoxArrowUpRight } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import CoverButton from './shared/CoverButton';
 import CoverTag, { CoverTagStack } from './shared/CoverTag';
@@ -18,6 +18,8 @@ import Button, { IconButton } from './shared/Button';
 import { FieldError, TextArea, TextField } from './shared/TextField';
 import Notice from './shared/Notice';
 import Spinner, { Loading } from './shared/Spinner';
+import Chip from './shared/Chip';
+import { toast } from './shared/Toast';
 
 interface BookDetailCardProps {
   book: any;
@@ -72,6 +74,23 @@ const formatIsbnDisplay = (isbn: any) => {
 };
 
 // Series Book Item Component (similar to SortableCollectionMember but without drag-and-drop)
+// A link's name from its key: the sites by their names, a key nobody named spelled out.
+const LINK_NAMES: Record<string, string> = {
+  googleBooks: 'Google Books', googleBooksInfo: 'Google Books (info)', googleBooksPreview: 'Google Books (preview)',
+  amazon: 'Amazon', openlibrary: 'Open Library', openlibraryWork: 'Open Library (work)', IMSLP: 'IMSLP',
+};
+const linkName = (key: string): string =>
+  LINK_NAMES[key] ?? key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, c => c.toUpperCase());
+// A second page of a site already linked: in the fold, not in the head.
+const isSecondaryLink = (key: string): boolean => /(Info|Preview|Work)$/.test(key);
+
+const BookField: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <>
+    <dt>{label}</dt>
+    <dd>{children}</dd>
+  </>
+);
+
 const SeriesBookItem = ({ bookItem, onBookClick, getCoverUrl, currentBookId }: SeriesBookItemProps) => {
   return (
     <div 
@@ -115,6 +134,7 @@ const SeriesBookItem = ({ bookItem, onBookClick, getCoverUrl, currentBookId }: S
 
 const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, onDelete, onSearch, onAddNextVolume, onAddBooksBatch, onAddStart, onBookAdded, onAddError, onBookClick, onPrevious, onNext }: BookDetailCardProps) => {
   const [showCoverModal, setShowCoverModal] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [coverModalData, setCoverModalData] = useState<{ coverUrl: string; title: string; author: string; coverType?: string }>({ coverUrl: '', title: '', author: '' });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDeleteEbook, setConfirmDeleteEbook] = useState(false);
@@ -902,54 +922,22 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
     return langMap[language.toLowerCase()] || language.toUpperCase();
   };
 
-  // Render metadata with inline book type dropdown
-  // Format: "96-page French graphic novel." or "96-page French graphic novel (e-book)."
-  const renderBookMetadata = () => {
+  // What it is, in one murmur: publisher, year, pages, language, then its kind, which a click changes.
+  const renderBookFacts = () => {
     const bookData = currentBook || book;
-    const pages = bookData.pageCount || null;
-    const langName = getLanguageDisplayName(bookData.language);
     const format = bookData.format || 'physical';
     const bookType = bookData.bookType || 'book';
-    const isNonPhysical = format === 'ebook' || format === 'audiobook';
-    
-    // Build prefix: "96-page French " or "French " or "96-page " or ""
-    let prefix = '';
-    if (pages) {
-      prefix = `${pages}-page `;
-    }
-    if (langName) {
-      prefix += `${langName} `;
-    }
-    
-    // Capitalize first letter of prefix if present
-    if (prefix) {
-      prefix = prefix.charAt(0).toUpperCase() + prefix.slice(1);
-    }
-
-    // Format suffix for non-physical formats
-    const formatSuffix = isNonPhysical 
-      ? ` (${format === 'ebook' ? 'e-book' : 'audiobook'})`
-      : '';
-
-    // Determine if we need to capitalize the dropdown options (when there's no prefix)
-    const capitalizeOptions = !prefix;
-    
-    // Get display text for current selection to size the select
-    const getDisplayText = (type: string) => {
-      const texts: Record<string, string> = {
-        'book': capitalizeOptions ? 'Book' : 'book',
-        'graphic-novel': capitalizeOptions ? 'Graphic novel' : 'graphic novel',
-        'score': capitalizeOptions ? 'Score' : 'score'
-      };
-      return texts[type] || texts['book'];
-    };
-    
-    // Calculate width to exactly fit the text
-    const selectWidth = `calc(${getDisplayText(bookType).length}ch + 2px)`;
-    
+    const facts = [
+      bookData.publisher,
+      bookData.publishedYear,
+      bookData.pageCount ? `${bookData.pageCount} pages` : null,
+      getLanguageDisplayName(bookData.language),
+      format === 'ebook' ? 'e-book' : format === 'audiobook' ? 'audiobook' : null,
+    ].filter(Boolean);
+    const typeLabel = getBookTypeDisplayName(bookType);
     return (
-      <span className="metadata-with-type">
-        {prefix}
+      <>
+        {facts.map((fact, index) => <React.Fragment key={index}>{fact} · </React.Fragment>)}
         <Select
           bare
           className="inline-book-type-select"
@@ -957,15 +945,32 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
           onChange={(e) => handleBookTypeChange(e.target.value)}
           disabled={savingBookType}
           onClick={(e) => e.stopPropagation()}
-          style={{ width: selectWidth }}
+          style={{ width: `calc(${typeLabel.length}ch + 2px)` }}
         >
-          <option value="book">{capitalizeOptions ? 'Book' : 'book'}</option>
-          <option value="graphic-novel">{capitalizeOptions ? 'Graphic novel' : 'graphic novel'}</option>
-          <option value="score">{capitalizeOptions ? 'Score' : 'score'}</option>
+          <option value="book">book</option>
+          <option value="graphic-novel">graphic novel</option>
+          <option value="score">score</option>
         </Select>
-        {formatSuffix}.
-      </span>
+      </>
     );
+  };
+
+  const asList = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter(Boolean) : value ? String(value).split(/,\s*/) : [];
+  const authorList = asList((currentBook || book).authors);
+  const artistList = asList((currentBook || book).artists);
+  const allLinks = Object.entries(book.urls || {}).filter((entry): entry is [string, string] => Boolean(entry[1]));
+  const mainLinks = allLinks.filter(([key]) => !isSecondaryLink(key));
+  // The others of the series, this one besides when the list leaves it out.
+  const seriesOwned = seriesMembers.length + (seriesMembers.some(member => member.id === book.id) ? 0 : 1);
+  const hasEbook = Boolean(book?.ebookFile && String(book.ebookFile).trim());
+  const downloadEbook = async () => {
+    try {
+      await bookService.downloadEbook(book.id);
+    } catch (error) {
+      console.error('Error downloading ebook:', error);
+      toast('Could not download the e-book: ' + (error as any).message, { tone: 'danger' });
+    }
   };
 
   // Legacy function for compatibility - returns string only
@@ -1425,820 +1430,83 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
           }`}>
             {/* Detail View */}
             <div ref={detailViewRef} className={`book-detail-view ${view === 'detail' ? 'active' : ''}`}>
-          {getCoverImage() ? (
-            <Row>
-              <Col md={3}>
-                <div className="book-cover-container cover-host" ref={coverRef}>
-                  <div style={{ position: 'relative', overflow: 'visible', borderRadius: '4px' }}>
-                    {(currentBook.borrowed || currentBook.titleStatus === 'borrowed' || currentBook.titleStatus === 'wish') && (
-                      <CoverTagStack className="book-cover-tags">
-                        {currentBook.borrowed && <CoverTag variant="alert">Read &amp; Gone</CoverTag>}
-                        {currentBook.titleStatus === 'borrowed' && !currentBook.borrowed && <CoverTag variant="alert">Borrowed</CoverTag>}
-                        {currentBook.titleStatus === 'wish' && <CoverTag variant="on">Wishlist</CoverTag>}
-                      </CoverTagStack>
-                    )}
-                    {getCoverImage() ? (
-                      <img 
-                        key={`book-cover-${currentBook.id}-${currentBook.cover || 'no-cover'}`}
-                        src={getCoverImage() || undefined}
-                        alt={`${currentBook.title} cover`}
-                        className="book-cover-image book-cover-clickable"
-                        onClick={() => handleCoverClick(getCoverImage(), 'Front Cover')}
-                        onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                          const target = e.target as HTMLElement;
-                          target.style.display = 'none';
-                          if (target.nextSibling) {
-                            (target.nextSibling as HTMLElement).style.display = 'flex';
-                          }
-                        }}
-                      />
-                    ) : null}
-                    {/* Change Cover Button */}
-                    <CoverButton
-                      className="cover-change-btn"
-                      onClick={handleCoverChangeClick}
-                      label="Change cover"
-                    >
-                      <BsCamera size={14} />
-                    </CoverButton>
-                  </div>
-                  {!getCoverImage() && (
-                    <div 
-                      className="book-cover-placeholder cover-host"
-                      style={{ display: 'flex', position: 'relative' }}
-                    >
-                      <BsBook size={64} />
-                      <CoverButton
-                        className="cover-change-btn"
-                        onClick={handleCoverChangeClick}
-                        label="Add cover"
-                      >
-                        <BsCamera size={14} />
-                      </CoverButton>
-                    </div>
-                  )}
-                  
-                  {/* Inline Cover Selector */}
-                  {showCoverSelector && (
-                    <InlineCoverSelector
-                      book={currentBook}
-                      isOpen={showCoverSelector}
-                      onCoverSelected={handleCoverSelected}
-                      currentCover={currentBook.cover}
-                      onClose={() => setShowCoverSelector(false)}
-                    />
-                  )}
-                  
-                  {(currentBook.language || currentBook.format || currentBook.pageCount || currentBook.publishedYear || currentBook.bookType) && (
-                    <div className="book-metadata-summary">
-                      <div className="metadata-summary-line">
-                        {renderBookMetadata()}
-                      </div>
-                      {currentBook.publishedYear && (
-                        <div className="metadata-summary-line">
-                          Published in {currentBook.publishedYear}.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* Star Rating - always show for easy editing */}
-                  <div className="book-rating-section interactive">
-                    <strong>Rating:</strong>
-                    <StarRatingInput 
-                      rating={currentBook.rating}
-                      onRatingChange={handleRatingChange}
-                      size="md"
-                    />
-                  </div>
-                  
-                  {/* Owner Section */}
-                  <div className="book-owner-section">
-                    <span className="owner-label">
-                      <BsPerson className="me-2" style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
-                      <strong>Belongs to:</strong>
-                    </span>
-                    {editingOwner ? (
-                      <div className="inline-edit-field">
-                        <div className="input-with-dropdown">
-                          <TextField size="sm"
-                            ref={ownerInputRef}
-                            type="text"
-                            value={ownerValue}
-                            onChange={(e) => handleOwnerChange(e.target.value)}
-                            onKeyDown={handleOwnerKeyDown}
-                            onBlur={() => setTimeout(() => setShowOwnerSuggestions(false), 150)}
-                            placeholder="Enter owner name"
-                            autoFocus
-                            autoComplete="off"
-                          />
-                          {showOwnerSuggestions && ownerSuggestions.length > 0 && (
-                            <div className="inline-suggestions-dropdown">
-                              {ownerSuggestions.map((name, index) => (
-                                <div
-                                  key={index}
-                                  className={`suggestion-item ${highlightedOwnerIndex === index ? 'highlighted' : ''}`}
-                                  onClick={() => handleOwnerSuggestionClick(name)}
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onMouseEnter={() => setHighlightedOwnerIndex(index)}
-                                >
-                                  {name}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="inline-edit-actions">
-                          <IconButton label="Save" tone="confirm" size="sm" className="save-btn" onClick={saveOwner}><BsCheck /></IconButton>
-                          <IconButton label="Cancel" size="sm" className="cancel-btn" onClick={cancelEditingOwner}><BsX /></IconButton>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {currentBook.owner ? (
-                          <span 
-                            className="clickable-author"
-                            onClick={() => handleSearch('owner', currentBook.owner)}
-                          >
-                            {currentBook.owner}
-                          </span>
-                        ) : (
-                          <span className="placeholder-value">None</span>
-                        )}
-                        <IconButton label="Edit owner" size="sm" className="inline-edit-btn" 
-                          onClick={(e) => { e.stopPropagation(); startEditingOwner(); }}
-                          title="Edit owner"
-                        ><BsPencil size={12} /></IconButton>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </Col>
-              
-              <Col md={9}>
-                <div className="book-details">
-                  {/* Series Section */}
-                  <div className="series-section">
-                    <strong>Series:</strong>{' '}
-                    {editingSeries ? (
-                      <div className="inline-edit-field series-edit">
-                        <div style={{ position: 'relative', flex: 1 }}>
-                          <TextField size="sm"
-                            ref={seriesInputRef}
-                            type="text"
-                            value={seriesValue}
-                            onChange={(e) => handleSeriesChange(e.target.value)}
-                            onKeyDown={handleSeriesKeyDown}
-                            onBlur={() => setTimeout(() => setShowSeriesSuggestions(false), 150)}
-                            placeholder="Series name..."
-                            autoFocus
-                            autoComplete="off"
-                            className="series-name-input"
-                          />
-                          {showSeriesSuggestions && seriesSuggestions.length > 0 && (
-                            <div className="inline-suggestions-dropdown">
-                              {seriesSuggestions.map((name, index) => (
-                                <div
-                                  key={index}
-                                  className={`suggestion-item ${highlightedSeriesIndex === index ? 'highlighted' : ''}`}
-                                  onClick={() => handleSeriesSuggestionClick(name)}
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onMouseEnter={() => setHighlightedSeriesIndex(index)}
-                                >
-                                  {name}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <span className="series-number-label">#</span>
-                        <TextField size="sm"
-                          type="number"
-                          value={seriesNumberValue}
-                          onChange={(e) => setSeriesNumberValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') { e.preventDefault(); saveSeries(); }
-                            if (e.key === 'Escape') { e.preventDefault(); cancelEditingSeries(); }
-                          }}
-                          placeholder="1"
-                          step="0.5"
-                          min="0"
-                          className="series-number-input"
-                        />
-                        <div className="inline-edit-actions">
-                          <IconButton label="Save" tone="confirm" size="sm" className="save-btn" onClick={saveSeries}><BsCheck /></IconButton>
-                          <IconButton label="Cancel" size="sm" className="cancel-btn" onClick={cancelEditingSeries}><BsX /></IconButton>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {currentBook.series ? (
-                          <span 
-                            className="clickable-series"
-                            onClick={() => handleSearch('series', currentBook.series)}
-                          >
-                            {currentBook.series}
-                            {currentBook.seriesNumber && ` #${currentBook.seriesNumber}`}
-                          </span>
-                        ) : (
-                          <span className="placeholder-value">None</span>
-                        )}
-                        <IconButton label="Edit series" size="sm" className="inline-edit-btn" 
-                          onClick={(e) => { e.stopPropagation(); startEditingSeries(); }}
-                          title="Edit series"
-                        ><BsPencil size={12} /></IconButton>
-                      </>
-                    )}
-                  </div>
-                  
-                  {Array.isArray(book.authors) && book.authors.length > 1 ? (
-                    <div className="book-author-section">
-                      <strong>Authors:</strong>{' '}
-                      {book.authors.map((author: any, index: number) => (
-                        <span key={index}>
-                          <span 
-                            className="clickable-author"
-                            onClick={() => handleSearch('author', author)}
-                          >
-                            {author}
-                          </span>
-                          {index < book.authors.length - 1 && ', '}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="book-author clickable-author" onClick={() => handleSearch('author', getAuthorDisplay())}>
-                      <strong>Author:</strong> {getAuthorDisplay()}
-                    </p>
-                  )}
-                  
-                  {getArtistDisplay() && (
-                    Array.isArray(book.artists) && book.artists.length > 1 ? (
-                      <div className="book-artist-section">
-                        <strong>Artists:</strong>{' '}
-                        {book.artists.map((artist: any, index: number) => (
-                          <span key={index}>
-                            <span 
-                              className="clickable-author"
-                              onClick={() => handleSearch('artist', artist)}
-                            >
-                              {artist}
-                            </span>
-                            {index < book.artists.length - 1 && ', '}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="book-author clickable-author" onClick={() => handleSearch('artist', getArtistDisplay())}>
-                        <strong>Artist:</strong> {getArtistDisplay()}
-                      </p>
-                    )
-                  )}
-                  
-                  {book.publisher && (
-                    <div className="publisher">
-                      <strong>Publisher:</strong> {book.publisher}
-                          </div>
-                  )}
-                  
-                  {book.description && (
-                    <div className="description-section enhanced">
-                      <strong>Description</strong>
-                      <div className={`description-content ${!descriptionExpanded && isDescriptionLong ? 'collapsed' : ''}`}>
-                        <p className="description-text">{getDisplayDescription()}</p>
-                        {!descriptionExpanded && isDescriptionLong && (
-                          <div className="description-fade-overlay" />
-                        )}
-                      </div>
-                      {isDescriptionLong && (
-                        <Button variant="quiet" size="sm" className="description-toggle-btn"
-                          onClick={() => setDescriptionExpanded(!descriptionExpanded)}
-                        >
-                        {descriptionExpanded ? <>Show less <BsChevronUp /></> : <>Read more <BsChevronDown /></>}
-                      </Button>
-                      )}
-                    </div>
-                  )}
-                  
-                  <div className="comments-section">
-                    <div className="d-flex align-items-center justify-content-between mb-2">
-                      <div className="d-flex align-items-center">
-                        <BsChatSquareText className="me-2" />
-                        <strong>Reviews {comments.length > 0 && `(${comments.length})`}</strong>
-                          </div>
-                      {!showCommentModal && (
-                        <Button icon={<BsPlus />} 
-                          size="sm" 
-                          onClick={handleAddComment}
-                        >
-                          Add Review
-                        </Button>
-                      )}
-                          </div>
-                    
-                    {/* Inline Comment Form */}
-                    {showCommentModal && (
-                      <div className="comment-form-inline mb-3 p-3" style={{ 
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)', 
-                        borderRadius: '8px',
-                        border: '1px solid rgba(255, 255, 255, 0.1)'
-                      }}>
-                        {commentErrors.submit && (
-                          <Notice tone="danger" className="mb-3">{commentErrors.submit}</Notice>
-                        )}
-                        <Form>
-                          <Form.Group className="mb-3" style={{ position: 'relative', zIndex: 1000 }}>
-                            <Form.Label>Name <span className="text-danger">*</span></Form.Label>
-                            <TextField
-                              ref={nameInputRef}
-                              type="text"
-                              value={commentFormData.name}
-                              onChange={(e) => handleCommentInputChange('name', e.target.value)}
-                              onKeyDown={handleNameKeyDown}
-                              onBlur={handleNameBlur}
-                              onFocus={handleNameFocus}
-                              placeholder="Enter your name"
-                              isInvalid={!!commentErrors.name}
-                              autoComplete="off"
-                            />
-                            {commentErrors.name && (
-                              <FieldError>{commentErrors.name}</FieldError>
-                            )}
-                            {showNameSuggestions && nameSuggestions.length > 0 && (
-                              <div
-                                ref={nameDropdownRef}
-                                className="autocomplete-dropdown"
-                                style={{
-                                  position: 'absolute',
-                                  top: '100%',
-                                  left: 0,
-                                  right: 0,
-                                  zIndex: 1001,
-                                  backgroundColor: '#212529',
-                                  border: '1px solid #495057',
-                                  borderRadius: '0.25rem',
-                                  marginTop: '0.25rem',
-                                  maxHeight: '200px',
-                                  overflowY: 'auto',
-                                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-                                }}
-                              >
-                                {nameSuggestions.map((name, index) => (
-                                  <div
-                                    key={index}
-                                    onClick={() => handleNameSuggestionClick(name)}
-                                    onMouseDown={(e) => e.preventDefault()}
-                                    style={{
-                                      padding: '0.5rem 0.75rem',
-                                      cursor: 'pointer',
-                                      backgroundColor: highlightedNameIndex === index ? '#495057' : 'transparent',
-                                      color: '#f8f9fa'
-                                    }}
-                                    onMouseEnter={() => setHighlightedNameIndex(index)}
-                                  >
-                                    {name}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </Form.Group>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Review <span className="text-danger">*</span></Form.Label>
-                            <TextArea
-                              rows={6}
-                              value={commentFormData.comment}
-                              onChange={(e) => handleCommentInputChange('comment', e.target.value)}
-                              placeholder="Enter your review here..."
-                              isInvalid={!!commentErrors.comment}
-                              style={{ 
-                                overflowY: 'auto',
-                                resize: 'vertical',
-                                minHeight: '120px',
-                                maxHeight: '400px'
-                              }}
-                            />
-                            {commentErrors.comment && (
-                              <FieldError>{commentErrors.comment}</FieldError>
-                            )}
-                          </Form.Group>
-                          <div className="d-flex justify-content-end gap-2">
-                            <Button variant="quiet" size="sm" onClick={handleCloseCommentModal} disabled={loadingComments}>
-                              Cancel
-                            </Button>
-                            <Button variant="primary" 
-                              size="sm"
-                              onClick={handleSaveComment}
-                              disabled={loadingComments}
-                            >
-                              {loadingComments ? 'Saving...' : (editingComment ? 'Update' : 'Save')}
-                            </Button>
-                          </div>
-                        </Form>
-                      </div>
-                    )}
-                    
-                    {!showCommentModal && (
-                      <>
-                        {loadingComments ? (
-                          <p className="comments-empty-message">Loading reviews...</p>
-                        ) : comments.length === 0 ? (
-                          <p className="comments-empty-message">No reviews yet. Be the first to add one!</p>
-                        ) : (
-                          <div className="comments-list">
-                            {comments.map((comment) => (
-                              <div key={comment.id} className="comment-item mb-3">
-                                <div className="d-flex justify-content-between align-items-start mb-1">
-                                  <div>
-                                    <strong className="comment-name">{comment.name}</strong>
-                                    {comment.date && (
-                                      <span className="comment-date ms-2 text-muted">
-                                        {formatDate(comment.date)}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="comment-actions">
-                                    {deletingCommentId === comment.id ? (
-                                      <>
-                                        <Button variant="danger" 
-                                          size="sm" className="me-2"
-                                          onClick={() => handleDeleteComment(comment.id)}
-                                          title="Confirm deletion"
-                                        >
-                                          Confirm deletion
-                                        </Button>
-                                        <Button variant="quiet"
-                                          size="sm"
-                                          onClick={() => setDeletingCommentId(null)}
-                                          title="Cancel"
-                                        >
-                                          Cancel
-                                        </Button>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Button variant="quiet"
-                                          size="sm" className="me-2"
-                                          onClick={() => handleEditComment(comment)}
-                                          title="Edit review"
-                                        >
-                                          Edit
-                                        </Button>
-                                        <Button variant="danger"
-                                          size="sm"
-                                          onClick={() => handleDeleteComment(comment.id)}
-                                          title="Delete review"
-                                        >
-                                          Delete
-                                        </Button>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                                <p className="comment-text mb-0">{comment.comment}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  
-                  {book.genres && Array.isArray(book.genres) && book.genres.length > 0 && (
-                    <div className="tags-section">
-                      <div className="tags-label">Genres:</div>
-                      <div className="tags-container">
-                        {book.genres.map((genre: any, index: number) => (
-                          <Badge 
-                            key={index} 
-                            bg="secondary" 
-                            className="clickable-badge"
-                            onClick={() => handleSearch('genre', genre)}
-                          >
-                            {genre}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {book.tags && Array.isArray(book.tags) && book.tags.length > 0 && (
-                    <div className="tags-section">
-                      <div className="tags-label">Tags:</div>
-                      <div className="tags-container">
-                        {book.tags.map((tag: any, index: number) => (
-                          <Badge key={index} bg="info">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {(book.isbn || book.isbn13) && (
-                    <div className="info-section">
-                      <h4>ISBN</h4>
-                      <Row>
-                        {book.isbn && (
-                          <Col md={6}>
-                            <div className="info-item">
-                              <strong>ISBN-10:</strong> {formatIsbnDisplay(book.isbn)}
-                        </div>
-                      </Col>
-                    )}
-                    {book.isbn13 && (
-                      <Col md={6}>
-                        <div className="info-item">
-                          <strong>ISBN-13:</strong> {formatIsbnDisplay(book.isbn13)}
-                            </div>
-                          </Col>
-                        )}
-                      </Row>
-                    </div>
-                  )}
-                  
-                  {(book.filetype || book.drm || book.narrator || book.runtime) && (
-                    <div className="info-section">
-                      <h4>Digital Format</h4>
-                      <Row>
-                        {book.filetype && (
-                          <Col md={6}>
-                            <div className="info-item">
-                              <strong>File Type:</strong> {book.filetype}
-                            </div>
-                          </Col>
-                        )}
-                        {book.drm && (
-                          <Col md={6}>
-                            <div className="info-item">
-                              <strong>DRM:</strong> {book.drm}
-                            </div>
-                          </Col>
-                        )}
-                        {book.narrator && (
-                          <Col md={6}>
-                            <div className="info-item">
-                              <strong>Narrator:</strong> {book.narrator}
-                            </div>
-                          </Col>
-                        )}
-                        {book.runtime && (
-                          <Col md={6}>
-                            <div className="info-item">
-                              <strong>Runtime:</strong> {Math.floor(book.runtime / 60)}h {book.runtime % 60}m
-                            </div>
-                          </Col>
-                        )}
-                      </Row>
-                    </div>
-                  )}
-                  
-                  {book.readDate && (
-                    <div className="info-section">
-                      <h4>Reading Information</h4>
-                      <Row>
-                        <Col md={6}>
-                          <div className="info-item">
-                            <strong>Read Date:</strong> {book.readDate}
-                          </div>
-                        </Col>
-                      </Row>
-                    </div>
-                  )}
-                  
-                  {book.urls && Object.keys(book.urls).length > 0 && (
-                    <div className="info-section">
-                      <h4>External Links</h4>
-                      <div className="external-links">
-                        {Object.entries(book.urls).map(([label, url]: [string, any], index: number) => (
-                          <a
-                            key={index}
-                            href={url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="btn btn-outline-light btn-sm me-2 mb-2"
-                          >
-                            {label}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {book.annotation && (
-                    <div className="annotation-section">
-                      <strong>Annotation:</strong>
-                      <p className="annotation-text">{book.annotation}</p>
-                    </div>
-                  )}
-                  
-                  {view === 'detail' && book?.ebookFile && book.ebookFile.trim() ? (
-                    <div className="info-section">
-                      <h4>Ebook File</h4>
-                      {loadingEbookInfo ? (
-                        <div className="d-flex align-items-center gap-2">
-                          <Spinner size="sm" />
-                          <span>Loading ebook info...</span>
-                        </div>
-                      ) : ebookInfo ? (
-                        <div>
-                          <div className="d-flex align-items-center gap-2 mb-2">
-                            <BsFileEarmark className="me-2" />
-                            <div className="flex-grow-1">
-                              <div><strong>{ebookInfo.originalName}</strong></div>
-                              <small className="ebook-info-meta">
-                                Format: {ebookInfo.format} • Size: {ebookInfo.sizeFormatted}
-                              </small>
-                            </div>
-                            <Button icon={<BsDownload />}
-                              size="sm"
-                              onClick={async () => {
-                                try {
-                                  await bookService.downloadEbook(book.id);
-                                } catch (error) {
-                                  console.error('Error downloading ebook:', error);
-                                  alert('Failed to download ebook: ' + (error as any).message);
-                                }
-                              }}
-                            >
-                              Download
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="d-flex align-items-center gap-2">
-                          <BsFileEarmark className="me-2" />
-                          <span>{book.ebookFile.split('_').slice(3).join('_') || book.ebookFile}</span>
-                          <Button icon={<BsDownload />}
-                            size="sm"
-                            onClick={async () => {
-                              try {
-                                await bookService.downloadEbook(book.id);
-                              } catch (error) {
-                                console.error('Error downloading ebook:', error);
-                                alert('Failed to download ebook: ' + (error as any).message);
-                              }
-                            }} className="ms-2"
-                          >
-                            Download
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ) : null}
-
-                  {/* Series Members Navigation - at the bottom */}
-                  {book.series && seriesMembers.length > 0 && (
-                    <div className="book-detail-series-section">
-                      <h3>
-                        "{book.series}" series
-                      </h3>
-                      <div className="series-books-horizontal">
-                        {seriesMembers.map((member) => (
-                          <SeriesBookItem
-                            key={member.id}
-                            bookItem={member}
-                            onBookClick={handleBookClick}
-                            getCoverUrl={getCoverUrl}
-                            currentBookId={book.id}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </Col>
-            </Row>
-          ) : (
-            <div className="book-details">
-              {Array.isArray(book.authors) && book.authors.length > 1 ? (
-                <div className="book-author-section">
-                  <strong>Authors:</strong>{' '}
-                  {book.authors.map((author: any, index: number) => (
-                    <span key={index}>
-                      <span 
-                        className="clickable-author"
-                        onClick={() => handleSearch('author', author)}
-                      >
-                        {author}
-                      </span>
-                      {index < book.authors.length - 1 && ', '}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="book-author clickable-author" onClick={() => handleSearch('author', getAuthorDisplay())}>
-                  <strong>Author:</strong> {getAuthorDisplay()}
-                </p>
-              )}
-              
-              {getArtistDisplay() && (
-                Array.isArray(book.artists) && book.artists.length > 1 ? (
-                  <div className="book-artist-section">
-                    <strong>Artists:</strong>{' '}
-                    {book.artists.map((artist: any, index: number) => (
-                      <span key={index}>
-                        <span 
-                          className="clickable-author"
-                          onClick={() => handleSearch('artist', artist)}
-                        >
-                          {artist}
-                        </span>
-                        {index < book.artists.length - 1 && ', '}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="book-author clickable-author" onClick={() => handleSearch('artist', getArtistDisplay())}>
-                    <strong>Artist:</strong> {getArtistDisplay()}
-                  </p>
-                )
-              )}
-            
-              {(book.language || book.format || book.pageCount || book.publishedYear || book.bookType) && (
-                <div className="book-metadata-summary">
-                  <div className="metadata-summary-line">
-                    {renderBookMetadata()}
-                  </div>
-                  {book.publishedYear && (
-                    <div className="metadata-summary-line">
-                      Published in {book.publishedYear}.
-                      </div>
-                  )}
-                </div>
-              )}
-              
-              {/* Star Rating - always show for easy editing */}
-              <div className="book-rating-section interactive">
-                <strong>Rating:</strong>
-                <StarRatingInput 
-                  rating={currentBook.rating}
-                  onRatingChange={handleRatingChange}
-                  size="md"
-                />
+          {/* The head, with no frame of its own (the panel is one): the cover; beside it who wrote it, what
+              it is and its series; under them the stars and whose it is, then the links; the rest in one fold. */}
+          <div className="book-head">
+            <div className="book-cover-container cover-host" ref={coverRef}>
+              <div style={{ position: 'relative', overflow: 'visible', borderRadius: '4px' }}>
+                {(currentBook.borrowed || currentBook.titleStatus === 'borrowed' || currentBook.titleStatus === 'wish') && (
+                  <CoverTagStack className="book-cover-tags">
+                    {currentBook.borrowed && <CoverTag variant="alert">Read &amp; Gone</CoverTag>}
+                    {currentBook.titleStatus === 'borrowed' && !currentBook.borrowed && <CoverTag variant="alert">Borrowed</CoverTag>}
+                    {currentBook.titleStatus === 'wish' && <CoverTag variant="on">Wishlist</CoverTag>}
+                  </CoverTagStack>
+                )}
+                {getCoverImage() ? (
+                  <img 
+                    key={`book-cover-${currentBook.id}-${currentBook.cover || 'no-cover'}`}
+                    src={getCoverImage() || undefined}
+                    alt={`${currentBook.title} cover`}
+                    className="book-cover-image book-cover-clickable"
+                    onClick={() => handleCoverClick(getCoverImage(), 'Front Cover')}
+                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                      const target = e.target as HTMLElement;
+                      target.style.display = 'none';
+                      if (target.nextSibling) {
+                        (target.nextSibling as HTMLElement).style.display = 'flex';
+                      }
+                    }}
+                  />
+                ) : null}
+                {/* Change Cover Button */}
+                <CoverButton
+                  className="cover-change-btn"
+                  onClick={handleCoverChangeClick}
+                  label="Change cover"
+                >
+                  <BsCamera size={14} />
+                </CoverButton>
               </div>
-              
-              {/* Owner Section */}
-              <div className="book-owner-section">
-                <BsPerson className="me-2" style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
-                <strong>Owner:</strong>{' '}
-                {editingOwner ? (
-                  <div className="inline-edit-field">
-                    <div className="input-with-dropdown">
-                      <TextField size="sm"
-                        ref={ownerInputRef}
-                        type="text"
-                        value={ownerValue}
-                        onChange={(e) => handleOwnerChange(e.target.value)}
-                        onKeyDown={handleOwnerKeyDown}
-                        onBlur={() => setTimeout(() => setShowOwnerSuggestions(false), 150)}
-                        placeholder="Enter owner name"
-                        autoFocus
-                        autoComplete="off"
-                      />
-                      {showOwnerSuggestions && ownerSuggestions.length > 0 && (
-                        <div className="inline-suggestions-dropdown">
-                          {ownerSuggestions.map((name, index) => (
-                            <div
-                              key={index}
-                              className={`suggestion-item ${highlightedOwnerIndex === index ? 'highlighted' : ''}`}
-                              onClick={() => handleOwnerSuggestionClick(name)}
-                              onMouseDown={(e) => e.preventDefault()}
-                              onMouseEnter={() => setHighlightedOwnerIndex(index)}
-                            >
-                              {name}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="inline-edit-actions">
-                      <IconButton label="Save" tone="confirm" size="sm" className="save-btn" onClick={saveOwner}><BsCheck /></IconButton>
-                      <IconButton label="Cancel" size="sm" className="cancel-btn" onClick={cancelEditingOwner}><BsX /></IconButton>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {currentBook.owner ? (
-                      <span 
-                        className="clickable-author"
-                        onClick={() => handleSearch('owner', currentBook.owner)}
-                      >
-                        {currentBook.owner}
-                      </span>
-                    ) : (
-                      <span className="placeholder-value">None</span>
-                    )}
-                    <IconButton label="Edit owner" size="sm" className="inline-edit-btn" 
-                      onClick={(e) => { e.stopPropagation(); startEditingOwner(); }}
-                      title="Edit owner"
-                    ><BsPencil size={12} /></IconButton>
-                  </>
+              {!getCoverImage() && (
+                <div 
+                  className="book-cover-placeholder cover-host"
+                  style={{ display: 'flex', position: 'relative' }}
+                >
+                  <BsBook size={64} />
+                  <CoverButton
+                    className="cover-change-btn"
+                    onClick={handleCoverChangeClick}
+                    label="Add cover"
+                  >
+                    <BsCamera size={14} />
+                  </CoverButton>
+                </div>
+              )}
+            </div>
+
+            <div className="book-head-who">
+              <div className="book-head-author">
+                {authorList.map((author: string, index: number) => (
+                  <React.Fragment key={author}>
+                    {index > 0 && ', '}
+                    <button type="button" className="book-head-filter" onClick={() => handleSearch('author', author)}>{author}</button>
+                  </React.Fragment>
+                ))}
+                {artistList.length > 0 && (
+                  <span className="book-head-muted book-head-artist">
+                    {' · '}{currentBook.bookType === 'graphic-novel' ? 'drawn by' : 'illustrated by'}{' '}
+                    {artistList.map((artist: string, index: number) => (
+                      <React.Fragment key={artist}>
+                        {index > 0 && ', '}
+                        <button type="button" className="book-head-filter" onClick={() => handleSearch('artist', artist)}>{artist}</button>
+                      </React.Fragment>
+                    ))}
+                  </span>
                 )}
               </div>
-              
-              {/* Series Section */}
-              <div className="series-section">
-                <strong>Series:</strong>{' '}
+              <div className="book-head-facts-line">{renderBookFacts()}</div>
+              {/* The series: a shelf to jump to, gold; ✎ to change it. None: a quiet word to put it in one. */}
+              <div className="book-head-series">
                 {editingSeries ? (
                   <div className="inline-edit-field series-edit">
                     <div style={{ position: 'relative', flex: 1 }}>
@@ -2289,524 +1557,428 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                       <IconButton label="Cancel" size="sm" className="cancel-btn" onClick={cancelEditingSeries}><BsX /></IconButton>
                     </div>
                   </div>
-                ) : (
+                ) : currentBook.series ? (
                   <>
-                    {currentBook.series ? (
-                      <span 
-                        className="clickable-series"
-                        onClick={() => handleSearch('series', currentBook.series)}
-                      >
-                        {currentBook.series}
-                        {currentBook.seriesNumber && ` #${currentBook.seriesNumber}`}
-                      </span>
-                    ) : (
-                      <span className="placeholder-value">None</span>
-                    )}
-                    <IconButton label="Edit series" size="sm" className="inline-edit-btn" 
+                    <Chip tone="gold" className="book-head-series-chip" onClick={() => handleSearch('series', currentBook.series)}
+                      count={currentBook.seriesNumber ? `#${currentBook.seriesNumber}` : undefined}>
+                      {currentBook.series}
+                    </Chip>
+                    <IconButton label="Edit series" size="sm" className="inline-edit-btn"
                       onClick={(e) => { e.stopPropagation(); startEditingSeries(); }}
-                      title="Edit series"
                     ><BsPencil size={12} /></IconButton>
                   </>
+                ) : (
+                  <button type="button" className="book-head-link book-head-quiet" onClick={(e) => { e.stopPropagation(); startEditingSeries(); }}>
+                    Put it in a series…
+                  </button>
                 )}
               </div>
-              
-              {currentBook.publisher && (
-                <div className="publisher">
-                  <strong>Publisher:</strong> {book.publisher}
-                </div>
-              )}
-              
-              {book.description && (
-                <div className="description-section">
-                  <p className="description-text">{book.description}</p>
-                </div>
-              )}
-              
-              <div className="comments-section">
-                <div className="d-flex align-items-center justify-content-between mb-2">
-                  <div className="d-flex align-items-center">
-                    <BsChatSquareText className="me-2" />
-                    <strong>Reviews {comments.length > 0 && `(${comments.length})`}</strong>
-                  </div>
-                  {!showCommentModal && (
-                    <Button icon={<BsPlus />} 
-                      size="sm" 
-                      onClick={handleAddComment}
-                    >
-                      Add Review
-                    </Button>
-                  )}
-                </div>
-                
-                {/* Inline Comment Form */}
-                {showCommentModal && (
-                  <div className="comment-form-inline mb-3 p-3" style={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)', 
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255, 255, 255, 0.1)'
-                  }}>
-                    <div className="d-flex align-items-center justify-content-between mb-3">
-                      <strong>{editingComment ? 'Edit Review' : 'Add Review'}</strong>
-                      <IconButton label="Close" 
-                        size="sm"
-                        onClick={handleCloseCommentModal}
-                      >
-                        <BsX size={20} />
-                      </IconButton>
-                    </div>
-                    {commentErrors.submit && (
-                      <Notice tone="danger" className="mb-3">{commentErrors.submit}</Notice>
-                    )}
-                    <Form>
-                      <Form.Group className="mb-3" style={{ position: 'relative', zIndex: 1000 }}>
-                        <Form.Label>Name <span className="text-danger">*</span></Form.Label>
-                        <TextField
-                          ref={nameInputRef}
+            </div>
+
+            <div className="book-head-rest">
+              {/* The owner's stars and whose book it is: one line. */}
+              <div className="book-head-rating">
+                <StarRatingInput rating={currentBook.rating} onRatingChange={handleRatingChange} size="md" />
+                <span className="book-head-owner">
+                  {editingOwner ? (
+                    <div className="inline-edit-field">
+                      <div className="input-with-dropdown">
+                        <TextField size="sm"
+                          ref={ownerInputRef}
                           type="text"
-                          value={commentFormData.name}
-                          onChange={(e) => handleCommentInputChange('name', e.target.value)}
-                          onKeyDown={handleNameKeyDown}
-                          onBlur={handleNameBlur}
-                          onFocus={handleNameFocus}
-                          placeholder="Enter your name"
-                          isInvalid={!!commentErrors.name}
+                          value={ownerValue}
+                          onChange={(e) => handleOwnerChange(e.target.value)}
+                          onKeyDown={handleOwnerKeyDown}
+                          onBlur={() => setTimeout(() => setShowOwnerSuggestions(false), 150)}
+                          placeholder="Enter owner name"
+                          autoFocus
                           autoComplete="off"
                         />
-                        {commentErrors.name && (
-                          <FieldError>{commentErrors.name}</FieldError>
-                        )}
-                        {showNameSuggestions && nameSuggestions.length > 0 && (
-                          <div
-                            ref={nameDropdownRef}
-                            className="autocomplete-dropdown"
-                            style={{
-                              position: 'absolute',
-                              top: '100%',
-                              left: 0,
-                              right: 0,
-                              zIndex: 1001,
-                              backgroundColor: '#212529',
-                              border: '1px solid #495057',
-                              borderRadius: '0.25rem',
-                              marginTop: '0.25rem',
-                              maxHeight: '200px',
-                              overflowY: 'auto',
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-                            }}
-                          >
-                            {nameSuggestions.map((name, index) => (
+                        {showOwnerSuggestions && ownerSuggestions.length > 0 && (
+                          <div className="inline-suggestions-dropdown">
+                            {ownerSuggestions.map((name, index) => (
                               <div
                                 key={index}
-                                onClick={() => handleNameSuggestionClick(name)}
+                                className={`suggestion-item ${highlightedOwnerIndex === index ? 'highlighted' : ''}`}
+                                onClick={() => handleOwnerSuggestionClick(name)}
                                 onMouseDown={(e) => e.preventDefault()}
-                                style={{
-                                  padding: '0.5rem 0.75rem',
-                                  cursor: 'pointer',
-                                  backgroundColor: highlightedNameIndex === index ? '#495057' : 'transparent',
-                                  color: '#f8f9fa'
-                                }}
-                                onMouseEnter={() => setHighlightedNameIndex(index)}
+                                onMouseEnter={() => setHighlightedOwnerIndex(index)}
                               >
                                 {name}
                               </div>
                             ))}
                           </div>
                         )}
-                      </Form.Group>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Review <span className="text-danger">*</span></Form.Label>
-                        <TextArea
-                          rows={6}
-                          value={commentFormData.comment}
-                          onChange={(e) => handleCommentInputChange('comment', e.target.value)}
-                          placeholder="Enter your review here..."
-                          isInvalid={!!commentErrors.comment}
-                          style={{ 
-                            overflowY: 'auto',
-                            resize: 'vertical',
-                            minHeight: '120px',
-                            maxHeight: '400px'
-                          }}
-                        />
-                        {commentErrors.comment && (
-                          <FieldError>{commentErrors.comment}</FieldError>
-                        )}
-                      </Form.Group>
-                      <div className="d-flex justify-content-end gap-2">
-                        <Button variant="quiet" onClick={handleCloseCommentModal} disabled={loadingComments}>
-                          Cancel
-                        </Button>
-                        <Button variant="primary" 
-                          onClick={handleSaveComment}
-                          disabled={loadingComments}
-                        >
-                          {loadingComments ? 'Saving...' : (editingComment ? 'Update' : 'Save')}
-                        </Button>
                       </div>
-                    </Form>
-                  </div>
-                )}
-                
-                {!showCommentModal && (
-                  <>
-                    {loadingComments ? (
-                      <p className="comments-empty-message">Loading reviews...</p>
-                    ) : comments.length === 0 ? (
-                      <p className="comments-empty-message">No reviews yet. Be the first to add one!</p>
-                    ) : (
-                      <div className="comments-list">
-                        {comments.map((comment) => (
-                          <div key={comment.id} className="comment-item mb-3">
-                            <div className="d-flex justify-content-between align-items-start mb-1">
-                              <div>
-                                <strong className="comment-name">{comment.name}</strong>
-                                {comment.date && (
-                                  <span className="comment-date ms-2 text-muted">
-                                    {formatDate(comment.date)}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="comment-actions">
-                                {deletingCommentId === comment.id ? (
-                                  <>
-                                    <Button variant="danger" 
-                                      size="sm" className="me-2"
-                                      onClick={() => handleDeleteComment(comment.id)}
-                                      title="Confirm deletion"
-                                    >
-                                      Confirm deletion
-                                    </Button>
-                                    <Button variant="quiet"
-                                      size="sm"
-                                      onClick={() => setDeletingCommentId(null)}
-                                      title="Cancel"
-                                    >
-                                      Cancel
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Button variant="quiet"
-                                      size="sm" className="me-2"
-                                      onClick={() => handleEditComment(comment)}
-                                      title="Edit review"
-                                    >
-                                      Edit
-                                    </Button>
-                                    <Button variant="danger"
-                                      size="sm"
-                                      onClick={() => handleDeleteComment(comment.id)}
-                                      title="Delete review"
-                                    >
-                                      Delete
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
+                      <div className="inline-edit-actions">
+                        <IconButton label="Save" tone="confirm" size="sm" className="save-btn" onClick={saveOwner}><BsCheck /></IconButton>
+                        <IconButton label="Cancel" size="sm" className="cancel-btn" onClick={cancelEditingOwner}><BsX /></IconButton>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {currentBook.owner ? (
+                        <span className="book-head-cut">
+                          Belongs to{' '}
+                          <button type="button" className="book-head-filter book-head-owner-name" onClick={() => handleSearch('owner', currentBook.owner)}>{currentBook.owner}</button>
+                        </span>
+                      ) : (
+                        <span className="book-head-cut">Whose is it?</span>
+                      )}
+                      <IconButton label="Edit owner" size="sm" className="inline-edit-btn"
+                        onClick={(e) => { e.stopPropagation(); startEditingOwner(); }}
+                      ><BsPencil size={12} /></IconButton>
+                    </>
+                  )}
+                </span>
+              </div>
+
+              {(mainLinks.length > 0 || hasEbook) && (
+                <div className="book-head-links">
+                  {hasEbook && (
+                    <button type="button" className="book-head-link" onClick={downloadEbook}>
+                      <BsDownload aria-hidden="true" /> E-book
+                    </button>
+                  )}
+                  {mainLinks.map(([key, url]) => (
+                    <a key={key} className="book-head-link" href={url} target="_blank" rel="noopener noreferrer">
+                      {linkName(key)}
+                      <BsBoxArrowUpRight aria-hidden="true" />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* What is rarely wanted, in one fold: the ISBN, the genres, the links, the file, the loan. */}
+            <div className="book-head-more">
+              <button
+                type="button"
+                className="book-head-link book-head-toggle"
+                aria-expanded={showMore}
+                aria-controls={`book-more-${currentBook.id}`}
+                onClick={() => setShowMore(open => !open)}
+              >
+                <BsChevronRight aria-hidden="true" className={showMore ? 'book-head-chevron-open' : undefined} />
+                ISBN, links and more
+              </button>
+              {showMore && (
+                <dl className="book-head-facts" id={`book-more-${currentBook.id}`}>
+                  {(book.isbn || book.isbn13) && (
+                    <BookField label="ISBN">
+                      <code className="book-head-code">{[book.isbn, book.isbn13].filter(Boolean).map(formatIsbnDisplay).join(' · ')}</code>
+                    </BookField>
+                  )}
+                  {book.publisher && <BookField label="Publisher">{book.publisher}{book.publishedYear ? `, ${book.publishedYear}` : ''}</BookField>}
+                  {book.genres && Array.isArray(book.genres) && book.genres.length > 0 && (
+                    <BookField label="Genres">
+                      {Array.from(new Set<string>(book.genres)).map((genre: string, index: number) => (
+                        <React.Fragment key={genre}>
+                          {index > 0 && ' · '}
+                          <button type="button" className="book-head-filter" onClick={() => handleSearch('genre', genre)}>{genre}</button>
+                        </React.Fragment>
+                      ))}
+                    </BookField>
+                  )}
+                  {book.tags && Array.isArray(book.tags) && book.tags.length > 0 && <BookField label="Tags">{book.tags.join(' · ')}</BookField>}
+                  {allLinks.length > 0 && (
+                    <BookField label="Links">
+                      <span className="book-head-links-all">
+                        {allLinks.map(([key, url]) => (
+                          <a key={key} className="book-head-link" href={url} target="_blank" rel="noopener noreferrer">
+                            {linkName(key)}
+                            <BsBoxArrowUpRight aria-hidden="true" />
+                          </a>
+                        ))}
+                      </span>
+                    </BookField>
+                  )}
+                  {book.filetype && <BookField label="File type">{book.filetype}</BookField>}
+                  {book.drm && <BookField label="DRM">{book.drm}</BookField>}
+                  {book.narrator && <BookField label="Narrator">{book.narrator}</BookField>}
+                  {book.runtime && <BookField label="Runtime">{Math.floor(book.runtime / 60)} h {book.runtime % 60} min</BookField>}
+                  {hasEbook && (
+                    <BookField label="E-book">
+                      {loadingEbookInfo ? (
+                        <div className="d-flex align-items-center gap-2">
+                          <Spinner size="sm" />
+                          <span>Loading ebook info...</span>
+                        </div>
+                      ) : ebookInfo ? (
+                        <div>
+                          <div className="d-flex align-items-center gap-2 mb-2">
+                            <BsFileEarmark className="me-2" />
+                            <div className="flex-grow-1">
+                              <div><strong>{ebookInfo.originalName}</strong></div>
+                              <small className="ebook-info-meta">
+                                Format: {ebookInfo.format} • Size: {ebookInfo.sizeFormatted}
+                              </small>
                             </div>
-                            <p className="comment-text mb-0">{comment.comment}</p>
+                            <Button icon={<BsDownload />}
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  await bookService.downloadEbook(book.id);
+                                } catch (error) {
+                                  console.error('Error downloading ebook:', error);
+                                  alert('Failed to download ebook: ' + (error as any).message);
+                                }
+                              }}
+                            >
+                              Download
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="d-flex align-items-center gap-2">
+                          <BsFileEarmark className="me-2" />
+                          <span>{book.ebookFile.split('_').slice(3).join('_') || book.ebookFile}</span>
+                          <Button icon={<BsDownload />}
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                await bookService.downloadEbook(book.id);
+                              } catch (error) {
+                                console.error('Error downloading ebook:', error);
+                                alert('Failed to download ebook: ' + (error as any).message);
+                              }
+                            }} className="ms-2"
+                          >
+                            Download
+                          </Button>
+                        </div>
+                      )}
+                    </BookField>
+                  )}
+                  {book.readDate && <BookField label="Read">{book.readDate}</BookField>}
+                  {book.borrowed && (book.borrowedDate || book.returnedDate || book.borrowedNotes) && (
+                    <BookField label="Lent">
+                      {[book.borrowedDate && `on ${book.borrowedDate}`, book.returnedDate && `back ${book.returnedDate}`].filter(Boolean).join(' · ')}
+                      {book.borrowedNotes && <span className="book-head-note">{book.borrowedNotes}</span>}
+                    </BookField>
+                  )}
+                  {book.annotation && <BookField label="Notes"><span className="book-head-annotation">{book.annotation}</span></BookField>}
+                </dl>
+              )}
+            </div>
+
+            {showCoverSelector && (
+              <div className="book-head-cover-selector">
+                <InlineCoverSelector
+                  book={currentBook}
+                  isOpen={showCoverSelector}
+                  onCoverSelected={handleCoverSelected}
+                  currentCover={currentBook.cover}
+                  onClose={() => setShowCoverSelector(false)}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* The series right under the head: from one volume, the others are where one goes. */}
+          {book.series && seriesMembers.length > 0 && (
+            <section className="book-part">
+              <h3 className="book-part-title">
+                In the series <span className="book-part-count">{seriesOwned} owned</span>
+              </h3>
+              <div className="series-books-horizontal">
+                {seriesMembers.map((member) => (
+                  <SeriesBookItem
+                    key={member.id}
+                    bookItem={member}
+                    onBookClick={handleBookClick}
+                    getCoverUrl={getCoverUrl}
+                    currentBookId={book.id}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* The description: the text alone, a few lines, the rest on a click. */}
+          {currentBook.description && (
+            <section className="book-part book-description">
+              <p className="description-text">{getDisplayDescription()}</p>
+              {isDescriptionLong && (
+                <button type="button" className="book-head-link book-head-quiet" onClick={() => setDescriptionExpanded(!descriptionExpanded)}>
+                  {descriptionExpanded ? 'Show less' : 'Read more…'}
+                </button>
+              )}
+            </section>
+          )}
+
+          {/* The reviews: a title with their count, each under a hairline; none is no message, a word to write one. */}
+          <section className="book-part comments-section">
+            {(comments.length > 0 || showCommentModal) && (
+              <h3 className="book-part-title">
+                Reviews {comments.length > 0 && <span className="book-part-count">{comments.length}</span>}
+              </h3>
+            )}
+            {showCommentModal && (
+              <div className="comment-form-inline mb-3 p-3" style={{ 
+                backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+                borderRadius: '8px',
+                border: '1px solid rgba(255, 255, 255, 0.1)'
+              }}>
+                {commentErrors.submit && (
+                  <Notice tone="danger" className="mb-3">{commentErrors.submit}</Notice>
+                )}
+                <Form>
+                  <Form.Group className="mb-3" style={{ position: 'relative', zIndex: 1000 }}>
+                    <Form.Label>Name <span className="text-danger">*</span></Form.Label>
+                    <TextField
+                      ref={nameInputRef}
+                      type="text"
+                      value={commentFormData.name}
+                      onChange={(e) => handleCommentInputChange('name', e.target.value)}
+                      onKeyDown={handleNameKeyDown}
+                      onBlur={handleNameBlur}
+                      onFocus={handleNameFocus}
+                      placeholder="Enter your name"
+                      isInvalid={!!commentErrors.name}
+                      autoComplete="off"
+                    />
+                    {commentErrors.name && (
+                      <FieldError>{commentErrors.name}</FieldError>
+                    )}
+                    {showNameSuggestions && nameSuggestions.length > 0 && (
+                      <div
+                        ref={nameDropdownRef}
+                        className="autocomplete-dropdown"
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          zIndex: 1001,
+                          backgroundColor: '#212529',
+                          border: '1px solid #495057',
+                          borderRadius: '0.25rem',
+                          marginTop: '0.25rem',
+                          maxHeight: '200px',
+                          overflowY: 'auto',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                        }}
+                      >
+                        {nameSuggestions.map((name, index) => (
+                          <div
+                            key={index}
+                            onClick={() => handleNameSuggestionClick(name)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            style={{
+                              padding: '0.5rem 0.75rem',
+                              cursor: 'pointer',
+                              backgroundColor: highlightedNameIndex === index ? '#495057' : 'transparent',
+                              color: '#f8f9fa'
+                            }}
+                            onMouseEnter={() => setHighlightedNameIndex(index)}
+                          >
+                            {name}
                           </div>
                         ))}
                       </div>
                     )}
-                  </>
-                )}
-              </div>
-              
-              {book.genres && book.genres.length > 0 && (
-                <div className="tags-section">
-                  <div className="tags-label">Genres:</div>
-                  <div className="tags-container">
-                    {book.genres.map((genre: any, index: number) => (
-                      <Badge 
-                        key={index} 
-                        bg="secondary" 
-                        className="clickable-badge"
-                        onClick={() => handleSearch('genre', genre)}
-                      >
-                        {genre}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {book.tags && book.tags.length > 0 && (
-                <div className="tags-section">
-                  <div className="tags-label">Tags:</div>
-                  <div className="tags-container">
-                    {book.tags.map((tag: any, index: number) => (
-                      <Badge key={index} bg="info">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {book.description && (
-                <div className="description-section enhanced">
-                  <strong>Description</strong>
-                  <div className={`description-content ${!descriptionExpanded && isDescriptionLong ? 'collapsed' : ''}`}>
-                    <p className="description-text">{getDisplayDescription()}</p>
-                    {!descriptionExpanded && isDescriptionLong && (
-                      <div className="description-fade-overlay" />
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Review <span className="text-danger">*</span></Form.Label>
+                    <TextArea
+                      rows={6}
+                      value={commentFormData.comment}
+                      onChange={(e) => handleCommentInputChange('comment', e.target.value)}
+                      placeholder="Enter your review here..."
+                      isInvalid={!!commentErrors.comment}
+                      style={{ 
+                        overflowY: 'auto',
+                        resize: 'vertical',
+                        minHeight: '120px',
+                        maxHeight: '400px'
+                      }}
+                    />
+                    {commentErrors.comment && (
+                      <FieldError>{commentErrors.comment}</FieldError>
                     )}
-                  </div>
-                  {isDescriptionLong && (
-                    <Button variant="quiet" size="sm" className="description-toggle-btn"
-                      onClick={() => setDescriptionExpanded(!descriptionExpanded)}
+                  </Form.Group>
+                  <div className="d-flex justify-content-end gap-2">
+                    <Button variant="quiet" size="sm" onClick={handleCloseCommentModal} disabled={loadingComments}>
+                      Cancel
+                    </Button>
+                    <Button variant="primary" 
+                      size="sm"
+                      onClick={handleSaveComment}
+                      disabled={loadingComments}
                     >
-                        {descriptionExpanded ? <>Show less <BsChevronUp /></> : <>Read more <BsChevronDown /></>}
-                      </Button>
-                  )}
-                </div>
-              )}
-              
-              {(book.isbn || book.isbn13) && (
-                <div className="info-section">
-                  <h4>ISBN</h4>
-                  <Row>
-                    {book.isbn && (
-                      <Col md={6}>
-                        <div className="info-item">
-                          <strong>ISBN-10:</strong> {formatIsbnDisplay(book.isbn)}
-                        </div>
-                      </Col>
-                    )}
-                    {book.isbn13 && (
-                      <Col md={6}>
-                        <div className="info-item">
-                          <strong>ISBN-13:</strong> {formatIsbnDisplay(book.isbn13)}
-                        </div>
-                      </Col>
-                    )}
-                  </Row>
-                </div>
-              )}
-              
-              {(book.filetype || book.drm || book.narrator || book.runtime) && (
-                <div className="info-section">
-                  <h4>Digital Format</h4>
-                  <Row>
-                    {book.filetype && (
-                      <Col md={6}>
-                        <div className="info-item">
-                          <strong>File Type:</strong> {book.filetype}
-                        </div>
-                      </Col>
-                    )}
-                    {book.drm && (
-                      <Col md={6}>
-                        <div className="info-item">
-                          <strong>DRM:</strong> {book.drm}
-                        </div>
-                      </Col>
-                    )}
-                    {book.narrator && (
-                      <Col md={6}>
-                        <div className="info-item">
-                          <strong>Narrator:</strong> {book.narrator}
-                        </div>
-                      </Col>
-                    )}
-                    {book.runtime && (
-                      <Col md={6}>
-                        <div className="info-item">
-                          <strong>Runtime:</strong> {Math.floor(book.runtime / 60)}h {book.runtime % 60}m
-                        </div>
-                      </Col>
-                    )}
-                  </Row>
-                </div>
-              )}
-              
-              {book.borrowed && (
-                <div className="info-section">
-                  <h4>Borrowing Information</h4>
-                  <Row>
-                    {book.borrowedDate && (
-                      <Col md={6}>
-                        <div className="info-item">
-                          <strong>Borrowed Date:</strong> {book.borrowedDate}
-                        </div>
-                      </Col>
-                    )}
-                    {book.returnedDate && (
-                      <Col md={6}>
-                        <div className="info-item">
-                          <strong>Returned Date:</strong> {book.returnedDate}
-                        </div>
-                      </Col>
-                    )}
-                    {book.borrowedNotes && (
-                      <Col md={12}>
-                        <div className="info-item">
-                          <strong>Notes:</strong> {book.borrowedNotes}
-                        </div>
-                      </Col>
-                    )}
-                  </Row>
-                </div>
-              )}
-              
-              {book.urls && Object.keys(book.urls).length > 0 && (
-                <div className="info-section">
-                  <h4>External Links</h4>
-                  <div className="external-links">
-                    {Object.entries(book.urls).map(([label, url]: [string, any], index: number) => (
-                      <a
-                        key={index}
-                        href={url}
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="btn btn-outline-light btn-sm me-2 mb-2"
-                      >
-                        {label}
-                      </a>
-                    ))}
+                      {loadingComments ? 'Saving...' : (editingComment ? 'Update' : 'Save')}
+                    </Button>
                   </div>
-                </div>
-              )}
-              
-              {book.annotation && (
-                <div className="annotation-section">
-                  <strong>Annotation:</strong>
-                  <p className="annotation-text">{book.annotation}</p>
-                </div>
-              )}
-              
-              {view === 'detail' && book?.ebookFile && book.ebookFile.trim() ? (
-                <div className="info-section">
-                  <h4>Ebook File</h4>
-                  {loadingEbookInfo ? (
-                    <div className="d-flex align-items-center gap-2">
-                      <Spinner size="sm" />
-                      <span>Loading ebook info...</span>
-                    </div>
-                  ) : ebookInfo ? (
-                    <div>
-                      <div className="d-flex align-items-center gap-2 mb-2">
-                        <BsFileEarmark className="me-2" />
-                        <div className="flex-grow-1">
-                          <div><strong>{ebookInfo.originalName}</strong></div>
-                          <small className="ebook-info-meta">
-                            Format: {ebookInfo.format} • Size: {ebookInfo.sizeFormatted}
-                          </small>
-                        </div>
-                        <Button icon={<BsDownload />}
-                          size="sm"
-                          onClick={async () => {
-                            try {
-                              await bookService.downloadEbook(book.id);
-                            } catch (error) {
-                              console.error('Error downloading ebook:', error);
-                              alert('Failed to download ebook: ' + (error as any).message);
-                            }
-                          }}
-                        >
-                          Download
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="d-flex align-items-center gap-2">
-                      <BsFileEarmark className="me-2" />
-                      <span>{book.ebookFile.split('_').slice(3).join('_') || book.ebookFile}</span>
-                      <Button icon={<BsDownload />}
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            await bookService.downloadEbook(book.id);
-                          } catch (error) {
-                            console.error('Error downloading ebook:', error);
-                            alert('Failed to download ebook: ' + (error as any).message);
-                          }
-                        }} className="ms-2"
-                      >
-                        Download
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ) : null}
-              
-              <div className="comments-section">
-                <div className="d-flex align-items-center justify-content-between mb-2">
-                  <div className="d-flex align-items-center">
-                    <BsChatSquareText className="me-2" />
-                    <strong>Reviews {comments.length > 0 && `(${comments.length})`}</strong>
-                  </div>
-                  <Button icon={<BsPlus />} 
-                    size="sm" 
-                    onClick={handleAddComment}
-                  >
-                    Add Review
-                  </Button>
-                </div>
-                {loadingComments ? (
-                  <p className="comments-empty-message">Loading reviews...</p>
-                ) : comments.length === 0 ? (
-                  <p className="comments-empty-message">No reviews yet. Be the first to add one!</p>
-                ) : (
-                  <div className="comments-list">
-                    {comments.map((comment) => (
-                      <div key={comment.id} className="comment-item mb-3">
-                        <div className="d-flex justify-content-between align-items-start mb-1">
-                          <div>
-                            <strong className="comment-name">{comment.name}</strong>
-                            {comment.date && (
-                              <span className="comment-date ms-2 text-muted">
-                                {formatDate(comment.date)}
-                              </span>
-                            )}
-                          </div>
-                          <div className="comment-actions">
-                            {deletingCommentId === comment.id ? (
-                              <>
-                                <Button variant="danger" 
-                                  size="sm" className="me-2"
-                                  onClick={() => handleDeleteComment(comment.id)}
-                                  title="Confirm deletion"
-                                >
-                                  Confirm deletion
-                                </Button>
-                                <IconButton label="Cancel" 
-                                  size="sm"
-                                  onClick={handleCancelDelete}
-                                  title="Cancel"
-                                >
-                                  <BsX />
-                                </IconButton>
-                              </>
-                            ) : (
-                              <>
-                                <IconButton label="Edit review" 
-                                  size="sm" className="me-2"
-                                  onClick={() => handleEditComment(comment)}
-                                  title="Edit review"
-                                >
-                                  <BsPencil />
-                                </IconButton>
-                                <IconButton label="Delete review" tone="danger" 
-                                  size="sm"
-                                  onClick={() => handleDeleteComment(comment.id)}
-                                  title="Delete review"
-                                >
-                                  <BsTrash />
-                                </IconButton>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <p className="comment-text mb-0">{comment.comment}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                </Form>
               </div>
-            </div>
-          )}
+            )}
+            {!showCommentModal && (
+              <>
+                {loadingComments ? (
+                  <p className="book-head-muted">Loading reviews…</p>
+                ) : comments.length > 0 && (
+                  <div className="comments-list">
+                                              {comments.map((comment) => (
+                                                <div key={comment.id} className="comment-item mb-3">
+                                                  <div className="d-flex justify-content-between align-items-start mb-1">
+                                                    <div>
+                                                      <strong className="comment-name">{comment.name}</strong>
+                                                      {comment.date && (
+                                                        <span className="comment-date ms-2 text-muted">
+                                                          {formatDate(comment.date)}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                    <div className="comment-actions">
+                                                      {deletingCommentId === comment.id ? (
+                                                        <>
+                                                          <Button variant="danger" 
+                                                            size="sm" className="me-2"
+                                                            onClick={() => handleDeleteComment(comment.id)}
+                                                            title="Confirm deletion"
+                                                          >
+                                                            Confirm deletion
+                                                          </Button>
+                                                          <Button variant="quiet"
+                                                            size="sm"
+                                                            onClick={() => setDeletingCommentId(null)}
+                                                            title="Cancel"
+                                                          >
+                                                            Cancel
+                                                          </Button>
+                                                        </>
+                                                      ) : (
+                                                        <>
+                                                          <Button variant="quiet"
+                                                            size="sm" className="me-2"
+                                                            onClick={() => handleEditComment(comment)}
+                                                            title="Edit review"
+                                                          >
+                                                            Edit
+                                                          </Button>
+                                                          <Button variant="danger"
+                                                            size="sm"
+                                                            onClick={() => handleDeleteComment(comment.id)}
+                                                            title="Delete review"
+                                                          >
+                                                            Delete
+                                                          </Button>
+                                                        </>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                  <p className="comment-text mb-0">{comment.comment}</p>
+                                                </div>
+                                              ))}
+                                            </div>
+                )}
+                <button type="button" className="book-head-link book-head-quiet" onClick={handleAddComment}>
+                  Write a review…
+                </button>
+              </>
+            )}
+          </section>
             </div>
 
             {/* Volumes View */}
@@ -2965,7 +2137,6 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                   }
                 }}
                 disabled={updatingBook}
-                style={{ backgroundColor: '#fbbf24', borderColor: '#fbbf24', color: '#1a202c' }}
               >
                 {updatingBook ? (
                   <>
@@ -2985,7 +2156,6 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
               <Button variant="primary"
                 onClick={handleAddSelectedVolumes}
                 disabled={enrichingVolumes || selectedVolumes.size === 0}
-                style={{ backgroundColor: '#fbbf24', borderColor: '#fbbf24', color: '#1a202c' }}
               >
                 {enrichingVolumes ? (
                   <>
@@ -3004,29 +2174,22 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
               <div className="book-detail-footer-buttons d-flex justify-content-between w-100">
                 <div className="book-detail-footer-left">
                   {book.series && (
-                    <Button icon={<BsPlus />} 
-                      onClick={handleShowVolumes}
-                      style={{ backgroundColor: 'rgba(251, 191, 36, 0.1)', borderColor: '#fbbf24', color: '#fbbf24' }} className="me-2"
-                    >
-                      Add Next Volume
+                    <Button icon={<BsPlus />} onClick={handleShowVolumes} aria-label="Add next volume">
+                      <span className="book-detail-long">Add next volume</span>
+                      <span className="book-detail-short">Volume</span>
                     </Button>
                   )}
                 </div>
                 <div className="book-detail-footer-right">
-                  <Button icon={<BsPencil />} 
-                    onClick={handleShowEdit} className="me-2"
-                  >
-                    Edit
+                  <Button icon={<BsPencil />} onClick={handleShowEdit} aria-label="Edit">
+                    <span className="book-detail-long">Edit</span>
                   </Button>
-                  <Button variant="danger" active={confirmDelete} 
+                  <Button variant="danger" active={confirmDelete} icon={<BsTrash />}
                     ref={deleteBtnRef} 
-                    onClick={handleDelete} className="me-2"
+                    onClick={handleDelete} aria-label={confirmDelete ? 'Confirm Delete' : 'Delete'}
                   >
-                    <BsTrash className="me-2" />
-                    {confirmDelete ? 'Confirm Delete' : 'Delete'}
-                  </Button>
-                  <Button variant="quiet" onClick={handleClose}>
-                    Close
+                    <span className="book-detail-long">{confirmDelete ? 'Confirm Delete' : 'Delete'}</span>
+                    {confirmDelete && <span className="book-detail-short">Sure?</span>}
                   </Button>
                 </div>
               </div>

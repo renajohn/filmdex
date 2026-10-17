@@ -102,7 +102,7 @@ describe('AlbumGuide', () => {
     const onLoaded = vi.fn();
     render(<AlbumGuide albumId={117} onLoaded={onLoaded} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Write one with the local LLM' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Write a listening guide with the local LLM…' }));
     await waitFor(() => expect(onLoaded).toHaveBeenLastCalledWith(true));
     expect(onLoaded).toHaveBeenCalledWith(false);
   });

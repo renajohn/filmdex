@@ -137,9 +137,8 @@ describe('MusicDetailCard', () => {
     render(<MusicDetailCard cd={cd()} onClose={() => {}} onDelete={() => {}} />);
 
     expect(screen.getByRole('button', { name: 'The Beatles' })).toBeInTheDocument();
-    expect(screen.getByText('CD · 3 tracks · 1 h 18 min')).toBeInTheDocument();
-    expect(screen.getByText('2009 · GB · Apple Records')).toBeInTheDocument();
-    expect(screen.getByText('· first 1969-09-26')).toBeInTheDocument();
+    // The object and its edition in one murmur beside the cover.
+    expect(screen.getByText('CD · 3 tracks · 1 h 18 min · 2009 · GB · Apple Records · first 1969-09-26')).toBeInTheDocument();
     expect(screen.queryByText('094638246824')).not.toBeInTheDocument();
     expect(screen.queryByText(/^added /)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'MusicBrainz' })).toHaveAttribute('href', 'https://musicbrainz.org/release/rel-1');
@@ -153,7 +152,7 @@ describe('MusicDetailCard', () => {
     render(<MusicDetailCard cd={cd({ annotation: 'Remastered from the original tapes' })} onClose={() => {}} onDelete={() => {}} />);
 
     expect(screen.queryByText('Remastered from the original tapes')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edition, codes and more' }));
 
     expect(screen.getByText('Remastered from the original tapes')).toBeInTheDocument();
     expect(screen.getByText(/^added /)).toBeInTheDocument();
@@ -162,13 +161,22 @@ describe('MusicDetailCard', () => {
     expect(screen.getByText('rel-1')).toBeInTheDocument();
   });
 
+  it('sums up the ISRC codes in the fold, the first and the last, all of them on a click', () => {
+    render(<MusicDetailCard cd={cd({ isrcCodes: ['GBAYE0601690', 'GBAYE0601691', 'GBAYE0601692', 'GBAYE0601693'] })} onClose={() => {}} onDelete={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edition, codes and more' }));
+    expect(screen.getByText('GBAYE0601690 … GBAYE0601693')).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Show every code'));
+    expect(screen.getByText('GBAYE0601690, GBAYE0601691, GBAYE0601692, GBAYE0601693')).toBeInTheDocument();
+  });
+
   it('leaves out what it does not know, and a first release in the same year', () => {
     render(<MusicDetailCard cd={cd({
       country: undefined, labels: [], catalogNumber: undefined, barcode: undefined, genres: [],
       releaseGroupFirstReleaseDate: '2009-09-09', musicbrainzReleaseId: null, urls: {},
     })} onClose={() => {}} onDelete={() => {}} />);
 
-    expect(screen.getByText('2009')).toBeInTheDocument();
+    expect(screen.getByText('CD · 3 tracks · 1 h 18 min · 2009')).toBeInTheDocument();
     expect(screen.queryByText(/first/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Label/)).not.toBeInTheDocument();
     expect(screen.queryByText('Barcode')).not.toBeInTheDocument();
@@ -181,7 +189,7 @@ describe('MusicDetailCard', () => {
     render(<MusicDetailCard cd={cd()} onClose={() => {}} onDelete={() => {}} />);
 
     await waitFor(() => expect(screen.getByText('Lossless')).toBeInTheDocument());
-    expect(screen.getByText('· FLAC · 16-bit · 44.1 kHz · stereo · 3 of 3 tracks')).toBeInTheDocument();
+    expect(screen.getByText('· 3 of 3 tracks · FLAC · 16-bit · 44.1 kHz · stereo')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Listen' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: 'Apple Music' })).not.toBeInTheDocument();
   });
@@ -216,15 +224,16 @@ describe('MusicDetailCard', () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps the owner\'s facts under Advanced and the edit action in the footer', () => {
+  it('keeps the edition\'s note and the owner\'s facts in the fold, and the edit action in the footer', () => {
     const onEdit = vi.fn();
     render(<MusicDetailCard cd={cd({
       ownership: { condition: 'NM', priceChf: 12, notes: 'Bought at the flea market' },
       editionNotes: '2009 remaster', producer: ['George Martin'],
     })} onClose={() => {}} onDelete={() => {}} onEdit={onEdit} />);
 
+    expect(screen.queryByText('2009 remaster')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Edition, codes and more' }));
     expect(screen.getByText('2009 remaster')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
     expect(screen.getByText('Near Mint · CHF 12')).toBeInTheDocument();
     expect(screen.getByText('Bought at the flea market')).toBeInTheDocument();
     expect(screen.getByText('George Martin')).toBeInTheDocument();

@@ -183,7 +183,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const [isInListenNext, setIsInListenNext] = useState<boolean>(false);
   const [togglingListenNext, setTogglingListenNext] = useState<boolean>(false);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
-  const [showEdition, setShowEdition] = useState<boolean>(false);
+  const [showIsrc, setShowIsrc] = useState<boolean>(false);
   // A front cover whose file would not load: the placeholder takes its place.
   const [coverBroken, setCoverBroken] = useState<boolean>(false);
   // The track whose details are open under its row, as "disc-position".
@@ -524,9 +524,10 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
       <span className={summary.state === 'lossless' ? 'album-head-lossless' : 'album-head-lossy'}>
         {summary.state === 'lossless' ? 'Lossless' : 'Lossy'}
       </span>
+      {/* The count before the format: on a phone the line's end is cut, and the end is the detail. */}
       <span className="album-head-muted">
-        {' · '}{summary.format}
         {trackCount > 0 && ` · ${summary.files} of ${trackCount} tracks`}
+        {' · '}{summary.format}
       </span>
     </>
   );
@@ -547,7 +548,8 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
       steps={{ onPrevious, onNext, noun: 'album' }}
     >
       <Dialog.Body ref={bodyRef}>
-        {/* The head: the cover, who and what, how to listen, then the facts of this edition. */}
+        {/* The head, with no frame of its own (the panel is one): the cover; beside it who and what; under
+            them how to listen, the genres, the stars and the links, a line each; the rest folded in one. */}
         <div className="album-head">
           <div className="album-head-covers">
             {frontCover ? (
@@ -579,104 +581,37 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
             )}
           </div>
 
-          <div className="album-head-identity">
+          {/* Who, then the object and its edition in one murmur: format, tracks, length, year, country, label. */}
+          <div className="album-head-who">
             <button type="button" className="album-head-artist album-head-filter" onClick={() => handleSearch('artist', getArtistDisplay())}>
               {getArtistDisplay()}
             </button>
-            {shape && <div className="album-head-shape">{shape}</div>}
-
+            {(shape || released || labels || original) && (
+              <div className="album-head-shape">
+                {[shape, released, labels, original && `first ${original}`].filter(Boolean).join(' · ')}
+              </div>
+            )}
           </div>
 
-          <dl className="album-head-facts">
-            <Field label="Rating">
-              <span className="album-head-rating">
-                <span className="album-head-stars" role="group" aria-label="Your rating">
-                  {[1, 2, 3, 4, 5].map(value => (
-                    <button
-                      key={value}
-                      type="button"
-                      className={`album-head-star${stars && value <= stars ? ' album-head-star-on' : ''}`}
-                      aria-label={`${value} star${value > 1 ? 's' : ''}`}
-                      aria-pressed={stars === value}
-                      title={stars === value ? 'Take the stars away' : `${value} star${value > 1 ? 's' : ''}`}
-                      onClick={() => rate(value)}
-                    >
-                      {stars && value <= stars ? <BsStarFill aria-hidden="true" /> : <BsStar aria-hidden="true" />}
-                    </button>
-                  ))}
-                </span>
-                {/* The community's rating beside one's own, in a murmur. */}
-                {(cd.musicbrainzReleaseId || cd.urls?.discogs) && (
-                  <span className="album-head-muted">
-                    {typeof community.communityRating === 'number' ? (
-                      <span title={communityDetail(community)}>
-                        <span className="album-head-community">
-                          <BsStarFill aria-hidden="true" /> {community.communityRating.toFixed(1)}
-                        </span>
-                        <span> / 5 · {votesLabel(community.communityVotes ?? 0)}</span>
-                      </span>
-                    ) : (
-                      <span title={communityDetail(community) || undefined}>
-                        {community.communityVotes ? `Too few votes (${community.communityVotes})` : 'No community rating'}
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      className="album-head-refresh"
-                      onClick={refreshMusicBrainz}
-                      disabled={refreshingMb}
-                      aria-label="Refresh the community rating"
-                      title="Reread MusicBrainz and Discogs"
-                    >
-                      <BsArrowClockwise aria-hidden="true" className={refreshingMb ? 'album-head-spinning' : undefined} />
-                    </button>
-                  </span>
-                )}
-              </span>
-              {starsNote && <span className="album-head-note">{starsNote}</span>}
-              {mbError && <span className="album-head-note">{mbError}</span>}
-            </Field>
-            {/* The edition in one line: year and country, its label, the first release only when it is another year. */}
-            {(released || labels || original) && (
-              <Field label="Released">
-                {[released, labels].filter(Boolean).join(' · ')}
-                {original && <span className="album-head-muted">{released || labels ? ' · ' : ''}first {original}</span>}
-              </Field>
-            )}
-            {cd.editionNotes && (
-              <Field label="Edition">
-                <button
-                  type="button"
-                  className={`album-head-clamp${showEdition ? '' : ' album-head-clamped'}`}
-                  aria-expanded={showEdition}
-                  title={showEdition ? undefined : 'Show the whole note'}
-                  onClick={() => setShowEdition(open => !open)}
-                >
-                  {cd.editionNotes}
-                </button>
-              </Field>
-            )}
+          <div className="album-head-rest">
+            {/* How to listen to it: the rip in Navidrome, or with Digital on, the CD missing and the files. */}
             {digital === undefined ? (
-              rip?.configured !== false && <Field label="Navidrome">{ripText}</Field>
+              rip?.configured !== false && <div className="album-head-line">{ripText}</div>
             ) : (
               <>
-                <Field label="Physical">
-                  {hasCd ? (
-                    <>CD{owned && <span className="album-head-muted"> · {owned}</span>}</>
-                  ) : (
-                    <span className="album-head-physical">
-                      <span className="album-head-muted">{cd.titleStatus === 'wish' ? 'No CD · on your wish list' : 'No CD'}</span>
-                      {/* The box below holds the heart when there is something to decide. */}
-                      {onWish && digital.album && !(isToBuy(digital.album) || cd.titleStatus === 'wish') && (
-                        <button type="button" className="album-head-link" onClick={onWish} aria-pressed={cd.titleStatus === 'wish'}>
-                          {cd.titleStatus === 'wish' ? <BsHeartFill aria-hidden="true" /> : <BsHeart aria-hidden="true" />}
-                          {cd.titleStatus === 'wish' ? 'Wished' : 'Add to wishlist'}
-                        </button>
-                      )}
-                    </span>
-                  )}
-                </Field>
-                <Field label="Digital">
+                {!hasCd && (
+                  <div className="album-head-line album-head-physical">
+                    <span className="album-head-muted">{cd.titleStatus === 'wish' ? 'No CD · on your wish list' : 'No CD'}</span>
+                    {/* The box below holds the heart when there is something to decide. */}
+                    {onWish && digital.album && !(isToBuy(digital.album) || cd.titleStatus === 'wish') && (
+                      <button type="button" className="album-head-link" onClick={onWish} aria-pressed={cd.titleStatus === 'wish'}>
+                        {cd.titleStatus === 'wish' ? <BsHeartFill aria-hidden="true" /> : <BsHeart aria-hidden="true" />}
+                        {cd.titleStatus === 'wish' ? 'Wished' : 'Add to wishlist'}
+                      </button>
+                    )}
+                  </div>
+                )}
+                <div className="album-head-line">
                   {digital.album ? (
                     <>
                       <span className={isLossy(digital.album) ? 'album-head-lossy' : 'album-head-lossless'}>{formatLabel(digital.album)}</span>
@@ -687,69 +622,117 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                       {isLossy(digital.album) && hasCd && <span className="album-head-lossy"> · rip the CD again</span>}
                     </>
                   ) : digital.notRipped ? <span className="album-head-muted">Not ripped yet.</span> : ripText}
-                </Field>
+                </div>
               </>
             )}
+
             {cd.genres && cd.genres.length > 0 && (
-              <Field label="Genres">
+              <div className="album-head-line album-head-genres">
                 {cd.genres.map((genre: string, index: number) => (
                   <React.Fragment key={genre}>
-                    {index > 0 && ', '}
+                    {index > 0 && ' · '}
                     <button type="button" className="album-head-filter" onClick={() => handleSearch('genre', genre)}>{genre}</button>
                   </React.Fragment>
                 ))}
-              </Field>
+              </div>
             )}
-            {(cd.musicbrainzReleaseId || links.length > 0) && (
-              <Field label="Links">
-                <span className="album-head-links">
-                  {cd.musicbrainzReleaseId && (
-                    <a
-                      className="album-head-link"
-                      href={`https://musicbrainz.org/release/${cd.musicbrainzReleaseId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      MusicBrainz
-                      <BsBoxArrowUpRight aria-hidden="true" />
-                    </a>
+
+            {/* One's own stars, the community's in a murmur beside them: one line, its end cut rather than wrapped. */}
+            <div className="album-head-rating">
+              <span className="album-head-stars" role="group" aria-label="Your rating">
+                {[1, 2, 3, 4, 5].map(value => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`album-head-star${stars && value <= stars ? ' album-head-star-on' : ''}`}
+                    aria-label={`${value} star${value > 1 ? 's' : ''}`}
+                    aria-pressed={stars === value}
+                    title={stars === value ? 'Take the stars away' : `${value} star${value > 1 ? 's' : ''}`}
+                    onClick={() => rate(value)}
+                  >
+                    {stars && value <= stars ? <BsStarFill aria-hidden="true" /> : <BsStar aria-hidden="true" />}
+                  </button>
+                ))}
+              </span>
+              {(cd.musicbrainzReleaseId || cd.urls?.discogs) && (
+                <span className="album-head-muted album-head-community-line">
+                  {typeof community.communityRating === 'number' ? (
+                    <span className="album-head-cut" title={communityDetail(community)}>
+                      <span className="album-head-community">
+                        <BsStarFill aria-hidden="true" /> {community.communityRating.toFixed(1)}
+                      </span>
+                      <span> / 5 · {votesLabel(community.communityVotes ?? 0)}</span>
+                    </span>
+                  ) : (
+                    <span className="album-head-cut" title={communityDetail(community) || undefined}>
+                      {community.communityVotes ? `Too few votes (${community.communityVotes})` : 'No community rating'}
+                    </span>
                   )}
-                  {links.map(([key, url]) => (
-                    <a key={key} className="album-head-link" href={url} target="_blank" rel="noopener noreferrer">
-                      {urlLabel(key)}
-                      <BsBoxArrowUpRight aria-hidden="true" />
-                    </a>
-                  ))}
-                  {cd.musicbrainzReleaseId && canUsePicard() && (
-                    <button
-                      type="button"
-                      className="album-head-link"
-                      onClick={() => openInPicard(cd.musicbrainzReleaseId!)}
-                      title="Load this exact edition in MusicBrainz Picard, open on this computer"
-                    >
-                      <BsTags aria-hidden="true" />
-                      Tag in Picard
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className="album-head-refresh"
+                    onClick={refreshMusicBrainz}
+                    disabled={refreshingMb}
+                    aria-label="Refresh the community rating"
+                    title="Reread MusicBrainz and Discogs"
+                  >
+                    <BsArrowClockwise aria-hidden="true" className={refreshingMb ? 'album-head-spinning' : undefined} />
+                  </button>
                 </span>
-              </Field>
+              )}
+            </div>
+            {starsNote && <div className="album-head-note">{starsNote}</div>}
+            {mbError && <div className="album-head-note">{mbError}</div>}
+
+            {(cd.musicbrainzReleaseId || links.length > 0) && (
+              <div className="album-head-links">
+                {cd.musicbrainzReleaseId && (
+                  <a
+                    className="album-head-link"
+                    href={`https://musicbrainz.org/release/${cd.musicbrainzReleaseId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    MusicBrainz
+                    <BsBoxArrowUpRight aria-hidden="true" />
+                  </a>
+                )}
+                {links.map(([key, url]) => (
+                  <a key={key} className="album-head-link" href={url} target="_blank" rel="noopener noreferrer">
+                    {urlLabel(key)}
+                    <BsBoxArrowUpRight aria-hidden="true" />
+                  </a>
+                ))}
+                {cd.musicbrainzReleaseId && canUsePicard() && (
+                  <button
+                    type="button"
+                    className="album-head-link"
+                    onClick={() => openInPicard(cd.musicbrainzReleaseId!)}
+                    title="Load this exact edition in MusicBrainz Picard, open on this computer"
+                  >
+                    <BsTags aria-hidden="true" />
+                    Tag in Picard
+                  </button>
+                )}
+              </div>
             )}
-            {/* What is rarely wanted, folded away: the credits, the copy owned, the codes, the old notes. */}
-            <dt>Advanced</dt>
-            <dd>
-              <button
-                type="button"
-                className="album-head-link album-head-toggle"
-                aria-expanded={showAdvanced}
-                aria-controls={`album-advanced-${cd.id}`}
-                onClick={() => setShowAdvanced(open => !open)}
-              >
-                <BsChevronRight aria-hidden="true" className={showAdvanced ? 'album-head-chevron-open' : undefined} />
-                {showAdvanced ? 'Hide' : 'Show'}
-              </button>
-            </dd>
+          </div>
+
+          {/* What is rarely wanted, in one fold: the edition's note, the credits, the copy owned, the codes, the old notes. */}
+          <div className="album-head-more">
+            <button
+              type="button"
+              className="album-head-link album-head-toggle"
+              aria-expanded={showAdvanced}
+              aria-controls={`album-advanced-${cd.id}`}
+              onClick={() => setShowAdvanced(open => !open)}
+            >
+              <BsChevronRight aria-hidden="true" className={showAdvanced ? 'album-head-chevron-open' : undefined} />
+              Edition, codes and more
+            </button>
             {showAdvanced && (
-              <div className="album-head-advanced" id={`album-advanced-${cd.id}`}>
+              <dl className="album-head-facts" id={`album-advanced-${cd.id}`}>
+                {cd.editionNotes && <Field label="Edition"><span className="album-head-annotation">{cd.editionNotes}</span></Field>}
                 {cd.producer && cd.producer.length > 0 && (
                   <Field label={cd.producer.length > 1 ? 'Producers' : 'Producer'}>{cd.producer.join(', ')}</Field>
                 )}
@@ -774,7 +757,17 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                 {cd.catalogNumber && <Field label="Catalogue no."><code className="album-head-code">{cd.catalogNumber}</code></Field>}
                 {cd.barcode && <Field label="Barcode"><code className="album-head-code">{cd.barcode}</code></Field>}
                 {cd.isrcCodes && cd.isrcCodes.length > 0 && (
-                  <Field label="ISRC"><code className="album-head-code">{cd.isrcCodes.join(', ')}</code></Field>
+                  <Field label="ISRC">
+                    {/* One per track: the first and the last, all of them on a click. */}
+                    {cd.isrcCodes.length > 3 && !showIsrc ? (
+                      <button type="button" className="album-head-clamp" title="Show every code" onClick={() => setShowIsrc(true)}>
+                        <code className="album-head-code">{cd.isrcCodes[0]} … {cd.isrcCodes[cd.isrcCodes.length - 1]}</code>
+                        <span className="album-head-muted"> ({cd.isrcCodes.length}, one per track)</span>
+                      </button>
+                    ) : (
+                      <code className="album-head-code">{cd.isrcCodes.join(', ')}</code>
+                    )}
+                  </Field>
                 )}
                 {cd.musicbrainzReleaseId && (
                   <Field label="MusicBrainz"><code className="album-head-code">{cd.musicbrainzReleaseId}</code></Field>
@@ -782,9 +775,9 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                 {cd.annotation && (
                   <Field label="Album notes"><span className="album-head-annotation">{cd.annotation}</span></Field>
                 )}
-              </div>
+              </dl>
             )}
-          </dl>
+          </div>
         </div>
 
         {digital?.album && !hasCd && (isToBuy(digital.album) || cd.titleStatus === 'wish') && (
@@ -833,12 +826,9 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
         </div>
         <AlbumStory albumId={cd.id} open={showStory} />
 
-        {/* Track Listing */}
+        {/* The tracks need no title: a line above them says where they start. */}
         {discs.length > 0 && (
-          <div className="info-section">
-            <div className="track-listing-header">
-              <h4>Track Listing</h4>
-            </div>
+          <div className="album-tracks">
             {discs.map((disc: CdDisc, discIndex: number) => {
               const credits = discsCredits[discIndex];
               // The movements of a work go under its heading, which says who wrote and who plays them all;

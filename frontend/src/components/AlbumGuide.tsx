@@ -183,11 +183,11 @@ const AlbumGuide: React.FC<AlbumGuideProps> = ({ albumId, onLoaded }) => {
     return (
       <div className="info-section album-guide album-guide-empty">
         {writing || (
+          // No guide yet: no part of its own to say so, a quiet line to write one.
           <p className="album-guide-muted small mb-0">
-            No listening guide yet.{' '}
-            <Button variant="quiet" size="sm" className="album-guide-action" onClick={write}>Write one with the local LLM</Button>
+            <Button variant="quiet" size="sm" className="album-guide-action" onClick={write}>Write a listening guide with the local LLM…</Button>
             {' · '}
-            <Button variant="quiet" size="sm" className="album-guide-action" onClick={() => setEditing('')}>Write it yourself</Button>
+            <Button variant="quiet" size="sm" className="album-guide-action" onClick={() => setEditing('')}>Write it yourself…</Button>
           </p>
         )}
         {error && <p className="album-guide-error">{error}</p>}
