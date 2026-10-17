@@ -1,25 +1,5 @@
 /* AlphabeticalIndex - iOS-style quick navigation */
 
-/* Invisible hover zone on right edge to trigger index appearance */
-.alpha-index-hover-zone {
-  position: fixed;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 40px;
-  z-index: 99;
-  pointer-events: auto;
-  /* Uncomment to debug: */
-  /* background: rgba(255, 0, 0, 0.1); */
-}
-
-/* Hide hover zone on touch devices */
-@media (pointer: coarse) {
-  .alpha-index-hover-zone {
-    display: none;
-  }
-}
-
 .alpha-index {
   position: fixed;
   right: 4px;
@@ -147,10 +127,6 @@
 /* Dynamic scrollbar detection - shift when scrollbar is present */
 .alpha-index.has-scrollbar {
   right: 20px; /* Clear the scrollbar (~17px) */
-}
-
-.alpha-index-hover-zone.has-scrollbar {
-  width: 56px; /* Wider hover zone to account for scrollbar */
 }
 
 /* Mobile optimizations */

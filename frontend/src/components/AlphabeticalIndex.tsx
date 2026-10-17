@@ -10,6 +10,9 @@ interface AlphabeticalIndexProps {
   disabled?: boolean;
 }
 
+// Distance from the right edge, past any scrollbar, at which the mouse shows the index
+const EDGE_ZONE_WIDTH = 40;
+
 /**
  * AlphabeticalIndex - iOS-style alphabetical quick navigation
  */
@@ -28,7 +31,7 @@ const AlphabeticalIndex = ({
   const [isHovering, setIsHovering] = useState<boolean>(false);
   const [hasScrollbar, setHasScrollbar] = useState<boolean>(false);
   const indexRef = useRef<HTMLDivElement>(null);
-  const hoverZoneRef = useRef<HTMLDivElement>(null);
+  const nearEdgeRef = useRef<boolean>(false);
   const letterRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -118,17 +121,44 @@ const AlphabeticalIndex = ({
     }
   }, [scrollContainer, isDragging]);
 
-  // Detect scrollbar presence
+  // Show the index when the mouse nears the right edge. A listener rather than an
+  // invisible strip laid over the page, which ate the clicks meant for the covers there.
+  useEffect(() => {
+    if (!shouldShow) return;
+
+    const setNearEdge = (near: boolean) => {
+      if (near === nearEdgeRef.current) return;
+      nearEdgeRef.current = near;
+      if (near) handleHoverEnter();
+      else handleHoverLeave();
+    };
+
+    const handlePointerMove = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') return;
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      setNearEdge(window.innerWidth - e.clientX <= EDGE_ZONE_WIDTH + scrollbarWidth);
+    };
+    const handleMouseLeaveWindow = () => setNearEdge(false);
+
+    document.addEventListener('pointermove', handlePointerMove, { passive: true });
+    document.documentElement.addEventListener('mouseleave', handleMouseLeaveWindow);
+    return () => {
+      document.removeEventListener('pointermove', handlePointerMove);
+      document.documentElement.removeEventListener('mouseleave', handleMouseLeaveWindow);
+    };
+  }, [shouldShow, handleHoverEnter, handleHoverLeave]);
+
+  // Detect a scrollbar that takes room (macOS overlay scrollbars take none)
   useEffect(() => {
     if (!scrollContainer) return;
 
     const checkScrollbar = () => {
       if (scrollContainer === document.documentElement) {
         // For window/document scrolling
-        setHasScrollbar(document.documentElement.scrollHeight > window.innerHeight);
+        setHasScrollbar(window.innerWidth > document.documentElement.clientWidth);
       } else {
         // For custom scroll container
-        setHasScrollbar(scrollContainer.scrollHeight > scrollContainer.clientHeight);
+        setHasScrollbar(scrollContainer.offsetWidth > scrollContainer.clientWidth);
       }
     };
 
@@ -431,14 +461,6 @@ const AlphabeticalIndex = ({
 
   return (
     <>
-      {/* Invisible hover zone on right edge */}
-      <div
-        ref={hoverZoneRef}
-        className={`alpha-index-hover-zone ${hasScrollbar ? 'has-scrollbar' : ''}`}
-        onMouseEnter={handleHoverEnter}
-        onMouseLeave={handleHoverLeave}
-      />
-
       {/* Letter feedback indicator */}
       {activeLetter && isDragging && (
         <div className="alpha-index-feedback">
@@ -454,8 +476,6 @@ const AlphabeticalIndex = ({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onMouseDown={handleMouseDown}
-        onMouseEnter={handleHoverEnter}
-        onMouseLeave={handleHoverLeave}
       >
         {allLetters.map(letter => {
           const isAvailable = availableLetters.has(letter);
