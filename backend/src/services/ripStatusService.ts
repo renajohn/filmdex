@@ -197,17 +197,39 @@ export interface Library { albums: NavidromeAlbum[]; songs: NavidromeSong[]; len
 const CACHE_MS = 60_000;
 let cache: { at: number; albums: NavidromeAlbum[]; songs: NavidromeSong[]; lengths: Map<string, number[]> } | null = null;
 
-/** Navidrome, read at most once a minute, with the track lengths of the CDs as they stand now. */
-const library = async (): Promise<Library> => {
-  if (!cache || Date.now() - cache.at >= CACHE_MS) {
+/** The reading under way, with a token of its own: a sync forgets it by changing the token. */
+let reading: { token: object; done: Promise<void> } | null = null;
+const readingToken = (): object | undefined => reading?.token;
+
+/** Reads Navidrome anew, once at a time however many ask. */
+const reread = (): Promise<void> => {
+  if (reading) return reading.done;
+  const token = {};
+  const done = (async () => {
     const [albums, songs] = await Promise.all([navidromeService.getAlbums(), navidromeService.getSongs()]);
+    // A sync asked for a fresher reading meanwhile: this one is not kept.
+    if (readingToken() !== token) return;
     cache = { at: Date.now(), albums, songs, lengths: navidromeTrackLengths(songs) };
     // Every fresh reading notes what was listened to since the last one.
     await listenHistoryService.record(songs).catch(error =>
       logger.warn(`Plays not noted from Navidrome: ${(error as Error).message}`));
+  })().finally(() => { if (readingToken() === token) reading = null; });
+  reading = { token, done };
+  return done;
+};
+
+/**
+ * Navidrome with the track lengths of the CDs as they stand now. A reading
+ * older than a minute is answered at once and read anew behind it, so no page
+ * waits for Navidrome but the first one after a start or a sync.
+ */
+const library = async (): Promise<Library> => {
+  if (!cache) await reread();
+  else if (Date.now() - cache.at >= CACHE_MS) {
+    reread().catch(error => logger.warn(`Navidrome not read anew: ${(error as Error).message}`));
   }
   // The reading in hand: a sync may clear the cache while the CDs' lengths are read.
-  const read = cache;
+  const read = cache!;
   return { albums: read.albums, songs: read.songs, lengths: { cd: await cdTrackLengths(), navidrome: read.lengths } };
 };
 
@@ -225,7 +247,8 @@ const bestCopy = (album: AlbumFormatted, navidrome: Library): NavidromeAlbum | n
 
 const ripStatusService = {
   /** Forgets the library read from Navidrome, for a refresh right after a rip. */
-  clearCache: (): void => { cache = null; },
+  /** Forgets the reading, and any under way: the next one is made anew (the Refresh of the Digital page). */
+  clearCache: (): void => { cache = null; reading = null; },
 
   /** Navidrome's albums and songs, read at most once a minute. */
   library,
@@ -233,6 +256,7 @@ const ripStatusService = {
   /** Reads Navidrome again now, which notes the plays since the last reading. */
   refreshLibrary: async (): Promise<void> => {
     cache = null;
+    reading = null;
     await library();
   },
 

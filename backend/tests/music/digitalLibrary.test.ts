@@ -44,6 +44,27 @@ beforeEach(() => {
 
 afterEach(() => jest.restoreAllMocks());
 
+describe('lecture de Navidrome', () => {
+  it('sert tout de suite une lecture de plus d’une minute et relit Navidrome derrière, une seule fois', async () => {
+    const id = `nd-${tag()}`;
+    mockLibrary([album(id, 'Play')], tracks(id, [0]));
+    expect(await libraryAlbum(id)).toBeTruthy();
+
+    // A minute later Navidrome is slow: the page does not wait for it.
+    const realNow = Date.now;
+    jest.spyOn(Date, 'now').mockReturnValue(realNow() + 61_000);
+    let answer: (songs: NavidromeSong[]) => void = () => undefined;
+    const songs = jest.spyOn(navidromeService, 'getSongs').mockReturnValue(new Promise(resolve => { answer = resolve; }));
+    songs.mockClear();
+    const again = await Promise.race([libraryAlbum(id), new Promise(resolve => setTimeout(() => resolve('waited'), 2000))]);
+    await libraryAlbum(id);
+
+    expect(again).toMatchObject({ name: 'Play' });
+    expect(songs).toHaveBeenCalledTimes(1);
+    answer(tracks(id, [0]));
+  });
+});
+
 describe('relevé des écoutes', () => {
   const now = new Date('2026-10-15T12:00:00');
 
