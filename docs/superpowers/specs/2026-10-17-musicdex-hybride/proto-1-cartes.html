@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MusicDex hybride — cartes</title>
+<style>
+  :root { --gold:#fbbf24; --lossless:#34d399; --near:#a3e635; --lossy:#f59e0b; --bad:#f87171; --muted:#a3a3a3; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#eaeaea;
+         background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%); background-attachment:fixed; min-height:100vh; }
+  .proto { position:sticky; top:0; z-index:50; background:#0d0d0d; border-bottom:1px solid #333; padding:8px 16px;
+           display:flex; gap:8px; flex-wrap:wrap; align-items:center; font-size:13px; }
+  .proto b { color:var(--gold); margin-right:4px; }
+  .proto button { background:#222; color:#ddd; border:1px solid #444; border-radius:6px; padding:5px 10px; cursor:pointer; }
+  .proto button.on { background:var(--gold); color:#111; border-color:var(--gold); font-weight:600; }
+  .proto .desc { color:#999; flex-basis:100%; }
+  main { max-width:1280px; margin:0 auto; padding:16px; }
+  .head { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
+  .head h2 { margin:0; font-size:22px; }
+  .head .count { color:var(--muted); font-size:14px; }
+  .controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .controls select { background:#2a2a2a; color:#ddd; border:1px solid #444; border-radius:8px; padding:6px 8px; }
+  .switch { display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none; background:#2a2a2a;
+            border:1px solid #444; border-radius:999px; padding:5px 12px 5px 6px; font-size:14px; }
+  .switch .knob { width:34px; height:20px; border-radius:10px; background:#555; position:relative; transition:background .2s; }
+  .switch .knob::after { content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; transition:left .2s; }
+  .switch.on { border-color:var(--gold); }
+  .switch.on .knob { background:var(--gold); }
+  .switch.on .knob::after { left:16px; }
+  .digital-only-ui { display:none; }
+  body.hybrid .digital-only-ui { display:block; }
+  .qbar { margin-top:14px; height:8px; border-radius:4px; overflow:hidden; display:flex; background:#333; }
+  .qbar span { display:block; height:100%; }
+  .qlegend { font-size:12px; color:var(--muted); margin-top:6px; display:flex; gap:14px; flex-wrap:wrap; }
+  .qlegend i { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .chip { background:#2a2a2a; border:1px solid #444; color:#ddd; border-radius:999px; padding:5px 12px; font-size:13px; cursor:pointer; }
+  .chip.on { background:rgba(251,191,36,.18); border-color:var(--gold); color:var(--gold); }
+  .chip em { font-style:normal; color:var(--muted); margin-left:4px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:24px 18px; margin-top:24px; }
+  @media (max-width:600px){ .grid { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:18px 12px; } }
+  .card { position:relative; cursor:pointer; }
+  .cover { position:relative; aspect-ratio:1/1; border-radius:12px; overflow:hidden; background:#111;
+           box-shadow:0 6px 16px rgba(0,0,0,.18); transition:transform .25s, box-shadow .25s; }
+  .card:hover .cover { transform:scale(1.02); box-shadow:0 12px 30px rgba(0,0,0,.25); }
+  .cover img { width:100%; height:100%; object-fit:cover; display:block; }
+  .shelf { position:absolute; top:8px; right:8px; font:600 11px ui-monospace,monospace; background:rgba(0,0,0,.65);
+           color:#eee; border-radius:6px; padding:2px 6px; }
+  .hov { position:absolute; bottom:8px; width:34px; height:34px; border-radius:50%; background:rgba(0,0,0,.7);
+         display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .2s; font-size:14px; }
+  .card:hover .hov { opacity:1; }
+  .hov.play { left:8px; } .hov.ln { right:8px; color:var(--gold); }
+  .info { padding:10px 4px 0; }
+  .t { font-size:.95rem; font-weight:600; margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .a { font-size:.82rem; color:var(--muted); margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* ---------- Variante A : pastilles en haut à gauche ---------- */
+  .pills { display:none; position:absolute; top:8px; left:8px; gap:4px; flex-wrap:wrap; max-width:70%; }
+  body.hybrid.vA .pills { display:flex; }
+  .pill { font:700 10px/1 -apple-system,sans-serif; letter-spacing:.03em; padding:4px 6px; border-radius:5px;
+          background:rgba(0,0,0,.72); color:#eee; backdrop-filter:blur(6px); }
+  .pill.cd { background:rgba(255,255,255,.88); color:#111; }
+  .pill.lossless { color:var(--lossless); } .pill.near { color:var(--near); } .pill.lossy { color:var(--lossy); }
+  .pill.none { color:#bbb; font-weight:600; }
+  .pill.buy { background:var(--gold); color:#111; }
+  .pill.wish { background:rgba(251,191,36,.25); color:var(--gold); border:1px solid var(--gold); }
+
+  /* ---------- Variante B : CD qui dépasse du boîtier, digital plat ---------- */
+  body.hybrid.vB .card.has-cd .cover-wrap { position:relative; padding-right:12%; }
+  body.hybrid.vB .card.has-cd .disc { display:block; }
+  .disc { display:none; position:absolute; top:4%; right:0; width:92%; aspect-ratio:1/1; border-radius:50%;
+          background: radial-gradient(circle, #1a1a1a 0 7%, #c9c9c9 7.5% 9%, transparent 9.5%),
+                      conic-gradient(from 30deg, #d9d9d9, #9fb4c7, #e8d9f0, #c7e0d0, #d9d9d9, #b7c2d6, #d9d9d9);
+          box-shadow:0 4px 10px rgba(0,0,0,.4); }
+  body.hybrid.vB .card.has-cd .cover { z-index:1; }
+  body.hybrid.vB .card.digital .cover { border-radius:16px; outline:1.5px dashed rgba(255,255,255,.35); outline-offset:3px; box-shadow:none; }
+  .edge { display:none; position:absolute; left:0; right:0; bottom:0; height:4px; }
+  body.hybrid.vB .edge, body.hybrid.vD .edge { display:block; }
+  .edge.lossless { background:var(--lossless); } .edge.near { background:var(--near); } .edge.lossy { background:var(--lossy); }
+  .edge.none { background:transparent; }
+  .vbtag { display:none; }
+  body.hybrid.vB .vbtag { display:inline; }
+
+  /* ---------- Variante C : ligne d'état sous l'artiste ---------- */
+  .state { display:none; font-size:.76rem; margin:4px 0 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--muted); }
+  body.hybrid.vC .state, body.hybrid.vD .state { display:block; }
+  .state .lossless { color:var(--lossless); } .state .near { color:var(--near); } .state .lossy { color:var(--lossy); }
+  .state .buy { color:var(--gold); font-weight:600; } .state .nocd { color:#93c5fd; }
+
+  /* ---------- Variante D : coin replié (digital seul) + liseré + ligne ---------- */
+  .fold { display:none; position:absolute; top:0; left:0; width:30px; height:30px;
+          background:linear-gradient(135deg, #93c5fd 0 50%, transparent 50%); }
+  body.hybrid.vD .card.digital .fold { display:block; }
+  body.hybrid.vD .card.digital .cover img { filter:saturate(.75); }
+  body.hybrid.vD .card.buyme .cover { box-shadow:0 0 0 2px var(--gold), 0 6px 16px rgba(0,0,0,.18); }
+
+  body:not(.hybrid) .card.digital { display:none; }
+  .card.filtered { display:none !important; }
+  .legend { margin-top:30px; font-size:13px; color:var(--muted); line-height:1.6; border-top:1px solid #333; padding-top:14px; }
+</style>
+</head>
+<body class="hybrid vA">
+<div class="proto">
+  <b>Prototype 1</b>
+  <button data-v="vA" class="on">A · Pastilles</button>
+  <button data-v="vB">B · CD qui dépasse</button>
+  <button data-v="vC">C · Ligne d'état</button>
+  <button data-v="vD">D · Coin replié + liseré</button>
+  <span class="desc" id="desc"></span>
+</div>
+<main>
+  <div class="head">
+    <div><h2>MusicDex</h2><div class="count" id="count"></div></div>
+    <div class="controls">
+      <label class="switch on" id="sw"><span class="knob"></span>Digital</label>
+      <select><option>Sort: Artist</option></select>
+      <select><option>Group: None</option></select>
+    </div>
+  </div>
+  <div class="digital-only-ui">
+    <div class="qbar"><span style="width:58%;background:var(--lossless)"></span><span style="width:4%;background:var(--near)"></span><span style="width:30%;background:var(--lossy)"></span><span style="width:8%;background:#555"></span></div>
+    <div class="qlegend"><span><i style="background:var(--lossless)"></i>Lossless 192</span><span><i style="background:var(--near)"></i>Near 12</span><span><i style="background:var(--lossy)"></i>Lossy 97</span><span><i style="background:#555"></i>Not ripped 26</span></div>
+    <div class="chips" id="chips">
+      <span class="chip on" data-f="all">All</span>
+      <span class="chip" data-f="buy">Buy<em>24</em></span>
+      <span class="chip" data-f="lossless">Lossless</span>
+      <span class="chip" data-f="lossy">Lossy</span>
+      <span class="chip" data-f="nocd">No CD</span>
+      <span class="chip" data-f="physical">Physical only</span>
+    </div>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="legend">Données fictives sur de vraies pochettes. États montrés : CD non rippé (Souchon, Cabrel), CD + FLAC, CD + MP3 (Kaas « Sexe fort », Chapman), digital seul MP3 / FLAC / ALAC, digital seul suggéré à l'achat (Norah Jones, Hobo), digital seul en wishlist (Franz Ferdinand, Echoes).<br>
+  Le bouton « Digital » éteint fait disparaître tout ce qui n'est pas un CD et toute marque d'état : c'est la page Physical actuelle.</div>
+</main>
+<script>
+const IMG = 'file:///Users/rjl/Projects/filmdex/data/images/cd/';
+// cd: possède le CD ; q: qualité du digital (null = pas de rip) ; buy: 'suggest' | 'wish'
+const A = [
+  ['album_5_1760719629257.jpg','The Rise and Fall of Ziggy Stardust','David Bowie',{cd:true,q:'lossless',ql:'FLAC',shelf:'A-1'}],
+  ['album_a3b62e6e-92f9-4e76-a518-1a9e43d910c6_front_1764259041428.jpg','Love Over Gold','Dire Straits',{cd:true,q:'lossless',ql:'FLAC',shelf:'A-2'}],
+  ['album_ec96fee1-48af-4c11-b528-ce89ee67f2e1_front_1791094810817.jpg','New Beginning','Tracy Chapman',{cd:true,q:'lossy',ql:'MP3 192',shelf:'B-4'}],
+  ['album_506fe9cf-29c6-4318-9070-da9463f51617_front_1792221890427.jpg','Come Away With Me','Norah Jones',{cd:false,q:'lossy',ql:'MP3 128',buy:'suggest',why:'14 plays · 90 d'}],
+  ['album_84_1760719600202.jpg','C’est déjà ça','Alain Souchon',{cd:true,q:null,shelf:'A-1'}],
+  ['album_27_1760719645420.jpg','The Way We Walk, Vol. 2','Genesis',{cd:false,q:'lossless',ql:'FLAC'}],
+  ['album_f5229c40-d183-41b9-a88c-01b2059201b7_front_1769880628692.jpg','Tonight: Franz Ferdinand','Franz Ferdinand',{cd:false,q:'lossy',ql:'MP3 160',buy:'wish'}],
+  ['album_49_1760719609302.jpg','Santo Spirito Blues','Chris Rea',{cd:true,q:'lossless',ql:'FLAC',shelf:'A-1'}],
+  ['album_4351e12c-0569-473e-8d20-5323490eb964_front_1790973406540.jpg','Hobo','Charlie Winston',{cd:false,q:'lossy',ql:'MP3 192',buy:'suggest',why:'★★★★'}],
+  ['album_9_1760719702812.jpg','Absolution','Muse',{cd:true,q:'lossless',ql:'FLAC 24/96',shelf:'B-2'}],
+  ['custom/navidrome_186_1791273506647.jpg','Mezzanine','Massive Attack',{cd:true,q:'lossless',ql:'FLAC',shelf:'B-1'}],
+  ['album_92_1760719729285.jpg','Dans ma chair','Patricia Kaas',{cd:false,q:'lossy',ql:'MP3 128'}],
+  ['album_87_1760719740103.jpg','Sexe fort','Patricia Kaas',{cd:true,q:'lossy',ql:'MP3 128',shelf:'B-3'}],
+  ['album_2f20400c-7f89-3226-8506-77246a6d8653_front_1761163069670.jpg','A Momentary Lapse of Reason','Pink Floyd',{cd:true,q:'lossless',ql:'FLAC',shelf:'B-3'}],
+  ['album_86_1760719640008.jpg','Samedi soir sur la Terre','Francis Cabrel',{cd:true,q:null,shelf:'A-1'}],
+  ['album_33_1760719753116.jpg','Echoes: The Best of Pink Floyd','Pink Floyd',{cd:false,q:'lossless',ql:'ALAC',buy:'wish'}],
+];
+const grid = document.getElementById('grid');
+A.forEach(([img,t,a,s]) => {
+  const el = document.createElement('div');
+  el.className = 'card ' + (s.cd ? 'has-cd' : 'digital') + (s.buy ? ' buyme' : '');
+  el.dataset.q = s.q || 'none'; el.dataset.cd = s.cd; el.dataset.buy = s.buy || '';
+  const pills = [];
+  if (s.cd) pills.push('<span class="pill cd">CD</span>');
+  if (s.q) pills.push(`<span class="pill ${s.q}">${s.cd ? '' : '☁ '}${s.ql}</span>`);
+  else pills.push('<span class="pill none">not ripped</span>');
+  if (s.buy === 'suggest') pills.push('<span class="pill buy">Buy</span>');
+  if (s.buy === 'wish') pills.push('<span class="pill wish">♡ Wish</span>');
+  let state;
+  if (s.cd) state = `💿 CD · ${s.q ? `<span class="${s.q}">${s.ql}</span>` : 'not ripped'}`;
+  else state = `<span class="nocd">☁ No CD</span> · <span class="${s.q}">${s.ql}</span>` +
+               (s.buy === 'suggest' ? ` · <span class="buy">Buy · ${s.why}</span>` : s.buy === 'wish' ? ' · <span class="buy">♡ Wish</span>' : '');
+  el.innerHTML = `
+    <div class="cover-wrap"><div class="disc"></div>
+      <div class="cover"><img src="${IMG}${img}" alt="">
+        <div class="fold"></div>
+        <div class="pills">${pills.join('')}</div>
+        ${s.shelf ? `<span class="shelf">${s.shelf}</span>` : ''}
+        <span class="hov play">▶</span><span class="hov ln">☆</span>
+        <div class="edge ${s.q || 'none'}"></div>
+      </div></div>
+    <div class="info"><h6 class="t">${t}</h6><p class="a">${a}</p><p class="state">${state}</p></div>`;
+  grid.appendChild(el);
+});
+const DESC = {
+  vA: 'A : des pastilles dans le coin haut-gauche de la pochette (CD blanc, qualité colorée, ☁ si pas de CD, Buy/Wish dorés). Le code d\'étagère reste à droite.',
+  vB: 'B : un CD possédé a un disque qui dépasse derrière la pochette ; un album sans CD est plat, entouré de pointillés. Liseré coloré en bas = qualité du rip.',
+  vC: 'C : pochettes intactes, une troisième ligne sous l\'artiste dit tout en texte : « 💿 CD · FLAC », « ☁ No CD · MP3 128 · Buy · 14 plays ».',
+  vD: 'D : coin bleu replié + couleurs un peu éteintes pour le digital seul, liseré de qualité, contour doré pour ce qui est à acheter, et la ligne d\'état de C.',
+};
+const body = document.body;
+function setV(v){ body.classList.remove('vA','vB','vC','vD'); body.classList.add(v);
+  document.querySelectorAll('.proto button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  document.getElementById('desc').textContent = DESC[v]; }
+document.querySelectorAll('.proto button').forEach(b=>b.onclick=()=>setV(b.dataset.v));
+setV('vA');
+const sw = document.getElementById('sw');
+function count(){ const vis=[...grid.children].filter(c=>getComputedStyle(c).display!=='none');
+  const cds=vis.filter(c=>c.dataset.cd==='true').length;
+  document.getElementById('count').textContent = body.classList.contains('hybrid') ? `${cds} CDs · ${vis.length-cds} digital only` : `${cds} CDs`; }
+sw.onclick = () => { sw.classList.toggle('on'); body.classList.toggle('hybrid'); if(!body.classList.contains('hybrid')) filt('all'); count(); };
+function filt(f){ document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.f===f));
+  [...grid.children].forEach(c=>{ const d=c.dataset; let ok=true;
+    if(f==='buy') ok=!!d.buy; if(f==='lossless') ok=d.q==='lossless'; if(f==='lossy') ok=d.q==='lossy';
+    if(f==='nocd') ok=d.cd==='false'; if(f==='physical') ok=d.cd==='true'&&d.q==='none';
+    c.classList.toggle('filtered',!ok); }); count(); }
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>filt(c.dataset.f));
+count();
+</script>
+</body>
+</html>

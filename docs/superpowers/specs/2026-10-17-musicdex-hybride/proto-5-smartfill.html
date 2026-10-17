@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MusicDex — Help me choose</title>
+<style>
+  :root { --gold:#fbbf24; --muted:#a3a3a3; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#eaeaea; background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%); min-height:100vh; }
+  svg { width:1em; height:1em; vertical-align:-.15em; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .proto { background:#0d0d0d; border-bottom:1px solid #333; padding:8px 16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; font-size:13px; }
+  .proto b { color:var(--gold); }
+  .proto button { background:#222; color:#ddd; border:1px solid #444; border-radius:6px; padding:5px 10px; cursor:pointer; }
+  .proto button.on { background:var(--gold); color:#111; border-color:var(--gold); font-weight:600; }
+  .proto .desc { color:#999; flex-basis:100%; }
+  main { padding:20px; max-width:1280px; margin:0 auto; }
+  .banner { background:rgba(251,191,36,.05); border:1px solid rgba(251,191,36,.2); border-radius:16px; padding:16px; }
+  .banner h4 { margin:0 0 12px; color:var(--gold); font-size:15px; }
+  .row { display:flex; gap:16px; overflow-x:auto; padding:4px 2px 8px; }
+  .item { width:180px; flex:none; }
+  .item img { width:180px; height:180px; border-radius:12px; object-fit:cover; display:block; box-shadow:0 6px 16px rgba(0,0,0,.3); }
+  .item .t { font-size:.9rem; font-weight:600; margin-top:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .item .a { font-size:.8rem; color:var(--muted); }
+  .help { width:180px; height:180px; flex:none; border:2px dashed rgba(251,191,36,.4); border-radius:12px; display:flex; flex-direction:column; overflow:hidden; }
+  .half { flex:1; display:flex; align-items:center; justify-content:center; gap:10px; color:rgba(251,191,36,.85); cursor:pointer; transition:background .2s; background:none; border:0; font:inherit; }
+  .half:hover { background:rgba(251,191,36,.1); color:var(--gold); }
+  .half + .half { border-top:2px dashed rgba(251,191,36,.4); }
+  .half .lbl { display:flex; flex-direction:column; align-items:flex-start; line-height:1.2; }
+  .half .lbl small { color:var(--muted); font-size:11px; }
+  .half .plus { font-size:1.6rem; font-weight:300; }
+  .half .ic { font-size:1.3rem; }
+  .title { text-align:center; font-size:12px; color:rgba(251,191,36,.7); padding:8px 0 0; }
+  /* variantes */
+  .vP .lbl small, .vP .ic { display:none; }
+  .vQ .lbl, .vQ .plus { display:none; } .vQ .ic { font-size:1.9rem; }
+  .vR .help.single .half + .half { display:none; }
+  .vR .help.single .plus { font-size:2rem; }
+  .mode { margin:16px 0; font-size:13px; color:var(--muted); }
+  .switch { display:inline-flex; align-items:center; gap:8px; cursor:pointer; background:#2a2a2a; border:1px solid #444; border-radius:999px; padding:5px 12px 5px 6px; font-size:14px; color:#eee; }
+  .switch .knob { width:34px; height:20px; border-radius:10px; background:#555; position:relative; }
+  .switch .knob::after { content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; transition:left .2s; }
+  .switch.on { border-color:var(--gold); } .switch.on .knob { background:var(--gold); } .switch.on .knob::after { left:16px; }
+</style></head>
+<body class="vP">
+<div class="proto"><b>Prototype 5 — Help me choose</b>
+  <button data-v="vP" class="on">P · Deux moitiés, texte</button>
+  <button data-v="vQ">Q · Deux moitiés, icônes seules</button>
+  <button data-v="vR">R · Scindé seulement si Digital on</button>
+  <span class="desc" id="desc"></span></div>
+<main>
+  <div class="mode"><label class="switch on" id="sw"><span class="knob"></span>Digital</label> &nbsp;(compte seulement pour R)</div>
+  <div class="banner"><h4>🎧 Listen Next</h4>
+    <div class="row">
+      <div class="item"><img src="file:///Users/rjl/Projects/filmdex/data/images/cd/album_9_1760719702812.jpg"><div class="t">Absolution</div><div class="a">Muse</div></div>
+      <div class="item"><img src="file:///Users/rjl/Projects/filmdex/data/images/cd/album_49_1760719609302.jpg"><div class="t">Santo Spirito Blues</div><div class="a">Chris Rea</div></div>
+      <div class="item"><img src="file:///Users/rjl/Projects/filmdex/data/images/cd/album_506fe9cf-29c6-4318-9070-da9463f51617_front_1792221890427.jpg"><div class="t">Come Away With Me</div><div class="a">Norah Jones</div></div>
+      <div>
+        <div class="help" id="help">
+          <button class="half" title="Pick an album from your CDs"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/></svg></span><span class="lbl">From CDs<small>your shelves</small></span><span class="plus">+</span></button>
+          <button class="half" title="Pick an album from everything, CDs and digital"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/></svg><svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></span><span class="lbl">From anything<small>CDs + digital</small></span><span class="plus">+</span></button>
+        </div>
+        <div class="title">Help me choose</div>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+const DESC={vP:'P : la carte est coupée en deux par un pointillé ; en haut « From CDs », en bas « From anything (CDs + digital) ». Toujours deux moitiés, même Digital off.',
+ vQ:'Q : pareil, mais seulement des icônes (disque / disque + nuage) avec un tooltip ; « Help me choose » passe sous la carte.',
+ vR:'R : la carte reste entière (CD) quand Digital est off, et se scinde en deux seulement en mode hybride.'};
+const help=document.getElementById('help'), sw=document.getElementById('sw');
+function sync(){ help.classList.toggle('single', !sw.classList.contains('on')); }
+sw.onclick=()=>{ sw.classList.toggle('on'); sync(); };
+function setV(v){ document.body.className=v; document.querySelectorAll('.proto button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); document.getElementById('desc').textContent=DESC[v]; sync(); }
+document.querySelectorAll('.proto button').forEach(b=>b.onclick=()=>setV(b.dataset.v)); setV('vP');
+</script></body></html>

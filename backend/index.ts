@@ -25,6 +25,7 @@ import playerController from './src/controllers/playerController';
 import navidromePluginController from './src/controllers/navidromePluginController';
 import albumGuideService from './src/services/albumGuideService';
 import lyricsService from './src/services/lyricsService';
+import digitalAlbumService from './src/services/digitalAlbumService';
 import shelvingController from './src/controllers/shelvingController';
 import shelvingService from './src/services/shelvingService';
 import warningsService from './src/services/warningsService';
@@ -554,6 +555,7 @@ const serverReady = startServer().then(() => {
     albumRatingService.startSync();
     if (navidromeService.isConfigured()) listenHistoryService.startRecording(ripStatusService.refreshLibrary);
     albumGuideService.startAutoWrite();
+    digitalAlbumService.startAutoSync();
     lyricsService.startAutoFetch();
     shelvingService.startSortNameSync();
   }

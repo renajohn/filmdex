@@ -122,7 +122,7 @@ const Album = {
           urls TEXT,
           isrc_codes TEXT,
           annotation TEXT,
-          title_status TEXT DEFAULT 'owned' CHECK(title_status IN ('owned', 'wish')),
+          title_status TEXT DEFAULT 'owned' CHECK(title_status IN ('owned', 'wish', 'digital')),
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
@@ -177,6 +177,12 @@ const Album = {
             }),
             new Promise((resolve) => {
               db.run(`ALTER TABLE albums ADD COLUMN discogs_rating_votes INTEGER`, () => resolve());
+            }),
+            new Promise((resolve) => {
+              db.run(`ALTER TABLE albums ADD COLUMN navidrome_id TEXT`, () => resolve());
+            }),
+            new Promise((resolve) => {
+              db.run(`ALTER TABLE albums ADD COLUMN navidrome_gone_at TEXT`, () => resolve());
             })
           ];
 
@@ -418,6 +424,21 @@ const Album = {
       });
     });
   },
+
+  setFormat: (id: number, format: string): Promise<void> =>
+    new Promise((resolve, reject) => {
+      getDatabase().run('UPDATE albums SET format = ?, updated_at = ? WHERE id = ?', [format, new Date().toISOString(), id],
+        (err: Error | null) => { if (err) reject(err); else resolve(); });
+    }),
+
+  /** Ties an album to the Navidrome album it stands for, and notes whether Navidrome still has it. */
+  setNavidrome: (id: number, navidromeId: string | null, goneAt: string | null = null): Promise<void> =>
+    new Promise((resolve, reject) => {
+      getDatabase().run(
+        'UPDATE albums SET navidrome_id = ?, navidrome_gone_at = ?, updated_at = ? WHERE id = ?',
+        [navidromeId, goneAt, new Date().toISOString(), id],
+        (err: Error | null) => { if (err) reject(err); else resolve(); });
+    }),
 
   // Helper function to parse enhanced search query syntax for albums
   // Supports: OR (genre:rock,jazz), negation (-artist:Beatles), ranges (year:2020-2024)
@@ -1030,6 +1051,8 @@ const Album = {
       discogsReleaseId: row.discogs_release_id ?? null,
       titleStatus: row.title_status,
       userRating: row.user_rating ?? null,
+      navidromeId: row.navidrome_id ?? null,
+      navidromeGoneAt: row.navidrome_gone_at ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };

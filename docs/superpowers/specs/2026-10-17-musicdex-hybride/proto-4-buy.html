@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MusicDex hybride — Buy</title>
+<style>
+  :root { --gold:#fbbf24; --lossy:#f59e0b; --muted:#a3a3a3; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#eaeaea; background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%); background-attachment:fixed; min-height:100vh; }
+  svg { width:1em; height:1em; vertical-align:-.15em; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .proto { position:sticky; top:0; z-index:50; background:#0d0d0d; border-bottom:1px solid #333; padding:8px 16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; font-size:13px; }
+  .proto b { color:var(--gold); }
+  .proto button { background:#222; color:#ddd; border:1px solid #444; border-radius:6px; padding:5px 10px; cursor:pointer; }
+  .proto button.on { background:var(--gold); color:#111; border-color:var(--gold); font-weight:600; }
+  .proto .desc { color:#999; flex-basis:100%; }
+  main { max-width:1280px; margin:0 auto; padding:16px; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; }
+  .chip { background:#2a2a2a; border:1px solid #444; border-radius:999px; padding:5px 12px; font-size:13px; }
+  .chip.on { background:rgba(251,191,36,.18); border-color:var(--gold); color:var(--gold); }
+  .chip em { font-style:normal; color:var(--muted); margin-left:4px; }
+  h3 { font-size:15px; margin:26px 0 0; display:flex; gap:8px; align-items:center; } h3 span { color:var(--muted); font-weight:400; font-size:13px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:24px 18px; margin-top:14px; }
+  @media (max-width:600px){ .grid { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); } }
+  .cover { position:relative; aspect-ratio:1/1; border-radius:12px; overflow:hidden; background:#111; box-shadow:0 6px 16px rgba(0,0,0,.18); }
+  .cover img { width:100%; height:100%; object-fit:cover; display:block; }
+  .marks { position:absolute; top:8px; left:8px; display:flex; gap:4px; }
+  .m { display:inline-flex; align-items:center; gap:4px; height:24px; min-width:24px; justify-content:center; padding:0 6px; border-radius:12px; background:rgba(0,0,0,.72); font-size:13px; color:#f5f5f5; }
+  .m small { font-size:10.5px; font-weight:700; } .m.lossy { color:var(--lossy); }
+  .m.buy { background:var(--gold); color:#111; } .m.wish { color:var(--gold); border:1px solid var(--gold); }
+  .hov { position:absolute; bottom:8px; width:34px; height:34px; border-radius:50%; background:rgba(0,0,0,.72); display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .2s; }
+  .card:hover .hov { opacity:1; } .hov.l { left:8px; } .hov.r { right:8px; color:var(--gold); } .hov.r2 { right:48px; color:#ddd; }
+  .t { font-size:.95rem; font-weight:600; margin:10px 4px 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .a { font-size:.82rem; color:var(--muted); margin:0 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .why { font-size:.76rem; color:var(--gold); margin:3px 4px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  ul.list { list-style:none; padding:0; margin:14px 0 0; }
+  ul.list li { display:grid; grid-template-columns:52px 1fr auto; gap:12px; align-items:center; padding:8px 6px; border-bottom:1px solid #2f2f2f; }
+  ul.list img { width:52px; height:52px; border-radius:6px; object-fit:cover; }
+  ul.list .acts { display:flex; gap:6px; }
+  .btn { display:inline-flex; align-items:center; gap:5px; border:1px solid #4a4a4a; background:#2a2a2a; border-radius:8px; padding:5px 9px; font-size:12.5px; color:#ddd; }
+  .btn.g { border-color:var(--gold); color:var(--gold); } .btn.gf { background:var(--gold); color:#111; border-color:var(--gold); }
+  .vJ ul.list, .vK .grid { display:none; }
+  .note { margin-top:28px; color:var(--muted); font-size:13px; border-top:1px solid #333; padding-top:12px; line-height:1.6; }
+  .more { color:var(--muted); font-size:13px; margin-top:10px; }
+</style></head>
+<body class="vJ">
+<div class="proto"><b>Prototype 4 — filtre Buy</b>
+  <button data-v="vJ" class="on">J · Grille en deux sections</button>
+  <button data-v="vK">K · Liste de tri (comme l'onglet Buy)</button>
+  <span class="desc" id="desc"></span></div>
+<main>
+  <div class="chips"><span class="chip">All</span><span class="chip on">Buy<em>24</em></span><span class="chip">Lossless</span><span class="chip">Lossy</span><span class="chip">No CD</span><span class="chip">Physical only</span></div>
+  <div id="out"></div>
+  <div class="note">Dans les deux cas : cliquer ouvre la fiche, avec son encadré doré (raison, ♡, Ricardo, Not interested) et ‹ › pour passer d'un album du filtre au suivant. « Not interested » (permanent, réversible) reste replié en bas : « 3 not interested ▸ ».</div>
+</main>
+<script>
+const I = {
+  cloud:'<svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>',
+  cart:'<svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>',
+  heart:'<svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 0 0 0-7.8z"/></svg>',
+  ext:'<svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>',
+};
+const IMG='file:///Users/rjl/Projects/filmdex/data/images/cd/';
+const S=[['album_506fe9cf-29c6-4318-9070-da9463f51617_front_1792221890427.jpg','Come Away With Me','Norah Jones','MP3 128','31 plays · 5 tracks ×2',false],
+ ['album_4351e12c-0569-473e-8d20-5323490eb964_front_1790973406540.jpg','Hobo','Charlie Winston','MP3 192','★★★★ · 12 plays',true],
+ ['album_92_1760719729285.jpg','Dans ma chair','Patricia Kaas','MP3 128','9 plays · ♥ 1 track',false],
+ ['album_27_1760719645420.jpg','The Way We Walk, Vol. 2','Genesis','','8 plays · 3 tracks ×2',false]];
+const W=[['album_f5229c40-d183-41b9-a88c-01b2059201b7_front_1769880628692.jpg','Tonight: Franz Ferdinand','Franz Ferdinand','MP3 160'],
+ ['album_33_1760719753116.jpg','Echoes: The Best of Pink Floyd','Pink Floyd','']];
+function mark(f){ return f ? `<span class="m lossy">${I.cloud}<small>${f}</small></span>` : `<span class="m">${I.cloud}</span>`; }
+function card(x,wish){ const [img,t,a,f,why,wished]=x;
+  return `<div class="card"><div class="cover"><img src="${IMG}${img}"><div class="marks">${mark(f)}${wish||wished?`<span class="m wish">${I.heart}</span>`:`<span class="m buy">${I.cart}</span>`}</div>
+   <span class="hov l">▶</span><span class="hov r">${I.heart}</span><span class="hov r2">✕</span></div>
+   <div class="t">${t}</div><div class="a">${a}</div>${why?`<div class="why">${why}</div>`:''}</div>`; }
+function row(x,wish){ const [img,t,a,f,why,wished]=x; const w=wish||wished;
+  return `<li><img src="${IMG}${img}"><div><div style="font-weight:600">${t}</div><div class="a" style="margin:0">${a} · ${f?`<span style="color:var(--lossy)">${f}</span>`:'FLAC'}</div>${why?`<div class="why" style="margin:2px 0 0">${why}</div>`:''}</div>
+   <div class="acts"><span class="btn">▶</span><span class="btn ${w?'gf':'g'}">${I.heart}${w?' Wished':''}</span><span class="btn">${I.ext} Ricardo</span>${wish?'':'<span class="btn">✕</span>'}</div></li>`; }
+document.getElementById('out').innerHTML = `
+  <h3>${I.cart} Suggested from your listening <span>4</span></h3>
+  <div class="grid">${S.map(x=>card(x)).join('')}</div><ul class="list">${S.map(x=>row(x)).join('')}</ul>
+  <h3>${I.heart} Wishlist <span>2 · 1 more in the suggestions above</span></h3>
+  <div class="grid">${W.map(x=>card(x,true)).join('')}</div><ul class="list">${W.map(x=>row(x,true)).join('')}</ul>
+  <div class="more">3 not interested ▸</div>`;
+const DESC={vJ:'J : la grille comme partout, en deux sections. Sous l\'artiste, une ligne dorée dit pourquoi (seulement dans ce filtre). Au survol : ▶ à gauche, ♡ et ✕ à droite (à la place de Listen Next).',
+ vK:'K : ce filtre passe en liste, comme l\'onglet Buy actuel : petite pochette, raison, et toutes les actions sur la ligne (▶, ♡, Ricardo, ✕).'};
+function setV(v){ document.body.className=v; document.querySelectorAll('.proto button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); document.getElementById('desc').textContent=DESC[v]; }
+document.querySelectorAll('.proto button').forEach(b=>b.onclick=()=>setV(b.dataset.v)); setV('vJ');
+</script></body></html>

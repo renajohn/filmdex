@@ -7,6 +7,8 @@ import navidromeService, { type NavidromeAlbum, type NavidromeSong } from './nav
 import ripStatusService, { formatName, groupSongs, isLossless, matchesOf, type Library, type RipMatch } from './ripStatusService';
 import listenHistoryService, { localDay } from './listenHistoryService';
 import musicService from './musicService';
+import digitalAlbumService, { DIGITAL_FORMAT } from './digitalAlbumService';
+import musicbrainzRefreshService from './musicbrainzRefreshService';
 import imageService from './imageService';
 import logger from '../logger';
 
@@ -304,8 +306,10 @@ const digitalLibraryService = {
     (await digitalLibraryService.getLibrary()).albums.find(album => album.navidromeId === navidromeId) ?? null,
 
   /**
-   * Puts an album with no CD on the wish list, or takes it off: the wish list
-   * albums standing for it are deleted. Null when Navidrome has no such album.
+   * Puts an album with no CD on the wish list, or takes it off: the digital
+   * album standing for it becomes a wish, and a wish a digital album again,
+   * the same album with its tracks, words and notes. Null when Navidrome has
+   * no such album.
    */
   setWished: async (navidromeId: string, wished: boolean): Promise<DigitalAlbum | null> => {
     const navidrome = await ripStatusService.library();
@@ -313,11 +317,30 @@ const digitalLibraryService = {
     if (!album) return null;
     const standing = (await Album.findByStatus('wish')).filter(wish => matchesOf(wish, [album], navidrome.lengths).length > 0);
     if (wished && standing.length === 0) {
-      const added = await wishFor(album);
-      logger.info(`Album ${added.id} "${added.title}" wished from its digital copy in Navidrome`);
+      const digital = await digitalAlbumService.forNavidromeAlbum(navidromeId)
+        ?? (await digitalAlbumService.reconcile(), await digitalAlbumService.forNavidromeAlbum(navidromeId));
+      if (digital) {
+        await Album.updateStatus(digital.id, 'wish');
+        await Album.setFormat(digital.id, 'CD');
+        logger.info(`Album ${digital.id} "${digital.title}" wished from its digital copy in Navidrome`);
+        // The edition the files carry: the CD to buy, its tracks and credits as MusicBrainz has them.
+        if (digital.musicbrainzReleaseId) {
+          await musicbrainzRefreshService.refreshAlbum(digital.id).catch(error =>
+            logger.warn(`Wished album ${digital.id} not refreshed from MusicBrainz: ${(error as Error).message}`));
+        }
+      } else {
+        const added = await wishFor(album);
+        await Album.setNavidrome(added.id, navidromeId);
+        logger.info(`Album ${added.id} "${added.title}" wished from its digital copy in Navidrome`);
+      }
     }
     if (!wished) {
-      for (const wish of standing) await musicService.deleteAlbum(wish.id);
+      // Wishes made before digital albums were, with no Navidrome album of their own, take this one.
+      for (const wish of standing) {
+        await Album.updateStatus(wish.id, 'digital');
+        await Album.setFormat(wish.id, DIGITAL_FORMAT);
+        if (!wish.navidromeId) await Album.setNavidrome(wish.id, navidromeId);
+      }
     }
     return digitalLibraryService.getAlbum(navidromeId);
   },

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MusicDex hybride — fiche</title>
+<style>
+  :root { --gold:#fbbf24; --lossless:#34d399; --lossy:#f59e0b; --muted:#a3a3a3; --line:#333; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#eaeaea;
+         background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%); min-height:100vh; }
+  svg { width:1em; height:1em; vertical-align:-.15em; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .proto { position:sticky; top:0; z-index:60; background:#0d0d0d; border-bottom:1px solid #333; padding:8px 16px;
+           display:flex; gap:8px; flex-wrap:wrap; align-items:center; font-size:13px; }
+  .proto b { color:var(--gold); margin-right:4px; }
+  .proto button { background:#222; color:#ddd; border:1px solid #444; border-radius:6px; padding:5px 10px; cursor:pointer; }
+  .proto button.on { background:var(--gold); color:#111; border-color:var(--gold); font-weight:600; }
+  .proto .sep { width:1px; height:22px; background:#444; margin:0 6px; }
+  .proto .desc { color:#999; flex-basis:100%; }
+  .stage { display:flex; justify-content:flex-end; }
+  .panel { width:min(560px,100%); min-height:calc(100vh - 80px); background:#1f1f1f; border-left:1px solid #3a3a3a;
+           box-shadow:-10px 0 30px rgba(0,0,0,.4); display:flex; flex-direction:column; }
+  .ph { display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--line); }
+  .ph h5 { margin:0; font-size:17px; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .shelf { font:600 12px ui-monospace,monospace; background:#333; border-radius:6px; padding:2px 7px; }
+  .x { color:#999; font-size:20px; }
+  .pb { padding:18px; flex:1; }
+  .head { display:flex; gap:16px; }
+  .head img { width:150px; height:150px; border-radius:10px; object-fit:cover; box-shadow:0 6px 16px rgba(0,0,0,.35); flex:none; }
+  .who { color:var(--gold); font-weight:600; margin-bottom:10px; }
+  dl { margin:0; display:grid; grid-template-columns:auto 1fr; gap:6px 12px; font-size:13.5px; }
+  dt { color:var(--muted); } dd { margin:0; }
+  .stars { color:var(--gold); letter-spacing:2px; }
+  .mut { color:var(--muted); }
+  .lossless { color:var(--lossless); } .lossy { color:var(--lossy); }
+  .pill { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:10px; background:#2c2c2c; font-size:12px; font-weight:600; }
+  .pill.lossy { color:var(--lossy); } .pill.cloud { color:#f5f5f5; }
+  .buyline { margin-top:14px; padding:10px 12px; border-radius:10px; background:rgba(251,191,36,.1); border:1px solid rgba(251,191,36,.35); font-size:13.5px; }
+  .buyline b { color:var(--gold); }
+  .buyline .acts { margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
+  .btn { display:inline-flex; align-items:center; gap:6px; border-radius:8px; padding:6px 11px; font-size:13px; border:1px solid #4a4a4a; background:#2a2a2a; color:#ddd; cursor:pointer; text-decoration:none; }
+  .btn.gold { background:var(--gold); border-color:var(--gold); color:#111; font-weight:600; }
+  .btn.goldo { border-color:var(--gold); color:var(--gold); }
+  .btn.primary { background:#3b82f6; border-color:#3b82f6; color:#fff; }
+  .btn.ghost { border-color:transparent; background:none; color:var(--muted); }
+  .copies { display:none; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; }
+  .copy { border:1px solid #3a3a3a; border-radius:12px; padding:10px 12px; font-size:13px; background:#242424; }
+  .copy h6 { margin:0 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); display:flex; align-items:center; gap:6px; }
+  .copy.absent { border-style:dashed; background:none; color:var(--muted); }
+  .copy .acts { margin-top:8px; display:flex; gap:6px; flex-wrap:wrap; }
+  .copy .btn { padding:4px 8px; font-size:12px; }
+  .extras { margin-top:16px; font-size:13px; color:var(--muted); display:flex; gap:8px; }
+  .extras a { color:#ddd; }
+  .tl-h { display:flex; justify-content:space-between; align-items:center; margin:20px 0 8px; }
+  .tl-h h6 { margin:0; font-size:14px; }
+  .seg { display:inline-flex; border:1px solid #444; border-radius:8px; overflow:hidden; font-size:12px; }
+  .seg span { padding:3px 9px; } .seg span.on { background:#3a3a3a; }
+  .tr { display:grid; grid-template-columns:28px 1fr auto auto; gap:8px; align-items:center; padding:7px 4px; border-bottom:1px solid #2b2b2b; font-size:13.5px; }
+  .tr .n { color:var(--muted); text-align:right; }
+  .tr .meta { color:var(--muted); font-size:12px; display:flex; gap:10px; align-items:center; }
+  .tr .meta .fav { color:var(--gold); }
+  .tr .lyr { font-size:10.5px; border:1px solid #555; color:#bbb; border-radius:4px; padding:0 4px; margin-left:6px; }
+  .tr.hot .t { color:#fff; font-weight:600; }
+  .digmeta { display:none; }
+  body.trackdigital .digmeta { display:flex; }
+  .pf { border-top:1px solid var(--line); padding:12px 18px; display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+  .pf .l, .pf .r { display:flex; gap:8px; flex-wrap:wrap; }
+  .lyricbox { margin:6px 0 10px 36px; padding:10px 12px; background:#262626; border-radius:8px; font-size:13px; line-height:1.6; color:#ccc; white-space:pre-line; }
+  /* variantes */
+  body.vI .copies { display:none; } body.vI .factcopy { display:contents; }
+  body.vII .copies { display:grid; } body.vII .factcopy { display:none; }
+  body.vII .buyline { display:none; }
+  .factcopy { display:none; }
+</style>
+</head>
+<body class="vI">
+<div class="proto">
+  <b>Prototype 3 — fiche</b>
+  <button data-a="0" class="on">CD + FLAC</button>
+  <button data-a="1">CD + MP3</button>
+  <button data-a="2">Sans CD · suggéré</button>
+  <button data-a="3">Sans CD · wishlist</button>
+  <span class="sep"></span>
+  <button data-v="vI" class="on">I · Lignes dans les faits</button>
+  <button data-v="vII">II · Deux encadrés « copies »</button>
+  <span class="sep"></span>
+  <label><input type="checkbox" id="td" checked> écoutes par piste</label>
+  <span class="desc" id="desc"></span>
+</div>
+<div class="stage"><div class="panel" id="panel"></div></div>
+<script>
+const I = {
+  cloud:'<svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>',
+  disc:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/></svg>',
+  cart:'<svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>',
+  heart:'<svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 0 0 0-7.8z"/></svg>',
+  play:'<svg viewBox="0 0 24 24" style="fill:currentColor;stroke:none"><path d="M6 4l14 8-14 8z"/></svg>',
+  ext:'<svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>',
+  pen:'<svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  hp:'<svg viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1v-6h3zM3 19a2 2 0 0 0 2 2h1v-6H3z"/></svg>',
+};
+const IMG = 'file:///Users/rjl/Projects/filmdex/data/images/cd/';
+const ALBUMS = [
+  { t:'Love Over Gold', a:'Dire Straits', img:'album_a3b62e6e-92f9-4e76-a518-1a9e43d910c6_front_1764259041428.jpg', shelf:'A-2', stars:4,
+    rel:'1982 · GB · Vertigo', cd:{shelf:'A-2', cond:'NM', bought:'2019 · 12 CHF'}, dig:{q:'lossless', fmt:'FLAC 16/44.1', tracks:5, plays:23},
+    tracks:[['Telegraph Road','14:18',6,'♥'],['Private Investigations','6:46',9,'★★★★★'],['Industry Standard','5:51',2,''],['Love Over Gold','6:16',4,''],['It Never Rains','7:58',2,'']] },
+  { t:'Sexe fort', a:'Patricia Kaas', img:'album_87_1760719740103.jpg', shelf:'B-3', stars:3,
+    rel:'2015 · FR · Richard Walter', cd:{shelf:'B-3', cond:'VG+', bought:'2016'}, dig:{q:'lossy', fmt:'MP3 128 kbps', tracks:12, plays:4, rerip:true},
+    tracks:[['Le jour se lève','3:41',2,''],['Madame tout le monde','3:55',0,''],['Sexe fort','4:02',1,''],['La maison en bord de mer','3:20',1,'']] },
+  { t:'Come Away With Me', a:'Norah Jones', img:'album_506fe9cf-29c6-4318-9070-da9463f51617_front_1792221890427.jpg', stars:0,
+    rel:'2002 · US · Blue Note', cd:null, dig:{q:'lossy', fmt:'MP3 128 kbps', tracks:14, plays:31},
+    buy:{kind:'suggest', why:'5 tracks played twice or more in 90 days · 31 plays'},
+    tracks:[["Don't Know Why",'3:06',7,'♥'],['Seven Years','2:25',3,''],['Cold Cold Heart','3:38',2,''],['Feelin\' the Same Way','2:57',5,'★★★★'],['Come Away With Me','3:18',8,'']] },
+  { t:'Tonight: Franz Ferdinand', a:'Franz Ferdinand', img:'album_f5229c40-d183-41b9-a88c-01b2059201b7_front_1769880628692.jpg', stars:0,
+    rel:'2009 · GB · Domino', cd:null, dig:{q:'lossy', fmt:'MP3 160 kbps', tracks:12, plays:0},
+    buy:{kind:'wish', why:'on your wishlist'},
+    tracks:[['Ulysses','3:13',0,''],['Turn It On','2:49',0,''],['No You Girls','3:41',0,''],['Twilight Omens','2:28',0,'']] },
+];
+let cur = 0;
+const LYR = "Why don't you come away with me\nI want to walk with you\nOn a cloudy day…";
+function render(){
+  const A = ALBUMS[cur], d = A.dig, digOnly = !A.cd;
+  const qcls = d.q === 'lossy' ? 'lossy' : 'lossless';
+  const physFact = A.cd ? `CD · shelf <b>${A.cd.shelf}</b> · ${A.cd.cond} · bought ${A.cd.bought}` : `<span class="mut">No CD</span>`;
+  const digFact = `<span class="${qcls}">${d.fmt}</span> · ${d.tracks} tracks · ${d.plays} plays in 90 d` + (d.rerip ? ` · <span class="lossy">re-rip from the CD</span>` : '');
+  const buy = A.buy ? `<div class="buyline">${A.buy.kind === 'suggest' ? `<b>${I.cart} Worth buying</b> — ${A.buy.why}` : `<b>${I.heart} On your wishlist</b>`}
+      <div class="acts">
+        <span class="btn ${A.buy.kind === 'wish' ? 'gold' : 'goldo'}">${I.heart} ${A.buy.kind === 'wish' ? 'Wished' : 'Add to wishlist'}</span>
+        <a class="btn">${I.ext} Ricardo</a>
+        ${A.buy.kind === 'suggest' ? '<span class="btn ghost">Not interested</span>' : ''}
+      </div></div>` : '';
+  const physCopy = A.cd
+    ? `<div class="copy"><h6>${I.disc} Physical</h6>CD · shelf <b>${A.cd.shelf}</b><br><span class="mut">${A.cd.cond} · bought ${A.cd.bought}</span></div>`
+    : `<div class="copy absent"><h6>${I.disc} Physical</h6>No CD${A.buy ? `<br><span style="color:var(--gold)">${A.buy.kind === 'suggest' ? I.cart + ' worth buying' : I.heart + ' wished'}</span>` : ''}
+        <div class="acts"><span class="btn ${A.buy && A.buy.kind === 'wish' ? 'gold' : 'goldo'}">${I.heart} ${A.buy && A.buy.kind === 'wish' ? 'Wished' : 'Wishlist'}</span><a class="btn">${I.ext} Ricardo</a>
+        ${A.buy && A.buy.kind === 'suggest' ? '<span class="btn ghost">Not interested</span>' : ''}</div></div>`;
+  const digCopy = `<div class="copy"><h6>${I.cloud} Digital</h6><span class="${qcls}">${d.fmt}</span><br><span class="mut">${d.tracks} tracks · ${d.plays} plays in 90 d</span>
+      ${d.rerip ? '<br><span class="lossy">Re-rip from the CD</span>' : ''}
+      <div class="acts"><a class="btn">${I.ext} Navidrome</a></div></div>`;
+  const tracks = A.tracks.map(([t,dur,pl,st],i)=>`
+    <div class="tr ${pl >= 5 ? 'hot' : ''}"><span class="n">${i+1}</span>
+      <span class="t">${t}${i < 2 ? '<span class="lyr">lyrics</span>' : ''}</span>
+      <span class="meta digmeta">${st ? `<span class="fav">${st}</span>` : ''}${pl ? `<span>×${pl}</span>` : ''}</span>
+      <span class="meta">${dur}</span></div>${cur === 2 && i === 0 ? `<div class="lyricbox">${LYR}</div>` : ''}`).join('');
+  document.getElementById('panel').innerHTML = `
+    <div class="ph">${I.disc}<h5>${A.t}</h5>${A.cd ? `<span class="shelf">${A.cd.shelf}</span>` : `<span class="pill ${d.q === 'lossy' ? 'lossy' : 'cloud'}">${I.cloud}${d.q === 'lossy' ? ' ' + d.fmt.replace(' kbps','') : ''}</span>`}<span class="x">✕</span></div>
+    <div class="pb">
+      <div class="head"><img src="${IMG}${A.img}" alt="">
+        <div style="min-width:0"><div class="who">${A.a}</div>
+          <dl>
+            <dt>Rating</dt><dd class="stars">${'★'.repeat(A.stars)}<span class="mut">${'☆'.repeat(5 - A.stars)}</span></dd>
+            <dt>Released</dt><dd>${A.rel}</dd>
+            <span class="factcopy"><dt>${I.disc} Physical</dt><dd>${physFact}</dd><dt>${I.cloud} Digital</dt><dd>${digFact}</dd></span>
+            <dt>Genres</dt><dd>Rock</dd>
+          </dl></div></div>
+      ${buy}
+      <div class="copies">${physCopy}${digCopy}</div>
+      <div class="extras"><a>Before you listen</a>·<a>Add a note</a>·<a>Story</a></div>
+      <div class="tl-h"><h6>Tracks</h6><span class="seg"><span class="on">Credits</span><span>Lyrics</span></span></div>
+      ${tracks}
+    </div>
+    <div class="pf"><div class="l"><span class="btn primary">${I.play} Play ▾</span><span class="btn">${I.hp} Listen Next</span></div>
+      <div class="r">${A.cd ? `<span class="btn">${I.pen} Edit</span>` : `<span class="btn goldo">${I.disc} I bought the CD</span>`}</div></div>`;
+}
+const DESC = {
+  vI:'I : la fiche actuelle, le champ « Navidrome » devient deux lignes « Physical » et « Digital » dans les faits ; l\'achat est un encadré doré sous l\'en-tête, seulement quand il y a lieu.',
+  vII:'II : deux encadrés côte à côte sous l\'en-tête, Physical | Digital, chacun avec ses actions ; un encadré en pointillés quand la copie manque (et c\'est là que vivent Wishlist / Ricardo).',
+};
+function setV(v){ document.body.classList.remove('vI','vII'); document.body.classList.add(v);
+  document.querySelectorAll('.proto button[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  document.getElementById('desc').textContent = DESC[v]; }
+document.querySelectorAll('.proto button[data-v]').forEach(b=>b.onclick=()=>setV(b.dataset.v));
+document.querySelectorAll('.proto button[data-a]').forEach(b=>b.onclick=()=>{ cur=+b.dataset.a;
+  document.querySelectorAll('.proto button[data-a]').forEach(x=>x.classList.toggle('on',x===b)); render(); });
+document.getElementById('td').onchange = e => document.body.classList.toggle('trackdigital', e.target.checked);
+document.body.classList.add('trackdigital');
+setV('vI'); render();
+</script>
+</body>
+</html>

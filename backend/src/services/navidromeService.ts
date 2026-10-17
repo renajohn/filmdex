@@ -24,6 +24,8 @@ export interface NavidromeAlbum {
   userRating: number;
   /** Whether NAVIDROME_USER hearted it, in Amperfy or Navidrome. */
   starred?: boolean;
+  /** The year the tags give, when they give one. */
+  year?: number;
 }
 
 export interface NavidromeSong {
@@ -98,6 +100,8 @@ export interface NavidromeTrackFile {
   discNumber: number;
   track: number;
   title: string;
+  /** The track's own artist tag, null when the file has none. */
+  artist?: string | null;
   durationSec: number | null;
   suffix: string;
   bitRate: number | null;
@@ -112,9 +116,9 @@ export interface NavidromeTrackFile {
   starred?: boolean;
 }
 
-type RawAlbum = { id: string; name: string; artist?: string; musicBrainzId?: string; songCount?: number; userRating?: number; starred?: string };
+type RawAlbum = { id: string; name: string; artist?: string; year?: number; musicBrainzId?: string; songCount?: number; userRating?: number; starred?: string };
 type RawAlbumSong = {
-  id?: string; title?: string; track?: number; discNumber?: number; duration?: number; suffix?: string; bitRate?: number;
+  id?: string; title?: string; artist?: string; track?: number; discNumber?: number; duration?: number; suffix?: string; bitRate?: number;
   bitDepth?: number; samplingRate?: number; channelCount?: number; size?: number; path?: string;
   playCount?: number; played?: string; userRating?: number; starred?: string;
 };
@@ -131,6 +135,7 @@ const toAlbum = (raw: RawAlbum): NavidromeAlbum => ({
   songCount: raw.songCount || 0,
   userRating: raw.userRating || 0,
   starred: Boolean(raw.starred),
+  ...(raw.year ? { year: raw.year } : {}),
 });
 
 /** A session on Navidrome's own API, for what Subsonic does not tell: where a file really lies. */
@@ -271,6 +276,7 @@ const navidromeService = {
       discNumber: song.discNumber || 1,
       track: song.track || 0,
       title: song.title || '',
+      artist: song.artist || null,
       durationSec: song.duration ?? null,
       suffix: (song.suffix || '').toLowerCase(),
       bitRate: song.bitRate || null,

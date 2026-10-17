@@ -16,6 +16,7 @@ import musicbrainzLinkService from '../services/musicbrainzLinkService';
 import musicbrainzRefreshService from '../services/musicbrainzRefreshService';
 import ripStatusService from '../services/ripStatusService';
 import digitalLibraryService from '../services/digitalLibraryService';
+import digitalAlbumService from '../services/digitalAlbumService';
 import navidromeService from '../services/navidromeService';
 import albumRatingService from '../services/albumRatingService';
 import communityRatingService from '../services/communityRatingService';
@@ -621,6 +622,9 @@ const musicController = {
         logger.warn(`Could not take editions from the rips: ${(error as Error).message}`);
         return [];
       });
+      // After the editions: a rip of a CD DexVault did not know is that CD, not a digital album.
+      await digitalAlbumService.reconcile().catch(error =>
+        logger.warn(`Digital albums not brought in step with Navidrome: ${(error as Error).message}`));
       res.json({ editions, library: await digitalLibraryService.getLibrary() });
     } catch (error) {
       logger.error('Error syncing the digital library:', error);
@@ -1235,6 +1239,7 @@ const musicController = {
         FROM albums
         WHERE (${coverField} IS NULL OR ${coverField} = '')
         AND musicbrainz_release_id IS NOT NULL
+        AND COALESCE(title_status, 'owned') != 'digital'
         ORDER BY title
       `;
 

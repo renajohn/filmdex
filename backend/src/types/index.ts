@@ -219,6 +219,10 @@ export interface AlbumRow {
   user_rating?: number | null;
   /** The stars DexVault and Navidrome last agreed on: tells which side changed since. */
   user_rating_synced?: number | null;
+  /** The Navidrome album a digital album stands for. */
+  navidrome_id?: string | null;
+  /** When that album was last missing from Navidrome, null while it is there. */
+  navidrome_gone_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -274,6 +278,8 @@ export interface AlbumFormatted {
   annotation: string | null;
   titleStatus: string | null;
   userRating?: number | null;
+  navidromeId?: string | null;
+  navidromeGoneAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

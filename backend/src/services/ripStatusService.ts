@@ -245,6 +245,10 @@ const bestCopy = (album: AlbumFormatted, navidrome: Library): NavidromeAlbum | n
   return matches[0]?.candidate ?? null;
 };
 
+/** The Navidrome album a digital album stands for, null once Navidrome no longer has it. */
+const ownAlbum = (album: AlbumFormatted, navidrome: Library): NavidromeAlbum | null =>
+  navidrome.albums.find(candidate => candidate.id === album.navidromeId) ?? null;
+
 const ripStatusService = {
   /** Forgets the library read from Navidrome, for a refresh right after a rip. */
   /** Forgets the reading, and any under way: the next one is made anew (the Refresh of the Digital page). */
@@ -273,9 +277,10 @@ const ripStatusService = {
     if (!navidromeService.isConfigured()) return [];
     const navidrome = await library();
     const songsByAlbum = groupSongs(navidrome.songs);
-    // findAll is the collection only; the wish list comes on top.
-    const all = [...await Album.findAll(), ...await Album.findByStatus('wish')];
-    const known = new Set(all.filter(album => album.titleStatus !== 'wish').map(album => album.musicbrainzReleaseId).filter(Boolean));
+    // findAll is the collection only; the wish list and the digital albums come on top.
+    const all = [...await Album.findAll(), ...await Album.findByStatus('wish'), ...await Album.findByStatus('digital')];
+    const owned = (album: AlbumFormatted) => album.titleStatus !== 'wish' && album.titleStatus !== 'digital';
+    const known = new Set(all.filter(owned).map(album => album.musicbrainzReleaseId).filter(Boolean));
     const refresh = (albumId: number, releaseId: string) => musicbrainzRefreshService.refreshAlbum(albumId).catch(error =>
       logger.warn(`Album ${albumId} took edition ${releaseId} but could not be refreshed: ${(error as Error).message}`));
     // Only a FLAC rip speaks for a CD: the rips of this workflow are FLAC,
@@ -295,15 +300,20 @@ const ripStatusService = {
       try {
         const { releaseGroupId, isCd } = await releaseInfo(releaseId);
         if (!releaseGroupId) { results.push({ albumId: null, title: name, releaseId, skipped: 'no_release_group' }); continue; }
-        const sameGroup = all.filter(album => album.musicbrainzReleaseGroupId === releaseGroupId);
-        const inCollection = sameGroup.filter(album => album.titleStatus !== 'wish');
+        // A digital album taken in from the tags knows its edition, seldom its release group.
+        const sameGroup = all.filter(album => album.musicbrainzReleaseGroupId === releaseGroupId
+          || (album.titleStatus === 'digital' && album.musicbrainzReleaseId === releaseId));
+        const inCollection = sameGroup.filter(owned);
         const wished = sameGroup.filter(album => album.titleStatus === 'wish');
-        if (inCollection.length > 1 || (inCollection.length === 0 && wished.length > 1)) {
+        const digital = sameGroup.filter(album => album.titleStatus === 'digital');
+        if (inCollection.length > 1 || (inCollection.length === 0 && (wished.length > 1 || (wished.length === 0 && digital.length > 1)))) {
           results.push({ albumId: null, title: name, releaseId, skipped: 'several_albums' });
           continue;
         }
 
-        const [album] = inCollection.length === 1 ? inCollection : wished;
+        const [album] = inCollection.length === 1 ? inCollection : wished.length === 1 ? wished : digital;
+        // A digital album is a CD only as an album DexVault did not know would be: the edition is one.
+        if (album?.titleStatus === 'digital' && !isCd) { results.push({ albumId: album.id, title: album.title, releaseId, skipped: 'not_a_cd' }); continue; }
         if (!album) {
           // Not in DexVault at all: a CD ripped before being catalogued is added,
           // a download bought in lossless is not a CD of the collection.
@@ -326,9 +336,10 @@ const ripStatusService = {
             continue;
           }
         }
-        const promoted = album.titleStatus === 'wish';
+        const promoted = album.titleStatus === 'wish' || album.titleStatus === 'digital';
         if (promoted) await Album.updateStatus(album.id, 'owned');
-        logger.info(`Album ${album.id} "${album.title}" takes edition ${releaseId} from its rip (was ${album.musicbrainzReleaseId ?? 'none'})${promoted ? ', moved off the wish list' : ''}`);
+        if (album.titleStatus === 'digital') await Album.setFormat(album.id, 'CD');
+        logger.info(`Album ${album.id} "${album.title}" takes edition ${releaseId} from its rip (was ${album.musicbrainzReleaseId ?? 'none'})${promoted ? `, moved off the ${album.titleStatus === 'wish' ? 'wish list' : 'digital albums'}` : ''}`);
         results.push({ albumId: album.id, title: album.title, releaseId, action: promoted ? 'promoted' : 'edition', previousReleaseId: album.musicbrainzReleaseId ?? null });
         await refresh(album.id, releaseId);
       } catch (error) {
@@ -343,16 +354,21 @@ const ripStatusService = {
   navidromeAlbumFor: async (albumId: number): Promise<NavidromeAlbum | null> => {
     const album = await Album.findById(albumId);
     if (!album) return null;
-    return bestCopy(album, await library());
+    const navidrome = await library();
+    return album.titleStatus === 'digital' ? ownAlbum(album, navidrome) : bestCopy(album, navidrome);
   },
 
-  /** The copy in Navidrome of every CD of the collection that has one, by album id. */
+  /** The copy in Navidrome of every CD of the collection that has one, and the album of every digital album, by album id. */
   navidromeAlbums: async (): Promise<Map<number, NavidromeAlbum>> => {
     const navidrome = await library();
     const copies = new Map<number, NavidromeAlbum>();
     for (const album of await Album.findAll()) {
       const copy = bestCopy(album, navidrome);
       if (copy) copies.set(album.id, copy);
+    }
+    for (const album of await Album.findByStatus('digital')) {
+      const own = ownAlbum(album, navidrome);
+      if (own) copies.set(album.id, own);
     }
     return copies;
   },

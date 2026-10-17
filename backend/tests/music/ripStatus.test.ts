@@ -395,8 +395,9 @@ describe('table des éditions déjà demandées', () => {
 
 describe('albums seulement en digital', () => {
   const imageService = require('../../src/services/imageService').default;
-  const musicService = require('../../src/services/musicService').default;
+  const musicbrainzRefreshService = require('../../src/services/musicbrainzRefreshService').default;
   const Album = require('../../src/models/album').default;
+  const Track = require('../../src/models/track').default;
   const tag = () => Math.random().toString(36).slice(2, 8);
 
   beforeEach(() => {
@@ -421,38 +422,59 @@ describe('albums seulement en digital', () => {
     expect(await digitalOf('d-alone')).toMatchObject({ name: alone, artist: 'Moby', formats: ['MP3'], cd: null, wishAlbumId: null, buy: null });
   });
 
-  it('met dans la wish list un album sans édition, avec la pochette de Navidrome, puis l’en retire', async () => {
+  const files = (titles: string[]) => titles.map((title, index) => ({
+    id: `s${index}`, url: null, discNumber: 1, track: index + 1, title, artist: 'Moby', durationSec: 200 + index,
+    suffix: 'mp3', bitRate: 192, bitDepth: null, samplingRate: null, channelCount: null, size: null, path: null,
+  }));
+
+  it('met dans la wish list l’album digital lui-même, avec la pochette de Navidrome, puis l’y rend', async () => {
     const name = `Play ${tag()}`;
     jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([album('d-play', name, 'Moby')]);
     jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(songs('d-play', 'mp3'));
+    jest.spyOn(navidromeService, 'getAlbumSongs').mockResolvedValue(files(['Honey', 'Find My Baby']));
 
     const put = await request(app).put('/api/music/digital/d-play/wish');
     expect(put.status).toBe(200);
     expect(put.body.wishAlbumId).toEqual(expect.any(Number));
     const wish = await Album.findById(put.body.wishAlbumId);
-    expect(wish).toMatchObject({ title: name, artist: ['Moby'], titleStatus: 'wish', format: 'CD' });
+    expect(wish).toMatchObject({ title: name, artist: ['Moby'], titleStatus: 'wish', format: 'CD', navidromeId: 'd-play' });
     expect(wish.cover).toMatch(/navidrome_/);
+    expect((await Track.findByCdId(wish.id)).map((track: { title: string }) => track.title)).toEqual(['Honey', 'Find My Baby']);
 
     // A second toggle on does not add it twice.
     expect((await request(app).put('/api/music/digital/d-play/wish')).body.wishAlbumId).toBe(put.body.wishAlbumId);
 
+    // Off the wish list, the same album is a digital album again, its tracks kept.
     const del = await request(app).delete('/api/music/digital/d-play/wish');
     expect(del.body.wishAlbumId).toBeNull();
-    expect(await Album.findById(put.body.wishAlbumId)).toBeNull();
+    expect(await Album.findById(put.body.wishAlbumId)).toMatchObject({ titleStatus: 'digital', format: 'Digital Media', navidromeId: 'd-play' });
+    expect(await Track.findByCdId(wish.id)).toHaveLength(2);
   });
 
-  it('prend l’édition MusicBrainz des fichiers quand ils en ont une', async () => {
+  it('rafraîchit depuis MusicBrainz l’album souhaité quand ses fichiers ont une édition', async () => {
     const name = `18 ${tag()}`;
     const releaseId = `rel-${tag()}`;
     jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([album('d-18', name, 'Moby', releaseId)]);
     jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(songs('d-18', 'mp3'));
-    const add = jest.spyOn(musicService, 'addAlbumFromMusicBrainz').mockImplementation(async (_id: unknown, data: any) =>
-      musicService.addAlbum({ title: name, artist: ['Moby'], musicbrainzReleaseId: releaseId, ...data }));
+    jest.spyOn(navidromeService, 'getAlbumSongs').mockResolvedValue(files(['We Are All Made of Stars']));
+    const refresh = jest.spyOn(musicbrainzRefreshService, 'refreshAlbum').mockResolvedValue({} as never);
 
     const put = await request(app).put('/api/music/digital/d-18/wish');
 
-    expect(add).toHaveBeenCalledWith(releaseId, { titleStatus: 'wish' });
     expect(put.body.wishAlbumId).toEqual(expect.any(Number));
+    expect(await Album.findById(put.body.wishAlbumId)).toMatchObject({ musicbrainzReleaseId: releaseId, titleStatus: 'wish' });
+    expect(refresh).toHaveBeenCalledWith(put.body.wishAlbumId);
+  });
+
+  it('rend au digital, au lieu de la supprimer, une ancienne wish qui n’avait pas d’album Navidrome', async () => {
+    const name = `Hotel ${tag()}`;
+    const wishId = await insertAlbum({ title: name, artist: ['Moby'], status: 'wish' });
+    jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([album('d-hotel', name, 'Moby')]);
+    jest.spyOn(navidromeService, 'getSongs').mockResolvedValue(songs('d-hotel', 'mp3'));
+
+    await request(app).delete('/api/music/digital/d-hotel/wish');
+
+    expect(await Album.findById(wishId)).toMatchObject({ titleStatus: 'digital', navidromeId: 'd-hotel' });
   });
 
   it('répond 404 pour un album que Navidrome n’a pas', async () => {
