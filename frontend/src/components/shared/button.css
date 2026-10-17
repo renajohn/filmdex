@@ -271,7 +271,25 @@
 .ui-button-group > .ui-button + .ui-button {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
-  margin-left: 0;
+  /* One edge between the two, not two side by side. */
+  margin-left: -1px;
+}
+
+.ui-button-group > .ui-button:hover,
+.ui-button-group > .ui-button:focus-visible {
+  position: relative;
+  z-index: 1;
+}
+
+/* The ▾ of a group: an arrow's width, its chevron turned over while open. */
+.ui-button-group > .ui-button--split {
+  padding: 0 10px;
+}
+
+.ui-button--split .menu-chevron {
+  width: 13px;
+  height: 13px;
+  color: currentColor;
 }
 
 /* A LinkButton: a link, but no underline and the button's words. */

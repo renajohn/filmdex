@@ -49,42 +49,7 @@
 }
 
 .shelves-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.shelves-tab {
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: transparent;
-  color: #c0c6cf;
-  border-radius: 999px;
-  padding: 4px 12px;
-  font-size: 0.85rem;
-}
-
-.shelves-tab.active {
-  background: #f0b73c;
-  border-color: #f0b73c;
-  color: #1a1a1a;
-}
-
-/* A section's tab carries its colour, the one its shelves show in the furniture. */
-.shelves-tab[class*="section-"]::before {
-  content: '';
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: 6px;
-  border-radius: 50%;
-  background: var(--section-color);
-  vertical-align: 1px;
-}
-
-.shelves-tab.active::before {
-  background: #1a1a1a;
-  opacity: 0.5;
-}
+  flex-wrap: wrap}
 
 .shelves-link {
   padding: 0;
@@ -101,13 +66,6 @@
 .shelves-link:focus-visible {
   text-decoration-color: currentColor;
   outline: none;
-}
-
-.shelves-tab-count {
-  opacity: 0.7;
-  margin-left: 2px;
-  font-variant-numeric: tabular-nums;
-  font-size: 0.85em;
 }
 
 .shelves-search {
@@ -133,41 +91,7 @@
 }
 
 .shelf-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border: 1px solid rgba(240, 183, 60, 0.3);
-  border-radius: 6px;
-  background: rgba(240, 183, 60, 0.08);
-  color: #f0c654;
-  font-size: 0.75rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.shelf-chip:hover,
-.shelf-chip:focus-visible {
-  background: rgba(240, 183, 60, 0.2);
-  outline: none;
-}
-
-.shelf-chip.empty {
-  border-style: dashed;
-  color: #9aa4b2;
-  background: transparent;
-}
-
-.shelf-chip-over {
-  border-color: rgba(229, 115, 79, 0.5);
-  background: rgba(229, 115, 79, 0.1);
-  color: #f1a08a;
-}
-
-.shelf-chip-count {
-  opacity: 0.7;
-  font-weight: 400;
-}
+  font-variant-numeric: tabular-nums}
 
 .shelf-letter {
   /* Reached from the strip, the heading lands below the top of the page. */

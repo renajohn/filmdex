@@ -60,7 +60,7 @@ describe('AddMusicDialog — photo mode', () => {
   it('offers a photo option next to the text searches', () => {
     renderDialog();
 
-    expect(screen.getByRole('button', { name: /^photo$/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /^photo$/i })).toBeInTheDocument();
   });
 
   it('uses the rear camera for the capture input', async () => {
@@ -132,7 +132,7 @@ describe('AddMusicDialog — empty text search', () => {
     (musicService.searchMusicBrainz as any).mockResolvedValue([]);
     renderDialog();
 
-    userEvent.click(screen.getByRole('button', { name: /album title/i }));
+    userEvent.click(screen.getByRole('radio', { name: /album title/i }));
     userEvent.type(screen.getByPlaceholderText(/album title/i), 'zzzz');
     userEvent.click(screen.getByRole('button', { name: /^search$/i }));
 
@@ -164,8 +164,8 @@ describe('AddMusicDialog — photo is the default path', () => {
     const input = screen.getByTestId('album-photo-input');
     const clickSpy = vi.spyOn(input, 'click');
 
-    userEvent.click(screen.getByRole('button', { name: /album title/i }));
-    userEvent.click(screen.getByRole('button', { name: /^photo$/i }));
+    userEvent.click(screen.getByRole('radio', { name: /album title/i }));
+    userEvent.click(screen.getByRole('radio', { name: /^photo$/i }));
 
     await waitFor(() => expect(clickSpy).toHaveBeenCalled());
   });
@@ -173,7 +173,7 @@ describe('AddMusicDialog — photo is the default path', () => {
   it('still lets the user fall back to typing a title', async () => {
     renderDialog();
 
-    userEvent.click(screen.getByRole('button', { name: /album title/i }));
+    userEvent.click(screen.getByRole('radio', { name: /album title/i }));
 
     await waitFor(() =>
       expect(screen.getByPlaceholderText(/album title/i)).toBeInTheDocument()
@@ -184,7 +184,7 @@ describe('AddMusicDialog — photo is the default path', () => {
 describe('AddMusicDialog — text search query building', () => {
   const searchFor = (title: string, artist?: string) => {
     renderDialog();
-    userEvent.click(screen.getByRole('button', { name: /album title/i }));
+    userEvent.click(screen.getByRole('radio', { name: /album title/i }));
     userEvent.type(screen.getByPlaceholderText(/album title/i), title);
     if (artist) userEvent.type(screen.getByPlaceholderText(/artist/i), artist);
     userEvent.click(screen.getByRole('button', { name: /^search$/i }));
@@ -219,7 +219,7 @@ describe('AddMusicDialog — barcode entry', () => {
   it('asks for a numeric keypad on the barcode field', async () => {
     renderDialog();
 
-    userEvent.click(screen.getByRole('button', { name: /^barcode$/i }));
+    userEvent.click(screen.getByRole('radio', { name: /^barcode$/i }));
 
     const input = await screen.findByPlaceholderText(/barcode/i);
     expect(input).toHaveAttribute('inputmode', 'numeric');
@@ -301,7 +301,7 @@ describe('AddMusicDialog — one-tap add alongside review', () => {
 describe('AddMusicDialog — barcode by photo', () => {
   const goToBarcode = () => {
     renderDialog();
-    userEvent.click(screen.getByRole('button', { name: /^barcode$/i }));
+    userEvent.click(screen.getByRole('radio', { name: /^barcode$/i }));
   };
 
   it('offers to photograph the barcode', async () => {
@@ -374,7 +374,7 @@ describe('AddMusicDialog — MusicBrainz unavailable after a good scan', () => {
     // Switching to the text tab must show the scan already filled in, so the
     // search can be retried without photographing the sleeve again.
     await waitFor(() => expect(musicService.scanAlbumCover).toHaveBeenCalled());
-    userEvent.click(screen.getByRole('button', { name: /album title/i }));
+    userEvent.click(screen.getByRole('radio', { name: /album title/i }));
 
     await waitFor(() => {
       expect((screen.getByPlaceholderText(/album title/i) as HTMLInputElement).value).toBe('Mezzanine');

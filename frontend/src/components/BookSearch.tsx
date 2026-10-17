@@ -15,6 +15,7 @@ import { readStored, writeStored } from '../utils/safeStorage';
 import { findById, shownIds, useDetailSteps } from '../utils/detailSteps';
 import { bookImages } from '../utils/detailImages';
 import Button from './shared/Button';
+import Chip from './shared/Chip';
 
 interface BookSearchProps {
   books: any;
@@ -1438,16 +1439,9 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
         {activeFilters.length > 0 && (
           <div className="active-filters">
             {activeFilters.map((filter, idx) => (
-              <span key={idx} className="filter-chip">
+              <Chip key={idx} onRemove={() => removeFilter(filter)} removeLabel={`Remove the filter ${filter.label}`}>
                 {filter.label}
-                <button
-                  className="filter-chip-remove"
-                  onClick={() => removeFilter(filter)}
-                  title="Remove filter"
-                >
-                  <BsX />
-                </button>
-              </span>
+              </Chip>
             ))}
             <Button variant="quiet" size="sm" className="clear-all-filters"
               onClick={() => updateSearchViaUrl('')}

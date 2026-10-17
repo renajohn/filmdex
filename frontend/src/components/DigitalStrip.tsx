@@ -4,6 +4,7 @@ import type { DigitalLibrary, EditionAdoption } from '../services/musicService';
 import { NotRippedIcon } from './shared/DigitalMarks';
 import './DigitalStrip.css';
 import { IconButton } from './shared/Button';
+import Chip from './shared/Chip';
 
 /**
  * The head of MusicDex with Digital on, laid in the collection's own head:
@@ -37,14 +38,12 @@ interface DigitalChipsProps {
 
 /** The filters; one with nothing in it is left out, unless it is the one shown. */
 export const DigitalChips: React.FC<DigitalChipsProps> = ({ filter, onFilter, counts }) => (
-  <div className="digital-chips" role="tablist" aria-label="Show">
+  <div className="digital-chips" role="group" aria-label="Show">
     {CHIPS.filter(({ key }) => key === 'all' || counts[key] > 0 || filter === key).map(({ key, label, icon, className }) => (
-      <button key={key} type="button" role="tab" aria-selected={filter === key}
-        className={`digital-chip ${className || ''}${filter === key ? ' active' : ''}`} onClick={() => onFilter(key)}>
-        {icon}
+      <Chip key={key} active={filter === key} icon={icon} count={key !== 'all' ? counts[key] : undefined}
+        className={className} onClick={() => onFilter(key)}>
         {label}
-        {key !== 'all' && <span className="digital-chip-count">{counts[key]}</span>}
-      </button>
+      </Chip>
     ))}
   </div>
 );

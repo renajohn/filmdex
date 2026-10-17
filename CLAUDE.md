@@ -74,7 +74,8 @@ Every menu that opens from a button uses **`Menu`** (`frontend/src/components/sh
 Every button uses **`Button`** or **`IconButton`** (`frontend/src/components/shared/Button.tsx`, look in `shared/button.css`): never a react-bootstrap `Button`, a `btn` class or a button styled by hand. On covers, `CoverButton` stays.
 - `Button` `variant`: **primary** (plain gold, the one action a window is for: one per window), **secondary** (the default: the menus' glass), **quiet** (words alone: Cancel, See more), **danger** (red; a destructive action never takes the gold, and in a confirmation it stands where the gold would). `size` sm/md, `icon` before the words, `loading` (a spinner, no second click), `active` for a toggle that is on (gold words; on `danger`, plain red: a deletion to confirm), `block`.
 - `IconButton`: an icon alone, `label` required (tooltip and screen readers), `size` sm/md, `tone` confirm (gold ✓ beside a field) or danger, `boxed` when it stands alone in a bar, `active`.
-- Side by side as one (Play and its ▾): a parent with the class `ui-button-group` (or a Bootstrap `ButtonGroup`).
+- Side by side as one (Play and its ▾): a parent with the class `ui-button-group` (or a Bootstrap `ButtonGroup`); the ▾ takes the class `ui-button--split` and a `MenuChevron`.
+- One of a few side by side is **`Segmented`**; a filter pill, a shelf to jump to or a filter in place with its ✕ is **`Chip`** (see the guidelines).
 - A component's stylesheet only places a button (margins, position, flex), never its colours, borders, padding or size.
 
 ### Key Patterns

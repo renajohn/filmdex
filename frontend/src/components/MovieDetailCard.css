@@ -330,15 +330,12 @@
 .action-btn.watched-today:disabled {
   transform: none}
 
+/* Its panel is the menus' glass (menu-surface); here only where it stands. */
 .watched-date-picker {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
-  background: #1e2530;
-  border: 1px solid #3a4a5a;
-  border-radius: 8px;
   padding: 12px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
   z-index: 99999;
   min-width: 200px;
 }
@@ -350,32 +347,17 @@
 }
 
 .quick-date-btn {
-  flex: 1;
-  padding: 8px 12px;
-  background: #2a3444;
-  color: #e2e8f0;
-  border: 1px solid #3a4a5a;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.quick-date-btn:hover {
-  background: #3a4454;
-  border-color: #4a5a6a;
-}
+  flex: 1}
 
 .date-picker-divider {
   height: 1px;
-  background: #3a4a5a;
+  background: var(--dv-surface-edge);
   margin: 8px 0;
 }
 
 .watched-date-picker label {
   display: block;
-  color: #8a9aaa;
+  color: var(--dv-text-faint);
   font-size: 0.75rem;
   margin-bottom: 6px;
   text-transform: uppercase;
@@ -385,8 +367,8 @@
 .watched-date-picker input[type="date"] {
   width: 100%;
   padding: 8px 10px;
-  background: #2a3444;
-  border: 1px solid #3a4a5a;
+  background: var(--dv-glass);
+  border: 1px solid var(--dv-edge);
   border-radius: 6px;
   color: #f8f9fa;
   font-size: 0.9rem;
@@ -2114,9 +2096,12 @@
   bottom: calc(24px + var(--player-h, 0px));
   left: 50%;
   transform: translateX(-50%);
-  background: #1e2530;
-  border: 1px solid #3a4a5a;
-  border-radius: 12px;
+  background: var(--dv-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--dv-surface-edge);
+  box-shadow: var(--dv-surface-shadow);
+  border-radius: var(--dv-radius-lg);
   padding: 12px 16px;
   display: flex;
   align-items: center;
@@ -2147,23 +2132,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.watched-prompt-btn {
-  padding: 6px 14px;
-  background: linear-gradient(135deg, #2d6b2f, #1e4620);
-  color: #a8f0a8;
-  border: 1px solid #4a9f4d;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.watched-prompt-btn:hover {
-  background: linear-gradient(135deg, #4a9f4d, #2d6b2f);
-  transform: translateY(-1px);
 }
 
 .watched-prompt-dismiss {

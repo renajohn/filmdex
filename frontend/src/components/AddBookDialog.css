@@ -65,37 +65,6 @@
   margin-bottom: 20px;
 }
 
-.search-tabs {
-  display: flex;
-  gap: 8px;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.15);
-  margin-bottom: 16px;
-}
-
-.search-tab {
-  padding: 10px 20px;
-  background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
-  cursor: pointer;
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.7);
-  transition: all 0.2s;
-  margin-bottom: -2px;
-}
-
-.search-tab:hover {
-  color: var(--dv-gold);
-  background-color: rgba(251, 191, 36, 0.1);
-}
-
-.search-tab.active {
-  color: var(--dv-gold);
-  border-bottom-color: var(--dv-gold);
-  font-weight: 600;
-}
-
 .add-book-section-title {
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
@@ -134,14 +103,9 @@
     font-size: 16px; /* Prevents zoom on iOS */
   }
   
-  .search-tabs {
-    gap: 4px;
-  }
   
-  .search-tab {
-    padding: 8px 16px;
-    font-size: 0.9rem;
-  }
+  
+  
 }
 
 /* Ensure columns don't overflow */

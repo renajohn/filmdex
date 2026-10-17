@@ -10,6 +10,7 @@ import {
   BsListOl, BsLayers, BsTrophy, BsPercent, BsGlobe
 } from 'react-icons/bs';
 import './AnalyticsPage.css';
+import Segmented from '../components/shared/Segmented';
 
 interface AnalyticsResponse {
   success?: boolean;
@@ -437,15 +438,17 @@ const AnalyticsPage: React.FC = () => {
     <div className="analytics-page">
       {/* Tab Navigation */}
       <nav className="tab-nav">
-        <button className={tab === 'film' ? 'active' : ''} onClick={() => setTab('film')}>
-          <BsFilm /> FilmDex
-        </button>
-        <button className={tab === 'music' ? 'active' : ''} onClick={() => setTab('music')}>
-          <BsMusicNoteBeamed /> MusicDex
-        </button>
-        <button className={tab === 'book' ? 'active' : ''} onClick={() => setTab('book')}>
-          <BsBook /> BookDex
-        </button>
+        <Segmented
+          label="Collection"
+          kind="tabs"
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'film', icon: <BsFilm />, label: 'FilmDex' },
+            { value: 'music', icon: <BsMusicNoteBeamed />, label: 'MusicDex' },
+            { value: 'book', icon: <BsBook />, label: 'BookDex' },
+          ]}
+        />
       </nav>
 
       {/* ============= FILMDEX TAB ============= */}

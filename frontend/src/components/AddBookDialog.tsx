@@ -9,6 +9,7 @@ import './AddBookDialog.css';
 import { readStored, writeStored } from '../utils/safeStorage';
 import Select from './shared/Select';
 import Button from './shared/Button';
+import Segmented from './shared/Segmented';
 
 interface BookData {
   title?: string;
@@ -1382,22 +1383,16 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
             </h6>
 
           {/* Search Mode Tabs */}
-          <div className="search-tabs mb-3">
-            <button
-              type="button"
-              className={`search-tab ${searchTab === 'isbn' ? 'active' : ''}`}
-              onClick={() => setSearchTab('isbn')}
-            >
-              ISBN
-            </button>
-            <button
-              type="button"
-              className={`search-tab ${searchTab === 'title' ? 'active' : ''}`}
-              onClick={() => setSearchTab('title')}
-            >
-              Title / Author
-            </button>
-          </div>
+          <Segmented
+            label="Search by"
+            className="search-tabs mb-3"
+            value={searchTab}
+            onChange={setSearchTab}
+            options={[
+              { value: 'isbn', label: 'ISBN' },
+              { value: 'title', label: 'Title / Author' },
+            ]}
+          />
 
           {/* ISBN Search Tab */}
           {searchTab === 'isbn' && (

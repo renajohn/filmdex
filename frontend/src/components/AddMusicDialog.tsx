@@ -9,6 +9,7 @@ import AlbumMetadataForm from './AlbumMetadataForm';
 import SleeveCapture, { type SleeveDraftResult } from './SleeveCapture';
 import './AddMusicDialog.css';
 import Button from './shared/Button';
+import Segmented from './shared/Segmented';
 
 interface MusicRelease {
   id?: string;
@@ -531,33 +532,18 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
           </h6>
           
           {/* Search Type Selector */}
-          <div className="search-type-selector mb-3">
-            <button
-              className={`search-type-btn ${searchBy === 'photo' ? 'active' : ''}`}
-              onClick={openCamera}
-            >
-              <BsCamera className="me-1" />
-              Photo
-            </button>
-            <button 
-              className={`search-type-btn ${searchBy === 'title' ? 'active' : ''}`}
-              onClick={() => setSearchBy('title')}
-            >
-              Album Title
-            </button>
-            <button 
-              className={`search-type-btn ${searchBy === 'catalog' ? 'active' : ''}`}
-              onClick={() => setSearchBy('catalog')}
-            >
-              Catalog Number
-            </button>
-            <button 
-              className={`search-type-btn ${searchBy === 'barcode' ? 'active' : ''}`}
-              onClick={() => setSearchBy('barcode')}
-            >
-              Barcode
-            </button>
-          </div>
+          <Segmented
+            label="Search by"
+            className="search-type-selector mb-3"
+            value={searchBy}
+            onChange={kind => { if (kind === 'photo') openCamera(); else setSearchBy(kind); }}
+            options={[
+              { value: 'photo', icon: <BsCamera />, label: 'Photo' },
+              { value: 'title', label: 'Album Title' },
+              { value: 'catalog', label: 'Catalog Number' },
+              { value: 'barcode', label: 'Barcode' },
+            ]}
+          />
           
           {/* Search Inputs */}
           {searchBy === 'photo' ? (

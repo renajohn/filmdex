@@ -1,0 +1,109 @@
+/*
+ * A pill (Chip.tsx): small and rounded, the menus' glass with a light edge;
+ * on, gold words on a gold tint; a filter in place keeps a ✕ at its end.
+ */
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--dv-height-sm);
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid var(--dv-edge);
+  background: var(--dv-glass);
+  color: var(--dv-text-muted);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+
+span.ui-chip {
+  cursor: default;
+}
+
+button.ui-chip:hover:not(:disabled) {
+  color: #fff;
+  border-color: var(--dv-edge-hover);
+  background: var(--dv-glass-hover);
+}
+
+.ui-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--dv-ring);
+}
+
+.ui-chip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ui-chip--on,
+button.ui-chip--on:hover:not(:disabled) {
+  color: var(--dv-gold);
+  background: var(--dv-gold-tint);
+  border-color: var(--dv-gold-tint-edge);
+}
+
+.ui-chip--muted {
+  opacity: 0.5;
+  border-style: dashed;
+}
+
+/* Words that mean something, as on a cover's tags: a shelf in gold, what has no room in red. */
+.ui-chip--gold { color: var(--dv-gold); }
+.ui-chip--alert {
+  color: var(--dv-danger);
+  border-color: var(--dv-danger-tint-edge);
+}
+
+.ui-chip--removable {
+  padding-right: 3px;
+  color: var(--dv-text);
+}
+
+.ui-chip__icon {
+  display: inline-flex;
+}
+
+.ui-chip__icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.ui-chip__count {
+  font-size: 11px;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-chip__remove {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--dv-text-muted);
+  cursor: pointer;
+}
+
+.ui-chip__remove:hover {
+  color: #fff;
+  background: var(--dv-veil);
+}
+
+.ui-chip__remove:focus-visible {
+  outline: none;
+  box-shadow: var(--dv-ring);
+}
+
+.ui-chip__remove svg {
+  width: 14px;
+  height: 14px;
+}

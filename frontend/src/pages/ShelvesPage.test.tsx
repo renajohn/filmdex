@@ -237,7 +237,7 @@ describe('ShelvesPage', () => {
     // The free shelf holds a film, so the strip of Films offers it.
     expect(within(screen.getByRole('navigation', { name: 'Shelves of Films' })).getByTitle('A-5: Harry Potter')).toHaveTextContent('A-51');
     // And the empty free shelf beside it, so the unit reads whole.
-    expect(within(screen.getByRole('navigation', { name: 'Shelves of Films' })).getByTitle('A-6: empty')).toHaveClass('empty');
+    expect(within(screen.getByRole('navigation', { name: 'Shelves of Films' })).getByTitle('A-6: empty')).toHaveClass('ui-chip--muted');
     expect(screen.queryByRole('button', { name: 'No room for Harry Potter box' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Edit shelving of Harry Potter box' }));
     expect(selectedValue(screen.getByLabelText('Location'))).toBe('level:6');

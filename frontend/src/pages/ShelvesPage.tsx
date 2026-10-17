@@ -10,6 +10,8 @@ import { SECTION_LABELS } from './shelfLabels';
 import './ShelvesPage.css';
 import Select from '../components/shared/Select';
 import Button, { IconButton } from '../components/shared/Button';
+import Segmented from '../components/shared/Segmented';
+import Chip from '../components/shared/Chip';
 
 type Tab = ShelfSection | 'furniture' | 'places';
 
@@ -403,26 +405,18 @@ const ShelvesPage: React.FC = () => {
       {error && <div className="shelves-notice shelves-error">{error}</div>}
 
       <div className="shelves-controls">
-        <div className="shelves-tabs" role="tablist">
-          {plan?.sections.map(entry => (
-            <button key={entry.key} type="button" role="tab" aria-selected={tab === entry.key}
-              className={`shelves-tab section-${entry.key} ${tab === entry.key ? 'active' : ''}`} onClick={() => setTab(entry.key)}>
-              {SECTION_LABELS[entry.key]} <span className="shelves-tab-count">{entry.items.length}</span>
-            </button>
-          ))}
-          {plan && (
-            <button type="button" role="tab" aria-selected={tab === 'furniture'}
-              className={`shelves-tab ${tab === 'furniture' ? 'active' : ''}`} onClick={() => setTab('furniture')}>
-              Furniture <span className="shelves-tab-count">{plan.units.length}</span>
-            </button>
-          )}
-          {plan && (
-            <button type="button" role="tab" aria-selected={tab === 'places'}
-              className={`shelves-tab ${tab === 'places' ? 'active' : ''}`} onClick={() => setTab('places')}>
-              Elsewhere <span className="shelves-tab-count">{keptElsewhere}</span>
-            </button>
-          )}
-        </div>
+        <Segmented<Tab>
+          label="Shelves"
+          kind="tabs"
+          className="shelves-tabs"
+          value={tab}
+          onChange={setTab}
+          options={[
+            ...(plan?.sections.map(entry => ({ value: entry.key as Tab, label: SECTION_LABELS[entry.key], count: entry.items.length })) ?? []),
+            plan && { value: 'furniture' as Tab, label: 'Furniture', count: plan.units.length },
+            plan && { value: 'places' as Tab, label: 'Elsewhere', count: keptElsewhere },
+          ]}
+        />
         {tab !== 'places' && tab !== 'furniture' && (
           <Form.Control className="shelves-search" size="sm" type="search" placeholder="Find on the shelves…"
             value={query} onChange={event => setQuery(event.target.value)} />
@@ -447,16 +441,16 @@ const ShelvesPage: React.FC = () => {
           {byShelf && !query && (
             <nav className="shelf-strip" aria-label={`Shelves of ${SECTION_LABELS[section.key]}`}>
               {stripShelves.map(level => (
-                <button key={level.id} type="button" className={`shelf-chip ${level.count === 0 ? 'empty' : ''}`}
+                <Chip key={level.id} tone="gold" muted={level.count === 0} count={level.count}
                   title={level.count === 0 ? `${level.code}: empty` : `${level.code}: ${level.first}${level.count > 1 ? ` – ${level.last}` : ''}`}
                   onClick={() => setJumpTo(level.code)}>
-                  {level.code}<span className="shelf-chip-count">{level.count}</span>
-                </button>
+                  {level.code}
+                </Chip>
               ))}
               {section.unshelved > 0 && (
-                <button type="button" className="shelf-chip shelf-chip-over" onClick={() => setJumpTo(NO_SHELF)}>
-                  {NO_SHELF}<span className="shelf-chip-count">{section.unshelved}</span>
-                </button>
+                <Chip tone="alert" count={section.unshelved} onClick={() => setJumpTo(NO_SHELF)}>
+                  {NO_SHELF}
+                </Chip>
               )}
             </nav>
           )}

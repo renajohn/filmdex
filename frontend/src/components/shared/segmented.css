@@ -1,0 +1,140 @@
+/*
+ * One of a few, side by side (Segmented.tsx): a dark groove, the options in
+ * it; the one chosen wears a light veil, or plain gold when it filters.
+ */
+.ui-segmented {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 3px;
+  border-radius: calc(var(--dv-radius-md) + 1px);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--dv-edge);
+  flex-shrink: 0;
+  max-width: 100%;
+}
+
+.ui-segmented--block {
+  display: flex;
+}
+
+.ui-segmented--block .ui-segmented__option {
+  flex: 1;
+}
+
+.ui-segmented__option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--dv-radius-sm);
+  background: none;
+  color: var(--dv-text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ui-segmented--sm .ui-segmented__option {
+  height: 22px;
+  padding: 0 9px;
+  font-size: 12px;
+}
+
+.ui-segmented--lg .ui-segmented__option {
+  height: 40px;
+  min-width: 44px;
+  padding: 0 13px;
+  font-size: 15px;
+}
+
+.ui-segmented__option:hover:not(:disabled):not(.ui-segmented__option--on) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ui-segmented__option:focus-visible {
+  outline: none;
+  box-shadow: var(--dv-ring);
+}
+
+.ui-segmented__option:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ui-segmented__option--on {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  cursor: default;
+}
+
+.ui-segmented--gold .ui-segmented__option--on {
+  background: var(--dv-gold);
+  color: var(--dv-gold-ink);
+  font-weight: 600;
+}
+
+.ui-segmented__icon {
+  display: inline-flex;
+}
+
+.ui-segmented__icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ui-segmented--lg .ui-segmented__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ui-segmented__count {
+  font-size: 11px;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Said under the pointer, below the option, in the menus' glass. */
+.ui-segmented__option[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 9999;
+  padding: 8px 12px;
+  border-radius: var(--dv-radius-md);
+  background: var(--dv-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--dv-surface-edge);
+  box-shadow: var(--dv-surface-shadow);
+  color: var(--dv-text);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: ui-segmented-tip 0.15s ease-out;
+}
+
+@keyframes ui-segmented-tip {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (hover: none) {
+  .ui-segmented__option[data-tooltip]:hover::after { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-segmented__option[data-tooltip]:hover::after { animation: none; }
+}

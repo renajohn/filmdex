@@ -19,6 +19,7 @@ import './MovieDetailCard.css';
 import ShelfCode from './shared/ShelfCode';
 import Select from './shared/Select';
 import Button, { IconButton } from './shared/Button';
+import { MenuChevron } from './shared/Menu';
 
 interface MovieData {
   id: number;
@@ -1885,7 +1886,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                           return `Watched ${count}× · ${dateStr}`;
                         })()}
                       </Button>
-                      <Button className="action-btn watched-date-toggle"
+                      <Button className="ui-button--split watched-date-toggle"
                         active={(currentData!.watch_count || 0) > 0}
                         onClick={toggleDatePicker}
                         disabled={markingWatched}
@@ -1893,12 +1894,12 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                         aria-label="More options"
                         aria-expanded={showDatePicker}
                       >
-                        <BsChevronDown />
+                        <MenuChevron open={showDatePicker} />
                       </Button>
                       
                       {showDatePicker && (
                         <div 
-                          className="watched-date-picker"
+                          className="watched-date-picker menu-surface"
                           onKeyDown={(e) => {
                             if (e.key === 'Escape') {
                               e.stopPropagation();
@@ -1907,15 +1908,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                           }}
                         >
                           <div className="quick-date-buttons">
-                            <button 
-                              type="button" 
+                            <Button size="sm"
                               className="quick-date-btn"
                               onClick={() => handleMarkAsWatched()}
                             >
                               Today
-                            </button>
-                            <button 
-                              type="button" 
+                            </Button>
+                            <Button size="sm"
                               className="quick-date-btn"
                               onClick={() => {
                                 const yesterday = new Date();
@@ -1924,7 +1923,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                               }}
                             >
                               Yesterday
-                            </button>
+                            </Button>
                           </div>
                           <div className="date-picker-divider"></div>
                           <label>Or pick a date:</label>
@@ -2453,7 +2452,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
         <div className="watched-prompt-toast">
           <span className="watched-prompt-text">Did you watch this movie?</span>
           <div className="watched-prompt-buttons">
-            <button 
+            <Button size="sm"
               className="watched-prompt-btn"
               onClick={() => {
                 handleMarkAsWatched();
@@ -2461,8 +2460,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
               }}
             >
               Today
-            </button>
-            <button 
+            </Button>
+            <Button size="sm"
               className="watched-prompt-btn"
               onClick={() => {
                 const yesterday = new Date();
@@ -2472,7 +2471,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
               }}
             >
               Yesterday
-            </button>
+            </Button>
             <IconButton label="Dismiss" size="sm" className="watched-prompt-dismiss"
               onClick={() => setShowWatchedPrompt(false)}
               title="Dismiss"

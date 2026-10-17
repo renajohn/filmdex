@@ -5,6 +5,7 @@ import './AddMovieDialog.css';
 import Select from './shared/Select';
 import Button, { IconButton } from './shared/Button';
 import { BsX } from 'react-icons/bs';
+import Segmented from './shared/Segmented';
 
 interface MovieEdition {
   title: string;
@@ -872,22 +873,15 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                   {/* Mode Toggle */}
                   <div className="mode-toggle">
                     <label className="mode-toggle-label">Add to:</label>
-                    <div className="btn-group" role="group" aria-label="Add to collection or wish list">
-                      <button
-                        type="button"
-                        className={`btn ${mode === 'collection' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                        onClick={() => setMode('collection')}
-                      >
-                        Collection
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn ${mode === 'wishlist' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                        onClick={() => setMode('wishlist')}
-                      >
-                        Wish List
-                      </button>
-                    </div>
+                    <Segmented
+                      label="Add to collection or wish list"
+                      value={mode}
+                      onChange={setMode}
+                      options={[
+                        { value: 'collection', label: 'Collection' },
+                        { value: 'wishlist', label: 'Wish List' },
+                      ]}
+                    />
                   </div>
                 </div>
               )}

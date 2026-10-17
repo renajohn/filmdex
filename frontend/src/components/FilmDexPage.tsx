@@ -1309,18 +1309,18 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
         <div className="watched-prompt-toast">
           <span className="watched-prompt-text">Did you watch this movie?</span>
           <div className="watched-prompt-buttons">
-            <button
+            <Button size="sm"
               className="watched-prompt-btn"
               onClick={() => handlePromptMarkWatched(0)}
             >
               Today
-            </button>
-            <button
+            </Button>
+            <Button size="sm"
               className="watched-prompt-btn"
               onClick={() => handlePromptMarkWatched(1)}
             >
               Yesterday
-            </button>
+            </Button>
             <IconButton label="Dismiss" size="sm" className="watched-prompt-dismiss"
               onClick={() => {
                 setShowWatchedPrompt(false);

@@ -12,6 +12,7 @@ import BackupPage from './pages/BackupPage';
 import ShelvesPage from './pages/ShelvesPage';
 import CogDropdown from './components/CogDropdown';
 import Menu from './components/shared/Menu';
+import Segmented from './components/shared/Segmented';
 import ShelfMovesNotice from './components/shared/ShelfMovesNotice';
 import { refreshShelfLocations } from './utils/shelfLocations';
 import CsvExportDialog from './components/CsvExportDialog';
@@ -1205,43 +1206,22 @@ function AppContent() {
           {/* First row: Navigation and toolbar */}
           <div className="App-header-top">
             {showNavigationPills ? (
-              <div className="segmented-control">
-                <button
-                  className={`segment ${location.pathname === '/filmdex' ? 'active' : ''}`}
-                  onClick={handleCollection}
-                  data-tooltip="FilmDex - My precious movies"
-                >
-                  <BsFilm className="segment-icon" />
-                </button>
-                <button
-                  className={`segment ${location.pathname.startsWith('/musicdex') ? 'active' : ''}`}
-                  onClick={handleMusicDex}
-                  data-tooltip="MusicDex - My precious albums"
-                >
-                  <BsDisc className="segment-icon" />
-                </button>
-                <button
-                  className={`segment ${location.pathname === '/bookdex' ? 'active' : ''}`}
-                  onClick={handleBookDex}
-                  data-tooltip="BookDex - My precious books"
-                >
-                  <BsBook className="segment-icon" />
-                </button>
-                <button
-                  className={`segment ${location.pathname === '/wishlist' ? 'active' : ''}`}
-                  onClick={handleWishList}
-                  data-tooltip="Wish List - My precious to come"
-                >
-                  <BsHeart className="segment-icon" />
-                </button>
-                <button
-                  className={`segment ${location.pathname === '/analytics' ? 'active' : ''}`}
-                  onClick={handleAnalytics}
-                  data-tooltip="Analytics - The palant\u00EDr of data"
-                >
-                  <BsBarChart className="segment-icon" />
-                </button>
-              </div>
+              <Segmented
+                label="Collections"
+                size="lg"
+                tone="gold"
+                className="app-sections"
+                reselect
+                value={location.pathname.startsWith('/musicdex') ? 'musicdex' : location.pathname.slice(1)}
+                onChange={section => ({ filmdex: handleCollection, musicdex: handleMusicDex, bookdex: handleBookDex, wishlist: handleWishList, analytics: handleAnalytics } as Record<string, () => void>)[section]?.()}
+                options={[
+                  { value: 'filmdex', icon: <BsFilm />, tooltip: 'FilmDex - My precious movies' },
+                  { value: 'musicdex', icon: <BsDisc />, tooltip: 'MusicDex - My precious albums' },
+                  { value: 'bookdex', icon: <BsBook />, tooltip: 'BookDex - My precious books' },
+                  { value: 'wishlist', icon: <BsHeart />, tooltip: 'Wish List - My precious to come' },
+                  { value: 'analytics', icon: <BsBarChart />, tooltip: 'Analytics - The palant\u00EDr of data' },
+                ]}
+              />
             ) : (
               <div className="App-title">
                 <div onClick={handleDexVaultClick}>

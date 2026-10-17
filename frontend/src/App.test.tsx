@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import App from './App';
 
 /**
@@ -39,10 +39,10 @@ describe('App shell', () => {
     render(<App />);
 
     // The pills carry an icon, not a label, so the tooltip is what names them.
-    await waitFor(() => expect(document.querySelector('.segmented-control')).toBeInTheDocument());
+    const sections = await screen.findByRole('radiogroup', { name: 'Collections' });
 
-    const tooltips = Array.from(document.querySelectorAll('.segment')).map(s =>
-      s.getAttribute('data-tooltip')
+    const tooltips = Array.from(sections.querySelectorAll('[role="radio"]')).map(s =>
+      s.getAttribute('aria-label')
     );
 
     expect(tooltips).toEqual([
@@ -57,11 +57,8 @@ describe('App shell', () => {
   it('marks the collection currently being shown', async () => {
     render(<App />);
 
-    await waitFor(() => expect(document.querySelector('.segment.active')).toBeInTheDocument());
+    const sections = await screen.findByRole('radiogroup', { name: 'Collections' });
 
-    expect(document.querySelector('.segment.active')).toHaveAttribute(
-      'data-tooltip',
-      expect.stringContaining('FilmDex') as unknown as string
-    );
+    expect(within(sections).getByRole('radio', { checked: true })).toHaveAccessibleName(expect.stringContaining('FilmDex'));
   });
 });

@@ -58,6 +58,8 @@ colour goes into `tokens.css` first.
 |---|---|
 | A button with words | `Button` |
 | A link that looks like a button (Ricardo, Navidrome) | `LinkButton` |
+| One of a few, side by side: the app's sections, a search's kind, tabs | `Segmented` |
+| A filter to turn on, a shelf to jump to, a filter in place with its ✕ | `Chip` |
 | An icon alone: ✕, pencil, bin, ✓ beside a field | `IconButton` |
 | A round button on a cover, a poster, a book | `CoverButton` |
 | A tag on a cover | `CoverTag`, several in a `CoverTagStack` |
@@ -94,6 +96,41 @@ colour goes into `tokens.css` first.
   picture.
 - Side by side as one shape (Play and its ▾): wrap them in an element with the
   class `ui-button-group`.
+
+### Segmented (`Segmented.tsx`, `segmented.css`)
+
+```tsx
+<Segmented label="Search by" value={searchBy} onChange={setSearchBy} options={[
+  { value: 'title', label: 'Album Title' },
+  { value: 'barcode', icon: <BsUpcScan />, label: 'Barcode' },
+]} />
+<Segmented label="Shelves" kind="tabs" value={tab} onChange={setTab}
+  options={sections.map(s => ({ value: s.key, label: s.label, count: s.items.length }))} />
+<Segmented label="Collections" size="lg" tone="gold" reselect value={section} onChange={go}
+  options={[{ value: 'filmdex', icon: <BsFilm />, tooltip: 'FilmDex - My precious movies' }]} />
+```
+
+- A dark groove, the options in it; the one chosen wears a light veil, or
+  plain gold with `tone="gold"` (the app's sections, a filter).
+- `kind="choice"` (default, a radio group) or `kind="tabs"` (one panel among
+  several). `size` sm/md/lg, `block` to fill its place, `count` after the
+  words, `tooltip` for an option with an icon alone (it names it, too).
+  `reselect` calls `onChange` on the one chosen as well.
+- Options may be `false` or `null`, to leave one out conditionally.
+
+### Chip (`Chip.tsx`, `chip.css`)
+
+```tsx
+<Chip active={filter === 'buy'} icon={<BsCartFill />} count={12} onClick={() => setFilter('buy')}>Buy</Chip>
+<Chip tone="gold" muted={empty} count={n} onClick={jump}>A-3</Chip>
+<Chip onRemove={() => remove(f)} removeLabel={`Remove the filter ${f.label}`}>{f.label}</Chip>
+```
+
+- Small and rounded, the glass of the page; `active` is gold words on a gold
+  tint. `tone` colours its words by meaning (gold a shelf, alert what has no
+  room), `muted` is half seen (nothing there), `count` follows the words.
+- With `onRemove` it is a filter in place: the chip does nothing, its ✕ takes it away.
+- An action that is not a filter ("Today", "Yesterday") is a `Button size="sm"`, not a chip.
 
 ### Menu (`Menu.tsx`, `menu.css`)
 
@@ -171,7 +208,7 @@ Everything laid over an album cover, a poster or a book cover.
 
 ## Before you open a pull request
 
-- [ ] No `react-bootstrap` `Button` or `Dropdown`, no `btn` class, no `<select>`.
+- [ ] No `react-bootstrap` `Button` or `Dropdown`, no `btn` class, no `<select>`, no hand-made tabs or chips.
 - [ ] At most one `primary` button per window; nothing destructive in gold.
 - [ ] Every `IconButton` has a `label` that says what it does.
 - [ ] Your stylesheet only places the shared components, and its colours are tokens.
@@ -185,8 +222,6 @@ to make. Counts are of October 2026.
 
 | Family | Today | To make |
 |---|---|---|
-| Segmented choices | `segment`, `search-type-btn`, `shelves-tab`, `tab`, `search-tab`, the Collection / Wish List switch (13 places) | `Segmented` |
-| Chips | `digital-chip`, `shelf-chip`, `quick-date-btn`, `watched-prompt-btn`, `filter-chip` (20) | `Chip` |
 | Dialogs | 14 files with react-bootstrap `Modal`, 19 with an overlay of their own (`*-overlay`, `*-modal`), `window.confirm` in 3 | `Dialog`, `ConfirmDialog` |
 | Text fields | 123 `Form.Control`, 28 raw `<input>`, each with its own look | `TextField` |
 | Notices | 19 react-bootstrap `Alert`, the page's own alert (`onShowAlert`) | `Notice`, a toast |
