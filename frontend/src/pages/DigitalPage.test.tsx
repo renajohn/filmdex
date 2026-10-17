@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import DigitalPage, { ricardoUrl } from './DigitalPage';
+import DigitalPage, { forgetDigitalPage, ricardoUrl } from './DigitalPage';
 import musicService, { type DigitalAlbum, type DigitalLibrary } from '../services/musicService';
 import { playNavidromeAlbum } from '../utils/playAlbum';
 
@@ -65,6 +65,7 @@ const LIBRARY: DigitalLibrary = {
 };
 
 beforeEach(() => {
+  forgetDigitalPage();
   vi.mocked(musicService.getDigitalLibrary).mockResolvedValue(LIBRARY);
   vi.mocked(musicService.syncDigitalLibrary).mockResolvedValue({ editions: [], library: LIBRARY });
 });
@@ -205,6 +206,20 @@ describe('DigitalPage', () => {
 
     expect(await screen.findByText('Lobby Song')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /No CD/ })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('se montre aussitôt au retour, à jour en arrière-plan, sans tout resynchroniser', async () => {
+    vi.mocked(musicService.syncDigitalLibrary).mockClear();
+    const { unmount } = renderPage();
+    expect(await screen.findByText('Play')).toBeInTheDocument();
+    await waitFor(() => expect(musicService.syncDigitalLibrary).toHaveBeenCalledTimes(1));
+    unmount();
+
+    // Coming back: Navidrome takes its time, the page does not wait for it.
+    vi.mocked(musicService.getDigitalLibrary).mockReturnValue(new Promise(() => {}));
+    renderPage();
+    expect(screen.getByText('Play')).toBeInTheDocument();
+    expect(musicService.syncDigitalLibrary).toHaveBeenCalledTimes(1);
   });
 
   it('cherche le CD sur Ricardo sans ce que le titre digital ajoute', () => {

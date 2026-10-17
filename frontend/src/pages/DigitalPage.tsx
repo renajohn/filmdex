@@ -135,18 +135,38 @@ const TrackList: React.FC<TrackListProps> = ({ tracks, onPlay }) => {
  * The music as files, in Navidrome: how good they are, which CD of the
  * collection each album is, and which CDs to buy, from what one listens to.
  */
+/** A full sync rereads Navidrome and takes editions from the rips: on coming back, at most this often. */
+const SYNC_EVERY_MS = 5 * 60 * 1000;
+
+/**
+ * The page as it was left, kept while the app is open: coming back shows it at
+ * once, the library brought up to date behind it.
+ */
+let remembered: {
+  library: DigitalLibrary | null;
+  tab: Tab;
+  expanded: string | null;
+  tracks: Record<string, DigitalTrack[] | null>;
+  syncedAt: number;
+} = { library: null, tab: 'buy', expanded: null, tracks: {}, syncedAt: 0 };
+
+/** For tests: a page never seen. */
+export const forgetDigitalPage = () => {
+  remembered = { library: null, tab: 'buy', expanded: null, tracks: {}, syncedAt: 0 };
+};
+
 const DigitalPage: React.FC = () => {
-  const [library, setLibrary] = useState<DigitalLibrary | null>(null);
+  const [library, setLibrary] = useState<DigitalLibrary | null>(remembered.library);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>('buy');
+  const [tab, setTab] = useState<Tab>(remembered.tab);
   const [query, setQuery] = useState('');
   const [editions, setEditions] = useState<EditionAdoption[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [detail, setDetail] = useState<any>(null);
   const [busy, setBusy] = useState<Set<string>>(new Set());
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [tracks, setTracks] = useState<Record<string, DigitalTrack[] | null>>({});
+  const [expanded, setExpanded] = useState<string | null>(remembered.expanded);
+  const [tracks, setTracks] = useState<Record<string, DigitalTrack[] | null>>(remembered.tracks);
   const [showDismissed, setShowDismissed] = useState(false);
   const appleMobile = isAppleMobile();
   // What DexVault plays, by its album in Navidrome, and the album being fetched to play.
@@ -176,7 +196,8 @@ const DigitalPage: React.FC = () => {
   };
 
   const load = useCallback(async () => {
-    setLoading(true);
+    // A page already seen stays on screen while it is brought up to date.
+    if (!remembered.library) setLoading(true);
     setError(null);
     try {
       setLibrary(await musicService.getDigitalLibrary());
@@ -195,6 +216,7 @@ const DigitalPage: React.FC = () => {
     setSyncing(true);
     try {
       const result = await musicService.syncDigitalLibrary();
+      remembered.syncedAt = Date.now();
       setLibrary(result.library);
       setEditions(result.editions.filter(edition => !edition.skipped));
     } catch (e) {
@@ -204,7 +226,14 @@ const DigitalPage: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { load().then(sync); }, [load, sync]);
+  // The library at once, then a full sync unless one ran a few minutes ago.
+  useEffect(() => {
+    load().then(() => { if (Date.now() - remembered.syncedAt > SYNC_EVERY_MS) sync(); });
+  }, [load, sync]);
+
+  useEffect(() => {
+    remembered = { ...remembered, library, tab, expanded, tracks };
+  }, [library, tab, expanded, tracks]);
 
   const matchesQuery = useCallback((text: string) => {
     const words = normalize(query).split(/\s+/).filter(Boolean);
