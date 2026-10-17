@@ -101,8 +101,8 @@ const navidromePluginController = {
     }
     try {
       // The Digital page weighs it each time it is asked for: nothing to refresh.
-      await NavidromeListener.replaceLibrary(user, req.body?.user ?? null, { songs, albums, artists });
-      res.json({ ok: true, songs: songs.length, albums: albums.length, artists: artists.length });
+      const { written, removed } = await NavidromeListener.replaceLibrary(user, req.body?.user ?? null, { songs, albums, artists });
+      res.json({ ok: true, songs: songs.length, albums: albums.length, artists: artists.length, written, removed });
     } catch (error) {
       logger.warn(`Noting the library of ${user}: ${(error as Error).message}`);
       res.status(500).json({ error: (error as Error).message });

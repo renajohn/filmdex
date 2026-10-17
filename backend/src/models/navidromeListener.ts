@@ -193,21 +193,42 @@ const NavidromeListener = {
     return added > 0;
   }),
 
-  /** Replaces an account's library with the one it sees now, and forgets the events past their time. */
-  replaceLibrary: (user: string, account: unknown, library: AccountLibrary, now: number = Math.floor(Date.now() / 1000)): Promise<void> =>
-    serial(() => inTransaction(async () => {
-      await run('DELETE FROM navidrome_library WHERE navidrome_user = ?', [user]);
-      for (const [kind, items] of [['song', library.songs], ['album', library.albums], ['artist', library.artists]] as const) {
-        for (const item of items) {
-          await run('INSERT OR REPLACE INTO navidrome_library (navidrome_user, kind, item_id, data) VALUES (?, ?, ?, ?)',
-            [user, kind, item.id, JSON.stringify(item)]);
-        }
+  /**
+   * Replaces an account's library with the one it sees now, writing only
+   * what changed since its last report: most hours, a few songs played or
+   * liked. Forgets the events past their time. How many items it wrote and
+   * removed.
+   */
+  replaceLibrary: (user: string, account: unknown, library: AccountLibrary, now: number = Math.floor(Date.now() / 1000)):
+    Promise<{ written: number; removed: number }> => serial(async () => {
+    const known = new Map((await all<{ kind: string; item_id: string; data: string }>(
+      'SELECT kind, item_id, data FROM navidrome_library WHERE navidrome_user = ?', [user]))
+      .map(row => [`${row.kind}|${row.item_id}`, row.data]));
+    const changed: Array<[string, string, string]> = [];
+    for (const [kind, items] of [['song', library.songs], ['album', library.albums], ['artist', library.artists]] as const) {
+      for (const item of items) {
+        const key = `${kind}|${item.id}`;
+        const data = JSON.stringify(item);
+        if (known.get(key) !== data) changed.push([kind, item.id, data]);
+        known.delete(key);
+      }
+    }
+    // What is left was not in this report: gone from the library, or from what the account sees.
+    const gone = [...known.keys()].map(key => key.split('|') as [string, string]);
+    return inTransaction(async () => {
+      for (const [kind, id, data] of changed) {
+        await run('INSERT OR REPLACE INTO navidrome_library (navidrome_user, kind, item_id, data) VALUES (?, ?, ?, ?)', [user, kind, id, data]);
+      }
+      for (const [kind, id] of gone) {
+        await run('DELETE FROM navidrome_library WHERE navidrome_user = ? AND kind = ? AND item_id = ?', [user, kind, id]);
       }
       await run(`INSERT INTO navidrome_listeners (navidrome_user, favourites_at, account) VALUES (?, ?, ?)
         ON CONFLICT(navidrome_user) DO UPDATE SET favourites_at = excluded.favourites_at, account = excluded.account`,
       [user, now, account == null ? null : JSON.stringify(account)]);
       await run("DELETE FROM navidrome_events WHERE type != 'scrobble' AND at < ?", [now - EVENTS_KEPT_SEC]);
-    })),
+      return { written: changed.length, removed: gone.length };
+    });
+  }),
 
   /** The stars and hearts of every account but `except`, whose own DexVault reads fresh. */
   othersFavourites: async (except: string): Promise<OthersFavourites> => {

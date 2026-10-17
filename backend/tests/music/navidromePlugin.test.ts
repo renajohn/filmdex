@@ -157,6 +157,13 @@ describe('le plugin DexVault dans Navidrome', () => {
       artists: [{ id: 'ar-moby', name: 'Moby', starred: '2026-10-17T10:00:00Z' }],
     }).expect(200);
     expect((await rows('SELECT item_id FROM navidrome_library WHERE navidrome_user = ?', ['violaine'])).length).toBe(4);
+    // The same library an hour later: nothing written.
+    const again = await library('violaine', {
+      songs: [{ id: `${albumId}-1`, title: 'One', playCount: 4 }, { id: `${albumId}-2`, title: 'Two', starred: '2026-10-17T10:00:00Z' }],
+      albums: [{ id: albumId, name: 'Hearted', userRating: 3 }],
+      artists: [{ id: 'ar-moby', name: 'Moby', starred: '2026-10-17T10:00:00Z' }],
+    }).expect(200);
+    expect(again.body).toMatchObject({ written: 0, removed: 0 });
     const { album, plugin } = await inBuy();
     expect(album).toMatchObject({ starred: false, favouriteTracks: 1, buy: { rated: true } });
     expect(plugin).toMatchObject({ stale: false, lastReportAt: expect.any(Number) });
@@ -164,7 +171,9 @@ describe('le plugin DexVault dans Navidrome', () => {
     expect(plugin.accounts).not.toContain('renault');
 
     // A later report replaces the account's likes: the heart taken back, the album leaves Buy.
-    await library('violaine', { songs: [{ id: `${albumId}-2`, title: 'Two' }] }).expect(200);
+    const unliked = await library('violaine', { songs: [{ id: `${albumId}-2`, title: 'Two' }] }).expect(200);
+    // The heart gone from one song, the rest no longer seen: one written, three removed.
+    expect(unliked.body).toMatchObject({ written: 1, removed: 3 });
     expect((await inBuy()).album.buy).toBeNull();
   });
 
