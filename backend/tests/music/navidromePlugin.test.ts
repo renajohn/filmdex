@@ -113,6 +113,16 @@ describe('le plugin DexVault dans Navidrome', () => {
     expect(await playsOf(songId)).toEqual([]);
   });
 
+  it('montre les derniers événements reçus, les plus récents d’abord, tels quels', async () => {
+    const songId = `s-${tag()}`;
+    await event('nowPlaying', { username: 'renault', track: { id: songId, title: 'Say It Isn’t So', artist: 'Bon Jovi' }, position: 0 }).expect(200);
+
+    const res = await request(app).get('/api/music/navidrome/plugin/recent?limit=1').expect(200);
+    expect(res.body.events).toEqual([expect.objectContaining({
+      type: 'nowPlaying', user: 'renault', songId, data: expect.objectContaining({ track: expect.objectContaining({ title: 'Say It Isn’t So' }) }),
+    })]);
+  });
+
   it('refuse ce qui n’est pas une écoute', async () => {
     expect((await listen({ user: 'violaine', songId: '../etc', playedAt: NOON })).status).toBe(400);
     expect((await listen({ user: 'violaine', songId: 's1', playedAt: 'hier' })).status).toBe(400);

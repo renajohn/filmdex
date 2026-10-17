@@ -84,6 +84,17 @@ export interface AccountLibrary {
   artists: LibraryItem[];
 }
 
+/** An event as DexVault keeps it: who, what, when, and all Navidrome said. */
+export interface RecentEvent {
+  type: EventType;
+  user: string;
+  songId: string | null;
+  /** Unix seconds: the play's time for a scrobble, else when it came. */
+  at: number;
+  receivedAt: number;
+  data: unknown;
+}
+
 /** Playing and playback reports are kept a year; plays, for good. */
 const EVENTS_KEPT_SEC = 365 * 86400;
 
@@ -211,6 +222,12 @@ const NavidromeListener = {
       albums: best(rows.filter(row => row.kind === 'album')),
     };
   },
+
+  /** The latest events, newest first, each as it came. */
+  recentEvents: async (limit: number): Promise<RecentEvent[]> =>
+    (await all<{ type: EventType; navidrome_user: string; song_id: string | null; at: number; received_at: number; data: string }>(
+      'SELECT type, navidrome_user, song_id, at, received_at, data FROM navidrome_events ORDER BY received_at DESC, id DESC LIMIT ?', [limit]))
+      .map(row => ({ type: row.type, user: row.navidrome_user, songId: row.song_id, at: row.at, receivedAt: row.received_at, data: JSON.parse(row.data) })),
 
   /** Every account the plugin has told of, by name. */
   listeners: async (): Promise<Listener[]> =>

@@ -304,6 +304,7 @@ app.post('/api/music/navidrome/scrobble/:id', playerController.scrobble);
 // What the DexVault plugin in Navidrome hands on of every account, as Navidrome told it.
 app.post('/api/music/navidrome/plugin/events', navidromePluginController.authenticate, navidromePluginController.event);
 app.put('/api/music/navidrome/plugin/library/:user', navidromePluginController.authenticate, navidromePluginController.library);
+app.get('/api/music/navidrome/plugin/recent', navidromePluginController.recent);
 app.post('/api/music/albums/link-musicbrainz', musicController.linkMusicBrainz);
 app.post('/api/music/albums/refresh-musicbrainz', musicController.refreshAllFromMusicBrainz);
 app.post('/api/music/albums/:id/refresh-musicbrainz', musicController.refreshFromMusicBrainz);

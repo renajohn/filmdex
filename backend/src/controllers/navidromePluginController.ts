@@ -79,6 +79,16 @@ const navidromePluginController = {
     }
   },
 
+  /** The latest events the plugin handed on, newest first: ?limit= up to 500, 50 by default. */
+  recent: async (req: Request, res: Response): Promise<void> => {
+    const limit = Math.min(500, Math.max(1, Number.parseInt(String(req.query.limit ?? '50'), 10) || 50));
+    try {
+      res.json({ events: await NavidromeListener.recentEvents(limit) });
+    } catch (error) {
+      res.status(500).json({ error: (error as Error).message });
+    }
+  },
+
   /** An account's library as it sees it: { user, songs, albums, artists }, each item as Navidrome gives it. */
   library: async (req: Request, res: Response): Promise<void> => {
     const user = String(req.params.user);
