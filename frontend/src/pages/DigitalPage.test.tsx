@@ -222,6 +222,24 @@ describe('DigitalPage', () => {
     expect(musicService.syncDigitalLibrary).toHaveBeenCalledTimes(1);
   });
 
+  it('se montre aussitôt après un rechargement, depuis ce que le navigateur a gardé', async () => {
+    const stored = new Map([['dexvault.digital', JSON.stringify({ library: LIBRARY, syncedAt: Date.now() })]]);
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => stored.set(key, value), removeItem: (key: string) => stored.delete(key) },
+    });
+    vi.mocked(musicService.getDigitalLibrary).mockReturnValue(new Promise(() => {}));
+    vi.mocked(musicService.syncDigitalLibrary).mockClear();
+    // A reload: the page's module is read anew.
+    vi.resetModules();
+    const { default: Reloaded } = await import('./DigitalPage');
+    render(<MemoryRouter initialEntries={['/musicdex/digital']}><Reloaded /></MemoryRouter>);
+
+    expect(screen.getByText('Play')).toBeInTheDocument();
+    const { default: reloadedService } = await import('../services/musicService');
+    expect(reloadedService.syncDigitalLibrary).not.toHaveBeenCalled();
+  });
+
   it('cherche le CD sur Ricardo sans ce que le titre digital ajoute', () => {
     expect(ricardoUrl({ artist: 'Pink Floyd', name: 'Relics (Remastered) [Disc 1]' }))
       .toBe('https://www.ricardo.ch/fr/s/Pink%20Floyd%20Relics/');

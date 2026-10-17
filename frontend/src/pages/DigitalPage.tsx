@@ -9,6 +9,7 @@ import musicService, {
 import { useDetailSteps } from '../utils/detailSteps';
 import { albumImages } from '../utils/detailImages';
 import { isAppleMobile, openListen } from '../utils/navidrome';
+import { readStored, writeStored } from '../utils/safeStorage';
 import { player, usePlayer } from '../services/player';
 import { playNavidromeAlbum } from '../utils/playAlbum';
 import NowPlayingBars from '../components/shared/NowPlayingBars';
@@ -138,9 +139,22 @@ const TrackList: React.FC<TrackListProps> = ({ tracks, onPlay }) => {
 /** A full sync rereads Navidrome and takes editions from the rips: on coming back, at most this often. */
 const SYNC_EVERY_MS = 5 * 60 * 1000;
 
+/** The last library and when it was synced, kept in the browser: a reload shows them at once too. */
+const STORED_KEY = 'dexvault.digital';
+
+const readStoredLibrary = (): { library: DigitalLibrary | null; syncedAt: number } => {
+  try {
+    const value = JSON.parse(readStored(STORED_KEY) || 'null');
+    return value && Array.isArray(value.library?.albums) ? { library: value.library, syncedAt: Number(value.syncedAt) || 0 } : { library: null, syncedAt: 0 };
+  } catch {
+    return { library: null, syncedAt: 0 };
+  }
+};
+
 /**
- * The page as it was left, kept while the app is open: coming back shows it at
- * once, the library brought up to date behind it.
+ * The page as it was left: coming back shows it at once, the library brought
+ * up to date behind it. The tab and what is unfolded last while the app is
+ * open; the library itself, across a reload.
  */
 let remembered: {
   library: DigitalLibrary | null;
@@ -148,7 +162,7 @@ let remembered: {
   expanded: string | null;
   tracks: Record<string, DigitalTrack[] | null>;
   syncedAt: number;
-} = { library: null, tab: 'buy', expanded: null, tracks: {}, syncedAt: 0 };
+} = { tab: 'buy', expanded: null, tracks: {}, ...readStoredLibrary() };
 
 /** For tests: a page never seen. */
 export const forgetDigitalPage = () => {
@@ -234,6 +248,10 @@ const DigitalPage: React.FC = () => {
   useEffect(() => {
     remembered = { ...remembered, library, tab, expanded, tracks };
   }, [library, tab, expanded, tracks]);
+
+  useEffect(() => {
+    if (library?.configured) writeStored(STORED_KEY, JSON.stringify({ library, syncedAt: remembered.syncedAt }));
+  }, [library]);
 
   const matchesQuery = useCallback((text: string) => {
     const words = normalize(query).split(/\s+/).filter(Boolean);
