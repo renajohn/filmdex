@@ -28,7 +28,7 @@ describe('DigitalMarks', () => {
   it('met le nuage sur un album sans CD, en orange avec son format quand il est lossy', () => {
     const { container } = render(<DigitalMarks digital={{ album: album({ formats: ['MP3'], quality: 'lossy', bitRate: 160 }), notRipped: false }} titleStatus="digital" />);
     const mark = container.querySelector('.digital-mark')!;
-    expect(mark.className).toContain('digital-mark-lossy');
+    expect(mark.className).toContain('cover-tag--orange');
     expect(mark.textContent).toBe('MP3 160');
     expect(titles(<DigitalMarks digital={{ album: album({}), notRipped: false }} titleStatus="digital" />)).toEqual(['No CD · FLAC']);
   });

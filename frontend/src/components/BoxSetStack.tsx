@@ -304,16 +304,16 @@ const BoxSetStack: React.FC<BoxSetStackProps> = ({ boxSetName, movies, onMovieCl
                           {/* Left side badges - vertical stack */}
                           <div className="poster-badges-left">
                             {movie.recommended_age != null && (
-                              <span className="age-badge-large">{movie.recommended_age}+</span>
+                              <span className="cover-tag age-badge-large">{movie.recommended_age}+</span>
                             )}
                             <WarningBadges movie={movie} />
                             {combinedScore && (
-                              <span className="score-badge-large" style={{ color: getRatingColor(combinedScore, 10) }}>
+                              <span className="cover-tag score-badge-large" style={{ color: getRatingColor(combinedScore, 10) }}>
                                 {combinedScore.toFixed(1)}
                               </span>
                             )}
                             {movie.format && (
-                              <span className="format-badge-large">
+                              <span className="cover-tag cover-tag--gold format-badge-large">
                                 {movie.format === 'Blu-ray 4K' ? '4K' :
                                  movie.format === 'Blu-ray' ? 'BR' :
                                  movie.format === 'DVD' ? 'DVD' :

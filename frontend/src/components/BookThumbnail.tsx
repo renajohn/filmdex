@@ -223,14 +223,10 @@ const BookThumbnail: React.FC<BookThumbnailProps> = ({ book, onClick, onEdit, on
       {...(dataFirstLetter ? { 'data-first-letter': dataFirstLetter } : {})}
     >
       <div className="book-thumbnail-cover">
-        {book.titleStatus === 'borrowed' && (
-          <div className="book-thumbnail-borrowed-ribbon">
-            Borrowed
-          </div>
-        )}
-        {book.seriesNumber && (
-          <div className="book-thumbnail-series-badge">
-            #{book.seriesNumber}
+        {(book.seriesNumber || book.titleStatus === 'borrowed') && (
+          <div className="book-thumbnail-tags">
+            {book.seriesNumber && <span className="cover-tag book-thumbnail-series-badge">#{book.seriesNumber}</span>}
+            {book.titleStatus === 'borrowed' && <span className="cover-tag cover-tag--alert">Borrowed</span>}
           </div>
         )}
         {book.ebookFile && (book.ebookFile as string).trim() && (

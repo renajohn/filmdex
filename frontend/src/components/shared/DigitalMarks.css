@@ -9,38 +9,11 @@
   pointer-events: auto;
 }
 
-.digital-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  height: 24px;
-  min-width: 24px;
-  padding: 0 6px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(6px);
-  /* The same light edge as the round buttons: one kind of glass on a cover. */
-  box-shadow: var(--cover-edge);
-  color: #f5f5f5;
-  font-size: 13px;
-  line-height: 1;
-}
-
+/* Each mark is a tag of the covers' kind (.cover-tag, index.css). */
 .digital-mark small {
-  font-size: 10.5px;
-  font-weight: 700;
-  white-space: nowrap;
+  font-size: inherit;
+  font-weight: inherit;
 }
-
-/* Orange: a copy to do again. */
-.digital-mark-lossy { color: #f59e0b; }
-.digital-mark-unripped { color: #bbb; }
-
-/* Gold: to buy. */
-.digital-mark-buy { background: #fbbf24; color: #111; box-shadow: none; }
-/* Plain gold, as the heart button on: the same thing said the same way. */
-.digital-mark-wish { background: #fbbf24; color: #111; box-shadow: none; }
 
 .digital-mark-svg {
   width: 1em;

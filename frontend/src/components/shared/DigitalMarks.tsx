@@ -32,22 +32,22 @@ const DigitalMarks: React.FC<DigitalMarksProps> = ({ digital, titleStatus, hideW
   const marks: React.ReactNode[] = [];
   if (!hasCd) {
     marks.push(
-      <span key="cloud" className={`digital-mark${isLossy(album) ? ' digital-mark-lossy' : ''}`}
+      <span key="cloud" className={`digital-mark cover-tag${isLossy(album) ? ' cover-tag--orange' : ''}`}
         title={album ? `No CD · ${formatLabel(album)}` : 'No CD'}>
         <BsCloud aria-hidden="true" />
         {isLossy(album) && <small>{formatLabel(album!)}</small>}
       </span>);
   } else if (digital?.notRipped) {
-    marks.push(<span key="unripped" className="digital-mark digital-mark-unripped" title="Not ripped"><NotRippedIcon /></span>);
+    marks.push(<span key="unripped" className="digital-mark cover-tag cover-tag--muted" title="Not ripped"><NotRippedIcon /></span>);
   } else if (isLossy(album)) {
-    marks.push(<span key="lossy" className="digital-mark digital-mark-lossy" title={`Ripped in ${formatLabel(album!)}: rip it again`}><small>{formatLabel(album!)}</small></span>);
+    marks.push(<span key="lossy" className="digital-mark cover-tag cover-tag--orange" title={`Ripped in ${formatLabel(album!)}: rip it again`}><small>{formatLabel(album!)}</small></span>);
   }
   if (!hasCd && titleStatus === 'wish') {
     if (!hideWish) {
-      marks.push(<span key="wish" className="digital-mark digital-mark-wish" title="On your wish list"><BsHeartFill aria-hidden="true" /></span>);
+      marks.push(<span key="wish" className="digital-mark cover-tag cover-tag--on" title="On your wish list"><BsHeartFill aria-hidden="true" /></span>);
     }
   } else if (!hasCd && isToBuy(album) && isSuggested(album)) {
-    marks.push(<span key="buy" className="digital-mark digital-mark-buy" title="Worth buying, from your listening"><BsCartFill aria-hidden="true" /></span>);
+    marks.push(<span key="buy" className="digital-mark cover-tag cover-tag--on" title="Worth buying, from your listening"><BsCartFill aria-hidden="true" /></span>);
   }
   if (marks.length === 0) return null;
   return <div className={`digital-marks ${className}`}>{marks}</div>;

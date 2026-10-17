@@ -9,10 +9,10 @@ interface Props {
 const WarningBadges: React.FC<Props> = ({ movie }) => (
   <>
     {movie.spiders_status === 'with' && (
-      <span className="warning-badge-large" title="Spiders"><GiSpiderAlt size={14} /></span>
+      <span className="cover-tag cover-tag--alert warning-badge-large" title="Spiders"><GiSpiderAlt size={14} /></span>
     )}
     {movie.snakes_status === 'with' && (
-      <span className="warning-badge-large" title="Snakes"><GiSnake size={14} /></span>
+      <span className="cover-tag cover-tag--alert warning-badge-large" title="Snakes"><GiSnake size={14} /></span>
     )}
   </>
 );

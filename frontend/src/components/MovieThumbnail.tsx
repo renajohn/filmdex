@@ -136,7 +136,7 @@ const MovieThumbnail: React.FC<MovieThumbnailProps> = ({ imdbLink, title, year, 
           <AgeDisplay age={recommendedAge} className="age-corner age-small" />
         )}
         {boxSetCount !== null && boxSetCount > 1 && (
-          <div className="boxset-count-badge">
+          <div className="cover-tag boxset-count-badge">
             {boxSetCount}
           </div>
         )}

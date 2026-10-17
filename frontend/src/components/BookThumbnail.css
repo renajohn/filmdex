@@ -187,27 +187,17 @@
   fill: currentColor;
 }
 
-.book-thumbnail-borrowed-ribbon {
+/* The series number and Borrowed, tags of the covers' kind (.cover-tag, index.css), top left, the menu keeping the top right. */
+.book-thumbnail-tags {
   position: absolute;
-  top: 26px;
-  right: -54px;
-  background: linear-gradient(to bottom right, #bb0000, #941919);
-  color: white;
-  padding: 6px 48px;
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  transform: rotate(45deg);
-  transform-origin: center;
-  z-index: 5;
-  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
-  white-space: nowrap;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  min-width: 135px;
-  text-align: center;
-  line-height: 1.3;
+  top: 8px;
+  left: 8px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  pointer-events: none;
 }
 
 /* The e-book, to download: always in sight, a round button of the covers' kind (see index.css). */
@@ -239,23 +229,6 @@
   transform: scale(0.9);
 }
 
-.book-thumbnail-series-badge {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(6px);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  z-index: 6;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  line-height: 1.2;
-  letter-spacing: 0.3px;
-}
 
 /* Ensure dropdown menu escapes overflow containers */
 .book-thumbnail-menu .dropdown-menu {

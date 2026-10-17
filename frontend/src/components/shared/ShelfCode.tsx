@@ -16,7 +16,7 @@ const ShelfCode: React.FC<ShelfCodeProps> = ({ kind, id, variant = 'overlay', cl
   const where = useShelfLocation(kind, id);
   if (!where) return null;
   return (
-    <span className={`shelf-code-badge shelf-code-${variant}${className ? ` ${className}` : ''}`} title={`On the shelves: ${where}`}>
+    <span className={`shelf-code-badge shelf-code-${variant}${variant === 'overlay' ? ' cover-tag cover-tag--gold' : ''}${className ? ` ${className}` : ''}`} title={`On the shelves: ${where}`}>
       {variant === 'inline' && <BsBookshelf aria-hidden="true" />}
       {where}
     </span>

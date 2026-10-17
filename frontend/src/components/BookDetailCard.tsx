@@ -1450,19 +1450,11 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
               <Col md={3}>
                 <div className="book-cover-container" ref={coverRef}>
                   <div style={{ position: 'relative', overflow: 'visible', borderRadius: '4px' }}>
-                    {currentBook.borrowed && (
-                      <div className="book-thumbnail-borrowed-ribbon">
-                        Read & Gone
-                      </div>
-                    )}
-                    {currentBook.titleStatus === 'borrowed' && !currentBook.borrowed && (
-                      <div className="book-thumbnail-borrowed-ribbon">
-                        Borrowed
-                      </div>
-                    )}
-                    {currentBook.titleStatus === 'wish' && (
-                      <div className="book-thumbnail-wishlist-ribbon">
-                        Wishlist
+                    {(currentBook.borrowed || currentBook.titleStatus === 'borrowed' || currentBook.titleStatus === 'wish') && (
+                      <div className="book-cover-tags">
+                        {currentBook.borrowed && <span className="cover-tag cover-tag--alert">Read &amp; Gone</span>}
+                        {currentBook.titleStatus === 'borrowed' && !currentBook.borrowed && <span className="cover-tag cover-tag--alert">Borrowed</span>}
+                        {currentBook.titleStatus === 'wish' && <span className="cover-tag cover-tag--on">Wishlist</span>}
                       </div>
                     )}
                     {getCoverImage() ? (

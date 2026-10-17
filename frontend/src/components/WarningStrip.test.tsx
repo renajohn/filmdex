@@ -7,7 +7,7 @@ describe('WarningStrip', () => {
   it('annonce en toutes lettres un animal présent et encadre l’affiche', () => {
     const { container } = render(<WarningStrip movie={{ spiders_status: 'with', snakes_status: 'without' }} />);
     expect(screen.getByText('Spiders')).toBeInTheDocument();
-    expect(screen.getByTitle('Spiders')).toHaveClass('warning-strip__pill--with');
+    expect(screen.getByTitle('Spiders')).toHaveClass('cover-tag--alert');
     expect(container.querySelector('.warning-strip__frame')).toBeInTheDocument();
   });
 
@@ -25,8 +25,8 @@ describe('WarningStrip', () => {
 
   it('signale un film non vérifié', () => {
     render(<WarningStrip movie={{ spiders_status: 'unknown' }} />);
-    expect(screen.getByTitle('Spiders not reported yet')).toHaveClass('warning-strip__pill--unknown');
+    expect(screen.getByTitle('Spiders not reported yet')).toHaveClass('cover-tag--muted');
     // A movie without the columns at all counts as unknown too.
-    expect(screen.getByTitle('Snakes not reported yet')).toHaveClass('warning-strip__pill--unknown');
+    expect(screen.getByTitle('Snakes not reported yet')).toHaveClass('cover-tag--muted');
   });
 });

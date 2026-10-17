@@ -34,11 +34,11 @@ const WarningStrip: React.FC<Props> = ({ movie }) => {
       <div className="warning-strip">
         {shown.map(({ key, name, Icon, status }) =>
           status === 'with' ? (
-            <span key={key} className="warning-strip__pill warning-strip__pill--with" title={name}>
+            <span key={key} className="cover-tag cover-tag--alert warning-strip__pill" title={name}>
               <Icon size={13} /> {name}
             </span>
           ) : (
-            <span key={key} className="warning-strip__pill warning-strip__pill--unknown" title={`${name} not reported yet`}>
+            <span key={key} className="cover-tag cover-tag--muted warning-strip__pill" title={`${name} not reported yet`}>
               <Icon size={12} />
               <BsQuestion size={14} />
             </span>
