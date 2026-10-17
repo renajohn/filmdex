@@ -102,8 +102,8 @@
   z-index: 10;
 }
 
-/* In Listen Next: in sight without the pointer, as the album playing keeps its ▶. */
-.music-thumbnail .thumbnail-listen-next.active {
+/* On (in Listen Next, wished): in sight without the pointer, as the album playing keeps its ▶. */
+.music-thumbnail .cover-action.active {
   opacity: 1;
 }
 
@@ -142,9 +142,10 @@
 
 /*
  * The round buttons on a cover, ▶ aside (AlbumPlayButton draws its own the
- * same way): dark and blurred with a white icon; under the pointer a light
- * white veil; on (in Listen Next, wished) a denser veil and a deep gold icon,
- * denser still under the pointer. Shown while the card is hovered.
+ * same way): dark glass with a light 1px edge and a white icon; under the
+ * pointer a white ring; on (in Listen Next, wished) plain gold with a dark
+ * icon, a lighter gold within the ring under the pointer. Shown while the
+ * card is hovered.
  */
 .cover-action {
   width: 34px;
@@ -157,17 +158,17 @@
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.68);
   backdrop-filter: blur(6px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 2px 8px rgba(0, 0, 0, 0.35);
   color: #fff;
   font-size: 1.05rem;
   opacity: 0;
-  transition: opacity 0.15s ease, background-color 0.12s ease, color 0.12s ease, transform 0.08s ease;
+  transition: opacity 0.15s ease, background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
 }
 
 .cover-action.active {
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(10px);
-  color: #f59e0b;
+  background: #fbbf24;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  color: #111;
 }
 
 .music-thumbnail:hover .cover-action,
@@ -177,14 +178,14 @@
 
 .cover-action:hover,
 .cover-action:focus-visible {
-  background: rgba(255, 255, 255, 0.28);
-  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.85);
+  box-shadow: 0 0 0 1.5px #fff, 0 2px 8px rgba(0, 0, 0, 0.35);
   outline: none;
 }
 
 .cover-action.active:hover,
 .cover-action.active:focus-visible {
-  background: rgba(255, 255, 255, 0.78);
+  background: #fde68a;
 }
 
 .cover-action:active {

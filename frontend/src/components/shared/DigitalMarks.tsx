@@ -14,6 +14,8 @@ interface DigitalMarksProps {
   digital: AlbumDigital | undefined;
   /** 'owned' for a CD of the collection, 'wish' or 'digital' for an album with no CD. */
   titleStatus?: string | null;
+  /** Leaves the heart out where the card's own heart button says it already (in Buy). */
+  hideWish?: boolean;
   className?: string;
 }
 
@@ -24,7 +26,7 @@ interface DigitalMarksProps {
  * through), and what is to buy (a cart when listening suggests it, a heart
  * on the wish list).
  */
-const DigitalMarks: React.FC<DigitalMarksProps> = ({ digital, titleStatus, className = '' }) => {
+const DigitalMarks: React.FC<DigitalMarksProps> = ({ digital, titleStatus, hideWish = false, className = '' }) => {
   const album = digital?.album ?? null;
   const hasCd = titleStatus !== 'digital' && titleStatus !== 'wish';
   const marks: React.ReactNode[] = [];
@@ -41,7 +43,9 @@ const DigitalMarks: React.FC<DigitalMarksProps> = ({ digital, titleStatus, class
     marks.push(<span key="lossy" className="digital-mark digital-mark-lossy" title={`Ripped in ${formatLabel(album!)}: rip it again`}><small>{formatLabel(album!)}</small></span>);
   }
   if (!hasCd && titleStatus === 'wish') {
-    marks.push(<span key="wish" className="digital-mark digital-mark-wish" title="On your wish list"><BsHeartFill aria-hidden="true" /></span>);
+    if (!hideWish) {
+      marks.push(<span key="wish" className="digital-mark digital-mark-wish" title="On your wish list"><BsHeartFill aria-hidden="true" /></span>);
+    }
   } else if (!hasCd && isToBuy(album) && isSuggested(album)) {
     marks.push(<span key="buy" className="digital-mark digital-mark-buy" title="Worth buying, from your listening"><BsCartFill aria-hidden="true" /></span>);
   }

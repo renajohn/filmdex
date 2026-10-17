@@ -16,18 +16,19 @@
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.68);
   backdrop-filter: blur(6px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  /* A light 1px edge draws the button on any cover, light or dark. */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 2px 8px rgba(0, 0, 0, 0.35);
   color: #fff;
   font-size: 1.05rem;
   opacity: 0;
-  transition: opacity 0.15s ease, background-color 0.12s ease, color 0.12s ease, transform 0.08s ease;
+  transition: opacity 0.15s ease, background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
 }
 
-/* The album playing: a white veil, its bars in deep gold; always in sight. */
+/* The album playing: plain gold, its bars dark; always in sight. */
 .album-play-button-here {
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(10px);
-  color: #f59e0b;
+  background: #fbbf24;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  color: #111;
   opacity: 1;
 }
 
@@ -39,20 +40,20 @@
   opacity: 1;
 }
 
-/* Under the pointer: a light white veil, the cover showing through; on the album playing, a denser one. */
+/* Under the pointer: a white ring; on the album playing, a lighter gold within it. */
 .album-play-button:hover,
 .album-play-button:focus-visible {
-  background: rgba(255, 255, 255, 0.28);
-  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.85);
+  box-shadow: 0 0 0 1.5px #fff, 0 2px 8px rgba(0, 0, 0, 0.35);
   outline: none;
 }
 
 .album-play-button-here:hover,
 .album-play-button-here:focus-visible {
-  background: rgba(255, 255, 255, 0.78);
+  background: #fde68a;
 }
 
-/* Its bars in the button's deep gold: the lighter gold of the lists fades on the white veil. */
+/* Its bars dark on the gold, where the lists' gold bars would vanish. */
 .album-play-button-here .now-playing-bars i {
   background: currentColor;
 }

@@ -40,4 +40,9 @@ describe('DigitalMarks', () => {
     expect(titles(<DigitalMarks digital={{ album: heard, notRipped: false }} titleStatus="wish" />))
       .toEqual(['No CD · FLAC', 'On your wish list']);
   });
+
+  it('laisse le cœur au bouton de la carte dans Buy', () => {
+    expect(titles(<DigitalMarks digital={{ album: album({}), notRipped: false }} titleStatus="wish" hideWish />))
+      .toEqual(['No CD · FLAC']);
+  });
 });

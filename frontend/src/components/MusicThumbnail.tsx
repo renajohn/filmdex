@@ -98,7 +98,7 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onListenNe
         {/* ▶ under the pointer plays the album in DexVault; one with no rip opens its card. An iPhone plays in Amperfy. */}
         <AlbumPlayButton albumId={cd.id} title={cd.title} offerPlay={!isAppleMobile()} onUnripped={onClick} className="thumbnail-play" />
         <ShelfCode kind="album" id={cd.id} />
-        {digital !== undefined && <DigitalMarks digital={digital} titleStatus={cd.titleStatus as string | undefined} />}
+        {digital !== undefined && <DigitalMarks digital={digital} titleStatus={cd.titleStatus as string | undefined} hideWish={Boolean(buy)} />}
         {/* In Buy, at the top right: an album with no CD has no shelf code there. Listen Next keeps its place below. */}
         {buy && (
           <div className="thumbnail-buy-actions">
