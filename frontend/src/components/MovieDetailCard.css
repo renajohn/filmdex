@@ -85,11 +85,6 @@
   margin: 0;
 }
 
-.movie-detail-steps .detail-step {
-  background: rgba(26, 26, 26, 0.7);
-  border-color: transparent;
-}
-
 .movie-detail-close {
   position: absolute;
   top: 15px;

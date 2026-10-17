@@ -1,5 +1,6 @@
 import React, { useEffect, type RefObject } from 'react';
 import { BsChevronLeft, BsChevronRight } from 'react-icons/bs';
+import { IconButton } from './Button';
 import './DetailSteps.css';
 
 type Step = (() => void) | null | undefined;
@@ -130,21 +131,23 @@ interface DetailStepsProps {
   /** What is stepped through, for the buttons' names: "album", "movie", "book". */
   noun: string;
   className?: string;
+  /** On a glass of their own: over a picture, the backdrop of a movie say. */
+  boxed?: boolean;
 }
 
 /** ‹ › to the item before or after on the page; nothing when the item is not on it. */
-const DetailSteps: React.FC<DetailStepsProps> = ({ onPrevious, onNext, noun, className }) => {
+const DetailSteps: React.FC<DetailStepsProps> = ({ onPrevious, onNext, noun, className, boxed = false }) => {
   if (!onPrevious && !onNext) return null;
   return (
     <div className={`detail-steps${className ? ` ${className}` : ''}`}>
-      <button type="button" className="detail-step" onClick={() => onPrevious?.()} disabled={!onPrevious}
-        aria-label={`Previous ${noun}`} title={`Previous ${noun} (←)`}>
+      <IconButton boxed={boxed} className="detail-step" onClick={() => onPrevious?.()} disabled={!onPrevious}
+        label={`Previous ${noun}`} title={`Previous ${noun} (←)`}>
         <BsChevronLeft />
-      </button>
-      <button type="button" className="detail-step" onClick={() => onNext?.()} disabled={!onNext}
-        aria-label={`Next ${noun}`} title={`Next ${noun} (→)`}>
+      </IconButton>
+      <IconButton boxed={boxed} className="detail-step" onClick={() => onNext?.()} disabled={!onNext}
+        label={`Next ${noun}`} title={`Next ${noun} (→)`}>
         <BsChevronRight />
-      </button>
+      </IconButton>
     </div>
   );
 };

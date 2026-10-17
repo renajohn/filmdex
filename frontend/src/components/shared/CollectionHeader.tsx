@@ -1,5 +1,6 @@
 import React from 'react';
 import Menu, { MenuChevron } from './Menu';
+import Button from './Button';
 import { BsSortDown, BsGrid3X3Gap, BsPlus } from 'react-icons/bs';
 import './shared.css';
 
@@ -130,12 +131,9 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
 
         {/* Collapse All Button - Only show when grouping is enabled */}
         {groupBy !== 'none' && onToggleAllGroups && (
-          <button
-            className="collapse-all-btn"
-            onClick={onToggleAllGroups}
-          >
+          <Button variant="quiet" size="sm" className="collapse-all-btn" onClick={onToggleAllGroups}>
             {expandAllGroups ? 'Collapse All' : 'Expand All'}
-          </button>
+          </Button>
         )}
 
         {/* Stack Toggle */}
@@ -158,14 +156,9 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
 
         {/* Add Button */}
         {onAdd && (
-          <button
-            className="add-item-btn"
-            onClick={onAdd}
-            title={addButtonLabel}
-          >
-            <BsPlus />
+          <Button variant="primary" size="sm" icon={<BsPlus />} className="add-item-btn" onClick={onAdd}>
             {addButtonLabel}
-          </button>
+          </Button>
         )}
       </div>
 

@@ -1377,7 +1377,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
       <>
         <div className="movie-detail-overlay" onClick={onClose}>
           <div className="movie-detail-card skeleton-loading" onClick={(e) => e.stopPropagation()}>
-            <IconButton label="Close" className="movie-detail-close" onClick={onClose}><BsX /></IconButton>
+            <IconButton label="Close" boxed className="movie-detail-close" onClick={onClose}><BsX /></IconButton>
             
             <div className="movie-detail-content">
               {/* Header Section Skeleton */}
@@ -1649,8 +1649,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
         >
           {/* Close and ‹ › stay in the corner however far the card has scrolled. */}
           <div className="movie-detail-topbar">
-            <DetailSteps onPrevious={onPrevious} onNext={onNext} noun="movie" className="movie-detail-steps" />
-            <IconButton label="Close" className="movie-detail-close" onClick={onClose}><BsX /></IconButton>
+            <DetailSteps onPrevious={onPrevious} onNext={onNext} noun="movie" className="movie-detail-steps" boxed />
+            <IconButton label="Close" boxed className="movie-detail-close" onClick={onClose}><BsX /></IconButton>
           </div>
 
           {/* Inline Poster Selector - positioned relative to card */}
