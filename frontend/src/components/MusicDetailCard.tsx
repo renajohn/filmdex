@@ -54,6 +54,16 @@ interface CdDisc {
   tracks: CdTrack[];
 }
 
+/** The discs of a rip, its files in their order, with the titles and lengths of their tags. */
+const discsOfRip = (rip: RipTracks | null | undefined): CdDisc[] => {
+  if (!rip?.found) return [];
+  const byDisc = new Map<number, CdTrack[]>();
+  for (const file of [...rip.tracks].sort((a, b) => a.discNumber - b.discNumber || a.track - b.track)) {
+    byDisc.set(file.discNumber, [...(byDisc.get(file.discNumber) || []), { no: file.track, title: file.title, durationSec: file.durationSec ?? undefined }]);
+  }
+  return [...byDisc].map(([number, tracks]) => ({ number, tracks }));
+};
+
 interface CdData {
   musicbrainzReleaseId?: string | null;
   id: number | string;
@@ -468,10 +478,11 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   };
 
   const albumArtists = Array.isArray(cd.artist) ? cd.artist : [cd.artist];
-  const discsCredits = (cd.discs || []).map((disc: CdDisc) => discCredits(disc.tracks, albumArtists));
+  // The tracks DexVault knows; for an album it knows none of (a wish, say), those of its rip in Navidrome.
+  const discs: CdDisc[] = (cd.discs || []).some((disc: CdDisc) => disc.tracks.length > 0) ? cd.discs! : discsOfRip(rip);
+  const discsCredits = discs.map((disc: CdDisc) => discCredits(disc.tracks, albumArtists));
 
   // What the head says of the CD as an object: its format, size and length in one murmur…
-  const discs = cd.discs || [];
   const trackCount = discs.reduce((count, disc) => count + disc.tracks.length, 0);
   const length = playingTime(discs.reduce((total, disc) =>
     total + disc.tracks.reduce((sum, track) => sum + (track.durationSec || 0), 0), 0));
@@ -830,12 +841,12 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
         <AlbumStory albumId={cd.id} open={showStory} />
 
         {/* Track Listing */}
-        {cd.discs && cd.discs.length > 0 && (
+        {discs.length > 0 && (
           <div className="info-section">
             <div className="track-listing-header">
               <h4>Track Listing</h4>
             </div>
-            {cd.discs.map((disc: CdDisc, discIndex: number) => {
+            {discs.map((disc: CdDisc, discIndex: number) => {
               const credits = discsCredits[discIndex];
               // The movements of a work go under its heading, which says who wrote and who plays them all;
               // under a movement, only what differs. Who wrote the rest is in each track's credits.
@@ -850,7 +861,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
               });
               return (
                 <div key={discIndex} className="disc-tracks mb-3">
-                  {cd.discs!.length > 1 && (
+                  {discs.length > 1 && (
                     <h6 className="disc-title">Disc {disc.number}</h6>
                   )}
                   <div className="track-list">

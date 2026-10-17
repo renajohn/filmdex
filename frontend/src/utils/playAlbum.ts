@@ -20,14 +20,27 @@ export const playerAlbumOf = (album: AlbumLike, rip?: RipTracks | null): PlayerA
   cover: musicService.getImageUrl(album.cover),
 });
 
-/** The CD's tracks that have a file in the rip, in the CD's order, with its titles. */
-export const playerTracksOf = (album: AlbumLike, rip: RipTracks | null | undefined): PlayerTrack[] =>
-  (album.discs || []).flatMap(disc => disc.tracks.flatMap(track => {
-    const file = rip?.found ? ripFileFor(rip.tracks, disc.number, Number(track.no)) : null;
+/**
+ * The CD's tracks that have a file in the rip, in the CD's order, with its
+ * titles. An album DexVault knows no tracks of (a wish, say, whose files
+ * Navidrome has) plays the rip as it is, in its order, with its titles.
+ */
+export const playerTracksOf = (album: AlbumLike, rip: RipTracks | null | undefined): PlayerTrack[] => {
+  if (!rip?.found) return [];
+  const known = (album.discs || []).some(disc => disc.tracks.length > 0);
+  if (!known) {
+    return rip.tracks
+      .filter(file => file.id)
+      .sort((a, b) => a.discNumber - b.discNumber || a.track - b.track)
+      .map(file => ({ songId: file.id!, title: file.title, disc: file.discNumber, no: file.track, durationSec: file.durationSec ?? null }));
+  }
+  return (album.discs || []).flatMap(disc => disc.tracks.flatMap(track => {
+    const file = ripFileFor(rip.tracks, disc.number, Number(track.no));
     return file?.id
       ? [{ songId: file.id, title: track.title, disc: disc.number, no: Number(track.no), durationSec: file.durationSec ?? track.durationSec ?? null }]
       : [];
   }));
+};
 
 /**
  * Plays an album from the start, from wherever a ▶ stands without its card
