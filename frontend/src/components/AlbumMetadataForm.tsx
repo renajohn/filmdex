@@ -581,7 +581,7 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
                               onLoad={(e: React.SyntheticEvent<HTMLImageElement>) => { (e.target as HTMLImageElement).classList.remove('loading'); }}
                             />
                             {selectedFrontCoverIndex === originalIndex && (
-                              <div className="selected-indicator">
+                              <div className="album-cover-check">
                                 <BsCheck />
                               </div>
                             )}
@@ -630,7 +630,7 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
                               onLoad={(e: React.SyntheticEvent<HTMLImageElement>) => { (e.target as HTMLImageElement).classList.remove('loading'); }}
                             />
                             {selectedBackCoverIndex === originalIndex && (
-                              <div className="selected-indicator">
+                              <div className="album-cover-check">
                                 <BsCheck />
                               </div>
                             )}
@@ -706,7 +706,7 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
                             thumbnail
                             className="cover-image"
                           />
-                          <div className="selected-indicator">
+                          <div className="album-cover-check">
                             <BsCheck />
                           </div>
                           <div className="cover-info">
@@ -722,7 +722,7 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
                             thumbnail
                             className="cover-image"
                           />
-                          <div className="selected-indicator">
+                          <div className="album-cover-check">
                             <BsCheck />
                           </div>
                           <div className="cover-info">

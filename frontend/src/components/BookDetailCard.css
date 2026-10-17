@@ -753,16 +753,6 @@
 }
 
 /* Cover menu dropdown */
-.book-cover-menu {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 1000 !important;
-  opacity: 1 !important;
-  transition: opacity 0.2s ease-in-out;
-  pointer-events: auto;
-  display: block !important;
-}
 
 .book-cover-dropdown-toggle {
   background: rgba(255, 255, 255, 0.85) !important;
@@ -790,36 +780,6 @@
 
 .book-cover-dropdown-toggle::after {
   display: none !important;
-}
-
-.book-cover-menu .dropdown-menu {
-  min-width: 160px;
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
-  padding: 6px 0;
-  background: rgba(22, 22, 22, 0.98);
-  color: #f2f2f2;
-  backdrop-filter: blur(8px);
-}
-
-.book-cover-menu .dropdown-item {
-  font-size: 0.95rem;
-  padding: 12px 14px;
-  color: #f0f0f0;
-  transition: background-color 0.15s ease, color 0.15s ease;
-  display: flex;
-  align-items: center;
-}
-
-.book-cover-menu .dropdown-item:hover,
-.book-cover-menu .dropdown-item:focus {
-  background-color: #333;
-  color: #ffffff;
-}
-
-.book-cover-menu .dropdown-item .me-2 {
-  margin-right: 0.5rem;
 }
 
 .book-cover-placeholder {

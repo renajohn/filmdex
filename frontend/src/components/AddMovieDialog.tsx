@@ -614,7 +614,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
                     <img src={coverPreview} alt="Cover preview" />
                     <button
                       type="button"
-                      className="btn btn-sm btn-outline-secondary cover-change-btn"
+                      className="btn btn-sm btn-outline-secondary add-movie-cover-change-btn"
                       onClick={(e) => {
                         e.stopPropagation();
                         setCoverImage(null);

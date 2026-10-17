@@ -606,44 +606,6 @@
   z-index: 10;
 }
 
-.remove-from-listen-next {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 32px;
-  height: 32px;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  opacity: 0;
-  transform: scale(0.8);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 20;
-  padding: 0;
-}
-
-.listen-next-poster-card:hover .remove-from-listen-next {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.remove-from-listen-next:hover {
-  background: linear-gradient(135deg, #dc2626, #991b1b);
-  border-color: rgba(220, 38, 38, 0.5);
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
-}
-
-.remove-from-listen-next:active {
-  transform: scale(0.95);
-}
-
 .listen-next-poster-card .poster-card-image {
   position: relative;
   width: 180px;

@@ -1254,7 +1254,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                             {book.ebookFile && book.ebookFile.trim() && (
                               <div
                                 className="book-thumbnail-ebook-badge"
-                                title="T\u00e9l\u00e9charger l'e-book"
+                                title="Télécharger l'e-book"
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   try {

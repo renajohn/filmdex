@@ -236,7 +236,7 @@ const BookThumbnail: React.FC<BookThumbnailProps> = ({ book, onClick, onEdit, on
         {book.ebookFile && (book.ebookFile as string).trim() && (
           <div
             className="book-thumbnail-ebook-badge"
-            title="Telecharger l'e-book"
+            title="Télécharger l'e-book"
             onClick={async (e: React.MouseEvent) => {
               e.stopPropagation();
               try {
