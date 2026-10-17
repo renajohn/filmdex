@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Spinner } from 'react-bootstrap';
+import { Spinner } from 'react-bootstrap';
 import { BsCamera, BsCheckCircleFill, BsArrowRepeat } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverCropDialog from './CoverCropDialog';
@@ -8,6 +8,7 @@ import { detectSleeveQuad, CONFIDENT } from '../utils/detectSleeveQuad';
 import { warpQuad } from '../utils/warpQuad';
 import './SleeveCapture.css';
 import Button from './shared/Button';
+import Notice from './shared/Notice';
 
 type Side = 'front' | 'back';
 
@@ -289,7 +290,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
         {slot('back', 'Back cover', 'Where the track list is')}
       </div>
 
-      {error && <Alert variant="warning" className="mt-3 mb-0">{error}</Alert>}
+      {error && <Notice tone="warning" className="mt-3 mb-0">{error}</Notice>}
 
       <CoverCropDialog
         show={Boolean(cropping)}

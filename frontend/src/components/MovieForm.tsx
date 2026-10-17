@@ -5,6 +5,7 @@ import Select from './shared/Select';
 import Button from './shared/Button';
 import { BsCheck, BsX } from 'react-icons/bs';
 import { TextArea, TextField } from './shared/TextField';
+import Notice from './shared/Notice';
 
 interface MovieData {
   id?: number | string;
@@ -452,7 +453,7 @@ const MovieForm: React.FC<MovieFormProps> = ({ movie = null, prefilledData = nul
           </small>
         </div>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && <Notice tone="danger" className="mb-3">{error}</Notice>}
 
         <div className="form-actions">
           <Button variant="quiet" onClick={onCancel} className="cancel-btn">

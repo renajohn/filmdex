@@ -41,6 +41,7 @@ colour goes into `tokens.css` first.
 |---|---|
 | Gold: on, to do, the main action | `--dv-gold`, `--dv-gold-hover`, `--dv-gold-light`; ink on it `--dv-gold-ink`; a tint and its edge `--dv-gold-tint`, `--dv-gold-tint-edge` |
 | Danger, alert | `--dv-danger`, `--dv-danger-tint`, `--dv-danger-tint-edge` |
+| To check or do again (a copy to rip again, a backup too old) | `--dv-orange` |
 | Words | `--dv-text`, `--dv-text-muted`, `--dv-text-faint` |
 | The page | `--dv-page` |
 | Glass on the page (buttons, pills, chips) | `--dv-glass`, `--dv-glass-hover`, `--dv-edge`, `--dv-edge-hover`; under the pointer `--dv-veil` |
@@ -71,6 +72,8 @@ colour goes into `tokens.css` first.
 | A dialog: a form, a search, a record's card | `Dialog` (`Dialog.Body`, `Dialog.Footer`) |
 | A question before doing something (delete, restore) | `confirm()`, or `ConfirmDialog` |
 | ‹ › to the item before or after, in a detail dialog | `DetailSteps` (in a `Dialog`, its `steps`) |
+| A word in a window or on a page: to know, done, to check, failed | `Notice` |
+| A word that passes (exported, added, failed, with Undo) | `toast()` |
 | An empty page | `EmptyState` |
 | ▶ / ❚❚ on an album's cover | `AlbumPlayButton` |
 
@@ -256,6 +259,36 @@ if (await confirm({ title: 'Delete this backup?', message: '“x.zip” goes for
 - An empty value (`""`) is the field's "Choose…": quiet in the list, never gold.
 - On an iPhone or an iPad it is the system's own select, its wheel.
 
+### Notice, toast() (`Notice.tsx`, `Toast.tsx`, `notice.css`)
+
+```tsx
+<Notice tone="warning" title="No backup in the last 48 hours"
+  action={<Button size="sm" onClick={backUp}>Back up now</Button>}>
+  The last copy to Dropbox was made on 14.10.2026.
+</Notice>
+<Notice tone="danger" onClose={() => setError(null)}>{error}</Notice>
+
+toast('CSV exported: 217 movies.', { tone: 'success' });
+toast('“Heat” left your Watch Next.', { action: { label: 'Undo', onClick: putBack } });
+```
+
+- Four tones, and no blue or green: **info** grey (a thing to know, the
+  default), **success** a gold ✓ (it is done), **warning** orange (to check or
+  do again), **danger** red (it did not work).
+- A **Notice** stands in its window or on its page: dark glass, a stripe of its
+  tone on the left, its icon in that tone, the words in the text's colour.
+  `title` a first line in bold, `action` a small button at its end, `onClose`
+  a ✕. Danger is said at once (`role="alert"`), the rest politely
+  (`role="status"`).
+- A **toast** passes: at the bottom, above the player, in the menus' glass, a
+  thread of its tone running out; gone after 6 s (`duration`), held while
+  pointed at, three at most. Its `action` is in gold words. `toneOf(type)`
+  takes the old alerts' types (`'success'`, `'danger'`, `'error'`…).
+  `ToastHost` is mounted once in the app; in a test, render it beside the
+  component and `resetToasts()` after.
+- What a window did (saved, uploaded) is a toast; why a form cannot go on is a
+  Notice in the form; why one field will not do is a `FieldError` under it.
+
 ### CoverTag, CoverButton (`CoverTag.tsx`, `CoverButton.tsx`, `cover.css`)
 
 Everything laid over an album cover, a poster or a book cover.
@@ -293,5 +326,4 @@ to make. Counts are of October 2026.
 
 | Family | Today | To make |
 |---|---|---|
-| Notices | 19 react-bootstrap `Alert`, the page's own alert (`onShowAlert`) | `Notice`, a toast |
 | Loading | `spinner-border`, `Spinner` and spinners of their own in 33 files | `Spinner` |

@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import backupService from '../services/backupService';
-import { BsDownload, BsTrash, BsArrowClockwise, BsPlus, BsUpload, BsCheckCircle, BsXCircle, BsClock } from 'react-icons/bs';
+import { BsDownload, BsTrash, BsArrowClockwise, BsPlus, BsUpload, BsClock } from 'react-icons/bs';
 import DropboxBackupCard from '../components/DropboxBackupCard';
 import './BackupPage.css';
 import Button, { IconButton } from '../components/shared/Button';
-import { BsX } from 'react-icons/bs';
+
 import { confirm } from '../components/shared/ConfirmDialog';
+import Notice from '../components/shared/Notice';
 
 interface Backup {
   filename: string;
@@ -184,23 +185,11 @@ const BackupPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="alert alert-danger alert-dismissible fade show" role="alert">
-          <BsXCircle className="me-2" />
-          {error}
-          <IconButton label="Close"
-            onClick={() => setError(null)}
-          ><BsX /></IconButton>
-        </div>
+        <Notice tone="danger" className="mb-3" onClose={() => setError(null)}>{error}</Notice>
       )}
 
       {success && (
-        <div className="alert alert-success alert-dismissible fade show" role="alert">
-          <BsCheckCircle className="me-2" />
-          {success}
-          <IconButton label="Close"
-            onClick={() => setSuccess(null)}
-          ><BsX /></IconButton>
-        </div>
+        <Notice tone="success" className="mb-3" onClose={() => setSuccess(null)}>{success}</Notice>
       )}
 
       <DropboxBackupCard />
@@ -282,9 +271,9 @@ const BackupPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="backup-info-box">
-          <p><strong>Note:</strong> The <code>pre_restore_*.zip</code> files are complete backups automatically created before each restoration for your safety. You can delete them if you no longer need them.</p>
-        </div>
+        <Notice className="mb-3">
+          The <code>pre_restore_*.zip</code> files are complete backups automatically created before each restoration for your safety. You can delete them if you no longer need them.
+        </Notice>
 
         {loading && backups.length === 0 ? (
           <div className="loading-message">

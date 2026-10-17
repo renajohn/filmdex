@@ -7,6 +7,7 @@ import Button, { IconButton } from './shared/Button';
 import Dialog from './shared/Dialog';
 import { confirm } from './shared/ConfirmDialog';
 import { FieldError, TextArea, TextField } from './shared/TextField';
+import Notice from './shared/Notice';
 
 interface Comment {
   id: number;
@@ -217,7 +218,7 @@ const BookComments: React.FC<BookCommentsProps> = ({ bookId, onCommentsChange })
       <Dialog show={showEditModal} onClose={handleCloseModal} title={editingComment ? 'Edit Comment' : 'Add Comment'}>
         <Dialog.Body>
           {errors.submit && (
-            <div className="alert alert-danger">{errors.submit}</div>
+            <Notice tone="danger" className="mb-3">{errors.submit}</Notice>
           )}
           <Form.Group className="mb-3">
             <Form.Label>Name *</Form.Label>

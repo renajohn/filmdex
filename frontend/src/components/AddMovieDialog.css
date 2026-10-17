@@ -488,15 +488,6 @@
   transform: translateY(-1px);
 }
 
-.error-message {
-  background-color: #dc3545;
-  color: white;
-  padding: 12px;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  margin-bottom: 16px;
-}
-
 /* Responsive design */
 @media (max-width: 768px) {
   .add-movie-dialog-content {

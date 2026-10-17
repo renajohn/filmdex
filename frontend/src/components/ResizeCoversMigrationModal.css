@@ -23,19 +23,6 @@
   line-height: 1.6;
 }
 
-.resize-covers-modal-warning {
-  background: rgba(251, 191, 36, 0.1);
-  border: 1px solid rgba(251, 191, 36, 0.3);
-  border-radius: 8px;
-  padding: 12px 16px;
-  margin-top: 16px;
-  color: var(--dv-gold);
-}
-
-.resize-covers-modal-warning strong {
-  font-weight: 600;
-}
-
 .resize-covers-modal-progress {
   display: flex;
   flex-direction: column;
@@ -135,22 +122,6 @@
 
 .resize-covers-errors li {
   margin-bottom: 8px;
-}
-
-.resize-covers-modal-error {
-  padding: 10px 0;
-}
-
-.resize-covers-modal-error h3 {
-  margin: 0 0 16px 0;
-  color: #ef4444;
-  font-size: 20px;
-  font-weight: 600;
-}
-
-.resize-covers-modal-error p {
-  margin: 0;
-  color: #fca5a5;
 }
 
 .resize-covers-modal-footer {

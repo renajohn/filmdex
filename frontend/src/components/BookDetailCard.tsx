@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Row, Col, Badge, Form, Alert } from 'react-bootstrap';
+import { Row, Col, Badge, Form } from 'react-bootstrap';
 import Dialog from './shared/Dialog';
 import { BsPencil, BsTrash, BsBook, BsCalendar, BsTag, BsTranslate, BsFileEarmark, BsStar, BsPerson, BsHouse, BsChatSquareText, BsPlus, BsX, BsCheck, BsArrowLeft, BsDownload, BsFiles, BsChevronDown, BsChevronUp, BsCamera } from 'react-icons/bs';
 import bookService from '../services/bookService';
@@ -16,6 +16,7 @@ import './VolumeSelector.css';
 import Select from './shared/Select';
 import Button, { IconButton } from './shared/Button';
 import { FieldError, TextArea, TextField } from './shared/TextField';
+import Notice from './shared/Notice';
 
 interface BookDetailCardProps {
   book: any;
@@ -1744,7 +1745,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                         border: '1px solid rgba(255, 255, 255, 0.1)'
                       }}>
                         {commentErrors.submit && (
-                          <div className="alert alert-danger mb-3">{commentErrors.submit}</div>
+                          <Notice tone="danger" className="mb-3">{commentErrors.submit}</Notice>
                         )}
                         <Form>
                           <Form.Group className="mb-3" style={{ position: 'relative', zIndex: 1000 }}>
@@ -2357,7 +2358,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                       </IconButton>
                     </div>
                     {commentErrors.submit && (
-                      <div className="alert alert-danger mb-3">{commentErrors.submit}</div>
+                      <Notice tone="danger" className="mb-3">{commentErrors.submit}</Notice>
                     )}
                     <Form>
                       <Form.Group className="mb-3" style={{ position: 'relative', zIndex: 1000 }}>
@@ -2826,15 +2827,15 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
               )}
 
               {volumeError && (
-                <Alert variant="danger" className="mb-3">
+                <Notice tone="danger" className="mb-3">
                   {volumeError}
-                </Alert>
+                </Notice>
               )}
 
               {!loadingVolumes && volumes.length === 0 && !volumeError && (
-                <Alert variant="info" className="mb-3">
+                <Notice tone="info" className="mb-3">
                   No volumes found for this series. You can still add volumes manually.
-                </Alert>
+                </Notice>
               )}
 
               {!loadingVolumes && volumes.length > 0 && (

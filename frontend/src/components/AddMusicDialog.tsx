@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Tabs, Tab, Form, Alert, Table, Badge } from 'react-bootstrap';
+import { Tabs, Tab, Form, Table, Badge } from 'react-bootstrap';
 import { BsX, BsSearch, BsUpcScan, BsPlus, BsPencil, BsChevronDown, BsChevronRight, BsCamera } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import LazyGroupCover from './LazyGroupCover';
@@ -12,6 +12,7 @@ import Button from './shared/Button';
 import Segmented from './shared/Segmented';
 import Dialog from './shared/Dialog';
 import { TextField } from './shared/TextField';
+import Notice from './shared/Notice';
 
 interface MusicRelease {
   id?: string;
@@ -678,9 +679,9 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
           )}
 
           {error && (
-            <Alert variant="danger" className="mb-3">
+            <Notice tone="danger" className="mb-3">
               {error}
-            </Alert>
+            </Notice>
           )}
 
           {/* Grouped Search Results */}

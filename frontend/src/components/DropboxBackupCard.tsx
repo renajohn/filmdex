@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { BsCloudUpload, BsExclamationTriangle } from 'react-icons/bs';
+import { BsCloudUpload } from 'react-icons/bs';
 import backupService, { BackupProgress, DropboxStatus } from '../services/backupService';
 import Button from './shared/Button';
+import Notice from './shared/Notice';
 
 const HOUR = 3600 * 1000;
 const STALE_AFTER = 48 * HOUR;
@@ -113,10 +114,7 @@ const DropboxBackupCard: React.FC = () => {
       <h3><BsCloudUpload className="me-2" />Dropbox backup</h3>
 
       {stale && (
-        <div className="alert alert-warning" role="alert">
-          <BsExclamationTriangle className="me-2" />
-          No successful Dropbox backup in the last 48 hours.
-        </div>
+        <Notice tone="warning" className="mb-3">No successful Dropbox backup in the last 48 hours.</Notice>
       )}
 
       <p>
@@ -134,8 +132,8 @@ const DropboxBackupCard: React.FC = () => {
           Back up anyway
         </Button>
       )}
-      {status.lastWarning && <p className="text-warning">{status.lastWarning}</p>}
-      {requestError && <p className="text-danger">{requestError}</p>}
+      {status.lastWarning && <Notice tone="warning" className="mb-3">{status.lastWarning}</Notice>}
+      {requestError && <Notice tone="danger" className="mb-3">{requestError}</Notice>}
       {status.nextRunAt && <p>Next run: {new Date(status.nextRunAt).toLocaleString()}</p>}
 
       <Button variant="primary" onClick={() => handleRun()} disabled={running}>

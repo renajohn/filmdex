@@ -13,6 +13,7 @@ import Button, { IconButton } from '../components/shared/Button';
 import Segmented from '../components/shared/Segmented';
 import Chip from '../components/shared/Chip';
 import { TextField } from '../components/shared/TextField';
+import Notice from '../components/shared/Notice';
 
 type Tab = ShelfSection | 'furniture' | 'places';
 
@@ -403,7 +404,7 @@ const ShelvesPage: React.FC = () => {
         </p>
       </div>
 
-      {error && <div className="shelves-notice shelves-error">{error}</div>}
+      {error && <Notice tone="danger" className="mb-3">{error}</Notice>}
 
       <div className="shelves-controls">
         <Segmented<Tab>

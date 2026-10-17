@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { Alert, Badge, Form } from 'react-bootstrap';
+import { Badge, Form } from 'react-bootstrap';
 import { BsCheck, BsX, BsBook } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import './VolumeSelector.css';
 import Button from './shared/Button';
 import Dialog from './shared/Dialog';
+import Notice from './shared/Notice';
 
 interface Volume {
   seriesNumber: number;
@@ -299,15 +300,15 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
         )}
 
         {error && (
-          <Alert variant="danger" className="mb-3">
+          <Notice tone="danger" className="mb-3">
             {error}
-          </Alert>
+          </Notice>
         )}
 
         {!loading && volumes.length === 0 && !error && (
-          <Alert variant="info" className="mb-3">
+          <Notice tone="info" className="mb-3">
             No volumes found for this series. You can still add volumes manually.
-          </Alert>
+          </Notice>
         )}
 
         {!loading && volumes.length > 0 && (
@@ -346,10 +347,10 @@ const VolumeSelector = ({ show, onHide, seriesName, onVolumesSelected, templateB
             )}
 
             {enriching && (
-              <Alert variant="info" className="mb-3">
+              <Notice tone="info" className="mb-3">
                 <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                 Enriching volumes... ({enrichmentProgress.current}/{enrichmentProgress.total})
-              </Alert>
+              </Notice>
             )}
 
             <div className="volumes-grid-container">

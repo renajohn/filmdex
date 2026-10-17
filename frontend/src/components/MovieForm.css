@@ -104,15 +104,6 @@
   margin-top: 30px;
 }
 
-.error-message {
-  background: linear-gradient(135deg, #ffb3ba, #ff9aa2);
-  color: #1a1a1a;
-  padding: 10px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  border: 1px solid #ff9aa2;
-}
-
 @media (max-width: 768px) {
   .form-row {
     flex-direction: column;

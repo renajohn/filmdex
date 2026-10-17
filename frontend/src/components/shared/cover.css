@@ -56,7 +56,7 @@
 /* A format, a shelf: gold words. */
 .cover-tag--gold { color: var(--cover-on); }
 /* A copy to do again. */
-.cover-tag--orange { color: #f59e0b; }
+.cover-tag--orange { color: var(--dv-orange); }
 /* Not known, not ripped: grey. */
 .cover-tag--muted { color: #bbb; }
 /* Spiders, snakes, a book lent: red words and a red edge. */

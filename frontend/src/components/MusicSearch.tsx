@@ -27,6 +27,7 @@ import {
   DIGITAL_ON_KEY, buyOrder, buyReason, isDismissed, isLossy, isSuggested, isToBuy, useDigitalLibrary, type AlbumDigital,
 } from '../utils/digitalLibrary';
 import Button from './shared/Button';
+import Notice from './shared/Notice';
 
 interface MusicSearchProps {
   cds: any;
@@ -1311,9 +1312,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
       )}
 
       {addError && (
-        <div className="error-message">
-          {addError}
-        </div>
+        <Notice tone="danger" className="mb-3">{addError}</Notice>
       )}
 
     </div>

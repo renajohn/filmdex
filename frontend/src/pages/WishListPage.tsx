@@ -23,6 +23,7 @@ import Button, { IconButton } from '../components/shared/Button';
 import Dialog from '../components/shared/Dialog';
 import { ConfirmDialog } from '../components/shared/ConfirmDialog';
 import { TextArea, TextField } from '../components/shared/TextField';
+import Notice from '../components/shared/Notice';
 
 export interface WishListPageRef {
   refreshItems: () => Promise<void>;
@@ -961,9 +962,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
       </div>
 
       {error && (
-        <div className="error-message">
-          {error}
-        </div>
+        <Notice tone="danger" className="mb-3">{error}</Notice>
       )}
 
       {totalAllItems === 0 ? (
@@ -1588,15 +1587,11 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
       )}
 
       {addError && (
-        <div className="error-message">
-          {addError}
-        </div>
+        <Notice tone="danger" className="mb-3">{addError}</Notice>
       )}
 
       {addBookError && (
-        <div className="error-message">
-          {addBookError}
-        </div>
+        <Notice tone="danger" className="mb-3">{addBookError}</Notice>
       )}
 
 

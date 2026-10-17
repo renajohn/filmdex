@@ -100,29 +100,6 @@
   background: linear-gradient(135deg, #a8e6cf, #7dd3b0);
 }
 
-.error-message {
-  margin-bottom: 20px;
-}
-
-.error-content {
-  background: linear-gradient(135deg, #ffb3ba, #ff9aa2);
-  border: 1px solid #ff9aa2;
-  color: #1a1a1a;
-  padding: 15px 20px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.error-icon {
-  font-size: 18px;
-}
-
-.error-text {
-  flex: 1;
-}
-
 .import-content {
   background: linear-gradient(135deg, #2d2d2d 0%, #3a3a3a 100%);
   border-radius: 16px;

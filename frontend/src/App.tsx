@@ -29,6 +29,7 @@ import { isDigitalOn } from './utils/digitalLibrary';
 import PlayerBar from './components/PlayerBar';
 import { ConfirmHost } from './components/shared/ConfirmDialog';
 import { IconButton } from './components/shared/Button';
+import { toast, toneOf, ToastHost } from './components/shared/Toast';
 
 interface AutocompleteOption {
   keyword: string;
@@ -84,9 +85,6 @@ function AppContent() {
   const [addMovieMode, setAddMovieMode] = useState<string>('collection');
   const [showCsvExportDialog, setShowCsvExportDialog] = useState<boolean>(false);
   const [showAlbumCsvExportDialog, setShowAlbumCsvExportDialog] = useState<boolean>(false);
-  const [alertMessage, setAlertMessage] = useState<string>('');
-  const [alertType, setAlertType] = useState<string>('success');
-  const [showAlert, setShowAlert] = useState<boolean>(false);
   const [autocompleteOptions, setAutocompleteOptions] = useState<AutocompleteOption[]>([]);
   const [showAutocomplete, setShowAutocomplete] = useState<boolean>(false);
   const [autocompleteIndex, setAutocompleteIndex] = useState<number>(-1);
@@ -1030,15 +1028,7 @@ function AppContent() {
   };
 
   const handleShowAlert = (message: string, type: string) => {
-    setAlertMessage(message);
-    setAlertType(type);
-    setShowAlert(true);
-
-    // Auto-hide after 6 seconds
-    setTimeout(() => {
-      setShowAlert(false);
-      setAlertMessage('');
-    }, 6000);
+    toast(message, { tone: toneOf(type) });
   };
 
   const handleMovieAdded = (message: string, type: string) => {
@@ -1375,16 +1365,8 @@ function AppContent() {
       </main>
       <PlayerBar />
       <ConfirmHost />
+      <ToastHost />
 
-      {/* Main Screen Alert */}
-      {showAlert && alertMessage && (
-        <div className={`alert alert-${alertType} alert-dismissible fade show main-screen-alert`} role="alert">
-          {alertMessage}
-          <IconButton label="Close"
-            onClick={() => setShowAlert(false)}
-          ><BsX /></IconButton>
-        </div>
-      )}
 
       <AddMovieDialog
         isOpen={showAddMovieDialog}

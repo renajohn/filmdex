@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import {Form, Row, Col, Alert } from 'react-bootstrap';
+import { Form, Row, Col } from 'react-bootstrap';
 import Dialog, { DialogHeader } from './shared/Dialog';
 import { BsX, BsUpload, BsBook, BsCloudDownload, BsFileEarmark, BsTrash, BsChevronDown, BsChevronRight } from 'react-icons/bs';
 import bookService from '../services/bookService';
@@ -10,6 +10,8 @@ import { readStored, writeStored } from '../utils/safeStorage';
 import Select from './shared/Select';
 import Button from './shared/Button';
 import { FieldError, TextArea, TextField } from './shared/TextField';
+import Notice from './shared/Notice';
+import { toneOf } from './shared/Toast';
 
 interface MetadataSourceEntry {
   [field: string]: any;
@@ -1683,15 +1685,15 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
       {inline ? (
         <div className="book-form-inline-body">
           {errors.submit && (
-            <Alert variant="danger" className="mb-3">
+            <Notice tone="danger" className="mb-3">
               {errors.submit}
-            </Alert>
+            </Notice>
           )}
 
           {uploadMessage && (
-            <Alert variant={uploadMessageType} className="mb-3">
+            <Notice tone={toneOf(uploadMessageType)} className="mb-3">
               {uploadMessage}
-            </Alert>
+            </Notice>
           )}
 
           <Row>
@@ -2208,10 +2210,10 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                   <Form.Label>Ebook File</Form.Label>
                   {book.ebookFile ? (
                     <div className="mb-3">
-                      <Alert variant="info" className="mb-2">
+                      <Notice tone="info" className="mb-2">
                         <BsFileEarmark className="me-2" />
                         Ebook file uploaded: {book.ebookFile.split('_').slice(3).join('_') || book.ebookFile}
-                      </Alert>
+                      </Notice>
                       <Button variant="danger"
                         size="sm"
                         onClick={async () => {
@@ -2493,15 +2495,15 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
       ) : (
         <Dialog.Body>
           {errors.submit && (
-            <Alert variant="danger" className="mb-3">
+            <Notice tone="danger" className="mb-3">
               {errors.submit}
-            </Alert>
+            </Notice>
           )}
 
           {uploadMessage && (
-            <Alert variant={uploadMessageType} className="mb-3">
+            <Notice tone={toneOf(uploadMessageType)} className="mb-3">
               {uploadMessage}
-            </Alert>
+            </Notice>
           )}
 
           <Row>
@@ -3019,10 +3021,10 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                   <Form.Label>Ebook File</Form.Label>
                   {book.ebookFile ? (
                     <div className="mb-3">
-                      <Alert variant="info" className="mb-2">
+                      <Notice tone="info" className="mb-2">
                         <BsFileEarmark className="me-2" />
                         Ebook file uploaded: {book.ebookFile.split('_').slice(3).join('_') || book.ebookFile}
-                      </Alert>
+                      </Notice>
                       <Button variant="danger"
                         size="sm"
                         onClick={async () => {

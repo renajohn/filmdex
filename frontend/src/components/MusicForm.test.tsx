@@ -1,7 +1,8 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import MusicForm from './MusicForm';
+import { ToastHost, resetToasts } from './shared/Toast';
 
 /**
  * The cover field of an album that already exists. Picking a new photo goes
@@ -51,9 +52,11 @@ beforeEach(() => {
 });
 
 const renderForm = () =>
-  render(<MusicForm cd={album} onSave={vi.fn()} onCancel={vi.fn()} />);
+  render(<><MusicForm cd={album} onSave={vi.fn()} onCancel={vi.fn()} /><ToastHost /></>);
 
 describe('MusicForm — adjusting a cover already stored', () => {
+  afterEach(() => resetToasts());
+
   it('offers to adjust the framing of each stored cover', () => {
     renderForm();
 

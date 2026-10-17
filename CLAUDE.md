@@ -77,6 +77,11 @@ Every field uses **`TextField`** (one line) or **`TextArea`** (`frontend/src/com
 - An edit in place with its ✓ ✕ over the field: a parent of its own, never Bootstrap's `input-group` (it squares the right corners).
 - A stylesheet only places a field, never its background, edge, padding, height or font size.
 
+### Notices and toasts: Notice and toast()
+A word in a window or on a page is **`Notice`** (`frontend/src/components/shared/Notice.tsx`, look in `shared/notice.css`); a word that passes is **`toast(message, { tone, action, duration })`** (`shared/Toast.tsx`, `ToastHost` mounted once in `App.tsx`). Never a react-bootstrap `Alert`, an `alert alert-*` class, or a box or a floating alert of a page's own.
+- `tone`: info (grey, the default), success (a gold ✓), warning (orange, `--dv-orange`), danger (red). No blue, no green.
+- `Notice`: dark glass with a stripe of its tone; `title`, `action` (a small `Button`), `onClose` (a ✕). A toast: the menus' glass, at the bottom above the player, gone after 6 s, an `action` (Undo) in gold; `toneOf(type)` reads the old `onShowAlert(message, type)` types.
+
 ### Buttons: Button and IconButton
 Every button uses **`Button`** or **`IconButton`** (`frontend/src/components/shared/Button.tsx`, look in `shared/button.css`): never a react-bootstrap `Button`, a `btn` class or a button styled by hand. On covers, `CoverButton` stays.
 - `Button` `variant`: **primary** (plain gold, the one action a window is for: one per window), **secondary** (the default: the menus' glass), **quiet** (words alone: Cancel, See more), **danger** (red; a destructive action never takes the gold, and in a confirmation it stands where the gold would). `size` sm/md, `icon` before the words, `loading` (a spinner, no second click), `active` for a toggle that is on (gold words; on `danger`, plain red: a deletion to confirm), `block`.

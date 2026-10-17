@@ -18,6 +18,9 @@
   --dv-danger-tint: rgba(248, 113, 113, 0.12);
   --dv-danger-tint-edge: rgba(248, 113, 113, 0.5);
 
+  /* To check or do again: a copy to rip again, a backup too old. */
+  --dv-orange: #f59e0b;
+
   /* Words. */
   --dv-text: #e5e5e5;
   --dv-text-muted: #9ca3af;

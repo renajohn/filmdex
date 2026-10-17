@@ -92,12 +92,12 @@ describe('DropboxBackupCard', () => {
 
   it('alerte quand la dernière réussite a plus de 48 h', async () => {
     await show(status({ lastSuccessAt: ago(50 * HOUR) }));
-    expect(screen.getByRole('alert')).toHaveTextContent('No successful Dropbox backup in the last 48 hours');
+    expect(screen.getByRole('status')).toHaveTextContent('No successful Dropbox backup in the last 48 hours');
   });
 
   it("alerte quand aucune sauvegarde n'a jamais réussi", async () => {
     await show(status({ lastSuccessAt: null, lastSuccessFile: null, lastSuccessSize: null }));
-    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
   it("désactive le bouton pendant l'exécution puis recharge l'état", async () => {

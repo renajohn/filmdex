@@ -8,6 +8,7 @@ import musicService from '../services/musicService';
 import AttachCdDialog, { type AttachableAlbum } from '../components/AttachCdDialog';
 import { IconButton } from '../components/shared/Button';
 import { BsX } from 'react-icons/bs';
+import { toast, toneOf } from '../components/shared/Toast';
 
 interface MigrationResult {
   total: number;
@@ -40,9 +41,6 @@ const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCri
   const navigate = useNavigate();
   const [cds, setCds] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [alertMessage, setAlertMessage] = useState('');
-  const [alertType, setAlertType] = useState('success');
-  const [showAlert, setShowAlert] = useState(false);
   const [showResizeMigrationModal, setShowResizeMigrationModal] = useState(false);
   const [showFillCoversModal, setShowFillCoversModal] = useState(false);
   const musicSearchRef = useRef<any>(null);
@@ -137,12 +135,7 @@ const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCri
   };
 
   const showAlertMessage = (message: string, type: string = 'success') => {
-    setAlertMessage(message);
-    setAlertType(type);
-    setShowAlert(true);
-    setTimeout(() => {
-      setShowAlert(false);
-    }, 5000);
+    toast(message, { tone: toneOf(type) });
   };
 
   const handleAddCd = async (cdData: any) => {
@@ -245,16 +238,6 @@ const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCri
         searchCriteria={searchCriteria}
       />
 
-      {/* Alert */}
-      {showAlert && (
-        <div className={`alert alert-${alertType} alert-dismissible fade show position-fixed`}
-             style={{ top: '20px', right: '20px', zIndex: 9999 }}>
-          {alertMessage}
-          <IconButton label="Close"
-            onClick={() => setShowAlert(false)}
-          ><BsX /></IconButton>
-        </div>
-      )}
 
       {attachPrompt && <AttachCdDialog albums={attachPrompt.albums} onChoose={attachPrompt.choose} />}
 

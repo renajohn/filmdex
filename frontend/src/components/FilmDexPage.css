@@ -489,15 +489,6 @@
   box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3) !important;
 }
 
-.error-message {
-  background: #f8d7da;
-  color: #721c24;
-  padding: 10px;
-  border-radius: 4px;
-  margin-bottom: 20px;
-  border: 1px solid #f5c6cb;
-}
-
 .success-actions .btn {
   margin: 20px;
 }

@@ -4,6 +4,7 @@ import BookSearchComponent from '../components/BookSearch';
 import bookService from '../services/bookService';
 import { IconButton } from '../components/shared/Button';
 import { BsX } from 'react-icons/bs';
+import { toast, toneOf } from '../components/shared/Toast';
 
 const BookSearch = BookSearchComponent;
 
@@ -19,9 +20,6 @@ const BookDexPage = forwardRef<BookDexPageRef, BookDexPageProps>(({ searchCriter
   const location = useLocation();
   const [books, setBooks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [alertMessage, setAlertMessage] = useState('');
-  const [alertType, setAlertType] = useState('success');
-  const [showAlert, setShowAlert] = useState(false);
   const bookSearchRef = useRef<any>(null);
 
   useEffect(() => {
@@ -71,12 +69,7 @@ const BookDexPage = forwardRef<BookDexPageRef, BookDexPageProps>(({ searchCriter
   };
 
   const showAlertMessage = (message: string, type: string = 'success') => {
-    setAlertMessage(message);
-    setAlertType(type);
-    setShowAlert(true);
-    setTimeout(() => {
-      setShowAlert(false);
-    }, 5000);
+    toast(message, { tone: toneOf(type) });
   };
 
   const handleAddBook = async (bookData: any) => {
@@ -136,32 +129,6 @@ const BookDexPage = forwardRef<BookDexPageRef, BookDexPageProps>(({ searchCriter
         defaultTitleStatus={isWishlistMode ? 'wish' : undefined}
       />
 
-      {/* Alert */}
-      {showAlert && alertMessage && (
-        <div className={`alert alert-${alertType} alert-dismissible fade show position-fixed`}
-             style={{
-               top: '20px',
-               right: '20px',
-               zIndex: 99999,
-               minWidth: '300px',
-               maxWidth: '500px',
-               backdropFilter: 'blur(10px)',
-               WebkitBackdropFilter: 'blur(10px)',
-               backgroundColor: alertType === 'danger'
-                 ? 'rgba(239, 68, 68, 0.85)'
-                 : alertType === 'success'
-                 ? 'rgba(34, 197, 94, 0.85)'
-                 : 'rgba(59, 130, 246, 0.85)'
-             }}>
-          {alertMessage}
-          <IconButton label="Close"
-            onClick={() => {
-              setShowAlert(false);
-              setAlertMessage('');
-            }}
-          ><BsX /></IconButton>
-        </div>
-      )}
     </div>
   );
 });

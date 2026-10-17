@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Form, Row, Col, Alert, Accordion, Card, Table } from 'react-bootstrap';
+import { Form, Row, Col, Accordion, Card, Table } from 'react-bootstrap';
 import { BsX, BsUpload, BsDisc, BsPlus, BsTrash, BsPencil, BsGripVertical } from 'react-icons/bs';
 import apiService from '../services/api';
 import musicService from '../services/musicService';
@@ -11,6 +11,8 @@ import Button, { IconButton } from './shared/Button';
 import Dialog from './shared/Dialog';
 import { confirm } from './shared/ConfirmDialog';
 import { FieldError, TextField } from './shared/TextField';
+import Notice from './shared/Notice';
+import { toast, toneOf } from './shared/Toast';
 
 interface TrackData {
   trackNumber?: number;
@@ -160,6 +162,12 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
   const [isDragging, setIsDragging] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [uploadMessageType, setUploadMessageType] = useState('success');
+  // What an upload did passes as a toast, above the dialog.
+  useEffect(() => {
+    if (!uploadMessage) return;
+    toast(uploadMessage, { tone: toneOf(uploadMessageType) });
+    setUploadMessage(null);
+  }, [uploadMessage, uploadMessageType]);
   const [availableCovers, setAvailableCovers] = useState<AvailableCover[]>([]);
   const [selectedCoverIndex, setSelectedCoverIndex] = useState(0);
   const [formData, setFormData] = useState<FormDataState>({
@@ -811,28 +819,6 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
   return (
     <>
     <Dialog show={true} onClose={onCancel} size="lg" zIndex={10100} className="music-form-modal" title={cd ? 'Edit Album' : 'Add New Album'}>
-      {/* Floating Upload Message */}
-      {uploadMessage && (
-        <Alert
-          variant={uploadMessageType}
-          dismissible
-          onClose={() => setUploadMessage(null)}
-          style={{
-            position: 'absolute',
-            top: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 10101,
-            minWidth: '300px',
-            maxWidth: '500px',
-            margin: '0 auto',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-            fontSize: '0.875rem'
-          }}
-        >
-          {uploadMessage}
-        </Alert>
-      )}
 
       <Form onSubmit={handleSubmit}>
         <Dialog.Body>
@@ -1577,12 +1563,12 @@ const MusicForm: React.FC<MusicFormProps> = ({ cd = null, pendingPhotos, onSave,
           </div>
 
           {formData.discs.length === 0 ? (
-            <Alert variant="info" className="mb-3">
+            <Notice tone="info" className="mb-3">
               <div className="text-center py-2">
                 <BsDisc size={24} className="mb-2" />
                 <p className="mb-0">No tracks added yet. Click "Add Disc" to start adding tracks.</p>
               </div>
-            </Alert>
+            </Notice>
           ) : (
             <Accordion defaultActiveKey="0" className="mb-3">
               {formData.discs.map((disc: DiscData, discIndex: number) => (

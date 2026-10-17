@@ -1,0 +1,188 @@
+/*
+ * Notices (Notice.tsx) and toasts (Toast.tsx). A notice stands in its window
+ * or on its page: dark glass, a stripe of its tone on the left. A toast passes
+ * at the bottom, above the player, in the menus' glass, and goes by itself.
+ */
+:root {
+  --notice-bg: rgba(0, 0, 0, 0.22);
+  --notice-info: #6b7280;
+}
+
+.ui-notice {
+  --notice-tone: var(--notice-info);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px 10px 13px;
+  border: 1px solid var(--dv-edge);
+  border-left: 3px solid var(--notice-tone);
+  border-radius: 10px;
+  background: var(--notice-bg);
+  color: var(--dv-text);
+  font-size: 13.5px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.ui-notice--success { --notice-tone: var(--dv-gold); }
+.ui-notice--warning { --notice-tone: var(--dv-orange); }
+.ui-notice--danger { --notice-tone: var(--dv-danger); }
+
+.ui-notice__icon {
+  display: inline-flex;
+  flex: none;
+  margin-top: 2px;
+  color: var(--notice-tone);
+}
+
+.ui-notice--info .ui-notice__icon { color: var(--dv-text-muted); }
+
+.ui-notice__icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.ui-notice__words {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ui-notice__words > :last-child { margin-bottom: 0; }
+
+.ui-notice__title {
+  margin-bottom: 1px;
+  color: #f2f2f2;
+  font-weight: 600;
+}
+
+.ui-notice__action {
+  flex: none;
+  align-self: center;
+  display: flex;
+  gap: 6px;
+}
+
+.ui-notice__close,
+.ui-toast__close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: -1px -4px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--dv-text-muted);
+  cursor: pointer;
+}
+
+.ui-notice__close svg,
+.ui-toast__close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ui-notice__close:hover,
+.ui-toast__close:hover {
+  background: var(--dv-veil);
+  color: #fff;
+}
+
+.ui-notice__close:focus-visible,
+.ui-toast__close:focus-visible {
+  outline: none;
+  box-shadow: var(--dv-ring);
+}
+
+/* ------------------------------------------------------------- toasts */
+
+.ui-toasts {
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + var(--player-h, 0px));
+  z-index: 20000;
+  display: grid;
+  gap: 8px;
+  width: min(440px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.ui-toast {
+  --notice-tone: var(--notice-info);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  padding: 11px 10px 11px 14px;
+  border: 1px solid var(--dv-surface-edge);
+  border-radius: var(--dv-radius-lg);
+  background: var(--dv-surface);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow: var(--dv-surface-shadow);
+  color: var(--dv-text);
+  font-size: 13.5px;
+  line-height: 1.4;
+  pointer-events: auto;
+  animation: ui-toast-in 0.22s ease-out;
+}
+
+.ui-toast--success { --notice-tone: var(--dv-gold); }
+.ui-toast--warning { --notice-tone: var(--dv-orange); }
+.ui-toast--danger { --notice-tone: var(--dv-danger); }
+
+.ui-toast--leaving { animation: ui-toast-out 0.2s ease-in forwards; }
+
+.ui-toast .ui-notice__icon { margin-top: 0; }
+.ui-toast--info .ui-notice__icon { color: var(--dv-text-muted); }
+
+.ui-toast__words {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ui-toast__action {
+  flex: none;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--dv-gold);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ui-toast__action:hover { background: var(--dv-veil); }
+
+.ui-toast__close { margin: 0; }
+
+/* The time left, a thread of its tone along the bottom; held while pointed at. */
+.ui-toast__time {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--notice-tone);
+  opacity: 0.7;
+  transform-origin: left;
+  animation: ui-toast-time linear forwards;
+}
+
+.ui-toast:hover .ui-toast__time { animation-play-state: paused; }
+
+@keyframes ui-toast-in { from { opacity: 0; transform: translateY(10px); } }
+@keyframes ui-toast-out { to { opacity: 0; transform: translateY(10px); } }
+@keyframes ui-toast-time { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-toast, .ui-toast--leaving { animation: none; }
+}

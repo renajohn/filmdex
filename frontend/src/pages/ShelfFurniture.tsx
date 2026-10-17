@@ -8,6 +8,7 @@ import { SECTION_LABELS } from './shelfLabels';
 import Select from '../components/shared/Select';
 import Button, { IconButton } from '../components/shared/Button';
 import { TextField } from '../components/shared/TextField';
+import Notice from '../components/shared/Notice';
 
 interface Props {
   plan: ShelvingPlan;
@@ -292,9 +293,9 @@ const ShelfFurniture: React.FC<Props> = ({ plan, run, onShowShelf, focusLevelId 
       </p>
 
       {unshelved.map(entry => (
-        <div key={entry.key} className="shelves-notice shelves-warning">
+        <Notice key={entry.key} tone="warning" className="mb-3">
           {entry.unshelved} {SECTION_LABELS[entry.key].toLowerCase()} have no shelf yet: give {SECTION_LABELS[entry.key]} another shelf, or a shelf more room.
-        </div>
+        </Notice>
       ))}
 
       <div className="furniture-units">

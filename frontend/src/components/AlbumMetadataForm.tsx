@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Form, Row, Col, Alert, Card, Image } from 'react-bootstrap';
+import { Form, Row, Col, Card, Image } from 'react-bootstrap';
 import Dialog from './shared/Dialog';
 import { BsUpload, BsCheck, BsDisc } from 'react-icons/bs';
 import musicService from '../services/musicService';
@@ -8,6 +8,8 @@ import './AlbumMetadataForm.css';
 import Select from './shared/Select';
 import Button from './shared/Button';
 import { TextArea, TextField } from './shared/TextField';
+import Notice from './shared/Notice';
+import { toneOf } from './shared/Toast';
 
 interface Release {
   title?: string;
@@ -728,9 +730,9 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
               </div>
 
               {uploadMessage && (
-                <Alert variant={uploadMessageType} className="mt-2">
+                <Notice tone={toneOf(uploadMessageType)} className="mt-2">
                   {uploadMessage}
-                </Alert>
+                </Notice>
               )}
             </Card.Body>
           </Card>

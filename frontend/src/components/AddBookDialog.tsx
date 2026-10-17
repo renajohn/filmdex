@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Form, Alert, Table, Badge } from 'react-bootstrap';
+import { Form, Table, Badge } from 'react-bootstrap';
 import Dialog from './shared/Dialog';
 import { BsX, BsSearch, BsPlus, BsChevronDown, BsChevronRight, BsBook, BsCamera, BsUpload } from 'react-icons/bs';
 import bookService from '../services/bookService';
@@ -12,6 +12,8 @@ import Select from './shared/Select';
 import Button from './shared/Button';
 import Segmented from './shared/Segmented';
 import { TextField } from './shared/TextField';
+import Notice from './shared/Notice';
+import { toneOf } from './shared/Toast';
 
 interface BookData {
   title?: string;
@@ -1274,7 +1276,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
             </h6>
 
             {coverScanAvailable === false && (
-              <Alert variant="warning" className="mb-3 scan-error">
+              <Notice tone="warning" className="mb-3 scan-error">
                 Cover scan service is not available. Please use search instead.
                 <Button variant="quiet"
                   size="sm" className="ms-2"
@@ -1287,7 +1289,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                 >
                   Retry
                 </Button>
-              </Alert>
+              </Notice>
             )}
 
             {/* Drop zone / file input */}
@@ -1354,9 +1356,9 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
 
             {/* Scan error */}
             {scanError && (
-              <Alert variant="danger" className="mb-3 scan-error">
+              <Notice tone="danger" className="mb-3 scan-error">
                 {scanError}
-              </Alert>
+              </Notice>
             )}
 
             {/* Divider and text search fallback */}
@@ -1488,9 +1490,9 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
           )}
 
           {error && !searching && (
-            <Alert variant={groupedResults.length === 0 && searchResults.length === 0 ? "warning" : "danger"} className="mb-3">
+            <Notice tone={toneOf(groupedResults.length === 0 && searchResults.length === 0 ? "warning" : "danger")} className="mb-3">
               {error}
-            </Alert>
+            </Notice>
           )}
 
           {/* Grouped Search Results */}

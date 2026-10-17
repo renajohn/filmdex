@@ -4,6 +4,7 @@ import apiService from '../services/api';
 import Button, { IconButton } from './shared/Button';
 import { BsX } from 'react-icons/bs';
 import { TextField } from './shared/TextField';
+import Notice from './shared/Notice';
 
 interface UnmatchedBook {
   title: string;
@@ -187,13 +188,7 @@ const UnmatchedBooks: React.FC<UnmatchedBooksProps> = ({ importId, onImportCompl
   if (error) {
     return (
       <div className="unmatched-books">
-        <div className="error-message">
-          <div className="error-content">
-            <span className="error-icon">⚠️</span>
-            <span className="error-text">{error}</span>
-            <IconButton label="Close" onClick={() => setError(null)} className="error-close"><BsX /></IconButton>
-          </div>
-        </div>
+        <Notice tone="danger" className="mb-3" onClose={() => setError(null)}>{error}</Notice>
         <Button onClick={handleStartOver}>
           Start Over
         </Button>

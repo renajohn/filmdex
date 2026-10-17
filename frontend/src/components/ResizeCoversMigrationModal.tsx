@@ -3,6 +3,7 @@ import './ResizeCoversMigrationModal.css';
 import Button from './shared/Button';
 import Dialog from './shared/Dialog';
 import { BsX, BsArrowsAngleContract } from 'react-icons/bs';
+import Notice from './shared/Notice';
 
 interface MigrationResult {
   total: number;
@@ -65,10 +66,7 @@ const ResizeCoversMigrationModal = ({ isOpen, onClose, onMigrate }: ResizeCovers
                 External URLs (like Cover Art Archive) will be downloaded locally and the database will be updated.
                 Images that are already within this size limit will be skipped.
               </p>
-              <div className="resize-covers-modal-warning">
-                <strong>Note:</strong> This operation may take a few minutes
-                depending on the number of albums in your collection and internet speed for downloads.
-              </div>
+              <Notice tone="warning">This operation may take a few minutes depending on the number of albums in your collection and internet speed for downloads.</Notice>
             </>
           )}
 
@@ -129,10 +127,7 @@ const ResizeCoversMigrationModal = ({ isOpen, onClose, onMigrate }: ResizeCovers
           )}
 
           {error && (
-            <div className="resize-covers-modal-error">
-              <h3>Migration Failed</h3>
-              <p>{error}</p>
-            </div>
+            <Notice tone="danger" title="Migration failed">{error}</Notice>
           )}
         </Dialog.Body>
 

@@ -8,6 +8,7 @@ import apiService from '../services/api';
 import './BookImportPage.css';
 import Button, { IconButton } from '../components/shared/Button';
 import { BsX } from 'react-icons/bs';
+import Notice from '../components/shared/Notice';
 
 interface ImportStats {
   totalBooks: number;
@@ -266,13 +267,7 @@ const BookImportPage: React.FC = () => {
         </div>
 
         {error && (
-          <div className="error-message">
-            <div className="error-content">
-              <span className="error-icon">⚠️</span>
-              <span className="error-text">{error}</span>
-              <IconButton label="Close" onClick={() => setError(null)} className="error-close"><BsX /></IconButton>
-            </div>
-          </div>
+          <Notice tone="danger" className="mb-3" onClose={() => setError(null)}>{error}</Notice>
         )}
 
         <div className="import-content">
