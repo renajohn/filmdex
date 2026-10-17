@@ -12,7 +12,11 @@ export interface PlayerTrack {
 
 /** The album a play belongs to, for the bar, the cards and the Mac's own controls. */
 export interface PlayerAlbum {
-  id: number;
+  /** The CD in DexVault; null for an album Navidrome has and the collection does not. */
+  id: number | null;
+  /** The album in Navidrome, and its page there, when known. */
+  navidromeId?: string | null;
+  url?: string | null;
   title: string;
   artist: string;
   cover: string | null;

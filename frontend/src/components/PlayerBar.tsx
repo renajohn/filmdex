@@ -37,7 +37,11 @@ const PlayerBar: React.FC = () => {
   const last = useRef<{ album: NonNullable<typeof album>; track: NonNullable<typeof track> } | null>(null);
   if (album && track) last.current = { album, track };
   const out = Boolean(shown && album && track);
-  const open = () => album && navigate(`/musicdex?album=${album.id}`);
+  // The CD's card, or the album in Navidrome when the collection has no CD of it.
+  const open = () => {
+    if (album?.id != null) navigate(`/musicdex?album=${album.id}`);
+    else if (album?.url) window.open(album.url, '_blank', 'noopener');
+  };
   const length = duration || track?.durationSec || 0;
   const seek = (event: React.MouseEvent<HTMLDivElement>) => {
     const box = event.currentTarget.getBoundingClientRect();

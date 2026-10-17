@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Form, ProgressBar } from 'react-bootstrap';
-import { BsArrowClockwise, BsChevronDown, BsChevronRight, BsHeartFill, BsPlayFill, BsSearch, BsStarFill, BsXLg } from 'react-icons/bs';
+import { BsArrowClockwise, BsBoxArrowUpRight, BsChevronDown, BsChevronRight, BsHeartFill, BsPauseFill, BsPlayFill, BsSearch, BsStarFill, BsXLg } from 'react-icons/bs';
 import MusicDetailCard from '../components/MusicDetailCard';
 import musicService, {
   type DigitalAlbum, type DigitalLibrary, type DigitalTrack, type EditionAdoption,
@@ -8,6 +8,9 @@ import musicService, {
 import { useDetailSteps } from '../utils/detailSteps';
 import { albumImages } from '../utils/detailImages';
 import { isAppleMobile, openListen } from '../utils/navidrome';
+import { player, usePlayer } from '../services/player';
+import { playNavidromeAlbum } from '../utils/playAlbum';
+import NowPlayingBars from '../components/shared/NowPlayingBars';
 import './DigitalPage.css';
 
 type Tab = 'buy' | 'lossless' | 'near' | 'lossy' | 'nocd' | 'physical';
@@ -122,6 +125,26 @@ const DigitalPage: React.FC = () => {
   const [tracks, setTracks] = useState<Record<string, DigitalTrack[] | null>>({});
   const [showDismissed, setShowDismissed] = useState(false);
   const appleMobile = isAppleMobile();
+  // What DexVault plays, by its album in Navidrome, and the album being fetched to play.
+  const nowNavidromeId = usePlayer(state => state.album?.navidromeId ?? null);
+  const nowPlaying = usePlayer(state => state.playing);
+  const [starting, setStarting] = useState<string | null>(null);
+
+  /** ▶ on a row: pauses or plays on the album playing, plays another from the start; Navidrome when it has no file. */
+  const play = async (album: DigitalAlbum) => {
+    if (nowNavidromeId === album.navidromeId) {
+      player.toggle();
+      return;
+    }
+    setStarting(album.navidromeId);
+    try {
+      if (!(await playNavidromeAlbum(album))) openListen({ id: album.navidromeId, url: album.url });
+    } catch {
+      openListen({ id: album.navidromeId, url: album.url });
+    } finally {
+      setStarting(null);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -294,7 +317,10 @@ const DigitalPage: React.FC = () => {
             {cover && <img src={cover} alt="" loading="lazy" />}
           </div>
           <div className="digital-info">
-            <div className="digital-title">{album.name}</div>
+            <div className="digital-title">
+              {nowNavidromeId === album.navidromeId && <span className="digital-now"><NowPlayingBars playing={nowPlaying} /></span>}
+              {album.name}
+            </div>
             <div className="digital-artist">{album.artist}</div>
             {tab === 'buy' && (album.buy?.listened || album.buy?.rated) && <BuyReasons album={album} />}
           </div>
@@ -305,15 +331,27 @@ const DigitalPage: React.FC = () => {
             <span className={`digital-badge digital-quality-${album.quality}`}>{qualityLabel(album)}</span>
           </div>
           <div className="digital-actions" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
-            <Button
-              size="sm"
-              variant="outline-secondary"
-              title={appleMobile ? 'Play in Amperfy' : 'Open in Navidrome'}
-              aria-label={appleMobile ? 'Amperfy' : 'Navidrome'}
-              onClick={() => openListen({ id: album.navidromeId, url: album.url })}
-            >
-              <BsPlayFill />
-            </Button>
+            {appleMobile ? (
+              <Button size="sm" variant="outline-secondary" title="Play in Amperfy" aria-label="Amperfy"
+                onClick={() => openListen({ id: album.navidromeId, url: album.url })}>
+                <BsPlayFill />
+              </Button>
+            ) : (
+              <>
+                {/* ▶ plays the album in DexVault; Navidrome stays a click away beside it. */}
+                <Button size="sm" variant={nowNavidromeId === album.navidromeId ? 'warning' : 'outline-secondary'}
+                  disabled={starting === album.navidromeId} onClick={() => play(album)}
+                  aria-label={nowNavidromeId === album.navidromeId && nowPlaying ? `Pause ${album.name}` : `Play ${album.name}`}
+                  title={nowNavidromeId === album.navidromeId && nowPlaying ? 'Pause' : 'Play'}>
+                  {starting === album.navidromeId ? <span className="spinner-border spinner-border-sm" />
+                    : nowNavidromeId === album.navidromeId && nowPlaying ? <BsPauseFill /> : <BsPlayFill />}
+                </Button>
+                <Button size="sm" variant="outline-secondary" title="Open in Navidrome" aria-label={`Open ${album.name} in Navidrome`}
+                  onClick={() => openListen({ id: album.navidromeId, url: album.url })}>
+                  <BsBoxArrowUpRight />
+                </Button>
+              </>
+            )}
             {tab === 'buy' && !album.cd && (
               <a
                 className="btn btn-sm btn-outline-secondary"

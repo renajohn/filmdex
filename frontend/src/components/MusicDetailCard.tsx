@@ -425,7 +425,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   // DexVault's own player, on a computer; an iPhone plays in Amperfy, as before.
   const playerTracks = playerTracksOf(cd, rip);
   const ownPlayer = !appleMobile && playerTracks.length > 0;
-  const playerAlbum = () => playerAlbumOf(cd);
+  const playerAlbum = () => playerAlbumOf(cd, rip);
   const nowAlbumId = usePlayer(state => state.album?.id ?? null);
   const nowTrack = usePlayer(state => state.tracks[state.index]);
   const nowPlaying = usePlayer(state => state.playing);

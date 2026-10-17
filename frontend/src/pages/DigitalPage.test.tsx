@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DigitalPage, { ricardoUrl } from './DigitalPage';
 import musicService, { type DigitalAlbum, type DigitalLibrary } from '../services/musicService';
+import { playNavidromeAlbum } from '../utils/playAlbum';
 
 vi.mock('../services/musicService', () => ({
   default: {
@@ -25,6 +26,8 @@ vi.mock('../components/MusicDetailCard', () => ({
     </div>
   ),
 }));
+
+vi.mock('../utils/playAlbum', () => ({ playNavidromeAlbum: vi.fn(() => Promise.resolve(true)) }));
 
 const digital = (fields: Partial<DigitalAlbum> & { navidromeId: string; name: string }): DigitalAlbum => ({
   artist: 'Moby', songCount: 10, url: `https://music/${fields.navidromeId}`, formats: ['MP3'], quality: 'lossy', bitRate: 192,
@@ -149,6 +152,17 @@ describe('DigitalPage', () => {
 
     await waitFor(() => expect(within(hotel).getByRole('checkbox', { name: 'Wishlist' })).toBeChecked());
     expect(musicService.setDigitalWished).toHaveBeenCalledWith('nd-hot', true);
+  });
+
+  it('joue un album dans DexVault depuis ▶, Navidrome restant à côté', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    render(<DigitalPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Play Play' }));
+    await waitFor(() => expect(playNavidromeAlbum).toHaveBeenCalledWith(expect.objectContaining({ navidromeId: 'nd-play' })));
+    fireEvent.click(screen.getByRole('button', { name: 'Open Play in Navidrome' }));
+    expect(open).toHaveBeenCalledWith('https://music/nd-play', '_blank', 'noopener');
+    open.mockRestore();
   });
 
   it('cherche le CD sur Ricardo sans ce que le titre digital ajoute', () => {

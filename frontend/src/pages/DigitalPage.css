@@ -451,3 +451,8 @@
     width: 100%;
   }
 }
+
+/* The album DexVault plays: its bars before its title. */
+.digital-now {
+  margin-right: 7px;
+}
