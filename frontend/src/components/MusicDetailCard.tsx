@@ -19,6 +19,10 @@ import type { RipTracks } from '../services/musicService';
 import './MusicDetailCard.css';
 import ShelfCode from './shared/ShelfCode';
 import NowPlayingBars from './shared/NowPlayingBars';
+import DigitalMarks from './shared/DigitalMarks';
+import { BsCartFill, BsHeart, BsHeartFill, BsSearch } from 'react-icons/bs';
+import type { DigitalTrack } from '../services/musicService';
+import { buyReason, formatLabel, isLossy, isSuggested, isToBuy, ricardoUrl, type AlbumDigital } from '../utils/digitalLibrary';
 
 /** How often, and how many times, an album's tracks are asked after while their words are looked up. */
 const LYRICS_POLL_MS = 3000;
@@ -107,6 +111,12 @@ interface MusicDetailCardProps {
   /** The album before or after this one on the page; none at either end. */
   onPrevious?: (() => void) | null;
   onNext?: (() => void) | null;
+  /** How the album stands in Navidrome, with Digital on; undefined with it off. */
+  digital?: AlbumDigital;
+  /** Puts an album with no CD on the wish list, or takes it off. */
+  onWish?: (() => void) | null;
+  /** "Not interested", or undone. */
+  onDismiss?: ((dismissed: boolean) => void) | null;
 }
 
 const CONDITIONS: Record<string, string> = {
@@ -141,7 +151,7 @@ const communityDetail = (ratings: CommunityRatings): string => [
   .map(([source, votes, value]) => `${source}: ${votesLabel(votes!)} → ${Number(value!.toFixed(2))}`)
   .join('\n');
 
-const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, onDelete, onSearch, onListenNextChange, onPrevious, onNext }) => {
+const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, onDelete, onSearch, onListenNextChange, onPrevious, onNext, digital, onWish, onDismiss }) => {
   const [showCoverModal, setShowCoverModal] = useState<boolean>(false);
   const [coverModalData, setCoverModalData] = useState<CoverModalData>({ coverUrl: '', title: '', artist: '', coverType: '' });
   const [confirmDelete, setConfirmDelete] = useState<boolean>(false);
@@ -174,6 +184,21 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const [community, setCommunity] = useState<CommunityRatings>(communityOf(cd));
   const [refreshingMb, setRefreshingMb] = useState<boolean>(false);
   const [mbError, setMbError] = useState<string | null>(null);
+  // With Digital on, each track's stars, heart and plays of the last 90 days, by "disc-number".
+  const [digitalTracks, setDigitalTracks] = useState<Map<string, DigitalTrack>>(new Map());
+  const navidromeId = digital?.album?.navidromeId ?? null;
+  // A wish or a digital album: no CD, the shelf code gives way to the cloud.
+  const hasCd = cd.titleStatus !== 'digital' && cd.titleStatus !== 'wish';
+
+  useEffect(() => {
+    let current = true;
+    setDigitalTracks(new Map());
+    if (!navidromeId) return undefined;
+    musicService.getDigitalTracks(navidromeId)
+      .then(tracks => { if (current) setDigitalTracks(new Map(tracks.map(track => [`${track.discNumber}-${track.track}`, track]))); })
+      .catch(() => undefined);
+    return () => { current = false; };
+  }, [navidromeId]);
 
   useEffect(() => {
     setCommunity(communityOf(cd));
@@ -508,7 +533,8 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
           <BsDisc className="me-2" />
           {cd.title}
         </Modal.Title>
-        <ShelfCode kind="album" id={cd.id} variant="inline" className="music-detail-shelf" />
+        {hasCd ? <ShelfCode kind="album" id={cd.id} variant="inline" className="music-detail-shelf" />
+          : <DigitalMarks digital={digital ?? { album: null, notRipped: false }} titleStatus={cd.titleStatus as string} className="digital-marks-inline music-detail-shelf" />}
         <DetailSteps onPrevious={onPrevious} onNext={onNext} noun="album" />
       </Modal.Header>
 
@@ -622,7 +648,40 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                 </button>
               </Field>
             )}
-            {rip?.configured !== false && <Field label="Navidrome">{ripText}</Field>}
+            {digital === undefined ? (
+              rip?.configured !== false && <Field label="Navidrome">{ripText}</Field>
+            ) : (
+              <>
+                <Field label="Physical">
+                  {hasCd ? (
+                    <>CD{owned && <span className="album-head-muted"> · {owned}</span>}</>
+                  ) : (
+                    <span className="album-head-physical">
+                      <span className="album-head-muted">{cd.titleStatus === 'wish' ? 'No CD · on your wish list' : 'No CD'}</span>
+                      {/* The box below holds the heart when there is something to decide. */}
+                      {onWish && digital.album && !(isToBuy(digital.album) || cd.titleStatus === 'wish') && (
+                        <button type="button" className="album-head-link" onClick={onWish} aria-pressed={cd.titleStatus === 'wish'}>
+                          {cd.titleStatus === 'wish' ? <BsHeartFill aria-hidden="true" /> : <BsHeart aria-hidden="true" />}
+                          {cd.titleStatus === 'wish' ? 'Wished' : 'Add to wishlist'}
+                        </button>
+                      )}
+                    </span>
+                  )}
+                </Field>
+                <Field label="Digital">
+                  {digital.album ? (
+                    <>
+                      <span className={isLossy(digital.album) ? 'album-head-lossy' : 'album-head-lossless'}>{formatLabel(digital.album)}</span>
+                      <span className="album-head-muted">
+                        {' · '}{digital.album.songCount} tracks
+                        {' · '}{digital.album.listening.plays} play{digital.album.listening.plays === 1 ? '' : 's'} in 90 days
+                      </span>
+                      {isLossy(digital.album) && hasCd && <span className="album-head-lossy"> · rip the CD again</span>}
+                    </>
+                  ) : digital.notRipped ? <span className="album-head-muted">Not ripped yet.</span> : ripText}
+                </Field>
+              </>
+            )}
             {cd.genres && cd.genres.length > 0 && (
               <Field label="Genres">
                 {cd.genres.map((genre: string, index: number) => (
@@ -719,6 +778,34 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
             )}
           </dl>
         </div>
+
+        {digital?.album && !hasCd && (isToBuy(digital.album) || cd.titleStatus === 'wish') && (
+          <div className="album-buy">
+            <div>
+              {isSuggested(digital.album) ? (
+                <><strong><BsCartFill aria-hidden="true" /> Worth buying</strong> — {buyReason(digital.album)}</>
+              ) : (
+                <strong><BsHeartFill aria-hidden="true" /> On your wish list</strong>
+              )}
+            </div>
+            <div className="album-buy-actions">
+              {onWish && (
+                <Button size="sm" variant={cd.titleStatus === 'wish' ? 'warning' : 'outline-warning'} onClick={onWish} aria-pressed={cd.titleStatus === 'wish'}>
+                  {cd.titleStatus === 'wish' ? <BsHeartFill className="me-1" /> : <BsHeart className="me-1" />}
+                  {cd.titleStatus === 'wish' ? 'Wished' : 'Add to wishlist'}
+                </Button>
+              )}
+              <a className="btn btn-sm btn-outline-secondary" href={ricardoUrl(digital.album)} target="_blank" rel="noopener noreferrer" title="Search the CD on Ricardo">
+                <BsSearch className="me-1" />Ricardo
+              </a>
+              {onDismiss && cd.titleStatus !== 'wish' && (
+                <Button size="sm" variant="link" className="album-buy-dismiss" onClick={() => onDismiss(!digital.album!.dismissed)}>
+                  {digital.album.dismissed ? 'Interested after all' : 'Not interested'}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
 
         <AlbumGuide albumId={Number(cd.id)} onLoaded={setHasGuide} />
         <AlbumNotes albumId={Number(cd.id)} writing={writingNote} onCount={setNoteCount} />
@@ -837,6 +924,16 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                             return line && <span className="track-credits">{line}</span>;
                           })()}
                         </span>
+                        {(() => {
+                          const heard = digitalTracks.get(`${disc.number}-${track.no}`);
+                          return heard && (heard.rating > 0 || heard.starred || heard.plays > 0) && (
+                            <span className="track-digital" title="Your stars and plays of the last 90 days, from Navidrome">
+                              {heard.rating > 0 && <span><BsStarFill aria-hidden="true" /> {heard.rating}</span>}
+                              {heard.starred && <BsHeartFill aria-hidden="true" />}
+                              {heard.plays > 0 && <span>×{heard.plays}</span>}
+                            </span>
+                          );
+                        })()}
                         {track.durationSec && (
                           <span className="track-duration">
                             {formatDuration(track.durationSec)}
@@ -929,20 +1026,23 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
           </Button>
         </div>
         <div className="music-detail-manage">
-          {onEdit && (
+          {/* A digital album is Navidrome's: it goes when its files go, and it has nothing of a CD to edit. */}
+          {onEdit && cd.titleStatus !== 'digital' && (
             <Button variant="outline-primary" onClick={onEdit}>
               <BsPencil className="me-1" />
               Edit
             </Button>
           )}
-          <Button
-            ref={deleteBtnRef}
-            variant={confirmDelete ? 'danger' : 'outline-danger'}
-            onClick={handleDelete}
-          >
-            <BsTrash className="me-1" />
-            {confirmDelete ? 'Are you sure?' : 'Delete'}
-          </Button>
+          {cd.titleStatus !== 'digital' && (
+            <Button
+              ref={deleteBtnRef}
+              variant={confirmDelete ? 'danger' : 'outline-danger'}
+              onClick={handleDelete}
+            >
+              <BsTrash className="me-1" />
+              {confirmDelete ? 'Are you sure?' : 'Delete'}
+            </Button>
+          )}
         </div>
       </Modal.Footer>
 

@@ -1,0 +1,55 @@
+/* What sets an album apart, top left of its cover: the shelf code holds the top right, ▶ and Listen Next the foot. */
+.digital-marks {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+  display: flex;
+  gap: 4px;
+  pointer-events: auto;
+}
+
+.digital-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 24px;
+  min-width: 24px;
+  padding: 0 6px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  color: #f5f5f5;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.digital-mark small {
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Orange: a copy to do again. */
+.digital-mark-lossy { color: #f59e0b; }
+.digital-mark-unripped { color: #bbb; }
+
+/* Gold: to buy. */
+.digital-mark-buy { background: #fbbf24; color: #111; }
+.digital-mark-wish { color: #fbbf24; border: 1px solid #fbbf24; }
+
+.digital-mark-svg {
+  width: 1em;
+  height: 1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Inline, as in the head of an album's dialog. */
+.digital-marks-inline {
+  position: static;
+}

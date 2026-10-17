@@ -17,6 +17,12 @@ import { useAlbumOrder } from '../utils/shelfLocations';
 import { artistLetter, artistSortKey, artistSortName } from '../utils/artistOrder';
 import { isAppleMobile } from '../utils/navidrome';
 import AlbumPlayButton from './shared/AlbumPlayButton';
+import DigitalStrip, { type DigitalFilter } from './DigitalStrip';
+import { Form } from 'react-bootstrap';
+import { BsCartFill, BsChevronRight, BsHeartFill } from 'react-icons/bs';
+import {
+  buyOrder, buyReason, isDismissed, isLossy, isSuggested, isToBuy, useDigitalLibrary, type AlbumDigital,
+} from '../utils/digitalLibrary';
 
 interface MusicSearchProps {
   cds: any;
@@ -60,6 +66,18 @@ interface ShuffleResult {
   [key: string]: any;
 }
 
+/** Digital on or off, remembered in the browser. */
+const DIGITAL_KEY = 'dexvault-musicdex-digital';
+const FILTERS: DigitalFilter[] = ['all', 'buy', 'digital', 'lossy', 'unripped'];
+const NOTHING_KNOWN: AlbumDigital = { album: null, notRipped: false };
+
+/** An album of the collection, as opposed to a wish or a digital album: there is a CD. */
+const hasCd = (album: Album) => album.titleStatus !== 'digital' && album.titleStatus !== 'wish';
+
+const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+/** The words of a search, its keywords and quotes left out: what an album with no CD is matched on, by title and artist. */
+const searchWords = (text: string) => normalize(text.replace(/-?\w+:/g, ' ').replace(/"/g, ' ')).split(/[\s,]+/).filter(Boolean);
 
 const MusicSearch = forwardRef<any, MusicSearchProps>(({
   cds,
@@ -117,6 +135,18 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const [smartFillLoading, setSmartFillLoading] = useState(false);
   const [shufflingAlbumId, setShufflingAlbumId] = useState<number | null>(null);
 
+  // Digital on: the albums with no CD join the grid, each album wears what sets it apart, the filters show.
+  const [digitalOn, setDigitalOn] = useState<boolean>(() =>
+    new URLSearchParams(location.search).get('digital') === '1' || readStored(DIGITAL_KEY) === '1');
+  const [digitalFilter, setDigitalFilter] = useState<DigitalFilter>(() => {
+    const asked = new URLSearchParams(location.search).get('filter') as DigitalFilter | null;
+    return asked && FILTERS.includes(asked) ? asked : 'all';
+  });
+  const [showDismissed, setShowDismissed] = useState(false);
+  const digital = useDigitalLibrary(digitalOn);
+  // The wishes and digital albums, those Navidrome has joining the grid.
+  const [extraCds, setExtraCds] = useState<Album[]>([]);
+
   // Ref and state for scroll container (for alphabetical index)
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [scrollContainer, setScrollContainer] = useState<HTMLElement | null>(null);
@@ -152,6 +182,42 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     loadCds();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
+
+  const loadExtraCds = useCallback(async () => {
+    try {
+      const [digitalAlbums, wishes] = await Promise.all([
+        musicService.getAlbumsByStatus('digital') as Promise<Album[]>,
+        musicService.getAlbumsByStatus('wish') as Promise<Album[]>,
+      ]);
+      setExtraCds([...digitalAlbums, ...wishes]);
+    } catch (error) {
+      console.warn('Failed to load the albums with no CD:', error);
+    }
+  }, []);
+
+  // Read again as the library changes: a sync adds digital albums, a wish turns one into another.
+  useEffect(() => {
+    if (digitalOn) loadExtraCds();
+  }, [digitalOn, digital.library, refreshTrigger, loadExtraCds]);
+
+  // ?digital=1&filter=buy, as the old Digital page's links become: taken once, then left out of the address.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (!params.has('digital') && !params.has('filter')) return;
+    if (params.get('digital') === '1') writeStored(DIGITAL_KEY, '1');
+    params.delete('digital');
+    params.delete('filter');
+    const search = params.toString();
+    navigate({ search: search ? `?${search}` : '' }, { replace: true });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggleDigital = () => {
+    const next = !digitalOn;
+    setDigitalOn(next);
+    writeStored(DIGITAL_KEY, next ? '1' : '0');
+    if (!next) setDigitalFilter('all');
+  };
 
   // Load Listen Next albums
   const refreshListenNextAlbums = useCallback(async () => {
@@ -339,6 +405,60 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [albumOrder]);
 
+  const digitalOf = useCallback((cd: Album): AlbumDigital => digital.byAlbumId.get(Number(cd.id)) ?? NOTHING_KNOWN, [digital.byAlbumId]);
+
+  /** The grid with Digital on: the CDs found, and the albums with no CD that Navidrome has, matched by title and artist. */
+  const hybridCds = useMemo(() => {
+    if (!digitalOn) return filteredCds;
+    const words = searchWords(searchCriteria?.searchText || '');
+    const extras = extraCds.filter(cd => digital.byAlbumId.has(Number(cd.id))
+      && words.every(word => normalize(`${cd.title} ${Array.isArray(cd.artist) ? cd.artist.join(' ') : cd.artist}`).includes(word)));
+    return sortCds([...filteredCds, ...extras], sortBy);
+  }, [digitalOn, filteredCds, extraCds, digital.byAlbumId, searchCriteria?.searchText, sortCds, sortBy]);
+
+  const filterCounts = useMemo((): Record<DigitalFilter, number> => ({
+    all: hybridCds.length,
+    buy: hybridCds.filter(cd => !hasCd(cd) && isToBuy(digitalOf(cd).album)).length,
+    digital: hybridCds.filter(cd => !hasCd(cd)).length,
+    lossy: hybridCds.filter(cd => isLossy(digitalOf(cd).album)).length,
+    unripped: hybridCds.filter(cd => hasCd(cd) && digitalOf(cd).notRipped).length,
+  }), [hybridCds, digitalOf]);
+
+  /** What the grid shows: every album, or those of the filter. Buy is shown in its own sections. */
+  const shownCds = useMemo(() => {
+    if (!digitalOn) return filteredCds;
+    switch (digitalFilter) {
+      case 'buy': return hybridCds.filter(cd => !hasCd(cd) && isToBuy(digitalOf(cd).album))
+        .sort((a, b) => buyOrder(digitalOf(a).album!, digitalOf(b).album!));
+      case 'digital': return hybridCds.filter(cd => !hasCd(cd));
+      case 'lossy': return hybridCds.filter(cd => isLossy(digitalOf(cd).album));
+      case 'unripped': return hybridCds.filter(cd => hasCd(cd) && digitalOf(cd).notRipped);
+      default: return hybridCds;
+    }
+  }, [digitalOn, digitalFilter, filteredCds, hybridCds, digitalOf]);
+
+  const dismissedCds = useMemo(() => (digitalOn && digitalFilter === 'buy'
+    ? hybridCds.filter(cd => !hasCd(cd) && isDismissed(digitalOf(cd).album)) : []), [digitalOn, digitalFilter, hybridCds, digitalOf]);
+
+  const chooseFilter = (filter: DigitalFilter) => {
+    setDigitalFilter(filter);
+    setShowDismissed(false);
+  };
+
+  /** The heart of an album with no CD: on the wish list or off it, the same album either way. */
+  const toggleWish = async (cd: Album) => {
+    const album = digitalOf(cd).album;
+    if (!album) return;
+    await digital.change(() => musicService.setDigitalWished(album.navidromeId, cd.titleStatus !== 'wish'));
+    await loadExtraCds();
+    if (selectedCdDetails?.id === cd.id) setSelectedCdDetails(await musicService.getAlbumById(cd.id));
+  };
+
+  const setDismissed = (cd: Album, dismissed: boolean) => {
+    const album = digitalOf(cd).album;
+    if (album) digital.change(() => musicService.setDigitalDismissed(album.navidromeId, dismissed));
+  };
+
   const handleSortChange = async (sortOption: string) => {
     setSortBy(sortOption);
     writeStored('dexvault-musicdex-sort', sortOption);
@@ -430,7 +550,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
 
     // If grouping is enabled, expand all groups initially
     if (groupOption !== 'none') {
-      const grouped = groupCds(filteredCds, groupOption);
+      const grouped = groupCds(shownCds, groupOption);
       const allGroupKeys = Object.keys(grouped);
       setExpandedGroups(new Set(allGroupKeys));
       setExpandAllGroups(true);
@@ -455,7 +575,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const toggleAllGroups = () => {
     if (groupBy === 'none') return;
 
-    const grouped = groupCds(filteredCds, groupBy);
+    const grouped = groupCds(shownCds, groupBy);
     const allGroupKeys = Object.keys(grouped);
 
     if (expandAllGroups) {
@@ -658,17 +778,21 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   // An album opened from Listen Next steps through Listen Next instead.
   const [stepThrough, setStepThrough] = useState<'grid' | 'listenNext'>('grid');
   const gridIds = useMemo(() => {
-    if (groupBy === 'none') return filteredCds.map(cd => cd.id);
-    const grouped = groupCds(filteredCds, groupBy);
+    if (digitalOn && digitalFilter === 'buy') {
+      const suggested = shownCds.filter(cd => isSuggested(digitalOf(cd).album));
+      return [...suggested, ...shownCds.filter(cd => !suggested.includes(cd)), ...(showDismissed ? dismissedCds : [])].map(cd => cd.id);
+    }
+    if (groupBy === 'none') return shownCds.map(cd => cd.id);
+    const grouped = groupCds(shownCds, groupBy);
     return Object.keys(grouped).sort()
       .filter(key => expandedGroups.has(key))
       .flatMap(key => sortCds(grouped[key], sortBy).map(cd => cd.id));
-  }, [filteredCds, groupBy, expandedGroups, groupCds, sortCds, sortBy]);
+  }, [shownCds, groupBy, expandedGroups, groupCds, sortCds, sortBy, digitalOn, digitalFilter, digitalOf, showDismissed, dismissedCds]);
   const shownIds = useMemo(
     () => stepThrough === 'listenNext' ? listenNextAlbums.map(album => album.id) : gridIds,
     [stepThrough, listenNextAlbums, gridIds]);
   const albumSteps = useDetailSteps(shownIds, selectedCdDetails?.id, id => musicService.getAlbumById(id), setSelectedCdDetails,
-    { imagesOf: albumImages, summaryOf: id => findById(id, allCds, listenNextAlbums) });
+    { imagesOf: albumImages, summaryOf: id => findById(id, allCds, extraCds, listenNextAlbums) });
 
   const handleCdClick = async (cdId: number | string, from: 'grid' | 'listenNext' = 'grid') => {
     setStepThrough(from);
@@ -726,6 +850,59 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   };
 
 
+  const buyCard = (cd: Album, dismissedCard = false) => {
+    const album = digitalOf(cd).album;
+    return (
+      <MusicThumbnail
+        key={cd.id}
+        cd={cd}
+        onClick={() => handleCdClick(cd.id)}
+        dataItemId={cd.id}
+        digital={digitalOf(cd)}
+        buy={{
+          reason: album && isSuggested(album) ? buyReason(album) : null,
+          wished: cd.titleStatus === 'wish',
+          onWish: () => toggleWish(cd),
+          // Only what listening suggested can be set aside; restored from the folded list.
+          onDismiss: cd.titleStatus === 'wish' ? undefined : () => setDismissed(cd, !dismissedCard),
+        }}
+      />
+    );
+  };
+
+  /** Buy in two: what listening suggests, then what is only wished; what was set aside folded at the foot. */
+  const renderBuy = () => {
+    const suggested = shownCds.filter(cd => isSuggested(digitalOf(cd).album));
+    const wishedOnly = shownCds.filter(cd => !suggested.includes(cd));
+    const wishedSuggested = suggested.filter(cd => cd.titleStatus === 'wish').length;
+    return (
+      <div className="digital-buy">
+        <h3 className="digital-buy-title"><BsCartFill aria-hidden="true" /> Suggested from your listening <span className="digital-buy-note">{suggested.length}</span></h3>
+        <p className="digital-buy-hint">
+          Albums with no CD that you play: three of their tracks twice or more over the last 90 days, or rated 4–5 stars,
+          or hearted. The most recently played first.
+        </p>
+        {suggested.length > 0 ? <div className="cd-grid">{suggested.map(cd => buyCard(cd))}</div>
+          : <p className="digital-buy-empty">No suggestion yet: they come as you play albums you have no CD of.</p>}
+        <h3 className="digital-buy-title">
+          <BsHeartFill aria-hidden="true" /> Wishlist <span className="digital-buy-note">{wishedOnly.length}
+            {wishedSuggested > 0 && ` · ${wishedSuggested} more in the suggestions above`}</span>
+        </h3>
+        {wishedOnly.length > 0 ? <div className="cd-grid">{wishedOnly.map(cd => buyCard(cd))}</div>
+          : <p className="digital-buy-empty">Your wish list has no album from Navidrome.</p>}
+        {dismissedCds.length > 0 && (
+          <>
+            <button type="button" className="digital-dismissed-toggle" aria-expanded={showDismissed} onClick={() => setShowDismissed(open => !open)}>
+              {showDismissed ? <BsChevronDown aria-hidden="true" /> : <BsChevronRight aria-hidden="true" />}
+              {dismissedCds.length} not interested
+            </button>
+            {showDismissed && <div className="cd-grid">{dismissedCds.map(cd => buyCard(cd, true))}</div>}
+          </>
+        )}
+      </div>
+    );
+  };
+
   const renderCdGrid = () => {
     if (loading) {
       return (
@@ -737,8 +914,17 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
       );
     }
 
+    if (digitalOn && digitalFilter === 'buy') return renderBuy();
+
+    if (digitalOn && shownCds.length === 0 && allCds.length > 0) {
+      return (
+        <EmptyState icon="💿" title="Nothing here"
+          description={searchCriteria?.searchText ? `No album of this filter matches "${searchCriteria.searchText}"` : 'No album in this filter.'} />
+      );
+    }
+
     // Empty State - Check if it's a search or truly empty database
-    if (filteredCds.length === 0) {
+    if (shownCds.length === 0) {
       return searchCriteria?.searchText && searchCriteria.searchText.trim() ? (
         /* Search returned no results */
         <EmptyState
@@ -771,7 +957,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     if (groupBy === 'none') {
       return (
         <div className={`cd-grid ${sortLoading ? 'sort-loading' : ''}`}>
-          {filteredCds.map((cd) => {
+          {shownCds.map((cd) => {
             // Use artist name for letter tracking when sorting by artist
             const letter = letterOf(cd);
 
@@ -784,6 +970,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
                 isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
                 dataItemId={cd.id}
                 dataFirstLetter={letter}
+                digital={digitalOn ? digitalOf(cd) : undefined}
               />
             );
           })}
@@ -792,7 +979,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     }
 
     // Grouped view
-    const grouped = groupCds(filteredCds, groupBy);
+    const grouped = groupCds(shownCds, groupBy);
     const sortedGroupKeys = Object.keys(grouped).sort();
 
     return (
@@ -828,6 +1015,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
                         onListenNextChange={refreshListenNextAlbums}
                         isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
                         dataFirstLetter={letter}
+                        digital={digitalOn ? digitalOf(cd) : undefined}
                       />
                     );
                   })}
@@ -873,7 +1061,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     <div className="music-search" ref={scrollContainerRef}>
       {/* Alphabetical Index - shows when sorted alphabetically */}
       <AlphabeticalIndex
-        items={filteredCds}
+        items={shownCds}
         getTitle={(cd: Record<string, unknown>) => {
           if (sortBy === 'artist' || sortBy === 'artistReverse') {
             // The name the CD is filed under on the shelves.
@@ -884,7 +1072,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
         scrollContainer={scrollContainer}
         sortBy={sortBy}
         // Keep available during search/filter; disable only when grouping is enabled
-        disabled={groupBy !== 'none'}
+        disabled={groupBy !== 'none' || (digitalOn && digitalFilter === 'buy')}
       />
 
       {/* Listen Next Banner - show when there are albums OR when we have albums in collection to suggest */}
@@ -914,8 +1102,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
       {/* Results Header with Controls */}
       <div className="cds-results">
         <CollectionHeader
-          filteredCount={cdCount.filtered}
-          totalCount={cdCount.total}
+          filteredCount={digitalOn ? shownCds.length : cdCount.filtered}
+          totalCount={digitalOn ? filterCounts.all : cdCount.total}
           itemLabel="albums"
           sortBy={sortBy}
           sortOptions={sortOptions}
@@ -932,12 +1120,30 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           onAdd={() => setShowAddDialog(true)}
           loading={loading}
           extraControls={
-            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => navigate('/musicdex/digital')}>
-              <BsDisc className="me-1" />
-              Digital
-            </button>
+            <Form.Check
+              type="switch"
+              id="musicdex-digital"
+              className="musicdex-digital-switch"
+              label="Digital"
+              checked={digitalOn}
+              onChange={toggleDigital}
+              title={digitalOn ? 'Hide the albums with no CD and what sets each album apart' : 'Show the albums with no CD, how good the files are, and what to buy'}
+            />
           }
         />
+
+        {digitalOn && (
+          <DigitalStrip
+            library={digital.library}
+            error={digital.error}
+            editions={digital.editions}
+            syncing={digital.syncing}
+            onRefresh={digital.sync}
+            filter={digitalFilter}
+            onFilter={chooseFilter}
+            counts={filterCounts}
+          />
+        )}
 
         {/* Album Grid or Grouped Albums */}
         {renderCdGrid()}
@@ -1039,6 +1245,9 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           onListenNextChange={refreshListenNextAlbums}
           onPrevious={albumSteps.onPrevious}
           onNext={albumSteps.onNext}
+          digital={digitalOn ? digitalOf(selectedCdDetails) : undefined}
+          onWish={digitalOn ? () => toggleWish(selectedCdDetails) : null}
+          onDismiss={digitalOn ? (dismissed: boolean) => setDismissed(selectedCdDetails, dismissed) : null}
         />
       )}
 

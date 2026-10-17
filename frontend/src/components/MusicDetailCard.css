@@ -219,13 +219,13 @@
   color: #9aa4b2;
 }
 
-/* A rip's state: lossless is done, lossy still to be ripped again. */
+/* A rip's state: lossless is done, lossy still to be ripped again (orange, as its mark; gold is for buying). */
 .album-head-lossless {
   color: #d6dbe1;
 }
 
 .album-head-lossy {
-  color: #fbbf24;
+  color: #f59e0b;
 }
 
 .album-head-code {
@@ -892,4 +892,54 @@
 
 @keyframes album-head-spin {
   to { transform: rotate(360deg); }
+}
+
+/* No CD: what it is, and the heart that puts it on the wish list. */
+.album-head-physical {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+/* To buy: why, and what to do about it, only when there is something to decide. */
+.album-buy {
+  margin: 14px 0 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  font-size: 0.9rem;
+}
+
+.album-buy strong {
+  color: #fbbf24;
+}
+
+.album-buy-actions {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.album-buy-dismiss {
+  color: #a3a3a3;
+}
+
+/* A track's stars, heart and plays of the last 90 days, with Digital on. */
+.track-digital {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+  padding-left: 8px;
+  color: #fbbf24;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.track-digital span:last-child {
+  color: #a3a3a3;
 }

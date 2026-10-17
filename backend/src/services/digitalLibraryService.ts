@@ -63,6 +63,8 @@ export interface DigitalAlbum {
   /** An old compressed copy of the same CD still sits next to this lossless one. */
   oldCopy: boolean;
   wishAlbumId: number | null;
+  /** The album of DexVault standing for it: the CD, the wish, or the digital album. */
+  albumId: number | null;
   rating: number;
   starred: boolean;
   /** Tracks rated 4 or 5 stars, or hearted. */
@@ -214,6 +216,7 @@ const EMPTY: Library = { albums: [], songs: [], lengths: { cd: new Map(), navidr
 const build = async (navidrome: Library, configured: boolean, error?: string): Promise<DigitalLibrary> => {
   const owned = await Album.findAll();
   const wished = await Album.findByStatus('wish');
+  const digitalIds = new Map((await Album.findByStatus('digital')).filter(album => album.navidromeId).map(album => [album.navidromeId!, album.id]));
   const dismissed = await NavidromePlay.dismissed();
   const today = localDay(new Date());
   const bySong = playsBySong(await listenHistoryService.recent(LISTEN_WINDOW_DAYS));
@@ -276,6 +279,7 @@ const build = async (navidrome: Library, configured: boolean, error?: string): P
       } : null,
       oldCopy: owner ? withOldCopy.has(owner.album.id) : false,
       wishAlbumId,
+      albumId: owner?.album.id ?? wishAlbumId ?? digitalIds.get(album.id) ?? null,
       rating: album.userRating,
       starred: Boolean(album.starred),
       favouriteTracks,

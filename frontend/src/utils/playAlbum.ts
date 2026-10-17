@@ -44,35 +44,3 @@ export const playAlbumById = async (albumId: number | string): Promise<boolean> 
   player.playAlbum(playerAlbumOf(album, rip), tracks, 0);
   return true;
 };
-
-interface NavidromeAlbumLike {
-  navidromeId: string;
-  name: string;
-  artist: string;
-  url?: string | null;
-  cd?: { id: number; title: string; cover: string | null } | null;
-}
-
-/**
- * Plays an album from its files in Navidrome, as the Digital page lists them:
- * one with no CD in the collection too; from one of its songs when given, the
- * rest of the album after it. False when Navidrome gives no file.
- */
-export const playNavidromeAlbum = async (album: NavidromeAlbumLike, fromSongId?: string, from?: string): Promise<boolean> => {
-  const files = await musicService.getDigitalTracks(album.navidromeId);
-  const tracks: PlayerTrack[] = files
-    .filter(file => file.id)
-    .sort((a, b) => a.discNumber - b.discNumber || a.track - b.track)
-    .map(file => ({ songId: file.id!, title: file.title, disc: file.discNumber, no: file.track, durationSec: file.durationSec }));
-  if (tracks.length === 0) return false;
-  player.playAlbum({
-    id: album.cd?.id ?? null,
-    navidromeId: album.navidromeId,
-    url: album.url ?? null,
-    from: from ?? null,
-    title: album.cd?.title ?? album.name,
-    artist: album.artist,
-    cover: album.cd?.cover ? musicService.getImageUrl(album.cd.cover) : musicService.navidromeCoverUrl(album.navidromeId),
-  }, tracks, Math.max(0, tracks.findIndex(track => track.songId === fromSongId)));
-  return true;
-};

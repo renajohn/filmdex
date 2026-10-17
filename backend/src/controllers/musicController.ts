@@ -78,12 +78,12 @@ const musicController = {
     }
   },
 
-  // Get albums by status (owned or wish)
+  // Get albums by status (owned, wish, or digital: the albums of Navidrome with no CD)
   getAlbumsByStatus: async (req: Request, res: Response): Promise<void> => {
     try {
       const status = req.params.status as string;
-      if (!['owned', 'wish'].includes(status)) {
-        res.status(400).json({ error: 'Status must be "owned" or "wish"' });
+      if (!['owned', 'wish', 'digital'].includes(status)) {
+        res.status(400).json({ error: 'Status must be "owned", "wish" or "digital"' });
         return;
       }
 

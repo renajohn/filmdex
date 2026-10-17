@@ -140,6 +140,8 @@ export interface DigitalAlbum {
   /** An old compressed copy of the same CD is still in Navidrome. */
   oldCopy: boolean;
   wishAlbumId: number | null;
+  /** The album of DexVault standing for it: the CD, the wish, or the digital album. */
+  albumId: number | null;
   rating: number;
   starred: boolean;
   favouriteTracks: number;
