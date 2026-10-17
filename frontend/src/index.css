@@ -14,6 +14,24 @@ body {
   color: #f8f9fa;
 }
 
+/*
+ * What lies on a cover, a poster or a book's cover: one kind of dark glass
+ * with a light edge, whatever the image. A round button on it is white;
+ * under the pointer it wears a white ring; on (in Listen or Watch Next,
+ * wished, playing) it is plain gold with a dark icon, a lighter gold under
+ * the pointer, and stays in sight.
+ */
+:root {
+  --cover-glass: rgba(0, 0, 0, 0.68);
+  --cover-glass-hover: rgba(0, 0, 0, 0.85);
+  --cover-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  --cover-lift: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --cover-ring: 0 0 0 1.5px #fff;
+  --cover-on: #fbbf24;
+  --cover-on-hover: #fde68a;
+  --cover-on-icon: #111;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;

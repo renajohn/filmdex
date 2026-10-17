@@ -217,104 +217,62 @@
 }
 
 /* Poster Watch Next Star Overlay */
+/* Watch Next on the dialog's poster: the covers' round button (see index.css), larger, half seen until the poster is hovered. */
 .poster-watch-next-star {
   position: absolute;
   top: 12px;
   right: 12px;
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, rgba(0, 0, 0, 0.65) 0%, rgba(0, 0, 0, 0.80) 100%);
-  backdrop-filter: blur(8px);
-  border: none;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--cover-glass);
+  backdrop-filter: blur(6px);
+  box-shadow: var(--cover-edge), var(--cover-lift);
+  color: #fff;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 100;
-  box-shadow: 
-    0 2px 8px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  opacity: 0.35;
-  transform: scale(0.9);
+  opacity: 0.45;
+  transition: opacity 0.15s ease, background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
 }
 
-/* Show star more prominently when hovering the poster (only for inactive state) */
-.movie-detail-poster:hover .poster-watch-next-star:not(.active) {
+.movie-detail-poster:hover .poster-watch-next-star,
+.poster-watch-next-star:focus-visible,
+.poster-watch-next-star.active {
   opacity: 1;
-  transform: scale(1);
 }
 
-.poster-watch-next-star:hover {
-  background: linear-gradient(135deg, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.90) 100%);
-  transform: scale(1.08);
-  box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+.poster-watch-next-star:hover,
+.poster-watch-next-star:focus-visible {
+  background: var(--cover-glass-hover);
+  box-shadow: var(--cover-ring), var(--cover-lift);
+  outline: none;
+}
+
+.poster-watch-next-star.active {
+  background: var(--cover-on);
+  box-shadow: var(--cover-lift);
+  color: var(--cover-on-icon);
+}
+
+.poster-watch-next-star.active:hover,
+.poster-watch-next-star.active:focus-visible {
+  background: var(--cover-on-hover);
+  box-shadow: var(--cover-ring), var(--cover-lift);
 }
 
 .poster-watch-next-star:active {
-  transform: scale(0.95);
+  transform: scale(0.9);
 }
 
 .poster-watch-next-star .star-icon {
-  width: 26px;
-  height: 26px;
-  color: #fbbf24;
-  stroke-width: 1.5;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Inactive state */
-.poster-watch-next-star:not(.active) .star-icon {
-  opacity: 0.4;
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.poster-watch-next-star:not(.active):hover .star-icon {
-  opacity: 0.7;
-  color: rgba(251, 191, 36, 0.7);
-}
-
-/* Active state - always visible */
-.poster-watch-next-star.active {
-  opacity: 1;
-  transform: scale(1);
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(245, 158, 11, 0.25) 100%);
-  backdrop-filter: blur(8px);
-  box-shadow: 
-    0 2px 12px rgba(251, 191, 36, 0.3),
-    0 0 0 1px rgba(251, 191, 36, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-.poster-watch-next-star.active:hover {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(245, 158, 11, 0.3) 100%);
-  transform: scale(1.08);
-  box-shadow: 
-    0 4px 16px rgba(251, 191, 36, 0.4),
-    0 0 0 1px rgba(251, 191, 36, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
-}
-
-.poster-watch-next-star.active .star-icon {
-  opacity: 1;
-  color: #fbbf24;
-  animation: gentle-pulse-detail 3s ease-in-out infinite;
-}
-
-@keyframes gentle-pulse-detail {
-  0%, 100% {
-    transform: scale(1);
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
-  }
-  50% {
-    transform: scale(1.05);
-    filter: drop-shadow(0 2px 4px rgba(251, 191, 36, 0.4));
-  }
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.8;
 }
 
 .movie-detail-poster:hover {

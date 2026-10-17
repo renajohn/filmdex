@@ -330,7 +330,6 @@
 
 .boxset-expansion-movie-item:hover .watch-next-badge-large {
   opacity: 1;
-  transform: scale(1);
 }
 
 .boxset-movie-info {

@@ -795,9 +795,9 @@
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.68);
+  background: var(--cover-glass);
   backdrop-filter: blur(6px);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 2px 8px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--cover-edge), var(--cover-lift);
   color: #fff;
   display: flex;
   align-items: center;
@@ -828,8 +828,8 @@
 .next-banner__remove-btn:focus-visible,
 .next-banner__shuffle-btn:hover:not(:disabled),
 .next-banner__shuffle-btn:focus-visible {
-  background: rgba(0, 0, 0, 0.85);
-  box-shadow: 0 0 0 1.5px #fff, 0 2px 8px rgba(0, 0, 0, 0.35);
+  background: var(--cover-glass-hover);
+  box-shadow: var(--cover-ring), var(--cover-lift);
   outline: none;
 }
 

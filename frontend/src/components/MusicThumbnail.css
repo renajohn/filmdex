@@ -156,9 +156,9 @@
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.68);
+  background: var(--cover-glass);
   backdrop-filter: blur(6px);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 2px 8px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--cover-edge), var(--cover-lift);
   color: #fff;
   font-size: 1.05rem;
   opacity: 0;
@@ -166,9 +166,9 @@
 }
 
 .cover-action.active {
-  background: #fbbf24;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-  color: #111;
+  background: var(--cover-on);
+  box-shadow: var(--cover-lift);
+  color: var(--cover-on-icon);
 }
 
 .music-thumbnail:hover .cover-action,
@@ -178,14 +178,14 @@
 
 .cover-action:hover,
 .cover-action:focus-visible {
-  background: rgba(0, 0, 0, 0.85);
-  box-shadow: 0 0 0 1.5px #fff, 0 2px 8px rgba(0, 0, 0, 0.35);
+  background: var(--cover-glass-hover);
+  box-shadow: var(--cover-ring), var(--cover-lift);
   outline: none;
 }
 
 .cover-action.active:hover,
 .cover-action.active:focus-visible {
-  background: #fde68a;
+  background: var(--cover-on-hover);
 }
 
 .cover-action:active {
