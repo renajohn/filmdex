@@ -3,6 +3,8 @@ import { Dropdown } from 'react-bootstrap';
 import { BsBook, BsThreeDots, BsPencil, BsTrash, BsClipboard, BsFileEarmark, BsBoxArrowRight } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import './BookThumbnail.css';
+import CoverButton from './shared/CoverButton';
+import CoverTag, { CoverTagStack } from './shared/CoverTag';
 
 interface BookData {
   id: number | string;
@@ -210,7 +212,7 @@ const BookThumbnail: React.FC<BookThumbnailProps> = ({ book, onClick, onEdit, on
 
   return (
     <div
-      className={`book-thumbnail ${isDragOver ? 'drag-over' : ''}`}
+      className={`book-thumbnail cover-host ${isDragOver ? 'drag-over' : ''}`}
       onClick={onClick}
       draggable={draggable}
       onDragStart={handleDragStart}
@@ -224,15 +226,16 @@ const BookThumbnail: React.FC<BookThumbnailProps> = ({ book, onClick, onEdit, on
     >
       <div className="book-thumbnail-cover">
         {(book.seriesNumber || book.titleStatus === 'borrowed') && (
-          <div className="book-thumbnail-tags">
-            {book.seriesNumber && <span className="cover-tag book-thumbnail-series-badge">#{book.seriesNumber}</span>}
-            {book.titleStatus === 'borrowed' && <span className="cover-tag cover-tag--alert">Borrowed</span>}
-          </div>
+          <CoverTagStack className="book-thumbnail-tags">
+            {book.seriesNumber && <CoverTag className="book-thumbnail-series-badge">#{book.seriesNumber}</CoverTag>}
+            {book.titleStatus === 'borrowed' && <CoverTag variant="alert">Borrowed</CoverTag>}
+          </CoverTagStack>
         )}
         {book.ebookFile && (book.ebookFile as string).trim() && (
-          <div
+          <CoverButton
             className="book-thumbnail-ebook-badge"
-            title="Télécharger l'e-book"
+            reveal="always"
+            label="Télécharger l'e-book"
             onClick={async (e: React.MouseEvent) => {
               e.stopPropagation();
               try {
@@ -243,8 +246,8 @@ const BookThumbnail: React.FC<BookThumbnailProps> = ({ book, onClick, onEdit, on
               }
             }}
           >
-            <BsFileEarmark size={18} />
-          </div>
+            <BsFileEarmark size={16} />
+          </CoverButton>
         )}
         {getCoverImage() ? (
           <img
@@ -282,11 +285,7 @@ const BookThumbnail: React.FC<BookThumbnailProps> = ({ book, onClick, onEdit, on
       {!disableMenu && (
         <div className="book-thumbnail-menu" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
           <Dropdown align="end">
-            <Dropdown.Toggle
-              variant="outline-secondary"
-              size="sm"
-              className="book-thumbnail-dropdown-toggle"
-            >
+            <Dropdown.Toggle as={CoverButton} label="More" reveal="always" className="book-thumbnail-dropdown-toggle">
               <BsThreeDots />
             </Dropdown.Toggle>
 

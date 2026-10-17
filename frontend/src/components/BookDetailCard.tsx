@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Row, Col, Badge, Form, Alert } from 'react-bootstrap';
 import { BsPencil, BsTrash, BsBook, BsCalendar, BsTag, BsTranslate, BsFileEarmark, BsStar, BsPerson, BsHouse, BsChatSquareText, BsPlus, BsX, BsCheck, BsArrowLeft, BsDownload, BsFiles, BsChevronDown, BsChevronUp, BsCamera } from 'react-icons/bs';
 import bookService from '../services/bookService';
+import CoverButton from './shared/CoverButton';
+import CoverTag, { CoverTagStack } from './shared/CoverTag';
 import bookCommentService from '../services/bookCommentService';
 import CoverModal from './CoverModal';
 import BookForm from './BookForm';
@@ -1448,14 +1450,14 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
           {getCoverImage() ? (
             <Row>
               <Col md={3}>
-                <div className="book-cover-container" ref={coverRef}>
+                <div className="book-cover-container cover-host" ref={coverRef}>
                   <div style={{ position: 'relative', overflow: 'visible', borderRadius: '4px' }}>
                     {(currentBook.borrowed || currentBook.titleStatus === 'borrowed' || currentBook.titleStatus === 'wish') && (
-                      <div className="book-cover-tags">
-                        {currentBook.borrowed && <span className="cover-tag cover-tag--alert">Read &amp; Gone</span>}
-                        {currentBook.titleStatus === 'borrowed' && !currentBook.borrowed && <span className="cover-tag cover-tag--alert">Borrowed</span>}
-                        {currentBook.titleStatus === 'wish' && <span className="cover-tag cover-tag--on">Wishlist</span>}
-                      </div>
+                      <CoverTagStack className="book-cover-tags">
+                        {currentBook.borrowed && <CoverTag variant="alert">Read &amp; Gone</CoverTag>}
+                        {currentBook.titleStatus === 'borrowed' && !currentBook.borrowed && <CoverTag variant="alert">Borrowed</CoverTag>}
+                        {currentBook.titleStatus === 'wish' && <CoverTag variant="on">Wishlist</CoverTag>}
+                      </CoverTagStack>
                     )}
                     {getCoverImage() ? (
                       <img 
@@ -1474,27 +1476,27 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                       />
                     ) : null}
                     {/* Change Cover Button */}
-                    <button 
+                    <CoverButton
                       className="cover-change-btn"
                       onClick={handleCoverChangeClick}
-                      title="Change cover"
+                      label="Change cover"
                     >
                       <BsCamera size={14} />
-                    </button>
+                    </CoverButton>
                   </div>
                   {!getCoverImage() && (
                     <div 
-                      className="book-cover-placeholder"
+                      className="book-cover-placeholder cover-host"
                       style={{ display: 'flex', position: 'relative' }}
                     >
                       <BsBook size={64} />
-                      <button 
+                      <CoverButton
                         className="cover-change-btn"
                         onClick={handleCoverChangeClick}
-                        title="Add cover"
+                        label="Add cover"
                       >
                         <BsCamera size={14} />
-                      </button>
+                      </CoverButton>
                     </div>
                   )}
                   

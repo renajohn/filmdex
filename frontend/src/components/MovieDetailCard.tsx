@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import CoverButton from './shared/CoverButton';
+import { BsStar, BsStarFill } from 'react-icons/bs';
 import { FormControl } from 'react-bootstrap';
 import CompactRatingsWidget from './CompactRatingsWidget';
 import InlinePosterSelector from './InlinePosterSelector';
@@ -1681,7 +1683,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
             >
               <div className="movie-detail-poster-container" ref={posterRef}>
                 <div 
-                  className="movie-detail-poster"
+                  className="movie-detail-poster cover-host"
                   onClick={handlePosterClick}
                   style={{ cursor: currentData!.tmdb_id ? 'pointer' : 'default' }}
                   title={currentData!.tmdb_id ? 'Click to change poster' : ''}
@@ -1710,24 +1712,19 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                   )}
                   
                   {/* Watch Next Star Overlay */}
-                  <button
-                    className={`poster-watch-next-star ${collections.some(c => c.type === 'watch_next') ? 'active' : ''}`}
+                  <CoverButton
+                    className="poster-watch-next-star"
+                    size="large"
+                    reveal="dim"
+                    active={collections.some(c => c.type === 'watch_next')}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleWatchNextToggle(e);
                     }}
-                    title={collections.some(c => c.type === 'watch_next') ? 'Remove from Watch Next' : 'Add to Watch Next'}
-                    aria-label="Toggle Watch Next"
+                    label={collections.some(c => c.type === 'watch_next') ? 'Remove from Watch Next' : 'Add to Watch Next'}
                   >
-                    <svg 
-                      className="star-icon" 
-                      viewBox="0 0 24 24" 
-                      fill={collections.some(c => c.type === 'watch_next') ? "currentColor" : "none"}
-                      stroke="currentColor"
-                    >
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                    </svg>
-                  </button>
+                    {collections.some(c => c.type === 'watch_next') ? <BsStarFill aria-hidden="true" /> : <BsStar aria-hidden="true" />}
+                  </CoverButton>
                 </div>
               </div>
               

@@ -781,30 +781,11 @@
   z-index: 10;
 }
 
-/*
- * Remove (×, top right) and shuffle (top left) on a Next card: the same
- * dark glass as the round buttons of a cover, a white ring under the
- * pointer, no colour of their own.
- */
+/* Remove (×, top right) and shuffle (top left) on a Next card: round buttons of the covers (CoverButton, cover.css), placed. */
 .next-banner__remove-btn,
 .next-banner__shuffle-btn {
   position: absolute;
   top: 8px;
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: var(--cover-glass);
-  backdrop-filter: blur(6px);
-  box-shadow: var(--cover-edge), var(--cover-lift);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.15s ease, background-color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
   z-index: 20;
 }
 
@@ -814,40 +795,6 @@
 .next-banner__shuffle-btn svg {
   width: 16px;
   height: 16px;
-}
-
-.next-banner__card:hover .next-banner__remove-btn,
-.next-banner__card:hover .next-banner__shuffle-btn,
-.next-banner__remove-btn:focus-visible,
-.next-banner__shuffle-btn:focus-visible,
-.next-banner__shuffle-btn.loading {
-  opacity: 1;
-}
-
-.next-banner__remove-btn:hover,
-.next-banner__remove-btn:focus-visible,
-.next-banner__shuffle-btn:hover:not(:disabled),
-.next-banner__shuffle-btn:focus-visible {
-  background: var(--cover-glass-hover);
-  box-shadow: var(--cover-ring), var(--cover-lift);
-  outline: none;
-}
-
-.next-banner__remove-btn:active,
-.next-banner__shuffle-btn:active:not(:disabled) {
-  transform: scale(0.9);
-}
-
-.next-banner__shuffle-btn:disabled {
-  cursor: not-allowed;
-}
-
-/* On a touch screen nothing is hovered: the buttons stay in sight. */
-@media (hover: none) {
-  .next-banner__remove-btn,
-  .next-banner__shuffle-btn {
-    opacity: 1;
-  }
 }
 
 .next-banner__shuffle-spinner {

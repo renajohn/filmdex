@@ -1,0 +1,190 @@
+/*
+ * What lies on a cover, a poster or a book's cover, the same everywhere:
+ * tags (CoverTag) and round buttons (CoverButton). Use the components rather
+ * than these classes by hand, and never style a tag or a button on an image
+ * anew: a component's own stylesheet only places it, in a corner.
+ *
+ * One kind of dark glass with a light edge, whatever the image. A tag is
+ * square-cornered and in small capitals, its meaning in the colour of its
+ * words; a button is round and white, wears a white ring under the pointer,
+ * and when on (in Listen or Watch Next, wished, playing) is plain gold with a
+ * dark icon, a lighter gold under the pointer. Gold means "on" or "to do",
+ * red an alert, orange a copy to do again.
+ */
+:root {
+  --cover-glass: rgba(0, 0, 0, 0.68);
+  --cover-glass-hover: rgba(0, 0, 0, 0.85);
+  --cover-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  --cover-lift: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --cover-ring: 0 0 0 1.5px #fff;
+  --cover-on: #fbbf24;
+  --cover-on-hover: #fde68a;
+  --cover-on-icon: #111;
+  --cover-alert: #f87171;
+}
+
+/* ---------------------------------------------------------------- Tags */
+
+.cover-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 22px;
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  box-shadow: var(--cover-edge);
+  color: #f5f5f5;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.cover-tag svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+
+/* A format, a shelf: gold words. */
+.cover-tag--gold { color: var(--cover-on); }
+/* A copy to do again. */
+.cover-tag--orange { color: #f59e0b; }
+/* Not known, not ripped: grey. */
+.cover-tag--muted { color: #bbb; }
+/* Spiders, snakes, a book lent: red words and a red edge. */
+.cover-tag--alert {
+  color: var(--cover-alert);
+  box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.55);
+}
+/* To do: wished, to buy. */
+.cover-tag--on {
+  background: var(--cover-on);
+  color: var(--cover-on-icon);
+  box-shadow: none;
+}
+
+/*
+ * Tags stacked in a column (CoverTagStack) share one width, the widest one's
+ * and at least 38px (a DVD), so a column reads as one and keeps its width
+ * from poster to poster. A row (direction "row") wraps instead.
+ */
+.cover-tag-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.cover-tag-stack > .cover-tag {
+  min-width: 38px;
+}
+
+.cover-tag-stack--row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.cover-tag-stack--row > .cover-tag {
+  min-width: 22px;
+}
+
+/* ------------------------------------------------------------- Buttons */
+
+.cover-button {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--cover-glass);
+  backdrop-filter: blur(6px);
+  box-shadow: var(--cover-edge), var(--cover-lift);
+  color: #fff;
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
+}
+
+.cover-button svg {
+  flex: none;
+}
+
+.cover-button--large {
+  width: 44px;
+  height: 44px;
+  font-size: 1.35rem;
+}
+
+.cover-button--small {
+  width: 22px;
+  height: 22px;
+  font-size: 0.75rem;
+}
+
+.cover-button:hover,
+.cover-button:focus-visible {
+  background: var(--cover-glass-hover);
+  box-shadow: var(--cover-ring), var(--cover-lift);
+  outline: none;
+}
+
+.cover-button--on {
+  background: var(--cover-on);
+  box-shadow: var(--cover-lift);
+  color: var(--cover-on-icon);
+}
+
+.cover-button--on:hover,
+.cover-button--on:focus-visible {
+  background: var(--cover-on-hover);
+  box-shadow: var(--cover-ring), var(--cover-lift);
+}
+
+.cover-button:active:not(:disabled) {
+  transform: scale(0.9);
+}
+
+.cover-button:disabled {
+  cursor: wait;
+}
+
+/* A button that is a menu's toggle draws no caret. */
+.cover-button.dropdown-toggle::after {
+  display: none;
+}
+
+/*
+ * When it shows: "hover" while the card holding it (class cover-host) is
+ * under the pointer, "dim" half seen until then, "always" at all times. A
+ * button that is on, or reached from the keyboard, is always in sight, and so
+ * is any on a touch screen, where nothing is hovered.
+ */
+.cover-button--reveal-hover { opacity: 0; }
+.cover-button--reveal-dim { opacity: 0.45; }
+
+.cover-host:hover .cover-button--reveal-hover,
+.cover-host:hover .cover-button--reveal-dim,
+.cover-button--on,
+.cover-button:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .cover-button--reveal-hover,
+  .cover-button--reveal-dim {
+    opacity: 1;
+  }
+}

@@ -2,6 +2,7 @@ import React from 'react';
 import { BsBookshelf } from 'react-icons/bs';
 import { useShelfLocation } from '../../utils/shelfLocations';
 import './ShelfCode.css';
+import CoverTag from './CoverTag';
 
 interface ShelfCodeProps {
   kind: 'movie' | 'album';
@@ -15,9 +16,16 @@ interface ShelfCodeProps {
 const ShelfCode: React.FC<ShelfCodeProps> = ({ kind, id, variant = 'overlay', className }) => {
   const where = useShelfLocation(kind, id);
   if (!where) return null;
+  if (variant === 'overlay') {
+    return (
+      <CoverTag variant="gold" className={`shelf-code-badge shelf-code-overlay${className ? ` ${className}` : ''}`} title={`On the shelves: ${where}`}>
+        {where}
+      </CoverTag>
+    );
+  }
   return (
-    <span className={`shelf-code-badge shelf-code-${variant}${variant === 'overlay' ? ' cover-tag cover-tag--gold' : ''}${className ? ` ${className}` : ''}`} title={`On the shelves: ${where}`}>
-      {variant === 'inline' && <BsBookshelf aria-hidden="true" />}
+    <span className={`shelf-code-badge shelf-code-inline${className ? ` ${className}` : ''}`} title={`On the shelves: ${where}`}>
+      <BsBookshelf aria-hidden="true" />
       {where}
     </span>
   );

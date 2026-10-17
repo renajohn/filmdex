@@ -94,17 +94,12 @@
   }
 }
 
-/* Listen Next at the foot of the cover, on the right; ▶ takes the left. */
+/* The round buttons (CoverButton, cover.css), placed: Listen Next at the foot on the right, ▶ on the left. */
 .music-thumbnail .thumbnail-listen-next {
   position: absolute;
   bottom: 8px;
   right: 8px;
   z-index: 10;
-}
-
-/* On (in Listen Next, wished): in sight without the pointer, as the album playing keeps its ▶. */
-.music-thumbnail .cover-action.active {
-  opacity: 1;
 }
 
 /* ▶ at the foot of the cover, on the left; the album DexVault plays keeps its bars there. */
@@ -140,65 +135,3 @@
   gap: 6px;
 }
 
-/*
- * The round buttons on a cover, ▶ aside (AlbumPlayButton draws its own the
- * same way): dark glass with a light 1px edge and a white icon; under the
- * pointer a white ring; on (in Listen Next, wished) plain gold with a dark
- * icon, a lighter gold within the ring under the pointer. Shown while the
- * card is hovered.
- */
-.cover-action {
-  width: 34px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: var(--cover-glass);
-  backdrop-filter: blur(6px);
-  box-shadow: var(--cover-edge), var(--cover-lift);
-  color: #fff;
-  font-size: 1.05rem;
-  opacity: 0;
-  transition: opacity 0.15s ease, background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
-}
-
-.cover-action.active {
-  background: var(--cover-on);
-  box-shadow: var(--cover-lift);
-  color: var(--cover-on-icon);
-}
-
-.music-thumbnail:hover .cover-action,
-.cover-action:focus-visible {
-  opacity: 1;
-}
-
-.cover-action:hover,
-.cover-action:focus-visible {
-  background: var(--cover-glass-hover);
-  box-shadow: var(--cover-ring), var(--cover-lift);
-  outline: none;
-}
-
-.cover-action.active:hover,
-.cover-action.active:focus-visible {
-  background: var(--cover-on-hover);
-}
-
-.cover-action:active {
-  transform: scale(0.9);
-}
-
-.cover-action:disabled {
-  cursor: wait;
-}
-
-/* On a touch screen nothing is hovered: the buttons stay in sight. */
-@media (hover: none) {
-  .cover-action {
-    opacity: 1;
-  }
-}

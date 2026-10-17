@@ -3,6 +3,7 @@ import apiService from '../services/api';
 import PosterModal from './PosterModal';
 import AgeDisplay from './AgeDisplay';
 import './MovieThumbnail.css';
+import CoverTag from './shared/CoverTag';
 
 interface MovieThumbnailProps {
   imdbLink?: string;
@@ -136,9 +137,9 @@ const MovieThumbnail: React.FC<MovieThumbnailProps> = ({ imdbLink, title, year, 
           <AgeDisplay age={recommendedAge} className="age-corner age-small" />
         )}
         {boxSetCount !== null && boxSetCount > 1 && (
-          <div className="cover-tag boxset-count-badge">
+          <CoverTag className="boxset-count-badge">
             {boxSetCount}
-          </div>
+          </CoverTag>
         )}
       </div>
 

@@ -217,62 +217,12 @@
 }
 
 /* Poster Watch Next Star Overlay */
-/* Watch Next on the dialog's poster: the covers' round button (see index.css), larger, half seen until the poster is hovered. */
+/* Watch Next on the dialog's poster: a large round button of the covers (CoverButton, cover.css), top right. */
 .poster-watch-next-star {
   position: absolute;
   top: 12px;
   right: 12px;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: var(--cover-glass);
-  backdrop-filter: blur(6px);
-  box-shadow: var(--cover-edge), var(--cover-lift);
-  color: #fff;
-  cursor: pointer;
   z-index: 100;
-  opacity: 0.45;
-  transition: opacity 0.15s ease, background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
-}
-
-.movie-detail-poster:hover .poster-watch-next-star,
-.poster-watch-next-star:focus-visible,
-.poster-watch-next-star.active {
-  opacity: 1;
-}
-
-.poster-watch-next-star:hover,
-.poster-watch-next-star:focus-visible {
-  background: var(--cover-glass-hover);
-  box-shadow: var(--cover-ring), var(--cover-lift);
-  outline: none;
-}
-
-.poster-watch-next-star.active {
-  background: var(--cover-on);
-  box-shadow: var(--cover-lift);
-  color: var(--cover-on-icon);
-}
-
-.poster-watch-next-star.active:hover,
-.poster-watch-next-star.active:focus-visible {
-  background: var(--cover-on-hover);
-  box-shadow: var(--cover-ring), var(--cover-lift);
-}
-
-.poster-watch-next-star:active {
-  transform: scale(0.9);
-}
-
-.poster-watch-next-star .star-icon {
-  width: 22px;
-  height: 22px;
-  stroke-width: 1.8;
 }
 
 .movie-detail-poster:hover {

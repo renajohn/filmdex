@@ -1,65 +1,17 @@
 /*
- * The round play button on an album's cover. The album playing always wears
- * it, its bars turning to ⏸ or ▶ under the pointer; another album shows ▶
- * only when its card is hovered, where it is offered.
+ * The round play button on an album's cover, a CoverButton (cover.css): here
+ * only placed, and its bars and its action shown in turn. The album playing
+ * always wears it, its bars turning to ⏸ or ▶ under the pointer; another
+ * album shows ▶ only when its card is hovered, where it is offered.
  */
 .album-play-button {
   position: absolute;
   z-index: 11;
-  width: 34px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: var(--cover-glass);
-  backdrop-filter: blur(6px);
-  /* A light 1px edge draws the button on any cover, light or dark. */
-  box-shadow: var(--cover-edge), var(--cover-lift);
-  color: #fff;
-  font-size: 1.05rem;
-  opacity: 0;
-  transition: opacity 0.15s ease, background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
 }
 
-/* The album playing: plain gold, its bars dark; always in sight. */
-.album-play-button-here {
-  background: var(--cover-on);
-  box-shadow: var(--cover-lift);
-  color: var(--cover-on-icon);
-  opacity: 1;
-}
-
-/* Shown while its card is under the pointer, or reached from the keyboard. */
-.next-banner__card:hover .album-play-button,
-.music-thumbnail:hover .album-play-button,
-.album-play-button:focus-visible,
-.album-play-button-loading {
-  opacity: 1;
-}
-
-/* Under the pointer: a white ring; on the album playing, a lighter gold within it. */
-.album-play-button:hover,
-.album-play-button:focus-visible {
-  background: var(--cover-glass-hover);
-  box-shadow: var(--cover-ring), var(--cover-lift);
-  outline: none;
-}
-
-.album-play-button-here:hover,
-.album-play-button-here:focus-visible {
-  background: var(--cover-on-hover);
-}
-
-/* Its bars dark on the gold, where the lists' gold bars would vanish. */
+/* Its bars dark on the gold of the album playing. */
 .album-play-button-here .now-playing-bars i {
   background: currentColor;
-}
-
-.album-play-button:active {
-  transform: scale(0.9);
 }
 
 .album-play-button-action {
@@ -81,9 +33,3 @@
   display: inline-flex;
 }
 
-/* On a touch screen nothing is hovered: ▶ stays in sight. */
-@media (hover: none) {
-  .album-play-button {
-    opacity: 1;
-  }
-}

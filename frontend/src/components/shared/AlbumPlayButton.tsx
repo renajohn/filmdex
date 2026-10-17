@@ -3,6 +3,7 @@ import { BsPauseFill, BsPlayFill } from 'react-icons/bs';
 import { player, usePlayer } from '../../services/player';
 import { playAlbumById } from '../../utils/playAlbum';
 import NowPlayingBars from './NowPlayingBars';
+import CoverButton from './CoverButton';
 import './AlbumPlayButton.css';
 
 interface AlbumPlayButtonProps {
@@ -44,14 +45,16 @@ const AlbumPlayButton: React.FC<AlbumPlayButtonProps> = ({ albumId, title, offer
   };
 
   const label = here ? (playing ? `Pause ${title}` : `Play ${title} on`) : `Play ${title}`;
+  // The album playing is on: plain gold, its bars turning to ⏸ or ▶ under the pointer.
   return (
-    <button type="button" className={`album-play-button${here ? ' album-play-button-here' : ''}${loading ? ' album-play-button-loading' : ''} ${className}`}
-      onClick={click} aria-label={label} title={here ? (playing ? 'Pause' : 'Play on') : 'Play'} disabled={loading}>
+    <CoverButton className={`album-play-button${here ? ' album-play-button-here' : ''} ${className}`}
+      active={here || undefined} reveal={loading ? 'always' : 'hover'}
+      onClick={click} label={label} title={here ? (playing ? 'Pause' : 'Play on') : 'Play'} disabled={loading}>
       {here && <span className="album-play-button-bars"><NowPlayingBars playing={playing} /></span>}
       <span className="album-play-button-action" aria-hidden="true">
         {loading ? <span className="spinner-border spinner-border-sm" /> : here && playing ? <BsPauseFill /> : <BsPlayFill />}
       </span>
-    </button>
+    </CoverButton>
   );
 };
 

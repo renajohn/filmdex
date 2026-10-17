@@ -1,9 +1,12 @@
 import React, { useRef, useEffect } from 'react';
+import CoverButton from './shared/CoverButton';
+import { BsStar, BsStarFill } from 'react-icons/bs';
 import { Popover, Overlay } from 'react-bootstrap';
 import MovieThumbnail from './MovieThumbnail';
 import WarningBadges from './WarningBadges';
 import './BoxSetStack.css';
 import ShelfCode from './shared/ShelfCode';
+import CoverTag, { CoverTagStack } from './shared/CoverTag';
 
 interface Movie {
   id: number;
@@ -284,7 +287,7 @@ const BoxSetStack: React.FC<BoxSetStackProps> = ({ boxSetName, movies, onMovieCl
                   return (
                     <div
                       key={movie.id}
-                      className="boxset-expansion-movie-item"
+                      className="boxset-expansion-movie-item cover-host"
                       style={{
                         animationDelay: `${index * 0.03}s`,
                       }}
@@ -302,47 +305,40 @@ const BoxSetStack: React.FC<BoxSetStackProps> = ({ boxSetName, movies, onMovieCl
                         />
                         <div className="poster-overlay-large">
                           {/* Left side badges - vertical stack */}
-                          <div className="poster-badges-left">
+                          <CoverTagStack className="poster-badges-left">
                             {movie.recommended_age != null && (
-                              <span className="cover-tag age-badge-large">{movie.recommended_age}+</span>
+                              <CoverTag className="age-badge-large">{movie.recommended_age}+</CoverTag>
                             )}
                             <WarningBadges movie={movie} />
                             {combinedScore && (
-                              <span className="cover-tag score-badge-large" style={{ color: getRatingColor(combinedScore, 10) }}>
+                              <CoverTag className="score-badge-large" style={{ color: getRatingColor(combinedScore, 10) }}>
                                 {combinedScore.toFixed(1)}
-                              </span>
+                              </CoverTag>
                             )}
                             {movie.format && (
-                              <span className="cover-tag cover-tag--gold format-badge-large">
+                              <CoverTag variant="gold" className="format-badge-large">
                                 {movie.format === 'Blu-ray 4K' ? '4K' :
                                  movie.format === 'Blu-ray' ? 'BR' :
                                  movie.format === 'DVD' ? 'DVD' :
                                  movie.format === 'Digital' ? 'DIG' :
                                  movie.format.substring(0, 3).toUpperCase()}
-                              </span>
+                              </CoverTag>
                             )}
-                          </div>
+                          </CoverTagStack>
 
                           {/* Top right - Watch Next button */}
                           {watchNextMovies && onWatchNextToggle && (
-                            <button
-                              className={`watch-next-badge-large ${watchNextMovies.some(wm => wm.id === movie.id) ? 'active' : ''}`}
+                            <CoverButton
+                              className="watch-next-badge-large"
+                              active={watchNextMovies.some(wm => wm.id === movie.id)}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onWatchNextToggle(e, movie);
                               }}
-                              title={watchNextMovies.some(wm => wm.id === movie.id) ? "Remove from Watch Next" : "Add to Watch Next"}
-                              aria-label="Toggle Watch Next"
+                              label={watchNextMovies.some(wm => wm.id === movie.id) ? 'Remove from Watch Next' : 'Add to Watch Next'}
                             >
-                              <svg
-                                className="star-icon"
-                                viewBox="0 0 24 24"
-                                fill={watchNextMovies.some(wm => wm.id === movie.id) ? "currentColor" : "none"}
-                                stroke="currentColor"
-                              >
-                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                              </svg>
-                            </button>
+                              {watchNextMovies.some(wm => wm.id === movie.id) ? <BsStarFill aria-hidden="true" /> : <BsStar aria-hidden="true" />}
+                            </CoverButton>
                           )}
                         </div>
                       </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { GiSpiderAlt, GiSnake } from 'react-icons/gi';
 import { BsQuestion } from 'react-icons/bs';
 import './WarningStrip.css';
+import CoverTag, { CoverTagStack } from './shared/CoverTag';
 
 type Status = 'with' | 'without' | 'unknown';
 
@@ -31,20 +32,20 @@ const WarningStrip: React.FC<Props> = ({ movie }) => {
   return (
     <>
       {shown.some(t => t.status === 'with') && <div className="warning-strip__frame" aria-hidden="true" />}
-      <div className="warning-strip">
+      <CoverTagStack className="warning-strip">
         {shown.map(({ key, name, Icon, status }) =>
           status === 'with' ? (
-            <span key={key} className="cover-tag cover-tag--alert warning-strip__pill" title={name}>
+            <CoverTag key={key} variant="alert" className="warning-strip__pill" title={name}>
               <Icon size={13} /> {name}
-            </span>
+            </CoverTag>
           ) : (
-            <span key={key} className="cover-tag cover-tag--muted warning-strip__pill" title={`${name} not reported yet`}>
+            <CoverTag key={key} variant="muted" className="warning-strip__pill" title={`${name} not reported yet`}>
               <Icon size={12} />
               <BsQuestion size={14} />
-            </span>
+            </CoverTag>
           )
         )}
-      </div>
+      </CoverTagStack>
     </>
   );
 };

@@ -319,9 +319,6 @@
   will-change: opacity, transform;
 }
 
-.boxset-expansion-movie-item:hover .watch-next-badge-large {
-  opacity: 1;
-}
 
 .boxset-movie-info {
   margin-top: 8px;

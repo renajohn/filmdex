@@ -1,5 +1,6 @@
 import React from 'react';
 import { GiSpiderAlt, GiSnake } from 'react-icons/gi';
+import CoverTag from './shared/CoverTag';
 
 interface Props {
   movie: { spiders_status?: string; snakes_status?: string };
@@ -9,10 +10,10 @@ interface Props {
 const WarningBadges: React.FC<Props> = ({ movie }) => (
   <>
     {movie.spiders_status === 'with' && (
-      <span className="cover-tag cover-tag--alert warning-badge-large" title="Spiders"><GiSpiderAlt size={14} /></span>
+      <CoverTag variant="alert" className="warning-badge-large" title="Spiders"><GiSpiderAlt size={14} /></CoverTag>
     )}
     {movie.snakes_status === 'with' && (
-      <span className="cover-tag cover-tag--alert warning-badge-large" title="Snakes"><GiSnake size={14} /></span>
+      <CoverTag variant="alert" className="warning-badge-large" title="Snakes"><GiSnake size={14} /></CoverTag>
     )}
   </>
 );

@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { BsX, BsFilm, BsDisc } from 'react-icons/bs';
 import ShelfCode from './ShelfCode';
+import CoverButton from './CoverButton';
 import './shared.css';
 
 interface NextBannerItem {
@@ -146,25 +147,21 @@ const NextBanner: React.FC<NextBannerProps> = ({
           {items.map((item) => (
             <div
               key={item.id}
-              className={`next-banner__card ${shufflingItemId === item.id ? 'shuffling' : ''}`}
+              className={`next-banner__card cover-host ${shufflingItemId === item.id ? 'shuffling' : ''}`}
             >
-              <button
-                className="next-banner__remove-btn"
-                onClick={(e) => handleRemove(e, item)}
-                title={`Remove from ${title}`}
-                aria-label={`Remove from ${title}`}
-              >
+              <CoverButton className="next-banner__remove-btn" onClick={(e) => handleRemove(e, item)} label={`Remove from ${title}`}>
                 <BsX size={20} />
-              </button>
+              </CoverButton>
 
               {/* Shuffle button - only for music type */}
               {type === 'music' && onShuffle && (
-                <button
-                  className={`next-banner__shuffle-btn ${shufflingItemId === item.id ? 'loading' : ''}`}
+                <CoverButton
+                  className="next-banner__shuffle-btn"
+                  reveal={shufflingItemId === item.id ? 'always' : 'hover'}
                   onClick={(e) => handleShuffle(e, item)}
                   disabled={shufflingItemId !== null}
                   title="Replace with another suggestion"
-                  aria-label="Shuffle"
+                  label="Shuffle"
                 >
                   {shufflingItemId === item.id ? (
                     <span className="next-banner__shuffle-spinner" />
@@ -173,7 +170,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
                       <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
                     </svg>
                   )}
-                </button>
+                </CoverButton>
               )}
 
               <div

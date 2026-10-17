@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback, useMemo } from 'react';
+import CoverButton from './shared/CoverButton';
+import { BsStar, BsStarFill } from 'react-icons/bs';
 import apiService from '../services/api';
 import MovieThumbnail from './MovieThumbnail';
 import MovieDetailCard from './MovieDetailCard';
@@ -18,6 +20,7 @@ import { readStored, writeStored } from '../utils/safeStorage';
 import { findById, shownIds, useDetailSteps, type Id } from '../utils/detailSteps';
 import { movieImages } from '../utils/detailImages';
 import ShelfCode from './shared/ShelfCode';
+import CoverTag, { CoverTagStack } from './shared/CoverTag';
 
 export interface FilmDexPageRef {
   refreshMovies: () => void;
@@ -413,7 +416,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
     return (
       <div
         key={movie.id}
-        className="movie-card-large"
+        className="movie-card-large cover-host"
         onClick={() => handleMovieClick(movie.id)}
         data-item-id={movie.id}
         {...(includeLetter && letter ? { 'data-first-letter': letter } : {})}
@@ -430,52 +433,45 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
           />
           <div className="poster-overlay-large">
             {/* Left side badges - vertical stack */}
-            <div className="poster-badges-left">
+            <CoverTagStack className="poster-badges-left">
               {movie.recommended_age != null && (
-                <span className="cover-tag age-badge-large">{movie.recommended_age}+</span>
+                <CoverTag className="age-badge-large">{movie.recommended_age}+</CoverTag>
               )}
               <WarningBadges movie={movie} />
               {combinedScore && (
-                <span className="cover-tag score-badge-large" style={{ color: getRatingColor(combinedScore, 10) }}>
+                <CoverTag className="score-badge-large" style={{ color: getRatingColor(combinedScore, 10) }}>
                   {combinedScore.toFixed(1)}
-                </span>
+                </CoverTag>
               )}
               {movie.format && (
-                <span className="cover-tag cover-tag--gold format-badge-large">
+                <CoverTag variant="gold" className="format-badge-large">
                   {movie.format === 'Blu-ray 4K' ? '4K' :
                    movie.format === 'Blu-ray' ? 'BR' :
                    movie.format === 'DVD' ? 'DVD' :
                    movie.format === 'Digital' ? 'DIG' :
                    movie.format.substring(0, 3).toUpperCase()}
-                </span>
+                </CoverTag>
               )}
               {hasCollection && (
-                <span className="cover-tag collection-badge-large" title={
+                <CoverTag className="collection-badge-large" title={
                   movie.has_box_set && movie.box_set_name
                     ? `${movie.box_set_name} box set`
                     : movie.collection_names?.join(', ') || ''
                 }>
                   <BsCollectionFill size={14} />
-                </span>
+                </CoverTag>
               )}
-            </div>
+            </CoverTagStack>
 
             {/* Top right - Watch Next button */}
-            <button
-              className={`watch-next-badge-large ${watchNextMovies.some((wm: any) => wm.id === movie.id) ? 'active' : ''}`}
+            <CoverButton
+              className="watch-next-badge-large"
+              active={watchNextMovies.some((wm: any) => wm.id === movie.id)}
               onClick={(e) => handleWatchNextToggle(e, movie)}
-              title={watchNextMovies.some((wm: any) => wm.id === movie.id) ? "Remove from Watch Next" : "Add to Watch Next"}
-              aria-label="Toggle Watch Next"
+              label={watchNextMovies.some((wm: any) => wm.id === movie.id) ? 'Remove from Watch Next' : 'Add to Watch Next'}
             >
-              <svg
-                className="star-icon"
-                viewBox="0 0 24 24"
-                fill={watchNextMovies.some((wm: any) => wm.id === movie.id) ? "currentColor" : "none"}
-                stroke="currentColor"
-              >
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </svg>
-            </button>
+              {watchNextMovies.some((wm: any) => wm.id === movie.id) ? <BsStarFill aria-hidden="true" /> : <BsStar aria-hidden="true" />}
+            </CoverButton>
 
             <ShelfCode kind="movie" id={movie.id} />
 

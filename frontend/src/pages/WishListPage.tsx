@@ -17,6 +17,7 @@ import AddBookDialog from '../components/AddBookDialog';
 import MusicForm from '../components/MusicForm';
 import CircularProgressBar from '../components/CircularProgressBar';
 import './WishListPage.css';
+import CoverButton from '../components/shared/CoverButton';
 
 export interface WishListPageRef {
   refreshItems: () => Promise<void>;
@@ -1252,9 +1253,11 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         <td>
                           <div className="book-poster" style={{ position: 'relative' }}>
                             {book.ebookFile && book.ebookFile.trim() && (
-                              <div
+                              <CoverButton
                                 className="book-thumbnail-ebook-badge"
-                                title="Télécharger l'e-book"
+                                size="small"
+                                reveal="always"
+                                label="Télécharger l'e-book"
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   try {
@@ -1265,8 +1268,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                                   }
                                 }}
                               >
-                                <BsFileEarmark size={14} />
-                              </div>
+                                <BsFileEarmark size={12} />
+                              </CoverButton>
                             )}
                             <img
                               src={bookService.getImageUrl(book.cover) || bookService.getImageUrl('/placeholder-book.png') || undefined}

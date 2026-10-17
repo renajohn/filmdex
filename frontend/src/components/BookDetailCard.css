@@ -481,43 +481,12 @@
     0 0 40px rgba(251, 191, 36, 0.1);
 }
 
-/* Cover Change Button: the covers' round button (see index.css), shown while the cover is hovered. */
+/* Cover Change Button: a round button of the covers (CoverButton, cover.css), bottom right, shown while the cover is hovered. */
 .cover-change-btn {
   position: absolute;
   bottom: 8px;
   right: 8px;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 0;
-  background: var(--cover-glass);
-  backdrop-filter: blur(6px);
-  box-shadow: var(--cover-edge), var(--cover-lift);
-  color: #fff;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.15s ease, background-color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
-  opacity: 0;
   z-index: 10;
-}
-
-.book-cover-container:hover .cover-change-btn,
-.book-cover-placeholder:hover .cover-change-btn,
-.cover-change-btn:focus-visible {
-  opacity: 1;
-}
-
-.cover-change-btn:hover,
-.cover-change-btn:focus-visible {
-  background: var(--cover-glass-hover);
-  box-shadow: var(--cover-ring), var(--cover-lift);
-  outline: none;
-}
-
-.cover-change-btn:active {
-  transform: scale(0.9);
 }
 
 /* Interactive rating section */
@@ -1433,16 +1402,12 @@
   opacity: 0.8;
 }
 
-/* Read & Gone, Borrowed, Wishlist: tags of the covers' kind (.cover-tag, index.css), top left of the cover. */
+/* Read & Gone, Borrowed, Wishlist (CoverTagStack, cover.css), top left of the cover. */
 .book-cover-container .book-cover-tags {
   position: absolute;
   top: 8px;
   left: 8px;
   z-index: 100;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
   pointer-events: none;
 }
 

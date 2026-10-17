@@ -6,6 +6,7 @@ import './MusicThumbnail.css';
 import ShelfCode from './shared/ShelfCode';
 import AlbumPlayButton from './shared/AlbumPlayButton';
 import DigitalMarks from './shared/DigitalMarks';
+import CoverButton from './shared/CoverButton';
 import type { AlbumDigital } from '../utils/digitalLibrary';
 
 interface CdData {
@@ -69,7 +70,7 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onListenNe
 
   return (
     <div
-      className="music-thumbnail"
+      className="music-thumbnail cover-host"
       onClick={onClick}
       {...(dataItemId ? { 'data-item-id': dataItemId } : {})}
       {...(dataFirstLetter ? { 'data-first-letter': dataFirstLetter } : {})}
@@ -103,26 +104,25 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onListenNe
         {buy && (
           <div className="thumbnail-buy-actions">
             {buy.onDismiss && (
-              <button type="button" className="cover-action" title="Not interested" aria-label={`Not interested in ${cd.title}`}
+              <CoverButton label={`Not interested in ${cd.title}`} title="Not interested"
                 onClick={event => { event.stopPropagation(); buy.onDismiss!(); }}>
                 <BsXLg aria-hidden="true" />
-              </button>
+              </CoverButton>
             )}
-            <button type="button" className={`cover-action${buy.wished ? ' active' : ''}`}
-              title={buy.wished ? 'Take off the wish list' : 'Add to the wish list'} aria-pressed={buy.wished}
-              aria-label={buy.wished ? `Take ${cd.title} off the wish list` : `Add ${cd.title} to the wish list`}
+            <CoverButton active={buy.wished}
+              label={buy.wished ? `Take ${cd.title} off the wish list` : `Add ${cd.title} to the wish list`}
+              title={buy.wished ? 'Take off the wish list' : 'Add to the wish list'}
               onClick={event => { event.stopPropagation(); buy.onWish(); }}>
               {buy.wished ? <BsHeartFill aria-hidden="true" /> : <BsHeart aria-hidden="true" />}
-            </button>
+            </CoverButton>
           </div>
         )}
-        {/* As ▶ and the heart: a dark round button, its icon gold while the album is in Listen Next. */}
-        <button type="button" className={`cover-action thumbnail-listen-next${isInListenNext ? ' active' : ''}`}
-          onClick={handleListenNextToggle} disabled={togglingListenNext} aria-pressed={isInListenNext}
+        <CoverButton className="thumbnail-listen-next" active={isInListenNext}
+          onClick={handleListenNextToggle} disabled={togglingListenNext}
           title={isInListenNext ? 'In Listen Next: take it out' : 'Listen Next'}
-          aria-label={isInListenNext ? `Take ${cd.title} out of Listen Next` : `Add ${cd.title} to Listen Next`}>
+          label={isInListenNext ? `Take ${cd.title} out of Listen Next` : `Add ${cd.title} to Listen Next`}>
           <BsHeadphones aria-hidden="true" />
-        </button>
+        </CoverButton>
       </div>
 
       <div className="music-thumbnail-info">

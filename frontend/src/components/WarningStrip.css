@@ -4,14 +4,10 @@
   top: 8px;
   left: 8px;
   z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
   pointer-events: none;
 }
 
-/* Each pill is a tag of the covers' kind (.cover-tag, index.css): red for an animal there, grey for one not known. */
+/* Each pill is a CoverTag (cover.css): red for an animal there, grey for one not known; the column a CoverTagStack. */
 
 .warning-strip__frame {
   position: absolute;

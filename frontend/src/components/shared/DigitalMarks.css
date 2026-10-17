@@ -4,12 +4,10 @@
   top: 8px;
   left: 8px;
   z-index: 5;
-  display: flex;
-  gap: 4px;
   pointer-events: auto;
 }
 
-/* Each mark is a tag of the covers' kind (.cover-tag, index.css). */
+/* Each mark is a CoverTag (cover.css), the row a CoverTagStack. */
 .digital-mark small {
   font-size: inherit;
   font-weight: inherit;

@@ -104,34 +104,7 @@
   opacity: 1;
 }
 
-/* The "…" menu: the covers' round button (see index.css), dark glass rather than the white it was. */
-.book-thumbnail-dropdown-toggle {
-  background: var(--cover-glass) !important;
-  backdrop-filter: blur(6px);
-  border: 0 !important;
-  border-radius: 999px !important;
-  width: 34px !important;
-  height: 34px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 !important;
-  box-shadow: var(--cover-edge), var(--cover-lift) !important;
-  color: #fff !important;
-  transition: background-color 0.12s ease, box-shadow 0.12s ease;
-}
-
-.book-thumbnail-dropdown-toggle:hover,
-.book-thumbnail-dropdown-toggle:focus-visible,
-.book-thumbnail-dropdown-toggle.show {
-  background: var(--cover-glass-hover) !important;
-  box-shadow: var(--cover-ring), var(--cover-lift) !important;
-  color: #fff !important;
-}
-
-.book-thumbnail-dropdown-toggle::after {
-  display: none !important;
-}
+/* The "…" menu's toggle is a round button of the covers (CoverButton, cover.css); its menu shows while the book is hovered. */
 
 .book-thumbnail-menu .dropdown-menu {
   min-width: 160px;
@@ -187,46 +160,21 @@
   fill: currentColor;
 }
 
-/* The series number and Borrowed, tags of the covers' kind (.cover-tag, index.css), top left, the menu keeping the top right. */
+/* The series number and Borrowed (CoverTagStack, cover.css), top left, the menu keeping the top right. */
 .book-thumbnail-tags {
   position: absolute;
   top: 8px;
   left: 8px;
   z-index: 6;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
   pointer-events: none;
 }
 
-/* The e-book, to download: always in sight, a round button of the covers' kind (see index.css). */
+/* The e-book, to download: a round button of the covers (CoverButton, cover.css), always in sight at the bottom right. */
 .book-thumbnail-ebook-badge {
   position: absolute;
   bottom: 8px;
   right: 8px;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 6;
-  background: var(--cover-glass);
-  backdrop-filter: blur(6px);
-  box-shadow: var(--cover-edge), var(--cover-lift);
-  color: #fff;
-  transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
-  cursor: pointer;
-}
-
-.book-thumbnail-ebook-badge:hover {
-  background: var(--cover-glass-hover);
-  box-shadow: var(--cover-ring), var(--cover-lift);
-}
-
-.book-thumbnail-ebook-badge:active {
-  transform: scale(0.9);
 }
 
 
