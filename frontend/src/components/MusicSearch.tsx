@@ -20,7 +20,6 @@ import AlbumPlayButton from './shared/AlbumPlayButton';
 import { DigitalChips, DigitalNotices, DigitalRefresh, type DigitalFilter } from './DigitalStrip';
 import DigitalMarks from './shared/DigitalMarks';
 import BoughtCdDialog from './BoughtCdDialog';
-import { Form } from 'react-bootstrap';
 import { BsCartFill, BsChevronRight, BsHeartFill } from 'react-icons/bs';
 import {
   DIGITAL_ON_KEY, buyOrder, buyReason, isDismissed, isLossy, isSuggested, isToBuy, useDigitalLibrary, type AlbumDigital,
@@ -1139,15 +1138,15 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           loading={loading}
           extraControls={
             <>
-              <Form.Check
-                type="switch"
-                id="musicdex-digital"
-                className="musicdex-digital-switch"
-                label="Digital"
-                checked={digitalOn}
-                onChange={toggleDigital}
-                title={digitalOn ? 'Hide the albums with no CD and what sets each album apart' : 'Show the albums with no CD, how good the files are, and what to buy'}
-              />
+              {/* The same switch as Stack in BookDex and FilmDex: gold when on. */}
+              <label className="stack-toggle-container"
+                title={digitalOn ? 'Hide the albums with no CD and what sets each album apart' : 'Show the albums with no CD, how good the files are, and what to buy'}>
+                <span className="stack-toggle-label">Digital</span>
+                <span className="stack-toggle-switch">
+                  <input type="checkbox" checked={digitalOn} onChange={toggleDigital} aria-label="Digital" />
+                  <span className="stack-toggle-slider"></span>
+                </span>
+              </label>
               {digitalOn && <DigitalChips filter={digitalFilter} onFilter={chooseFilter} counts={filterCounts} />}
             </>
           }
