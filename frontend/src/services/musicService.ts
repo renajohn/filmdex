@@ -300,10 +300,11 @@ class MusicService {
     }
   }
 
-  async searchAlbums(query: string): Promise<unknown> {
+  /** The CDs a query finds; with `withNoCd`, as MusicDex with Digital on, the digital albums and wishes too. */
+  async searchAlbums(query: string, { withNoCd = false }: { withNoCd?: boolean } = {}): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();
-      const response = await fetch(`${baseUrl}/music/albums/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`${baseUrl}/music/albums/search?q=${encodeURIComponent(query)}${withNoCd ? '&digital=1' : ''}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -661,11 +662,12 @@ class MusicService {
     }
   }
 
-  async getAutocompleteSuggestions(filterType: string, filterValue: string): Promise<unknown> {
+  /** What a keyword may go on with; with `withNoCd`, from the digital albums too. */
+  async getAutocompleteSuggestions(filterType: string, filterValue: string, { withNoCd = false }: { withNoCd?: boolean } = {}): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();
       const response = await fetch(
-        `${baseUrl}/music/autocomplete?field=${encodeURIComponent(filterType)}&value=${encodeURIComponent(filterValue)}`
+        `${baseUrl}/music/autocomplete?field=${encodeURIComponent(filterType)}&value=${encodeURIComponent(filterValue)}${withNoCd ? '&digital=1' : ''}`
       );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

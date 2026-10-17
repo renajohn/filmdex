@@ -216,7 +216,8 @@ const musicController = {
         return;
       }
 
-      const albums = await musicService.searchAlbums(q as string);
+      // digital=1: MusicDex with Digital on, the albums with no CD found too.
+      const albums = await musicService.searchAlbums(q as string, { withNoCd: req.query.digital === '1' });
       res.json(albums);
     } catch (error) {
       console.error('Error searching albums:', error);
@@ -940,7 +941,7 @@ const musicController = {
         return;
       }
 
-      const suggestions = await musicService.getAutocompleteSuggestions(field as string, (value as string) || '');
+      const suggestions = await musicService.getAutocompleteSuggestions(field as string, (value as string) || '', req.query.digital === '1');
       res.json(suggestions);
     } catch (error) {
       // An unknown field is the caller's mistake, not a server failure.

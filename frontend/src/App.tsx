@@ -23,6 +23,7 @@ import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsDisc, BsArrowLeft, BsB
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import { readStored, writeStored } from './utils/safeStorage';
+import { isDigitalOn } from './utils/digitalLibrary';
 import PlayerBar from './components/PlayerBar';
 
 interface AutocompleteOption {
@@ -133,7 +134,7 @@ function AppContent() {
   const getAutocompleteOptions = async (text: string): Promise<AutocompleteOption[]> => {
     // Different keywords for MusicDex, BookDex vs DexVault
     const keywords = location.pathname === '/musicdex'
-      ? ['title:', 'artist:', 'genre:', 'track:', 'composer:', 'performer:', 'conductor:', 'instrument:', 'work:', 'label:', 'country:', 'year:', 'stars:', 'stars:>=', 'stars:<=', 'stars:0', 'rated:no', 'rated:yes', 'classical:yes', 'classical:no']
+      ? ['title:', 'artist:', 'genre:', 'track:', 'composer:', 'performer:', 'conductor:', 'instrument:', 'work:', 'label:', 'country:', 'year:', 'stars:', 'stars:>=', 'stars:<=', 'stars:0', 'rated:no', 'rated:yes', 'classical:yes', 'classical:no', 'cd:no', 'cd:yes']
       : location.pathname === '/bookdex'
         ? ['title:', 'author:', 'artist:', 'isbn:', 'series:', 'owner:', 'format:', 'language:', 'genre:', 'tag:', 'type:', 'title_status:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=', 'rating:', 'rating:>', 'rating:<', 'rating:>=', 'rating:<=']
         : [
@@ -213,7 +214,7 @@ function AppContent() {
       try {
         const searchTerm = currentSearchTerm.replace(/"/g, ''); // Remove quotes for search
         const response = (location.pathname === '/musicdex'
-          ? await musicService.getAutocompleteSuggestions(filterType, searchTerm)
+          ? await musicService.getAutocompleteSuggestions(filterType, searchTerm, { withNoCd: isDigitalOn() })
           : location.pathname === '/bookdex'
             ? await bookService.getAutocompleteSuggestions(filterType, searchTerm)
             : await apiService.getAutocompleteSuggestions(filterType, searchTerm)) as any[];
@@ -630,7 +631,9 @@ function AppContent() {
             'rated:no': 'Not rated yet',
             'rated:yes': 'Rated, any number of stars',
             'classical:yes': 'Only classical music, as on the shelves',
-            'classical:no': 'Everything but classical music'
+            'classical:no': 'Everything but classical music',
+            'cd:no': 'Only what you have as files or wish, with Digital on',
+            'cd:yes': 'Only your CDs'
           }
         : location.pathname === '/bookdex'
           ? {

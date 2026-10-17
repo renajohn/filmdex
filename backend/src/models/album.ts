@@ -669,6 +669,18 @@ const Album = {
       }
     );
 
+    // Whether the album is a CD of the collection: cd:no is what one has only as files, or wishes.
+    cleanedQuery = processPattern(
+      /(?:^|\s)cd:(yes|no)\b/gi,
+      cleanedQuery,
+      (m) => {
+        hasFilters = true;
+        whereClauses.push(m[1].toLowerCase() === 'yes'
+          ? `COALESCE(title_status, 'owned') = 'owned'`
+          : `title_status IN ('digital', 'wish')`);
+      }
+    );
+
     // Whether the owner has given the album stars: rated:no is what is left to listen to.
     cleanedQuery = processPattern(
       /rated:(yes|no)\b/gi,
@@ -688,10 +700,10 @@ const Album = {
    * genres, by the roles of their performers when they have none, or by the
    * section the owner set by hand.
    */
-  search: async (query: string): Promise<AlbumFormatted[]> => {
+  search: async (query: string, { withNoCd = false }: { withNoCd?: boolean } = {}): Promise<AlbumFormatted[]> => {
     const classical = query.match(/(^|\s)classical:(yes|no)\b/i);
-    if (!classical) return Album.searchAll(query);
-    const albums = await Album.searchAll(query.replace(classical[0], ' ').replace(/\s+/g, ' ').trim());
+    if (!classical) return Album.searchAll(query, withNoCd);
+    const albums = await Album.searchAll(query.replace(classical[0], ' ').replace(/\s+/g, ' ').trim(), withNoCd);
     if (albums.length === 0) return albums;
     const want = classical[2].toLowerCase() === 'yes';
     const ids = albums.map(album => album.id);
@@ -718,9 +730,11 @@ const Album = {
     });
   },
 
-  searchAll: (query: string): Promise<AlbumFormatted[]> => {
+  /** The CDs of the collection a query finds; with `withNoCd`, the digital albums and the wishes too. */
+  searchAll: (query: string, withNoCd = false): Promise<AlbumFormatted[]> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
+      const statuses = withNoCd ? `('owned', 'digital', 'wish')` : `('owned')`;
 
       // Use enhanced search parser (supports OR, negation, ranges)
       const { params, whereClauses, hasFilters, hasTrackFilter, cleanedQuery } = Album._parseSearchQuery(query);
@@ -730,12 +744,12 @@ const Album = {
         const sql = `
           SELECT * FROM albums
           WHERE (title LIKE ? OR artist LIKE ? OR labels LIKE ? OR genres LIKE ?)
-          AND (title_status = ? OR title_status IS NULL)
+          AND COALESCE(title_status, 'owned') IN ${statuses}
           ORDER BY artist, title
         `;
         const searchTerm = `%${query}%`;
 
-        db.all(sql, [searchTerm, searchTerm, searchTerm, searchTerm, 'owned'], (err: Error | null, rows: AlbumRow[]) => {
+        db.all(sql, [searchTerm, searchTerm, searchTerm, searchTerm], (err: Error | null, rows: AlbumRow[]) => {
           if (err) {
             reject(err);
           } else {
@@ -759,11 +773,11 @@ const Album = {
         const sql = `
           SELECT ${hasTrackFilter ? 'DISTINCT' : ''} albums.* FROM albums
           WHERE ${whereClause}
-          AND (title_status = ? OR title_status IS NULL)
+          AND COALESCE(title_status, 'owned') IN ${statuses}
           ORDER BY artist, title
         `;
 
-        db.all(sql, [...params, 'owned'], (err: Error | null, rows: AlbumRow[]) => {
+        db.all(sql, params, (err: Error | null, rows: AlbumRow[]) => {
           if (err) {
             reject(err);
           } else {
@@ -1067,9 +1081,16 @@ const Album = {
     };
   },
 
-  autocomplete: (field: string, value: string): Promise<Record<string, string | number | null>[]> => {
+  /**
+   * What a search keyword may go on with, from the albums searched: the CDs
+   * and the wishes, and the digital albums only `withNoCd`, as MusicDex
+   * shows them with Digital on.
+   */
+  autocomplete: (field: string, value: string, withNoCd = false): Promise<Record<string, string | number | null>[]> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
+      const shown = withNoCd ? '1=1' : `COALESCE(title_status, 'owned') != 'digital'`;
+      const shownTracks = `tracks.album_id IN (SELECT id FROM albums WHERE ${shown})`;
 
       // Validate field to prevent SQL injection (accept singular forms)
       const allowedFields = ['title', 'artist', 'genre', 'mood', 'track', 'label', 'country', 'year', 'composer', 'performer', 'conductor', 'instrument', 'work'];
@@ -1079,11 +1100,11 @@ const Album = {
 
       // The names credited on tracks, read from their JSON lists.
       const credits: Record<string, string> = {
-        composer: `SELECT DISTINCT c.value AS name FROM tracks, json_each(CASE WHEN json_valid(tracks.composers) THEN tracks.composers ELSE '[]' END) c WHERE c.value LIKE ?`,
-        work: `SELECT DISTINCT work AS name FROM tracks WHERE work LIKE ?`,
-        performer: `SELECT DISTINCT json_extract(p.value, '$.name') AS name FROM tracks, json_each(CASE WHEN json_valid(tracks.performers) THEN tracks.performers ELSE '[]' END) p WHERE json_extract(p.value, '$.name') LIKE ?`,
-        conductor: `SELECT DISTINCT json_extract(p.value, '$.name') AS name FROM tracks, json_each(CASE WHEN json_valid(tracks.performers) THEN tracks.performers ELSE '[]' END) p WHERE json_extract(p.value, '$.name') LIKE ? AND json_extract(p.value, '$.role') LIKE '%conduct%'`,
-        instrument: `SELECT DISTINCT json_extract(p.value, '$.role') AS name FROM tracks, json_each(CASE WHEN json_valid(tracks.performers) THEN tracks.performers ELSE '[]' END) p WHERE json_extract(p.value, '$.role') LIKE ?`,
+        composer: `SELECT DISTINCT c.value AS name FROM tracks, json_each(CASE WHEN json_valid(tracks.composers) THEN tracks.composers ELSE '[]' END) c WHERE c.value LIKE ? AND ${shownTracks}`,
+        work: `SELECT DISTINCT work AS name FROM tracks WHERE work LIKE ? AND ${shownTracks}`,
+        performer: `SELECT DISTINCT json_extract(p.value, '$.name') AS name FROM tracks, json_each(CASE WHEN json_valid(tracks.performers) THEN tracks.performers ELSE '[]' END) p WHERE json_extract(p.value, '$.name') LIKE ? AND ${shownTracks}`,
+        conductor: `SELECT DISTINCT json_extract(p.value, '$.name') AS name FROM tracks, json_each(CASE WHEN json_valid(tracks.performers) THEN tracks.performers ELSE '[]' END) p WHERE json_extract(p.value, '$.name') LIKE ? AND json_extract(p.value, '$.role') LIKE '%conduct%' AND ${shownTracks}`,
+        instrument: `SELECT DISTINCT json_extract(p.value, '$.role') AS name FROM tracks, json_each(CASE WHEN json_valid(tracks.performers) THEN tracks.performers ELSE '[]' END) p WHERE json_extract(p.value, '$.role') LIKE ? AND ${shownTracks}`,
       };
       if (credits[field]) {
         db.all(`${credits[field]} ORDER BY name LIMIT 20`, [`%${value}%`], (err: Error | null, rows: Array<{ name: string | null }>) => {
@@ -1098,7 +1119,7 @@ const Album = {
         const sql = `
           SELECT DISTINCT title
           FROM tracks
-          WHERE title LIKE ?
+          WHERE title LIKE ? AND ${shownTracks}
           ORDER BY title
           LIMIT 20
         `;
@@ -1120,7 +1141,7 @@ const Album = {
         const sql = `
           SELECT DISTINCT release_year
           FROM albums
-          WHERE release_year IS NOT NULL
+          WHERE release_year IS NOT NULL AND ${shown}
           ${value ? 'AND CAST(release_year AS TEXT) LIKE ?' : ''}
           ORDER BY release_year DESC
           LIMIT 20
@@ -1156,7 +1177,7 @@ const Album = {
       const sql = `
         SELECT DISTINCT ${column}
         FROM albums
-        WHERE ${column} LIKE ?
+        WHERE ${column} LIKE ? AND ${shown}
         ORDER BY ${column}
         LIMIT 20
       `;

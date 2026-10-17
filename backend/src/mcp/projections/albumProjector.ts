@@ -8,6 +8,8 @@ export interface AlbumCompact {
   labels: string | null;
   rating: number | null;
   total_duration: number | null;
+  /** "CD" for a CD of the collection, "digital" for files in Navidrome with no CD, "wish" for one wished. */
+  status: 'CD' | 'digital' | 'wish';
 }
 
 export const ALBUM_COMPACT_COLUMNS: ReadonlyArray<keyof AlbumCompact> = [
@@ -20,6 +22,7 @@ export const ALBUM_COMPACT_COLUMNS: ReadonlyArray<keyof AlbumCompact> = [
   'labels',
   'rating',
   'total_duration',
+  'status',
 ];
 
 const joinList = (values: unknown): string | null => {
@@ -47,6 +50,7 @@ interface AlbumLike {
   labels?: unknown;
   rating?: number | null;
   totalDuration?: number | null;
+  titleStatus?: string | null;
 }
 
 export const projectAlbum = (a: AlbumLike): AlbumCompact => {
@@ -60,5 +64,6 @@ export const projectAlbum = (a: AlbumLike): AlbumCompact => {
     labels: joinList(a.labels),
     rating: a.rating ?? null,
     total_duration: a.totalDuration ?? null,
+    status: a.titleStatus === 'digital' ? 'digital' : a.titleStatus === 'wish' ? 'wish' : 'CD',
   };
 };

@@ -60,8 +60,9 @@ navigateur.
   - les albums sans CD entrent dans la grille, triés et groupés comme les CD ;
   - les cartes portent leurs marques (§3) ;
   - les puces de filtre apparaissent (§4) ;
-  - l'en-tête gagne la barre de qualité de la bibliothèque, les avis (vieilles copies MP3, éditions
-    adoptées, plugin muet) et Refresh.
+  - l'en-tête gagne les avis (vieilles copies MP3, éditions adoptées, plugin muet) et Refresh. La barre
+    de qualité lossless/lossy de la page Digital a été retirée après essai (« too much ») : la puce Lossy
+    suffit.
 
 `/musicdex/digital` redirige vers `/musicdex` avec Digital activé et la puce correspondante
 (`?tab=buy` → `?filter=buy`, `album=<navidromeId>` → la fiche de la ligne). `DigitalPage` disparaît.
@@ -89,8 +90,8 @@ au survol dit chaque pastille en clair.
 **All · 🛒 Buy N · ☁ Digital only · MP3 Lossy · ⦸ Not ripped**, chaque icône dans la couleur de sa
 pastille.
 
-- Lossless et Near-lossless ne sont plus des filtres (c'est la norme) ; la répartition reste dans la
-  barre de qualité et dans « Group: Quality ».
+- Lossless et Near-lossless ne sont plus des filtres (c'est la norme). « Group: Quality » regroupe par
+  qualité d'enregistrement, pas de rip.
 - « Not ripped » = l'ancien « Physical only ».
 - Une puce vide est masquée sauf si elle est active ; une seule puce à la fois ; elle se combine avec
   tri, groupement et recherche ; elle va dans l'URL (`?filter=`).
@@ -152,10 +153,11 @@ rien ne bouge ; piste déplacée → recherchée à nouveau sur LRCLIB, même te
 
 | Endroit | Comportement |
 |---|---|
-| Recherche MusicDex | suit l'interrupteur ; mot-clé `cd:no` |
+| Recherche MusicDex | suit l'interrupteur (recherche serveur avec tous les mots-clés) ; `cd:no` / `cd:yes` |
+| Autocomplétion | les albums digitaux seulement avec Digital on (la wishlist comme avant) |
 | Analytics, export CSV, étagères, Resize/Fill covers | CD seulement |
 | Page Wish List | inchangée (lignes `wish`) |
-| Outils MCP `search_albums`, `get_album` | incluent le digital, statut visible |
+| Outils MCP `search_albums`, `get_album` | CD et digital (pas les souhaits), colonne `status`, option `medium` |
 
 ## Étapes
 

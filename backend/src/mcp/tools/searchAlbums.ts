@@ -16,6 +16,7 @@ export const searchAlbumsInputShape = {
   format: z.string().optional().describe('Format substring (e.g. "CD", "Vinyl", "Digital"). Filtered in-memory because the album search parser does not support format natively.'),
   year_min: z.number().int().optional().describe('Minimum release year (inclusive).'),
   year_max: z.number().int().optional().describe('Maximum release year (inclusive).'),
+  medium: z.enum(['any', 'cd', 'digital']).optional().describe('"cd": the CDs of the collection only; "digital": the albums the user has only as files in Navidrome, with no CD; "any" (default): both.'),
   limit: z.number().int().min(1).max(SEARCH_ALBUMS_MAX_LIMIT).optional().describe(`Maximum items to return. Default ${SEARCH_ALBUMS_DEFAULT_LIMIT}, max ${SEARCH_ALBUMS_MAX_LIMIT}.`),
   format_output: z.enum(['markdown', 'json']).optional().describe('Output format: markdown (default) or json.'),
 };
@@ -38,7 +39,12 @@ export const handleSearchAlbums = async (input: SearchAlbumsInput) => {
   const limit = input.limit ?? SEARCH_ALBUMS_DEFAULT_LIMIT;
   const format = input.format_output ?? 'markdown';
 
-  const all = queryString.length > 0 ? await Album.search(queryString) : await Album.findAll();
+  // The wishes are list_wishlist's: what the user has, as a CD or as files, is searched here.
+  const medium = input.medium ?? 'any';
+  const found = queryString.length > 0
+    ? (await Album.search(queryString, { withNoCd: medium !== 'cd' })).filter(album => album.titleStatus !== 'wish')
+    : [...await Album.findAll(), ...(medium === 'cd' ? [] : await Album.findByStatus('digital'))];
+  const all = found.filter(album => medium === 'any' || (medium === 'digital') === (album.titleStatus === 'digital'));
   const filtered = formatNeedle !== null
     ? all.filter(a => typeof a.format === 'string' && a.format.toLowerCase().includes(formatNeedle.toLowerCase()))
     : all;
@@ -63,7 +69,8 @@ export const registerSearchAlbums = (server: McpServer): void => {
     {
       title: 'Search albums',
       description:
-        'Search the user\'s owned album collection (artist, genre, format, year range, free-text query). ' +
+        'Search the albums the user has: the CDs of the collection, and the albums they have only as files in Navidrome ' +
+        '(status "digital", no CD). Filter by artist, genre, format, year range, free-text query, or medium. ' +
         'Returns a list with id first so you can chain get_album. Default limit 20, max 100.',
       inputSchema: searchAlbumsInputShape,
     },

@@ -75,7 +75,15 @@ describe('album projector', () => {
       labels: 'Columbia',
       rating: 9.5,
       total_duration: 5234,
+      status: 'CD',
     });
+  });
+
+  it('says what the user has of the album: a CD, files only, or a wish', () => {
+    expect(projectAlbum({ id: 1, title: 't', titleStatus: 'owned' }).status).toBe('CD');
+    expect(projectAlbum({ id: 1, title: 't', titleStatus: null }).status).toBe('CD');
+    expect(projectAlbum({ id: 1, title: 't', titleStatus: 'digital' }).status).toBe('digital');
+    expect(projectAlbum({ id: 1, title: 't', titleStatus: 'wish' }).status).toBe('wish');
   });
 
   it('returns null for empty arrays and missing fields', () => {

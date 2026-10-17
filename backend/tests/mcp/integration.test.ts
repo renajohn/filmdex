@@ -239,6 +239,15 @@ const seedFixtures = async () => {
     titleStatus: 'owned',
   });
   await Album.create({
+    artist: ['Radiohead'],
+    title: 'In Rainbows',
+    releaseYear: 2007,
+    labels: [],
+    genres: ['Rock'],
+    format: 'Digital Media',
+    titleStatus: 'digital',
+  });
+  await Album.create({
     artist: ['Wishlist Artist'],
     title: 'Future Album',
     releaseYear: 2025,
@@ -390,11 +399,18 @@ describe('search_movies', () => {
 });
 
 describe('search_albums', () => {
-  it('returns owned albums', async () => {
+  it('returns the CDs and the albums the user has only as files, never the wishes', async () => {
     const r = await callTool('search_albums', { format_output: 'json' });
     const parsed = JSON.parse(textOf(r));
-    const titles = parsed.items.map((i: { title: string }) => i.title).sort();
-    expect(titles).toEqual(['Kind of Blue', 'The Wall']);
+    const items = parsed.items.map((i: { title: string; status: string }) => `${i.title} (${i.status})`).sort();
+    expect(items).toEqual(['In Rainbows (digital)', 'Kind of Blue (CD)', 'The Wall (CD)']);
+  });
+
+  it('keeps to one medium when asked', async () => {
+    const cds = JSON.parse(textOf(await callTool('search_albums', { medium: 'cd', format_output: 'json' })));
+    expect(cds.items.map((i: { title: string }) => i.title).sort()).toEqual(['Kind of Blue', 'The Wall']);
+    const files = JSON.parse(textOf(await callTool('search_albums', { medium: 'digital', genre: 'Rock', format_output: 'json' })));
+    expect(files.items.map((i: { title: string }) => i.title)).toEqual(['In Rainbows']);
   });
 
   it('filters by artist', async () => {

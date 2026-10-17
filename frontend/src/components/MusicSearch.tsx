@@ -23,7 +23,7 @@ import BoughtCdDialog from './BoughtCdDialog';
 import { Form } from 'react-bootstrap';
 import { BsCartFill, BsChevronRight, BsCloud, BsHeartFill } from 'react-icons/bs';
 import {
-  buyOrder, buyReason, isDismissed, isLossy, isSuggested, isToBuy, useDigitalLibrary, type AlbumDigital,
+  DIGITAL_ON_KEY, buyOrder, buyReason, isDismissed, isLossy, isSuggested, isToBuy, useDigitalLibrary, type AlbumDigital,
 } from '../utils/digitalLibrary';
 
 interface MusicSearchProps {
@@ -68,18 +68,11 @@ interface ShuffleResult {
   [key: string]: any;
 }
 
-/** Digital on or off, remembered in the browser. */
-const DIGITAL_KEY = 'dexvault-musicdex-digital';
 const FILTERS: DigitalFilter[] = ['all', 'buy', 'digital', 'lossy', 'unripped'];
 const NOTHING_KNOWN: AlbumDigital = { album: null, notRipped: false };
 
 /** An album of the collection, as opposed to a wish or a digital album: there is a CD. */
 const hasCd = (album: Album) => album.titleStatus !== 'digital' && album.titleStatus !== 'wish';
-
-const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-
-/** The words of a search, its keywords and quotes left out: what an album with no CD is matched on, by title and artist. */
-const searchWords = (text: string) => normalize(text.replace(/-?\w+:/g, ' ').replace(/"/g, ' ')).split(/[\s,]+/).filter(Boolean);
 
 const MusicSearch = forwardRef<any, MusicSearchProps>(({
   cds,
@@ -139,7 +132,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
 
   // Digital on: the albums with no CD join the grid, each album wears what sets it apart, the filters show.
   const [digitalOn, setDigitalOn] = useState<boolean>(() =>
-    new URLSearchParams(location.search).get('digital') === '1' || readStored(DIGITAL_KEY) === '1');
+    new URLSearchParams(location.search).get('digital') === '1' || readStored(DIGITAL_ON_KEY) === '1');
   const [digitalFilter, setDigitalFilter] = useState<DigitalFilter>(() => {
     const asked = new URLSearchParams(location.search).get('filter') as DigitalFilter | null;
     return asked && FILTERS.includes(asked) ? asked : 'all';
@@ -150,6 +143,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const digital = useDigitalLibrary(digitalOn);
   // The wishes and digital albums, those Navidrome has joining the grid.
   const [extraCds, setExtraCds] = useState<Album[]>([]);
+  // With Digital on, what a search finds among the CDs and the albums with no CD, its keywords and all.
+  const [hybridFound, setHybridFound] = useState<Album[] | null>(null);
 
   // Ref and state for scroll container (for alphabetical index)
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -208,7 +203,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (!params.has('digital') && !params.has('filter')) return;
-    if (params.get('digital') === '1') writeStored(DIGITAL_KEY, '1');
+    if (params.get('digital') === '1') writeStored(DIGITAL_ON_KEY, '1');
     params.delete('digital');
     params.delete('filter');
     const search = params.toString();
@@ -219,7 +214,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const toggleDigital = () => {
     const next = !digitalOn;
     setDigitalOn(next);
-    writeStored(DIGITAL_KEY, next ? '1' : '0');
+    writeStored(DIGITAL_ON_KEY, next ? '1' : '0');
     if (!next) setDigitalFilter('all');
   };
 
@@ -411,14 +406,27 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
 
   const digitalOf = useCallback((cd: Album): AlbumDigital => digital.byAlbumId.get(Number(cd.id)) ?? NOTHING_KNOWN, [digital.byAlbumId]);
 
-  /** The grid with Digital on: the CDs found, and the albums with no CD that Navidrome has, matched by title and artist. */
+  const searchText = (searchCriteria?.searchText || '').trim();
+  useEffect(() => {
+    setHybridFound(null);
+    if (!digitalOn || !searchText) return undefined;
+    let current = true;
+    musicService.searchAlbums(searchText, { withNoCd: true })
+      .then(found => { if (current) setHybridFound(found as Album[]); })
+      .catch(error => console.warn('Search with the digital albums failed:', error));
+    return () => { current = false; };
+  }, [digitalOn, searchText, extraCds]);
+
+  /**
+   * The grid with Digital on: the CDs, and the albums with no CD that
+   * Navidrome has; when searching, those of them the search finds.
+   */
   const hybridCds = useMemo(() => {
     if (!digitalOn) return filteredCds;
-    const words = searchWords(searchCriteria?.searchText || '');
-    const extras = extraCds.filter(cd => digital.byAlbumId.has(Number(cd.id))
-      && words.every(word => normalize(`${cd.title} ${Array.isArray(cd.artist) ? cd.artist.join(' ') : cd.artist}`).includes(word)));
-    return sortCds([...filteredCds, ...extras], sortBy);
-  }, [digitalOn, filteredCds, extraCds, digital.byAlbumId, searchCriteria?.searchText, sortCds, sortBy]);
+    const inNavidrome = (cd: Album) => hasCd(cd) || digital.byAlbumId.has(Number(cd.id));
+    if (searchText) return sortCds((hybridFound ?? filteredCds).filter(inNavidrome), sortBy);
+    return sortCds([...filteredCds, ...extraCds.filter(inNavidrome)], sortBy);
+  }, [digitalOn, filteredCds, extraCds, hybridFound, digital.byAlbumId, searchText, sortCds, sortBy]);
 
   const filterCounts = useMemo((): Record<DigitalFilter, number> => ({
     all: hybridCds.length,

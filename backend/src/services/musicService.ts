@@ -152,9 +152,9 @@ class MusicService {
     }
   }
 
-  async searchAlbums(query: string): Promise<AlbumFormatted[]> {
+  async searchAlbums(query: string, options: { withNoCd?: boolean } = {}): Promise<AlbumFormatted[]> {
     try {
-      return await Album.search(query);
+      return await Album.search(query, options);
     } catch (error) {
       console.error('Error searching albums:', error);
       throw error;
@@ -1011,14 +1011,14 @@ class MusicService {
   /**
    * Get autocomplete suggestions for a given field
    */
-  async getAutocompleteSuggestions(field: string, value: string): Promise<AutocompleteRow[]> {
+  async getAutocompleteSuggestions(field: string, value: string, withNoCd = false): Promise<AutocompleteRow[]> {
     const allowedFields = ['title', 'artist', 'genre', 'mood', 'track', 'label', 'country', 'year', 'composer', 'performer', 'conductor', 'instrument', 'work'];
     if (!allowedFields.includes(field)) {
       throw new Error(`Invalid field: ${field}`);
     }
 
     try {
-      const rows = await Album.autocomplete(field, value);
+      const rows = await Album.autocomplete(field, value, withNoCd);
       return rows;
     } catch (error) {
       console.error('Error getting autocomplete suggestions:', error);

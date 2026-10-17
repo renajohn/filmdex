@@ -46,7 +46,8 @@ export const registerGetAlbum = (server: McpServer): void => {
     'get_album',
     {
       title: 'Get album details',
-      description: 'Return the full JSON detail of a single album by id, including tracks grouped by disc.',
+      description: 'Return the full JSON detail of a single album by id, including tracks grouped by disc. ' +
+        'titleStatus says what the user has: "owned" a CD of the collection, "digital" only files in Navidrome, "wish" neither, wished.',
       inputSchema: getAlbumInputShape,
     },
     safeToolHandler('get_album', handleGetAlbum)
