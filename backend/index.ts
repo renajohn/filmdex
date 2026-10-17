@@ -338,6 +338,8 @@ app.post('/api/music/barcode/:barcode', musicController.addAlbumByBarcode);
 app.post('/api/music/migrate/resize-covers', musicController.resizeAllAlbumCovers);
 app.get('/api/music/albums/:id/apple-music', musicController.getAppleMusicUrl);
 app.put('/api/music/albums/:id/listen-next', musicController.toggleListenNext);
+app.post('/api/music/albums/:id/bought', musicController.markAlbumBought);
+app.post('/api/music/attachable-albums', musicController.findAttachableAlbums);
 app.get('/api/music/albums/:id/story', albumStoryController.get);
 app.post('/api/music/albums/:id/story/refresh', albumStoryController.refresh);
 app.get('/api/music/albums/:id/guide', albumGuideController.get);

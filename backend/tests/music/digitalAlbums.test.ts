@@ -115,6 +115,18 @@ describe('albums digitaux', () => {
     expect((await Album.findById(goneNoted.id))!.navidromeGoneAt).toBeNull();
   });
 
+  it('supprime quand même l’album dont on n’a fait que lire l’histoire', async () => {
+    const name = `Read ${tag()}`;
+    navidrome([album('n-read', name, 'Moby')], songsOf('n-read'));
+    await digitalAlbumService.reconcile();
+    const read = (await digitalOf('n-read'))!;
+    await run(`INSERT INTO album_stories (album_id, found, fetched_at) VALUES (?, 1, '2026-10-17')`, [read.id]);
+
+    navidrome([album('n-else', `Else ${tag()}`, 'Moby')], songsOf('n-else'));
+    await digitalAlbumService.reconcile();
+    expect(await Album.findById(read.id)).toBeNull();
+  });
+
   it('ne touche à rien quand Navidrome répond une bibliothèque vide', async () => {
     const name = `Kept ${tag()}`;
     navidrome([album('n-kept', name, 'Moby')], songsOf('n-kept'));

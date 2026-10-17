@@ -425,6 +425,15 @@ const Album = {
     });
   },
 
+  /** How a CD was bought: its condition, when, for how much, and what to remember of it. */
+  setOwnership: (id: number, ownership: { condition: string | null; notes: string | null; purchasedAt: string | null; priceChf: number | null }): Promise<void> =>
+    new Promise((resolve, reject) => {
+      getDatabase().run(
+        'UPDATE albums SET condition = ?, ownership_notes = ?, purchased_at = ?, price_chf = ?, updated_at = ? WHERE id = ?',
+        [ownership.condition, ownership.notes, ownership.purchasedAt, ownership.priceChf, new Date().toISOString(), id],
+        (err: Error | null) => { if (err) reject(err); else resolve(); });
+    }),
+
   setFormat: (id: number, format: string): Promise<void> =>
     new Promise((resolve, reject) => {
       getDatabase().run('UPDATE albums SET format = ?, updated_at = ? WHERE id = ?', [format, new Date().toISOString(), id],

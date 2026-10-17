@@ -5,6 +5,7 @@ import MusicSearch from '../components/MusicSearch';
 import ResizeCoversMigrationModal from '../components/ResizeCoversMigrationModal';
 import FillBackCoversModal from '../components/FillBackCoversModal';
 import musicService from '../services/musicService';
+import AttachCdDialog, { type AttachableAlbum } from '../components/AttachCdDialog';
 
 interface MigrationResult {
   total: number;
@@ -43,6 +44,39 @@ const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCri
   const [showResizeMigrationModal, setShowResizeMigrationModal] = useState(false);
   const [showFillCoversModal, setShowFillCoversModal] = useState(false);
   const musicSearchRef = useRef<any>(null);
+  // A CD about to be added that DexVault has as files or wished: which album to make the CD of.
+  const [attachPrompt, setAttachPrompt] = useState<{ albums: AttachableAlbum[]; choose: (albumId: number | null) => void } | null>(null);
+
+  /**
+   * The album to make the CD of instead of adding a new one, when DexVault
+   * already has it as files or wished and the user says so; null to add it.
+   */
+  const albumToAttachTo = async (query: Parameters<typeof musicService.findAttachableAlbums>[0]): Promise<number | null> => {
+    let albums: AttachableAlbum[] = [];
+    try {
+      albums = await musicService.findAttachableAlbums(query);
+    } catch {
+      return null;
+    }
+    if (albums.length === 0) return null;
+    return new Promise(resolve => setAttachPrompt({ albums, choose: albumId => { setAttachPrompt(null); resolve(albumId); } }));
+  };
+
+  /** The CD bought, as the album DexVault had: the form's condition, date, price and notes with it. */
+  const attachCd = async (albumId: number, edition: { releaseId?: string; barcode?: string }, cdData: any) => {
+    // Only how it was bought: the form's other fields (its barcode among them) are the album's, not the purchase's.
+    const ownership = cdData?.ownership || {};
+    const album = await musicService.markAlbumBought(albumId, {
+      ...edition,
+      condition: ownership.condition ?? cdData?.condition ?? null,
+      purchasedAt: ownership.purchasedAt ?? cdData?.purchasedAt ?? null,
+      priceChf: ownership.priceChf ?? cdData?.priceChf ?? null,
+      notes: ownership.notes ?? cdData?.notes ?? null,
+    });
+    await loadCds();
+    showAlertMessage('CD attached to the album you had: its words, notes and plays stay.', 'success');
+    return album;
+  };
 
   useEffect(() => {
     loadCds();
@@ -111,6 +145,8 @@ const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCri
 
   const handleAddCd = async (cdData: any) => {
     try {
+      const attachTo = await albumToAttachTo({ title: cdData?.title, artist: cdData?.artist });
+      if (attachTo !== null) return await attachCd(attachTo, {}, cdData);
       const createdAlbum = await musicService.addAlbum(cdData);
       await loadCds();
       showAlertMessage('Album added successfully!', 'success');
@@ -124,6 +160,8 @@ const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCri
 
   const handleAddCdFromMusicBrainz = async (releaseId: string, additionalData: any) => {
     try {
+      const attachTo = await albumToAttachTo({ releaseId, title: additionalData?.title, artist: additionalData?.artist });
+      if (attachTo !== null) return await attachCd(attachTo, { releaseId }, additionalData);
       const createdAlbum = await musicService.addAlbumFromMusicBrainz(releaseId, additionalData);
       await loadCds();
       showAlertMessage('Album added successfully from MusicBrainz!', 'success');
@@ -137,6 +175,8 @@ const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCri
 
   const handleAddCdByBarcode = async (barcode: string, additionalData: any) => {
     try {
+      const attachTo = await albumToAttachTo({ barcode });
+      if (attachTo !== null) return await attachCd(attachTo, { barcode }, additionalData);
       const createdAlbum = await musicService.addAlbumByBarcode(barcode, additionalData);
       await loadCds();
       showAlertMessage('Album added successfully by barcode!', 'success');
@@ -215,6 +255,8 @@ const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCri
           ></button>
         </div>
       )}
+
+      {attachPrompt && <AttachCdDialog albums={attachPrompt.albums} onChoose={attachPrompt.choose} />}
 
       {/* Resize Covers Migration Modal */}
       <ResizeCoversMigrationModal

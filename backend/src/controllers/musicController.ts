@@ -18,6 +18,7 @@ import ripStatusService from '../services/ripStatusService';
 import digitalLibraryService from '../services/digitalLibraryService';
 import digitalAlbumService from '../services/digitalAlbumService';
 import listenNextPlaylistService from '../services/listenNextPlaylistService';
+import albumPurchaseService, { PurchaseError } from '../services/albumPurchaseService';
 import navidromeService from '../services/navidromeService';
 import albumRatingService from '../services/albumRatingService';
 import communityRatingService from '../services/communityRatingService';
@@ -93,6 +94,28 @@ const musicController = {
     } catch (error) {
       console.error('Error getting albums by status:', error);
       res.status(500).json({ error: 'Failed to get albums by status' });
+    }
+  },
+
+  /** "I bought the CD": a digital or wished album becomes a CD of the collection, the same album. */
+  markAlbumBought: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const album = await albumPurchaseService.markBought(parseInt(req.params.id as string, 10), req.body || {});
+      res.json(album);
+    } catch (error) {
+      const status = error instanceof PurchaseError ? error.status : (error as { status?: number }).status ?? 500;
+      if (status === 500) logger.error('Error marking an album bought:', error);
+      res.status(status).json({ error: (error as Error).message });
+    }
+  },
+
+  /** The digital and wished albums a CD about to be added would be, to add it to one of them instead. */
+  findAttachableAlbums: async (req: Request, res: Response): Promise<void> => {
+    try {
+      res.json(await albumPurchaseService.attachable(req.body || {}));
+    } catch (error) {
+      logger.error('Error finding albums to attach a CD to:', error);
+      res.status(500).json({ error: (error as Error).message });
     }
   },
 

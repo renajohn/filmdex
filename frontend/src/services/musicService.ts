@@ -208,6 +208,16 @@ class MusicService {
     return this.send(`/music/digital/${encodeURIComponent(navidromeId)}/wish`, wished ? 'PUT' : 'DELETE');
   }
 
+  /** "I bought the CD": a digital or wished album becomes a CD of the collection, the same album. */
+  markAlbumBought(albumId: number | string, purchase: Record<string, unknown>): Promise<unknown> {
+    return this.send(`/music/albums/${albumId}/bought`, 'POST', purchase);
+  }
+
+  /** The digital and wished albums a CD about to be added would be: the same edition, release group, or title and artist. */
+  findAttachableAlbums(query: { releaseId?: string | null; barcode?: string | null; title?: string | null; artist?: string[] | string | null }): Promise<Array<{ id: number; title: string; artist: string[]; cover?: string | null; titleStatus?: string | null }>> {
+    return this.send('/music/attachable-albums', 'POST', query);
+  }
+
   /** "Not interested": the album leaves the Buy tab however much it is played, until undone. */
   setDigitalDismissed(navidromeId: string, dismissed: boolean): Promise<DigitalAlbum> {
     return this.send(`/music/digital/${encodeURIComponent(navidromeId)}/dismiss`, dismissed ? 'PUT' : 'DELETE');

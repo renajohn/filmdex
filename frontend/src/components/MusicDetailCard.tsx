@@ -117,6 +117,8 @@ interface MusicDetailCardProps {
   onWish?: (() => void) | null;
   /** "Not interested", or undone. */
   onDismiss?: ((dismissed: boolean) => void) | null;
+  /** "I bought the CD", for an album with no CD. */
+  onBought?: (() => void) | null;
 }
 
 const CONDITIONS: Record<string, string> = {
@@ -151,7 +153,7 @@ const communityDetail = (ratings: CommunityRatings): string => [
   .map(([source, votes, value]) => `${source}: ${votesLabel(votes!)} → ${Number(value!.toFixed(2))}`)
   .join('\n');
 
-const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, onDelete, onSearch, onListenNextChange, onPrevious, onNext, digital, onWish, onDismiss }) => {
+const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, onDelete, onSearch, onListenNextChange, onPrevious, onNext, digital, onWish, onDismiss, onBought }) => {
   const [showCoverModal, setShowCoverModal] = useState<boolean>(false);
   const [coverModalData, setCoverModalData] = useState<CoverModalData>({ coverUrl: '', title: '', artist: '', coverType: '' });
   const [confirmDelete, setConfirmDelete] = useState<boolean>(false);
@@ -1026,6 +1028,12 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
           </Button>
         </div>
         <div className="music-detail-manage">
+          {!hasCd && onBought && (
+            <Button variant="outline-warning" onClick={onBought}>
+              <BsDisc className="me-1" />
+              I bought the CD
+            </Button>
+          )}
           {/* A digital album is Navidrome's: it goes when its files go, and it has nothing of a CD to edit. */}
           {onEdit && cd.titleStatus !== 'digital' && (
             <Button variant="outline-primary" onClick={onEdit}>

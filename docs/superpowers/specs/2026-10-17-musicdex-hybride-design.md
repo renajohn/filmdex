@@ -43,7 +43,8 @@ Conséquences :
 
 Création et suivi, à chaque sync Digital : une ligne `digital` par album Navidrome sans CD ni ligne
 `wish` correspondante. Quand un album disparaît de Navidrome : la ligne `digital` est supprimée si rien
-n'y est attaché (notes, guide, Listen Next), sinon gardée et marquée « plus dans Navidrome ». Une ligne
+n'y est attaché (notes, guide, étoiles, Listen Next ; pas l'histoire Wikipedia, relue à volonté), sinon
+gardée et marquée « plus dans Navidrome ». Une ligne
 `wish` n'est jamais supprimée par la sync.
 
 Pistes d'une ligne `digital` : copiées des tags Navidrome (titre, disque, numéro, durée, artiste) à la
@@ -139,9 +140,10 @@ Trois chemins, tous vers la même ligne :
    (défaut), ou code-barres / MusicBrainz pour l'édition exacte (pistes rafraîchies depuis MusicBrainz).
 2. **Add Album** d'un CD qui correspond à une ligne `digital` ou `wish` (MBID, sinon titre + artiste) :
    « Already in DexVault as digital — attach the CD to it » au lieu d'une nouvelle ligne.
-3. **`adoptEditions`** promeut une ligne `digital` comme une ligne `wish`, **seulement si le rip porte
-   un Disc ID** : un FLAC acheté en ligne n'est pas un CD. À vérifier : Navidrome (ou la bibliothèque
-   que relaie le plugin) expose-t-il le tag Disc ID que pose Picard ?
+3. **`adoptEditions`** promeut une ligne `digital` comme une ligne `wish`, **seulement si l'édition du rip
+   est un CD** sur MusicBrainz : un FLAC acheté en ligne n'est pas un CD. Le Disc ID prévu d'abord n'est pas
+   possible : Navidrome ne garde pas le tag `musicbrainz_discid` de Picard (vérifié le 17.10.2026 sur 400
+   chansons FLAC) ; son tag `media` dit la même chose que l'édition.
 
 Paroles à la conversion : `track_lyrics` est rangé par position et revalidé par titre. Même édition →
 rien ne bouge ; piste déplacée → recherchée à nouveau sur LRCLIB, même texte.

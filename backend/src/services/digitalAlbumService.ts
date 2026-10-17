@@ -32,14 +32,17 @@ const exists = (sql: string, params: unknown[]): Promise<boolean> =>
       if (err) reject(err); else resolve(Boolean(row?.found));
     }));
 
-/** What the owner gave an album of their own: a note, a guide, a story, stars, a place in a collection. */
+/**
+ * What the owner gave an album of their own: a note, a guide, stars, a place
+ * in a collection. Not its Wikipedia story, read as its dialog opens and read
+ * again at will.
+ */
 const hasOwnersTouch = async (album: AlbumFormatted): Promise<boolean> =>
   album.userRating != null || exists(
     `SELECT EXISTS(SELECT 1 FROM album_notes WHERE album_id = ?)
          OR EXISTS(SELECT 1 FROM album_guides WHERE album_id = ?)
-         OR EXISTS(SELECT 1 FROM album_stories WHERE album_id = ?)
          OR EXISTS(SELECT 1 FROM album_collections WHERE album_id = ?) AS found`,
-    [album.id, album.id, album.id, album.id]);
+    [album.id, album.id, album.id]);
 
 /** The tracks of an album as its files are tagged, disc by disc. */
 const discsOf = async (navidromeId: string) => {
@@ -157,8 +160,8 @@ const digitalAlbumService = {
   /**
    * Brings the digital albums in step with Navidrome: one for each album no
    * CD or wish stands for, its tracks copied from the tags. One no longer
-   * there is deleted, or only marked gone when it has notes, a guide, a
-   * story, stars or a place in Listen Next. Once at a time, however many ask.
+   * there is deleted, or only marked gone when it has notes, a guide, stars
+   * or a place in Listen Next. Once at a time, however many ask.
    */
   reconcile: (): Promise<DigitalAlbumsReport | null> => {
     if (!navidromeService.isConfigured()) return Promise.resolve(null);

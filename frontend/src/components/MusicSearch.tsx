@@ -19,6 +19,7 @@ import { isAppleMobile } from '../utils/navidrome';
 import AlbumPlayButton from './shared/AlbumPlayButton';
 import DigitalStrip, { type DigitalFilter } from './DigitalStrip';
 import DigitalMarks from './shared/DigitalMarks';
+import BoughtCdDialog from './BoughtCdDialog';
 import { Form } from 'react-bootstrap';
 import { BsCartFill, BsChevronRight, BsCloud, BsHeartFill } from 'react-icons/bs';
 import {
@@ -144,6 +145,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     return asked && FILTERS.includes(asked) ? asked : 'all';
   });
   const [showDismissed, setShowDismissed] = useState(false);
+  // The album whose CD was just bought, its dialog open.
+  const [buying, setBuying] = useState<any>(null);
   const digital = useDigitalLibrary(digitalOn);
   // The wishes and digital albums, those Navidrome has joining the grid.
   const [extraCds, setExtraCds] = useState<Album[]>([]);
@@ -1255,6 +1258,21 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           digital={digitalOn ? digitalOf(selectedCdDetails) : undefined}
           onWish={digitalOn ? () => toggleWish(selectedCdDetails) : null}
           onDismiss={digitalOn ? (dismissed: boolean) => setDismissed(selectedCdDetails, dismissed) : null}
+          onBought={() => setBuying(selectedCdDetails)}
+        />
+      )}
+
+      {buying && (
+        <BoughtCdDialog
+          album={buying}
+          onClose={() => setBuying(null)}
+          onBought={async (album: any) => {
+            setBuying(null);
+            if (onShowAlert) onShowAlert(`"${album.title}" is now a CD of your collection`, 'success');
+            await Promise.all([loadCds(), loadExtraCds()]);
+            if (digitalOn) digital.reload();
+            setSelectedCdDetails(await musicService.getAlbumById(album.id));
+          }}
         />
       )}
 
