@@ -14,6 +14,12 @@ body {
   color: #f8f9fa;
 }
 
+/* Bootstrap, imported after this file, gives the body a white background-color
+   under the gradient; Safari on iOS tints its bars from it, hence html body to win. */
+html body {
+  background-color: #1a1a1a;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
