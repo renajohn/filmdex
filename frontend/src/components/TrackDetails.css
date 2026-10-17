@@ -71,7 +71,7 @@
 
 .track-details-link:hover,
 .track-details-link:focus-visible {
-  color: #fbbf24;
+  color: var(--dv-gold);
   text-decoration-color: currentColor;
   outline: none;
 }
@@ -132,7 +132,7 @@
 }
 
 .track-item.track-selected .track-number {
-  color: #fbbf24;
+  color: var(--dv-gold);
 }
 
 .track-item.track-selected .track-title {

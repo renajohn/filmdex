@@ -12,15 +12,15 @@
  * red an alert, orange a copy to do again.
  */
 :root {
-  --cover-glass: rgba(0, 0, 0, 0.68);
-  --cover-glass-hover: rgba(0, 0, 0, 0.85);
-  --cover-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
-  --cover-lift: 0 2px 8px rgba(0, 0, 0, 0.35);
-  --cover-ring: 0 0 0 1.5px #fff;
-  --cover-on: #fbbf24;
-  --cover-on-hover: #fde68a;
-  --cover-on-icon: #111;
-  --cover-alert: #f87171;
+  --cover-glass: var(--dv-glass-image);
+  --cover-glass-hover: var(--dv-glass-image-hover);
+  --cover-edge: var(--dv-edge-image);
+  --cover-lift: var(--dv-lift-image);
+  --cover-ring: var(--dv-ring-image);
+  --cover-on: var(--dv-gold);
+  --cover-on-hover: var(--dv-gold-light);
+  --cover-on-icon: var(--dv-gold-ink);
+  --cover-alert: var(--dv-danger);
 }
 
 /* ---------------------------------------------------------------- Tags */

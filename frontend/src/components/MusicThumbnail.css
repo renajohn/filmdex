@@ -118,7 +118,7 @@
 /* In Buy: why, in gold under the artist. */
 .music-thumbnail-reason {
   font-size: 0.76rem;
-  color: #fbbf24;
+  color: var(--dv-gold);
   margin: 3px 0 0;
   overflow: hidden;
   text-overflow: ellipsis;

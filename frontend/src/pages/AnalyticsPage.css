@@ -14,7 +14,7 @@
   --text-muted: #a1a1aa;
   
   /* Vibrant Gold Theme */
-  --accent-gold: #fbbf24;
+  --accent-gold: var(--dv-gold);
   --accent-gold-dim: #d97706;
   --accent-gold-glow: rgba(251, 191, 36, 0.15);
   

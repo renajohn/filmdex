@@ -13,7 +13,7 @@
   width: 3px;
   height: 40%;
   border-radius: 1px;
-  background: #fbbf24;
+  background: var(--dv-gold);
 }
 
 .now-playing-bars i:nth-child(2) { height: 80%; }

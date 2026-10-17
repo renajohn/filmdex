@@ -112,11 +112,11 @@
 }
 
 .tag-input::placeholder {
-  color: #9ca3af !important;
+  color: var(--dv-text-muted) !important;
 }
 
 .tag-input.form-control::placeholder {
-  color: #9ca3af !important;
+  color: var(--dv-text-muted) !important;
 }
 
 .suggestions-dropdown {
@@ -175,7 +175,7 @@
   background: #1a1a1a !important;
   border: 1px solid #4a5568 !important;
   border-top: none !important;
-  color: #9ca3af !important;
+  color: var(--dv-text-muted) !important;
   font-style: italic;
   text-align: center;
   font-size: 0.875rem !important;

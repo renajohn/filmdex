@@ -255,7 +255,7 @@
 
 .album-head-filter:hover,
 .album-head-filter:focus-visible {
-  color: #fbbf24;
+  color: var(--dv-gold);
   text-decoration: underline;
   text-underline-offset: 3px;
   outline: none;
@@ -291,7 +291,7 @@
 
 .album-head-link:hover,
 .album-head-link:focus-visible {
-  color: #fbbf24;
+  color: var(--dv-gold);
   text-decoration-color: currentColor;
   outline: none;
 }
@@ -525,13 +525,13 @@
 /* On the open track, gold, and still a button: brighter under the pointer, deeper when pressed. */
 .track-selected .track-play {
   background: rgba(251, 191, 36, 0.14);
-  color: #fbbf24;
+  color: var(--dv-gold);
 }
 
 .track-selected .track-play:hover,
 .track-selected .track-play:focus-visible {
   background: rgba(251, 191, 36, 0.28);
-  color: #fcd34d;
+  color: var(--dv-gold-hover);
 }
 
 .track-selected .track-play:active {
@@ -540,7 +540,7 @@
 
 /* The track DexVault plays: bars where its number was, still while paused, and its title in gold. */
 .track-current .track-title {
-  color: #fbbf24;
+  color: var(--dv-gold);
 }
 
 /* The ▾ beside Play, an arrow's width, its menu Menu's. */
@@ -588,8 +588,8 @@
 
 .track-lyrics-tag:hover,
 .track-lyrics-tag:focus-visible {
-  color: #fbbf24;
-  border-color: #fbbf24;
+  color: var(--dv-gold);
+  border-color: var(--dv-gold);
   outline: none;
 }
 
@@ -609,12 +609,12 @@
 
 .track-view button.active {
   background: rgba(251, 191, 36, 0.15);
-  color: #fbbf24;
+  color: var(--dv-gold);
 }
 
 .track-view button:hover,
 .track-view button:focus-visible {
-  color: #fbbf24;
+  color: var(--dv-gold);
   outline: none;
 }
 
@@ -842,7 +842,7 @@
 
 .album-head-star:hover,
 .album-head-star:focus-visible {
-  color: #fbbf24;
+  color: var(--dv-gold);
   outline: none;
 }
 
@@ -851,7 +851,7 @@
 }
 
 .album-head-star-on {
-  color: #fbbf24;
+  color: var(--dv-gold);
 }
 
 /* The community's stars, grey: an opinion beside the owner's, not one to follow. */
@@ -876,7 +876,7 @@
 
 .album-head-refresh:hover:not(:disabled),
 .album-head-refresh:focus-visible {
-  color: #fbbf24;
+  color: var(--dv-gold);
   outline: none;
 }
 
@@ -907,7 +907,7 @@
 }
 
 .album-buy strong {
-  color: #fbbf24;
+  color: var(--dv-gold);
 }
 
 .album-buy-actions {
@@ -925,7 +925,7 @@
   align-items: center;
   margin-left: auto;
   padding-left: 8px;
-  color: #fbbf24;
+  color: var(--dv-gold);
   font-size: 0.78rem;
   white-space: nowrap;
 }

@@ -61,7 +61,7 @@
 }
 
 .alpha-index-letter.available:hover {
-  color: #fbbf24;
+  color: var(--dv-gold);
   transform: scale(1.3);
 }
 
@@ -71,7 +71,7 @@
 }
 
 .alpha-index-letter.active {
-  color: #fbbf24;
+  color: var(--dv-gold);
   transform: scale(1.5);
   text-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
 }

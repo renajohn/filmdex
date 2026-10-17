@@ -109,7 +109,7 @@
 .btn-outline-warning:hover:not(:disabled) {
   background-color: rgba(251, 191, 36, 0.15) !important;
   border-color: rgba(251, 191, 36, 0.8) !important;
-  color: #fbbf24 !important;
+  color: var(--dv-gold) !important;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(251, 191, 36, 0.2);
 }

@@ -22,7 +22,7 @@
 
 .cog-button:hover {
   background: linear-gradient(135deg, #3a3a3a, #2a2a2a);
-  border-color: #fbbf24;
+  border-color: var(--dv-gold);
   box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);
 }
 

@@ -61,7 +61,7 @@
 }
 
 .volume-card.selected {
-  border-color: #fbbf24;
+  border-color: var(--dv-gold);
   background-color: rgba(251, 191, 36, 0.1);
   box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.3);
 }
@@ -139,7 +139,7 @@
 
 .volume-number {
   font-weight: bold;
-  color: #fbbf24;
+  color: var(--dv-gold);
   font-size: 0.9rem;
   margin-bottom: 4px;
 }

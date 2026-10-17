@@ -168,7 +168,7 @@
 }
 
 .enrichment-loading-indicator strong {
-  color: #fbbf24;
+  color: var(--dv-gold);
   font-size: 1.1rem;
   display: block;
   margin-bottom: 0.5rem;
@@ -537,7 +537,7 @@
 }
 
 .inline-edit-field input:focus {
-  border-color: #fbbf24;
+  border-color: var(--dv-gold);
 }
 
 .inline-edit-field input::placeholder {
@@ -896,15 +896,15 @@
 }
 
 .inline-book-type-select:hover {
-  border-bottom-color: #fbbf24;
-  color: #fbbf24;
+  border-bottom-color: var(--dv-gold);
+  color: var(--dv-gold);
 }
 
 /* Expand to show all options when focused/open */
 .inline-book-type-select:focus {
-  border-bottom-color: #fbbf24;
+  border-bottom-color: var(--dv-gold);
   border-bottom-style: solid;
-  color: #fbbf24;
+  color: var(--dv-gold);
   width: auto !important;
   min-width: 10ch;
 }
@@ -986,7 +986,7 @@
   font-style: italic;
   padding: 0.5rem 0.75rem;
   border-left: 3px solid;
-  border-image: linear-gradient(180deg, #fbbf24, #f59e0b) 1;
+  border-image: linear-gradient(180deg, var(--dv-gold), #f59e0b) 1;
   background: linear-gradient(90deg, rgba(251, 191, 36, 0.06) 0%, transparent 100%);
   border-radius: 0 6px 6px 0;
 }
@@ -1174,7 +1174,7 @@
   content: '';
   width: 3px;
   height: 1em;
-  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+  background: linear-gradient(180deg, var(--dv-gold) 0%, #f59e0b 100%);
   border-radius: 2px;
 }
 
@@ -1438,7 +1438,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #9ca3af;
+  color: var(--dv-text-muted);
 }
 
 .series-book-overlay {

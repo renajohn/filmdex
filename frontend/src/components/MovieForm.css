@@ -98,7 +98,7 @@
 .form-group .menu-select[aria-expanded="true"],
 .form-group textarea:focus {
   outline: none;
-  border-color: #fbbf24;
+  border-color: var(--dv-gold);
   box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.2);
   background-color: #2d2d2d;
 }

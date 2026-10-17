@@ -38,7 +38,7 @@
 
 .star-button.filled,
 .star-button.half-filled {
-  color: #fbbf24;
+  color: var(--dv-gold);
 }
 
 .star-button.hovering:not(.filled):not(.half-filled) {

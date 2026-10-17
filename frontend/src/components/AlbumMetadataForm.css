@@ -56,14 +56,14 @@
   font-weight: 700;
 }
 .album-sep {
-  color: #9ca3af;
+  color: var(--dv-text-muted);
 }
 .album-artist {
   color: #e2e8f0;
   font-weight: 500;
 }
 .album-info-meta {
-  color: #9ca3af;
+  color: var(--dv-text-muted);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -159,7 +159,7 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  background-color: #fbbf24;
+  background-color: var(--dv-gold);
   color: #1a202c;
   border-radius: 50%;
   width: 20px;
@@ -211,7 +211,7 @@
   min-width: 120px;
   background: rgba(251, 191, 36, 0.2) !important;
   border: 1px solid rgba(251, 191, 36, 0.4) !important;
-  color: #fbbf24 !important;
+  color: var(--dv-gold) !important;
   font-weight: 600;
   transition: all 0.2s ease;
 }
@@ -247,7 +247,7 @@
   position: absolute;
   top: 4px;
   right: 4px;
-  background-color: #fbbf24;
+  background-color: var(--dv-gold);
   color: #1a202c;
   border-radius: 50%;
   width: 20px;
@@ -274,7 +274,7 @@
 }
 
 .album-metadata-form .form-control::placeholder {
-  color: #9ca3af !important;
+  color: var(--dv-text-muted) !important;
 }
 
 .album-metadata-form .form-select {
@@ -346,7 +346,7 @@
 }
 
 .album-metadata-form .text-muted {
-  color: #9ca3af !important;
+  color: var(--dv-text-muted) !important;
 }
 
 /* Form labels */

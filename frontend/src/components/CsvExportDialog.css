@@ -90,7 +90,7 @@
 
 .csv-export-column-item input[type="checkbox"] {
   margin: 0;
-  accent-color: #fbbf24;
+  accent-color: var(--dv-gold);
 }
 
 .csv-export-column-label {

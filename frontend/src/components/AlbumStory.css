@@ -80,7 +80,7 @@
 
 .album-story-toggle:hover,
 .album-story-toggle:focus-visible {
-  color: #fbbf24;
+  color: var(--dv-gold);
   text-decoration-color: currentColor;
   outline: none;
 }

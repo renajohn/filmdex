@@ -7,7 +7,7 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  color: #fbbf24;
+  color: var(--dv-gold);
 }
 
 .shelf-code-overlay {

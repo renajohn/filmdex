@@ -6,15 +6,15 @@
  * Danger is red. Use the component rather than these classes by hand.
  */
 :root {
-  --menu-surface: rgba(24, 24, 24, 0.86);
-  --menu-edge: rgba(255, 255, 255, 0.1);
-  --menu-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --menu-veil: rgba(255, 255, 255, 0.08);
-  --menu-text: #e5e5e5;
-  --menu-muted: #8a8a8a;
-  --menu-icon: #9ca3af;
-  --menu-on: #fbbf24;
-  --menu-danger: #f87171;
+  --menu-surface: var(--dv-surface);
+  --menu-edge: var(--dv-surface-edge);
+  --menu-shadow: var(--dv-surface-shadow);
+  --menu-veil: var(--dv-veil);
+  --menu-text: var(--dv-text);
+  --menu-muted: var(--dv-text-faint);
+  --menu-icon: var(--dv-text-muted);
+  --menu-on: var(--dv-gold);
+  --menu-danger: var(--dv-danger);
 }
 
 .menu-surface {
@@ -172,7 +172,7 @@
   width: 12px;
   height: 12px;
   flex: none;
-  color: #9ca3af;
+  color: var(--dv-text-muted);
   transition: transform 0.15s ease;
 }
 
@@ -221,11 +221,11 @@
 
 .menu-pill__lead {
   display: inline-flex;
-  color: #9ca3af;
+  color: var(--dv-text-muted);
 }
 
 .menu-pill__muted {
-  color: #9ca3af;
+  color: var(--dv-text-muted);
   font-weight: 400;
 }
 

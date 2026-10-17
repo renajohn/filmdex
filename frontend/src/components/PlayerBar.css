@@ -48,7 +48,7 @@
 .player-bar-progress span {
   display: block;
   height: 100%;
-  background: #fbbf24;
+  background: var(--dv-gold);
 }
 
 .player-bar-inner {
@@ -108,7 +108,7 @@
 
 .player-bar-album:hover .player-bar-track,
 .player-bar-album:focus-visible .player-bar-track {
-  color: #fbbf24;
+  color: var(--dv-gold);
 }
 
 .player-bar-album:focus-visible {

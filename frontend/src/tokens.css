@@ -1,0 +1,61 @@
+/*
+ * DexVault's design tokens: the one place its colours, glass, heights and
+ * radii are set (see docs/design-guidelines.md). The shared components name
+ * their own variables after these; a page's stylesheet uses these, never the
+ * values they stand for.
+ */
+:root {
+  /* Gold: on, to do, the one action a window is for. Never "pointed at". */
+  --dv-gold: #fbbf24;
+  --dv-gold-hover: #fcd34d;
+  --dv-gold-light: #fde68a;
+  --dv-gold-ink: #111;
+  --dv-gold-tint: rgba(251, 191, 36, 0.12);
+  --dv-gold-tint-edge: rgba(251, 191, 36, 0.45);
+
+  /* Danger, an alert: red words, a red veil. Never on gold. */
+  --dv-danger: #f87171;
+  --dv-danger-tint: rgba(248, 113, 113, 0.12);
+  --dv-danger-tint-edge: rgba(248, 113, 113, 0.5);
+
+  /* Words. */
+  --dv-text: #e5e5e5;
+  --dv-text-muted: #9ca3af;
+  --dv-text-faint: #8a8a8a;
+
+  /* The page. */
+  --dv-page: #1a1a1a;
+
+  /* Glass on the page (buttons, pills, chips): a light veil and a light edge. */
+  --dv-glass: rgba(255, 255, 255, 0.06);
+  --dv-glass-hover: rgba(255, 255, 255, 0.11);
+  --dv-edge: rgba(255, 255, 255, 0.12);
+  --dv-edge-hover: rgba(255, 255, 255, 0.24);
+  /* Under the pointer or the keys, an entry or a quiet button. */
+  --dv-veil: rgba(255, 255, 255, 0.08);
+
+  /* Glass on a picture (a cover, a poster): dark, its edge inset. */
+  --dv-glass-image: rgba(0, 0, 0, 0.68);
+  --dv-glass-image-hover: rgba(0, 0, 0, 0.85);
+  --dv-edge-image: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  --dv-lift-image: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --dv-ring-image: 0 0 0 1.5px #fff;
+
+  /* A floating panel (a menu), blurred over what is under it. */
+  --dv-surface: rgba(24, 24, 24, 0.86);
+  --dv-surface-edge: rgba(255, 255, 255, 0.1);
+  --dv-surface-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  /* Focus, by the keys. */
+  --dv-ring: 0 0 0 3px rgba(251, 191, 36, 0.3);
+
+  /* Heights: a bar's controls, a dialog's buttons, a cover's round button. */
+  --dv-height-sm: 28px;
+  --dv-height-md: 36px;
+  --dv-height-cover: 34px;
+
+  /* Radii. */
+  --dv-radius-sm: 7px;
+  --dv-radius-md: 9px;
+  --dv-radius-lg: 12px;
+}

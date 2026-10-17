@@ -57,8 +57,8 @@
 
 .digital-chip.active {
   background: rgba(251, 191, 36, 0.18);
-  border-color: #fbbf24;
-  color: #fbbf24;
+  border-color: var(--dv-gold);
+  color: var(--dv-gold);
 }
 
 .digital-chip-count {
@@ -66,7 +66,7 @@
   font-size: 12px;
 }
 
-.digital-chip-buy svg { color: #fbbf24; }
+.digital-chip-buy svg { color: var(--dv-gold); }
 .digital-chip-lossy .digital-chip-format { color: #f59e0b; font-weight: 700; font-size: 10.5px; }
 .digital-chip-unripped .digital-mark-svg { color: #bbb; }
 
@@ -81,7 +81,7 @@
   color: #eaeaea;
 }
 
-.digital-buy-title svg { color: #fbbf24; }
+.digital-buy-title svg { color: var(--dv-gold); }
 
 .digital-buy-note {
   color: #a3a3a3;

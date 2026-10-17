@@ -42,7 +42,7 @@
 .add-book-dialog .form-control:focus,
 .add-book-dialog .form-select:focus {
   background-color: rgba(50, 50, 50, 0.95);
-  border-color: #fbbf24;
+  border-color: var(--dv-gold);
   color: rgba(255, 255, 255, 0.9);
   box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.25);
   outline: none;
@@ -86,13 +86,13 @@
 }
 
 .search-tab:hover {
-  color: #fbbf24;
+  color: var(--dv-gold);
   background-color: rgba(251, 191, 36, 0.1);
 }
 
 .search-tab.active {
-  color: #fbbf24;
-  border-bottom-color: #fbbf24;
+  color: var(--dv-gold);
+  border-bottom-color: var(--dv-gold);
   font-weight: 600;
 }
 
@@ -179,7 +179,7 @@
 
 .result-item:hover {
   background-color: rgba(251, 191, 36, 0.1);
-  border-color: #fbbf24;
+  border-color: var(--dv-gold);
 }
 
 .result-cover {
@@ -272,7 +272,7 @@
 }
 
 .group-header-card.expanded {
-  border-color: #fbbf24;
+  border-color: var(--dv-gold);
   box-shadow: 0 2px 8px rgba(251, 191, 36, 0.2);
 }
 
@@ -407,7 +407,7 @@
 
 .quick-add-field .form-control:focus,
 .quick-add-field .form-select:focus {
-  border-color: #fbbf24;
+  border-color: var(--dv-gold);
   box-shadow: 0 0 0 0.15rem rgba(251, 191, 36, 0.25);
   background-color: #2a2a2a;
   color: #ccc;
@@ -522,7 +522,7 @@
 }
 
 .add-book-dialog .badge.bg-warning {
-  background-color: #fbbf24 !important;
+  background-color: var(--dv-gold) !important;
   color: #1a202c !important;
 }
 
@@ -552,12 +552,12 @@
 }
 
 .cover-dropzone:hover {
-  border-color: #fbbf24;
+  border-color: var(--dv-gold);
   background-color: rgba(251, 191, 36, 0.05);
 }
 
 .cover-dropzone.drag-over {
-  border-color: #fbbf24;
+  border-color: var(--dv-gold);
   background-color: rgba(251, 191, 36, 0.1);
 }
 
@@ -605,7 +605,7 @@
   justify-content: center;
   gap: 12px;
   padding: 16px;
-  color: #fbbf24;
+  color: var(--dv-gold);
   font-size: 0.95rem;
 }
 
@@ -613,7 +613,7 @@
   width: 24px;
   height: 24px;
   border: 3px solid rgba(251, 191, 36, 0.2);
-  border-top-color: #fbbf24;
+  border-top-color: var(--dv-gold);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   flex-shrink: 0;

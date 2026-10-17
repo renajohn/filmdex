@@ -5,17 +5,17 @@
  * hand, and never style a button anew: a stylesheet only places it.
  */
 :root {
-  --button-gold: #fbbf24;
-  --button-gold-hover: #fcd34d;
-  --button-gold-ink: #111;
-  --button-text: #e5e5e5;
-  --button-muted: #9ca3af;
-  --button-glass: rgba(255, 255, 255, 0.06);
-  --button-glass-hover: rgba(255, 255, 255, 0.11);
-  --button-edge: rgba(255, 255, 255, 0.12);
-  --button-edge-hover: rgba(255, 255, 255, 0.24);
-  --button-danger: #f87171;
-  --button-ring: 0 0 0 3px rgba(251, 191, 36, 0.3);
+  --button-gold: var(--dv-gold);
+  --button-gold-hover: var(--dv-gold-hover);
+  --button-gold-ink: var(--dv-gold-ink);
+  --button-text: var(--dv-text);
+  --button-muted: var(--dv-text-muted);
+  --button-glass: var(--dv-glass);
+  --button-glass-hover: var(--dv-glass-hover);
+  --button-edge: var(--dv-edge);
+  --button-edge-hover: var(--dv-edge-hover);
+  --button-danger: var(--dv-danger);
+  --button-ring: var(--dv-ring);
 }
 
 .ui-button {

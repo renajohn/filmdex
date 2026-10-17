@@ -29,25 +29,26 @@ The prototypes the choices were made on are kept in `docs/superpowers/specs/`:
 7. **Words are English in the UI**, sentence case ("Add to wish list"), with
    the ellipsis for an action that asks more ("Write a listening note…").
 
-## Colour and shape
+## Colour and shape: `tokens.css`
 
-The values are defined as custom properties at the top of each shared
-stylesheet (`cover.css`, `menu.css`, `button.css`). Use the variables, not the
-hex values.
+Every colour, glass, height and radius is a token in
+`frontend/src/tokens.css`, loaded first. Use the token, never the value it
+stands for: `color: var(--dv-gold)`, not `#fbbf24`. The shared components name
+their own variables after the tokens (`--button-gold: var(--dv-gold)`); a new
+colour goes into `tokens.css` first.
 
-| Role | Value | Where |
-|---|---|---|
-| Gold: on, to do, the main action | `#fbbf24`, hover `#fcd34d`, ink on it `#111` | `--cover-on`, `--menu-on`, `--button-gold` |
-| Danger, alert | `#f87171` | `--cover-alert`, `--menu-danger`, `--button-danger` |
-| Text, muted text | `#e5e5e5`, `#9ca3af` | `--button-text`, `--button-muted` |
-| Glass on an image | `rgba(0,0,0,.68)`, edge `inset 0 0 0 1px rgba(255,255,255,.16)` | `--cover-glass`, `--cover-edge` |
-| Glass on the page | `rgba(255,255,255,.06)`, edge `rgba(255,255,255,.12)` | `--button-glass`, `--button-edge` |
-| Floating panel (menus) | `rgba(24,24,24,.86)` blurred 16 px | `--menu-surface` |
-| Focus ring | `0 0 0 3px rgba(251,191,36,.3)` | `--button-ring` |
-
-Heights: **28 px** for everything in a bar (pills, small buttons, chips),
-**36 px** for a dialog's buttons, **34 px** for a round button on a cover.
-Radii: 7 px (small), 9 px (normal), 12 px (panels), round for cover buttons.
+| Role | Token |
+|---|---|
+| Gold: on, to do, the main action | `--dv-gold`, `--dv-gold-hover`, `--dv-gold-light`; ink on it `--dv-gold-ink`; a tint and its edge `--dv-gold-tint`, `--dv-gold-tint-edge` |
+| Danger, alert | `--dv-danger`, `--dv-danger-tint`, `--dv-danger-tint-edge` |
+| Words | `--dv-text`, `--dv-text-muted`, `--dv-text-faint` |
+| The page | `--dv-page` |
+| Glass on the page (buttons, pills, chips) | `--dv-glass`, `--dv-glass-hover`, `--dv-edge`, `--dv-edge-hover`; under the pointer `--dv-veil` |
+| Glass on a picture (covers, posters) | `--dv-glass-image`, `--dv-glass-image-hover`, `--dv-edge-image`, `--dv-lift-image`, `--dv-ring-image` |
+| A floating panel (menus) | `--dv-surface`, `--dv-surface-edge`, `--dv-surface-shadow` |
+| Focus by the keys | `--dv-ring` |
+| Heights | `--dv-height-sm` 28 px (a bar's controls), `--dv-height-md` 36 px (a dialog's buttons), `--dv-height-cover` 34 px |
+| Radii | `--dv-radius-sm` 7 px, `--dv-radius-md` 9 px, `--dv-radius-lg` 12 px; round on covers |
 
 ## Components
 
@@ -173,7 +174,7 @@ Everything laid over an album cover, a poster or a book cover.
 - [ ] No `react-bootstrap` `Button` or `Dropdown`, no `btn` class, no `<select>`.
 - [ ] At most one `primary` button per window; nothing destructive in gold.
 - [ ] Every `IconButton` has a `label` that says what it does.
-- [ ] Your stylesheet only places the shared components.
+- [ ] Your stylesheet only places the shared components, and its colours are tokens.
 - [ ] Checked in the browser, light on an image and on the page, with the
       keyboard too.
 
@@ -190,4 +191,3 @@ to make. Counts are of October 2026.
 | Text fields | 123 `Form.Control`, 28 raw `<input>`, each with its own look | `TextField` |
 | Notices | 19 react-bootstrap `Alert`, the page's own alert (`onShowAlert`) | `Notice`, a toast |
 | Loading | `spinner-border`, `Spinner` and spinners of their own in 33 files | `Spinner` |
-| Tokens | the colours above, defined again in each shared stylesheet | one `tokens.css` |

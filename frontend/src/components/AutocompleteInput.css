@@ -38,7 +38,7 @@
   width: 16px;
   height: 16px;
   border: 2px solid rgba(251, 191, 36, 0.2);
-  border-top-color: #fbbf24;
+  border-top-color: var(--dv-gold);
   border-radius: 50%;
   animation: posterSpin 0.8s linear infinite;
 }

@@ -229,7 +229,7 @@
   width: 50px;
   height: 50px;
   border: 4px solid rgba(251, 191, 36, 0.2);
-  border-top-color: #fbbf24;
+  border-top-color: var(--dv-gold);
   border-radius: 50%;
   animation: posterSpin 0.8s linear infinite;
 }
@@ -573,7 +573,7 @@
 .clickable-name {
   cursor: pointer;
   transition: all 0.2s ease;
-  color: #fbbf24;
+  color: var(--dv-gold);
 }
 
 .clickable-name:hover {
@@ -968,7 +968,7 @@
 
 .form-control:focus, .form-select:focus {
   background-color: #2d2d2d !important;
-  border-color: #fbbf24 !important;
+  border-color: var(--dv-gold) !important;
   color: #f8f9fa !important;
   box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.25) !important;
 }
@@ -994,7 +994,7 @@
 .input-group select:focus,
 .input-group textarea:focus {
   background-color: #2d2d2d !important;
-  border-color: #fbbf24 !important;
+  border-color: var(--dv-gold) !important;
   color: #f8f9fa !important;
   box-shadow: 0 0 0 0.2rem rgba(251, 191, 36, 0.25) !important;
 }
@@ -1259,7 +1259,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #9ca3af;
+  color: var(--dv-text-muted);
 }
 
 .boxset-member-info {
@@ -1361,7 +1361,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #9ca3af;
+  color: var(--dv-text-muted);
 }
 
 .collection-member-info {
@@ -1741,7 +1741,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #9ca3af;
+  color: var(--dv-text-muted);
 }
 
 .collection-member-info {
@@ -1896,7 +1896,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #9ca3af;
+  color: var(--dv-text-muted);
 }
 
 .collection-poster-overlay {
@@ -2030,7 +2030,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #9ca3af;
+  color: var(--dv-text-muted);
 }
 
 /* Responsive adjustments */
@@ -2076,7 +2076,7 @@
   width: 1.2em;
   height: 1.2em;
   margin-right: 8px;
-  color: #fbbf24;
+  color: var(--dv-gold);
   stroke-width: 1.5;
   animation: starPulse 2s ease-in-out infinite;
   vertical-align: middle;

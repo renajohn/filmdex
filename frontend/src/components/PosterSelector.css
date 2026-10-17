@@ -122,7 +122,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  color: #fbbf24;
+  color: var(--dv-gold);
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
   pointer-events: none;
   animation: checkmarkPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -159,7 +159,7 @@
 
 .poster-language {
   background: rgba(251, 191, 36, 0.2);
-  color: #fbbf24;
+  color: var(--dv-gold);
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 600;
@@ -247,7 +247,7 @@
 }
 
 .upload-icon {
-  color: #fbbf24;
+  color: var(--dv-gold);
   opacity: 0.8;
   transition: all 0.3s ease;
 }
@@ -258,7 +258,7 @@
 }
 
 .upload-text {
-  color: #fbbf24;
+  color: var(--dv-gold);
   font-weight: 600;
   font-size: 0.9rem;
 }
@@ -273,7 +273,7 @@
   width: 48px;
   height: 48px;
   border: 3px solid rgba(251, 191, 36, 0.2);
-  border-top-color: #fbbf24;
+  border-top-color: var(--dv-gold);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
