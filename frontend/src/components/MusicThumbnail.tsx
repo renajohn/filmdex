@@ -101,7 +101,8 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onListenNe
         <AlbumPlayButton albumId={cd.id} title={cd.title} offerPlay={!isAppleMobile()} onUnripped={onClick} className="thumbnail-play" />
         <ShelfCode kind="album" id={cd.id} />
         {digital !== undefined && <DigitalMarks digital={digital} titleStatus={cd.titleStatus as string | undefined} />}
-        {buy ? (
+        {/* In Buy, at the top right: an album with no CD has no shelf code there. Listen Next keeps its place below. */}
+        {buy && (
           <div className="thumbnail-buy-actions">
             {buy.onDismiss && (
               <button type="button" className="thumbnail-buy-action" title="Not interested" aria-label={`Not interested in ${cd.title}`}
@@ -116,15 +117,14 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onListenNe
               {buy.wished ? <BsHeartFill aria-hidden="true" /> : <BsHeart aria-hidden="true" />}
             </button>
           </div>
-        ) : (
-          <div className="thumbnail-listen-next-toggle">
-            <ListenNextToggle
-              isActive={isInListenNext}
-              onClick={handleListenNextToggle}
-              disabled={togglingListenNext}
-            />
-          </div>
         )}
+        <div className="thumbnail-listen-next-toggle">
+          <ListenNextToggle
+            isActive={isInListenNext}
+            onClick={handleListenNextToggle}
+            disabled={togglingListenNext}
+          />
+        </div>
       </div>
 
       <div className="music-thumbnail-info">

@@ -868,6 +868,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
         key={cd.id}
         cd={cd}
         onClick={() => handleCdClick(cd.id)}
+        onListenNextChange={refreshListenNextAlbums}
+        isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
         dataItemId={cd.id}
         digital={digitalOf(cd)}
         buy={{
