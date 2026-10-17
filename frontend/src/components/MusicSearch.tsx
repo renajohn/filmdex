@@ -21,7 +21,7 @@ import DigitalStrip, { type DigitalFilter } from './DigitalStrip';
 import DigitalMarks from './shared/DigitalMarks';
 import BoughtCdDialog from './BoughtCdDialog';
 import { Form } from 'react-bootstrap';
-import { BsCartFill, BsChevronRight, BsCloud, BsHeartFill } from 'react-icons/bs';
+import { BsCartFill, BsChevronRight, BsHeartFill } from 'react-icons/bs';
 import {
   DIGITAL_ON_KEY, buyOrder, buyReason, isDismissed, isLossy, isSuggested, isToBuy, useDigitalLibrary, type AlbumDigital,
 } from '../utils/digitalLibrary';
@@ -1100,9 +1100,9 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           getTitle={(album) => album.title || ''}
           getSubtitle={(album) => Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}
           onSmartFill={() => handleSmartFill('cds')}
-          smartFillLabel={{ label: 'From CDs', hint: 'your shelves', icon: <BsDisc /> }}
+          smartFillLabel={{ label: 'From CDs', hint: 'your shelves' }}
           smartFillAlso={digitalOn ? {
-            label: 'From anything', hint: 'CDs + digital', icon: <><BsDisc /><BsCloud /></>, onClick: () => handleSmartFill('any'),
+            label: 'From anything', hint: 'CDs + digital', onClick: () => handleSmartFill('any'),
           } : undefined}
           smartFillLoading={smartFillLoading}
           // With Digital on, what sets each album apart: a disc struck through is left out of the Navidrome playlist.
