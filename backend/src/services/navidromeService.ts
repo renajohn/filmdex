@@ -159,6 +159,40 @@ const navidromeService = {
   songUrl: (albumId: string, title: string): string =>
     `${publicUrl()}/app/#/song?filter=${encodeURIComponent(JSON.stringify({ album_id: albumId, title }))}`,
 
+  /**
+   * A song's file as it lies on disk, for DexVault's own player: the bytes
+   * are handed on as they come, and a Range asked for (a seek) is passed to
+   * Navidrome, so jumping into a long movement does not fetch it all.
+   */
+  stream: async (id: string, range?: string): Promise<{ status: number; headers: Record<string, string>; data: NodeJS.ReadableStream }> => {
+    const { url } = config();
+    const response = await axios.get(`${url}/rest/stream`, {
+      params: { id, format: 'raw', ...authParams() },
+      headers: range ? { Range: range } : {},
+      responseType: 'stream',
+      timeout: TIMEOUT_MS,
+      validateStatus: () => true,
+    }).catch(error => {
+      // Never surface the raw axios error: its config carries the token.
+      throw new Error(`Navidrome stream failed${axios.isAxiosError(error) && error.code ? ` (${error.code})` : ''}`);
+    });
+    const headers: Record<string, string> = {};
+    for (const name of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
+      const value = response.headers[name];
+      if (value != null) headers[name] = String(value);
+    }
+    return { status: response.status, headers, data: response.data };
+  },
+
+  /**
+   * Tells Navidrome what DexVault's player plays: `false` as a song starts,
+   * so it shows as now playing; `true` once it has been listened to, so its
+   * play counts as the others do.
+   */
+  scrobble: async (id: string, submission: boolean): Promise<void> => {
+    await request('scrobble', { id, submission: String(submission), time: Date.now() });
+  },
+
   /** Gives an album, a song or an artist 1 to 5 stars, or takes them away with 0. */
   setRating: async (id: string, rating: number): Promise<void> => {
     await request('setRating', { id, rating });

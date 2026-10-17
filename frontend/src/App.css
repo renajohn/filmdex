@@ -601,6 +601,33 @@
   }
 }
 
+/*
+ * The player's bar takes the foot of the screen while it is out: the page
+ * scrolls to just above it, and a record's card, a panel or a full screen,
+ * ends above it, its actions in sight.
+ */
+:root {
+  --player-h: 0px;
+}
+
+body {
+  padding-bottom: var(--player-h);
+  transition: padding-bottom 0.25s ease-out;
+}
+
+.modal.side-panel-modal {
+  height: calc(100% - var(--player-h));
+  transition: height 0.25s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body,
+  .modal.side-panel-modal,
+  .modal.side-panel-modal .modal-dialog {
+    transition: none;
+  }
+}
+
 /* On a desktop, a record's details slide in as a panel along the right edge,
    the full height of the screen, with the list still in sight beside it. Only
    the body scrolls, so the title and the actions stay at hand. */
@@ -609,7 +636,7 @@
     position: fixed;
     top: 0;
     right: 0;
-    bottom: 0;
+    bottom: var(--player-h);
     width: min(1080px, 65vw);
     max-width: none;
     min-height: 0;
@@ -632,7 +659,7 @@
 
   .modal.side-panel-modal.fade .modal-dialog {
     transform: translateX(100%);
-    transition: transform 0.25s ease-out;
+    transition: transform 0.25s ease-out, bottom 0.25s ease-out;
   }
 
   .modal.side-panel-modal.show .modal-dialog {

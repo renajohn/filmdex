@@ -1,0 +1,186 @@
+/*
+ * The player at the foot of the screen. It slides up from the edge, and the
+ * room it takes is given up by the pages and the album's card (--player-h),
+ * so nothing is ever under it.
+ */
+.player-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10200;
+  height: 54px;
+  background: #181818;
+  border-top: 1px solid #333;
+  color: #d6dbe1;
+  transform: translateY(100%);
+  visibility: hidden;
+  transition: transform 0.25s ease-out, visibility 0s linear 0.25s;
+}
+
+.player-bar-out {
+  transform: none;
+  visibility: visible;
+  transition: transform 0.25s ease-out, visibility 0s;
+}
+
+/* The progress, a gold edge along the top: click to go there, ← → to step 10 s. */
+.player-bar-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -1px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: height 0.1s ease, top 0.1s ease;
+}
+
+.player-bar-progress:hover,
+.player-bar-progress:focus-visible {
+  top: -3px;
+  height: 7px;
+  outline: none;
+}
+
+.player-bar-progress span {
+  display: block;
+  height: 100%;
+  background: #fbbf24;
+}
+
+.player-bar-inner {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 14px 0;
+}
+
+.player-bar-album {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.player-bar-album img,
+.player-bar-nocover {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 5px;
+  object-fit: cover;
+  background: #333;
+}
+
+.player-bar-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.player-bar-track,
+.player-bar-from {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-bar-track {
+  font-size: 0.88rem;
+}
+
+.player-bar-from {
+  font-size: 0.75rem;
+  color: #9aa4b2;
+}
+
+.player-bar-album:hover .player-bar-track,
+.player-bar-album:focus-visible .player-bar-track {
+  color: #fbbf24;
+}
+
+.player-bar-album:focus-visible {
+  outline: none;
+}
+
+.player-bar-time {
+  font-size: 0.75rem;
+  color: #9aa4b2;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Round buttons: lighter under the pointer, sinking when pressed. */
+.player-bar-button {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: #d6dbe1;
+  font-size: 1.05rem;
+  transition: background-color 0.12s ease, transform 0.08s ease;
+}
+
+.player-bar-button:hover,
+.player-bar-button:focus-visible {
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+}
+
+.player-bar-button:active {
+  transform: scale(0.9);
+}
+
+.player-bar-button:disabled {
+  opacity: 0.35;
+  background: none;
+}
+
+.player-bar-play {
+  width: 38px;
+  height: 38px;
+  background: #d6dbe1;
+  color: #1a1a1a;
+  font-size: 1.35rem;
+}
+
+.player-bar-play:hover,
+.player-bar-play:focus-visible {
+  background: #fff;
+}
+
+.player-bar-stop {
+  color: #9aa4b2;
+  font-size: 1.3rem;
+}
+
+/* On a phone: the cover, the track, ⏯, ⏭ and ✕. */
+@media (max-width: 767px) {
+  .player-bar-time,
+  .player-bar-previous {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-bar,
+  .player-bar-out {
+    transition: none;
+  }
+}

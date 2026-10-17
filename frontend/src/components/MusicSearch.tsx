@@ -15,6 +15,8 @@ import { findById, useDetailSteps } from '../utils/detailSteps';
 import { albumImages } from '../utils/detailImages';
 import { useAlbumOrder } from '../utils/shelfLocations';
 import { artistLetter, artistSortKey, artistSortName } from '../utils/artistOrder';
+import { isAppleMobile } from '../utils/navidrome';
+import AlbumPlayButton from './shared/AlbumPlayButton';
 
 interface MusicSearchProps {
   cds: any;
@@ -58,10 +60,6 @@ interface ShuffleResult {
   [key: string]: any;
 }
 
-interface DeleteModalState {
-  show: boolean;
-  albumId: number | null;
-}
 
 const MusicSearch = forwardRef<any, MusicSearchProps>(({
   cds,
@@ -112,7 +110,6 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const [selectedCdDetails, setSelectedCdDetails] = useState<any>(null);
   const [, setLoadingDetails] = useState(false);
   const [cdDetailsBeforeEdit, setCdDetailsBeforeEdit] = useState<any>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState<DeleteModalState>({ show: false, albumId: null });
   const previousSearchTextRef = useRef('');
   const navigate = useNavigate();
   const location = useLocation();
@@ -783,8 +780,6 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
                 key={cd.id}
                 cd={cd}
                 onClick={() => handleCdClick(cd.id)}
-                onEdit={() => handleEditCd(cd)}
-                onDelete={() => setShowDeleteModal({ show: true, albumId: cd.id })}
                 onListenNextChange={refreshListenNextAlbums}
                 isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
                 dataItemId={cd.id}
@@ -830,8 +825,6 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
                         key={cd.id}
                         cd={cd}
                         onClick={() => handleCdClick(cd.id)}
-                        onEdit={() => handleEditCd(cd)}
-                        onDelete={() => setShowDeleteModal({ show: true, albumId: cd.id })}
                         onListenNextChange={refreshListenNextAlbums}
                         isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
                         dataFirstLetter={letter}
@@ -910,6 +903,11 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           smartFillLoading={smartFillLoading}
           onShuffle={(item) => handleShuffleAlbum(item as Album)}
           shufflingItemId={shufflingAlbumId}
+          renderPlay={(album) => (
+            // ▶ plays the album in DexVault; an album with no rip opens its card instead. An iPhone plays in Amperfy.
+            <AlbumPlayButton albumId={album.id} title={album.title || ''} offerPlay={!isAppleMobile()}
+              onUnripped={() => handleCdClick(album.id, 'listenNext')} className="next-banner__play" />
+          )}
         />
       )}
 
@@ -1059,53 +1057,6 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal.show && (
-        <div className="modal show" style={{ display: 'block', zIndex: 10210 }} tabIndex={-1}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Delete Album</h5>
-              </div>
-              <div className="modal-body">
-                <p>Are you sure you want to remove this album from your collection?</p>
-              </div>
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowDeleteModal({ show: false, albumId: null })}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  onClick={async () => {
-                    const id = showDeleteModal.albumId;
-                    try {
-                      await onDeleteCd(id!);
-                      // If detail for this album is open, close it
-                      if (selectedCdDetails && selectedCdDetails.id === id) {
-                        setSelectedCdDetails(null);
-                      }
-                      await loadCds();
-                    } finally {
-                      setShowDeleteModal({ show: false, albumId: null });
-                    }
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {(showDeleteModal.show) && (
-        <div className="modal-backdrop show" style={{ zIndex: 10200 }}></div>
-      )}
     </div>
   );
 });

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Dropdown } from 'react-bootstrap';
-import { BsDisc, BsThreeDots, BsPlayFill, BsPencil, BsTrash } from 'react-icons/bs';
+import { BsDisc } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import ListenNextToggle from './ListenNextToggle';
-import { isAppleMobile, openListen } from '../utils/navidrome';
+import { isAppleMobile } from '../utils/navidrome';
 import './MusicThumbnail.css';
 import ShelfCode from './shared/ShelfCode';
+import AlbumPlayButton from './shared/AlbumPlayButton';
 
 interface CdData {
   id: number | string;
@@ -22,32 +22,17 @@ interface CdData {
 interface MusicThumbnailProps {
   cd: CdData;
   onClick: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  disableMenu?: boolean;
   onListenNextChange?: () => void;
   isInListenNext?: boolean;
   dataItemId?: number | string;
   dataFirstLetter?: string;
 }
 
-const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onEdit, onDelete, disableMenu = false, onListenNextChange, isInListenNext: isInListenNextProp, dataItemId, dataFirstLetter }) => {
-  const [openingApple, setOpeningApple] = useState<boolean>(false);
+const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onListenNextChange, isInListenNext: isInListenNextProp, dataItemId, dataFirstLetter }) => {
   const [togglingListenNext, setTogglingListenNext] = useState<boolean>(false);
 
   // Use prop if provided, otherwise local state (for backwards compatibility)
   const isInListenNext = isInListenNextProp !== undefined ? isInListenNextProp : false;
-  const handleEditClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onEdit();
-  };
-
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Let parent control confirmation modal
-    onDelete();
-  };
-
   const getArtistDisplay = (): string => {
     if (Array.isArray(cd.artist)) {
       return cd.artist.join(', ');
@@ -105,13 +90,8 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onEdit, on
         >
           <BsDisc size={32} />
         </div>
-        {openingApple && (
-          <div className="thumbnail-opening-overlay">
-            <div className="spinner-border text-light spinner-border-sm" role="status">
-              <span className="visually-hidden">Opening...</span>
-            </div>
-          </div>
-        )}
+        {/* ▶ under the pointer plays the album in DexVault; one with no rip opens its card. An iPhone plays in Amperfy. */}
+        <AlbumPlayButton albumId={cd.id} title={cd.title} offerPlay={!isAppleMobile()} onUnripped={onClick} className="thumbnail-play" />
         <ShelfCode kind="album" id={cd.id} />
         <div className="thumbnail-listen-next-toggle">
           <ListenNextToggle
@@ -132,58 +112,6 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onEdit, on
         {/* Year removed from thumbnail view per Apple Music aesthetic */}
       </div>
 
-      {!disableMenu && (
-        <div className="music-thumbnail-menu" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-          <Dropdown align="end">
-            <Dropdown.Toggle
-              variant="outline-secondary"
-              size="sm"
-              className="music-thumbnail-dropdown-toggle"
-            >
-              <BsThreeDots />
-            </Dropdown.Toggle>
-
-            <Dropdown.Menu>
-              <Dropdown.Item
-                onClick={async () => {
-                  // The tab opens during the click: one opened after the lookup would be blocked as a pop-up.
-                  const tab = isAppleMobile() ? null : window.open('', '_blank');
-                  try {
-                    setOpeningApple(true);
-                    // The rip in Navidrome when there is one, Apple Music otherwise.
-                    const rip = await musicService.getNavidromeTracks(cd.id).catch(() => null);
-                    if (rip?.found && rip.album) {
-                      openListen(rip.album, tab);
-                      return;
-                    }
-                    const cached = cd?.urls?.appleMusic;
-                    const isAppleLink = typeof cached === 'string' && /https?:\/\/(music|itunes)\.apple\.com\//.test(cached);
-                    const url = isAppleLink ? cached as string : (await musicService.getAppleMusicUrl(cd.id) as { url: string }).url;
-                    if (tab) {
-                      tab.location.href = url;
-                    } else {
-                      musicService.openAppleMusic(url);
-                    }
-                  } catch (e) {
-                    tab?.close();
-                    console.error('Failed to open the album:', e);
-                  } finally {
-                    setOpeningApple(false);
-                  }
-                }}
-              >
-                <BsPlayFill className="me-2" /> Listen
-              </Dropdown.Item>
-              <Dropdown.Item onClick={handleEditClick}>
-                <BsPencil className="me-2" /> Edit
-              </Dropdown.Item>
-              <Dropdown.Item onClick={handleDeleteClick} className="text-danger">
-                <BsTrash className="me-2" /> Delete
-              </Dropdown.Item>
-            </Dropdown.Menu>
-          </Dropdown>
-        </div>
-      )}
     </div>
   );
 };

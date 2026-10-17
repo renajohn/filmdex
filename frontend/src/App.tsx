@@ -24,6 +24,7 @@ import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsDisc, BsArrowLeft, BsB
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import { readStored, writeStored } from './utils/safeStorage';
+import PlayerBar from './components/PlayerBar';
 
 interface AutocompleteOption {
   keyword: string;
@@ -1645,6 +1646,7 @@ function AppContent() {
           <Route path="/backup" element={<BackupPage />} />
         </Routes>
       </main>
+      <PlayerBar />
 
       {/* Main Screen Alert */}
       {showAlert && alertMessage && (

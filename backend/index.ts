@@ -21,6 +21,7 @@ import warningsController from './src/controllers/warningsController';
 import albumStoryController from './src/controllers/albumStoryController';
 import albumGuideController from './src/controllers/albumGuideController';
 import lyricsController from './src/controllers/lyricsController';
+import playerController from './src/controllers/playerController';
 import albumGuideService from './src/services/albumGuideService';
 import lyricsService from './src/services/lyricsService';
 import shelvingController from './src/controllers/shelvingController';
@@ -297,6 +298,8 @@ app.put('/api/music/digital/:navidromeId/dismiss', musicController.setDigitalDis
 app.delete('/api/music/digital/:navidromeId/dismiss', musicController.setDigitalDismissed);
 app.get('/api/music/digital/:navidromeId/tracks', musicController.getDigitalTracks);
 app.get('/api/music/navidrome-cover/:navidromeId', musicController.getNavidromeCover);
+app.get('/api/music/navidrome/stream/:id', playerController.stream);
+app.post('/api/music/navidrome/scrobble/:id', playerController.scrobble);
 app.post('/api/music/albums/link-musicbrainz', musicController.linkMusicBrainz);
 app.post('/api/music/albums/refresh-musicbrainz', musicController.refreshAllFromMusicBrainz);
 app.post('/api/music/albums/:id/refresh-musicbrainz', musicController.refreshFromMusicBrainz);

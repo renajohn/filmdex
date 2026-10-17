@@ -27,6 +27,8 @@ interface NextBannerProps {
   smartFillLoading?: boolean;
   onShuffle?: (item: NextBannerItem) => void;
   shufflingItemId?: number | null;
+  /** A play button laid on each image, at its foot on the left. */
+  renderPlay?: (item: NextBannerItem) => React.ReactNode;
 }
 
 const NextBanner: React.FC<NextBannerProps> = ({
@@ -45,7 +47,8 @@ const NextBanner: React.FC<NextBannerProps> = ({
   onSmartFill,
   smartFillLoading = false,
   onShuffle,
-  shufflingItemId = null
+  shufflingItemId = null,
+  renderPlay
 }) => {
   const bannerRef = useRef<HTMLDivElement>(null);
 
@@ -188,6 +191,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
                 )}
 
                 {renderBadges && <div className="next-banner__badges">{renderBadges(item)}</div>}
+                {renderPlay && renderPlay(item)}
                 <ShelfCode kind={type === 'music' ? 'album' : 'movie'} id={item.id} />
 
                 {/* Movie-style hover overlay */}

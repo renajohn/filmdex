@@ -1,0 +1,73 @@
+/*
+ * The round play button on an album's cover. The album playing always wears
+ * it, its bars turning to ⏸ or ▶ under the pointer; another album shows ▶
+ * only when its card is hovered, where it is offered.
+ */
+.album-play-button {
+  position: absolute;
+  z-index: 11;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 1.05rem;
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.12s ease, transform 0.08s ease;
+}
+
+.album-play-button-here {
+  color: #fbbf24;
+  opacity: 1;
+}
+
+/* Shown while its card is under the pointer, or reached from the keyboard. */
+.next-banner__card:hover .album-play-button,
+.music-thumbnail:hover .album-play-button,
+.album-play-button:focus-visible,
+.album-play-button-loading {
+  opacity: 1;
+}
+
+.album-play-button:hover,
+.album-play-button:focus-visible {
+  background: rgba(0, 0, 0, 0.88);
+  outline: none;
+}
+
+.album-play-button:active {
+  transform: scale(0.9);
+}
+
+.album-play-button-action {
+  display: inline-flex;
+  line-height: 1;
+}
+
+.album-play-button-here .album-play-button-action {
+  display: none;
+}
+
+.album-play-button-here:hover .album-play-button-bars,
+.album-play-button-here:focus-visible .album-play-button-bars {
+  display: none;
+}
+
+.album-play-button-here:hover .album-play-button-action,
+.album-play-button-here:focus-visible .album-play-button-action {
+  display: inline-flex;
+}
+
+/* On a touch screen nothing is hovered: ▶ stays in sight. */
+@media (hover: none) {
+  .album-play-button {
+    opacity: 1;
+  }
+}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Button } from 'react-bootstrap';
-import { BsPencil, BsTrash, BsDisc, BsApple, BsTags, BsPlayFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight, BsStar, BsStarFill, BsArrowClockwise } from 'react-icons/bs';
+import { Modal, Button, ButtonGroup, Dropdown } from 'react-bootstrap';
+import { BsPencil, BsTrash, BsDisc, BsApple, BsTags, BsPlayFill, BsPauseFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight, BsStar, BsStarFill, BsArrowClockwise } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
 import AlbumStory from './AlbumStory';
@@ -10,12 +10,15 @@ import { discCredits, workGroups, type TrackPerformer } from '../utils/trackCred
 import { canUsePicard, openInPicard } from '../utils/picard';
 import { isAppleMobile, openListen, trackListenUrl } from '../utils/navidrome';
 import { ripFileFor } from '../utils/trackDetail';
+import { player, usePlayer } from '../services/player';
+import { playerAlbumOf, playerTracksOf } from '../utils/playAlbum';
 import { playingTime, ripSummary, urlLabel } from '../utils/albumHead';
 import TrackDetails from './TrackDetails';
 import DetailSteps, { useScrollKeys, useStepKeys } from './shared/DetailSteps';
 import type { RipTracks } from '../services/musicService';
 import './MusicDetailCard.css';
 import ShelfCode from './shared/ShelfCode';
+import NowPlayingBars from './shared/NowPlayingBars';
 
 /** How often, and how many times, an album's tracks are asked after while their words are looked up. */
 const LYRICS_POLL_MS = 3000;
@@ -419,6 +422,22 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
 
   const ripAlbum = rip?.found ? rip.album : undefined;
 
+  // DexVault's own player, on a computer; an iPhone plays in Amperfy, as before.
+  const playerTracks = playerTracksOf(cd, rip);
+  const ownPlayer = !appleMobile && playerTracks.length > 0;
+  const playerAlbum = () => playerAlbumOf(cd);
+  const nowAlbumId = usePlayer(state => state.album?.id ?? null);
+  const nowTrack = usePlayer(state => state.tracks[state.index]);
+  const nowPlaying = usePlayer(state => state.playing);
+  const resume = usePlayer(state => state.resume);
+  const playingHere = nowAlbumId === Number(cd.id);
+  const resumeHere = !playingHere && resume?.album.id === Number(cd.id) ? resume : null;
+  /** Plays the album from a track, the rest of it after. */
+  const playFrom = (disc: number, no: number) => {
+    const index = playerTracks.findIndex(track => track.disc === disc && track.no === no);
+    player.playAlbum(playerAlbum(), playerTracks, Math.max(0, index));
+  };
+
   const albumArtists = Array.isArray(cd.artist) ? cd.artist : [cd.artist];
   const discsCredits = (cd.discs || []).map((disc: CdDisc) => discCredits(disc.tracks, albumArtists));
 
@@ -752,6 +771,8 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                       const words = withWords.has(`${disc.number}-${track.no}`);
                       const file = rip?.found ? ripFileFor(rip.tracks, disc.number, Number(track.no)) : null;
                       const playUrl = file ? trackListenUrl(file, appleMobile) : null;
+                      const ownPlay = ownPlayer && Boolean(file?.id);
+                      const current = playingHere && nowTrack?.disc === disc.number && nowTrack?.no === Number(track.no);
                       // The buttons inside the row act on their own, not as a click on the row.
                       const own = (event: React.SyntheticEvent) => event.stopPropagation();
                       const work = works[trackIndex];
@@ -764,7 +785,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                         </div>
                       )}
                       <div
-                        className={`track-item track-selectable${open ? ' track-selected' : ''}${work ? ' track-in-work' : ''}`}
+                        className={`track-item track-selectable${open ? ' track-selected' : ''}${work ? ' track-in-work' : ''}${current ? ' track-current' : ''}`}
                         role="button"
                         tabIndex={0}
                         aria-expanded={open}
@@ -778,9 +799,18 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                           }
                         }}
                       >
-                        <span className={`track-number${playUrl ? ' track-playable' : ''}`}>
-                          <span className="track-number-text">{track.no}.</span>
-                          {playUrl && (
+                        <span className={`track-number${playUrl || ownPlay ? ' track-playable' : ''}`}>
+                          <span className="track-number-text">
+                            {current ? (
+                              <NowPlayingBars playing={nowPlaying} />
+                            ) : `${track.no}.`}
+                          </span>
+                          {ownPlay ? (
+                            <button type="button" className="track-play" onClick={event => { own(event); if (current) player.toggle(); else playFrom(disc.number, Number(track.no)); }}
+                              onKeyDown={own} aria-label={`${current && nowPlaying ? 'Pause' : 'Play'} ${track.title}`} title={current && nowPlaying ? 'Pause' : 'Play'}>
+                              {current && nowPlaying ? <BsPauseFill aria-hidden="true" /> : <BsPlayFill aria-hidden="true" />}
+                            </button>
+                          ) : playUrl && (
                             <a className="track-play" href={playUrl} aria-label={`Play ${track.title} in ${appleMobile ? 'Amperfy' : 'Navidrome'}`}
                               title={`Play in ${appleMobile ? 'Amperfy' : 'Navidrome'}`} onClick={own} onKeyDown={own}
                               {...(appleMobile ? {} : { target: '_blank', rel: 'noopener noreferrer' })}>
@@ -840,7 +870,31 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
       <Modal.Footer>
         {/* How to listen on the left, always at hand however far the body has scrolled. */}
         <div className="music-detail-listen">
-          {ripAlbum ? (
+          {ownPlayer && ripAlbum ? (
+            // Play, Pause or Resume what DexVault plays; Navidrome a click away.
+            <Dropdown as={ButtonGroup} drop="up" className="music-detail-play">
+              <Button variant="primary" onClick={() => {
+                if (playingHere) player.toggle();
+                else if (resumeHere) player.resume();
+                else player.playAlbum(playerAlbum(), playerTracks, 0);
+              }}>
+                {playingHere && nowPlaying ? <BsPauseFill className="me-1" /> : <BsPlayFill className="me-1" />}
+                {playingHere ? (nowPlaying ? 'Pause' : 'Resume') : resumeHere ? 'Resume' : 'Play'}
+                {resumeHere && (
+                  <span className="music-detail-play-where">
+                    {' · '}{resumeHere.tracks[resumeHere.index]?.title} {Math.floor(resumeHere.position / 60)}:{String(Math.floor(resumeHere.position % 60)).padStart(2, '0')}
+                  </span>
+                )}
+              </Button>
+              <Dropdown.Toggle split variant="primary" aria-label="More ways to listen" />
+              <Dropdown.Menu>
+                {(playingHere || resumeHere) && (
+                  <Dropdown.Item as="button" onClick={() => player.playAlbum(playerAlbum(), playerTracks, 0)}>Play from the start</Dropdown.Item>
+                )}
+                <Dropdown.Item as="button" onClick={() => openListen(ripAlbum)}>Open in Navidrome</Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+          ) : ripAlbum ? (
             <Button variant="primary" onClick={() => openListen(ripAlbum)}>
               <BsPlayFill className="me-1" />
               Listen

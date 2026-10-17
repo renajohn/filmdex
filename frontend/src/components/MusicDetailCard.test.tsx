@@ -83,6 +83,28 @@ describe('MusicDetailCard notes and Wikipedia', () => {
 });
 
 describe('MusicDetailCard tracks', () => {
+  it('plays the album from a track in DexVault, and its foot turns to Pause', async () => {
+    vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    vi.spyOn(window.HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
+    vi.spyOn(window.HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined);
+    // Only what the player tells Navidrome answers; the rest of the page stays offline.
+    vi.stubGlobal('fetch', vi.fn((url: string) => (String(url).includes('/scrobble/') ? Promise.resolve(new Response('{}')) : Promise.reject(new Error('offline')))));
+    (musicService.getNavidromeTracks as any).mockResolvedValue({
+      ...ripped, tracks: ripped.tracks.map(track => ({ ...track, id: `song-${track.track}` })),
+    });
+    render(<MusicDetailCard cd={cd() as any} onClose={() => {}} onEdit={() => {}} onDelete={() => {}} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Play Track 2' }));
+
+    const { player } = await import('../services/player');
+    expect(player.getState()).toMatchObject({ album: { id: 1, title: 'Abbey Road' }, index: 1, playing: true });
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pause Track 2' })).toBeInTheDocument();
+    player.stop();
+    vi.unstubAllGlobals();
+  });
+
+
   it('plays a ripped track from its number, and opens its words from the tag or its credits from the row', async () => {
     (musicService.getNavidromeTracks as any).mockResolvedValue({
       ...ripped, tracks: ripped.tracks.map(track => ({ ...track, url: `https://music.lab/song/${track.track}` })),

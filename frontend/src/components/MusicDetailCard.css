@@ -483,7 +483,8 @@
   display: none;
   align-items: center;
   justify-content: center;
-  padding-left: 2px;
+  padding: 0 0 0 2px;
+  border: 0;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.08);
   color: #d6dbe1;
@@ -535,6 +536,29 @@
 
 .track-selected .track-play:active {
   background: rgba(251, 191, 36, 0.4);
+}
+
+/* The track DexVault plays: bars where its number was, still while paused, and its title in gold. */
+.track-current .track-title {
+  color: #fbbf24;
+}
+
+/* The ▾ beside Play stays an arrow's width, whatever the dropdowns of the grid ask for. */
+.music-detail-play.btn-group .dropdown-toggle.dropdown-toggle-split {
+  min-width: 0;
+  flex: none;
+  padding-left: 9px;
+  padding-right: 9px;
+}
+
+/* Play, Pause or Resume, and where Resume picks up, in a lighter murmur. */
+.music-detail-play-where {
+  font-weight: 400;
+  opacity: 0.75;
+  max-width: 18ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* A track with words says so after its title; open, the tag becomes the choice between credits and lyrics. */

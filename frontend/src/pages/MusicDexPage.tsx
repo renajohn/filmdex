@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import MusicSearch from '../components/MusicSearch';
 import ResizeCoversMigrationModal from '../components/ResizeCoversMigrationModal';
 import FillBackCoversModal from '../components/FillBackCoversModal';
@@ -34,6 +34,7 @@ export interface MusicDexPageRef {
 
 const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCriteria }, ref) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [cds, setCds] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
@@ -52,6 +53,15 @@ const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCri
     if (searchParam && musicSearchRef.current) {
       // Set the search query in the MusicSearch component
       musicSearchRef.current.setSearchQuery(searchParam);
+    }
+    // ?album=12 opens that album's card, as the player's bar asks from any page.
+    const albumParam = urlParams.get('album');
+    if (albumParam) {
+      urlParams.delete('album');
+      navigate({ search: urlParams.toString() }, { replace: true });
+      musicService.getAlbumById(albumParam)
+        .then(details => musicSearchRef.current?.openAlbumDetails(details))
+        .catch(() => undefined);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
