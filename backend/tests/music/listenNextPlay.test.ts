@@ -93,6 +93,7 @@ describe('Listen Next lu', () => {
 
     expect(state.repeat).toBe(false);
     expect(state.playlistId).toBe('pl-1');
+    expect(state.playlistUrl).toMatch(/\/app\/#\/playlist\/pl-1\/show$/);
     expect(state.ripped).toEqual([first, second]);
     expect(state.departures.map(d => [d.id, d.albumId, d.album.id, d.beforeAlbumId])).toEqual([[departure!.id, third, third, null]]);
     await listenNextPlayService.noteScrobble('me', `nd-${first}-2-1`);

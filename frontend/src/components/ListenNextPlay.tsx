@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BsArrowCounterclockwise, BsCheckLg, BsPauseFill, BsPlayFill, BsRepeat } from 'react-icons/bs';
+import { BsArrowCounterclockwise, BsBoxArrowUpRight, BsCheckLg, BsPauseFill, BsPlayFill, BsRepeat } from 'react-icons/bs';
 import musicService, { type AlbumLength, type ListenNextDeparture, type ListenNextPlayState } from '../services/musicService';
 import { LISTEN_NEXT_LEFT_EVENT, player, usePlayer, type PlayerState } from '../services/player';
 import { listenNextQueue } from '../services/listenNextQueue';
@@ -216,6 +216,13 @@ export const ListenNextControls: React.FC<ControlsProps> = ({ count, play, onRep
         aria-label="Repeat">
         <BsRepeat />
       </button>
+      {/* Navidrome's own player, in a tab of its own: on an iPhone ▶ opens Amperfy already. */}
+      {!appleMobile && play?.playlistUrl && (
+        <a className="listen-next-controls__navidrome" href={play.playlistUrl} target="_blank" rel="noopener noreferrer"
+          title="Play Listen Next in Navidrome, in another tab">
+          Play on Navidrome <BsBoxArrowUpRight aria-hidden="true" />
+        </a>
+      )}
     </span>
   );
 };

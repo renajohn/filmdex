@@ -25,6 +25,8 @@ export interface ListenNextPlayState {
   repeat: boolean;
   /** The playlist of Listen Next in Navidrome, for Amperfy. */
   playlistId: string | null;
+  /** That playlist in Navidrome's web player, for a computer. */
+  playlistUrl: string | null;
   /** Each with the album now after its place in the list, null at the end, for the page to show it there. */
   departures: Array<ListenNextDeparture & { album: AlbumFormatted; beforeAlbumId: number | null }>;
   /** The albums of Listen Next with a copy in Navidrome: those the player can play. */
@@ -134,7 +136,10 @@ const listenNextPlayService = {
     } catch (error) {
       logger.warn(`Finding the Listen Next playlist: ${(error as Error).message}`);
     }
-    return { repeat: await ListenNextPlay.getRepeat(), playlistId, departures, ripped, lengths };
+    return {
+      repeat: await ListenNextPlay.getRepeat(), playlistId, playlistUrl: playlistId ? navidromeService.playlistUrl(playlistId) : null,
+      departures, ripped, lengths,
+    };
   },
 
   setRepeat: async (repeat: boolean): Promise<void> => ListenNextPlay.setRepeat(repeat),

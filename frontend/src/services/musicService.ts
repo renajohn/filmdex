@@ -104,6 +104,8 @@ export interface AlbumLength {
 export interface ListenNextPlayState {
   repeat: boolean;
   playlistId: string | null;
+  /** The playlist in Navidrome's web player. */
+  playlistUrl: string | null;
   departures: ListenNextDeparture[];
   /** The albums of Listen Next the player can play. */
   ripped: number[];

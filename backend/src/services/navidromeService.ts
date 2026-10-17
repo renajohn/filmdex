@@ -171,6 +171,9 @@ const navidromeService = {
   /** The album's page in Navidrome's web player. */
   albumUrl: (albumId: string): string => `${publicUrl()}/app/#/album/${encodeURIComponent(albumId)}/show`,
 
+  /** A playlist in Navidrome's web player. */
+  playlistUrl: (playlistId: string): string => `${publicUrl()}/app/#/playlist/${encodeURIComponent(playlistId)}/show`,
+
   /** A song in Navidrome's web player: its song list filtered down to that title on that album. */
   songUrl: (albumId: string, title: string): string =>
     `${publicUrl()}/app/#/song?filter=${encodeURIComponent(JSON.stringify({ album_id: albumId, title }))}`,
