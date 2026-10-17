@@ -619,13 +619,14 @@
 }
 
 /* The line under the guide: the first listening note and Wikipedia, as two quiet links. */
+/* Quiet buttons: their veil under the pointer keeps clear of the block above. */
 .album-extras {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 10px;
-  margin: 0 0 1rem;
-  padding: 0 4px;
+  align-items: center;
+  gap: 4px;
+  margin: 8px 0 1rem;
+  padding: 0;
 }
 
 .album-extras-sep {

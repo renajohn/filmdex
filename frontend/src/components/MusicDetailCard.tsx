@@ -24,7 +24,7 @@ import DigitalMarks from './shared/DigitalMarks';
 import { BsArrowCounterclockwise, BsCartFill, BsHeart, BsHeartFill, BsSearch } from 'react-icons/bs';
 import type { DigitalTrack } from '../services/musicService';
 import { buyReason, formatLabel, isLossy, isSuggested, isToBuy, ricardoUrl, type AlbumDigital } from '../utils/digitalLibrary';
-import Button from './shared/Button';
+import Button, { LinkButton } from './shared/Button';
 
 /** How often, and how many times, an album's tracks are asked after while their words are looked up. */
 const LYRICS_POLL_MS = 3000;
@@ -805,14 +805,14 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
             </div>
             <div className="album-buy-actions">
               {onWish && (
-                <Button active={cd.titleStatus === 'wish'} size="sm" onClick={onWish} aria-pressed={cd.titleStatus === 'wish'}>
-                  {cd.titleStatus === 'wish' ? <BsHeartFill className="me-1" /> : <BsHeart className="me-1" />}
+                <Button active={cd.titleStatus === 'wish'} size="sm" onClick={onWish}
+                  icon={cd.titleStatus === 'wish' ? <BsHeartFill /> : <BsHeart />}>
                   {cd.titleStatus === 'wish' ? 'Wished' : 'Add to wishlist'}
                 </Button>
               )}
-              <a className="btn btn-sm btn-outline-secondary" href={ricardoUrl(digital.album)} target="_blank" rel="noopener noreferrer" title="Search the CD on Ricardo">
-                <BsSearch className="me-1" />Ricardo
-              </a>
+              <LinkButton size="sm" icon={<BsSearch />} href={ricardoUrl(digital.album)} external title="Search the CD on Ricardo">
+                Ricardo
+              </LinkButton>
               {onDismiss && cd.titleStatus !== 'wish' && (
                 <Button variant="quiet" size="sm" className="album-buy-dismiss" onClick={() => onDismiss(!digital.album!.dismissed)}>
                   {digital.album.dismissed ? 'Interested after all' : 'Not interested'}

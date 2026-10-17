@@ -51,6 +51,29 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
 
 Button.displayName = 'Button';
 
+export interface LinkButtonProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+  href: string;
+  variant?: ButtonVariant;
+  size?: 'sm' | 'md';
+  icon?: React.ReactNode;
+  /** Opens in a tab of its own, as a page elsewhere (Ricardo, Navidrome). */
+  external?: boolean;
+}
+
+/** A link that looks like a Button: it goes somewhere rather than doing something. */
+export const LinkButton: React.FC<LinkButtonProps> = ({
+  variant = 'secondary', size = 'md', icon, external = false, className, children, ...rest
+}) => (
+  <a
+    className={['ui-button', `ui-button--${variant}`, size === 'sm' && 'ui-button--sm', className].filter(Boolean).join(' ')}
+    {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+    {...rest}
+  >
+    {icon && <span className="ui-button__icon" aria-hidden="true">{icon}</span>}
+    <span className="ui-button__label">{children}</span>
+  </a>
+);
+
 export interface IconButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   /** What it does, for the tooltip and screen readers: an icon alone says nothing. */
   label: string;

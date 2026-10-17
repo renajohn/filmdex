@@ -273,3 +273,9 @@
   border-bottom-left-radius: 0;
   margin-left: 0;
 }
+
+/* A LinkButton: a link, but no underline and the button's words. */
+a.ui-button,
+a.ui-button:hover {
+  text-decoration: none;
+}
