@@ -131,7 +131,7 @@ function AppContent() {
   const getAutocompleteOptions = async (text: string): Promise<AutocompleteOption[]> => {
     // Different keywords for MusicDex, BookDex vs DexVault
     const keywords = location.pathname === '/musicdex'
-      ? ['title:', 'artist:', 'genre:', 'track:', 'composer:', 'performer:', 'conductor:', 'instrument:', 'work:', 'label:', 'country:', 'year:', 'stars:', 'stars:>=', 'stars:<=', 'stars:0', 'rated:no', 'rated:yes', 'classical:yes', 'classical:no', 'cd:no', 'cd:yes', 'file:lossless', 'file:lossy', 'ripped:no', 'ripped:yes']
+      ? ['title:', 'artist:', 'genre:', 'track:', 'composer:', 'performer:', 'conductor:', 'instrument:', 'work:', 'label:', 'country:', 'year:', 'stars:', 'stars:>=', 'stars:<=', 'stars:0', 'rated:no', 'rated:yes', 'favourites:yes', 'favourites:no', 'classical:yes', 'classical:no', 'cd:no', 'cd:yes', 'file:lossless', 'file:lossy', 'ripped:no', 'ripped:yes']
       : location.pathname === '/bookdex'
         ? ['title:', 'author:', 'artist:', 'isbn:', 'series:', 'owner:', 'format:', 'language:', 'genre:', 'tag:', 'type:', 'title_status:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=', 'rating:', 'rating:>', 'rating:<', 'rating:>=', 'rating:<=']
         : [
@@ -588,7 +588,7 @@ function AppContent() {
       { title: 'Medium', options: plain('music', [['cd:yes', 'CDs only'], ['cd:no', 'Digital only']]) },
       { title: 'Files', options: plain('music', [['file:lossless', 'Lossless'], ['file:lossy', 'Lossy'], ['ripped:no', 'Not ripped']]) },
       { title: 'Music', options: plain('music', [['classical:yes', 'Classical only'], ['classical:no', 'Everything but classical']]) },
-      { title: 'Your Stars', options: plain('music', [['stars:5', '★★★★★'], ['stars:>=4', '4 stars or more'], ['rated:no', 'Not rated yet']]) },
+      { title: 'Your Stars', options: plain('music', [['stars:5', '★★★★★'], ['stars:>=4', '4 stars or more'], ['rated:no', 'Not rated yet'], ['favourites:yes', 'Favourites']]) },
       { title: 'Decades', options: [...decades, { label: 'Before 1960', type: 'music', value: 'year:<1960' }] },
     ] : location.pathname === '/bookdex' ? [
       { title: 'Book Type', options: plain('type', [['book', 'Book'], ['graphic-novel', 'Graphic Novel'], ['score', 'Score']]) },
@@ -670,6 +670,8 @@ function AppContent() {
             'stars:0': 'Not rated yet',
             'rated:no': 'Not rated yet',
             'rated:yes': 'Rated, any number of stars',
+            'favourites:yes': 'A track of it is a favourite (♥ in Navidrome)',
+            'favourites:no': 'No track of it is a favourite',
             'classical:yes': 'Only classical music, as on the shelves',
             'classical:no': 'Everything but classical music',
             'cd:no': 'Only what you have as files or wish, with Digital on',

@@ -217,6 +217,12 @@ const navidromeService = {
     await request('setRating', { id, rating });
   },
 
+  /** The Navidrome albums of the songs NAVIDROME_USER hearted. */
+  getStarredSongAlbums: async (): Promise<Set<string>> => {
+    const body = await request<{ starred2?: { song?: Array<{ albumId?: string }> } }>('getStarred2');
+    return new Set((body.starred2?.song || []).flatMap(song => (song.albumId ? [song.albumId] : [])));
+  },
+
   /** Hearts a song, or takes the heart away: the favourite Amperfy and Navidrome show. */
   setStarred: async (id: string, starred: boolean): Promise<void> => {
     await request(starred ? 'star' : 'unstar', { id });
