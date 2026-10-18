@@ -49,18 +49,115 @@
   display: block;
   height: 100%;
   background: var(--dv-gold);
+  transition: background-color 0.2s ease;
 }
 
+/* Gold means playing: paused, the progress turns grey, where it stands still in sight. */
+.player-bar-progress--paused span {
+  background: #8a8f98;
+}
+
+/* Three parts: what plays on the left, the transport in the middle of the screen, the tools on the right. */
 .player-bar-inner {
   height: 100%;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
+  gap: 16px;
   padding: 3px 14px 0;
 }
 
+.player-bar-now,
+.player-bar-transport,
+.player-bar-tools {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.player-bar-now {
+  gap: 6px;
+}
+
+.player-bar-transport {
+  gap: 8px;
+}
+
+.player-bar-time--now {
+  text-align: right;
+}
+
+/* What is left to hear; in a track's last seconds, what comes next fades in before it. */
+.player-bar-ahead {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  margin-right: 6px;
+  font-size: 0.75rem;
+  color: #9aa4b2;
+}
+
+.player-bar-left {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.player-bar-next {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: opacity 0.6s ease;
+}
+
+.player-bar-next b {
+  color: #d6dbe1;
+  font-weight: 600;
+}
+
+.player-bar-next:hover b,
+.player-bar-next:focus-visible b {
+  text-decoration: underline;
+}
+
+.player-bar-next:focus-visible {
+  outline: none;
+}
+
+.player-bar-next-dot {
+  flex: none;
+  margin: 0 6px;
+  transition: opacity 0.6s ease;
+}
+
+.player-bar-ahead--off {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.player-bar-tools {
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+/* ✕ apart from the rest: it takes the bar away. */
+.player-bar-rule {
+  width: 1px;
+  height: 20px;
+  margin: 0 6px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .player-bar-album {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -68,7 +165,9 @@
 }
 
 .player-bar-cover,
-.player-bar-meta {
+.player-bar-meta,
+.player-bar-track,
+.player-bar-mixtape {
   padding: 0;
   border: 0;
   background: none;
@@ -118,7 +217,22 @@
 }
 
 .player-bar-track {
+  display: block;
+  max-width: 100%;
+  font: inherit;
   font-size: 0.88rem;
+}
+
+/* A mixtape's name: a link to its card. */
+.player-bar-mixtape {
+  font: inherit;
+}
+
+.player-bar-mixtape:hover,
+.player-bar-mixtape:focus-visible {
+  color: #d6dbe1;
+  text-decoration: underline;
+  outline: none;
 }
 
 .player-bar-from {
@@ -127,15 +241,16 @@
 }
 
 .player-bar-meta:hover .player-bar-track,
-.player-bar-meta:focus-visible .player-bar-track {
+.player-bar-track:focus-visible {
   color: var(--dv-gold);
 }
 
-.player-bar-meta:focus-visible {
+.player-bar-track:focus-visible {
   outline: none;
 }
 
 .player-bar-time {
+  min-width: 34px;
   font-size: 0.75rem;
   color: #9aa4b2;
   font-variant-numeric: tabular-nums;
@@ -233,17 +348,26 @@
   }
 }
 
-/* On a phone: the cover, the track, ♥, ⏯, ⏭ and ✕. */
+/* On a phone: the cover, the track and ♥ (the words are a desktop's); ⏯ ⏭; the tracks and ✕, without the times. */
 @media (max-width: 767px) {
+  .player-bar-inner {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 6px;
+  }
+
   .player-bar-time,
-  .player-bar-previous {
+  .player-bar-ahead,
+  .player-bar-previous,
+  .player-bar-rule {
     display: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .player-bar,
-  .player-bar-out {
+  .player-bar-out,
+  .player-bar-next,
+  .player-bar-next-dot {
     transition: none;
   }
 }

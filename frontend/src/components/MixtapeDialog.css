@@ -43,7 +43,7 @@
 .mixtape-body.modal-body {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
-  max-height: min(620px, calc(100vh - 180px));
+  max-height: min(620px, calc(100vh - 180px - var(--player-h)));
   padding: 0;
 }
 
@@ -161,6 +161,7 @@
 }
 
 .mixtape-thumb {
+  position: relative;
   display: grid;
   flex: none;
   place-items: center;
@@ -175,10 +176,6 @@
   cursor: pointer;
 }
 
-.mixtape-thumb:disabled {
-  cursor: default;
-}
-
 .mixtape-thumb img {
   display: block;
   width: 100%;
@@ -186,15 +183,36 @@
   object-fit: cover;
 }
 
-.mixtape-thumb:not(:disabled):hover,
-.mixtape-thumb:focus-visible {
-  box-shadow: 0 0 0 2px #fff;
+/* ▶ over the cover, under the pointer; ⏸ on the song playing. */
+.mixtape-thumb-play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 18px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
 }
 
-.mixtape-song-play {
+.mixtape-song:hover .mixtape-thumb-play,
+.mixtape-thumb:focus-visible .mixtape-thumb-play {
+  opacity: 1;
+}
+
+.mixtape-thumb--now .mixtape-thumb-play {
+  color: var(--dv-gold);
+}
+
+.mixtape-song-text {
   display: flex;
   flex: 1;
   flex-direction: column;
+  min-width: 0;
+}
+
+.mixtape-song-play {
   min-width: 0;
   padding: 0;
   border: 0;
@@ -203,6 +221,22 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+/* The album's name opens the CD's card over the mixtape. */
+.mixtape-song-album {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.mixtape-song-album:hover,
+.mixtape-song-album:focus-visible {
+  color: var(--dv-text);
+  text-decoration: underline;
 }
 
 .mixtape-song-title,

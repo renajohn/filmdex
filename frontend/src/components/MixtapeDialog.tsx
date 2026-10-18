@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { BsBoxArrowUpRight, BsCassetteFill, BsCheck2, BsGripVertical, BsHeadphones, BsPencil, BsPlayFill, BsThreeDots, BsTrash, BsX } from 'react-icons/bs';
+import { BsBoxArrowUpRight, BsCassetteFill, BsCheck2, BsGripVertical, BsHeadphones, BsPauseFill, BsPencil, BsPlayFill, BsThreeDots, BsTrash, BsX } from 'react-icons/bs';
 import Dialog from './shared/Dialog';
 import Menu from './shared/Menu';
 import Button, { IconButton } from './shared/Button';
@@ -180,7 +180,7 @@ const MixtapeDialog: React.FC<MixtapeDialogProps> = ({ albumId, onClose, onOpenA
   );
 
   return (
-    <Dialog onClose={onClose} size="lg" className="mixtape-dialog" icon={<BsCassetteFill />} title={title} aside={more}>
+    <Dialog onClose={onClose} size="lg" className="mixtape-dialog above-player" backdropClassName="above-player-backdrop" icon={<BsCassetteFill />} title={title} aside={more}>
       {error ? (
         <Dialog.Body><Notice tone="warning">{error}</Notice></Dialog.Body>
       ) : !mixtape ? (
@@ -218,19 +218,30 @@ const MixtapeDialog: React.FC<MixtapeDialogProps> = ({ albumId, onClose, onOpenA
                   onDragOver={event => { if (dragFrom == null) return; event.preventDefault(); setDropAt(at); }}
                   onDrop={event => { event.preventDefault(); drop(at); }}>
                   <span className="mixtape-grip" title="Drag to move" aria-hidden="true"><BsGripVertical /></span>
-                  <button type="button" className="mixtape-thumb" disabled={song.albumId == null}
-                    title={song.albumId != null ? `Open ${song.album}` : song.album} aria-label={`Open ${song.album}`}
-                    onClick={() => song.albumId != null && onOpenAlbum(song.albumId)}>
+                  {/* As in Apple Music: ▶ on the cover plays the mixtape from here; the album's name opens the CD. */}
+                  <button type="button" className={`mixtape-thumb${now ? ' mixtape-thumb--now' : ''}`}
+                    title={now ? (playing ? 'Pause' : 'Play') : 'Play from here'}
+                    aria-label={now ? (playing ? `Pause ${song.title}` : `Play ${song.title}`) : `Play from ${song.title}`}
+                    onClick={() => (now ? player.toggle() : play(at))}>
                     {song.cover ? <img src={musicService.getImageUrl(song.cover) ?? undefined} alt="" /> : <BsCassetteFill aria-hidden="true" />}
+                    <span className="mixtape-thumb-play" aria-hidden="true">{now && playing ? <BsPauseFill /> : <BsPlayFill />}</span>
                   </button>
-                  <button type="button" className="mixtape-song-play" onClick={() => play(at)} aria-current={now ? 'true' : undefined}>
-                    <span className="mixtape-song-title">
-                      {now && <NowPlayingBars playing={playing} />}
-                      {song.title}
-                      {twice && <span className="mixtape-twice"> · twice</span>}
+                  <div className="mixtape-song-text">
+                    <button type="button" className="mixtape-song-play" onClick={() => play(at)} aria-current={now ? 'true' : undefined}>
+                      <span className="mixtape-song-title">
+                        {now && <NowPlayingBars playing={playing} />}
+                        {song.title}
+                        {twice && <span className="mixtape-twice"> · twice</span>}
+                      </span>
+                    </button>
+                    <span className="mixtape-song-from">
+                      {song.artist} · {song.albumId != null ? (
+                        <button type="button" className="mixtape-song-album" title={`Open ${song.album}`} onClick={() => onOpenAlbum(song.albumId!)}>
+                          {song.album}
+                        </button>
+                      ) : song.album}
                     </span>
-                    <span className="mixtape-song-from">{song.artist} · {song.album}</span>
-                  </button>
+                  </div>
                   <span className="mixtape-song-time">{time(song.durationSec)}</span>
                   <IconButton size="sm" className="mixtape-song-remove" label={`Take ${song.title} out`} title="Take out" disabled={busy}
                     onClick={() => change({ removeAt: at }, mixtape.songs.map(one => one.songId), <><b>{song.title}</b> taken out</>)}>
@@ -245,7 +256,7 @@ const MixtapeDialog: React.FC<MixtapeDialogProps> = ({ albumId, onClose, onOpenA
                 onDragOver={event => { event.preventDefault(); setDropAt(mixtape.songs.length); }}
                 onDrop={event => { event.preventDefault(); drop(mixtape.songs.length); }} />
             )}
-            {mixtape.songs.length > 0 && <div className="mixtape-total">{mixtape.songs.length} tracks · {length(mixtape)}</div>}
+            {mixtape.songs.length > 0 && <div className="mixtape-total">{mixtape.songs.length} {mixtape.songs.length === 1 ? 'track' : 'tracks'} · {length(mixtape)}</div>}
           </div>
         </Dialog.Body>
       )}

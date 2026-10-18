@@ -159,12 +159,14 @@ const Tracks: React.FC<{ fromListenNext: boolean }> = ({ fromListenNext }) => {
               )}
               {one.tracks.map((track, at) => {
                 const now = here && at === index;
+                // Already heard, before the one playing in its album: dimmed.
+                const past = here && at < index;
                 return (
                   <React.Fragment key={`${track.songId}-${at}`}>
                     {several && (at === 0 || one.tracks[at - 1].disc !== track.disc) && (
                       <div className="player-tracks-disc">Disc {track.disc}</div>
                     )}
-                    <button type="button" className={`player-tracks-track${now ? ' player-tracks-track--now' : ''}`}
+                    <button type="button" className={`player-tracks-track${now ? ' player-tracks-track--now' : ''}${past ? ' player-tracks-track--past' : ''}`}
                       aria-current={now ? 'true' : undefined} onClick={() => jump(one, at)}>
                       <span className="player-tracks-no">
                         {now ? <NowPlayingBars playing={playing} /> : (

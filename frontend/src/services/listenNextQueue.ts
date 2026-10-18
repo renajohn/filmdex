@@ -251,6 +251,25 @@ export const listenNextQueue = {
     return sessionAlbums(readSession(), ids, currentId);
   },
 
+  /**
+   * The albums still to come in this turn, in order, after the one playing (or
+   * the one a detour goes back to, itself first): what the bar counts the time
+   * left of and announces the next track from. Not Repeat's endless round.
+   * The album playing is given by the player, which knows it first.
+   */
+  upcoming: (playing: number | null = currentId): number[] => {
+    // `playing` as the player has it: the bar asks as an album starts, before Listen Next has noted it.
+    const back = readSession().detour?.back.albumId ?? null;
+    const from = back ?? playing;
+    if (from == null) return [];
+    const ahead: number[] = back != null && back !== playing ? [back] : [];
+    for (const id of albumsAfter(order, from, false)) {
+      if (!repeat && played.has(id)) break;
+      if (id !== playing && !ahead.includes(id)) ahead.push(id);
+    }
+    return ahead;
+  },
+
   /** This play's session, for the dialog to tell an album played to its end from one taken out. */
   session: (): ListenNextSession => readSession(),
 

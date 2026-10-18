@@ -1216,7 +1216,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
       <div className="cds-results">
         <CollectionHeader
           filteredCount={digitalOn || mixtapesOn ? shownCds.length : cdCount.filtered}
-          totalCount={digitalOn ? filterCounts.all : cdCount.total}
+          totalCount={(digitalOn ? filterCounts.all : cdCount.total) + (mixtapesOn && !(digitalOn && digitalFilter === 'buy') ? mixtapes.length : 0)}
           itemLabel="albums"
           sortBy={sortBy}
           sortOptions={sortOptions}

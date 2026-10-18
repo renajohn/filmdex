@@ -108,6 +108,15 @@ describe('listenNextQueue', () => {
     expect(list.ids).toEqual([1, 2, 3]);
   });
 
+  it('tells the albums still to come in the turn, for the bar\'s time left', async () => {
+    await listenNextQueue.start(2);
+    expect(listenNextQueue.upcoming()).toEqual([3, 1]);
+    list.ids = [1, 3];
+    await end('ended');
+    // 2 played: the turn stops before it.
+    expect(listenNextQueue.upcoming()).toEqual([1]);
+  });
+
   it('goes round for ever with Repeat on', async () => {
     listenNextQueue.setRepeat(true);
     list.ids = [1];

@@ -218,6 +218,16 @@
   white-space: nowrap;
 }
 
+/* The tracks before the one playing: dimmed, back to full under the pointer. */
+.player-tracks-track--past {
+  opacity: 0.45;
+}
+
+.player-tracks-track--past:hover,
+.player-tracks-track--past:focus-visible {
+  opacity: 1;
+}
+
 /* A song of a mixtape: its artist, after its title. */
 .player-tracks-by {
   color: var(--dv-text-muted);

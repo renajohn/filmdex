@@ -77,10 +77,14 @@ describe('player', () => {
   });
 
   it('waits for an album’s card to close before bringing the bar out, and keeps it out after', async () => {
+    const card = document.createElement('div');
+    card.className = 'modal show';
+    document.body.append(card);
     document.body.classList.add('modal-open');
     player.playAlbum(album, tracks, 1);
     expect(player.getState().barShown).toBe(false);
 
+    card.remove();
     document.body.classList.remove('modal-open');
     await Promise.resolve();
     expect(player.getState().barShown).toBe(true);
@@ -88,6 +92,18 @@ describe('player', () => {
     document.body.classList.add('modal-open');
     await Promise.resolve();
     expect(player.getState().barShown).toBe(true);
+    document.body.classList.remove('modal-open');
+  });
+
+  it('brings the bar out under a dialog that ends above it, a mixtape’s card', () => {
+    const mixtape = document.createElement('div');
+    mixtape.className = 'modal show above-player';
+    document.body.append(mixtape);
+    document.body.classList.add('modal-open');
+    player.playAlbum(album, tracks, 0);
+    expect(player.getState().barShown).toBe(true);
+    mixtape.remove();
+    document.body.classList.remove('modal-open');
   });
 
   it('stops on ✕, keeps the place for Resume, and plays on from it', () => {

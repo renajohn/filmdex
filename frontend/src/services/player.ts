@@ -286,11 +286,13 @@ const start = (index: number, at = 0) => {
 /**
  * The bar comes out as soon as something plays, unless an album's card is
  * open: its foot would jump under the pointer, so the bar waits for the card
- * to close. Once out, it stays, cards or not.
+ * to close. A dialog that ends above the bar (a mixtape's card, `above-player`)
+ * does not hold it back. Once out, it stays, cards or not.
  */
 const revealBar = () => {
   if (state.barShown) return;
-  const blocked = () => document.body.classList.contains('modal-open');
+  const blocked = () => document.body.classList.contains('modal-open')
+    && Array.from(document.querySelectorAll('.modal.show')).some(modal => !modal.classList.contains('above-player'));
   if (!blocked()) {
     set({ barShown: true });
     return;
