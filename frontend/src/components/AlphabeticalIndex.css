@@ -10,9 +10,10 @@
   flex-direction: column;
   align-items: center;
   padding: 8px 2px;
-  background: rgba(30, 30, 30, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  /* No blur: the covers scroll under it, and a blur there is worked out anew
+     at every frame of the scroll, which made the grid jerk on an iPhone as
+     the index came in. Nearly opaque, it showed little anyway. */
+  background: rgba(30, 30, 30, 0.94);
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 
@@ -23,6 +24,8 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease, transform 0.25s ease;
+  /* Its own layer from the start, so that coming in only moves it */
+  will-change: opacity, transform;
 }
 
 /* Visible state - slides in from right */
@@ -51,7 +54,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: color 0.15s ease, transform 0.15s ease;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
   letter-spacing: 0.02em;
 }
@@ -92,8 +95,6 @@
   width: 100px;
   height: 100px;
   background: rgba(251, 191, 36, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border-radius: 20px;
   display: flex;
   align-items: center;
