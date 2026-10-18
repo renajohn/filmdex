@@ -1,10 +1,12 @@
 import musicService, { type RipTracks } from '../services/musicService';
 import { player, type PlayerAlbum, type PlayOptions, type PlayerTrack } from '../services/player';
 import { ripFileFor } from './trackDetail';
-import { openListen } from './navidrome';
+import { amperfyUrl, openListen } from './navidrome';
+import { isMixtape, mixtapeArtists } from './mixtape';
 
 interface AlbumLike {
   id: number | string;
+  titleStatus?: string;
   title: string;
   artist?: string | string[];
   cover?: string | null;
@@ -43,12 +45,25 @@ export const playerTracksOf = (album: AlbumLike, rip: RipTracks | null | undefin
   }));
 };
 
+/** A mixtape as the player plays it: its songs in its order, each with its own artist and the cover of its CD. */
+const loadMixtape = async (album: AlbumLike): Promise<{ album: PlayerAlbum; tracks: PlayerTrack[] }> => {
+  const mixtape = await musicService.getMixtape(Number(album.id));
+  return {
+    album: { ...playerAlbumOf(album), navidromeId: null, url: mixtape.url, artist: mixtapeArtists(album.artist) },
+    tracks: mixtape.songs.map((song, index) => ({
+      songId: song.songId, title: song.title, disc: 1, no: index + 1, durationSec: song.durationSec,
+      artist: song.artist, albumId: song.albumId, cover: musicService.getImageUrl(song.cover),
+    })),
+  };
+};
+
 /** An album as the player would play it: named, with its tracks that have a file in the rip. */
 export const loadPlayable = async (albumId: number | string): Promise<{ album: PlayerAlbum; tracks: PlayerTrack[] }> => {
   const [album, rip] = await Promise.all([
     musicService.getAlbumById(albumId) as Promise<AlbumLike>,
     musicService.getNavidromeTracks(albumId).catch(() => null),
   ]);
+  if (isMixtape(album)) return loadMixtape(album);
   return { album: playerAlbumOf(album, rip), tracks: playerTracksOf(album, rip) };
 };
 
@@ -70,7 +85,13 @@ export const playAlbumById = async (albumId: number | string, options?: PlayOpti
  */
 export const listenAlbumById = async (albumId: number | string): Promise<boolean> => {
   const rip = await musicService.getNavidromeTracks(albumId).catch(() => null);
-  if (!rip?.found || !rip.album) return false;
+  if (!rip?.found || !rip.album) {
+    // A mixtape: Amperfy plays its playlist.
+    const mixtape = await musicService.getMixtape(Number(albumId)).catch(() => null);
+    if (!mixtape || mixtape.songs.length === 0) return false;
+    window.location.href = amperfyUrl(mixtape.playlistId, 'playlist');
+    return true;
+  }
   openListen(rip.album);
   return true;
 };

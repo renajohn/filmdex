@@ -374,6 +374,7 @@ const initDatabase = async (): Promise<sqlite3.Database> => {
           const NavidromePlay = (await import('./models/navidromePlay')).default;
           const NavidromeListener = (await import('./models/navidromeListener')).default;
           const ListenNextPlay = (await import('./models/listenNextPlay')).default;
+          const Mixtape = (await import('./models/mixtape')).default;
           const TrackPopularity = (await import('./models/trackPopularity')).default;
 
           // Create all tables with their final schema
@@ -399,6 +400,7 @@ const initDatabase = async (): Promise<sqlite3.Database> => {
           await NavidromePlay.createTable();
           await NavidromeListener.createTable();
           await ListenNextPlay.createTable();
+          await Mixtape.createTable();
           await TrackPopularity.createTable();
 
           // Run auto-migrations for schema updates

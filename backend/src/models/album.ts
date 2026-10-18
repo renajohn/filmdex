@@ -78,6 +78,11 @@ const sanitizeUrls = (urls: Record<string, string | null> | undefined): Record<s
   } catch (_) { return {}; }
 };
 
+/** Not a mixtape: what speaks of a disc (stars, files, rips) leaves the mixtapes out. */
+const NOT_MIXTAPE = `COALESCE(title_status, 'owned') != 'playlist'`;
+/** A mixtape one of whose songs has these words in its title: a mixtape is found by what it holds. */
+const MIXTAPE_SONG = `(title_status = 'playlist' AND EXISTS (SELECT 1 FROM tracks WHERE tracks.album_id = albums.id AND tracks.title LIKE ?))`;
+
 const Album = {
   createTable: (): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -122,7 +127,7 @@ const Album = {
           urls TEXT,
           isrc_codes TEXT,
           annotation TEXT,
-          title_status TEXT DEFAULT 'owned' CHECK(title_status IN ('owned', 'wish', 'digital')),
+          title_status TEXT DEFAULT 'owned' CHECK(title_status IN ('owned', 'wish', 'digital', 'playlist')),
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
@@ -677,6 +682,8 @@ const Album = {
           whereClauses.push(`${stars} ${opSql[m[1] || '=']} ?`);
           params.push(parseFloat(m[2]));
         }
+        // A mixtape has no stars of its own: stars:0 is no mixtape.
+        whereClauses.push(NOT_MIXTAPE);
       }
     );
 
@@ -721,6 +728,17 @@ const Album = {
       (m) => {
         hasFilters = true;
         whereClauses.push(m[1].toLowerCase() === 'yes' ? `user_rating > 0` : `(user_rating IS NULL OR user_rating = 0)`);
+        whereClauses.push(NOT_MIXTAPE);
+      }
+    );
+
+    // mixtape:yes, the mixtapes alone; mixtape:no, the albums.
+    cleanedQuery = processPattern(
+      /(?:^|\s)mixtape:(yes|no)\b/gi,
+      cleanedQuery,
+      (m) => {
+        hasFilters = true;
+        whereClauses.push(m[1].toLowerCase() === 'yes' ? `title_status = 'playlist'` : NOT_MIXTAPE);
       }
     );
 
@@ -733,10 +751,10 @@ const Album = {
    * genres, by the roles of their performers when they have none, or by the
    * section the owner set by hand.
    */
-  search: async (query: string, { withNoCd = false }: { withNoCd?: boolean } = {}): Promise<AlbumFormatted[]> => {
+  search: async (query: string, { withNoCd = false, mixtapes = false }: { withNoCd?: boolean; mixtapes?: boolean } = {}): Promise<AlbumFormatted[]> => {
     const classical = query.match(/(^|\s)classical:(yes|no)\b/i);
-    if (!classical) return Album.searchAll(query, withNoCd);
-    const albums = await Album.searchAll(query.replace(classical[0], ' ').replace(/\s+/g, ' ').trim(), withNoCd);
+    if (!classical) return Album.searchAll(query, withNoCd, mixtapes);
+    const albums = await Album.searchAll(query.replace(classical[0], ' ').replace(/\s+/g, ' ').trim(), withNoCd, mixtapes);
     if (albums.length === 0) return albums;
     const want = classical[2].toLowerCase() === 'yes';
     const ids = albums.map(album => album.id);
@@ -763,11 +781,15 @@ const Album = {
     });
   },
 
-  /** The CDs of the collection a query finds; with `withNoCd`, the digital albums and the wishes too. */
-  searchAll: (query: string, withNoCd = false): Promise<AlbumFormatted[]> => {
+  /**
+   * The CDs of the collection a query finds; with `withNoCd`, the digital
+   * albums and the wishes too; with `mixtapes`, the mixtapes alone, found by
+   * their name, their songs' titles and artists.
+   */
+  searchAll: (query: string, withNoCd = false, mixtapes = false): Promise<AlbumFormatted[]> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
-      const statuses = withNoCd ? `('owned', 'digital', 'wish')` : `('owned')`;
+      const statuses = mixtapes ? `('playlist')` : withNoCd ? `('owned', 'digital', 'wish')` : `('owned')`;
 
       // Use enhanced search parser (supports OR, negation, ranges)
       const { params, whereClauses, hasFilters, hasTrackFilter, cleanedQuery } = Album._parseSearchQuery(query);
@@ -776,13 +798,13 @@ const Album = {
       if (!hasFilters && !cleanedQuery.trim()) {
         const sql = `
           SELECT * FROM albums
-          WHERE (title LIKE ? OR artist LIKE ? OR labels LIKE ? OR genres LIKE ?)
+          WHERE (title LIKE ? OR artist LIKE ? OR labels LIKE ? OR genres LIKE ? OR ${MIXTAPE_SONG})
           AND COALESCE(title_status, 'owned') IN ${statuses}
           ORDER BY artist, title
         `;
         const searchTerm = `%${query}%`;
 
-        db.all(sql, [searchTerm, searchTerm, searchTerm, searchTerm], (err: Error | null, rows: AlbumRow[]) => {
+        db.all(sql, [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm], (err: Error | null, rows: AlbumRow[]) => {
           if (err) {
             reject(err);
           } else {
@@ -799,8 +821,9 @@ const Album = {
           // Plain words find a conductor, a soloist or a composer credited on a track too.
           whereClause += ` AND (title LIKE ? OR artist LIKE ? OR labels LIKE ? OR genres LIKE ?
             OR EXISTS (SELECT 1 FROM tracks WHERE tracks.album_id = albums.id
-              AND (tracks.composers LIKE ? OR tracks.performers LIKE ? OR tracks.work LIKE ? OR tracks.artist LIKE ?)))`;
-          params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+              AND (tracks.composers LIKE ? OR tracks.performers LIKE ? OR tracks.work LIKE ? OR tracks.artist LIKE ?))
+            OR ${MIXTAPE_SONG})`;
+          params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
         }
 
         const sql = `
@@ -1123,7 +1146,7 @@ const Album = {
   autocomplete: (field: string, value: string, withNoCd = false): Promise<Record<string, string | number | null>[]> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
-      const shown = withNoCd ? '1=1' : `COALESCE(title_status, 'owned') != 'digital'`;
+      const shown = withNoCd ? NOT_MIXTAPE : `COALESCE(title_status, 'owned') != 'digital' AND ${NOT_MIXTAPE}`;
       const shownTracks = `tracks.album_id IN (SELECT id FROM albums WHERE ${shown})`;
 
       // Validate field to prevent SQL injection (accept singular forms)

@@ -213,6 +213,43 @@ export interface DigitalTrack {
   starred: boolean;
 }
 
+/** A mixtape as MusicDex and the toggles of a CD's tracks know it: its album, its playlist, its songs' ids in order. */
+export interface MixtapeSummary {
+  album: { id: number; title: string; artist: string[]; cover?: string | null; titleStatus: string; [key: string]: unknown };
+  playlistId: string;
+  songIds: string[];
+}
+
+/** A song of a mixtape, with the CD or digital album of DexVault it comes from. */
+export interface MixtapeSong {
+  songId: string;
+  title: string;
+  artist: string;
+  album: string;
+  navidromeAlbumId: string;
+  discNumber: number;
+  track: number;
+  durationSec: number | null;
+  albumId: number | null;
+  cover: string | null;
+}
+
+export interface MixtapeDetails {
+  album: MixtapeSummary['album'];
+  playlistId: string;
+  /** The playlist in Navidrome's web player. */
+  url: string;
+  songs: MixtapeSong[];
+}
+
+/** A change to a mixtape's songs: added at the end without a second copy, every copy removed, one copy removed, moved, or all of them anew. */
+export type MixtapeEdit =
+  | { add: string[] }
+  | { remove: string[] }
+  | { removeAt: number }
+  | { move: { from: number; to: number } }
+  | { songs: string[] };
+
 class MusicService {
   async getBaseUrl(): Promise<string> {
     return '/api';
@@ -336,10 +373,10 @@ class MusicService {
   }
 
   /** The CDs a query finds; with `withNoCd`, as MusicDex with Digital on, the digital albums and wishes too. */
-  async searchAlbums(query: string, { withNoCd = false }: { withNoCd?: boolean } = {}): Promise<unknown> {
+  async searchAlbums(query: string, { withNoCd = false, mixtapes = false }: { withNoCd?: boolean; mixtapes?: boolean } = {}): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();
-      const response = await fetch(`${baseUrl}/music/albums/search?q=${encodeURIComponent(query)}${withNoCd ? '&digital=1' : ''}`);
+      const response = await fetch(`${baseUrl}/music/albums/search?q=${encodeURIComponent(query)}${withNoCd ? '&digital=1' : ''}${mixtapes ? '&mixtapes=1' : ''}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -995,7 +1032,47 @@ class MusicService {
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  /** Keep here: the album that left Listen Next goes back at its place; the list as it now is. */
+  /** The mixtapes, Navidrome's playlists read again when they changed. */
+  async getMixtapes(): Promise<{ configured: boolean; mixtapes: MixtapeSummary[] }> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/mixtapes`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  }
+
+  async getMixtape(albumId: number): Promise<MixtapeDetails> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/mixtapes/${albumId}`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  }
+
+  /** A new mixtape in Navidrome with these songs; its album. */
+  async createMixtape(name: string, songIds: string[]): Promise<MixtapeSummary['album']> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/mixtapes`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, songIds }),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  }
+
+  /** A new name, or a change to the songs; the mixtape as Navidrome now has it. */
+  async updateMixtape(albumId: number, change: MixtapeEdit | { name: string }): Promise<MixtapeDetails> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/mixtapes/${albumId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(change),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  }
+
+  async deleteMixtape(albumId: number): Promise<void> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/mixtapes/${albumId}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
   /** ⏭ on an album's last track: it leaves Listen Next as one played to its end, unless Repeat is on. */
   async markListenNextPlayed(albumId: number): Promise<{ left: ListenNextDeparture | null }> {
     const baseUrl = await this.getBaseUrl();
@@ -1004,6 +1081,7 @@ class MusicService {
     return response.json();
   }
 
+  /** Keep here: the album that left Listen Next goes back at its place; the list as it now is. */
   async keepListenNextDeparture(departureId: number): Promise<{ albums: unknown[] }> {
     const baseUrl = await this.getBaseUrl();
     const response = await fetch(`${baseUrl}/collections/listen-next/departures/${departureId}/keep`, { method: 'POST' });

@@ -160,7 +160,7 @@ const Tracks: React.FC<{ fromListenNext: boolean }> = ({ fromListenNext }) => {
               {one.tracks.map((track, at) => {
                 const now = here && at === index;
                 return (
-                  <React.Fragment key={track.songId}>
+                  <React.Fragment key={`${track.songId}-${at}`}>
                     {several && (at === 0 || one.tracks[at - 1].disc !== track.disc) && (
                       <div className="player-tracks-disc">Disc {track.disc}</div>
                     )}
@@ -174,7 +174,11 @@ const Tracks: React.FC<{ fromListenNext: boolean }> = ({ fromListenNext }) => {
                           </>
                         )}
                       </span>
-                      <span className="player-tracks-title">{track.title}</span>
+                      <span className="player-tracks-title">
+                        {track.title}
+                        {/* A song of a mixtape: whose it is. */}
+                        {track.artist && <span className="player-tracks-by"> · {track.artist}</span>}
+                      </span>
                       <span className="player-tracks-time">{time(track.durationSec)}</span>
                     </button>
                   </React.Fragment>

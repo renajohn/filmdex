@@ -101,6 +101,22 @@ export interface NavidromePlaylist {
   owner: string;
   comment: string | null;
   songCount: number;
+  /** When its songs or name last changed, as Navidrome tells it. */
+  changed: string | null;
+  /** A smart playlist, or another account's: its songs cannot be changed. */
+  readonly: boolean;
+}
+
+/** One song of a playlist, in the playlist's order. */
+export interface NavidromePlaylistEntry {
+  id: string;
+  title: string;
+  artist: string;
+  album: string;
+  albumId: string;
+  discNumber: number;
+  track: number;
+  durationSec: number | null;
 }
 
 /** One file of a rip, as the track panel shows it. */
@@ -298,10 +314,45 @@ const navidromeService = {
 
   /** The playlists NAVIDROME_USER sees: its own and those others made public. */
   getPlaylists: async (): Promise<NavidromePlaylist[]> => {
-    const body = await request<{ playlists?: { playlist?: Array<{ id: string; name: string; owner?: string; comment?: string; songCount?: number }> } }>('getPlaylists');
+    const body = await request<{ playlists?: { playlist?: Array<{ id: string; name: string; owner?: string; comment?: string; songCount?: number; changed?: string; readonly?: boolean }> } }>('getPlaylists');
     return (body.playlists?.playlist || []).map(playlist => ({
       id: playlist.id, name: playlist.name, owner: playlist.owner || '', comment: playlist.comment ?? null, songCount: playlist.songCount || 0,
+      changed: playlist.changed ?? null, readonly: Boolean(playlist.readonly),
     }));
+  },
+
+  /** One playlist with its songs, in their order; null when Navidrome has no such playlist. */
+  getPlaylist: async (playlistId: string): Promise<{ playlist: NavidromePlaylist; entries: NavidromePlaylistEntry[] } | null> => {
+    type RawPlaylist = { id: string; name: string; owner?: string; comment?: string; songCount?: number; changed?: string; readonly?: boolean;
+      entry?: Array<{ id?: string; title?: string; artist?: string; album?: string; albumId?: string; discNumber?: number; track?: number; duration?: number }> };
+    let body: { playlist?: RawPlaylist };
+    try {
+      body = await request<{ playlist?: RawPlaylist }>('getPlaylist', { id: playlistId });
+    } catch (error) {
+      if (/not found/i.test((error as Error).message)) return null;
+      throw error;
+    }
+    const raw = body.playlist;
+    if (!raw) return null;
+    return {
+      playlist: {
+        id: raw.id, name: raw.name, owner: raw.owner || '', comment: raw.comment ?? null, songCount: raw.songCount || 0,
+        changed: raw.changed ?? null, readonly: Boolean(raw.readonly),
+      },
+      entries: (raw.entry || []).filter(entry => entry.id).map(entry => ({
+        id: entry.id!, title: entry.title || '', artist: entry.artist || '', album: entry.album || '', albumId: entry.albumId || '',
+        discNumber: entry.discNumber || 1, track: entry.track || 0, durationSec: entry.duration ?? null,
+      })),
+    };
+  },
+
+  /** Gives a playlist another name. */
+  renamePlaylist: async (playlistId: string, name: string): Promise<void> => {
+    await request('updatePlaylist', { playlistId, name });
+  },
+
+  deletePlaylist: async (playlistId: string): Promise<void> => {
+    await request('deletePlaylist', { id: playlistId });
   },
 
   /**

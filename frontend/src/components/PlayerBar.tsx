@@ -51,7 +51,9 @@ const PlayerBar: React.FC = () => {
   const out = Boolean(shown && album && track);
   // Back where the album was started (the Digital page's tab), else the CD's card, else the album in Navidrome.
   const open = () => {
-    if (album?.from) navigate(album.from);
+    // A song of a mixtape: the CD it comes from.
+    if (track?.albumId != null) navigate(`/musicdex?album=${track.albumId}`);
+    else if (album?.from) navigate(album.from);
     else if (album?.id != null) navigate(`/musicdex?album=${album.id}`);
     else if (album?.url) window.open(album.url, '_blank', 'noopener');
   };
@@ -65,6 +67,8 @@ const PlayerBar: React.FC = () => {
     <div className={`player-bar${out ? ' player-bar-out' : ''}`} role="region" aria-label="Player" aria-hidden={!out}>
       {last.current && (() => {
         const { album, track } = last.current;
+        // A song of a mixtape shows the cover of its CD, and leads there.
+        const cover = track.cover !== undefined ? { src: track.cover, title: `the CD of ${track.title}` } : { src: album.cover, title: album.title };
         return (
         <>
           <div className="player-bar-progress" role="slider" aria-label="Position in the track"
@@ -79,12 +83,12 @@ const PlayerBar: React.FC = () => {
           <div className="player-bar-inner">
             {/* The cover opens the album's card; the track's name, the tracks to jump to. */}
             <div className="player-bar-album">
-              <button type="button" className="player-bar-cover" onClick={open} title={`Open ${album.title}`} aria-label={`Open ${album.title}`}>
-                {album.cover ? <img src={album.cover} alt="" /> : <span className="player-bar-nocover" aria-hidden="true" />}
+              <button type="button" className="player-bar-cover" onClick={open} title={`Open ${cover.title}`} aria-label={`Open ${cover.title}`}>
+                {cover.src ? <img src={cover.src} alt="" /> : <span className="player-bar-nocover" aria-hidden="true" />}
               </button>
               <button type="button" className="player-bar-meta" onClick={() => setTracksOpen(true)} title="Tracks">
                 <span className="player-bar-track">{track.title}</span>
-                <span className="player-bar-from">{error || `${album.title} · ${album.artist}`}</span>
+                <span className="player-bar-from">{error || (track.artist != null ? `${track.artist} · ${album.title}` : `${album.title} · ${album.artist}`)}</span>
               </button>
             </div>
             <span className="player-bar-time">{time(position)} / {time(length)}</span>

@@ -218,8 +218,8 @@ const musicController = {
         return;
       }
 
-      // digital=1: MusicDex with Digital on, the albums with no CD found too.
-      const albums = await favouriteAlbumService.search(q as string, { withNoCd: req.query.digital === '1' });
+      // digital=1: MusicDex with Digital on, the albums with no CD found too; mixtapes=1: the mixtapes alone.
+      const albums = await favouriteAlbumService.search(q as string, { withNoCd: req.query.digital === '1', mixtapes: req.query.mixtapes === '1' });
       res.json(albums);
     } catch (error) {
       console.error('Error searching albums:', error);

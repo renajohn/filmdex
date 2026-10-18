@@ -379,7 +379,8 @@ const ripStatusService = {
   /** The best copy of a CD in Navidrome, null when it has none. */
   navidromeAlbumFor: async (albumId: number): Promise<NavidromeAlbum | null> => {
     const album = await Album.findById(albumId);
-    if (!album) return null;
+    // A mixtape is a playlist, no album of Navidrome.
+    if (!album || album.titleStatus === 'playlist') return null;
     const navidrome = await library();
     return album.titleStatus === 'digital' ? ownAlbum(album, navidrome) : bestCopy(album, navidrome);
   },

@@ -59,6 +59,7 @@ const TrackPopularity = {
     (await all<{ id: number }>(`SELECT a.id FROM albums a
       LEFT JOIN album_popularity p ON p.album_id = a.id
       WHERE EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = a.id)
+        AND COALESCE(a.title_status, 'owned') != 'playlist'
         AND (p.checked_at IS NULL OR p.checked_at < ?)
       ORDER BY p.checked_at IS NOT NULL, p.checked_at, a.id
       LIMIT ?`, [checkedBefore, limit])).map(row => row.id),

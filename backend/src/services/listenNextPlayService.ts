@@ -5,6 +5,7 @@ import ListenNextPlay, { type ListenNextDeparture } from '../models/listenNextPl
 import navidromeService from './navidromeService';
 import ripStatusService from './ripStatusService';
 import listenNextPlaylistService from './listenNextPlaylistService';
+import Mixtape from '../models/mixtape';
 import logger from '../logger';
 import type { AlbumFormatted } from '../types';
 
@@ -88,6 +89,12 @@ const check = async (user: string, songId: string, at: number): Promise<ListenNe
   if (await ListenNextPlay.getRepeat()) return null;
   const collectionId = await listenNextId();
   for (const album of await Collection.getAlbums(collectionId)) {
+    // A mixtape leaves on the scrobble of its own last song.
+    const mixtape = await Mixtape.findByAlbumId(album.id);
+    if (mixtape) {
+      if (mixtape.songs.length > 0 && mixtape.songs[mixtape.songs.length - 1].songId === songId) return leave(collectionId, album, at);
+      continue;
+    }
     const copy = await ripStatusService.navidromeAlbumFor(album.id);
     if (!copy || await lastSongOf(copy.id) !== songId) continue;
     return leave(collectionId, album, at);
@@ -145,7 +152,8 @@ const listenNextPlayService = {
     if (navidromeService.isConfigured()) {
       for (const id of inList) {
         try {
-          if (await ripStatusService.navidromeAlbumFor(id)) ripped.push(id);
+          const mixtape = await Mixtape.findByAlbumId(id);
+          if (mixtape ? mixtape.songs.length > 0 : await ripStatusService.navidromeAlbumFor(id)) ripped.push(id);
         } catch (error) {
           logger.warn(`Is album ${id} ripped: ${(error as Error).message}`);
           break;

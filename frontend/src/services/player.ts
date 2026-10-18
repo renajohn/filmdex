@@ -10,6 +10,13 @@ export interface PlayerTrack {
   durationSec: number | null;
   /** Hearted in Navidrome when the album was started: the bar's ♥ until it knows better. */
   starred?: boolean;
+  /**
+   * A song of a mixtape: its own artist, the CD or digital album of DexVault it
+   * comes from, and that album's cover, which the bar shows while it plays.
+   */
+  artist?: string;
+  albumId?: number | null;
+  cover?: string | null;
 }
 
 /** The album a play belongs to, for the bar, the cards and the Mac's own controls. */
@@ -239,11 +246,13 @@ const updateMediaSession = () => {
   if (typeof navigator === 'undefined' || !('mediaSession' in navigator) || !state.album) return;
   const track = state.tracks[state.index];
   try {
+    // A song of a mixtape: its own artist and its CD's cover.
+    const cover = track?.cover !== undefined ? track.cover : state.album.cover;
     navigator.mediaSession.metadata = new MediaMetadata({
       title: track?.title || '',
-      artist: state.album.artist,
+      artist: track?.artist ?? state.album.artist,
       album: state.album.title,
-      artwork: state.album.cover ? [{ src: new URL(state.album.cover, window.location.href).href }] : [],
+      artwork: cover ? [{ src: new URL(cover, window.location.href).href }] : [],
     });
     navigator.mediaSession.playbackState = state.playing ? 'playing' : 'paused';
   } catch { /* an older browser: the keys still work through the audio element */ }

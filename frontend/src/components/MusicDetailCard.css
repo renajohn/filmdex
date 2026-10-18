@@ -1037,6 +1037,22 @@
   margin: -6px -4px;
 }
 
+/* A track's mixtapes: in sight when a mixtape holds it, as the heart is when it is a favourite. */
+.track-mixtapes-host {
+  display: inline-flex;
+  margin: -6px -4px -6px 12px;
+}
+
+.track-mixtapes:not(.track-mixtapes-on):not(.track-mixtapes-open) {
+  visibility: hidden;
+}
+
+.track-item:hover .track-mixtapes,
+.track-selected .track-mixtapes,
+.track-mixtapes:focus-visible {
+  visibility: visible;
+}
+
 .track-favourite:not(.track-favourite-on) {
   visibility: hidden;
 }

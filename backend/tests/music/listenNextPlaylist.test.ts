@@ -58,8 +58,8 @@ describe('playlist Navidrome de Listen Next', () => {
 
   it('réécrit sa playlist plutôt que d’en faire une autre, et la vide quand Listen Next l’est', async () => {
     jest.spyOn(navidromeService, 'getPlaylists').mockResolvedValue([
-      { id: 'someone', name: PLAYLIST_NAME, owner: 'someone-else', comment: null, songCount: 3 },
-      { id: 'mine', name: PLAYLIST_NAME, owner: process.env.NAVIDROME_USER || '', comment: PLAYLIST_COMMENT, songCount: 9 },
+      { id: 'someone', name: PLAYLIST_NAME, owner: 'someone-else', comment: null, songCount: 3, changed: null, readonly: true },
+      { id: 'mine', name: PLAYLIST_NAME, owner: process.env.NAVIDROME_USER || '', comment: PLAYLIST_COMMENT, songCount: 9, changed: null, readonly: false },
     ]);
     const save = jest.spyOn(navidromeService, 'savePlaylist').mockResolvedValue('mine');
 

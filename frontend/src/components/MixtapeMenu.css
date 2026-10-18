@@ -1,0 +1,15 @@
+/* A mixtape holding some of the songs: a gold dash where the ✓ would be. */
+.mixtape-menu-some {
+  color: var(--dv-gold);
+}
+
+/* The place of the ✓, kept for the names to line up. */
+.mixtape-menu-none {
+  display: inline-block;
+  width: 1em;
+}
+
+.mixtape-menu-with {
+  margin: 0 0 12px;
+  color: var(--dv-text-muted);
+}

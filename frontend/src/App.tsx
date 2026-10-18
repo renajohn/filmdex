@@ -131,7 +131,7 @@ function AppContent() {
   const getAutocompleteOptions = async (text: string): Promise<AutocompleteOption[]> => {
     // Different keywords for MusicDex, BookDex vs DexVault
     const keywords = location.pathname === '/musicdex'
-      ? ['title:', 'artist:', 'genre:', 'track:', 'composer:', 'performer:', 'conductor:', 'instrument:', 'work:', 'label:', 'country:', 'year:', 'stars:', 'stars:>=', 'stars:<=', 'stars:0', 'rated:no', 'rated:yes', 'favourites:yes', 'favourites:no', 'classical:yes', 'classical:no', 'cd:no', 'cd:yes', 'file:lossless', 'file:lossy', 'ripped:no', 'ripped:yes']
+      ? ['title:', 'artist:', 'genre:', 'track:', 'composer:', 'performer:', 'conductor:', 'instrument:', 'work:', 'label:', 'country:', 'year:', 'stars:', 'stars:>=', 'stars:<=', 'stars:0', 'rated:no', 'rated:yes', 'favourites:yes', 'favourites:no', 'classical:yes', 'classical:no', 'cd:no', 'cd:yes', 'mixtape:yes', 'mixtape:no', 'file:lossless', 'file:lossy', 'ripped:no', 'ripped:yes']
       : location.pathname === '/bookdex'
         ? ['title:', 'author:', 'artist:', 'isbn:', 'series:', 'owner:', 'format:', 'language:', 'genre:', 'tag:', 'type:', 'title_status:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=', 'rating:', 'rating:>', 'rating:<', 'rating:>=', 'rating:<=']
         : [
@@ -585,7 +585,7 @@ function AppContent() {
     const of = (type: string, values: string[]) => values.map(value => ({ label: value, type, value }));
     const decades = [2020, 2010, 2000, 1990, 1980, 1970, 1960].map(year => ({ label: `${year}s`, type: 'music', value: `year:${year}-${year + 9}` }));
     const sections = location.pathname === '/musicdex' ? [
-      { title: 'Medium', options: plain('music', [['cd:yes', 'CDs only'], ['cd:no', 'Digital only']]) },
+      { title: 'Medium', options: plain('music', [['cd:yes', 'CDs only'], ['cd:no', 'Digital only'], ['mixtape:yes', 'Mixtapes only'], ['mixtape:no', 'No mixtapes']]) },
       { title: 'Files', options: plain('music', [['file:lossless', 'Lossless'], ['file:lossy', 'Lossy'], ['ripped:no', 'Not ripped']]) },
       { title: 'Music', options: plain('music', [['classical:yes', 'Classical only'], ['classical:no', 'Everything but classical']]) },
       { title: 'Your Stars', options: plain('music', [['stars:5', '★★★★★'], ['stars:>=4', '4 stars or more'], ['rated:no', 'Not rated yet'], ['favourites:yes', 'Favourites']]) },
@@ -676,6 +676,8 @@ function AppContent() {
             'classical:no': 'Everything but classical music',
             'cd:no': 'Only what you have as files or wish, with Digital on',
             'cd:yes': 'Only your CDs',
+            'mixtape:yes': 'Only your mixtapes, your playlists in Navidrome',
+            'mixtape:no': 'The albums, without the mixtapes',
             'file:lossless': 'Its files are lossless (FLAC, or 256 kbps and more)',
             'file:lossy': 'Its files are compressed below 256 kbps: a copy to do again',
             'ripped:no': 'A CD not in Navidrome yet',

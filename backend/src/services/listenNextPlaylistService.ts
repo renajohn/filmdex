@@ -1,6 +1,7 @@
 import navidromeService from './navidromeService';
 import ripStatusService from './ripStatusService';
 import musicCollectionService from './musicCollectionService';
+import Mixtape from '../models/mixtape';
 import logger from '../logger';
 
 /**
@@ -23,12 +24,17 @@ export interface PlaylistReport {
   songs: number;
 }
 
-/** Every song of Listen Next, album after album, disc by disc, track by track. */
+/** Every song of Listen Next, album after album, disc by disc, track by track; a mixtape's in its own order. */
 const songsOfListenNext = async (): Promise<{ songIds: string[]; albums: number; notRipped: number }> => {
   const albums = await musicCollectionService.getListenNextAlbums();
   const songIds: string[] = [];
   let notRipped = 0;
   for (const album of albums) {
+    const mixtape = await Mixtape.findByAlbumId(album.id);
+    if (mixtape) {
+      songIds.push(...mixtape.songs.map(song => song.songId));
+      continue;
+    }
     const copy = await ripStatusService.navidromeAlbumFor(album.id);
     if (!copy) { notRipped++; continue; }
     const files = await navidromeService.getAlbumSongs(copy.id);

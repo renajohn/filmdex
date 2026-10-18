@@ -22,6 +22,9 @@ import { listenNextQueue } from '../services/listenNextQueue';
 import { DigitalChips, DigitalNotices, type DigitalFilter } from './DigitalStrip';
 import DigitalMarks from './shared/DigitalMarks';
 import BoughtCdDialog from './BoughtCdDialog';
+import MixtapeDialog from './MixtapeDialog';
+import { reloadMixtapes, useMixtapes } from '../utils/mixtapeStore';
+import { isMixtape } from '../utils/mixtape';
 import { BsBookmarkFill, BsCartFill, BsChevronRight } from 'react-icons/bs';
 import {
   DIGITAL_ON_KEY, buyOrder, buyReason, isDismissed, isSuggested, isToBuy, useDigitalLibrary, type AlbumDigital,
@@ -43,6 +46,9 @@ interface MusicSearchProps {
   refreshTrigger?: number;
   searchCriteria?: { searchText?: string; [key: string]: any } | null;
 }
+
+/** Whether the mixtapes show among the albums: on unless turned off. */
+const MIXTAPES_ON_KEY = 'dexvault.musicdex.mixtapes';
 
 interface Album {
   id: number;
@@ -144,6 +150,12 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     return asked && FILTERS.includes(asked) ? asked : 'all';
   });
   const [showDismissed, setShowDismissed] = useState(false);
+  // Mixtapes on: the owner's playlists in Navidrome join the grid among the CDs.
+  const [mixtapesOn, setMixtapesOn] = useState<boolean>(() => readStored(MIXTAPES_ON_KEY) !== '0');
+  const { mixtapes } = useMixtapes();
+  // With a search, the mixtapes it finds, by their name or what they hold.
+  const [mixtapesFound, setMixtapesFound] = useState<Album[] | null>(null);
+  const [openMixtape, setOpenMixtape] = useState<number | null>(null);
   // The album whose CD was just bought, its dialog open.
   const [buying, setBuying] = useState<any>(null);
   const digital = useDigitalLibrary(digitalOn);
@@ -447,6 +459,40 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     return () => { current = false; };
   }, [digitalOn, searchText, extraCds]);
 
+  useEffect(() => {
+    setMixtapesFound(null);
+    if (!mixtapesOn || !searchText) return undefined;
+    let current = true;
+    musicService.searchAlbums(searchText, { mixtapes: true })
+      .then(found => { if (current) setMixtapesFound(found as Album[]); })
+      .catch(error => console.warn('Search among the mixtapes failed:', error));
+    return () => { current = false; };
+  }, [mixtapesOn, searchText, mixtapes]);
+
+  const toggleMixtapes = () => {
+    const next = !mixtapesOn;
+    setMixtapesOn(next);
+    writeStored(MIXTAPES_ON_KEY, next ? '1' : '0');
+  };
+
+  // Read again with the albums: a playlist made or changed in Amperfy shows as the page is opened again.
+  useEffect(() => { reloadMixtapes(); }, [refreshTrigger]);
+
+  // mixtape:yes asks for the mixtapes: it turns Mixtapes on.
+  useEffect(() => {
+    if (mixtapesOn || !/(^|\s)mixtape:yes\b/i.test(searchCriteria?.searchText || '')) return;
+    setMixtapesOn(true);
+    writeStored(MIXTAPES_ON_KEY, '1');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchCriteria?.searchText]);
+
+  // A mixtape asked for as an album (from Listen Next, ‹ ›, the player's bar): its own card.
+  useEffect(() => {
+    if (!isMixtape(selectedCdDetails)) return;
+    setOpenMixtape(Number(selectedCdDetails.id));
+    setSelectedCdDetails(null);
+  }, [selectedCdDetails]);
+
   /**
    * The grid with Digital on: the CDs, and the albums with no CD that
    * Navidrome has; when searching, those of them the search finds.
@@ -464,7 +510,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   }), [hybridCds, digitalOf]);
 
   /** What the grid shows: every album, or those of the filter. Buy is shown in its own sections. */
-  const shownCds = useMemo(() => {
+  const cdsShown = useMemo(() => {
     if (!digitalOn) return filteredCds;
     switch (digitalFilter) {
       case 'buy': return hybridCds.filter(cd => !hasCd(cd) && isToBuy(digitalOf(cd).album))
@@ -472,6 +518,13 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
       default: return hybridCds;
     }
   }, [digitalOn, digitalFilter, filteredCds, hybridCds, digitalOf]);
+
+  /** What the grid shows: the albums, and the mixtapes among them, sorted as they are; not in Buy. */
+  const shownCds = useMemo(() => {
+    if (!mixtapesOn || (digitalOn && digitalFilter === 'buy')) return cdsShown;
+    const found = searchText ? (mixtapesFound ?? []) : mixtapes.map(mixtape => mixtape.album as unknown as Album);
+    return found.length === 0 ? cdsShown : sortCds([...cdsShown, ...found], sortBy);
+  }, [mixtapesOn, digitalOn, digitalFilter, cdsShown, searchText, mixtapesFound, mixtapes, sortCds, sortBy]);
 
   const dismissedCds = useMemo(() => (digitalOn && digitalFilter === 'buy'
     ? hybridCds.filter(cd => !hasCd(cd) && isDismissed(digitalOf(cd).album)) : []), [digitalOn, digitalFilter, hybridCds, digitalOf]);
@@ -1162,7 +1215,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
       {/* Results Header with Controls */}
       <div className="cds-results">
         <CollectionHeader
-          filteredCount={digitalOn ? shownCds.length : cdCount.filtered}
+          filteredCount={digitalOn || mixtapesOn ? shownCds.length : cdCount.filtered}
           totalCount={digitalOn ? filterCounts.all : cdCount.total}
           itemLabel="albums"
           sortBy={sortBy}
@@ -1187,6 +1240,14 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
                 <span className="stack-toggle-label">Digital</span>
                 <span className="stack-toggle-switch">
                   <input type="checkbox" checked={digitalOn} onChange={toggleDigital} aria-label="Digital" />
+                  <span className="stack-toggle-slider"></span>
+                </span>
+              </label>
+              <label className="stack-toggle-container"
+                title={mixtapesOn ? 'Hide the mixtapes' : 'Show your mixtapes, your playlists in Navidrome, among the albums'}>
+                <span className="stack-toggle-label">Mixtapes</span>
+                <span className="stack-toggle-switch">
+                  <input type="checkbox" checked={mixtapesOn} onChange={toggleMixtapes} aria-label="Mixtapes" />
                   <span className="stack-toggle-slider"></span>
                 </span>
               </label>
@@ -1279,7 +1340,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
         />
       )}
 
-      {selectedCdDetails && (
+      {selectedCdDetails && !isMixtape(selectedCdDetails) && (
         <MusicDetailCard
           cd={selectedCdDetails}
           onClose={() => setSelectedCdDetails(null)}
@@ -1302,6 +1363,12 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           onDismiss={digitalOn ? (dismissed: boolean) => setDismissed(selectedCdDetails, dismissed) : null}
           onBought={() => setBuying(selectedCdDetails)}
         />
+      )}
+
+      {openMixtape != null && (
+        <MixtapeDialog albumId={openMixtape} onClose={() => setOpenMixtape(null)}
+          onOpenAlbum={albumId => handleCdClick(albumId)}
+          onChange={() => { refreshListenNextAlbums(); reloadMixtapes(); }} />
       )}
 
       {buying && (

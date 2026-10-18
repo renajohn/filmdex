@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Mixtapes</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap">
+<style>
+  :root {
+    --dv-gold: #fbbf24; --dv-gold-ink: #111; --dv-red: #ef4444;
+    --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+    --dv-glass: rgba(255,255,255,.06); --dv-glass-hover: rgba(255,255,255,.11);
+    --dv-edge: rgba(255,255,255,.12); --dv-veil: rgba(255,255,255,.08);
+    --dv-edge-image: inset 0 0 0 1px rgba(255,255,255,.16);
+    --dialog-bg: #2d2d2d; --dialog-edge: #3a3a3a; --dialog-line: #3a3a3a;
+    --menu-bg: rgba(38,38,38,.92);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(135deg,#1a1a1a,#2d2d2d) fixed; color: var(--dv-text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  svg { display: block; }
+  button { font: inherit; }
+
+  /* The prototype's own controls. */
+  .bar { position: sticky; top: 0; z-index: 3000; display: flex; gap: 10px 20px; align-items: center; flex-wrap: wrap; padding: 12px 24px; background: #111; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .seg-ctl { display: inline-flex; border: 1px solid #444; border-radius: 8px; overflow: hidden; flex-wrap: wrap; }
+  .seg-ctl button { background: #222; color: #ddd; border: 0; padding: 6px 12px; cursor: pointer; }
+  .seg-ctl button + button { border-left: 1px solid #444; }
+  .seg-ctl button.on { background: var(--dv-gold); color: #111; }
+  .verdict { color: #9a9a9a; font-size: 12.5px; flex-basis: 100%; max-width: 900px; }
+  .verdict b { color: #ddd; font-weight: 600; }
+
+  /* MusicDex's search bar and its switches. */
+  .search { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 18px 24px 6px; }
+  .field { flex: 1; min-width: 220px; height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--dv-edge); background: var(--dv-glass); color: var(--dv-text-muted); }
+  .field b { color: var(--dv-text); font-weight: 400; }
+  .sw { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #cfcfcf; cursor: pointer; user-select: none; }
+  .sw i { position: relative; width: 34px; height: 20px; border-radius: 10px; background: rgba(255,255,255,.14); transition: background .15s; }
+  .sw i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #ddd; transition: transform .15s; }
+  .sw.on i { background: var(--dv-gold); }
+  .sw.on i::after { transform: translateX(14px); background: #111; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 22px 18px; padding: 16px 24px 60px; }
+  .card { cursor: pointer; min-width: 0; }
+  .cover { position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: #333; box-shadow: 0 6px 18px rgba(0,0,0,.4); transition: transform .15s; }
+  .card:hover .cover { transform: translateY(-2px); }
+  .cover > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .mosaic { width: 100%; height: 100%; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+  .mosaic img { width: 100%; height: 100%; object-fit: cover; display: block; min-width: 0; min-height: 0; }
+  .mosaic { gap: 2px; background: #111; }
+  .mosaic .blank { display: grid; place-items: center; background: #262626; color: #555; }
+  .mosaic .blank svg { width: 38%; height: 38%; }
+  /* The J-card's label: a strip of paper, the name written by hand. */
+  .jlabel { position: absolute; left: 0; right: 0; bottom: 0; height: 30%; display: flex; align-items: center; padding: 0 10%;
+    background: hsl(var(--h) 35% 86%); box-shadow: 0 -2px 6px rgba(0,0,0,.35);
+    background-image: repeating-linear-gradient(transparent 0 calc(33% - 1px), hsl(var(--h) 30% 70% / .6) calc(33% - 1px) 33%); }
+  .jlabel span { font-family: "Permanent Marker", cursive; color: #1d1d1d; font-size: clamp(11px, 9cqw, 30px); line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transform: rotate(-2deg); }
+  .cover, .side .big { container-type: inline-size; }
+  /* A cassette drawn. */
+  .tape { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 30% 20%, hsl(var(--h) 40% 30%), hsl(var(--h) 45% 12%)); }
+  .tape .shell { width: 86%; aspect-ratio: 1.58; border-radius: 6cqw; background: #1b1b1b; box-shadow: inset 0 0 0 1.2cqw #2c2c2c, 0 3cqw 6cqw rgba(0,0,0,.5); padding: 5cqw 6cqw; display: flex; flex-direction: column; gap: 3cqw; }
+  .tape .lab { height: 28%; border-radius: 2cqw; background: hsl(var(--h) 35% 86%); display: flex; align-items: center; padding: 0 5cqw; }
+  .tape .lab span { font-family: "Permanent Marker", cursive; color: #1d1d1d; font-size: clamp(9px, 7.5cqw, 24px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tape .win { position: relative; flex: 1; border-radius: 3cqw; overflow: hidden; display: flex; background: #000; box-shadow: inset 0 0 0 .8cqw #444; }
+  .tape .win img { flex: 1; min-width: 0; height: 100%; object-fit: cover; opacity: .85; }
+  .tape .reel { position: absolute; top: 50%; width: 16cqw; height: 16cqw; margin-top: -8cqw; border-radius: 50%; background: radial-gradient(circle, #ddd 0 18%, #222 19% 34%, rgba(20,20,20,.85) 35%); box-shadow: 0 0 0 .8cqw rgba(255,255,255,.25); }
+  .tape .reel.l { left: 14%; } .tape .reel.r { right: 14%; }
+  .cover .tags { position: absolute; top: 8px; left: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .card h4 { margin: 8px 0 0; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .who { font-size: 12.5px; color: var(--dv-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .tag { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 20px; padding: 0 6px; border-radius: 4px; flex: none;
+    background: rgba(0,0,0,.72); box-shadow: var(--dv-edge-image); color: #f5f5f5; font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; line-height: 1; white-space: nowrap; }
+  .tag svg { width: 11px; height: 11px; }
+  .tag.gold { color: var(--dv-gold); }
+
+  /* Buttons, as shared/button.css. */
+  .ubtn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--dv-edge);
+    background: var(--dv-glass); color: var(--dv-text); font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .ubtn svg { width: 14px; height: 14px; }
+  .ubtn:hover { background: var(--dv-glass-hover); }
+  .ubtn.primary { background: var(--dv-gold); border-color: var(--dv-gold); color: var(--dv-gold-ink); font-weight: 600; }
+  .ubtn.primary:hover { filter: brightness(1.08); }
+  .ubtn.danger { background: var(--dv-red); border-color: var(--dv-red); color: #fff; font-weight: 600; }
+  .ubtn.quiet { border-color: transparent; background: none; color: #bbb; }
+  .ubtn.quiet:hover { color: #fff; background: var(--dv-glass); }
+  .ubtn.active { color: var(--dv-gold); }
+  .ib { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px; background: none; color: #bbb; cursor: pointer; padding: 0; flex: none; }
+  .ib:hover { background: var(--dv-glass-hover); color: #fff; }
+  .ib svg { width: 18px; height: 18px; }
+  .ib.sm { width: 26px; height: 26px; }
+  .ib.sm svg { width: 15px; height: 15px; }
+
+  /* Dialogs. */
+  .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; padding: 140px 16px 24px; }
+  .backdrop.open { display: flex; }
+  .dlg { width: min(860px, 100%); max-height: 100%; display: flex; flex-direction: column; background: var(--dialog-bg); border: 1px solid var(--dialog-edge); border-radius: 14px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  .dlg-head { display: flex; align-items: center; gap: 10px; padding: 14px 14px 14px 20px; border-bottom: 1px solid var(--dialog-line); flex: none; min-height: 62px; }
+  .dlg-head .ic svg { width: 20px; height: 20px; }
+  .dlg-head h2 { flex: 1; min-width: 0; margin: 0; font-size: 1.2rem; font-weight: 600; color: #f0f0f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dlg-head h2.editable { cursor: text; border-radius: 6px; padding: 2px 6px; margin-left: -6px; }
+  .dlg-head h2.editable:hover { background: var(--dv-glass); }
+  .rename { flex: 1; display: flex; align-items: center; gap: 4px; min-width: 0; }
+  .rename input, .tf { flex: 1; min-width: 0; height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--dv-edge); background: rgba(0,0,0,.25); color: var(--dv-text); font: inherit; font-size: 15px; outline: none; }
+  .rename input:focus, .tf:focus { border-color: rgba(251,191,36,.6); }
+  .ib.confirm { color: var(--dv-gold); }
+  .dlg-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 260px 1fr; }
+  .side { padding: 20px; border-right: 1px solid var(--dialog-line); display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .side .big { position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,.45); background: #333; }
+  .side .big > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .side .who { color: var(--dv-text-muted); font-size: 13px; }
+  .side .facts { color: var(--dv-text-faint); font-size: 12px; }
+  .side .acts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .list { overflow-y: auto; min-width: 0; padding: 8px 12px 16px; max-height: 560px; }
+
+  /* A mixtape's tracks. */
+  .mrow { position: relative; display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; font-size: 13.5px; }
+  .mrow:hover { background: var(--dv-veil); }
+  .mrow .grip { width: 14px; flex: none; color: #666; cursor: grab; opacity: 0; display: grid; place-items: center; }
+  .mrow:hover .grip { opacity: 1; }
+  .mrow .grip svg { width: 14px; height: 14px; }
+  .mrow .no { width: 20px; flex: none; text-align: right; color: #777; font-variant-numeric: tabular-nums; }
+  .mrow .thumb { width: 34px; height: 34px; flex: none; border-radius: 4px; overflow: hidden; cursor: pointer; border: 0; padding: 0; background: none; }
+  .mrow .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .mrow .thumb:hover { box-shadow: 0 0 0 2px #fff; }
+  .mrow .ti { flex: 1; min-width: 0; cursor: pointer; }
+  .mrow .ti b { display: block; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mrow .ti span { display: block; font-size: 12px; color: var(--dv-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mrow .du { color: #888; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+  .mrow .rm { opacity: 0; }
+  .mrow:hover .rm { opacity: 1; }
+  .mrow.now .ti b { color: var(--dv-gold); }
+  .mrow.dragging { opacity: .4; }
+  .mrow.drop-before::before { content: ""; position: absolute; left: 8px; right: 8px; top: -1px; height: 2px; background: var(--dv-gold); border-radius: 1px; }
+  .mrow.twice .ti b::after { content: " · twice"; color: #888; font-size: 11.5px; }
+  .total { padding: 10px 8px 0; font-size: 12.5px; color: var(--dv-text-faint); }
+
+  /* An album's tracks. */
+  .disc { padding: 10px 8px 2px 8px; font-size: 11px; letter-spacing: .6px; text-transform: uppercase; color: #8a8a8a; font-weight: 600; }
+  .trow { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; font-size: 13.5px; }
+  .trow:hover { background: var(--dv-veil); }
+  .trow .no { width: 22px; flex: none; text-align: right; color: #777; font-variant-numeric: tabular-nums; }
+  .trow .ti { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .trow .du { color: #888; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+  .trow .add { opacity: 0; }
+  .trow:hover .add, .trow .add.open { opacity: 1; }
+  .trow .add.in { opacity: 1; color: var(--dv-gold); }
+
+  /* Menus, as shared/menu.css. */
+  .menu { position: fixed; z-index: 5000; min-width: 230px; padding: 6px; border-radius: 10px; background: var(--menu-bg); backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 12px 32px rgba(0,0,0,.5); font-size: 13.5px; }
+  .menu .sec { padding: 6px 10px 4px; font-size: 10.5px; letter-spacing: .6px; text-transform: uppercase; color: #8a8a8a; font-weight: 600; }
+  .menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 10px; border: 0; border-radius: 6px; background: none; color: var(--dv-text); text-align: left; cursor: pointer; }
+  .menu button:hover { background: rgba(255,255,255,.1); }
+  .menu button svg { width: 15px; height: 15px; flex: none; }
+  .menu button .lab { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .menu button .hint { color: #888; font-size: 12px; }
+  .menu button .chk { width: 15px; color: var(--dv-gold); }
+  .menu button.danger { color: #f87171; }
+  .menu hr { border: 0; border-top: 1px solid rgba(255,255,255,.1); margin: 5px 4px; }
+
+  /* Small dialogs: a question, a new mixtape. */
+  .small .dlg { width: min(420px, 100%); }
+  .small .dlg-body { display: block; padding: 18px 20px 6px; }
+  .small p { margin: 0 0 12px; color: #cfcfcf; }
+  .foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px 16px; }
+
+  /* Toasts, as shared/Toast. */
+  .toasts { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 6000; display: flex; flex-direction: column; gap: 8px; align-items: center; width: min(560px, calc(100% - 32px)); }
+  .toast { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px 10px 14px; border-radius: 10px; background: var(--menu-bg); backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 12px 32px rgba(0,0,0,.5); font-size: 13.5px; animation: up .2s; }
+  .toast .ok { color: var(--dv-gold); }
+  .toast .ok svg { width: 16px; height: 16px; }
+  .toast .msg { flex: 1; min-width: 0; }
+  .toast .act { border: 0; background: none; color: var(--dv-gold); font-weight: 600; cursor: pointer; padding: 4px 6px; border-radius: 6px; white-space: nowrap; }
+  .toast .act:hover { background: rgba(251,191,36,.12); }
+  @keyframes up { from { transform: translateY(8px); opacity: 0; } }
+
+  @media (max-width: 700px) {
+    .search, .grid { padding-left: 16px; padding-right: 16px; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+    .backdrop { padding: 0; align-items: flex-end; }
+    .dlg { width: 100%; max-height: calc(100% - 40px); border-radius: 14px 14px 0 0; }
+    .dlg-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .side { flex-direction: row; flex-wrap: wrap; align-items: center; padding: 12px 16px; border-right: 0; border-bottom: 1px solid var(--dialog-line); }
+    .side .big { width: 72px; flex: none; }
+    .side .facts { display: none; }
+    .list { max-height: none; }
+    .mrow .grip { opacity: 1; }
+    .mrow .rm, .trow .add { opacity: 1; }
+    .small .dlg { border-radius: 14px; margin: 16px; }
+    .small.backdrop { align-items: center; }
+  }
+</style>
+</head>
+<body>
+<div class="bar">
+  <span>Écran :</span>
+  <span class="seg-ctl" id="screens"></span>
+  <span>Pochette :</span>
+  <span class="seg-ctl" id="covers"></span>
+  <div class="verdict" id="verdict"></div>
+</div>
+
+<div class="search">
+  <div class="field"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg><b id="query"></b></div>
+  <span class="sw" data-sw="stack"><i></i>Stack</span>
+  <span class="sw on" data-sw="digital"><i></i>Digital</span>
+  <span class="sw on" data-sw="mixtapes"><i></i>Mixtapes</span>
+</div>
+<div class="grid" id="grid"></div>
+
+<div class="backdrop" id="mixDlg" style="z-index:1000"></div>
+<div class="backdrop" id="albumDlg" style="z-index:1100"></div>
+<div class="backdrop small" id="smallDlg" style="z-index:1200"></div>
+<div class="toasts" id="toasts"></div>
+
+<script src="songs.js"></script>
+<script>
+const I = {
+  x: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>',
+  play: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>',
+  dots: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>',
+  grip: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M7 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-3 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-3 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>',
+  plus: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a.75.75 0 0 1 .75.75v4.5h4.5a.75.75 0 0 1 0 1.5h-4.5v4.5a.75.75 0 0 1-1.5 0v-4.5h-4.5a.75.75 0 0 1 0-1.5h4.5v-4.5A.75.75 0 0 1 8 2z"/></svg>',
+  check: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/></svg>',
+  tape: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 2A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h.191l1.862-3.724A.5.5 0 0 1 4 10h8a.5.5 0 0 1 .447.276L14.31 14h.191a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2zM4 7a1 1 0 1 1 0-2 1 1 0 0 1 0 2m8 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2M6 6a1 1 0 0 1 1-1h2a1 1 0 0 1 0 2H7a1 1 0 0 1-1-1"></path><path d="m13.191 14-1.5-3H4.309l-1.5 3z"></path></svg>',
+  dash: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 8a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 4 8z"/></svg>',
+  disc: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M10 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 4a4 4 0 0 0-4 4 .5.5 0 0 1-1 0 5 5 0 0 1 5-5 .5.5 0 0 1 0 1z"/></svg>',
+  list: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 3.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 4a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 4a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5z"/></svg>',
+  pencil: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5z"/></svg>',
+  trash: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1 0-2H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118z"/></svg>',
+  headph: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 3a5 5 0 0 0-5 5v1h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a6 6 0 1 1 12 0v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1V8a5 5 0 0 0-5-5z"/></svg>',
+};
+
+// Navidrome's six albums, the covers as Navidrome serves them; a mixtape's tracks point at them.
+const ALBUMS = [];
+SONGS.forEach((s, i) => {
+  s.id = i;
+  if (!ALBUMS[s.c]) ALBUMS[s.c] = { id: s.c, title: s.al, artist: s.a, cover: `cover-${s.c}.jpg`, songs: [] };
+  ALBUMS[s.c].songs.push(s);
+});
+ALBUMS[3].artist = 'Rachmaninov';
+SONGS.filter(s => s.c === 3).forEach(s => { s.a = 'Rachmaninov'; });
+// The 2-CD Rachmaninov: tracks numbered again from 1 on the second disc.
+let disc = 1, last = 0;
+ALBUMS[3].songs.forEach(s => { if (s.n <= last) disc++; s.disc = disc; last = s.n; });
+ALBUMS.forEach(a => a.songs.forEach(s => { s.disc = s.disc || 1; }));
+const byTitle = (c, words) => SONGS.find(s => s.c === c && s.t.toLowerCase().includes(words.toLowerCase())) || ALBUMS[c].songs[0];
+
+let mixtapes = [
+  { id: 'm1', name: 'Sunday mix', listen: true, songs: [byTitle(5, ''), byTitle(0, 'Solaar pleure'), byTitle(4, 'Thank U'), byTitle(2, 'Summer of'), ALBUMS[5].songs[2], byTitle(0, 'Arkansas'), byTitle(4, 'That I Would'), ALBUMS[2].songs[7], ALBUMS[3].songs[0], byTitle(1, 'Bouncing')].map(s => s.id) },
+  { id: 'm2', name: 'Road trip ’26', listen: false, songs: [ALBUMS[1].songs[0].id, ALBUMS[2].songs[0].id, ALBUMS[2].songs[1].id, ALBUMS[1].songs[3].id, ALBUMS[0].songs[1].id, ALBUMS[4].songs[1].id] },
+  { id: 'm3', name: 'Piano, late', listen: false, songs: [ALBUMS[3].songs[0].id, ALBUMS[3].songs[1].id, ALBUMS[3].songs[2].id, ALBUMS[5].songs[0].id] },
+];
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const mmss = d => `${Math.floor(d / 60)}:${String(d % 60).padStart(2, '0')}`;
+const length = ids => { const sec = ids.reduce((t, id) => t + SONGS[id].d, 0); const h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60); return h ? `${h} h ${String(m).padStart(2, '0')}` : `${m} min`; };
+/** The covers of the first four albums met, in the mixtape's order. */
+const coversOf = ids => {
+  const covers = [];
+  ids.forEach(id => { const c = ALBUMS[SONGS[id].c].cover; if (!covers.includes(c)) covers.push(c); });
+  return covers.slice(0, 4);
+};
+/** Always four tiles, whatever the number of albums: never a CD's single cover. */
+const tiles = ids => {
+  const c = coversOf(ids), K = null;
+  const four = c.length >= 4 ? c : c.length === 3 ? [c[0], c[1], c[2], K] : c.length === 2 ? [c[0], c[1], c[1], c[0]] : c.length === 1 ? [c[0], K, K, c[0]] : [K, K, K, K];
+  return `<div class="mosaic">${four.map(x => x ? `<img src="${x}" alt="">` : `<span class="blank">${I.tape}</span>`).join('')}</div>`;
+};
+/** A colour of its own for each mixtape, from its name. */
+const hue = name => [...name].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7);
+let coverStyle = 'navidrome';
+const mosaic = m => {
+  if (coverStyle === 'navidrome') {
+    const c = coversOf(m.songs);
+    return c.length < 4 ? `<img src="${c[0]}" alt="">` : `<div class="mosaic">${c.map(x => `<img src="${x}" alt="">`).join('')}</div>`;
+  }
+  if (coverStyle === 'tiles') return tiles(m.songs);
+  if (coverStyle === 'label') return `${tiles(m.songs)}<div class="jlabel" style="--h:${hue(m.name)}"><span>${esc(m.name)}</span></div>`;
+  // A cassette, its label the name, the covers through its window.
+  const c = coversOf(m.songs);
+  return `<div class="tape" style="--h:${hue(m.name)}"><div class="shell"><div class="lab"><span>${esc(m.name)}</span></div>
+    <div class="win">${c.map(x => `<img src="${x}" alt="">`).join('')}<i class="reel l"></i><i class="reel r"></i></div></div></div>`;
+};
+/** “Miles Davis, Bach & 6 more”: the artists with most tracks first. */
+const artists = ids => {
+  const count = new Map();
+  ids.forEach(id => count.set(SONGS[id].a, (count.get(SONGS[id].a) || 0) + 1));
+  const names = [...count.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
+  if (names.length <= 2) return names.join(' & ');
+  return `${names.slice(0, 2).join(', ')} & ${names.length - 2} more`;
+};
+
+// ------------------------------------------------------------------ Toasts
+const toast = (msg, action) => {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = `<span class="ok">${I.check}</span><span class="msg">${msg}</span>${action ? `<button class="act">${esc(action.label)}</button>` : ''}`;
+  if (action) t.querySelector('.act').onclick = () => { t.remove(); action.run(); };
+  document.getElementById('toasts').append(t);
+  setTimeout(() => t.remove(), 6000);
+};
+
+// ------------------------------------------------------------------- Menus
+let menuEl = null;
+const closeMenu = () => { menuEl?.remove(); menuEl = null; document.querySelectorAll('.add.open').forEach(b => b.classList.remove('open')); };
+const openMenu = (anchor, html, wire) => {
+  closeMenu();
+  menuEl = document.createElement('div');
+  menuEl.className = 'menu';
+  menuEl.innerHTML = html;
+  document.body.append(menuEl);
+  const r = anchor.getBoundingClientRect(), m = menuEl.getBoundingClientRect();
+  let top = r.bottom + 4; if (top + m.height > innerHeight - 8) top = r.top - m.height - 4;
+  let left = r.right - m.width; if (left < 8) left = 8;
+  Object.assign(menuEl.style, { top: `${top}px`, left: `${left}px` });
+  wire(menuEl);
+};
+document.addEventListener('mousedown', e => { if (menuEl && !menuEl.contains(e.target) && !e.target.closest('[data-menu]')) closeMenu(); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (menuEl) return closeMenu();
+  for (const id of ['smallDlg', 'albumDlg', 'mixDlg']) { const d = document.getElementById(id); if (d.classList.contains('open')) { d.classList.remove('open'); return; } }
+});
+
+/**
+ * The mixtapes as toggles: ✓ gold on those holding every one of `ids` (a click
+ * takes them out), a dash on those holding some (a click adds the others), then
+ * New mixtape…
+ */
+const addMenu = (anchor, ids, what) => {
+  const unique = [...new Set(ids)];
+  const items = mixtapes.map(m => {
+    const held = unique.filter(id => m.songs.includes(id)).length;
+    const mark = held === unique.length ? I.check : held > 0 ? I.dash : '';
+    const hint = held > 0 && held < unique.length ? `${held} of ${unique.length}` : m.songs.length;
+    return `<button data-mix="${m.id}"><span class="chk">${mark}</span><span class="lab">${esc(m.name)}</span><span class="hint">${hint}</span></button>`;
+  }).join('');
+  openMenu(anchor, `<div class="sec">${what === 'track' ? 'Track' : 'Album'} in mixtapes</div>${items}<hr><button data-new><span class="chk">${I.plus}</span><span class="lab">New mixtape…</span></button>`, menu => {
+    menu.querySelectorAll('[data-mix]').forEach(b => b.onclick = () => { closeMenu(); toggleIn(mixtapes.find(m => m.id === b.dataset.mix), unique); });
+    menu.querySelector('[data-new]').onclick = () => { closeMenu(); newMixtape(unique); };
+  });
+};
+
+/** All of `ids` in `m`: takes them out, every copy. Otherwise adds those missing at the end. Undo in the toast. */
+const toggleIn = (m, ids) => {
+  const before = [...m.songs];
+  const undo = { label: 'Undo', run: () => { m.songs = before; refresh(); } };
+  const what = ids.length === 1 ? `<b>${esc(SONGS[ids[0]].t)}</b>` : `${ids.length} tracks`;
+  if (ids.every(id => m.songs.includes(id))) {
+    m.songs = m.songs.filter(id => !ids.includes(id));
+    refresh();
+    toast(`${what} taken out of <b>${esc(m.name)}</b>`, undo);
+    return;
+  }
+  const missing = ids.filter(id => !m.songs.includes(id));
+  m.songs.push(...missing);
+  refresh();
+  const rest = ids.length > 1 && missing.length < ids.length ? `, the ${ids.length - missing.length} others were there` : '';
+  toast(`${missing.length === 1 ? `<b>${esc(SONGS[missing[0]].t)}</b>` : `${missing.length} tracks`} added to <b>${esc(m.name)}</b>${rest}`, undo);
+};
+
+// ------------------------------------------------------------ Small dialogs
+const small = (html, wire) => {
+  const d = document.getElementById('smallDlg');
+  d.innerHTML = `<div class="dlg" role="dialog">${html}</div>`;
+  d.classList.add('open');
+  d.onclick = e => { if (e.target === d) d.classList.remove('open'); };
+  wire(d);
+};
+const newMixtape = ids => small(`
+  <div class="dlg-head"><span class="ic">${I.tape}</span><h2>New mixtape</h2><button class="ib" data-close aria-label="Close">${I.x}</button></div>
+  <div class="dlg-body"><p>${ids.length === 1 ? `With <b>${esc(SONGS[ids[0]].t)}</b>.` : `With the ${ids.length} tracks of <b>${esc(SONGS[ids[0]].al)}</b>.`} It is made in Navidrome too, and Amperfy shows it.</p>
+  <input class="tf" id="newName" placeholder="Name" autocomplete="off"></div>
+  <div class="foot"><button class="ubtn quiet" data-close>Cancel</button><button class="ubtn primary" id="create" disabled>Create</button></div>`, d => {
+  const input = d.querySelector('#newName'), create = d.querySelector('#create');
+  input.focus();
+  input.oninput = () => { create.disabled = !input.value.trim(); };
+  const go = () => {
+    if (!input.value.trim()) return;
+    const m = { id: `m${Date.now()}`, name: input.value.trim(), listen: false, songs: [...ids] };
+    mixtapes.unshift(m);
+    d.classList.remove('open');
+    refresh();
+    toast(`<b>${esc(m.name)}</b> made, ${ids.length} ${ids.length === 1 ? 'track' : 'tracks'}`, { label: 'Open', run: () => openMix(m) });
+  };
+  input.onkeydown = e => { if (e.key === 'Enter') go(); };
+  create.onclick = go;
+  d.querySelectorAll('[data-close]').forEach(b => b.onclick = () => d.classList.remove('open'));
+});
+const confirmDelete = m => small(`
+  <div class="dlg-head"><span class="ic">${I.trash}</span><h2>Delete ${esc(m.name)}?</h2></div>
+  <div class="dlg-body"><p>The mixtape goes from Navidrome too, and from Amperfy${m.listen ? ', and leaves Listen Next' : ''}. Its tracks stay on their CDs.</p></div>
+  <div class="foot"><button class="ubtn quiet" data-close>Cancel</button><button class="ubtn danger" id="del">Delete</button></div>`, d => {
+  d.querySelectorAll('[data-close]').forEach(b => b.onclick = () => d.classList.remove('open'));
+  d.querySelector('#del').onclick = () => {
+    mixtapes = mixtapes.filter(x => x !== m);
+    d.classList.remove('open');
+    document.getElementById('mixDlg').classList.remove('open');
+    refresh();
+    toast(`<b>${esc(m.name)}</b> deleted`);
+  };
+});
+
+// ------------------------------------------------------------- The grid
+const showMixtapes = () => document.querySelector('[data-sw="mixtapes"]').classList.contains('on');
+const renderGrid = () => {
+  const items = [
+    ...(showMixtapes() ? mixtapes.map(m => ({ mix: m, title: m.name })) : []),
+    ...ALBUMS.map(a => ({ album: a, title: a.title })),
+  ].sort((a, b) => a.title.localeCompare(b.title));
+  document.getElementById('query').textContent = showMixtapes() ? '' : 'mixtape:no';
+  document.getElementById('grid').innerHTML = items.map((it, i) => it.mix ? `
+    <div class="card" data-i="${i}"><div class="cover">${mosaic(it.mix)}<div class="tags"><span class="tag">${I.tape}Mixtape</span>${it.mix.listen ? `<span class="tag gold">${I.headph}Next</span>` : ''}</div></div>
+      <h4>${esc(it.mix.name)}</h4><div class="who">${esc(artists(it.mix.songs))}</div></div>` : `
+    <div class="card" data-i="${i}"><div class="cover"><img src="${it.album.cover}" alt=""></div>
+      <h4>${esc(it.album.title)}</h4><div class="who">${esc(it.album.artist)}</div></div>`).join('');
+  document.querySelectorAll('#grid .card').forEach(c => c.onclick = () => { const it = items[c.dataset.i]; it.mix ? openMix(it.mix) : openAlbum(it.album); });
+};
+document.querySelectorAll('.sw').forEach(s => s.onclick = () => { s.classList.toggle('on'); renderGrid(); });
+
+// ------------------------------------------------------ A mixtape's card
+let openM = null, renaming = false, nowAt = -1, dragFrom = null;
+const openMix = m => { openM = m; renaming = false; nowAt = -1; document.getElementById('mixDlg').classList.add('open'); renderMix(); };
+const renderMix = () => {
+  const d = document.getElementById('mixDlg'), m = openM;
+  if (!m || !mixtapes.includes(m)) { d.classList.remove('open'); return; }
+  const count = new Map(); m.songs.forEach(id => count.set(id, (count.get(id) || 0) + 1));
+  d.innerHTML = `<div class="dlg" role="dialog">
+    <div class="dlg-head"><span class="ic">${I.tape}</span>
+      ${renaming ? `<div class="rename"><input id="nameIn" value="${esc(m.name)}"><button class="ib confirm" id="nameOk" aria-label="Save">${I.check}</button><button class="ib" id="nameNo" aria-label="Cancel">${I.x}</button></div>`
+        : `<h2 class="editable" id="name" title="Rename">${esc(m.name)}</h2>`}
+      <button class="ib" data-menu id="more" aria-label="More">${I.dots}</button>
+      <button class="ib" id="close" aria-label="Close">${I.x}</button></div>
+    <div class="dlg-body">
+      <div class="side">
+        <div class="big">${mosaic(m)}</div>
+        <div><div class="who">${esc(artists(m.songs))}</div><div class="facts">${m.songs.length} tracks · ${length(m.songs)} · in Navidrome</div></div>
+        <div class="acts"><button class="ubtn primary" id="play">${I.play}Play</button>
+          <button class="ubtn ${m.listen ? 'active' : ''}" id="ln">${I.headph}${m.listen ? 'In Listen Next' : 'Listen Next'}</button></div>
+      </div>
+      <div class="list" id="mlist">${m.songs.map((id, i) => { const s = SONGS[id]; return `
+        <div class="mrow ${i === nowAt ? 'now' : ''} ${count.get(id) > 1 ? 'twice' : ''}" draggable="true" data-i="${i}">
+          <span class="grip" title="Drag to move">${I.grip}</span>
+          <button class="thumb" data-album="${s.c}" title="${esc(s.al)}"><img src="${ALBUMS[s.c].cover}" alt=""></button>
+          <span class="ti" data-play="${i}"><b>${esc(s.t)}</b><span>${esc(s.a)} · ${esc(s.al)}</span></span>
+          <span class="du">${mmss(s.d)}</span>
+          <button class="ib sm rm" data-rm="${i}" aria-label="Take out" title="Take out">${I.x}</button></div>`; }).join('')}
+        <div class="total">${m.songs.length} tracks · ${length(m.songs)}</div></div>
+    </div></div>`;
+  d.onclick = e => { if (e.target === d) d.classList.remove('open'); };
+  d.querySelector('#close').onclick = () => d.classList.remove('open');
+  const startRename = () => { renaming = true; renderMix(); const i = d.querySelector('#nameIn'); i.focus(); i.select(); };
+  if (renaming) {
+    const i = d.querySelector('#nameIn');
+    const save = () => { if (i.value.trim()) m.name = i.value.trim(); renaming = false; refresh(); };
+    d.querySelector('#nameOk').onclick = save;
+    d.querySelector('#nameNo').onclick = () => { renaming = false; renderMix(); };
+    i.onkeydown = e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { e.stopPropagation(); renaming = false; renderMix(); } };
+  } else d.querySelector('#name').onclick = startRename;
+  d.querySelector('#more').onclick = e => openMenu(e.currentTarget, `
+    <button data-r><span class="chk">${I.pencil}</span><span class="lab">Rename</span></button>
+    <button data-o><span class="chk">${I.list}</span><span class="lab">Open in Navidrome</span></button><hr>
+    <button class="danger" data-d><span class="chk" style="color:inherit">${I.trash}</span><span class="lab">Delete mixtape…</span></button>`, menu => {
+    menu.querySelector('[data-r]').onclick = () => { closeMenu(); startRename(); };
+    menu.querySelector('[data-o]').onclick = () => { closeMenu(); toast('Opens the playlist in Navidrome, in another tab'); };
+    menu.querySelector('[data-d]').onclick = () => { closeMenu(); confirmDelete(m); };
+  });
+  d.querySelector('#play').onclick = () => { nowAt = 0; renderMix(); toast(`Playing <b>${esc(m.name)}</b>`); };
+  d.querySelector('#ln').onclick = () => { m.listen = !m.listen; refresh(); toast(m.listen ? `<b>${esc(m.name)}</b> in Listen Next, at the end` : `<b>${esc(m.name)}</b> out of Listen Next`); };
+  d.querySelectorAll('[data-play]').forEach(t => t.onclick = () => { nowAt = +t.dataset.play; renderMix(); });
+  d.querySelectorAll('[data-album]').forEach(b => b.onclick = () => openAlbum(ALBUMS[b.dataset.album]));
+  d.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => {
+    const i = +b.dataset.rm, [id] = m.songs.splice(i, 1);
+    if (nowAt > i) nowAt--;
+    refresh();
+    toast(`<b>${esc(SONGS[id].t)}</b> taken out`, { label: 'Undo', run: () => { m.songs.splice(i, 0, id); refresh(); } });
+  });
+  // Drag a track to another place: the gold line shows where it lands.
+  d.querySelectorAll('.mrow').forEach(r => {
+    r.ondragstart = e => { dragFrom = +r.dataset.i; r.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; };
+    r.ondragend = () => { r.classList.remove('dragging'); d.querySelectorAll('.drop-before').forEach(x => x.classList.remove('drop-before')); };
+    r.ondragover = e => { e.preventDefault(); d.querySelectorAll('.drop-before').forEach(x => x.classList.remove('drop-before')); r.classList.add('drop-before'); };
+    r.ondrop = e => {
+      e.preventDefault();
+      const to = +r.dataset.i; if (dragFrom == null || to === dragFrom) return;
+      const playing = nowAt >= 0 ? m.songs[nowAt] : null;
+      const [id] = m.songs.splice(dragFrom, 1);
+      m.songs.splice(to > dragFrom ? to - 1 : to, 0, id);
+      if (playing != null) nowAt = m.songs.indexOf(playing);
+      dragFrom = null; refresh();
+    };
+  });
+};
+
+// ------------------------------------------------------- An album's card
+let openA = null;
+const openAlbum = a => { openA = a; document.getElementById('albumDlg').classList.add('open'); renderAlbum(); };
+const renderAlbum = () => {
+  const d = document.getElementById('albumDlg'), a = openA;
+  if (!a) return;
+  const discs = [...new Set(a.songs.map(s => s.disc))];
+  const inAny = id => mixtapes.some(m => m.songs.includes(id));
+  d.innerHTML = `<div class="dlg" role="dialog">
+    <div class="dlg-head"><span class="ic">${I.disc}</span><h2>${esc(a.title)}</h2>
+      <button class="ib" id="close" aria-label="Close">${I.x}</button></div>
+    <div class="dlg-body">
+      <div class="side"><div class="big"><img src="${a.cover}" alt=""></div>
+        <div><div class="who">${esc(a.artist)}</div><div class="facts">${a.songs.length} tracks · ${length(a.songs.map(s => s.id))}</div></div>
+        <div class="acts"><button class="ubtn primary">${I.play}Play</button>
+          <button class="ubtn" data-menu id="addAll">${I.tape}Mixtapes</button></div></div>
+      <div class="list">${discs.map(n => `${discs.length > 1 ? `<div class="disc">Disc ${n}</div>` : ''}${a.songs.filter(s => s.disc === n).map(s => `
+        <div class="trow"><span class="no">${s.n}</span><span class="ti">${esc(s.t)}</span>
+          <span class="du">${mmss(s.d)}</span>
+          <button class="ib sm add ${inAny(s.id) ? 'in' : ''}" data-menu data-add="${s.id}" aria-label="Mixtapes" title="${inAny(s.id) ? `In ${esc(mixtapes.filter(m => m.songs.includes(s.id)).map(m => m.name).join(', '))}` : 'Add to a mixtape'}">${I.tape}</button></div>`).join('')}`).join('')}</div>
+    </div></div>`;
+  d.onclick = e => { if (e.target === d) d.classList.remove('open'); };
+  d.querySelector('#close').onclick = () => d.classList.remove('open');
+  d.querySelector('#addAll').onclick = e => addMenu(e.currentTarget, a.songs.map(s => s.id), 'the album');
+  d.querySelectorAll('[data-add]').forEach(b => b.onclick = e => { addMenu(e.currentTarget, [+b.dataset.add], 'track'); b.classList.add('open'); });
+};
+
+const refresh = () => {
+  renderGrid();
+  if (document.getElementById('mixDlg').classList.contains('open')) renderMix();
+  if (document.getElementById('albumDlg').classList.contains('open')) renderAlbum();
+};
+
+// --------------------------------------------------------------- Screens
+const SCREENS = {
+  grid: ['La grille', '<b>La grille de MusicDex.</b> Les mixtapes y sont rangées par titre parmi les CD : la mosaïque de Navidrome (les quatre premiers albums rencontrés ; une seule pochette s’il y en a moins de quatre, comme <i>Piano, late</i>), le tag MIXTAPE, les artistes qui y ont le plus de pistes. Le nouvel interrupteur <b>Mixtapes</b> les cache (mot <code>mixtape:no</code>). Clique une mixtape ou un CD.',
+    () => { document.getElementById('mixDlg').classList.remove('open'); document.getElementById('albumDlg').classList.remove('open'); }],
+  mix: ['Fiche d’une mixtape', '<b>La fiche de « Sunday mix ».</b> Plus de numéros : l’ordre se lit de haut en bas. Clique le nom pour le changer (✓ ✕) ; ⋯ pour Rename, Open in Navidrome, Delete (rouge, avec confirmation). Un titre joue la mixtape depuis là (doré) ; la vignette ouvre la fiche du CD d’origine par-dessus. Glisse une piste (poignée à gauche) pour la déplacer, ✕ la retire (Undo dans le toast).',
+    () => { document.getElementById('albumDlg').classList.remove('open'); openMix(mixtapes[0]); }],
+  add: ['Add to mixtape', '<b>La fiche d’un CD.</b> La cassette au bout d’une piste (au survol ; dorée et toujours là quand la piste est dans une mixtape) ouvre ses mixtapes <b>en bascule</b> : ✓ doré = dedans, un clic la retire (toutes ses copies) ; sans ✓, un clic l’ajoute à la fin. <b>Mixtapes</b> sous la pochette fait de même pour tout le CD : ✓ = tout le CD y est (un clic retire tout), un tiret = « 4 of 17 » (un clic ajoute les manquantes). Undo dans le toast.',
+    () => { document.getElementById('mixDlg').classList.remove('open'); openAlbum(ALBUMS[4]); }],
+};
+let screen = 'grid';
+const setScreen = key => {
+  screen = key;
+  document.querySelectorAll('#screens button').forEach(b => b.classList.toggle('on', b.dataset.k === key));
+  document.getElementById('verdict').innerHTML = SCREENS[key][1];
+  closeMenu(); SCREENS[key][2]();
+};
+document.getElementById('screens').innerHTML = Object.entries(SCREENS).map(([k, v]) => `<button data-k="${k}">${v[0]}</button>`).join('');
+document.querySelectorAll('#screens button').forEach(b => b.onclick = () => setScreen(b.dataset.k));
+const COVERS = { navidrome: 'Navidrome (avant)', tiles: 'A · Toujours 4 cases', label: 'B · Étiquette', tape: 'C · Cassette' };
+document.getElementById('covers').innerHTML = Object.entries(COVERS).map(([k, v]) => `<button data-c="${k}">${v}</button>`).join('');
+const setCover = k => { coverStyle = k; document.querySelectorAll('#covers button').forEach(b => b.classList.toggle('on', b.dataset.c === k)); refresh(); };
+document.querySelectorAll('#covers button').forEach(b => b.onclick = () => setCover(b.dataset.c));
+setCover(new URLSearchParams(location.search).get('c') || 'navidrome');
+renderGrid();
+setScreen(new URLSearchParams(location.search).get('s') || 'grid');
+</script>
+</body>
+</html>

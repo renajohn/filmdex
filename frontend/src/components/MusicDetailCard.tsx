@@ -30,6 +30,9 @@ import Spinner from './shared/Spinner';
 import StarRating from './shared/StarRating';
 import toast from './shared/Toast';
 import { seedFavourite, setFavourite, useFavourite } from '../services/favourites';
+import MixtapeMenu from './MixtapeMenu';
+import { useMixtapes } from '../utils/mixtapeStore';
+import { BsCassetteFill } from 'react-icons/bs';
 
 /** How often, and how many times, an album's tracks are asked after while their words are looked up. */
 const LYRICS_POLL_MS = 3000;
@@ -189,6 +192,27 @@ const TrackFavourite: React.FC<{ songId: string; title: string }> = ({ songId, t
       onClick={toggle} onKeyDown={event => event.stopPropagation()}>
       {favourite ? <BsHeartFill aria-hidden="true" /> : <BsHeart aria-hidden="true" />}
     </IconButton>
+  );
+};
+
+/**
+ * A track's mixtapes: gold and always in sight when a mixtape holds it, its
+ * title naming them; under the pointer otherwise. Its menu puts it in or
+ * takes it out.
+ */
+const TrackMixtapes: React.FC<{ songId: string; title: string }> = ({ songId, title }) => {
+  const { mixtapes } = useMixtapes();
+  const holding = mixtapes.filter(mixtape => mixtape.songIds.includes(songId)).map(mixtape => mixtape.album.title);
+  return (
+    <span className="track-mixtapes-host" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
+      <MixtapeMenu songIds={[songId]} title={title}
+        trigger={(props, open) => (
+          <IconButton {...props} size="sm" className={`track-mixtapes${holding.length > 0 ? ' track-mixtapes-on' : ''}${open ? ' track-mixtapes-open' : ''}`}
+            active={holding.length > 0} label={`Mixtapes of ${title}`} title={holding.length > 0 ? `In ${holding.join(', ')}` : 'Add to a mixtape'}>
+            <BsCassetteFill aria-hidden="true" />
+          </IconButton>
+        )} />
+    </span>
   );
 };
 
@@ -959,6 +983,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                             </span>
                           );
                         })()}
+                        {file?.id && <TrackMixtapes songId={file.id} title={track.title} />}
                         {track.durationSec && (
                           <span className="track-duration">
                             {formatDuration(track.durationSec)}
@@ -1054,6 +1079,16 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
             <span className="music-detail-long">{isInListenNext ? 'In Listen Next' : 'Listen Next'}</span>
             <span className="music-detail-short" aria-hidden="true">Next</span>
           </Button>
+          {/* The whole CD in or out of a mixtape: its tracks that have a file. */}
+          {playerTracks.length > 0 && (
+            <MixtapeMenu songIds={playerTracks.map(track => track.songId)} align="start"
+              trigger={(props, open) => (
+                <Button {...props} icon={<BsCassetteFill />} aria-label="Mixtapes">
+                  <span className="music-detail-long">Mixtapes</span>
+                  <MenuChevron open={open} />
+                </Button>
+              )} />
+          )}
         </div>
         <div className="music-detail-manage">
           {!hasCd && onBought && (

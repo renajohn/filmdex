@@ -15,7 +15,7 @@ const favouriteAlbumService = {
   },
 
   /** The albums a query finds, `favourites:` asking Navidrome which have a hearted track. */
-  search: async (query: string, options: { withNoCd?: boolean } = {}): Promise<AlbumFormatted[]> => {
+  search: async (query: string, options: { withNoCd?: boolean; mixtapes?: boolean } = {}): Promise<AlbumFormatted[]> => {
     const favourites = query.match(FAVOURITES);
     if (!favourites) return Album.search(query, options);
     const [albums, ids] = await Promise.all([

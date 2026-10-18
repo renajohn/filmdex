@@ -10,6 +10,7 @@ import logger from './src/logger';
 import movieController from './src/controllers/movieController';
 import analyticsController from './src/controllers/analyticsController';
 import musicController from './src/controllers/musicController';
+import mixtapeController from './src/controllers/mixtapeController';
 import musicService from './src/services/musicService';
 import bookController from './src/controllers/bookController';
 import bookService from './src/services/bookService';
@@ -26,6 +27,7 @@ import albumGuideService from './src/services/albumGuideService';
 import lyricsService from './src/services/lyricsService';
 import digitalAlbumService from './src/services/digitalAlbumService';
 import listenNextPlaylistService from './src/services/listenNextPlaylistService';
+import mixtapeService from './src/services/mixtapeService';
 import shelvingController from './src/controllers/shelvingController';
 import shelvingService from './src/services/shelvingService';
 import warningsService from './src/services/warningsService';
@@ -320,6 +322,13 @@ app.put('/api/collections/listen-next/repeat', musicController.setListenNextRepe
 app.post('/api/collections/listen-next/departures/:id/keep', musicController.keepListenNextDeparture);
 app.post('/api/collections/listen-next/played/:albumId', musicController.markListenNextPlayed);
 
+// Mixtapes: the owner's playlists in Navidrome, kept as albums of their own.
+app.get('/api/music/mixtapes', mixtapeController.list);
+app.post('/api/music/mixtapes', mixtapeController.create);
+app.get('/api/music/mixtapes/:albumId', mixtapeController.get);
+app.patch('/api/music/mixtapes/:albumId', mixtapeController.update);
+app.delete('/api/music/mixtapes/:albumId', mixtapeController.remove);
+
 // Book routes
 app.get('/api/books', bookController.getAllBooks);
 app.get('/api/books/search', bookController.searchBooks);
@@ -521,6 +530,7 @@ const serverReady = startServer().then(() => {
     albumGuideService.startAutoWrite();
     digitalAlbumService.startAutoSync();
     listenNextPlaylistService.startAutoSync();
+    mixtapeService.startAutoSync();
     lyricsService.startAutoFetch();
     shelvingService.startSortNameSync();
     trackPopularityService.startAutoRefresh();
