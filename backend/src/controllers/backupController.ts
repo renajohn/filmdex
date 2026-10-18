@@ -39,6 +39,16 @@ const upload = multer({
   }
 });
 
+/** A backup sent to restore from: kept in /tmp until restored, no larger than the upload limit. */
+const restoreUpload = () => multer({
+  storage: multer.diskStorage({
+    destination: (_req: Express.Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => cb(null, '/tmp/'),
+    filename: (_req: Express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) =>
+      cb(null, `backup-upload-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`),
+  }),
+  limits: { fileSize: configManager.getMaxUploadBytes() },
+}).single('file');
+
 const backupController = {
   // Create a new backup
   async createBackup(req: Request, res: Response): Promise<void> {
@@ -281,7 +291,10 @@ const backupController = {
   },
 
   // Export multer middleware for upload
-  uploadMiddleware: upload.single('backup')
+  uploadMiddleware: upload.single('backup'),
+
+  /** The upload of a backup to restore, made once the configuration is loaded. */
+  restoreUpload
 };
 
 export default backupController;

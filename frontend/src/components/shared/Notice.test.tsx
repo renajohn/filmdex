@@ -31,7 +31,7 @@ describe('toast()', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Heat');
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     expect(undo).toHaveBeenCalled();
-    act(() => { toast('CSV exported.', { tone: 'success', duration: 50 }); });
+    act(() => { toast('Backup saved.', { tone: 'success', duration: 50 }); });
     await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
   });
 

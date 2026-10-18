@@ -659,42 +659,6 @@ export interface MovieCrewData {
 }
 
 // ============================================================
-// Movie Import domain
-// ============================================================
-
-export interface MovieImportRow {
-  id: string;
-  status: string;
-  total_movies: number;
-  processed_movies: number;
-  auto_resolved_movies: number;
-  manual_resolved_movies: number;
-  created_at: string;
-  updated_at: string;
-}
-
-// ============================================================
-// Unmatched Movie domain
-// ============================================================
-
-export interface UnmatchedMovieData {
-  import_id: string;
-  title: string;
-  original_title?: string | null;
-  csv_data: Record<string, unknown>;
-  error_message?: string | null;
-}
-
-export interface UnmatchedMovieFormatted {
-  id: string;
-  import_id: string;
-  title: string;
-  original_title: string | null;
-  csvData: Record<string, unknown>;
-  error: string | null;
-}
-
-// ============================================================
 // Playlist History domain
 // ============================================================
 

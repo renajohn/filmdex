@@ -19,7 +19,7 @@ import { isAppleMobile } from '../utils/navidrome';
 import AlbumPlayButton from './shared/AlbumPlayButton';
 import { LeavingOverlay, ListenNextControls, ListenNextSummary, useListenNextPlay } from './ListenNextPlay';
 import { listenNextQueue } from '../services/listenNextQueue';
-import { DigitalChips, DigitalNotices, DigitalRefresh, type DigitalFilter } from './DigitalStrip';
+import { DigitalChips, DigitalNotices, type DigitalFilter } from './DigitalStrip';
 import DigitalMarks from './shared/DigitalMarks';
 import BoughtCdDialog from './BoughtCdDialog';
 import { BsCartFill, BsChevronRight, BsHeartFill } from 'react-icons/bs';
@@ -1177,7 +1177,6 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
               {digitalOn && <DigitalChips filter={digitalFilter} onFilter={chooseFilter} counts={filterCounts} />}
             </>
           }
-          countExtra={digitalOn && <DigitalRefresh library={digital.library} syncing={digital.syncing} onRefresh={digital.sync} />}
         />
 
         {digitalOn && <DigitalNotices library={digital.library} error={digital.error} editions={digital.editions} />}

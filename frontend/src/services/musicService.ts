@@ -882,62 +882,6 @@ class MusicService {
     return `/api/images/${imagePath}`;
   }
 
-  // Migration: Resize all album covers to 1000x1000
-  async resizeAllAlbumCovers(): Promise<unknown> {
-    const baseUrl = await this.getBaseUrl();
-    const response = await fetch(`${baseUrl}/music/migrate/resize-covers`, {
-      method: 'POST',
-    });
-    if (!response.ok) {
-      throw new Error('Failed to resize album covers');
-    }
-    return await response.json();
-  }
-
-  // Get albums missing covers (front or back)
-  async getAlbumsMissingCovers(type: string = 'back'): Promise<unknown> {
-    const baseUrl = await this.getBaseUrl();
-    const response = await fetch(`${baseUrl}/music/albums/missing-covers?type=${type}`);
-    if (!response.ok) {
-      throw new Error('Failed to get albums missing covers');
-    }
-    return await response.json();
-  }
-
-  // Fill covers for albums (front or back)
-  async fillCovers(albumIds: number[], type: string = 'back'): Promise<unknown> {
-    const baseUrl = await this.getBaseUrl();
-    const response = await fetch(`${baseUrl}/music/albums/fill-covers`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ albumIds, type }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to fill covers');
-    }
-    return await response.json();
-  }
-
-  // Export albums as CSV
-  async exportAlbumsCSV(columns: string[] | null = null): Promise<Blob> {
-    const baseUrl = await this.getBaseUrl();
-    const params = new URLSearchParams();
-    if (columns && columns.length > 0) {
-      params.append('columns', columns.join(','));
-    }
-
-    const queryString = params.toString();
-    const endpoint = queryString ? `${baseUrl}/music/albums/export/csv?${queryString}` : `${baseUrl}/music/albums/export/csv`;
-
-    const response = await fetch(endpoint);
-    if (!response.ok) {
-      throw new Error('Failed to export albums');
-    }
-    return await response.blob();
-  }
-
   async toggleListenNext(albumId: number | string): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();

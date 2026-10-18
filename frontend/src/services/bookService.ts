@@ -407,15 +407,6 @@ class BookService {
     return `/api/images/${imagePath}`;
   }
 
-  // Export books as CSV
-  async exportBooksCSV(): Promise<Blob> {
-    const baseUrl = await this.getBaseUrl();
-    const response = await fetch(`${baseUrl}/books/export/csv`);
-    if (!response.ok) {
-      throw new Error('Failed to export books');
-    }
-    return await response.blob();
-  }
 }
 
 const bookServiceInstance = new BookService();

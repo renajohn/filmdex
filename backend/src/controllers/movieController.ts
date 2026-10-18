@@ -5,7 +5,7 @@ import fs from 'fs';
 import movieService from '../services/movieService';
 import tmdbService from '../services/tmdbService';
 import omdbService from '../services/omdbService';
-import importService from '../services/importService';
+import movieCreditsService, { type TMDBCredits } from '../services/movieCreditsService';
 import imageService from '../services/imageService';
 import collectionService from '../services/collectionService';
 import cacheService from '../services/cacheService';
@@ -203,74 +203,6 @@ const movieController = {
       }
 
       res.json(movie);
-    } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
-    }
-  },
-
-  // Export movies as CSV
-  exportCSV: async (req: Request, res: Response): Promise<void> => {
-    try {
-      const movies = await movieService.getAllMovies();
-
-      // Get selected columns from query parameter
-      const selectedColumns = req.query.columns ? (req.query.columns as string).split(',') : [
-        'title', 'original_title', 'original_language', 'genre', 'director', 'cast',
-        'release_date', 'format', 'imdb_rating', 'rotten_tomato_rating', 'tmdb_rating',
-        'tmdb_id', 'imdb_id', 'price', 'runtime', 'plot', 'comments',
-        'acquired_date', 'budget', 'revenue', 'trailer_key', 'trailer_site', 'status',
-        'popularity', 'vote_count', 'media_type', 'recommended_age', 'title_status'
-      ];
-
-      // Validate columns - only allow meaningful columns
-      const allowedColumns = [
-        'title', 'original_title', 'original_language', 'genre', 'director', 'cast',
-        'release_date', 'format', 'imdb_rating', 'rotten_tomato_rating', 'tmdb_rating',
-        'tmdb_id', 'imdb_id', 'price', 'runtime', 'plot', 'comments',
-        'acquired_date', 'budget', 'revenue', 'trailer_key', 'trailer_site', 'status',
-        'popularity', 'vote_count', 'media_type', 'recommended_age', 'title_status'
-      ];
-
-      const validColumns = selectedColumns.filter((col: string) => allowedColumns.includes(col));
-
-      if (validColumns.length === 0) {
-        res.status(400).json({ error: 'No valid columns selected for export' });
-        return;
-      }
-
-      // Create CSV header
-      const csvHeader = validColumns.map((col: string) => {
-        // Convert snake_case to Title Case for headers
-        return col.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
-      }).join(',') + '\n';
-
-      // Create CSV rows
-      const csvRows = movies.map((movie: MovieData) => {
-        return validColumns.map((col: string) => {
-          let value = (movie as unknown as Record<string, unknown>)[col];
-
-          // Handle special cases
-          if (col === 'cast' && Array.isArray(value)) {
-            value = (value as string[]).join('; ');
-          }
-          if (value === null || value === undefined) {
-            value = '';
-          }
-
-          // Escape quotes and wrap in quotes if contains comma, quote, or newline
-          const stringValue = String(value);
-          if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-            return `"${stringValue.replace(/"/g, '""')}"`;
-          }
-          return stringValue;
-        }).join(',');
-      }).join('\n');
-
-      const csvContent = csvHeader + csvRows;
-
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename="movies.csv"');
-      res.send(csvContent);
     } catch (error) {
       res.status(500).json({ error: (error as Error).message });
     }
@@ -526,7 +458,7 @@ const movieController = {
       warningsService.scheduleRefresh(createdMovie.id);
 
       // Process cast and crew
-      await importService.processCastAndCrew(createdMovie.id, tmdbDetails.credits as unknown as Parameters<typeof importService.processCastAndCrew>[1], tmdbDetails.id);
+      await movieCreditsService.processCastAndCrew(createdMovie.id, tmdbDetails.credits as unknown as TMDBCredits, tmdbDetails.id);
 
       const result = createdMovie;
 
@@ -671,7 +603,7 @@ const movieController = {
         logger.debug('Exact edition already exists:', exactMatch.id);
         const createdMovie = await Movie.create(movieData as unknown as MovieData);
         warningsService.scheduleRefresh(createdMovie.id);
-        await importService.processCastAndCrew(createdMovie.id, tmdbDetails.credits as unknown as Parameters<typeof importService.processCastAndCrew>[1], tmdbDetails.id);
+        await movieCreditsService.processCastAndCrew(createdMovie.id, tmdbDetails.credits as unknown as TMDBCredits, tmdbDetails.id);
         result = createdMovie as unknown as Record<string, unknown>;
       } else {
         // Try to fetch recommended age before creating the movie
@@ -701,7 +633,7 @@ const movieController = {
         warningsService.scheduleRefresh(createdMovie.id);
 
         // Process cast and crew
-        await importService.processCastAndCrew(createdMovie.id, tmdbDetails.credits as unknown as Parameters<typeof importService.processCastAndCrew>[1], tmdbDetails.id);
+        await movieCreditsService.processCastAndCrew(createdMovie.id, tmdbDetails.credits as unknown as TMDBCredits, tmdbDetails.id);
 
         result = createdMovie as unknown as Record<string, unknown>;
       }

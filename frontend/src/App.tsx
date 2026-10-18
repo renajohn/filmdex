@@ -3,7 +3,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import FilmDexPage from './components/FilmDexPage';
 import AddMovieDialog from './components/AddMovieDialog';
-import ImportPage from './pages/ImportPage';
 import WishListPage from './pages/WishListPage';
 import MusicDexPage from './pages/MusicDexPage';
 import BookDexPage from './pages/BookDexPage';
@@ -15,8 +14,6 @@ import Menu from './components/shared/Menu';
 import Segmented from './components/shared/Segmented';
 import ShelfMovesNotice from './components/shared/ShelfMovesNotice';
 import { refreshShelfLocations } from './utils/shelfLocations';
-import CsvExportDialog from './components/CsvExportDialog';
-import AlbumCsvExportDialog from './components/AlbumCsvExportDialog';
 import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
 import musicService from './services/musicService';
@@ -25,7 +22,7 @@ import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsDisc, BsArrowLeft, BsB
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import { readStored, writeStored } from './utils/safeStorage';
-import { isDigitalOn } from './utils/digitalLibrary';
+import { isDigitalOn, useDigitalLibrary } from './utils/digitalLibrary';
 import PlayerBar from './components/PlayerBar';
 import LyricsPanel from './components/LyricsPanel';
 import { ConfirmHost } from './components/shared/ConfirmDialog';
@@ -85,8 +82,6 @@ function AppContent() {
   const [hasCheckedBackfill, setHasCheckedBackfill] = useState<boolean>(false);
   const [showAddMovieDialog, setShowAddMovieDialog] = useState<boolean>(false);
   const [addMovieMode, setAddMovieMode] = useState<string>('collection');
-  const [showCsvExportDialog, setShowCsvExportDialog] = useState<boolean>(false);
-  const [showAlbumCsvExportDialog, setShowAlbumCsvExportDialog] = useState<boolean>(false);
   const [autocompleteOptions, setAutocompleteOptions] = useState<AutocompleteOption[]>([]);
   const [showAutocomplete, setShowAutocomplete] = useState<boolean>(false);
   const [autocompleteIndex, setAutocompleteIndex] = useState<number>(-1);
@@ -116,8 +111,6 @@ function AppContent() {
         return 'MusicDex';
       case '/bookdex':
         return 'BookDex';
-      case '/filmdex/import':
-        return 'DexVault - CSV Import';
       case '/wishlist':
         return 'DexVault';
       case '/shelves':
@@ -839,35 +832,9 @@ function AppContent() {
     navigate('/filmdex');
   };
 
-  const handleImportMovies = () => {
-    navigate('/filmdex/import');
-  };
-
   const handleAddMovie = () => {
     setAddMovieMode('collection');
     setShowAddMovieDialog(true);
-  };
-
-  const handleExportCSV = () => {
-    setShowCsvExportDialog(true);
-  };
-
-  const handleCsvExport = async (columns: string[]) => {
-    try {
-      const blob = await apiService.exportCSV(columns);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'movies.csv';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      handleShowAlert('CSV exported successfully', 'success');
-    } catch (error) {
-      console.error('CSV export error:', error);
-      handleShowAlert('Failed to export CSV: ' + (error as Error).message, 'danger');
-    }
   };
 
   const handleAnalytics = () => {
@@ -895,73 +862,11 @@ function AppContent() {
     navigate('/bookdex');
   };
 
-  const handleAddBook = () => {
-    // Trigger the Add Book dialog in BookDexPage
-    if (bookDexRef.current && bookDexRef.current.openAddDialog) {
-      bookDexRef.current.openAddDialog();
-    }
-  };
-
-  const handleExportBooksCSV = async () => {
-    try {
-      const blob = await bookService.exportBooksCSV();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'books.csv';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      handleShowAlert('CSV exported successfully', 'success');
-    } catch (error) {
-      console.error('CSV export error:', error);
-      handleShowAlert('Failed to export CSV: ' + (error as Error).message, 'danger');
-    }
-  };
-
-  const handleAddCD = () => {
-    // Trigger the Add CD dialog in MusicDexPage
-    // We'll pass this via a ref to MusicDexPage
-    if (musicDexRef.current && musicDexRef.current.openAddDialog) {
-      musicDexRef.current.openAddDialog();
-    }
-  };
-
-  const handleResizeCovers = () => {
-    // Trigger the Resize Covers Migration modal in MusicDexPage
-    if (musicDexRef.current && musicDexRef.current.openResizeMigrationModal) {
-      musicDexRef.current.openResizeMigrationModal();
-    }
-  };
-
-  const handleFillCovers = () => {
-    // Trigger the Fill Covers modal in MusicDexPage
-    if (musicDexRef.current && musicDexRef.current.openFillCoversModal) {
-      musicDexRef.current.openFillCoversModal();
-    }
-  };
-
-  const handleExportAlbumsCSV = () => {
-    setShowAlbumCsvExportDialog(true);
-  };
-
-  const handleAlbumCsvExport = async (columns: string[]) => {
-    try {
-      const blob = await musicService.exportAlbumsCSV(columns);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'albums.csv';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      handleShowAlert('CSV exported successfully', 'success');
-    } catch (error) {
-      console.error('CSV export error:', error);
-      handleShowAlert('Failed to export CSV: ' + (error as Error).message, 'danger');
-    }
+  // Navidrome, read again from ⚙︎: the store MusicDex shows with Digital on, not read here otherwise.
+  const navidrome = useDigitalLibrary(false);
+  const handleSyncNavidrome = async () => {
+    const error = await navidrome.sync();
+    toast(error ? `Could not read Navidrome: ${error}` : 'Navidrome read again', { tone: error ? 'danger' : 'success' });
   };
 
   const handleWishList = () => {
@@ -1248,15 +1153,8 @@ function AppContent() {
             )}
             <div className="App-toolbar">
               <CogDropdown
-                onImportMovies={handleImportMovies}
-                onAddMovie={handleAddMovie}
-                onExportCSV={handleExportCSV}
-                onAddCD={handleAddCD}
-                onResizeCovers={handleResizeCovers}
-                onFillCovers={handleFillCovers}
-                onExportAlbumsCSV={handleExportAlbumsCSV}
-                onAddBook={handleAddBook}
-                onExportBooksCSV={handleExportBooksCSV}
+                onSyncNavidrome={handleSyncNavidrome}
+                syncingNavidrome={navidrome.syncing}
                 onBackup={handleBackup}
                 onShelves={handleShelves}
                 currentPage={location.pathname === '/musicdex' ? 'musicdex' : location.pathname === '/bookdex' ? 'bookdex' : 'filmdex'}
@@ -1376,7 +1274,6 @@ function AppContent() {
               />
             }
           />
-          <Route path="/filmdex/import" element={<ImportPage />} />
           <Route path="/musicdex" element={<MusicDexPage ref={musicDexRef} searchCriteria={searchCriteria} />} />
           {/* The Digital page is MusicDex with Digital on: its tabs are filters there. */}
           <Route path="/musicdex/digital" element={<DigitalRedirect />} />
@@ -1400,18 +1297,6 @@ function AppContent() {
         initialMode={addMovieMode}
         onSuccess={handleAddMovieSuccess}
         onMovieAdded={handleMovieAdded}
-      />
-
-      <CsvExportDialog
-        isOpen={showCsvExportDialog}
-        onClose={() => setShowCsvExportDialog(false)}
-        onExport={handleCsvExport}
-      />
-
-      <AlbumCsvExportDialog
-        isOpen={showAlbumCsvExportDialog}
-        onClose={() => setShowAlbumCsvExportDialog(false)}
-        onExport={handleAlbumCsvExport}
       />
 
       {/* Scroll to Top FAB - Mobile Only */}

@@ -8,7 +8,6 @@ import fs from 'fs';
 import configManager from './src/config';
 import logger from './src/logger';
 import movieController from './src/controllers/movieController';
-import { importController, upload } from './src/controllers/importController';
 import analyticsController from './src/controllers/analyticsController';
 import musicController from './src/controllers/musicController';
 import musicService from './src/services/musicService';
@@ -38,7 +37,6 @@ import ripStatusService from './src/services/ripStatusService';
 import trackPopularityService from './src/services/trackPopularityService';
 import { mountMcp } from './src/mcp/mount';
 import Movie from './src/models/movie';
-import MovieImport from './src/models/movieImport';
 import MovieCast from './src/models/movieCast';
 import MovieCrew from './src/models/movieCrew';
 import Collection from './src/models/collection';
@@ -71,17 +69,8 @@ app.use(express.static('public'));
 
 // Apply multer middleware specifically for file upload routes BEFORE JSON parsing
 // Create upload middleware after config is loaded
-let csvUploadMiddleware: ReturnType<typeof upload.single> | undefined;
-let moviePosterUploadMiddleware: ReturnType<typeof upload.single> | undefined;
-let backupUploadMiddleware: ReturnType<typeof upload.single> | undefined;
+let backupUploadMiddleware: ReturnType<typeof backupController.restoreUpload> | undefined;
 
-// We'll set up the upload middleware after config is loaded, in the startServer function
-app.post('/api/import/csv', (req: Request, res: Response, next: NextFunction) => {
-  if (!csvUploadMiddleware) {
-    return next(new Error('Upload middleware not initialized'));
-  }
-  csvUploadMiddleware(req, res, next);
-}, importController.uploadCsv);
 app.post('/api/movies/:id/upload-poster', movieController.posterUploadMiddleware, movieController.uploadCustomPoster);
 app.post('/api/backup/upload-restore', (req: Request, res: Response, next: NextFunction) => {
   if (!backupUploadMiddleware) {
@@ -129,17 +118,7 @@ const startServer = async (): Promise<void> => {
     logger.info(`Using ebooks directory: ${configManager.getEbooksPath()}`);
 
     // Initialize upload middleware with proper config
-    // CSV upload middleware
-    csvUploadMiddleware = upload.single('file');
-
-    // Movie poster upload middleware - same config as CSV
-    moviePosterUploadMiddleware = upload.single('file');
-
-    // Backup upload middleware - same config as CSV
-    backupUploadMiddleware = upload.single('file');
-
-    // Update the route handlers with the newly created middleware
-    app.post('/api/import/csv', csvUploadMiddleware, importController.uploadCsv);
+    backupUploadMiddleware = backupController.restoreUpload();
   } catch (error) {
     logger.error('Failed to initialize database:', error);
     process.exit(1);
@@ -200,7 +179,6 @@ app.get('/api/tmdb/search', movieController.searchTMDB);
 app.put('/api/movies/:id', movieController.updateMovie);
 app.post('/api/movies/:id/refresh-ratings', movieController.refreshMovieRatings);
 app.delete('/api/movies/:id', movieController.deleteMovie);
-app.get('/api/movies/export/csv', movieController.exportCSV);
 
 // Wish list routes
 app.get('/api/movies/status/:status', movieController.getMoviesByStatus);
@@ -232,14 +210,6 @@ app.get('/api/images/:type/:filename', (req: Request, res: Response) => {
   const { type, filename } = req.params;
   void sendImage(req, res, path.join(type as string, filename as string));
 });
-
-// Import routes (CSV upload already handled above)
-app.post('/api/import/process', importController.processCsv);
-app.get('/api/import/:id', importController.getImportStatus);
-app.post('/api/import/resolve', importController.resolveMovie);
-app.post('/api/import/ignore', importController.ignoreMovie);
-
-app.get('/api/import/:id/suggestions', importController.getMovieSuggestions);
 
 // Analytics routes
 // Shelving: where each physical object is kept
@@ -275,14 +245,11 @@ app.get('/api/cache/stats', analyticsController.getCacheStats);
 // Music routes
 app.get('/api/music/albums', musicController.getAllAlbums);
 app.get('/api/music/albums/search', musicController.searchAlbums);
-app.get('/api/music/albums/missing-covers', musicController.getAlbumsMissingCovers);
 app.get('/api/music/albums/status/:status', musicController.getAlbumsByStatus);
-app.get('/api/music/albums/export/csv', musicController.exportCSV);
 app.post('/api/music/scan-cover', musicController.scanCover);
 app.post('/api/music/transcribe-sleeve', musicController.transcribeSleeve);
 app.post('/api/music/releases/:source/:releaseId', musicController.addAlbumFromSource);
 app.post('/api/music/albums', musicController.addAlbum);
-app.post('/api/music/albums/fill-covers', musicController.fillCovers);
 app.get('/api/music/digital', musicController.getDigitalLibrary);
 app.post('/api/music/digital/sync', musicController.syncDigitalLibrary);
 app.put('/api/music/digital/:navidromeId/wish', musicController.setDigitalWished);
@@ -326,7 +293,6 @@ app.get('/api/music/search/barcode', musicController.searchByBarcode);
 app.get('/api/music/release/:releaseId', musicController.getMusicBrainzReleaseDetails);
 app.post('/api/music/release/:releaseId', musicController.addAlbumFromMusicBrainz);
 app.post('/api/music/barcode/:barcode', musicController.addAlbumByBarcode);
-app.post('/api/music/migrate/resize-covers', musicController.resizeAllAlbumCovers);
 app.get('/api/music/albums/:id/apple-music', musicController.getAppleMusicUrl);
 app.put('/api/music/albums/:id/listen-next', musicController.toggleListenNext);
 app.post('/api/music/albums/:id/bought', musicController.markAlbumBought);
@@ -355,7 +321,6 @@ app.get('/api/books/search/external', bookController.searchExternalBooks);
 app.get('/api/books/search/series', bookController.searchSeriesVolumes);
 app.get('/api/books/series', bookController.getBooksBySeries);
 app.get('/api/books/status/:status', bookController.getBooksByStatus);
-app.get('/api/books/export/csv', bookController.exportCSV);
 app.get('/api/books/autocomplete', bookController.getAutocompleteSuggestions); // Must come before /:id route
 app.post('/api/books', bookController.addBook);
 app.post('/api/books/batch', bookController.addBooksBatch);

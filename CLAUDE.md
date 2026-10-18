@@ -35,7 +35,7 @@ cd frontend && npx vitest --run ComponentName  # single test file
 ### Backend (`backend/`)
 - **Express 5** server with SQLite3 database
 - MVC pattern: `src/controllers/` → `src/services/` → `src/models/`
-- Controllers: movie, music, book, import, analytics, backfill, backup, bookComment
+- Controllers: movie, music, book, analytics, backfill, backup, bookComment
 - External API integrations: `tmdbService`, `omdbService`, `musicbrainzService`, `bookApiService`, `bookImslpService`
 - Image handling: `imageService` (download/storage), `posterService` (movie posters), `bookCoverService`
 - Database migrations in `backend/migrations/` and inline in `src/database.ts` (`runAutoMigrations`)
@@ -45,7 +45,7 @@ cd frontend && npx vitest --run ComponentName  # single test file
 ### Frontend (`frontend/`)
 - **React 19** with Vite, React Router 7, React Bootstrap, react-icons
 - Main app shell in `App.tsx` — manages search state, navigation pills, and routing
-- Pages: FilmDexPage (movies), MusicDexPage, BookDexPage, WishListPage, AnalyticsPage, BackupPage, ImportPage
+- Pages: FilmDexPage (movies), MusicDexPage, BookDexPage, WishListPage, AnalyticsPage, BackupPage
 - Shared collection components in `components/shared/` (CollectionGrid, CollectionHeader, NextBanner, EmptyState)
 - Service layer in `services/` — `api.ts` (movies/general), `musicService.ts`, `bookService.ts`, `bookCommentService.ts`, `backupService.ts`
 - Frontend proxies API calls to backend via Vite proxy config in dev mode

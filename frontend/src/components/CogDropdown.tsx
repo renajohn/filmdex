@@ -1,18 +1,12 @@
 import React from 'react';
-import { BsGear, BsUpload, BsDownload, BsArrowsAngleContract, BsImage, BsArchive, BsBookshelf } from 'react-icons/bs';
+import { BsGear, BsArrowClockwise, BsArchive, BsBookshelf } from 'react-icons/bs';
 import Menu from './shared/Menu';
+import Spinner from './shared/Spinner';
 import './CogDropdown.css';
 
 interface CogDropdownProps {
-  onImportMovies?: () => void;
-  onAddMovie?: () => void;
-  onExportCSV?: () => void;
-  onAddCD?: () => void;
-  onResizeCovers?: () => void;
-  onFillCovers?: () => void;
-  onExportAlbumsCSV?: () => void;
-  onAddBook?: () => void;
-  onExportBooksCSV?: () => void;
+  onSyncNavidrome?: () => void;
+  syncingNavidrome?: boolean;
   onBackup?: () => void;
   onShelves?: () => void;
   currentPage?: string;
@@ -20,12 +14,8 @@ interface CogDropdownProps {
 
 /** ⚙︎ in the header: what each collection offers, then what DexVault does for all of them. */
 const CogDropdown: React.FC<CogDropdownProps> = ({
-  onImportMovies,
-  onExportCSV,
-  onResizeCovers,
-  onFillCovers,
-  onExportAlbumsCSV,
-  onExportBooksCSV,
+  onSyncNavidrome,
+  syncingNavidrome = false,
   onBackup,
   onShelves,
   currentPage = 'dexvault'
@@ -36,26 +26,15 @@ const CogDropdown: React.FC<CogDropdownProps> = ({
         <BsGear />
       </button>
     )}>
-      {currentPage === 'musicdex' ? (
+      {currentPage === 'musicdex' && (
         <>
           <Menu.Section title="MusicDex" />
-          <Menu.Item icon={<BsDownload />} onSelect={onExportAlbumsCSV}>CSV Export</Menu.Item>
-          <Menu.Item icon={<BsArrowsAngleContract />} onSelect={onResizeCovers}>Resize covers</Menu.Item>
-          <Menu.Item icon={<BsImage />} onSelect={onFillCovers}>Fill covers</Menu.Item>
-        </>
-      ) : currentPage === 'bookdex' ? (
-        <>
-          <Menu.Section title="BookDex" />
-          <Menu.Item icon={<BsDownload />} onSelect={onExportBooksCSV}>CSV Export</Menu.Item>
-        </>
-      ) : (
-        <>
-          <Menu.Section title="FilmDex" />
-          <Menu.Item icon={<BsUpload />} onSelect={onImportMovies}>CSV Import</Menu.Item>
-          <Menu.Item icon={<BsDownload />} onSelect={onExportCSV}>CSV Export</Menu.Item>
+          <Menu.Item icon={syncingNavidrome ? <Spinner size="sm" /> : <BsArrowClockwise />} disabled={syncingNavidrome} onSelect={onSyncNavidrome}>
+            {syncingNavidrome ? 'Reading Navidrome…' : 'Sync Navidrome'}
+          </Menu.Item>
+          <Menu.Separator />
         </>
       )}
-      <Menu.Separator />
       <Menu.Section title="DexVault" />
       <Menu.Item icon={<BsBookshelf />} onSelect={onShelves}>Shelves</Menu.Item>
       <Menu.Item icon={<BsArchive />} onSelect={onBackup}>Backups</Menu.Item>

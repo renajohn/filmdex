@@ -1,10 +1,9 @@
 # DexVault - Organize Your Collections
 
-A modern web application for managing and searching your physical media collections. Import movies and music from CSV files or add them manually, with automatic data enrichment from TMDB, OMDB, and MusicBrainz APIs.
+A modern web application for managing and searching your physical media collections. Add movies, music and books by searching for them, with automatic data enrichment from TMDB, OMDB, and MusicBrainz APIs.
 
 ## Features
 
-- **CSV Import**: Import your media collections from CSV files with automatic column mapping
 - **Manual Addition**: Add movies and music individually with search and auto-complete
 - **Multi-criteria Search**: Search by title, genre, director, actor, year, format, and ratings
 - **Automatic Data Enrichment**: Fetch details, posters, and metadata from TMDB/OMDB/MusicBrainz APIs
@@ -78,8 +77,7 @@ npm start
 
 ### Adding Media
 
-1. **Manual Addition**: Go to "Add Movie" or "Add Music" and search for items by title
-2. **CSV Import**: Go to "Import" and upload a CSV file with your collection
+Go to "Add Movie" or "Add Music" and search for items by title.
 
 ### Searching Media
 
@@ -93,13 +91,6 @@ Use the search interface to find items by:
 - Minimum IMDB Rating
 - Minimum Rotten Tomatoes Rating
 
-### CSV Import Format
-
-Your CSV file should include columns like:
-- Title, Year, Genre, Director/Artist, Cast, Format, IMDB Rating, Plot, etc.
-
-The import system will automatically map columns and suggest matches for unmatched items.
-
 ## API Endpoints
 
 ### Movies
@@ -107,8 +98,6 @@ The import system will automatically map columns and suggest matches for unmatch
 - `GET /api/movies/search` - Search movies with query parameters
 - `POST /api/movies` - Add a new movie
 - `GET /api/movies/:id` - Get movie details
-- `POST /api/import` - Import movies from CSV
-- `GET /api/import/:id` - Get import status
 
 ### Music
 - `GET /api/music/albums` - Get all albums

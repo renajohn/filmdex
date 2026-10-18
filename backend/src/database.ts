@@ -322,8 +322,6 @@ const initDatabase = async (): Promise<sqlite3.Database> => {
         // Create tables with final schema
         try {
           const Movie = (await import('./models/movie')).default;
-          const MovieImport = (await import('./models/movieImport')).default;
-          const UnmatchedMovie = (await import('./models/unmatchedMovie')).default;
           const MovieCast = (await import('./models/movieCast')).default;
           const MovieCrew = (await import('./models/movieCrew')).default;
           const Collection = (await import('./models/collection')).default;
@@ -349,8 +347,6 @@ const initDatabase = async (): Promise<sqlite3.Database> => {
 
           // Create all tables with their final schema
           await Movie.createTable();
-          await MovieImport.createTable();
-          await UnmatchedMovie.createTable();
           await MovieCast.createTable();
           await MovieCrew.createTable();
           await Collection.createTable();

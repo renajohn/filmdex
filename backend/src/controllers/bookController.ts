@@ -9,7 +9,6 @@ import Book from '../models/book';
 import logger from '../logger';
 import coverScanService from '../services/coverScanService';
 import { searchAmazonProducts } from '../services/amazonSearchService';
-import type { BookFormatted } from '../types';
 
 // Helper function to format file size
 const formatFileSize = (bytes: number): string => {
@@ -793,56 +792,6 @@ const bookController = {
     }
   },
 
-  // Export books to CSV
-  exportCSV: async (req: Request, res: Response): Promise<void> => {
-    try {
-      const books = await bookService.getAllBooks();
-
-      // Convert to CSV
-      const headers = [
-        'Title', 'Authors', 'ISBN', 'ISBN-13', 'Publisher', 'Published Year',
-        'Language', 'Format', 'Series', 'Series Number', 'Genres', 'Rating',
-        'Owner', 'Title Status', 'Read Date', 'Page Count',
-        'Narrator', 'Runtime', 'Filetype', 'DRM', 'Created At'
-      ];
-
-      const rows = books.map((book: BookFormatted) => [
-        book.title || '',
-        Array.isArray(book.authors) ? book.authors.join('; ') : '',
-        book.isbn || '',
-        book.isbn13 || '',
-        book.publisher || '',
-        String(book.publishedYear ?? ''),
-        book.language || '',
-        book.format || '',
-        book.series || '',
-        String(book.seriesNumber ?? ''),
-        Array.isArray(book.genres) ? book.genres.join('; ') : '',
-        String(book.rating ?? ''),
-        book.owner || '',
-        book.titleStatus || 'owned',
-        book.readDate || '',
-        String(book.pageCount ?? ''),
-        book.narrator || '',
-        String(book.runtime ?? ''),
-        book.filetype || '',
-        book.drm || '',
-        book.createdAt || ''
-      ]);
-
-      const csv = [
-        headers.join(','),
-        ...rows.map((row: string[]) => row.map((cell: string) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-      ].join('\n');
-
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename=books.csv');
-      res.send(csv);
-    } catch (error) {
-      console.error('Error exporting books to CSV:', error);
-      res.status(500).json({ error: 'Failed to export books to CSV' });
-    }
-  }
 };
 
 export default bookController;

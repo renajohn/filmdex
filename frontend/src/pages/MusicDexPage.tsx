@@ -2,27 +2,11 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import MusicSearch from '../components/MusicSearch';
-import ResizeCoversMigrationModal from '../components/ResizeCoversMigrationModal';
-import FillBackCoversModal from '../components/FillBackCoversModal';
 import musicService from '../services/musicService';
 import AttachCdDialog, { type AttachableAlbum } from '../components/AttachCdDialog';
 import { IconButton } from '../components/shared/Button';
 import { BsX } from 'react-icons/bs';
 import { toast, toneOf } from '../components/shared/Toast';
-
-interface MigrationResult {
-  total: number;
-  processed: number;
-  downloaded?: number;
-  resized: number;
-  skipped: number;
-  errors: number;
-  errorDetails?: Array<{
-    albumId: number;
-    title: string;
-    error: string;
-  }>;
-}
 
 const MusicSearchComponent: any = MusicSearch;
 
@@ -32,8 +16,6 @@ interface MusicDexPageProps {
 
 export interface MusicDexPageRef {
   openAddDialog: () => void;
-  openResizeMigrationModal: () => void;
-  openFillCoversModal: () => void;
 }
 
 const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCriteria }, ref) => {
@@ -41,8 +23,6 @@ const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCri
   const navigate = useNavigate();
   const [cds, setCds] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showResizeMigrationModal, setShowResizeMigrationModal] = useState(false);
-  const [showFillCoversModal, setShowFillCoversModal] = useState(false);
   const musicSearchRef = useRef<any>(null);
   // A CD about to be added that DexVault has as files or wished: which album to make the CD of.
   const [attachPrompt, setAttachPrompt] = useState<{ albums: AttachableAlbum[]; choose: (albumId: number | null) => void } | null>(null);
@@ -106,12 +86,6 @@ const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCri
       if (musicSearchRef.current) {
         musicSearchRef.current.openAddDialog();
       }
-    },
-    openResizeMigrationModal: () => {
-      setShowResizeMigrationModal(true);
-    },
-    openFillCoversModal: () => {
-      setShowFillCoversModal(true);
     }
   }));
 
@@ -205,22 +179,6 @@ const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCri
     }
   };
 
-  const handleResizeMigration = async () => {
-    return await musicService.resizeAllAlbumCovers() as MigrationResult;
-  };
-
-  const handleFillCovers = async (action: string, albumIds: number[], type: string, progressCallback?: (progress: any) => void) => {
-    if (action === 'getAlbums') {
-      return await musicService.getAlbumsMissingCovers(type);
-    } else if (action === 'fillCovers') {
-      const result = await musicService.fillCovers(albumIds, type);
-      // Reload albums to show updated covers
-      await loadCds();
-      return result;
-    }
-    return undefined;
-  };
-
   return (
     <div className="musicdex-page">
       <MusicSearchComponent
@@ -240,20 +198,6 @@ const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCri
 
 
       {attachPrompt && <AttachCdDialog albums={attachPrompt.albums} onChoose={attachPrompt.choose} />}
-
-      {/* Resize Covers Migration Modal */}
-      <ResizeCoversMigrationModal
-        isOpen={showResizeMigrationModal}
-        onClose={() => setShowResizeMigrationModal(false)}
-        onMigrate={handleResizeMigration}
-      />
-
-      {/* Fill Covers Modal */}
-      <FillBackCoversModal
-        isOpen={showFillCoversModal}
-        onClose={() => setShowFillCoversModal(false)}
-        onFill={handleFillCovers as any}
-      />
     </div>
   );
 });

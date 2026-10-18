@@ -4,7 +4,6 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 import sqlite3 from 'sqlite3';
 import Movie from '../../src/models/movie';
-import MovieImport from '../../src/models/movieImport';
 import MovieCast from '../../src/models/movieCast';
 import MovieCrew from '../../src/models/movieCrew';
 import Collection from '../../src/models/collection';
@@ -44,7 +43,6 @@ const setupDatabase = async (): Promise<void> => {
   databaseModule.getDatabase = () => db;
 
   await Movie.createTable();
-  await MovieImport.createTable();
   await MovieCast.createTable();
   await MovieCrew.createTable();
   await Collection.createTable();

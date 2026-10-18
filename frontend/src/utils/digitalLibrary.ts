@@ -61,9 +61,12 @@ const load = async () => {
   }
 };
 
-/** Rereads Navidrome: the plays since, CDs ripped since, the editions Picard identified them as, new digital albums. */
-const sync = async () => {
-  if (state.syncing) return;
+/**
+ * Rereads Navidrome: the plays since, CDs ripped since, the editions Picard
+ * identified them as, new digital albums. Answers what went wrong, null when all went well.
+ */
+const sync = async (): Promise<string | null> => {
+  if (state.syncing) return null;
   set({ syncing: true });
   try {
     const result = await musicService.syncDigitalLibrary();
@@ -73,6 +76,7 @@ const sync = async () => {
   } finally {
     set({ syncing: false });
   }
+  return state.error;
 };
 
 /** Puts in the library the album the server answered a change with. */

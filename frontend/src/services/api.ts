@@ -124,19 +124,6 @@ class ApiService {
     return await response.json();
   }
 
-  async exportCSV(columns: string[] | null = null): Promise<Blob> {
-    const params = new URLSearchParams();
-    if (columns && columns.length > 0) {
-      params.append('columns', columns.join(','));
-    }
-
-    const queryString = params.toString();
-    const endpoint = queryString ? `/movies/export/csv?${queryString}` : '/movies/export/csv';
-
-    const response = await this.makeRequest(endpoint);
-    return await response.blob();
-  }
-
   async getMovieThumbnail(imdbLink: string, title: string | null = null, year: string | null = null): Promise<unknown> {
     const params = new URLSearchParams({ imdbLink });
     if (title) params.append('title', title);
@@ -231,77 +218,6 @@ class ApiService {
     return await response.json();
   }
 
-  // Upload CSV file and get headers for mapping
-  async uploadCsv(file: File): Promise<unknown> {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const response = await this.makeRequest('/import/csv', {
-      method: 'POST',
-      headers: {}, // Let browser set Content-Type for FormData
-      body: formData,
-    });
-
-    return await response.json();
-  }
-
-  // Process CSV with column mapping
-  async processCsv(filePath: string, columnMapping: Record<string, string>): Promise<unknown> {
-    const response = await this.makeRequest('/import/process', {
-      method: 'POST',
-      body: JSON.stringify({
-        filePath,
-        columnMapping
-      }),
-    });
-
-    return await response.json();
-  }
-
-  // Get import status
-  async getImportStatus(importId: string): Promise<unknown> {
-    const response = await this.makeRequest(`/import/${importId}`);
-    return await response.json();
-  }
-
-  // Resolve an unmatched movie
-  async resolveMovie(importId: string, unmatchedMovieTitle: string, resolvedMovie: Record<string, unknown>): Promise<unknown> {
-    const response = await this.makeRequest('/import/resolve', {
-      method: 'POST',
-      body: JSON.stringify({
-        importId,
-        unmatchedMovieTitle,
-        resolvedMovie
-      }),
-    });
-
-    return await response.json();
-  }
-
-  // Get movie suggestions for unmatched movies
-  async getMovieSuggestions(importId: string, title: string, year: string | null = null): Promise<unknown> {
-    const params = new URLSearchParams({ title });
-    if (year) {
-      params.append('year', year);
-    }
-
-    const response = await this.makeRequest(`/import/${importId}/suggestions?${params}`);
-    return await response.json();
-  }
-
-  // Ignore an unmatched movie
-  async ignoreMovie(importId: string, movieTitle: string): Promise<unknown> {
-    const response = await this.makeRequest('/import/ignore', {
-      method: 'POST',
-      body: JSON.stringify({
-        importId,
-        movieTitle
-      }),
-    });
-
-    return await response.json();
-  }
-
   // Get cast for a movie
   async getMovieCast(movieId: number | string): Promise<unknown> {
     const response = await this.makeRequest(`/movies/${movieId}/cast`);
@@ -314,7 +230,7 @@ class ApiService {
     return await response.json();
   }
 
-  // Add movie using the same pipeline as CSV import
+  // Add movie with its details, credits and artwork
   async addMovieWithPipeline(title: string, year: string | null = null, additionalData: Record<string, unknown> = {}): Promise<unknown> {
     const response = await this.makeRequest('/movies/add-with-pipeline', {
       method: 'POST',

@@ -1,14 +1,13 @@
 import React from 'react';
-import { BsArrowClockwise, BsCartFill } from 'react-icons/bs';
+import { BsCartFill } from 'react-icons/bs';
 import type { DigitalLibrary, EditionAdoption } from '../services/musicService';
 import './DigitalStrip.css';
-import { IconButton } from './shared/Button';
 import Chip from './shared/Chip';
 
 /**
  * The head of MusicDex with Digital on, laid in the collection's own head:
  * Buy after the Digital switch, the other filters being words of the search
- * (cd:, file:, ripped:); Refresh beside the count; below, only when there is one, what
+ * (cd:, file:, ripped:); below, only when there is one, what
  * DexVault did at the last sync and what needs doing.
  */
 
@@ -38,22 +37,6 @@ export const DigitalChips: React.FC<DigitalChipsProps> = ({ filter, onFilter, co
     </div>
   ) : null
 );
-
-interface DigitalRefreshProps {
-  library: DigitalLibrary | null;
-  syncing: boolean;
-  onRefresh: () => void;
-}
-
-/** Reads Navidrome again: a round button beside the count, turning while it reads. */
-export const DigitalRefresh: React.FC<DigitalRefreshProps> = ({ library, syncing, onRefresh }) => {
-  const others = library?.plugin?.accounts ?? [];
-  const title = syncing ? 'Reading Navidrome…'
-    : `Read Navidrome again${others.length > 0 ? ` (plays and likes of ${others.join(', ')} counted too)` : ''}`;
-  return (
-    <IconButton label={title} size="sm" className="digital-refresh" onClick={onRefresh} disabled={syncing} title={title}><BsArrowClockwise aria-hidden="true" className={syncing ? 'digital-spinning' : undefined} /></IconButton>
-  );
-};
 
 interface DigitalNoticesProps {
   library: DigitalLibrary | null;

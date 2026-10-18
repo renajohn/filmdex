@@ -27,13 +27,6 @@
   border-color: rgba(220, 53, 69, 0.35);
 }
 
-/* Refresh beside the count: a quiet round button. */
-.digital-refresh {
-  margin-left: 10px}
-
-.digital-spinning { animation: digital-spin 1s linear infinite; }
-@keyframes digital-spin { to { transform: rotate(360deg); } }
-
 .digital-chips {
   display: flex;
   flex-wrap: wrap;
