@@ -264,26 +264,6 @@ const movieService = {
     }
   },
 
-  // Get movie backdrop URL
-  getMovieBackdrop: async (tmdbId: number | null): Promise<string | null> => {
-    try {
-      if (!tmdbId) {
-        return null;
-      }
-
-      // Get movie details to find backdrop path
-      const movieDetails = await tmdbService.getMovieDetails(tmdbId);
-      if (movieDetails && movieDetails.backdrop_path) {
-        return `https://image.tmdb.org/t/p/w1280${movieDetails.backdrop_path}`;
-      }
-
-      return null;
-    } catch (error) {
-      console.error('Error fetching movie backdrop:', error);
-      return null;
-    }
-  },
-
   // Get detailed movie information combining local and TMDB data
   getMovieDetails: async (movieId: number): Promise<MovieDetails> => {
     try {

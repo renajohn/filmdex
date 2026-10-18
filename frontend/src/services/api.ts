@@ -133,11 +133,6 @@ class ApiService {
     return await response.json();
   }
 
-  async getMovieBackdrop(tmdbId: number | string): Promise<unknown> {
-    const response = await this.makeRequest(`/backdrop/${tmdbId}`);
-    return await response.json();
-  }
-
   async getMovieDetails(id: number | string): Promise<unknown> {
     const response = await this.makeRequest(`/movies/${id}/details`);
     return await response.json();

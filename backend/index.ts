@@ -199,7 +199,6 @@ app.get('/api/tmdb/:tmdbId/posters', movieController.getMoviePosters);
 
 app.get('/api/ratings', movieController.fetchRatings);
 app.get('/api/thumbnail', movieController.getMovieThumbnail);
-app.get('/api/backdrop/:tmdbId', movieController.getMovieBackdrop);
 // Serve images with support for subdirectories (e.g., cd/custom/filename.jpg)
 // Route with subdirectory
 app.get('/api/images/:type/:subdir/:filename', (req: Request, res: Response) => {

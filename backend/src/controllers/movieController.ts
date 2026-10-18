@@ -225,23 +225,6 @@ const movieController = {
     }
   },
 
-  // Get movie backdrop
-  getMovieBackdrop: async (req: Request, res: Response): Promise<void> => {
-    try {
-      const tmdbId = req.params.tmdbId as string;
-
-      if (!tmdbId) {
-        res.status(400).json({ error: 'TMDB ID is required' });
-        return;
-      }
-
-      const result = await movieService.getMovieBackdrop(parseInt(tmdbId, 10));
-      res.json(result);
-    } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
-    }
-  },
-
   // Get detailed movie information
   getMovieDetails: async (req: Request, res: Response): Promise<void> => {
     try {
