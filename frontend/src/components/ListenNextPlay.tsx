@@ -157,8 +157,21 @@ export const useListenNextPlay = (albums: ListAlbum[], refreshAlbums: () => Prom
     }
   }, [load]);
 
+  /** A mixtape played shuffled from Listen Next, from its next start: in an order drawn once, the same on the Mac and in Amperfy. */
+  const setShuffled = useCallback(async (albumId: number, shuffled: boolean) => {
+    setPlay(previous => (previous ? {
+      ...previous,
+      shuffled: shuffled ? [...(previous.shuffled || []), albumId] : (previous.shuffled || []).filter(id => id !== albumId),
+    } : previous));
+    try {
+      await musicService.setListenNextShuffled(albumId, shuffled);
+    } finally {
+      load();
+    }
+  }, [load]);
+
   return {
-    play, items, departureOf, keep, setRepeat,
+    play, items, departureOf, keep, setRepeat, setShuffled,
     /** An album leaving: greyed, its ring running down; one still playing its last track is not yet. */
     leavingState: (albumId: number): { departureId: number; startedAt: number; collapsing: boolean } | null => {
       const departure = departureOf(albumId);

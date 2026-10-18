@@ -6,6 +6,7 @@ import navidromeService from './navidromeService';
 import ripStatusService from './ripStatusService';
 import listenNextPlaylistService from './listenNextPlaylistService';
 import Mixtape from '../models/mixtape';
+import { drawAgain, inListenNextOrder, setShuffled as shuffleMixtape } from './mixtapeShuffle';
 import logger from '../logger';
 import type { AlbumFormatted } from '../types';
 
@@ -34,6 +35,8 @@ export interface ListenNextPlayState {
   ripped: number[];
   /** The discs, tracks and length of every album in Listen Next or leaving it, by id. */
   lengths: Record<number, AlbumLength>;
+  /** The mixtapes that play shuffled from Listen Next. */
+  shuffled: number[];
 }
 
 const run = (sql: string, params: unknown[] = []): Promise<void> =>
@@ -72,6 +75,8 @@ const leave = async (collectionId: number, album: { id: number; title: string },
     'SELECT collection_order FROM album_collections WHERE collection_id = ? AND album_id = ?', [collectionId, album.id]);
   await run('DELETE FROM album_collections WHERE collection_id = ? AND album_id = ?', [collectionId, album.id]);
   const departure = await ListenNextPlay.addDeparture(album.id, place?.collection_order ?? null, at);
+  const mixtape = await Mixtape.findByAlbumId(album.id);
+  if (mixtape) await drawAgain(album.id, mixtape.songs.length);
   listenNextPlaylistService.schedule();
   logger.info(`Listen Next: "${album.title}" played to its end, out of the list`);
   return departure;
@@ -89,10 +94,11 @@ const check = async (user: string, songId: string, at: number): Promise<ListenNe
   if (await ListenNextPlay.getRepeat()) return null;
   const collectionId = await listenNextId();
   for (const album of await Collection.getAlbums(collectionId)) {
-    // A mixtape leaves on the scrobble of its own last song.
+    // A mixtape leaves on the scrobble of its own last song, the last drawn when it plays shuffled.
     const mixtape = await Mixtape.findByAlbumId(album.id);
     if (mixtape) {
-      if (mixtape.songs.length > 0 && mixtape.songs[mixtape.songs.length - 1].songId === songId) return leave(collectionId, album, at);
+      const songs = await inListenNextOrder(album.id, mixtape.songs);
+      if (songs.length > 0 && songs[songs.length - 1].songId === songId) return leave(collectionId, album, at);
       continue;
     }
     const copy = await ripStatusService.navidromeAlbumFor(album.id);
@@ -168,11 +174,20 @@ const listenNextPlayService = {
     }
     return {
       repeat: await ListenNextPlay.getRepeat(), playlistId, playlistUrl: playlistId ? navidromeService.playlistUrl(playlistId) : null,
-      departures, ripped, lengths,
+      departures, ripped, lengths, shuffled: await ListenNextPlay.shuffledAlbumIds(),
     };
   },
 
   setRepeat: async (repeat: boolean): Promise<void> => ListenNextPlay.setRepeat(repeat),
+
+  /** A mixtape of Listen Next played shuffled or in its own order; false when the album is no mixtape. */
+  setShuffled: async (albumId: number, shuffled: boolean): Promise<boolean> => {
+    const mixtape = await Mixtape.findByAlbumId(albumId);
+    if (!mixtape) return false;
+    await shuffleMixtape(albumId, mixtape.songs.length, shuffled);
+    listenNextPlaylistService.schedule();
+    return true;
+  },
 
   /** Keep here: the album goes back to Listen Next at its place. False when there is no such departure. */
   keep: async (departureId: number): Promise<boolean> => {

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { BsBoxArrowUpRight, BsCassetteFill, BsCheck2, BsGripVertical, BsHeadphones, BsPauseFill, BsPencil, BsPlayFill, BsThreeDots, BsTrash, BsX } from 'react-icons/bs';
+import { BsBoxArrowUpRight, BsCassetteFill, BsCheck2, BsGripVertical, BsHeadphones, BsPauseFill, BsPencil, BsPlayFill, BsShuffle, BsThreeDots, BsTrash, BsX } from 'react-icons/bs';
 import Dialog from './shared/Dialog';
 import Menu from './shared/Menu';
 import Button, { IconButton } from './shared/Button';
@@ -39,7 +39,7 @@ const length = (mixtape: MixtapeDetails): string => {
 };
 
 /**
- * A mixtape's card: its mosaic, Play and Listen Next on the left; its songs
+ * A mixtape's card: its mosaic, Play, Shuffle and Listen Next on the left; its songs
  * on the right, in order and without numbers, each with the cover of its CD
  * (a click opens the CD's card over this one). A song's title plays the
  * mixtape from there; its grip moves it, its ✕ takes that copy out. The name
@@ -53,8 +53,13 @@ const MixtapeDialog: React.FC<MixtapeDialogProps> = ({ albumId, onClose, onOpenA
   const [busy, setBusy] = useState(false);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dropAt, setDropAt] = useState<number | null>(null);
-  const playingHere = usePlayer(state => state.album?.id === albumId);
-  const index = usePlayer(state => state.index);
+  // The player's tracks here, and the place in the mixtape of the one playing: shuffled, the two orders differ.
+  const tracks = usePlayer(state => (state.album?.id === albumId ? state.tracks : null));
+  const placeNow = usePlayer(state => {
+    const track = state.album?.id === albumId ? state.tracks[state.index] : undefined;
+    return track ? track.place ?? track.no - 1 : null;
+  });
+  const shuffledHere = Boolean(tracks?.some((track, at) => (track.place ?? at) !== at));
   const playing = usePlayer(state => state.playing);
   const nameField = useRef<HTMLInputElement>(null);
 
@@ -104,12 +109,19 @@ const MixtapeDialog: React.FC<MixtapeDialogProps> = ({ albumId, onClose, onOpenA
     await change({ name });
   };
 
-  const play = async (at: number) => {
-    if (playingHere) {
-      player.playTrack(at);
+  /**
+   * From a song: playing here, shuffled or not, it is found in the player's
+   * order, which goes on after it. Play starts again in the mixtape's order,
+   * Shuffle in a new one.
+   */
+  const play = async (at: number, how: 'from' | 'inOrder' | 'shuffled' = 'from') => {
+    const shuffle = how === 'shuffled';
+    const there = how !== 'from' || !tracks ? -1 : tracks.findIndex((track, i) => (track.place ?? i) === at);
+    if (there >= 0) {
+      player.playTrack(there);
       return;
     }
-    if (!(await playAlbumById(albumId, undefined, at).catch(() => false))) toast(`Could not play ${mixtape?.album.title ?? 'the mixtape'}`, { tone: 'danger' });
+    if (!(await playAlbumById(albumId, undefined, at, shuffle).catch(() => false))) toast(`Could not play ${mixtape?.album.title ?? 'the mixtape'}`, { tone: 'danger' });
   };
 
   const toggleListenNext = async () => {
@@ -198,7 +210,9 @@ const MixtapeDialog: React.FC<MixtapeDialogProps> = ({ albumId, onClose, onOpenA
               <div className="mixtape-facts">{mixtape.songs.length} {mixtape.songs.length === 1 ? 'track' : 'tracks'} · {length(mixtape)} · in Navidrome</div>
             </div>
             <div className="mixtape-actions">
-              <Button variant="primary" icon={<BsPlayFill />} disabled={mixtape.songs.length === 0} onClick={() => play(0)}>Play</Button>
+              <Button variant="primary" icon={<BsPlayFill />} disabled={mixtape.songs.length === 0} onClick={() => play(0, shuffledHere ? 'inOrder' : 'from')}>Play</Button>
+              <Button active={shuffledHere} icon={<BsShuffle />} disabled={mixtape.songs.length < 2}
+                title={shuffledHere ? 'Playing shuffled: shuffle again' : 'Play in an order drawn at random'} onClick={() => play(0, 'shuffled')}>Shuffle</Button>
               <Button active={inListenNext} icon={<BsHeadphones />} onClick={toggleListenNext}>
                 {inListenNext ? 'In Listen Next' : 'Listen Next'}
               </Button>
@@ -207,7 +221,7 @@ const MixtapeDialog: React.FC<MixtapeDialogProps> = ({ albumId, onClose, onOpenA
           <div className={`mixtape-songs${busy ? ' mixtape-songs--busy' : ''}`}>
             {mixtape.songs.length === 0 && <p className="mixtape-empty">No track yet: add some from a CD's card, with its cassette.</p>}
             {mixtape.songs.map((song, at) => {
-              const now = playingHere && index === at;
+              const now = placeNow === at;
               const twice = mixtape.songs.filter(one => one.songId === song.songId).length > 1;
               return (
                 <div key={`${song.songId}-${at}`}

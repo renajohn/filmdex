@@ -48,7 +48,33 @@ const ListenNextPlay = {
       kept INTEGER NOT NULL DEFAULT 0
     )`);
     await run('CREATE INDEX IF NOT EXISTS idx_listen_next_departures_left ON listen_next_departures (left_at)');
+    await run(`CREATE TABLE IF NOT EXISTS listen_next_shuffles (
+      album_id INTEGER PRIMARY KEY,
+      places TEXT NOT NULL
+    )`);
   },
+
+  /** A mixtape played shuffled in Listen Next: its songs' places, in the order drawn; null when it plays in its own. */
+  getShuffle: async (albumId: number): Promise<number[] | null> => {
+    const row = await get<{ places: string }>('SELECT places FROM listen_next_shuffles WHERE album_id = ?', [albumId]);
+    if (!row) return null;
+    try {
+      const places = JSON.parse(row.places);
+      return Array.isArray(places) ? places : [];
+    } catch {
+      return [];
+    }
+  },
+
+  setShuffle: async (albumId: number, places: number[]): Promise<void> =>
+    run(`INSERT INTO listen_next_shuffles (album_id, places) VALUES (?, ?)
+      ON CONFLICT(album_id) DO UPDATE SET places = excluded.places`, [albumId, JSON.stringify(places)]),
+
+  clearShuffle: async (albumId: number): Promise<void> => run('DELETE FROM listen_next_shuffles WHERE album_id = ?', [albumId]),
+
+  /** The mixtapes played shuffled. */
+  shuffledAlbumIds: async (): Promise<number[]> =>
+    (await all<{ album_id: number }>('SELECT album_id FROM listen_next_shuffles')).map(row => row.album_id),
 
   getRepeat: async (): Promise<boolean> =>
     (await get<{ value: string }>("SELECT value FROM listen_next_settings WHERE key = 'repeat'"))?.value === 'true',

@@ -319,6 +319,7 @@ app.post('/api/collections/listen-next/shuffle/:albumId', musicController.shuffl
 app.get('/api/collections/listen-next/stats', musicController.getSmartPlaylistStats);
 app.get('/api/collections/listen-next/play', musicController.getListenNextPlay);
 app.put('/api/collections/listen-next/repeat', musicController.setListenNextRepeat);
+app.put('/api/collections/listen-next/albums/:albumId/shuffled', musicController.setListenNextShuffled);
 app.post('/api/collections/listen-next/departures/:id/keep', musicController.keepListenNextDeparture);
 app.post('/api/collections/listen-next/played/:albumId', musicController.markListenNextPlayed);
 

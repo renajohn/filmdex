@@ -17,6 +17,8 @@ export interface PlayerTrack {
   artist?: string;
   albumId?: number | null;
   cover?: string | null;
+  /** A song of a mixtape: its place in it, from 0, which a shuffled play keeps while `no` follows the play. */
+  place?: number;
 }
 
 /** The album a play belongs to, for the bar, the cards and the Mac's own controls. */

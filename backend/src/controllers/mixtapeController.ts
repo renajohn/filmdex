@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import mixtapeService, { MixtapeGoneError, type MixtapeEdit } from '../services/mixtapeService';
 import logger from '../logger';
+import { shuffleOrder } from '../services/mixtapeShuffle';
 
 /** A Navidrome id: letters, digits, dashes and underscores. */
 const SONG_ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -63,7 +64,8 @@ const mixtapeController = {
       await mixtapeService.refresh().catch(error => logger.warn(`Mixtapes not read from Navidrome: ${(error as Error).message}`));
       const mixtape = await mixtapeService.get(albumId);
       if (!mixtape) { res.status(404).json({ error: 'Mixtape not found' }); return; }
-      res.json(mixtape);
+      // Played shuffled from Listen Next: the order drawn, as places, for DexVault's player to play it so.
+      res.json({ ...mixtape, listenNextOrder: await shuffleOrder(albumId, mixtape.songs.length) });
     } catch (error) {
       fail(res, error, 'Failed to read the mixtape');
     }

@@ -38,6 +38,8 @@ interface NextBannerProps {
   shufflingItemId?: number | null;
   /** A play button laid on each image, at its foot on the left. */
   renderPlay?: (item: NextBannerItem) => React.ReactNode;
+  /** A button laid on an image, at its foot on the right (where a CD's shelf shows under the pointer). */
+  renderFootRight?: (item: NextBannerItem) => React.ReactNode;
   /** In the header in place of the count: controls of the list's own. */
   headerControls?: React.ReactNode;
   /** A line under the cards. */
@@ -100,6 +102,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
   onShuffle,
   shufflingItemId = null,
   renderPlay,
+  renderFootRight,
   headerControls,
   footer,
   getCardClassName,
@@ -270,6 +273,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
 
                 {renderBadges && <div className="next-banner__badges">{renderBadges(item)}</div>}
                 {renderPlay && renderPlay(item)}
+                {renderFootRight && renderFootRight(item)}
                 <ShelfCode kind={type === 'music' ? 'album' : 'movie'} id={item.id} />
                 {renderOverlay && renderOverlay(item)}
 

@@ -90,6 +90,7 @@
 .next-banner__card--leaving .next-banner__remove-btn,
 .next-banner__card--leaving .next-banner__shuffle-btn,
 .next-banner__card--leaving .next-banner__play,
+.next-banner__card--leaving .next-banner__shuffled,
 .next-banner__card--leaving .next-banner__badges,
 .next-banner__card--leaving .shelf-code-overlay {
   opacity: 0;

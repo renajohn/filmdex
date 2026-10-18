@@ -1225,6 +1225,25 @@ const musicController = {
     }
   },
 
+  /** A mixtape of Listen Next played shuffled, or in its own order: { shuffled }. */
+  setListenNextShuffled: async (req: Request, res: Response): Promise<void> => {
+    const albumId = parseInt(req.params.albumId as string, 10);
+    if (!Number.isInteger(albumId) || typeof req.body?.shuffled !== 'boolean') {
+      res.status(400).json({ error: 'Expected an album id and { shuffled: boolean }' });
+      return;
+    }
+    try {
+      if (!(await listenNextPlayService.setShuffled(albumId, req.body.shuffled))) {
+        res.status(404).json({ error: 'No such mixtape' });
+        return;
+      }
+      res.json({ shuffled: req.body.shuffled });
+    } catch (error) {
+      logger.error('Error shuffling a Listen Next mixtape:', error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  },
+
   /** ⏭ on an album's last track in DexVault's player: it leaves Listen Next as one played to its end. */
   markListenNextPlayed: async (req: Request, res: Response): Promise<void> => {
     const albumId = parseInt(req.params.albumId as string, 10);

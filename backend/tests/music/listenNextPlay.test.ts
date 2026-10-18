@@ -8,6 +8,8 @@ import ripStatusService from '../../src/services/ripStatusService';
 import musicCollectionService from '../../src/services/musicCollectionService';
 import listenNextPlaylistService from '../../src/services/listenNextPlaylistService';
 import listenNextPlayService from '../../src/services/listenNextPlayService';
+import Mixtape from '../../src/models/mixtape';
+import { drawPlaces, fitsSongs } from '../../src/services/mixtapeShuffle';
 
 const tag = () => Math.random().toString(36).slice(2, 8);
 
@@ -144,5 +146,42 @@ describe('Listen Next lu', () => {
     await listenNextPlayService.setRepeat(true);
     expect((await request(app).post(`/api/collections/listen-next/played/${first}`)).body).toEqual({ left: null });
     expect(await ids()).toEqual([first, second, third]);
+  });
+
+  it('une mixtape lue en aléatoire part sur le scrobble de la dernière chanson tirée, et revient dans un autre ordre', async () => {
+    const songs = [0, 1, 2, 3, 4, 5].map(no => ({
+      songId: `mx-${second}-${no}`, title: `Song ${no}`, artist: 'A', album: 'B', albumId: null,
+      navidromeAlbumId: 'nd-x', discNumber: 1, track: no + 1, durationSec: 100,
+    }));
+    await Mixtape.save({ albumId: second, playlistId: `pl-${second}`, changed: null, songs });
+
+    expect((await request(app).put(`/api/collections/listen-next/albums/${second}/shuffled`).send({ shuffled: 'yes' })).status).toBe(400);
+    expect((await request(app).put(`/api/collections/listen-next/albums/${first}/shuffled`).send({ shuffled: true })).status).toBe(404);
+    expect((await request(app).put(`/api/collections/listen-next/albums/${second}/shuffled`).send({ shuffled: true })).body).toEqual({ shuffled: true });
+    expect((await request(app).get('/api/collections/listen-next/play')).body.shuffled).toContain(second);
+
+    const order = (await ListenNextPlay.getShuffle(second))!;
+    expect(fitsSongs(order, songs.length)).toBe(true);
+
+    // Its own last song is no longer the last: only the last drawn takes it out.
+    const lastDrawn = songs[order[order.length - 1]].songId;
+    const notLast = songs.find(song => song.songId !== lastDrawn)!.songId;
+    expect(await listenNextPlayService.noteScrobble('me', notLast)).toBeNull();
+    expect(await listenNextPlayService.noteScrobble('me', lastDrawn)).toMatchObject({ albumId: second });
+    expect(await ids()).toEqual([first, third]);
+    expect(fitsSongs((await ListenNextPlay.getShuffle(second))!, songs.length)).toBe(true);
+
+    expect((await request(app).put(`/api/collections/listen-next/albums/${second}/shuffled`).send({ shuffled: false })).body).toEqual({ shuffled: false });
+    expect(await ListenNextPlay.getShuffle(second)).toBeNull();
+    await Album.delete(second);
+  });
+
+  it('tire chaque place une fois', () => {
+    const draws = [0.1, 0.9, 0.5, 0.3];
+    const places = drawPlaces(5, () => draws.shift() ?? 0);
+    expect([...places].sort()).toEqual([0, 1, 2, 3, 4]);
+    expect(fitsSongs(places, 5)).toBe(true);
+    expect(fitsSongs([0, 0, 1], 3)).toBe(false);
+    expect(fitsSongs([0, 1], 3)).toBe(false);
   });
 });

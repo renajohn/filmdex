@@ -8,7 +8,7 @@ import MusicDetailCard from './MusicDetailCard';
 import AddMusicDialog from './AddMusicDialog';
 import AlphabeticalIndex from './AlphabeticalIndex';
 import { NextBanner, CollectionHeader, EmptyState } from './shared';
-import { BsChevronDown, BsDisc, BsHeadphones } from 'react-icons/bs';
+import { BsChevronDown, BsDisc, BsHeadphones, BsShuffle } from 'react-icons/bs';
 import './MusicSearch.css';
 import { readStored, writeStored } from '../utils/safeStorage';
 import { findById, useDetailSteps } from '../utils/detailSteps';
@@ -17,6 +17,7 @@ import { useAlbumOrder } from '../utils/shelfLocations';
 import { artistLetter, artistSortKey, artistSortName } from '../utils/artistOrder';
 import { isAppleMobile } from '../utils/navidrome';
 import AlbumPlayButton from './shared/AlbumPlayButton';
+import CoverButton from './shared/CoverButton';
 import { LeavingOverlay, ListenNextControls, ListenNextSummary, useListenNextPlay } from './ListenNextPlay';
 import { listenNextQueue } from '../services/listenNextQueue';
 import { DigitalChips, DigitalNotices, type DigitalFilter } from './DigitalStrip';
@@ -1209,6 +1210,22 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
               onPlay={() => listenNextQueue.start(album.id)}
               onUnripped={() => handleCdClick(album.id, 'listenNext')} className="next-banner__play" />
           )}
+          renderFootRight={(album) => {
+            // A mixtape plays shuffled from Listen Next, in an order drawn once, the same in Amperfy.
+            if (!isMixtape(album as Album)) return null;
+            const shuffled = listenNext.play?.shuffled?.includes(album.id) ?? false;
+            return (
+              <CoverButton className="next-banner__shuffled" active={shuffled} reveal={shuffled ? 'always' : 'hover'} aria-pressed={shuffled}
+                label={shuffled ? `Play ${album.title} in its order` : `Shuffle ${album.title}`}
+                title={shuffled ? 'Shuffled: plays in an order drawn once, from its next start' : 'Shuffle: play it in an order drawn at random'}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  listenNext.setShuffled(album.id, !shuffled).catch(() => onShowAlert?.('Shuffle was not changed', 'danger'));
+                }}>
+                <BsShuffle />
+              </CoverButton>
+            );
+          }}
         />
       )}
 

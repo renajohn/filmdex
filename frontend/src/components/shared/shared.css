@@ -921,6 +921,14 @@
   bottom: 8px;
 }
 
+/* A mixtape's Shuffle, at the foot of its cover, on the right. */
+.next-banner__image .next-banner__shuffled {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 11;
+}
+
 /* Help me choose in two, one way above the other: from the CDs, from anything. */
 .next-banner__help-card--split {
   gap: 0;

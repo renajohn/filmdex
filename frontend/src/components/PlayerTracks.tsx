@@ -36,7 +36,7 @@ const loadShown = async (album: PlayerAlbum, tracks: PlayerTrack[], fromListenNe
   const ids = [...gone, ...listed];
   const loaded = await Promise.all(ids.map(id => (id === album.id
     ? Promise.resolve({ album, tracks })
-    : loadPlayable(id).catch(() => null))));
+    : loadPlayable(id, { listenNext: true }).catch(() => null))));
   return ids.flatMap((id, at) => {
     const one = loaded[at];
     // An album with no rip has nothing to jump to.

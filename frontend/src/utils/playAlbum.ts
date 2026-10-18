@@ -45,37 +45,60 @@ export const playerTracksOf = (album: AlbumLike, rip: RipTracks | null | undefin
   }));
 };
 
-/** A mixtape as the player plays it: its songs in its order, each with its own artist and the cover of its CD. */
-const loadMixtape = async (album: AlbumLike): Promise<{ album: PlayerAlbum; tracks: PlayerTrack[] }> => {
+/**
+ * A mixtape as the player plays it: its songs in its order, each with its own
+ * artist and the cover of its CD; from Listen Next, in the order drawn there
+ * when it plays shuffled, the one Amperfy's playlist has too.
+ */
+const loadMixtape = async (album: AlbumLike, listenNext: boolean): Promise<{ album: PlayerAlbum; tracks: PlayerTrack[] }> => {
   const mixtape = await musicService.getMixtape(Number(album.id));
+  const tracks: PlayerTrack[] = mixtape.songs.map((song, index) => ({
+    songId: song.songId, title: song.title, disc: 1, no: index + 1, durationSec: song.durationSec,
+    artist: song.artist, albumId: song.albumId, cover: musicService.getImageUrl(song.cover), place: index,
+  }));
+  const order = listenNext ? mixtape.listenNextOrder : null;
   return {
     album: { ...playerAlbumOf(album), navidromeId: null, url: mixtape.url, artist: mixtapeArtists(album.artist) },
-    tracks: mixtape.songs.map((song, index) => ({
-      songId: song.songId, title: song.title, disc: 1, no: index + 1, durationSec: song.durationSec,
-      artist: song.artist, albumId: song.albumId, cover: musicService.getImageUrl(song.cover),
-    })),
+    tracks: order && order.length === tracks.length && order.every(place => tracks[place])
+      ? order.map((place, index) => ({ ...tracks[place], no: index + 1 }))
+      : tracks,
   };
 };
 
-/** An album as the player would play it: named, with its tracks that have a file in the rip. */
-export const loadPlayable = async (albumId: number | string): Promise<{ album: PlayerAlbum; tracks: PlayerTrack[] }> => {
+/**
+ * The tracks in a new order, drawn at random (Fisher-Yates), numbered again
+ * as they will play; a mixtape's song keeps its `place` in the mixtape.
+ */
+export const shuffledTracks = (tracks: PlayerTrack[], random: () => number = Math.random): PlayerTrack[] => {
+  const order = [...tracks];
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return order.map((track, index) => ({ ...track, disc: 1, no: index + 1 }));
+};
+
+/** An album as the player would play it: named, with its tracks that have a file in the rip; `listenNext` as Listen Next plays it. */
+export const loadPlayable = async (albumId: number | string, { listenNext = false } = {}): Promise<{ album: PlayerAlbum; tracks: PlayerTrack[] }> => {
   const [album, rip] = await Promise.all([
     musicService.getAlbumById(albumId) as Promise<AlbumLike>,
     musicService.getNavidromeTracks(albumId).catch(() => null),
   ]);
-  if (isMixtape(album)) return loadMixtape(album);
+  if (isMixtape(album)) return loadMixtape(album, listenNext);
   return { album: playerAlbumOf(album, rip), tracks: playerTracksOf(album, rip) };
 };
 
 /**
  * Plays an album from the start, or from its track `index`, from wherever a ▶
- * stands without its card open: its tracks and its rip are asked for first.
+ * stands without its card open: its tracks and its rip are asked for first;
+ * `shuffle` plays them in an order drawn at random, from the first drawn.
  * False when it has no rip to play, for the caller to offer something else.
  */
-export const playAlbumById = async (albumId: number | string, options?: PlayOptions, index = 0): Promise<boolean> => {
-  const { album, tracks } = await loadPlayable(albumId);
+export const playAlbumById = async (albumId: number | string, options?: PlayOptions, index = 0, shuffle = false): Promise<boolean> => {
+  const { album, tracks } = await loadPlayable(albumId, { listenNext: options?.queue === 'listenNext' });
   if (tracks.length === 0) return false;
-  player.playAlbum(album, tracks, index, 0, options);
+  if (shuffle) player.playAlbum(album, shuffledTracks(tracks), 0, 0, options);
+  else player.playAlbum(album, tracks, index, 0, options);
   return true;
 };
 

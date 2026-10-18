@@ -45,7 +45,7 @@ const useListenNextAhead = (albumId: number | null | undefined, fromListenNext: 
     const ids = listenNextQueue.upcoming(albumId);
     Promise.all([
       musicService.getListenNextPlay().catch(() => null),
-      ids.length > 0 ? loadPlayable(ids[0]).catch(() => null) : Promise.resolve(null),
+      ids.length > 0 ? loadPlayable(ids[0], { listenNext: true }).catch(() => null) : Promise.resolve(null),
     ]).then(([play, next]) => {
       if (!live) return;
       const seconds = ids.reduce((sum, id) => sum + (play?.lengths[id]?.durationSec || 0), 0);

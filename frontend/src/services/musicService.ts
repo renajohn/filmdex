@@ -112,6 +112,8 @@ export interface ListenNextPlayState {
   /** The albums of Listen Next the player can play. */
   ripped: number[];
   lengths: Record<number, AlbumLength>;
+  /** The mixtapes that play shuffled from Listen Next. */
+  shuffled: number[];
 }
 
 export type RatingSync = 'synced' | 'not_ripped' | 'not_configured' | 'failed';
@@ -240,6 +242,8 @@ export interface MixtapeDetails {
   /** The playlist in Navidrome's web player. */
   url: string;
   songs: MixtapeSong[];
+  /** Played shuffled from Listen Next: its songs' places in the order drawn; null in its own. */
+  listenNextOrder?: number[] | null;
 }
 
 /** A change to a mixtape's songs: added at the end without a second copy, every copy removed, one copy removed, moved, or all of them anew. */
@@ -1028,6 +1032,17 @@ class MusicService {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ repeat }),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  /** A mixtape of Listen Next played shuffled, in an order drawn once, or in its own. */
+  async setListenNextShuffled(albumId: number, shuffled: boolean): Promise<void> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/collections/listen-next/albums/${albumId}/shuffled`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shuffled }),
     });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
   }

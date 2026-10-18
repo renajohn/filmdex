@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { playerTracksOf } from './playAlbum';
+import { playerTracksOf, shuffledTracks } from './playAlbum';
 import type { RipTracks } from '../services/musicService';
 
 const file = (discNumber: number, track: number, title: string) => ({
@@ -27,5 +27,24 @@ describe('playerTracksOf', () => {
 
   it('has nothing to play without a rip', () => {
     expect(playerTracksOf({ id: 1, title: 'A', discs: [] }, null)).toEqual([]);
+  });
+});
+
+describe('shuffledTracks', () => {
+  const song = (place: number) => ({ songId: `s${place}`, title: `Song ${place}`, disc: 1, no: place + 1, durationSec: 200, place });
+
+  it('plays every song once, numbered as they play, each keeping its place in the mixtape', () => {
+    const draws = [0, 0.99, 0.5];
+    const shuffled = shuffledTracks([song(0), song(1), song(2), song(3)], () => draws.shift() ?? 0);
+
+    expect(shuffled.map(track => track.no)).toEqual([1, 2, 3, 4]);
+    expect(shuffled.map(track => track.place).sort()).toEqual([0, 1, 2, 3]);
+    expect(shuffled.map(track => track.place)).not.toEqual([0, 1, 2, 3]);
+  });
+
+  it('leaves the tracks it is given as they are', () => {
+    const tracks = [song(0), song(1)];
+    shuffledTracks(tracks, () => 0);
+    expect(tracks.map(track => track.no)).toEqual([1, 2]);
   });
 });

@@ -8,6 +8,8 @@ import ripStatusService from '../../src/services/ripStatusService';
 import musicCollectionService from '../../src/services/musicCollectionService';
 import smartPlaylistService from '../../src/services/smartPlaylistService';
 import listenNextPlaylistService, { PLAYLIST_COMMENT, PLAYLIST_NAME } from '../../src/services/listenNextPlaylistService';
+import Mixtape from '../../src/models/mixtape';
+import ListenNextPlay from '../../src/models/listenNextPlay';
 
 const tag = () => Math.random().toString(36).slice(2, 8);
 
@@ -54,6 +56,25 @@ describe('playlist Navidrome de Listen Next', () => {
       songIds: ['nd-first-1-1', 'nd-first-1-2', 'nd-first-2-1', 'nd-second-1-1', 'nd-second-1-2', 'nd-second-2-1'],
     });
     expect(navidromeService.setPlaylistComment).toHaveBeenCalledWith('pl-1', PLAYLIST_COMMENT);
+  });
+
+  it('écrit une mixtape lue en aléatoire dans l’ordre tiré, le même d’une écriture à l’autre', async () => {
+    const mixtape = await insertAlbum(`Mixtape ${tag()}`, 'playlist');
+    const songs = ['a', 'b', 'c'].map((id, at) => ({
+      songId: id, title: id, artist: 'A', album: 'B', albumId: null, navidromeAlbumId: 'nd-x', discNumber: 1, track: at + 1, durationSec: 100,
+    }));
+    await Mixtape.save({ albumId: mixtape, playlistId: `pl-${mixtape}`, changed: null, songs });
+    await Album.toggleListenNext(mixtape);
+    await ListenNextPlay.setShuffle(mixtape, [2, 0, 1]);
+    jest.spyOn(navidromeService, 'getPlaylists').mockResolvedValue([]);
+    const save = jest.spyOn(navidromeService, 'savePlaylist').mockResolvedValue('pl-1');
+
+    await listenNextPlaylistService.sync();
+    await listenNextPlaylistService.sync();
+
+    expect(save.mock.calls.map(([playlist]) => playlist.songIds)).toEqual([['c', 'a', 'b'], ['c', 'a', 'b']]);
+    await ListenNextPlay.clearShuffle(mixtape);
+    await Album.delete(mixtape);
   });
 
   it('réécrit sa playlist plutôt que d’en faire une autre, et la vide quand Listen Next l’est', async () => {

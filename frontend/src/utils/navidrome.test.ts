@@ -11,6 +11,11 @@ describe('navidrome', () => {
     expect(listenUrl(album, true)).toBe('amperfy://x-callback-url/playID?id=nd-1&libraryElementType=album');
   });
 
+  it('asks Amperfy to shuffle and to repeat a playlist', () => {
+    expect(amperfyUrl('pl-1', 'playlist', { shuffle: true, repeat: true }))
+      .toBe('amperfy://x-callback-url/playID?id=pl-1&libraryElementType=playlist&shuffleOption=1&repeatOption=1');
+  });
+
   it('plays a track in Amperfy on an iPhone, and shows it in Navidrome elsewhere', () => {
     const track = { id: 'song 1', url: 'https://music.example/app/#/song?filter=x' };
     expect(trackListenUrl(track, true)).toBe('amperfy://x-callback-url/playID?id=song%201&libraryElementType=song');
