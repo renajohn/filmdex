@@ -22,6 +22,11 @@ npm run build:prod   # production build
 # Run built app
 npm start            # runs dist/start.sh
 
+# Backend tests (offline, no LLM)
+cd backend && npm test
+# Evalsets: score the vision model against the live LLM server (and TMDB with TMDB_API_KEY); never part of npm test
+cd backend && npm run eval
+
 # Frontend tests
 cd frontend && npx vitest              # interactive watch mode
 cd frontend && npx vitest --run        # single run

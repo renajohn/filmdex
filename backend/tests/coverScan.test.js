@@ -1,56 +1,12 @@
 /**
- * Cover Scan Tests
+ * Cover Scan unit tests: no LLM, no network.
  *
- * Unit tests run standalone. Integration tests require a live LLM server.
- * Pipeline tests require both LLM + TMDB.
- *
- * Only the unit tests run by default: the evalsets score how well the vision
- * model reads a sleeve, which is a judgement about the model rather than about
- * this code, and a plain `npx jest` should not go red because one cover was
- * misread. Both tiers are opt-in.
- *
- * Run unit tests only (no database required):
- *   npx jest tests/coverScan.test.js --setupFilesAfterEnv=''
- *
- * Run the evalsets against a live LLM:
- *   RUN_LLM_TESTS=1 npx jest tests/coverScan.test.js --setupFilesAfterEnv=''
- *
- * Run all including pipeline tests (LLM + TMDB):
- *   RUN_PIPELINE_TESTS=1 npx jest tests/coverScan.test.js --setupFilesAfterEnv=''
+ * How well the vision model reads a sleeve is measured apart, by the evalsets in
+ * evals/ (`npm run eval`): a misread cover is a judgement about the model, not
+ * a regression in this code, and must not redden `npm test`.
  */
 
-const fs = require('fs');
-const path = require('path');
-const yaml = require('js-yaml');
-const { analyzeImage, parseResponse, normalizeFormat, rankResults, checkHealth } = require('../src/services/coverScanService').default;
-
-// Load evalsets
-const EVALSET_DIR = path.join(__dirname, '../../evalsets/movie import');
-const evalsets = [];
-
-const evalFiles = fs.readdirSync(EVALSET_DIR).filter(f => f.endsWith('.yml'));
-for (const ymlFile of evalFiles) {
-  const ymlPath = path.join(EVALSET_DIR, ymlFile);
-  const data = yaml.load(fs.readFileSync(ymlPath, 'utf8'));
-  const imageFile = data.image;
-  const imagePath = path.join(EVALSET_DIR, imageFile);
-
-  if (fs.existsSync(imagePath)) {
-    const imageBuffer = fs.readFileSync(imagePath);
-    const ext = path.extname(imageFile).toLowerCase();
-    const mimeMap = { '.webp': 'image/webp', '.png': 'image/png', '.heic': 'image/heic', '.heif': 'image/heif' };
-    const mimeType = mimeMap[ext] || 'image/jpeg';
-
-    evalsets.push({
-      name: ymlFile.replace('.yml', ''),
-      image: imageBuffer.toString('base64'),
-      mimeType,
-      expected: data.expected
-    });
-  }
-}
-
-// ===== Unit Tests =====
+const { parseResponse, normalizeFormat, rankResults } = require('../src/services/coverScanService').default;
 
 describe('normalizeFormat', () => {
   test('maps 4K variants to Blu-ray 4K', () => {
@@ -153,94 +109,5 @@ describe('rankResults', () => {
   test('returns results unchanged when no LLM result', () => {
     const ranked = rankResults(mockResults, null);
     expect(ranked).toEqual(mockResults);
-  });
-});
-
-// ===== Integration Tests (require live LLM) =====
-
-const runLlm = process.env.RUN_LLM_TESTS === '1' || process.env.RUN_PIPELINE_TESTS === '1';
-
-(runLlm ? describe : describe.skip)('LLM Integration Tests', () => {
-  let llmAvailable = false;
-
-  beforeAll(async () => {
-    const health = await checkHealth();
-    llmAvailable = health.available;
-    if (!llmAvailable) {
-      console.warn('LLM server not available - skipping integration tests');
-    }
-  });
-
-  describe('LLM extraction tests', () => {
-    evalsets.forEach((evalset) => {
-      const isWebp = evalset.mimeType === 'image/webp';
-
-      test(`extracts title from ${evalset.name}${isWebp ? ' (webp - may not be supported)' : ''}`, async () => {
-        if (!llmAvailable) return; // gracefully skip
-
-        try {
-          const result = await analyzeImage(evalset.image, evalset.mimeType, 'movie');
-
-          // Must return a title
-          expect(result.title).toBeTruthy();
-
-          // If expected year is known and LLM returned a year, it should be close
-          if (evalset.expected.year && result.year) {
-            expect(Math.abs(result.year - evalset.expected.year)).toBeLessThanOrEqual(2);
-          }
-        } catch (e) {
-          // WebP images may not be supported by the vision model
-          if (isWebp) {
-            console.warn(`  ⚠ ${evalset.name}: webp not supported by LLM (${e.message})`);
-            return;
-          }
-          throw e;
-        }
-      }, 60000);
-    });
-  });
-});
-
-// ===== Full Pipeline Tests (require live LLM + TMDB) =====
-// These tests are skipped by default. To run them, set RUN_PIPELINE_TESTS=1
-// and ensure both the LLM server and TMDB API key are available.
-
-const runPipeline = process.env.RUN_PIPELINE_TESTS === '1';
-
-(runPipeline ? describe : describe.skip)('Full Pipeline Tests', () => {
-  let llmAvailable = false;
-  let tmdbAvailable = false;
-
-  beforeAll(async () => {
-    const health = await checkHealth();
-    llmAvailable = health.available;
-
-    try {
-      const configManager = require('../src/config');
-      const keys = configManager.getApiKeys();
-      tmdbAvailable = !!keys.tmdb;
-    } catch (e) {
-      tmdbAvailable = false;
-    }
-  });
-
-  evalsets.forEach((evalset) => {
-    const expectedTmdbId = evalset.expected.tmdb_id;
-    if (!expectedTmdbId) return;
-
-    test(`pipeline finds correct TMDB match for ${evalset.name} (tmdb_id: ${expectedTmdbId})`, async () => {
-      if (!llmAvailable || !tmdbAvailable) return;
-
-      const llmResult = await analyzeImage(evalset.image, evalset.mimeType, 'movie');
-      expect(llmResult.title).toBeTruthy();
-
-      const tmdbService = require('../src/services/tmdbService');
-      const tmdbResults = await tmdbService.searchAll(llmResult.title, llmResult.year);
-      expect(tmdbResults.length).toBeGreaterThan(0);
-
-      const ranked = rankResults(tmdbResults, llmResult);
-      const top3Ids = ranked.slice(0, 3).map(r => r.id);
-      expect(top3Ids).toContain(expectedTmdbId);
-    }, 60000);
   });
 });

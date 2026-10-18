@@ -41,7 +41,8 @@
     "dev": "tsx watch index.ts -- --deployment=../deployment.dev.json",
     "build": "tsc",
     "prod": "tsx index.ts --deployment=../deployment.prod.json",
-    "test": "jest --setupFilesAfterEnv=./tests/setup.js"
+    "test": "jest --setupFilesAfterEnv=./tests/setup.js",
+    "eval": "jest --config evals/jest.config.js"
   },
   "jest": {
     "testEnvironment": "node",

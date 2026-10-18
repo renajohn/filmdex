@@ -1,3 +1,9 @@
+/**
+ * Book cover evalset: how well the vision model reads a book cover, so a
+ * failure here is a judgement about the model, not a regression in this code.
+ * It needs the LLM server; run it with `npm run eval`, `npm test` never does.
+ */
+
 const fs = require('fs');
 const path = require('path');
 const coverScanService = require('../src/services/coverScanService').default;
@@ -25,14 +31,12 @@ const testCases = bookFiles.map(file => {
   return { ...file, expected, name: `${file.image} (${expected.title})` };
 });
 
-/**
- * An evalset: it scores how well the vision model reads a book cover, so a
- * failure here is a judgement about the model, not a regression in this code.
- * Opt in with RUN_LLM_TESTS=1, like the cover scan evalsets.
- */
-const runLlm = process.env.RUN_LLM_TESTS === '1' || process.env.RUN_PIPELINE_TESTS === '1';
+beforeAll(async () => {
+  const health = await coverScanService.checkHealth();
+  if (!health.available) throw new Error(`LLM server not available: ${health.error}`);
+});
 
-(runLlm ? describe : describe.skip)('Book Cover Import', () => {
+describe('Book Cover Import', () => {
   test.each(testCases.map(tc => [tc.name, tc]))(
     '%s',
     async (_name, { image, expected }) => {

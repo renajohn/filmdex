@@ -52,6 +52,9 @@ describe('createBackup', () => {
       return stream;
     });
 
+    // The backups dir is shared by every run: only zips this call leaves count.
+    const zips = () => fs.readdirSync(backupService.getBackupDir()).filter(f => f.endsWith('.zip'));
+    const zipsBefore = zips();
     const uncaught = jest.fn();
     process.on('uncaughtException', uncaught);
     try {
@@ -62,8 +65,7 @@ describe('createBackup', () => {
 
     expect(uncaught).not.toHaveBeenCalled();
     expect(snapshots()).toEqual([]);
-    const leftoverZips = fs.readdirSync(backupService.getBackupDir()).filter(f => f.endsWith('.zip'));
-    expect(leftoverZips).toEqual([]);
+    expect(zips()).toEqual(zipsBefore);
   });
 
   it('supprime le snapshot partiel si VACUUM INTO échoue', async () => {

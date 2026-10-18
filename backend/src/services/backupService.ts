@@ -138,8 +138,13 @@ const BackupService = {
         settled = true;
         logger.error('Backup output stream error:', err);
         archive.abort();
-        fs.rmSync(backupPath, { force: true });
-        reject(err);
+        // The file may not exist yet when the error comes before the stream's open: remove
+        // it once the stream has closed its descriptor, or an empty zip stays behind.
+        output.once('close', () => {
+          fs.rmSync(backupPath, { force: true });
+          reject(err);
+        });
+        output.destroy();
       });
 
       // Catch warnings (e.g. stat failures and other non-blocking errors)
