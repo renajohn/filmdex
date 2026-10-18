@@ -222,47 +222,48 @@ const AlphabeticalIndex = ({
         ? window.innerHeight
         : scrollContainer.getBoundingClientRect().bottom;
 
-      // Find all letters with visible elements
+      // The letters of the cards on screen, read in one pass over the cards
+      // rather than a query per letter, and only told when they change
       const nowVisible = new Set<string>();
-
-      allLetters.forEach(letter => {
-        if (!availableLetters.has(letter)) return;
-
-        // Find all elements for this letter
-        const elements = searchRoot.querySelectorAll(`[data-first-letter="${letter}"]`);
-
-        for (const element of elements) {
-          const rect = element.getBoundingClientRect();
-
-          // Check if element is at least partially visible in viewport
-          // Use small offset at top (just enough to clear sticky header)
-          // Element is visible if any part of it is in the viewport
-          if (rect.bottom > viewportTop + 60 && rect.top < viewportBottom) {
-            nowVisible.add(letter);
-            break; // Found at least one visible element for this letter
-          }
-        }
+      searchRoot.querySelectorAll<HTMLElement>('[data-first-letter]').forEach(element => {
+        const letter = element.dataset.firstLetter!;
+        if (nowVisible.has(letter) || !availableLetters.has(letter)) return;
+        const rect = element.getBoundingClientRect();
+        // Partly in sight, below the sticky header's 60px
+        if (rect.bottom > viewportTop + 60 && rect.top < viewportBottom) nowVisible.add(letter);
       });
 
-      setVisibleLetters(nowVisible);
+      setVisibleLetters(previous =>
+        previous.size === nowVisible.size && [...nowVisible].every(letter => previous.has(letter))
+          ? previous
+          : nowVisible);
 
       lastScrollTopRef.current = currentScrollTop;
     };
 
-    // Listen to scroll events
+    // Once a frame at most: a scroll sends several events a frame
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        handleScroll();
+      });
+    };
     const target = scrollContainer === document.documentElement ? window : scrollContainer;
-    target.addEventListener('scroll', handleScroll, { passive: true });
+    target.addEventListener('scroll', onScroll, { passive: true });
 
     // Initial check
     handleScroll();
 
     return () => {
-      target.removeEventListener('scroll', handleScroll);
+      target.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(frame);
       if (hideTimeoutRef.current) {
         clearTimeout(hideTimeoutRef.current);
       }
     };
-  }, [shouldShow, scrollContainer, isDragging, isHovering, allLetters, availableLetters]);
+  }, [shouldShow, scrollContainer, isDragging, isHovering, availableLetters]);
 
   // Find the first item starting with a letter and scroll to it
   const scrollToLetter = useCallback((letter: string) => {

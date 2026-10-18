@@ -187,4 +187,20 @@
   .cover-button--reveal-dim {
     opacity: 1;
   }
+
+  /*
+   * No blur on a touch screen: there every button is in sight, three or four
+   * on each cover, and each blur is a layer Safari on an iPhone builds again
+   * as the grid starts to scroll, which made the first moves of a scroll
+   * jerk. The glass is a shade darker instead; over a cover the blur hardly
+   * showed.
+   */
+  .cover-tag,
+  .cover-button {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .cover-tag:not(.cover-tag--on) { background: rgba(0, 0, 0, 0.8); }
+  .cover-button:not(.cover-button--on) { background: rgba(0, 0, 0, 0.76); }
 }
