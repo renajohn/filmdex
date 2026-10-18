@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { BsX, BsFilm, BsDisc } from 'react-icons/bs';
+import { BsX, BsFilm, BsDisc, BsDice5 } from 'react-icons/bs';
 import ShelfCode from './ShelfCode';
 import CoverButton from './CoverButton';
 import './shared.css';
@@ -35,6 +35,8 @@ interface NextBannerProps {
   smartFillLabel?: { label: string; hint: string; icon?: React.ReactNode };
   smartFillLoading?: boolean;
   onShuffle?: (item: NextBannerItem) => void;
+  /** Whether a card offers the die (all of them by default): one drawn, say, not one put there by hand. */
+  canShuffle?: (item: NextBannerItem) => boolean;
   shufflingItemId?: number | null;
   /** A play button laid on each image, at its foot on the left. */
   renderPlay?: (item: NextBannerItem) => React.ReactNode;
@@ -100,6 +102,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
   smartFillLabel,
   smartFillLoading = false,
   onShuffle,
+  canShuffle,
   shufflingItemId = null,
   renderPlay,
   renderFootRight,
@@ -231,22 +234,21 @@ const NextBanner: React.FC<NextBannerProps> = ({
                 <BsX size={20} />
               </CoverButton>
 
-              {/* Shuffle button - only for music type */}
-              {type === 'music' && onShuffle && (
+              {/* The die: another suggestion in its place; music only. */}
+              {type === 'music' && onShuffle && (!canShuffle || canShuffle(item)) && (
                 <CoverButton
                   className="next-banner__shuffle-btn"
                   reveal={shufflingItemId === item.id ? 'always' : 'hover'}
                   onClick={(e) => handleShuffle(e, item)}
                   disabled={shufflingItemId !== null}
                   title="Replace with another suggestion"
-                  label="Shuffle"
+                  label="Another suggestion"
                 >
                   {shufflingItemId === item.id ? (
                     <Spinner size="sm" />
                   ) : (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
-                    </svg>
+                    // A die: another album drawn in its place. Crossed arrows are a mixtape's Shuffle.
+                    <BsDice5 />
                   )}
                 </CoverButton>
               )}

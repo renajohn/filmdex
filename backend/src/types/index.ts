@@ -610,6 +610,8 @@ export interface AlbumCollectionData {
   album_id: number;
   collection_id: number;
   collection_order: number | null;
+  /** Put in Listen Next by a draw, not by hand. */
+  suggested?: boolean;
 }
 
 // ============================================================

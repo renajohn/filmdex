@@ -184,4 +184,17 @@ describe('Listen Next lu', () => {
     expect(fitsSongs([0, 0, 1], 3)).toBe(false);
     expect(fitsSongs([0, 1], 3)).toBe(false);
   });
+
+  it('Keep here remet un disque tiré avec son dé, un disque mis à la main sans', async () => {
+    await new Promise<void>((resolve, reject) => getDatabase().run(
+      'UPDATE album_collections SET suggested = 1 WHERE album_id = ?', [second], (err: Error | null) => (err ? reject(err) : resolve())));
+    const suggestedOf = async () => Object.fromEntries((await musicCollectionService.getListenNextAlbums()).map(album => [album.id, album.suggested]));
+    expect(await suggestedOf()).toEqual({ [first]: false, [second]: true, [third]: false });
+
+    for (const id of [first, second]) {
+      const left = await listenNextPlayService.markPlayed(id);
+      expect(await listenNextPlayService.keep(left!.id)).toBe(true);
+    }
+    expect(await suggestedOf()).toEqual({ [first]: false, [second]: true, [third]: false });
+  });
 });

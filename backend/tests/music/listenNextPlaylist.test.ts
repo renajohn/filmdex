@@ -139,4 +139,23 @@ describe('Help me choose', () => {
     await request(app).post('/api/collections/listen-next/smart-fill').expect(200);
     expect(pick).toHaveBeenLastCalledWith(false);
   });
+
+  it('marque les disques tirés, ceux de Help me choose et du dé, pas ceux mis à la main', async () => {
+    jest.spyOn(listenNextPlaylistService, 'schedule').mockImplementation(() => undefined);
+    for (let i = 0; i < 3; i++) await insertAlbum(`Pick ${tag()}`);
+    const byHand = await insertAlbum(`By hand ${tag()}`);
+    await Album.toggleListenNext(byHand);
+
+    const filled = await request(app).post('/api/collections/listen-next/smart-fill').expect(200);
+    const albums: Array<{ id: number; suggested: boolean }> = filled.body.albums;
+    expect(albums.find(album => album.id === byHand)?.suggested).toBe(false);
+    const drawn = albums.filter(album => album.suggested);
+    expect(drawn.length).toBeGreaterThan(0);
+
+    // The die on a disc put by hand: what comes in its place is drawn.
+    const replaced = await request(app).post(`/api/collections/listen-next/shuffle/${byHand}`).expect(200);
+    if (replaced.body.success) {
+      expect(replaced.body.albums.find((album: { id: number }) => album.id === replaced.body.added.id).suggested).toBe(true);
+    }
+  });
 });

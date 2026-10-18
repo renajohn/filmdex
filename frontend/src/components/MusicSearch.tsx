@@ -317,7 +317,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
 
         if (onShowAlert) {
           const messages = [
-            `🔀 Swapped for "${result.added?.title}"!`,
+            `🎲 Swapped for "${result.added?.title}"!`,
             `🎲 New pick: "${result.added?.title}"`,
             `✨ "${result.added?.title}" is up next!`,
           ];
@@ -1200,6 +1200,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           // With Digital on, what sets each album apart: a disc struck through is left out of the Navidrome playlist.
           renderBadges={digitalOn ? (album) => <DigitalMarks digital={digitalOf(album as Album)} titleStatus={album.titleStatus} /> : undefined}
           onShuffle={(item) => handleShuffleAlbum(item as Album)}
+          // The die only on a disc a draw put there: one put by hand was chosen.
+          canShuffle={(album) => Boolean(album.suggested)}
           shufflingItemId={shufflingAlbumId}
           // An album leaving the list, played to its end, keeps its place: only those in it move.
           onReorder={handleListenNextReorder}

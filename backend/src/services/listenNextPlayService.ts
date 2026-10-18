@@ -71,10 +71,10 @@ let checking: Promise<unknown> = Promise.resolve();
 
 /** Album `albumId` of Listen Next, played, leaves it: its place noted for Keep here, the playlist written again. */
 const leave = async (collectionId: number, album: { id: number; title: string }, at: number): Promise<ListenNextDeparture> => {
-  const place = await get<{ collection_order: number | null }>(
-    'SELECT collection_order FROM album_collections WHERE collection_id = ? AND album_id = ?', [collectionId, album.id]);
+  const place = await get<{ collection_order: number | null; suggested: number | null }>(
+    'SELECT collection_order, suggested FROM album_collections WHERE collection_id = ? AND album_id = ?', [collectionId, album.id]);
   await run('DELETE FROM album_collections WHERE collection_id = ? AND album_id = ?', [collectionId, album.id]);
-  const departure = await ListenNextPlay.addDeparture(album.id, place?.collection_order ?? null, at);
+  const departure = await ListenNextPlay.addDeparture(album.id, place?.collection_order ?? null, at, Boolean(place?.suggested));
   const mixtape = await Mixtape.findByAlbumId(album.id);
   if (mixtape) await drawAgain(album.id, mixtape.songs.length);
   listenNextPlaylistService.schedule();
@@ -200,8 +200,8 @@ const listenNextPlayService = {
         await run('UPDATE album_collections SET collection_order = collection_order + 1 WHERE collection_id = ? AND collection_order >= ?',
           [collectionId, departure.collectionOrder]);
       }
-      await run('INSERT INTO album_collections (album_id, collection_id, collection_order) VALUES (?, ?, ?)',
-        [departure.albumId, collectionId, departure.collectionOrder]);
+      await run('INSERT INTO album_collections (album_id, collection_id, collection_order, suggested) VALUES (?, ?, ?, ?)',
+        [departure.albumId, collectionId, departure.collectionOrder, departure.suggested ? 1 : 0]);
       listenNextPlaylistService.schedule();
     }
     await ListenNextPlay.markKept(departureId);

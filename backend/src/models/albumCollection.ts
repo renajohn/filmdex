@@ -60,9 +60,14 @@ const AlbumCollection = {
       db.run(sql, (err: Error | null) => {
         if (err) {
           reject(err);
-        } else {
-          resolve();
+          return;
         }
+        // Put in Listen Next by a draw (Help me choose, the die), not by hand: only those offer the die.
+        db.all('PRAGMA table_info(album_collections)', (infoErr: Error | null, columns: Array<{ name: string }>) => {
+          if (infoErr) { reject(infoErr); return; }
+          if (columns.some(column => column.name === 'suggested')) { resolve(); return; }
+          db.run('ALTER TABLE album_collections ADD COLUMN suggested INTEGER NOT NULL DEFAULT 0', (alterErr: Error | null) => (alterErr ? reject(alterErr) : resolve()));
+        });
       });
     });
   },
@@ -70,14 +75,14 @@ const AlbumCollection = {
   create: (albumCollectionData: AlbumCollectionData): Promise<AlbumCollectionCreateResult> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
-      const { album_id, collection_id, collection_order } = albumCollectionData;
+      const { album_id, collection_id, collection_order, suggested = false } = albumCollectionData;
 
       const sql = `
-        INSERT INTO album_collections (album_id, collection_id, collection_order, created_at)
-        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO album_collections (album_id, collection_id, collection_order, suggested, created_at)
+        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
       `;
 
-      db.run(sql, [album_id, collection_id, collection_order], function(this: sqlite3.RunResult, err: Error | null) {
+      db.run(sql, [album_id, collection_id, collection_order, suggested ? 1 : 0], function(this: sqlite3.RunResult, err: Error | null) {
         if (err) {
           reject(err);
         } else {

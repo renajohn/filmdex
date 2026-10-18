@@ -304,7 +304,8 @@ const smartPlaylistService = {
           await AlbumCollection.create({
             album_id: album.id,
             collection_id: listenNextCollection.id,
-            collection_order: position
+            collection_order: position,
+            suggested: true
           });
           addedAlbums.push(album);
         } catch (error) {
@@ -441,7 +442,8 @@ const smartPlaylistService = {
       await AlbumCollection.create({
         album_id: newAlbum.id,
         collection_id: listenNextCollection.id,
-        collection_order: position
+        collection_order: position,
+        suggested: true
       });
 
       try {

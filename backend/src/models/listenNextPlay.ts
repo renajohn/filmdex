@@ -7,6 +7,8 @@ export interface ListenNextDeparture {
   collectionOrder: number | null;
   /** Unix seconds. */
   leftAt: number;
+  /** It had come by a draw: Keep here puts it back so, with its die. */
+  suggested: boolean;
 }
 
 interface DepartureRow {
@@ -14,6 +16,7 @@ interface DepartureRow {
   album_id: number;
   collection_order: number | null;
   left_at: number;
+  suggested: number | null;
 }
 
 const run = (sql: string, params: unknown[] = []): Promise<void> =>
@@ -26,7 +29,7 @@ const all = <T>(sql: string, params: unknown[] = []): Promise<T[]> =>
   new Promise((resolve, reject) => getDatabase().all(sql, params, (err: Error | null, rows: T[]) => (err ? reject(err) : resolve(rows))));
 
 const toDeparture = (row: DepartureRow): ListenNextDeparture => ({
-  id: row.id, albumId: row.album_id, collectionOrder: row.collection_order, leftAt: row.left_at,
+  id: row.id, albumId: row.album_id, collectionOrder: row.collection_order, leftAt: row.left_at, suggested: Boolean(row.suggested),
 });
 
 /**
@@ -48,6 +51,9 @@ const ListenNextPlay = {
       kept INTEGER NOT NULL DEFAULT 0
     )`);
     await run('CREATE INDEX IF NOT EXISTS idx_listen_next_departures_left ON listen_next_departures (left_at)');
+    if (!(await all<{ name: string }>('PRAGMA table_info(listen_next_departures)')).some(column => column.name === 'suggested')) {
+      await run('ALTER TABLE listen_next_departures ADD COLUMN suggested INTEGER NOT NULL DEFAULT 0');
+    }
     await run(`CREATE TABLE IF NOT EXISTS listen_next_shuffles (
       album_id INTEGER PRIMARY KEY,
       places TEXT NOT NULL
@@ -83,8 +89,9 @@ const ListenNextPlay = {
     run(`INSERT INTO listen_next_settings (key, value) VALUES ('repeat', ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value`, [String(repeat)]),
 
-  addDeparture: async (albumId: number, collectionOrder: number | null, leftAt: number): Promise<ListenNextDeparture> => {
-    await run('INSERT INTO listen_next_departures (album_id, collection_order, left_at) VALUES (?, ?, ?)', [albumId, collectionOrder, leftAt]);
+  addDeparture: async (albumId: number, collectionOrder: number | null, leftAt: number, suggested = false): Promise<ListenNextDeparture> => {
+    await run('INSERT INTO listen_next_departures (album_id, collection_order, left_at, suggested) VALUES (?, ?, ?, ?)',
+      [albumId, collectionOrder, leftAt, suggested ? 1 : 0]);
     const row = await get<DepartureRow>('SELECT * FROM listen_next_departures WHERE rowid = last_insert_rowid()');
     return toDeparture(row!);
   },

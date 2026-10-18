@@ -1,6 +1,7 @@
 import Collection from '../models/collection';
 import AlbumCollection from '../models/albumCollection';
 import logger from '../logger';
+import { getDatabase } from '../database';
 
 interface CollectionAlbum {
   id: number;
@@ -24,8 +25,12 @@ const musicCollectionService = {
       }
 
       const albums = await Collection.getAlbums(listenNextCollection.id) as unknown as CollectionAlbum[];
+      // Those a draw put there (Help me choose, the die), which offer the die; not those put by hand.
+      const drawn = new Set((await new Promise<Array<{ album_id: number }>>((resolve, reject) => getDatabase().all(
+        'SELECT album_id FROM album_collections WHERE collection_id = ? AND suggested = 1', [listenNextCollection.id],
+        (err: Error | null, rows: Array<{ album_id: number }>) => (err ? reject(err) : resolve(rows || []))))).map(row => row.album_id));
       // Return in original order (oldest additions first, newest at the end)
-      return albums;
+      return albums.map(album => ({ ...album, suggested: drawn.has(album.id) }));
     } catch (error) {
       logger.error('Error getting Listen Next albums:', error);
       throw error;
