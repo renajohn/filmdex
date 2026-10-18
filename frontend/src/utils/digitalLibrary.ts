@@ -124,11 +124,15 @@ export const useDigitalLibrary = (enabled: boolean) => {
   return { ...current, byAlbumId, sync, reload: load, change };
 };
 
-/** A search for the CD on ricardo.ch, without what a digital title adds: "(Remastered)", "[Disc 1]". */
-export const ricardoUrl = (album: Pick<DigitalAlbum, 'artist' | 'name'>): string => {
-  const words = `${album.artist} ${album.name.replace(/[([][^)\]]*[)\]]/g, ' ')}`.replace(/\s+/g, ' ').trim();
-  return `https://www.ricardo.ch/fr/s/${encodeURIComponent(words)}/`;
+/** A search on ricardo.ch for these words, without what a digital title adds: "(Remastered)", "[Disc 1]". */
+export const ricardoSearchUrl = (words: string): string => {
+  const plain = words.replace(/[([][^)\]]*[)\]]/g, ' ').replace(/\s+/g, ' ').trim();
+  return `https://www.ricardo.ch/fr/s/${encodeURIComponent(plain)}/`;
 };
+
+/** A search for the CD on ricardo.ch. */
+export const ricardoUrl = (album: Pick<DigitalAlbum, 'artist' | 'name'>): string =>
+  ricardoSearchUrl(`${album.artist} ${album.name}`);
 
 const LOSSLESS_FORMATS = ['FLAC', 'ALAC', 'WAV', 'AIFF', 'APE', 'WV'];
 

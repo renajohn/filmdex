@@ -1,6 +1,6 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BsTrash, BsCurrencyDollar, BsClipboard, BsDisc, BsFilm, BsBook, BsFileEarmark, BsPlus } from 'react-icons/bs';
+import { BsTrash, BsCurrencyDollar, BsClipboard, BsDisc, BsFilm, BsBook, BsFileEarmark, BsPlus, BsSearch } from 'react-icons/bs';
 import apiService from '../services/api';
 import musicService from '../services/musicService';
 import { base64ToFile } from '../utils/downscaleImage';
@@ -26,6 +26,7 @@ import { TextArea, TextField } from '../components/shared/TextField';
 import Notice from '../components/shared/Notice';
 import Spinner, { Loading } from '../components/shared/Spinner';
 import { thumbProps } from '../utils/thumb';
+import { ricardoSearchUrl } from '../utils/digitalLibrary';
 
 export interface WishListPageRef {
   refreshItems: () => Promise<void>;
@@ -1092,6 +1093,12 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         <td>{formatDate(movie.acquired_date)}</td>
                         <td>
                           <div className="actions-cell">
+                            <IconButton label="Search on Ricardo" size="sm" className="action-button ricardo"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(ricardoSearchUrl(`${movie.title} ${movie.format || 'Blu-ray'}`), '_blank', 'noopener,noreferrer');
+                              }}
+                            ><BsSearch /></IconButton>
                             <IconButton label="Delete movie" tone="danger" size="sm" className="action-button delete"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1174,6 +1181,12 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         <td>{formatDate(album.createdAt)}</td>
                         <td>
                           <div className="actions-cell">
+                            <IconButton label="Search on Ricardo" size="sm" className="action-button ricardo"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(ricardoSearchUrl(`${Array.isArray(album.artist) ? album.artist.join(' ') : album.artist} ${album.title} ${album.format || 'CD'}`), '_blank', 'noopener,noreferrer');
+                              }}
+                            ><BsSearch /></IconButton>
                             <IconButton label="Delete album" tone="danger" size="sm" className="action-button delete"
                               onClick={(e) => {
                                 e.stopPropagation();
