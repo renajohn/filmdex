@@ -161,6 +161,7 @@ const Album = {
               db.run(`ALTER TABLE albums ADD COLUMN title_status TEXT DEFAULT 'owned'`, () => resolve());
             }),
             new Promise((resolve) => {
+              // A half star (4.5) is kept as it is: SQLite stores in an INTEGER column what it cannot turn into one losslessly.
               db.run(`ALTER TABLE albums ADD COLUMN user_rating INTEGER`, () => resolve());
             }),
             new Promise((resolve) => {
@@ -661,20 +662,20 @@ const Album = {
       }
     );
 
-    // The owner's stars, like year: stars:5, stars:>=3, stars:2-4; stars:0 is not rated.
+    // The owner's stars, like year: stars:5, stars:>=3.5, stars:2-4; stars:0 is not rated.
     cleanedQuery = processPattern(
-      /stars:(>=|<=|>|<)?(\d)(?:-(\d))?/g,
+      /stars:(>=|<=|>|<)?(\d(?:\.5)?)(?:-(\d(?:\.5)?))?/g,
       cleanedQuery,
       (m) => {
         hasFilters = true;
         const stars = `COALESCE(user_rating, 0)`;
         if (m[3]) {
           whereClauses.push(`${stars} BETWEEN ? AND ?`);
-          params.push(parseInt(m[2]), parseInt(m[3]));
+          params.push(parseFloat(m[2]), parseFloat(m[3]));
         } else {
           const opSql: Record<string, string> = { '>=': '>=', '<=': '<=', '>': '>', '<': '<', '=': '=' };
           whereClauses.push(`${stars} ${opSql[m[1] || '=']} ?`);
-          params.push(parseInt(m[2]));
+          params.push(parseFloat(m[2]));
         }
       }
     );

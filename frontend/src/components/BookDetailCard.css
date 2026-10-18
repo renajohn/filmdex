@@ -486,26 +486,6 @@
   z-index: 10;
 }
 
-/* Interactive rating section */
-.book-rating-section.interactive {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.6rem;
-  cursor: default;
-  flex-wrap: wrap;
-}
-
-.book-rating-section.interactive strong {
-  margin-right: 0;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.book-rating-section.interactive .star-rating-input {
-  flex-shrink: 0;
-}
-
 /* Inline edit button */
 .inline-edit-btn {
   margin-left: 6px}
@@ -908,7 +888,6 @@
   display: inline;
 }
 
-.book-rating-section,
 .book-owner-section {
   margin-bottom: 0.75rem;
   color: rgba(255, 255, 255, 0.75);
@@ -922,27 +901,14 @@
   transition: all 0.2s ease;
 }
 
-.book-rating-section:hover,
 .book-owner-section:hover {
   background: rgba(255, 255, 255, 0.06);
 }
 
-.book-rating-section strong,
 .book-owner-section strong {
   color: rgba(255, 255, 255, 0.9);
   font-weight: 600;
   margin-right: 0.5rem;
-}
-
-/* Enhanced rating with star glow */
-.book-rating-section {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
-  border: 1px solid rgba(251, 191, 36, 0.1);
-}
-
-.book-rating-section:hover {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%);
-  border-color: rgba(251, 191, 36, 0.2);
 }
 
 .owner-label {

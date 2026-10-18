@@ -99,6 +99,9 @@ Every button uses **`Button`** or **`IconButton`** (`frontend/src/components/sha
 - One of a few side by side is **`Segmented`**; a filter pill, a shelf to jump to or a filter in place with its ✕ is **`Chip`** (see the guidelines).
 - A component's stylesheet only places a button (margins, position, flex), never its colours, borders, padding or size.
 
+### Stars: StarRating
+The owner's stars on an album or a book are **`StarRating`** (`frontend/src/components/shared/StarRating.tsx`, look in `shared/star-rating.css`): by halves, `value`, `onChange(stars)` (0 takes them away), `size` sm/md/lg. Gold and flat, no glow; under the pointer white for what a click adds, pale gold for what it takes away. Never the focus (the arrows go from record to record). An album's half goes to Navidrome rounded.
+
 ### Key Patterns
 - Each media type (movie, music, book) follows the same layered pattern: controller → service → model, with a corresponding frontend page, detail card, search component, and API service
 - Collections/box sets are shared across media types via `collection` and `movieCollection`/`albumCollection` models

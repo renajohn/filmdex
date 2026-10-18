@@ -79,6 +79,7 @@ colour goes into `tokens.css` first.
 | A page or a section that loads | `Loading` |
 | An empty page | `EmptyState` |
 | ▶ / ❚❚ on an album's cover | `AlbumPlayButton` |
+| The owner's stars on a record (an album, a book) | `StarRating` |
 
 ### Button, LinkButton, IconButton (`Button.tsx`, `button.css`)
 
@@ -321,6 +322,22 @@ toast('“Heat” left your Watch Next.', { action: { label: 'Undo', onClick: pu
   is only seen. `Loading` says it itself (`role="status"`).
 - Its own transform is the turn: centre it with flex, a grid or a margin,
   **never a `translate`**, which the turn undoes (the spinner jumps).
+
+### StarRating (`StarRating.tsx`, `star-rating.css`)
+
+```tsx
+<StarRating value={stars} onChange={rate} />   {/* 0 when the stars are taken away */}
+```
+
+- The owner's stars by halves: the left half of a star gives the half, a
+  click on the stars already given takes them away (`onChange(0)`). `size`
+  sm 13 px (a list), md 16 px (a record's card), lg 20 px.
+- Given: **gold, flat**, no glow, no growing under the pointer. Empty: a
+  faint outline. Under the pointer the stars given stay gold, those a click
+  would add are **white**, those it would take away a **pale gold**.
+- Never the focus and no keys: the arrows go from one record to the next.
+- An album's stars go to Navidrome rounded (3.5 is 4 in Amperfy) and stay a
+  half here; the prototype is `2026-10-18-etoiles/etoiles-prototype.html`.
 
 ### CoverTag, CoverButton (`CoverTag.tsx`, `CoverButton.tsx`, `cover.css`)
 

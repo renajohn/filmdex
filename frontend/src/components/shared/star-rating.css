@@ -1,0 +1,44 @@
+/*
+ * StarRating: the owner's stars, by halves. Gold and flat for the stars given;
+ * under the pointer, white for those a click would add and a pale gold for
+ * those it would take away. No glow, no growing: gold is what is on, never
+ * what is pointed at. Never the focus: the arrows go from one record to the next.
+ */
+.ui-stars {
+  --star-size: 16px;
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+}
+
+.ui-stars--sm { --star-size: 13px; }
+.ui-stars--lg { --star-size: 20px; }
+
+.ui-star {
+  display: block;
+  padding: 1px;
+  border: 0;
+  background: none;
+  line-height: 0;
+  cursor: pointer;
+  transition: transform 0.06s ease;
+}
+
+.ui-star:active {
+  transform: scale(0.97);
+}
+
+.ui-star:focus {
+  outline: none;
+}
+
+.ui-star svg {
+  display: block;
+  width: var(--star-size);
+  height: var(--star-size);
+}
+
+.ui-star__empty { fill: var(--dv-text-faint); }
+.ui-star__given { fill: var(--dv-gold); }
+.ui-star__adding { fill: var(--dv-text); }
+.ui-star__leaving { fill: var(--dv-gold); opacity: 0.3; }

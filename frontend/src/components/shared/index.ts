@@ -18,3 +18,4 @@ export { TextField, TextArea, FieldError, FieldHint } from './TextField';
 export { default as Notice } from './Notice';
 export { toast, ToastHost, dismissToast, toneOf } from './Toast';
 export { default as Spinner, Loading } from './Spinner';
+export { default as StarRating } from './StarRating';

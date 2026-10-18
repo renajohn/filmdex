@@ -661,7 +661,7 @@ function AppContent() {
             'conductor:': 'Conducts one of its tracks',
             'instrument:': 'Someone plays it on one of its tracks: cello, piano…',
             'work:': 'A work on one of its tracks: K. 466, Brandenburg…',
-            'stars:': 'Your stars, exactly (stars:5) or a range (stars:2-4)',
+            'stars:': 'Your stars, exactly (stars:4.5) or a range (stars:2-4)',
             'stars:>=': 'At least that many of your stars',
             'stars:<=': 'At most that many of your stars',
             'stars:0': 'Not rated yet',

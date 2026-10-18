@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ButtonGroup } from 'react-bootstrap';
 import Dialog from './shared/Dialog';
 import Menu, { MenuChevron } from './shared/Menu';
-import { BsPencil, BsTrash, BsDisc, BsApple, BsTags, BsPlayFill, BsPauseFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight, BsStar, BsStarFill, BsArrowClockwise } from 'react-icons/bs';
+import { BsPencil, BsTrash, BsDisc, BsApple, BsTags, BsPlayFill, BsPauseFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight, BsStarFill, BsArrowClockwise } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
 import AlbumStory from './AlbumStory';
@@ -27,6 +27,7 @@ import type { DigitalTrack } from '../services/musicService';
 import { buyReason, formatLabel, isLossy, isSuggested, isToBuy, playsText, ricardoUrl, type AlbumDigital } from '../utils/digitalLibrary';
 import Button, { LinkButton } from './shared/Button';
 import Spinner from './shared/Spinner';
+import StarRating from './shared/StarRating';
 
 /** How often, and how many times, an album's tracks are asked after while their words are looked up. */
 const LYRICS_POLL_MS = 3000;
@@ -100,7 +101,7 @@ interface CdData {
   /** Both weighed by their votes; null under three votes in all. */
   communityRating?: number | null;
   communityVotes?: number;
-  /** The owner's stars, 1 to 5, kept in step with Navidrome. */
+  /** The owner's stars, 0.5 to 5 by halves; Navidrome holds them rounded. */
   userRating?: number | null;
   discs?: CdDisc[];
   ownership?: CdOwnership;
@@ -247,8 +248,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
     return () => { current = false; };
   }, [cd.id, cd.userRating]);
 
-  const rate = async (value: number) => {
-    const next = value === stars ? 0 : value;
+  const rate = async (next: number) => {
     const previous = stars;
     setStars(next || null);
     setStarsNote(null);
@@ -641,21 +641,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
 
             {/* One's own stars, the community's in a murmur beside them: one line, its end cut rather than wrapped. */}
             <div className="album-head-rating">
-              <span className="album-head-stars" role="group" aria-label="Your rating">
-                {[1, 2, 3, 4, 5].map(value => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={`album-head-star${stars && value <= stars ? ' album-head-star-on' : ''}`}
-                    aria-label={`${value} star${value > 1 ? 's' : ''}`}
-                    aria-pressed={stars === value}
-                    title={stars === value ? 'Take the stars away' : `${value} star${value > 1 ? 's' : ''}`}
-                    onClick={() => rate(value)}
-                  >
-                    {stars && value <= stars ? <BsStarFill aria-hidden="true" /> : <BsStar aria-hidden="true" />}
-                  </button>
-                ))}
-              </span>
+              <StarRating value={stars} onChange={rate} />
               {(cd.musicbrainzReleaseId || cd.urls?.discogs) && (
                 <span className="album-head-muted album-head-community-line">
                   {typeof community.communityRating === 'number' ? (

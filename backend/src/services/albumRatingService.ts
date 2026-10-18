@@ -8,16 +8,26 @@ const SYNC_MS = 10 * 60 * 1000;
 export type RatingSync = 'synced' | 'not_ripped' | 'not_configured' | 'failed';
 
 /**
+ * The stars Navidrome can hold: whole ones. A half given here is rounded up
+ * there (3.5 is 4 in Amperfy) and stays a half in DexVault.
+ */
+export const toNavidrome = (stars: number | null): number => Math.round(stars || 0);
+
+/** Stars to the nearest half, 0 to 5. */
+const toHalf = (rating: number): number => Math.max(0, Math.min(5, Math.round(rating * 2) / 2));
+
+/**
  * Which side's stars to keep when DexVault and Navidrome differ. `synced` is
  * what they last agreed on: the side still holding it has not moved, so the
  * other side's change wins. When both moved, or nothing was agreed yet and
  * both hold stars, Navidrome wins: it is where an album is rated while
- * listening, in Amperfy or the web player.
+ * listening, in Amperfy or the web player. Navidrome holding the rounding of
+ * DexVault's half is agreeing with it.
  */
 export const reconcile = (dexvault: number | null, navidrome: number, synced: number | null):
   { keep: number; push: boolean } => {
   const mine = dexvault || 0;
-  if (mine === navidrome) return { keep: navidrome, push: false };
+  if (toNavidrome(mine) === navidrome) return { keep: mine, push: false };
   return navidrome === (synced || 0) ? { keep: mine, push: true } : { keep: navidrome, push: false };
 };
 
@@ -25,29 +35,30 @@ export const reconcile = (dexvault: number | null, navidrome: number, synced: nu
 const apply = async (albumId: number, dexvault: number | null, synced: number | null, copy: { id: string; userRating: number }):
   Promise<'pulled' | 'pushed' | null> => {
   const { keep, push } = reconcile(dexvault, copy.userRating, synced);
+  const held = toNavidrome(keep);
   if (push) {
-    await navidromeService.setRating(copy.id, keep);
-    ripStatusService.noteRating(copy.id, keep);
+    await navidromeService.setRating(copy.id, held);
+    ripStatusService.noteRating(copy.id, held);
   }
-  if ((dexvault || 0) !== keep || (synced || 0) !== keep || synced === null) {
-    await Album.setUserRating(albumId, keep || null, keep);
+  if ((dexvault || 0) !== keep || (synced || 0) !== held || synced === null) {
+    await Album.setUserRating(albumId, keep || null, held);
   }
   if (push) return 'pushed';
   return (dexvault || 0) !== keep ? 'pulled' : null;
 };
 
 const albumRatingService = {
-  /** The owner's stars on a CD, given in Navidrome too when the CD is ripped. */
+  /** The owner's stars on a CD, halves included, given in Navidrome too (rounded) when the CD is ripped. */
   setRating: async (albumId: number, rating: number): Promise<{ userRating: number | null; navidrome: RatingSync }> => {
-    const stars = Math.max(0, Math.min(5, Math.round(rating)));
+    const stars = toHalf(rating);
     await Album.setUserRating(albumId, stars || null);
     if (!navidromeService.isConfigured()) return { userRating: stars || null, navidrome: 'not_configured' };
     try {
       const copy = await ripStatusService.navidromeAlbumFor(albumId);
       if (!copy) return { userRating: stars || null, navidrome: 'not_ripped' };
-      await navidromeService.setRating(copy.id, stars);
-      ripStatusService.noteRating(copy.id, stars);
-      await Album.setUserRating(albumId, stars || null, stars);
+      await navidromeService.setRating(copy.id, toNavidrome(stars));
+      ripStatusService.noteRating(copy.id, toNavidrome(stars));
+      await Album.setUserRating(albumId, stars || null, toNavidrome(stars));
       return { userRating: stars || null, navidrome: 'synced' };
     } catch (error) {
       // Kept in DexVault: the next sync gives Navidrome the stars.

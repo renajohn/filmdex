@@ -44,6 +44,12 @@ describe('which stars win', () => {
   it('lets Navidrome win when both changed', () => {
     expect(reconcile(2, 5, 3)).toEqual({ keep: 5, push: false });
   });
+
+  it('keeps a half given here while Navidrome holds its rounding', () => {
+    expect(reconcile(3.5, 4, 4)).toEqual({ keep: 3.5, push: false });
+    expect(reconcile(3.5, 3, 3)).toEqual({ keep: 3.5, push: true });
+    expect(reconcile(3.5, 2, 4)).toEqual({ keep: 2, push: false });
+  });
 });
 
 describe('stars of a CD', () => {
@@ -59,6 +65,26 @@ describe('stars of a CD', () => {
     expect(res.body).toEqual({ userRating: 4, navidrome: 'synced' });
     expect(set).toHaveBeenCalledWith('nd-w', 4);
     expect((await Album.findById(id))!.userRating).toBe(4);
+  });
+
+  it('keeps a half star here and gives Navidrome its rounding', async () => {
+    const title = `Schubert Impromptus ${Math.random()}`;
+    const id = await insertAlbum(title);
+    jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([copy('nd-s', title, 0)]);
+    const set = jest.spyOn(navidromeService, 'setRating').mockResolvedValue();
+
+    const res = await request(app).put(`/api/music/albums/${id}/rating`).send({ rating: 3.5 });
+
+    expect(res.body).toEqual({ userRating: 3.5, navidrome: 'synced' });
+    expect(set).toHaveBeenCalledWith('nd-s', 4);
+    expect((await Album.findById(id))!.userRating).toBe(3.5);
+
+    // The next sync finds 4 in Navidrome and leaves the half alone.
+    jest.spyOn(navidromeService, 'getAlbums').mockResolvedValue([copy('nd-s', title, 4)]);
+    ripStatusService.clearCache();
+    await request(app).post('/api/music/ratings/sync');
+    expect((await Album.findById(id))!.userRating).toBe(3.5);
+    expect(set).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the stars of a CD not ripped yet', async () => {
@@ -111,7 +137,7 @@ describe('stars of a CD', () => {
 describe('filtering by stars', () => {
   it('finds the CDs by their stars: exactly, at least, a range, or none', async () => {
     const tag = `Stars${Math.random().toString(36).slice(2, 8)}`;
-    const ids = await Promise.all([0, 2, 3, 5].map(async stars => {
+    const ids = await Promise.all([0, 2, 3, 4.5, 5].map(async stars => {
       const id = await insertAlbum(`${tag} ${stars}`);
       if (stars) await Album.setUserRating(id, stars);
       return { stars, id };
@@ -121,7 +147,8 @@ describe('filtering by stars', () => {
       return (res.body as Array<{ id: number }>).map(album => ids.find(entry => entry.id === album.id)?.stars).filter(s => s !== undefined).sort();
     };
 
-    expect(await found('stars:>=3')).toEqual([3, 5]);
+    expect(await found('stars:>=3')).toEqual([3, 4.5, 5]);
+    expect(await found('stars:>=4.5')).toEqual([4.5, 5]);
     expect(await found('stars:5')).toEqual([5]);
     expect(await found('stars:2-3')).toEqual([2, 3]);
     expect(await found('stars:0')).toEqual([0]);

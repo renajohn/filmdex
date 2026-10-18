@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Étoiles</title>
+<style>
+  :root {
+    --dv-gold: #fbbf24; --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+    --dv-veil: rgba(255,255,255,.08); --dv-orange: #f59e0b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(135deg,#1a1a1a,#2d2d2d) fixed; color: var(--dv-text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .bar { position: sticky; top: 0; z-index: 5; display: flex; gap: 14px 20px; align-items: center; flex-wrap: wrap; padding: 12px 24px; background: #111; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .bar label { display: inline-flex; gap: 8px; align-items: center; }
+  .seg-ctl { display: inline-flex; border: 1px solid #444; border-radius: 8px; overflow: hidden; }
+  .seg-ctl button { background: #222; color: #ddd; border: 0; padding: 6px 12px; font: inherit; cursor: pointer; }
+  .seg-ctl button + button { border-left: 1px solid #444; }
+  .seg-ctl button.on { background: var(--dv-gold); color: #111; }
+  main { padding: 16px 24px 80px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 18px; }
+  section { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); border-radius: 12px; padding: 16px 18px 20px; }
+  section.wide { grid-column: 1 / -1; }
+  section h3 { margin: 0 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: #888; font-weight: 600; }
+  section p.note { margin: 0 0 14px; color: #777; font-size: 12.5px; }
+  .states { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px 18px; }
+  .state { display: grid; gap: 6px; }
+  .state small { color: #777; font-size: 12px; }
+
+  /* ---------------- StarRating (proposition) ---------------- */
+  .stars { display: inline-flex; gap: 2px; padding: 2px; border-radius: 7px; transition: background-color .12s; }
+  body.veil .stars.live:hover { background: var(--dv-veil); }
+  .star { display: block; padding: 1px; border: 0; background: none; cursor: pointer; line-height: 0; transition: transform .06s; }
+  .star:active { transform: scale(.97); }
+  .star svg { display: block; width: var(--star, 16px); height: var(--star, 16px); overflow: visible; }
+  .star .empty-outline { fill: var(--empty, var(--dv-text-faint)); }
+  .star .gold { fill: var(--dv-gold); }
+  .star .white { fill: var(--dv-text); }
+  .star .leaving { fill: var(--dv-gold); opacity: .3; }
+  .star .empty-fill { fill: rgba(255,255,255,.16); }
+  .stars.sm { --star: 13px; }
+  .stars.md { --star: 16px; }
+  .stars.lg { --star: 20px; }
+  .rating-note { margin-top: 4px; color: var(--dv-orange); font-size: 12.5px; }
+
+  /* ---------------- Aujourd'hui (pour comparer) ---------------- */
+  .old-book { display: inline-flex; align-items: center; gap: .5rem; }
+  .old-book .s { background: none; border: 0; padding: 2px; cursor: pointer; color: rgba(255,255,255,.3); transition: all .15s; line-height: 0; }
+  .old-book .s svg { width: 1.1rem; height: 1.1rem; fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,.2)); transition: all .15s; }
+  .old-book .s:hover { transform: scale(1.1); }
+  .old-book .s:hover svg { filter: drop-shadow(0 0 6px rgba(251,191,36,.5)); }
+  .old-book .s.on { color: var(--dv-gold); }
+  .old-book .s.on svg { filter: drop-shadow(0 0 4px rgba(251,191,36,.3)); }
+  .old-book .s.hov:not(.on) { color: rgba(251,191,36,.4); }
+  .old-book .v { font-size: .85rem; color: rgba(255,255,255,.7); font-weight: 500; }
+  .old-book .dots { font-size: .75rem; color: rgba(251,191,36,.7); }
+  .old-cd { display: inline-flex; gap: 2px; }
+  .old-cd .s { padding: 0 1px; border: 0; background: none; color: #6b7480; cursor: pointer; line-height: 0; transition: color .15s, transform .1s; }
+  .old-cd .s svg { width: 1rem; height: 1rem; fill: currentColor; }
+  .old-cd .s:hover, .old-cd .s.on { color: var(--dv-gold); }
+  .old-cd .s:active { transform: scale(.9); }
+
+  /* ---------------- Têtes de fiche ---------------- */
+  .head { display: grid; grid-template-columns: 112px 1fr; gap: 16px; align-items: start; }
+  .cover { aspect-ratio: 1; border-radius: 4px; background: linear-gradient(135deg,#4b3b2a,#1f2937 70%); box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+  .cover.book { aspect-ratio: 2/3; background: linear-gradient(160deg,#334155,#0f172a); }
+  .head h2 { margin: 0; font-size: 19px; font-weight: 600; }
+  .head .who { color: var(--dv-text-muted); margin: 2px 0 2px; }
+  .head .murmur { color: #777; font-size: 12.5px; margin-bottom: 10px; }
+  .line { display: flex; align-items: center; gap: 10px; min-height: 24px; font-size: 13px; color: var(--dv-text-muted); white-space: nowrap; overflow: hidden; }
+  .line + .line { margin-top: 4px; }
+  .muted { color: #8a8a8a; }
+  .lossless { color: var(--dv-text); }
+  .community svg { width: .8em; height: .8em; fill: #9aa4b2; vertical-align: -.05em; }
+  .owner { color: var(--dv-text-muted); }
+</style>
+</head>
+<body class="vA">
+<div class="bar">
+  <label>Survol
+    <span class="seg-ctl" data-ctl="hover">
+      <button data-v="A" class="on">A · Aperçu blanc</button><button data-v="B">B · L'or reste</button>
+    </span>
+  </label>
+  <label>Étoile vide
+    <span class="seg-ctl" data-ctl="empty">
+      <button data-v="outline" class="on">Contour</button><button data-v="fill">Pleine grise</button>
+    </span>
+  </label>
+  <label>Voile sous le pointeur
+    <span class="seg-ctl" data-ctl="veil">
+      <button data-v="off" class="on">Non</button><button data-v="on">Oui</button>
+    </span>
+  </label>
+</div>
+
+<main>
+  <section class="wide">
+    <h3>Les états</h3>
+    <p class="note">Figés, pour comparer. « Survol » montre l'aperçu de ce qu'un clic donnerait, la note actuelle étant 3,5.</p>
+    <div class="states" id="states"></div>
+  </section>
+
+  <section>
+    <h3>Fiche d'un album</h3>
+    <p class="note">Essaie-les : la moitié gauche d'une étoile donne la demie, un second clic sur la même note la retire. Pas de focus, pas de clavier : ← → passent d'un CD à l'autre.</p>
+    <div class="head">
+      <div class="cover"></div>
+      <div>
+        <h2>Impromptus D. 899 &amp; 935</h2>
+        <div class="who">Franz Schubert · Radu Lupu</div>
+        <div class="murmur">CD · 1:12:40 · 1983 · Decca</div>
+        <div class="line"><span class="lossless">FLAC</span><span class="muted">· 8 tracks · 3 plays in 90 days</span></div>
+        <div class="line">Classical · Piano</div>
+        <div class="line">
+          <span data-live="3.5" data-size="md"></span>
+          <span class="muted"><span class="community"><svg viewBox="0 0 16 16"><path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/></svg> 4.2</span> / 5 · 28 votes</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Fiche d'un livre</h3>
+    <p class="note">Le même composant, à la même taille.</p>
+    <div class="head">
+      <div class="cover book"></div>
+      <div>
+        <h2>Le Rivage des Syrtes</h2>
+        <div class="who">Julien Gracq</div>
+        <div class="murmur">José Corti · 1951 · 352 pages · français</div>
+        <div class="line"><span data-live="4" data-size="md"></span><span class="owner">Renault</span></div>
+        <div class="line">Novel · French literature</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Tailles</h3>
+    <p class="note">sm (13 px) dans une liste, md (16 px) dans une fiche, lg (20 px) si un jour il en faut.</p>
+    <div class="states">
+      <div class="state"><span data-live="2.5" data-size="sm"></span><small>sm</small></div>
+      <div class="state"><span data-live="2.5" data-size="md"></span><small>md</small></div>
+      <div class="state"><span data-live="2.5" data-size="lg"></span><small>lg</small></div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Aujourd'hui, pour comparer</h3>
+    <p class="note">BookDex : halo doré, grossit au survol, aperçu doré, chiffre, « ... » doré qui pulse. MusicDex : étoiles entières, or plein au survol.</p>
+    <div class="states">
+      <div class="state"><span id="old-book"></span><small>BookDex</small></div>
+      <div class="state"><span id="old-cd"></span><small>MusicDex</small></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const P = {
+  fill: 'M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z',
+  outline: 'M2.866 14.85c-.078.444.36.791.746.593l4.39-2.256 4.389 2.256c.386.198.824-.149.746-.592l-.83-4.73 3.522-3.356c.33-.314.16-.888-.282-.95l-4.898-.696L8.465.792a.513.513 0 0 0-.927 0L5.354 5.12l-4.898.696c-.441.062-.612.636-.283.95l3.523 3.356-.83 4.73zm4.905-2.767-3.686 1.894.694-3.957a.56.56 0 0 0-.163-.505L1.71 6.745l4.052-.576a.53.53 0 0 0 .393-.288L8 2.223l1.847 3.658a.53.53 0 0 0 .393.288l4.052.575-2.906 2.77a.56.56 0 0 0-.163.506l.694 3.957-3.686-1.894a.5.5 0 0 0-.461 0z',
+  half: 'M5.354 5.119 7.538.792A.52.52 0 0 1 8 .5c.183 0 .366.097.465.292l2.184 4.327 4.898.696A.54.54 0 0 1 16 6.32a.55.55 0 0 1-.17.445l-3.523 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256a.5.5 0 0 1-.146.05c-.342.06-.668-.254-.6-.642l.83-4.73L.173 6.765a.55.55 0 0 1-.171-.403.6.6 0 0 1 .085-.302.51.51 0 0 1 .37-.245l4.898-.696zM8 12.027a.5.5 0 0 1 .232.056l3.686 1.894-.694-3.957a.56.56 0 0 1 .162-.505l2.907-2.77-4.052-.576a.53.53 0 0 1-.393-.288L8.001 2.223 8 2.226z',
+};
+const opt = { hover: 'A', empty: 'outline', veil: 'off' };
+
+/** The colour of each half star (1 to 10): given, previewed under the pointer, leaving, or empty. */
+const halfTone = (h, current, preview) => {
+  const c = current * 2, p = preview == null ? null : preview * 2;
+  if (p == null) return h <= c ? 'gold' : null;
+  if (opt.hover === 'A') return h <= p ? 'white' : null;
+  if (h <= Math.min(c, p)) return 'gold';
+  if (h > c && h <= p) return 'white';
+  if (h > p && h <= c) return 'leaving';
+  return null;
+};
+
+let uid = 0;
+const starSvg = (left, right) => {
+  const id = `s${uid++}`;
+  const base = opt.empty === 'outline'
+    ? `<path class="empty-outline" d="${P.outline}"/>`
+    : `<path class="empty-fill" d="${P.fill}"/>`;
+  const halfLayer = (tone, x) => tone
+    ? `<clipPath id="${id}${x}"><rect x="${x ? 8 : -1}" y="-1" width="9" height="18"/></clipPath><path class="${tone}" clip-path="url(#${id}${x})" d="${P.fill}"/>`
+    : '';
+  return `<svg viewBox="0 0 16 16" aria-hidden="true">${base}${halfLayer(left, 0)}${halfLayer(right, 1)}</svg>`;
+};
+
+const label = v => v ? `${v} star${v > 1 ? 's' : ''}` : 'No stars';
+
+const renderStars = (current, preview, size, live) =>
+  `<span class="stars ${size}${live ? ' live' : ''}" role="group" aria-label="Your rating: ${label(current)}">` +
+  [1, 2, 3, 4, 5].map(i =>
+    `<button type="button" tabindex="-1" class="star" data-i="${i}">` +
+    starSvg(halfTone(i * 2 - 1, current, preview), halfTone(i * 2, current, preview)) + `</button>`
+  ).join('') + `</span>`;
+
+/* Live ones: the pointer previews, a click gives, the same value again takes away. */
+const lives = [...document.querySelectorAll('[data-live]')].map(el => ({ el, value: +el.dataset.live, preview: null, size: el.dataset.size }));
+const drawLive = l => { l.el.innerHTML = renderStars(l.value, l.preview, l.size, true); };
+const at = (e, btn) => {
+  const r = btn.getBoundingClientRect();
+  return +btn.dataset.i - (e.clientX - r.left < r.width / 2 ? .5 : 0);
+};
+lives.forEach(l => {
+  l.el.addEventListener('mousemove', e => {
+    const btn = e.target.closest('.star'); if (!btn) return;
+    const v = at(e, btn); if (v !== l.preview) { l.preview = v; drawLive(l); }
+  });
+  l.el.addEventListener('mouseleave', () => { l.preview = null; drawLive(l); });
+  l.el.addEventListener('click', e => {
+    const btn = e.target.closest('.star'); if (!btn) return;
+    const v = at(e, btn); l.value = v === l.value ? 0 : v; l.preview = null; drawLive(l);
+  });
+});
+
+const drawStates = () => {
+  const s = [
+    [0, null, 'Pas de note'],
+    [3.5, null, '3,5 donnée'],
+    [3.5, 4.5, 'Survol à 4,5 (on monte)'],
+    [3.5, 2, 'Survol à 2 (on descend)'],
+    [5, null, '5 données'],
+  ];
+  document.getElementById('states').innerHTML = s.map(([c, p, t]) =>
+    `<div class="state">${renderStars(c, p, 'md', false)}<small>${t}</small></div>`).join('') +
+    `<div class="state">${renderStars(3.5, null, 'md', false)}<div class="rating-note">Saved here; Navidrome gets it at the next sync.</div><small>Échec de la synchro</small></div>`;
+};
+
+const drawAll = () => { lives.forEach(drawLive); drawStates(); };
+
+document.querySelectorAll('.seg-ctl').forEach(ctl => ctl.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  ctl.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  opt[ctl.dataset.ctl] = b.dataset.v;
+  document.body.classList.toggle('veil', opt.veil === 'on');
+  drawAll();
+}));
+drawAll();
+
+/* Aujourd'hui: BookDex's StarRatingInput and the album head's stars, copied as they are. */
+(() => {
+  const el = document.getElementById('old-book'); let value = 3.5, hover = 0, saving = false;
+  const draw = () => {
+    const d = hover || value;
+    el.innerHTML = `<span class="old-book"><span>${[1,2,3,4,5].map(i => {
+      const full = d >= i, half = !full && d >= i - .5;
+      return `<button class="s ${full || half ? 'on' : ''} ${hover ? 'hov' : ''}" data-i="${i}"><svg viewBox="0 0 16 16"><path d="${full ? P.fill : half ? P.half : P.outline}"/></svg></button>`;
+    }).join('')}</span>${value ? `<span class="v">${value}</span>` : ''}${saving ? '<span class="dots">...</span>' : ''}</span>`;
+  };
+  el.addEventListener('mousemove', e => { const b = e.target.closest('.s'); if (!b) return; const v = at(e, b); if (v !== hover) { hover = v; draw(); } });
+  el.addEventListener('mouseleave', () => { hover = 0; draw(); });
+  el.addEventListener('click', e => { const b = e.target.closest('.s'); if (!b) return; const v = at(e, b); value = v === value ? 0 : v; saving = true; draw(); setTimeout(() => { saving = false; draw(); }, 700); });
+  draw();
+})();
+(() => {
+  const el = document.getElementById('old-cd'); let value = 4;
+  const draw = () => {
+    el.innerHTML = `<span class="old-cd">${[1,2,3,4,5].map(i => `<button class="s ${i <= value ? 'on' : ''}" data-i="${i}"><svg viewBox="0 0 16 16"><path d="${i <= value ? P.fill : P.outline}"/></svg></button>`).join('')}</span>`;
+  };
+  el.addEventListener('click', e => { const b = e.target.closest('.s'); if (!b) return; const v = +b.dataset.i; value = v === value ? 0 : v; draw(); });
+  draw();
+})();
+</script>
+</body>
+</html>
