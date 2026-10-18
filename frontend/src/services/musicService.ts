@@ -203,7 +203,9 @@ export interface DigitalTrack {
   bitRate: number | null;
   bitDepth: number | null;
   samplingRate: number | null;
+  /** Plays over the last 90 days, and all plays ever. */
   plays: number;
+  totalPlays: number;
   lastPlayed: string | null;
   rating: number;
   starred: boolean;

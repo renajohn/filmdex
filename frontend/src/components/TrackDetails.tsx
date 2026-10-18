@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { BsBoxArrowUpRight } from 'react-icons/bs';
-import musicService, { type RipTracks, type TrackLyrics } from '../services/musicService';
+import musicService, { type DigitalTrack, type RipTracks, type TrackLyrics } from '../services/musicService';
 import type { TrackPerformer } from '../utils/trackCredits';
 import { peopleByRoles, performersByPerson, ripFileFor, ripFormat, ripSize } from '../utils/trackDetail';
 import { isAppleMobile, trackListenUrl } from '../utils/navidrome';
 import { layOutLyrics } from '../utils/lyricsLayout';
+import { playsText } from '../utils/digitalLibrary';
 import './TrackDetails.css';
 
 export interface DetailedTrack {
@@ -29,11 +30,17 @@ interface TrackDetailsProps {
   /** Undefined while Navidrome is being read. */
   rip?: RipTracks | null;
   ripError?: string | null;
+  /** How often the track was heard, from Navidrome: shown once it was. */
+  heard?: Pick<DigitalTrack, 'plays' | 'totalPlays' | 'lastPlayed'>;
   /** Lists the CDs that credit a name too, from a search such as `conductor:"Neville Marriner"`. */
   onSearch?: (predicate: string) => void;
   /** What the details show: who made the track and its rip, or its words. */
   view?: 'credits' | 'lyrics';
 }
+
+/** "12 Oct 2026": the day of the last play. */
+const lastPlayedText = (iso: string): string =>
+  new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 
 /** A filter on one value, quoted so a name with spaces stays whole. */
 const predicate = (field: string, value: string) => `${field}:"${value.replace(/"/g, '')}"`;
@@ -98,7 +105,7 @@ const Lyrics: React.FC<{ albumId: number; disc: number; track: number }> = ({ al
  * it speaks of. Who made it reads as a row of roles, each over the names that
  * hold it; how to hear it, a strip at the foot. Or, asked from its row, its words.
  */
-const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumId, albumArtists = [], id, rip, ripError, onSearch, view = 'credits' }) => {
+const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumId, albumArtists = [], id, rip, ripError, heard, onSearch, view = 'credits' }) => {
   // A credited name or role opens the CDs that credit it as well.
   const link = (field: string, value: string, { label = value, title = `CDs with ${value}`, className = '' } = {}) => (onSearch
     ? <button type="button" className={`track-details-search ${className}`} title={title}
@@ -180,6 +187,11 @@ const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumId, albumArtist
           </a>
         )}
         {rip?.configured !== false && ripText}
+        {heard && heard.totalPlays > 0 && (
+          <span className="track-details-plays">
+            {playsText(heard)}{heard.lastPlayed && ` · last ${lastPlayedText(heard.lastPlayed)}`}
+          </span>
+        )}
         {track.isrc && <span>ISRC <code className="track-details-isrc">{track.isrc}</code></span>}
       </div>
       {file?.path && <span className="track-details-path">{file.path}</span>}

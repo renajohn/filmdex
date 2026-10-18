@@ -1029,7 +1029,7 @@
   align-items: center;
 }
 
-/* A track's stars, heart and plays of the last 90 days, with Digital on. */
+/* A track's stars, heart and plays, with Digital on. */
 .track-digital {
   display: inline-flex;
   gap: 8px;
@@ -1041,6 +1041,23 @@
   white-space: nowrap;
 }
 
-.track-digital span:last-child {
-  color: #a3a3a3;
+/*
+ * Every play of the track ever: under the pointer and on the open track only,
+ * keeping its room when hidden so the stars and the duration stay put. A faint
+ * grey, a lighter one when the track was heard in the last 90 days.
+ */
+.track-plays {
+  visibility: hidden;
+  color: #6f6f6f;
+  font-variant-numeric: tabular-nums;
+}
+
+.track-plays.track-plays-lately {
+  color: #b5b5b5;
+}
+
+.track-item:hover .track-plays,
+.track-item:focus-visible .track-plays,
+.track-selected .track-plays {
+  visibility: visible;
 }

@@ -1,0 +1,187 @@
+<title>Track Play Counts</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: one panel per proposal, each a slice of an album's card as DexVault draws it; two columns wide, one on a phone. */
+  :root {
+    color-scheme: dark;
+    --dv-gold: #fbbf24;
+    --dv-text: #e5e5e5;
+    --dv-text-muted: #9ca3af;
+    --dv-text-faint: #8a8a8a;
+    --dv-page: #1a1a1a;
+    --dv-veil: rgba(255, 255, 255, 0.05);
+    --dv-edge: rgba(255, 255, 255, 0.12);
+    --dv-surface: rgba(24, 24, 24, 0.94);
+    --panel: #202020;
+    --num: #777;
+    --title: #e0e0e0;
+    --dur: #999;
+    --lossless: #9ca3af;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--dv-page);
+    color: var(--dv-text);
+    font: 14px/1.45 var(--sans);
+    padding-block: 28px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 22px; }
+  header h1 { margin: 0 0 6px; font-size: 1.35rem; font-weight: 600; text-wrap: balance; }
+  header p { margin: 0; color: var(--dv-text-muted); max-width: 70ch; }
+  header .sample { display: inline-block; margin-top: 10px; font-size: 0.78rem; color: var(--dv-text-faint);
+    border: 1px solid var(--dv-edge); border-radius: 999px; padding: 1px 10px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 18px; }
+  .panel { background: var(--panel); border: 1px solid var(--dv-edge); border-radius: 12px; padding: 16px 12px 10px; min-width: 0; }
+  .panel.recommended { border-color: rgba(251, 191, 36, 0.4); }
+  .panel h2 { margin: 0 4px 4px; font-size: 0.98rem; font-weight: 600; display: flex; gap: 8px; align-items: baseline; }
+  .panel h2 .letter { color: var(--dv-text-faint); font-weight: 500; }
+  .panel h2 .badge { margin-left: auto; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dv-gold); }
+  .panel .pitch { margin: 0 4px 12px; color: var(--dv-text-muted); font-size: 0.84rem; }
+  .head { margin: 0 4px 8px; padding-bottom: 8px; border-bottom: 1px solid var(--dv-edge); font-size: 0.82rem; color: var(--dv-text-muted); }
+  .head .ll { color: var(--lossless); }
+
+  /* The track rows, after MusicDetailCard.css */
+  .tracks { list-style: none; margin: 0; padding: 0; }
+  .track { position: relative; display: flex; align-items: baseline; padding: 6px 12px 6px 0; border-radius: 6px; transition: background-color .15s ease; }
+  .track:hover { background: var(--dv-veil); }
+  .no { position: relative; color: var(--num); font-size: 0.9rem; font-weight: 500; min-width: 35px; text-align: right; margin-right: 12px; font-variant-numeric: tabular-nums; }
+  .no .popular { position: absolute; left: 2px; top: 50%; width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: .8; transform: translateY(-50%); }
+  .t { flex: 1; min-width: 0; color: var(--title); font-size: 0.95rem; }
+  .dur { color: var(--dur); font-size: 0.9rem; font-variant-numeric: tabular-nums; min-width: 50px; text-align: right; }
+  .dig { display: inline-flex; gap: 8px; align-items: center; margin-left: auto; padding-left: 8px; color: var(--dv-gold); font-size: 0.78rem; white-space: nowrap; }
+  .dig svg { width: 11px; height: 11px; fill: currentColor; }
+  .grey { color: #a3a3a3; }
+  .plays { font-variant-numeric: tabular-nums; }
+
+  /* B: two greys, the brighter for a track heard lately */
+  .p-faint { color: #6f6f6f; }
+  .p-lately { color: #b5b5b5; }
+
+  /* C: on hover only */
+  .hover-only { opacity: 0; transition: opacity .15s ease; }
+  .track:hover .hover-only, .track:focus-within .hover-only { opacity: 1; }
+
+  /* D: a hairline under the duration */
+  .gauge-cell { position: relative; }
+  .gauge { position: absolute; right: 0; bottom: -3px; height: 2px; border-radius: 1px; background: rgba(255, 255, 255, 0.22); }
+
+  /* A tooltip, as the app's title attribute would give, drawn here so it shows on a tap too */
+  [data-tip] { cursor: default; }
+  .tip { position: fixed; z-index: 10; pointer-events: none; padding: 5px 9px; border-radius: 7px; background: var(--dv-surface);
+    border: 1px solid var(--dv-edge); color: var(--dv-text); font-size: 0.78rem; box-shadow: 0 8px 24px rgba(0,0,0,.5); max-width: 260px; }
+
+  footer { color: var(--dv-text-faint); font-size: 0.8rem; }
+  @media (prefers-reduced-motion: reduce) { .track, .hover-only { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>The play count of a track, all time</h1>
+    <p>Today the ×N beside a track counts only the last 90 days. Five ways to show how often you have heard it in all, quietly. Hover a row or a number: what the app would put in its tooltip shows.</p>
+    <span class="sample">R.E.M. · Automatic for the People · counts made up for the example</span>
+  </header>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>The small dot before a number stays as it is: the tracks played at least twice in 90 days.</footer>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const STAR = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.6 15.3c-.4.2-.8-.2-.7-.6l.8-4.7L.3 6.6c-.3-.3-.2-.9.3-.9l4.8-.7L7.5.7c.2-.4.8-.4 1 0l2.1 4.3 4.8.7c.4.1.6.6.3.9l-3.5 3.4.8 4.7c.1.4-.3.8-.7.6L8 13.1z"/></svg>';
+const HEART = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3C12.4-3.2 23.6 4.7 8 15 -7.6 4.7 3.6-3.2 8 1.3z"/></svg>';
+
+// total: all time (Navidrome's playCount); recent: the last 90 days (DexVault's history).
+const tracks = [
+  { no: 1, t: 'Drive', d: '4:32', total: 12, recent: 0 },
+  { no: 2, t: 'Try Not to Breathe', d: '3:50', total: 9, recent: 1 },
+  { no: 3, t: 'The Sidewinder Sleeps Tonite', d: '4:09', total: 15, recent: 1 },
+  { no: 4, t: 'Everybody Hurts', d: '5:20', total: 43, recent: 3, rating: 5, starred: true },
+  { no: 5, t: 'New Orleans Instrumental No. 1', d: '2:15', total: 3, recent: 1 },
+  { no: 6, t: 'Sweetness Follows', d: '4:21', total: 18, recent: 2 },
+  { no: 7, t: 'Monty Got a Raw Deal', d: '3:17', total: 7, recent: 1 },
+  { no: 8, t: 'Ignoreland', d: '4:27', total: 6, recent: 0 },
+  { no: 9, t: 'Star Me Kitten', d: '3:16', total: 8, recent: 1 },
+  { no: 10, t: 'Man on the Moon', d: '5:14', total: 31, recent: 0, rating: 4 },
+  { no: 11, t: 'Nightswimming', d: '4:17', total: 27, recent: 0, starred: true },
+  { no: 12, t: 'Find the River', d: '3:49', total: 0, recent: 0 },
+];
+const max = Math.max(...tracks.map(x => x.total));
+const sumTotal = tracks.reduce((s, x) => s + x.total, 0);
+const sumRecent = tracks.reduce((s, x) => s + x.recent, 0);
+const plays = n => `${n} play${n === 1 ? '' : 's'}`;
+const tipOf = x => x.total ? `${plays(x.total)} in all · ${x.recent ? plays(x.recent) + ' in 90 days' : 'none in 90 days'}` : 'Never played';
+const marks = x => (x.rating ? `<span>${STAR} ${x.rating}</span>` : '') + (x.starred ? HEART : '');
+
+const headToday = `<span class="ll">FLAC 16/44.1</span> · 12 tracks · ${plays(sumRecent)} in 90 days`;
+const headTotal = `<span class="ll">FLAC 16/44.1</span> · 12 tracks · ${plays(sumTotal)} · ${sumRecent} in 90 days`;
+
+const variants = [
+  {
+    letter: 'Now', name: 'As it is', head: headToday,
+    pitch: '×N counts the last 90 days: Everybody Hurts shows ×3, Man on the Moon nothing.',
+    right: x => (x.rating || x.starred || x.recent)
+      ? `<span class="dig">${marks(x)}${x.recent ? `<span class="grey plays">×${x.recent}</span>` : ''}</span>` : '',
+  },
+  {
+    letter: 'A', name: 'The total in its place', head: headTotal,
+    pitch: 'The same ×N in the same grey, counting every play. The 90 days move to the tooltip and the album’s line.',
+    right: x => (x.rating || x.starred || x.total)
+      ? `<span class="dig">${marks(x)}${x.total ? `<span class="grey plays" data-tip="${tipOf(x)}">×${x.total}</span>` : ''}</span>` : '',
+  },
+  {
+    letter: 'B', name: 'The total, brighter when heard lately', head: headTotal, recommended: true,
+    pitch: 'The total in a faint grey; a track played in the last 90 days wears a lighter grey. One number, and still a sign of what you play now.',
+    right: x => (x.rating || x.starred || x.total)
+      ? `<span class="dig">${marks(x)}${x.total ? `<span class="plays ${x.recent ? 'p-lately' : 'p-faint'}" data-tip="${tipOf(x)}">×${x.total}</span>` : ''}</span>` : '',
+  },
+  {
+    letter: 'C', name: 'Only under the pointer', head: headTotal,
+    pitch: 'The list shows stars and hearts alone. The total appears on the row you point at; on a phone, on the open track.',
+    right: x => (x.rating || x.starred || x.total)
+      ? `<span class="dig">${marks(x)}${x.total ? `<span class="grey plays hover-only">×${x.total}</span>` : ''}</span>` : '',
+  },
+  {
+    letter: 'D', name: 'A hairline under the duration', head: headTotal,
+    pitch: 'No number: a thin line under the duration, as long as the track is played compared with the album’s most played. The count in the tooltip.',
+    right: x => (x.rating || x.starred) ? `<span class="dig">${marks(x)}</span>` : '',
+    dur: x => `<span class="dur gauge-cell" data-tip="${tipOf(x)}">${x.d}${x.total ? `<span class="gauge" style="width:${Math.max(6, Math.round(100 * x.total / max))}%"></span>` : ''}</span>`,
+  },
+];
+
+const grid = document.getElementById('grid');
+grid.innerHTML = variants.map(v => `
+  <section class="panel${v.recommended ? ' recommended' : ''}">
+    <h2><span class="letter">${v.letter}</span>${v.name}${v.recommended ? '<span class="badge">Recommended</span>' : ''}</h2>
+    <p class="pitch">${v.pitch}</p>
+    <div class="head">${v.head}</div>
+    <ol class="tracks">
+      ${tracks.map(x => `
+        <li class="track" tabindex="-1">
+          <span class="no">${x.recent >= 2 ? '<span class="popular"></span>' : ''}${x.no}</span>
+          <span class="t">${x.t}</span>
+          ${v.right(x)}
+          ${v.dur ? v.dur(x) : `<span class="dur">${x.d}</span>`}
+        </li>`).join('')}
+    </ol>
+  </section>`).join('');
+
+// The tooltip: hover on a computer, a tap on a phone.
+const tip = document.getElementById('tip');
+const show = (el, e) => {
+  tip.textContent = el.dataset.tip;
+  tip.hidden = false;
+  const r = el.getBoundingClientRect();
+  const w = tip.offsetWidth;
+  tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + 'px';
+  tip.style.top = (r.top - tip.offsetHeight - 6) + 'px';
+};
+grid.addEventListener('pointerover', e => { const el = e.target.closest('[data-tip]'); if (el) show(el, e); });
+grid.addEventListener('pointerout', e => { if (e.target.closest('[data-tip]')) tip.hidden = true; });
+window.addEventListener('scroll', () => { tip.hidden = true; }, { passive: true });
+</script>

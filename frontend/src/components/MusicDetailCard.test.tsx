@@ -7,6 +7,7 @@ vi.mock('../services/musicService', () => ({
   default: {
     getListenNextAlbums: vi.fn(() => Promise.resolve([])),
     getNavidromeTracks: vi.fn(() => Promise.resolve({ configured: true, found: false, tracks: [] })),
+    getDigitalTracks: vi.fn(() => Promise.resolve([])),
     getAlbumLyrics: vi.fn(() => Promise.resolve([])),
     getLyrics: vi.fn(() => Promise.resolve({ status: 'found', plain: 'Here comes the sun', synced: null, source: 'lrclib', checkedAt: '2026-10-16' })),
     getAlbumStory: vi.fn(() => Promise.resolve({ found: false, reason: 'no_musicbrainz' })),
@@ -352,5 +353,34 @@ describe('MusicDetailCard', () => {
     fireEvent.keyDown(screen.getByPlaceholderText('What did you hear this time?'), { key: 'ArrowDown' });
 
     expect(body.scrollBy).not.toHaveBeenCalled();
+  });
+});
+
+describe('MusicDetailCard plays of a track', () => {
+  const digital = {
+    notRipped: false,
+    album: {
+      navidromeId: 'nd-1', name: 'Abbey Road', artist: 'The Beatles', songCount: 3, url: '', formats: ['FLAC'], quality: 'lossless',
+      bitRate: null, hiRes: false, cd: null, oldCopy: false, wishAlbumId: null, albumId: 1, rating: 0, starred: false,
+      favouriteTracks: 0, listening: { favourites: 0, needed: 3, plays: 3, lastPlayed: null, score: 0 }, buy: null, dismissed: false,
+    },
+  };
+  const heard = (track: number, totalPlays: number, plays: number) => ({
+    id: `s${track}`, url: null, discNumber: 1, track, title: `T${track}`, durationSec: 180, suffix: 'flac', bitRate: 900,
+    bitDepth: 16, samplingRate: 44100, plays, totalPlays, lastPlayed: null, rating: 0, starred: false,
+  });
+
+  it('counts every play, a lighter grey for a track heard lately, and says it in the open track', async () => {
+    (musicService.getDigitalTracks as any).mockResolvedValue([heard(1, 43, 3), heard(2, 31, 0), heard(3, 0, 0)]);
+    render(<MusicDetailCard cd={cd() as any} digital={digital as any} onClose={() => {}} onEdit={() => {}} onDelete={() => {}} />);
+
+    const lately = await screen.findByText('×43');
+    expect(lately).toHaveClass('track-plays', 'track-plays-lately');
+    expect(lately).toHaveAttribute('title', '43 plays · 3 in 90 days');
+    expect(screen.getByText('×31')).not.toHaveClass('track-plays-lately');
+    expect(screen.queryByText('×0')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Track 1'));
+    expect(await screen.findByText('43 plays · 3 in 90 days')).toHaveClass('track-details-plays');
   });
 });

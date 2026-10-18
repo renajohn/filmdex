@@ -24,7 +24,7 @@ import NowPlayingBars from './shared/NowPlayingBars';
 import DigitalMarks from './shared/DigitalMarks';
 import { BsArrowCounterclockwise, BsCartFill, BsHeart, BsHeartFill, BsSearch } from 'react-icons/bs';
 import type { DigitalTrack } from '../services/musicService';
-import { buyReason, formatLabel, isLossy, isSuggested, isToBuy, ricardoUrl, type AlbumDigital } from '../utils/digitalLibrary';
+import { buyReason, formatLabel, isLossy, isSuggested, isToBuy, playsText, ricardoUrl, type AlbumDigital } from '../utils/digitalLibrary';
 import Button, { LinkButton } from './shared/Button';
 import Spinner from './shared/Spinner';
 
@@ -930,11 +930,16 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                         </span>
                         {(() => {
                           const heard = digitalTracks.get(`${disc.number}-${track.no}`);
-                          return heard && (heard.rating > 0 || heard.starred || heard.plays > 0) && (
-                            <span className="track-digital" title="Your stars and plays of the last 90 days, from Navidrome">
-                              {heard.rating > 0 && <span><BsStarFill aria-hidden="true" /> {heard.rating}</span>}
+                          // Every play ever, under the pointer and on the open track; a lighter grey when heard in the last 90 days.
+                          return heard && (heard.rating > 0 || heard.starred || heard.totalPlays > 0) && (
+                            <span className="track-digital">
+                              {heard.rating > 0 && <span title="Your stars, from Navidrome"><BsStarFill aria-hidden="true" /> {heard.rating}</span>}
                               {heard.starred && <BsHeartFill aria-hidden="true" />}
-                              {heard.plays > 0 && <span>×{heard.plays}</span>}
+                              {heard.totalPlays > 0 && (
+                                <span className={`track-plays${heard.plays > 0 ? ' track-plays-lately' : ''}`} title={playsText(heard)}>
+                                  ×{heard.totalPlays}
+                                </span>
+                              )}
                             </span>
                           );
                         })()}
@@ -952,6 +957,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                           albumArtists={Array.isArray(cd.artist) ? cd.artist : [cd.artist]}
                           rip={rip}
                           ripError={ripError}
+                          heard={digitalTracks.get(`${disc.number}-${track.no}`)}
                           view={words ? trackView : 'credits'}
                           onSearch={onSearch ? predicate => { onSearch(predicate); onClose(); } : undefined}
                         />

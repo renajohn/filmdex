@@ -72,6 +72,19 @@ describe('TrackDetails', () => {
     expect(screen.getByText('Not in Navidrome yet.')).toBeInTheDocument();
   });
 
+  it('says how often the track was heard, ever and lately, and nothing of a track never played', () => {
+    const { rerender } = render(<TrackDetails track={credited} rip={rip}
+      heard={{ totalPlays: 43, plays: 3, lastPlayed: '2026-10-12T20:00:00Z' }} />);
+
+    expect(screen.getByText(/^43 plays · 3 in 90 days · last /)).toBeInTheDocument();
+
+    rerender(<TrackDetails track={credited} rip={rip} heard={{ totalPlays: 31, plays: 0, lastPlayed: null }} />);
+    expect(screen.getByText('31 plays · none in 90 days')).toBeInTheDocument();
+
+    rerender(<TrackDetails track={credited} rip={rip} heard={{ totalPlays: 0, plays: 0, lastPlayed: null }} />);
+    expect(screen.queryByText(/plays? ·/)).not.toBeInTheDocument();
+  });
+
   it('says it is reading Navidrome until the rip arrives', () => {
     render(<TrackDetails track={credited} />);
 

@@ -152,6 +152,10 @@ const shortDate = (iso: string | null): string | null => {
   return Number.isNaN(date.getTime()) ? null : date.toLocaleDateString('fr-CH', { day: '2-digit', month: '2-digit' });
 };
 
+/** "43 plays · 3 in 90 days": how often a track was heard, ever and lately. */
+export const playsText = ({ totalPlays, plays }: { totalPlays: number; plays: number }): string =>
+  `${totalPlays} play${totalPlays === 1 ? '' : 's'} · ${plays > 0 ? plays : 'none'} in 90 days`;
+
 /** Why an album is worth buying, in a few words: "5 tracks ×2+ · 12.10 · ★4". */
 export const buyReason = (album: DigitalAlbum): string => {
   const { listening } = album;

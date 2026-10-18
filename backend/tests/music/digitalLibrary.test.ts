@@ -201,4 +201,20 @@ describe('recommandations d’achat', () => {
       expect.objectContaining({ track: 2, plays: 0, rating: 5 }),
     ]);
   });
+
+  it('donne aussi toutes les écoutes d’une piste, celles d’avant les 90 jours comprises', async () => {
+    const id = `old-${tag()}`;
+    const longAgo = new Date(Date.now() - 200 * 86_400_000).toISOString();
+    mockLibrary([album(id, 'Old')], tracks(id, [43], { played: longAgo }));
+    await request(app).get('/api/music/digital');
+    jest.spyOn(navidromeService, 'getAlbumSongs').mockResolvedValue([{
+      id: `${id}-1`, url: null, discNumber: 1, track: 1, title: 'T1', durationSec: 200, suffix: 'flac',
+      bitRate: 900, bitDepth: 16, samplingRate: 44100, channelCount: 2, size: 1, path: null,
+      playCount: 43, played: longAgo, userRating: 0, starred: false,
+    }]);
+
+    const res = await request(app).get(`/api/music/digital/${id}/tracks`);
+
+    expect(res.body.tracks).toEqual([expect.objectContaining({ track: 1, plays: 0, totalPlays: 43 })]);
+  });
 });

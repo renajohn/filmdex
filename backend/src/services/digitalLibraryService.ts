@@ -127,8 +127,9 @@ export interface DigitalTrack {
   bitRate: number | null;
   bitDepth: number | null;
   samplingRate: number | null;
-  /** Plays over the last 90 days, and the last one ever. */
+  /** Plays over the last 90 days, all plays ever (Navidrome's count), and the last one. */
   plays: number;
+  totalPlays: number;
   lastPlayed: string | null;
   rating: number;
   starred: boolean;
@@ -339,22 +340,27 @@ const digitalLibraryService = {
   getTracks: async (navidromeId: string): Promise<DigitalTrack[]> => {
     const bySong = playsBySong(await listenHistoryService.recent(LISTEN_WINDOW_DAYS));
     const files = await navidromeService.getAlbumSongs(navidromeId);
-    return files.map(file => ({
-      id: file.id,
-      url: file.url,
-      discNumber: file.discNumber,
-      track: file.track,
-      title: file.title,
-      durationSec: file.durationSec,
-      suffix: file.suffix,
-      bitRate: file.bitRate,
-      bitDepth: file.bitDepth,
-      samplingRate: file.samplingRate,
-      plays: (file.id ? bySong.get(file.id) || [] : []).reduce((sum, day) => sum + day.plays, 0),
-      lastPlayed: file.played ?? null,
-      rating: file.userRating ?? 0,
-      starred: Boolean(file.starred),
-    })).sort((a, b) => a.discNumber - b.discNumber || a.track - b.track);
+    return files.map(file => {
+      const plays = (file.id ? bySong.get(file.id) || [] : []).reduce((sum, day) => sum + day.plays, 0);
+      return {
+        id: file.id,
+        url: file.url,
+        discNumber: file.discNumber,
+        track: file.track,
+        title: file.title,
+        durationSec: file.durationSec,
+        suffix: file.suffix,
+        bitRate: file.bitRate,
+        bitDepth: file.bitDepth,
+        samplingRate: file.samplingRate,
+        plays,
+        // Never fewer than the window's: the history notes plays Navidrome may not have counted yet.
+        totalPlays: Math.max(file.playCount ?? 0, plays),
+        lastPlayed: file.played ?? null,
+        rating: file.userRating ?? 0,
+        starred: Boolean(file.starred),
+      };
+    }).sort((a, b) => a.discNumber - b.discNumber || a.track - b.track);
   },
 };
 
