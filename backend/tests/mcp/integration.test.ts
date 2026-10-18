@@ -736,16 +736,16 @@ describe('list_watch_next', () => {
     expect(text).toContain('Watch Next Two');
   });
 
-  it('returns JSON with compact movie fields, newest additions first', async () => {
+  it('returns JSON with compact movie fields, in the order of the collection', async () => {
     const r = await callTool('list_watch_next', { format_output: 'json' });
     const parsed = JSON.parse(textOf(r));
     expect(Array.isArray(parsed.items)).toBe(true);
     expect(parsed.items[0]).toHaveProperty('id');
     expect(parsed.items[0]).toHaveProperty('title');
     expect(parsed.items[0]).toHaveProperty('watched');
-    // toggled a then b; Watch Next lists newest additions first, so b leads.
-    expect(parsed.items[0].id).toBe(secondId);
-    expect(parsed.items.map((i: { id: number }) => i.id)).toContain(firstId);
+    // toggled a then b; a new movie goes to the end, so a leads.
+    expect(parsed.items[0].id).toBe(firstId);
+    expect(parsed.items.map((i: { id: number }) => i.id)).toContain(secondId);
   });
 
   it('respects limit and reports truncation', async () => {

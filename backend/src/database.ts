@@ -265,6 +265,37 @@ const runAutoMigrations = async (): Promise<void> => {
         await TrackPopularity.forgetAll();
         console.log('  ✓ Track popularity to be read again, with ListenBrainz');
       }
+    },
+    {
+      name: '016_watch_next_in_collection_order',
+      up: async () => {
+        // Watch Next was shown newest first, its highest order at the head; it
+        // now follows its order as every collection does, a new movie at the
+        // end. It is numbered again from 1 as it was shown, so that it shows
+        // as it did (its orders could tie: a drag in a card and an addition).
+        const shown = await new Promise<Array<{ movie_id: number; collection_id: number }>>((resolve, reject) => {
+          currentDb.all(`
+            SELECT mc.movie_id, mc.collection_id
+            FROM movie_collections mc
+            JOIN movies m ON m.id = mc.movie_id
+            WHERE mc.collection_id IN (SELECT id FROM collections WHERE type = 'watch_next')
+            ORDER BY
+              CASE WHEN mc.collection_order IS NOT NULL THEN mc.collection_order ELSE 999999 END DESC,
+              m.release_date DESC,
+              m.title DESC
+          `, (err: Error | null, rows: Array<{ movie_id: number; collection_id: number }>) => {
+            if (err) reject(err);
+            else resolve(rows || []);
+          });
+        });
+        for (const [index, row] of shown.entries()) {
+          await new Promise<void>((resolve, reject) => {
+            currentDb.run('UPDATE movie_collections SET collection_order = ? WHERE movie_id = ? AND collection_id = ?',
+              [index + 1, row.movie_id, row.collection_id], (err: Error | null) => (err ? reject(err) : resolve()));
+          });
+        }
+        console.log(`  ✓ Watch Next in its collection's order (${shown.length} movies)`);
+      }
     }
   ];
 

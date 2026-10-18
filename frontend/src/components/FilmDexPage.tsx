@@ -596,6 +596,19 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
     }
   };
 
+  // Watch Next dragged into a new order: shown at once, then as the server has it; a movie's card reads the same order.
+  const handleWatchNextReorder = async (ids: number[]) => {
+    setWatchNextMovies(previous => [...previous].sort((a: any, b: any) => ids.indexOf(a.id) - ids.indexOf(b.id)));
+    try {
+      const result = await apiService.reorderWatchNext(ids);
+      setWatchNextMovies(result.movies as any[]);
+    } catch (error) {
+      console.error('Error reordering Watch Next:', error);
+      refreshWatchNextMovies();
+      if (onShowAlert) onShowAlert('Failed to reorder Watch Next', 'danger');
+    }
+  };
+
   // Handle marking movie as watched from prompt
   const handlePromptMarkWatched = async (daysAgo: number = 0) => {
     if (!promptMovie) return;
@@ -989,6 +1002,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
           title="Watch Next"
           onItemClick={(id) => handleMovieClick(id, watchNextMovies.map((movie: any) => movie.id))}
           onRemove={handleWatchNextToggle}
+          onReorder={handleWatchNextReorder}
           getImageUrl={(movie: any) => getPosterUrl(movie.poster_path)}
           getTitle={(movie: any) => movie.title}
           getYear={(movie: any) => movie.release_date ? new Date(movie.release_date).getFullYear() : null}

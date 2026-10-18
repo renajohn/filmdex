@@ -1128,6 +1128,21 @@ const movieController = {
     }
   },
 
+  /** Watch Next in a new order: { movieIds } from the first shown to the last. */
+  reorderWatchNext: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const movieIds = req.body?.movieIds;
+      if (!Array.isArray(movieIds) || !movieIds.every(id => Number.isInteger(id))) {
+        res.status(400).json({ error: 'movieIds must be an array of movie ids' });
+        return;
+      }
+      res.json({ movies: await collectionService.reorderWatchNext(movieIds) });
+    } catch (error) {
+      logger.error('Error reordering Watch Next:', error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  },
+
   // Get all collections
   getAllCollections: async (req: Request, res: Response): Promise<void> => {
     try {

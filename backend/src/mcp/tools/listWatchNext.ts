@@ -47,7 +47,7 @@ export const registerListWatchNext = (server: McpServer): void => {
     {
       title: 'List Watch Next movies',
       description:
-        'List the movies queued in the user\'s "Watch Next" collection, newest additions first. ' +
+        'List the movies queued in the user\'s "Watch Next" collection, in the order the user keeps (a new one at the end). ' +
         'Returns a list with id as the first column so you can chain a get_movie call. Default limit 20, max 100.',
       inputSchema: listWatchNextInputShape,
     },

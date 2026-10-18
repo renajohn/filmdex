@@ -338,6 +338,15 @@ class ApiService {
     return await response.json();
   }
 
+  /** Watch Next in the order given, from the first shown to the last; the list as the server now has it. */
+  async reorderWatchNext(movieIds: number[]): Promise<{ movies: unknown[] }> {
+    const response = await this.makeRequest('/collections/watch-next/order', {
+      method: 'PUT',
+      body: JSON.stringify({ movieIds }),
+    });
+    return await response.json();
+  }
+
   // Get available posters from TMDB
   async getMoviePosters(tmdbId: number | string, mediaType: string = 'movie'): Promise<unknown> {
     const queryParam = mediaType ? `?mediaType=${mediaType}` : '';

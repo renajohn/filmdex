@@ -484,13 +484,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
           const membersResults = await Promise.all(membersPromises);
           const membersMap: Record<string, MovieData[]> = {};
           membersResults.forEach(({ collectionName, movies }: { collectionName: string; movies: MovieData[] }) => {
-            // Check if this is the Watch Next collection and reverse the order
-            const collection = allCollections.find((c: CollectionObj) => c.name === collectionName);
-            if (collection && collection.type === 'watch_next') {
-              membersMap[collectionName] = movies.reverse();
-            } else {
-              membersMap[collectionName] = movies;
-            }
+            membersMap[collectionName] = movies;
           });
 
           setCollectionMembers(membersMap);
@@ -1089,13 +1083,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
         const membersResults = await Promise.all(membersPromises);
         const membersMap: Record<string, MovieData[]> = {};
         membersResults.forEach(({ collectionName, movies }: { collectionName: string; movies: MovieData[] }) => {
-          // Check if this is the Watch Next collection and reverse the order
-          const collection = allCollections.find((c: CollectionObj) => c.name === collectionName);
-          if (collection && collection.type === 'watch_next') {
-            membersMap[collectionName] = movies.reverse();
-          } else {
-            membersMap[collectionName] = movies;
-          }
+          membersMap[collectionName] = movies;
         });
 
         setCollectionMembers(membersMap);
@@ -1499,13 +1487,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
         const membersResults = await Promise.all(membersPromises);
         const membersMap: Record<string, MovieData[]> = {};
         membersResults.forEach(({ collectionName, movies }: { collectionName: string; movies: MovieData[] }) => {
-          // Check if this is the Watch Next collection and reverse the order
-          const collection = allCollections.find((c: CollectionObj) => c.name === collectionName);
-          if (collection && collection.type === 'watch_next') {
-            membersMap[collectionName] = movies.reverse();
-          } else {
-            membersMap[collectionName] = movies;
-          }
+          membersMap[collectionName] = movies;
         });
 
         setCollectionMembers(membersMap);
@@ -1603,18 +1585,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
         [targetCollection]: newMovies
       }));
 
-      // Update ALL movies in the collection with appropriate ordering
-      const updatePromises = newMovies.map((movie: MovieData, index: number) => {
-        // For Watch Next collection, use reverse order (highest order first)
-        // For other collections, use sequential order (lowest order first)
-        const order = collection.type === 'watch_next' 
-          ? newMovies.length - index  // Reverse order: first item gets highest number
-          : index + 1;                 // Sequential order: first item gets 1
-        return apiService.updateMovieOrder(movie.id, collection.id, order);
-      });
-      
+      // Watch Next in one go, as its banner does; another collection one movie at a time, the first taking 1.
+      const update = collection.type === 'watch_next'
+        ? apiService.reorderWatchNext(newMovies.map((movie: MovieData) => movie.id))
+        : Promise.all(newMovies.map((movie: MovieData, index: number) => apiService.updateMovieOrder(movie.id, collection.id, index + 1)));
+
       // Update backend and refresh main UI
-      Promise.all(updatePromises).then(() => {
+      update.then(() => {
         // Success: refresh main UI to reflect changes
         if (onRefresh) onRefresh();
       }).catch(error => {

@@ -86,7 +86,7 @@ const collectionService = {
     }
   },
 
-  // Get Watch Next movies in reverse order (newest additions first)
+  // Get Watch Next movies in the collection's order (a new one at the end)
   getWatchNextMovies: async (): Promise<Array<MovieRow & { collection_order: number | null }>> => {
     try {
       const watchNextCollection = await Collection.findByType('watch_next');
@@ -94,13 +94,28 @@ const collectionService = {
         return [];
       }
 
-      const movies = await Collection.getMovies(watchNextCollection.id);
-      // Return in reverse order (newest additions first)
-      return movies.reverse();
+      return await Collection.getMovies(watchNextCollection.id);
     } catch (error) {
       logger.error('Error getting Watch Next movies:', error);
       throw error;
     }
+  },
+
+  /**
+   * Watch Next in the order given, dragged on its banner or in a movie's card.
+   * A movie the order leaves out (added meanwhile) keeps its turn after those
+   * given; one no longer in it is passed over.
+   */
+  reorderWatchNext: async (movieIds: number[]): Promise<Array<MovieRow & { collection_order: number | null }>> => {
+    const watchNextCollection = await Collection.findByType('watch_next');
+    if (!watchNextCollection) return [];
+    const current = (await collectionService.getWatchNextMovies()).map(movie => movie.id);
+    const given = [...new Set(movieIds)].filter(id => current.includes(id));
+    const order = [...given, ...current.filter(id => !given.includes(id))];
+    for (const [index, id] of order.entries()) {
+      await MovieCollection.updateOrder(id, watchNextCollection.id, index + 1);
+    }
+    return collectionService.getWatchNextMovies();
   },
 
   // Delete collection
