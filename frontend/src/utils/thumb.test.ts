@@ -8,8 +8,17 @@ describe('thumb', () => {
     expect(thumbUrl('/api/images/cd/a.jpg?x=1', 240)).toBe('/api/images/cd/a.jpg?x=1&w=240');
   });
 
+  it('asks TMDB for a poster at the first of its widths as wide as asked', () => {
+    expect(thumbUrl('https://image.tmdb.org/t/p/original/p.jpg', 240)).toBe('https://image.tmdb.org/t/p/w342/p.jpg');
+    expect(thumbUrl('https://image.tmdb.org/t/p/w200/p.jpg', 480)).toBe('https://image.tmdb.org/t/p/w500/p.jpg');
+    expect(thumbUrl('https://image.tmdb.org/t/p/w500/p.jpg', 1000)).toBe('https://image.tmdb.org/t/p/original/p.jpg');
+    expect(thumbProps('https://image.tmdb.org/t/p/original/p.jpg')).toEqual({
+      src: 'https://image.tmdb.org/t/p/w342/p.jpg',
+      srcSet: 'https://image.tmdb.org/t/p/w342/p.jpg 1x, https://image.tmdb.org/t/p/w500/p.jpg 2x',
+    });
+  });
+
   it('leaves an image from elsewhere as it is', () => {
-    expect(thumbUrl('https://image.tmdb.org/t/p/w200/p.jpg', 240)).toBe('https://image.tmdb.org/t/p/w200/p.jpg');
     expect(thumbProps('https://coverartarchive.org/x.jpg')).toEqual({ src: 'https://coverartarchive.org/x.jpg' });
   });
 

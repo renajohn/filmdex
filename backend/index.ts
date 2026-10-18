@@ -43,6 +43,7 @@ import Collection from './src/models/collection';
 import MovieCollection from './src/models/movieCollection';
 import { initDatabase } from './src/database';
 import imageService from './src/services/imageService';
+import movieService from './src/services/movieService';
 import { sendImage } from './src/services/imageThumbService';
 
 // Parse command line arguments
@@ -519,6 +520,7 @@ const serverReady = startServer().then(() => {
     lyricsService.startAutoFetch();
     shelvingService.startSortNameSync();
     trackPopularityService.startAutoRefresh();
+    movieService.localizeRemotePosters().catch((error: Error) => logger.warn('Could not bring the posters from TMDB:', error.message));
   }
 }).catch((error: Error) => {
   logger.error('Failed to start server:', error);

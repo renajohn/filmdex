@@ -66,6 +66,10 @@ const ImageService = {
     }
   },
 
+  /** The path TMDB keeps an image under (/abc.jpg) when `url` is one of its images, at any width, else null. */
+  tmdbPathOf: (url: unknown): string | null =>
+    typeof url === 'string' ? /^https:\/\/image\.tmdb\.org\/t\/p\/[^/]+(\/[^/?#]+)$/.exec(url)?.[1] ?? null : null,
+
   downloadPoster: async (posterPath: string | null, tmdbId: number): Promise<string | null> => {
     return await ImageService.downloadImage(posterPath, 'posters', tmdbId);
   },

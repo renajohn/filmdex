@@ -4,6 +4,7 @@ import path from 'path';
 import axios from 'axios';
 import omdbService from './omdbService';
 import posterService from './posterService';
+import imageService from './imageService';
 import tmdbService from './tmdbService';
 import { getDatabase } from '../database';
 import logger from '../logger';
@@ -504,6 +505,14 @@ const movieService = {
         }
       }
 
+      // A poster chosen among TMDB's comes as TMDB's URL: it is kept here, as
+      // every other poster is, and not loaded from TMDB at its full size each time.
+      const tmdbPoster = imageService.tmdbPathOf(movieData.poster_path);
+      if (tmdbPoster) {
+        const local = await imageService.downloadPoster(tmdbPoster, Number(movieData.tmdb_id) || id);
+        if (local) movieData.poster_path = local;
+      }
+
       // Update the movie in the database
       const result = await Movie.update(id, movieData as unknown as MovieData);
 
@@ -522,6 +531,32 @@ const movieService = {
       console.error('Error updating movie:', error);
       throw error;
     }
+  },
+
+  /**
+   * Brings here the posters still read from TMDB: a poster chosen in a movie's
+   * card was saved as TMDB's URL until 18.10.2026, and half of FilmDex's grid
+   * loaded TMDB's originals, up to 2000×3000. One at a time; one that fails
+   * stays as it is and is tried again at the next start.
+   */
+  localizeRemotePosters: async (): Promise<number> => {
+    const db = getDatabase();
+    const rows = await new Promise<{ id: number; tmdb_id: number | null; poster_path: string }[]>((resolve, reject) =>
+      db.all("SELECT id, tmdb_id, poster_path FROM movies WHERE poster_path LIKE 'https://image.tmdb.org/%'", (err: Error | null, r: { id: number; tmdb_id: number | null; poster_path: string }[]) =>
+        err ? reject(err) : resolve(r)));
+    let done = 0;
+    for (const row of rows) {
+      const tmdbPath = imageService.tmdbPathOf(row.poster_path);
+      if (!tmdbPath) continue;
+      const local = await imageService.downloadPoster(tmdbPath, row.tmdb_id || row.id);
+      if (!local) continue;
+      await new Promise<void>((resolve, reject) =>
+        db.run('UPDATE movies SET poster_path = ? WHERE id = ? AND poster_path = ?', [local, row.id, row.poster_path], (err: Error | null) =>
+          err ? reject(err) : resolve()));
+      done++;
+    }
+    if (rows.length) logger.info(`Posters brought from TMDB: ${done} of ${rows.length}`);
+    return done;
   },
 
   deleteMovie: async (id: number): Promise<{ id: number; deletedRows: number }> => {
