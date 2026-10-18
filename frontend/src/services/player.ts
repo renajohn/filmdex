@@ -113,6 +113,50 @@ const set = (changes: Partial<PlayerState>) => {
 };
 
 /*
+ * The Mac kept awake while a play goes on. Chrome lets go of its hold on
+ * sleep at the end of each track and takes it again only seconds into the
+ * next: with the screen off, macOS sleeps in between. A Web Audio stream kept
+ * running holds the sound card, and so sleep, across the gap: a constant far
+ * below hearing, since Chrome stops a stream of zeros after half a minute.
+ * Let go a while after the play stops, so that the step from one album of a
+ * list to the next does not let go of it.
+ */
+const KEEP_AWAKE_LEVEL = 1e-5;
+const KEEP_AWAKE_GRACE_MS = 30000;
+let keepAwakeContext: AudioContext | null = null;
+let keepAwakeRelease: ReturnType<typeof setTimeout> | null = null;
+
+/** Called from a click or a key: a browser starts no sound otherwise. */
+const holdAwake = () => {
+  if (typeof AudioContext === 'undefined') return;
+  try {
+    if (!keepAwakeContext) {
+      keepAwakeContext = new AudioContext();
+      const source = keepAwakeContext.createConstantSource();
+      source.offset.value = KEEP_AWAKE_LEVEL;
+      source.connect(keepAwakeContext.destination);
+      source.start();
+    }
+    keepAwakeContext.resume().catch(() => undefined);
+  } catch { /* the Mac may sleep between tracks, the play still works */ }
+};
+
+const syncAwake = () => {
+  if (!keepAwakeContext) return;
+  if (state.playing) {
+    if (keepAwakeRelease) clearTimeout(keepAwakeRelease);
+    keepAwakeRelease = null;
+    if (keepAwakeContext.state === 'suspended') keepAwakeContext.resume().catch(() => undefined);
+  } else if (!keepAwakeRelease) {
+    keepAwakeRelease = setTimeout(() => {
+      keepAwakeRelease = null;
+      if (!state.playing) keepAwakeContext?.suspend().catch(() => undefined);
+    }, KEEP_AWAKE_GRACE_MS);
+  }
+};
+listeners.add(syncAwake);
+
+/*
  * Two audio elements: the one playing, and the next track loading in the
  * other, so the step from one to the next is as short as a browser allows.
  */
@@ -321,6 +365,7 @@ export const player = {
   playAlbum: (album: PlayerAlbum, tracks: PlayerTrack[], index = 0, at = 0, playOptions: PlayOptions = {}) => {
     if (tracks.length === 0) return;
     setUp();
+    holdAwake();
     options = playOptions;
     set({ album, queue: playOptions.queue ?? null, tracks, resume: null });
     writeResume(null);
@@ -334,8 +379,10 @@ export const player = {
     if (!state.album) return;
     const audio = current();
     const want = playing ?? audio.paused;
-    if (want) audio.play().catch(error => set({ error: (error as Error).message }));
-    else audio.pause();
+    if (want) {
+      holdAwake();
+      audio.play().catch(error => set({ error: (error as Error).message }));
+    } else audio.pause();
   },
 
   /** The next track; on the last one, the next album of the list it is played from. */
@@ -463,6 +510,10 @@ export const resetPlayer = () => {
   waitingForBar = null;
   options = {};
   waitingQueue = null;
+  keepAwakeContext?.close().catch(() => undefined);
+  keepAwakeContext = null;
+  if (keepAwakeRelease) clearTimeout(keepAwakeRelease);
+  keepAwakeRelease = null;
   state = { album: null, queue: null, tracks: [], index: 0, playing: false, position: 0, duration: 0, barShown: false, resume: readResume(), error: null,
     lyricsOpen: readLyricsOpen() };
   listeners.forEach(listener => listener());

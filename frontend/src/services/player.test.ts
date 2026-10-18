@@ -153,6 +153,36 @@ describe('player', () => {
     expect((heard.mock.calls[0][0] as CustomEvent).detail).toEqual({ id: 3, albumId: 7 });
     window.removeEventListener(LISTEN_NEXT_LEFT_EVENT, heard);
   });
+  it('keeps the Mac awake across the step from one track to the next, and lets go a while after a pause', () => {
+    vi.useFakeTimers();
+    const level = { value: 0 };
+    const context = {
+      state: 'running',
+      resume: vi.fn(() => { context.state = 'running'; return Promise.resolve(); }),
+      suspend: vi.fn(() => { context.state = 'suspended'; return Promise.resolve(); }),
+      close: vi.fn(() => Promise.resolve()),
+      destination: {},
+      createConstantSource: () => ({ offset: level, connect: vi.fn(), start: vi.fn() }),
+    };
+    vi.stubGlobal('AudioContext', function AudioContext() { return context; });
+    try {
+      player.playAlbum(album, tracks, 0);
+      expect(level.value).toBeGreaterThan(0);
+      playingAudio().dispatchEvent(new Event('ended'));
+      player.toggle(false);
+      playingAudio().dispatchEvent(new Event('pause'));
+      vi.advanceTimersByTime(29000);
+      expect(context.suspend).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(2000);
+      expect(context.suspend).toHaveBeenCalled();
+
+      player.toggle(true);
+      expect(context.state).toBe('running');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   describe('after a reload', () => {
     /** Plays the album up to `at` seconds into its second track, then reloads the page. */
     const playThenReload = (at: number) => {
