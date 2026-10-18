@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import apiService from '../services/api';
 import InlinePosterSelector from './InlinePosterSelector';
 import './AddMovieDialog.css';
@@ -520,11 +520,26 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
     }
   };
 
+  // The whole dialog scrolls, its head too: the veil covers what is in sight, Add being often far down,
+  // and the dialog holds still under it until the movie is added.
+  const loadingOverlayRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const overlay = loadingOverlayRef.current;
+    const box = overlay?.closest<HTMLElement>('.modal-content');
+    if (!overlay || !box) return undefined;
+    overlay.style.top = `${box.scrollTop}px`;
+    overlay.style.height = `${box.clientHeight}px`;
+    overlay.style.bottom = 'auto';
+    const overflowY = box.style.overflowY;
+    box.style.overflowY = 'hidden';
+    return () => { box.style.overflowY = overflowY; };
+  }, [loading]);
+
   return (
     <Dialog show={isOpen} onClose={handleClose} modal={loading} size="lg" icon={<BsPlus />} title="Add Movie" className="add-movie-dialog">
       {/* Loading Overlay */}
       {loading && (
-        <div className="loading-overlay">
+        <div className="loading-overlay" ref={loadingOverlayRef}>
           <Spinner size="lg" />
           <div className="loading-message">
             {selectedMovie?.existingStatus === 'wish' && mode === 'collection'
