@@ -149,6 +149,30 @@ describe('albums digitaux', () => {
     expect(await Album.findById(digital.id)).toBeNull();
   });
 
+  it('note la qualité des fichiers sur chaque album, et la recherche la trouve par file: et ripped:', async () => {
+    const [flac, mp3, unripped, alone] = [`Flac ${tag()}`, `Mp3 ${tag()}`, `Unripped ${tag()}`, `Alone ${tag()}`];
+    const flacId = await insertAlbum(flac, 'Moby');
+    const mp3Id = await insertAlbum(mp3, 'Moby');
+    const unrippedId = await insertAlbum(unripped, 'Moby');
+    // The CD's FLAC and its old MP3: the CD is as good as its best copy.
+    navidrome([album('n-flac', flac, 'Moby'), album('n-flac-old', flac, 'Moby'), album('n-mp3', mp3, 'Moby'), album('n-alone', alone, 'Moby')],
+      [...songsOf('n-flac', 'flac'), ...songsOf('n-flac-old'), ...songsOf('n-mp3'), ...songsOf('n-alone')]);
+
+    await digitalAlbumService.reconcile();
+
+    const digital = (await digitalOf('n-alone'))!;
+    const qualities = async () => Object.fromEntries(await Promise.all([flacId, mp3Id, unrippedId, digital.id]
+      .map(async id => [id, (await Album.findById(id))?.fileQuality])));
+    expect(await qualities()).toEqual({ [flacId]: 'lossless', [mp3Id]: 'lossy', [unrippedId]: 'none', [digital.id]: 'lossy' });
+
+    const found = async (query: string) => (await Album.search(`artist:Moby ${query}`, { withNoCd: true }))
+      .map(album => album.id).filter(id => [flacId, mp3Id, unrippedId, digital.id].includes(id)).sort((a, b) => a - b);
+    expect(await found('file:lossless')).toEqual([flacId]);
+    expect(await found('file:lossy')).toEqual([mp3Id, digital.id].sort((a, b) => a - b));
+    expect(await found('ripped:no')).toEqual([unrippedId]);
+    expect(await found('ripped:yes')).toEqual([flacId, mp3Id]);
+  });
+
   it('cherche les paroles des albums digitaux comme celles des CD', async () => {
     const name = `Words ${tag()}`;
     navidrome([album('n-words', name, 'Moby')], songsOf('n-words'));

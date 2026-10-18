@@ -151,6 +151,32 @@ const sameArtist = (artists: string[], navidromeArtist: string): boolean => {
     list.every(word => tagged.has(word)) || [...tagged].every(word => list.includes(word)));
 };
 
+/**
+ * How good the files of an album are:
+ * - lossless: every file lossless (FLAC, ALAC…);
+ * - near:     compressed, at 256 kbps or more on average (MP3 320, V0, AAC 256);
+ * - lossy:    compressed below that.
+ * A mixed album is as good as its compressed files.
+ */
+export type Quality = 'lossless' | 'near' | 'lossy';
+
+const NEAR_LOSSLESS_KBPS = 256;
+
+/** The quality of an album's files, weighed as the page shows it. */
+export const qualityOf = (songs: NavidromeSong[]): { quality: Quality; bitRate: number | null; hiRes: boolean } => {
+  const compressed = songs.filter(song => !isLossless(song));
+  if (songs.length > 0 && compressed.length === 0) {
+    const hiRes = songs.every(song => (song.bitDepth ?? 16) > 16 || (song.samplingRate ?? 44100) > 44100);
+    return { quality: 'lossless', bitRate: null, hiRes };
+  }
+  // Weighed by length: a VBR file's quiet track has a lower bitrate than the album.
+  const length = compressed.reduce((sum, song) => sum + (song.durationSec || 0), 0);
+  const bitRate = compressed.length === 0 ? null : length > 0
+    ? Math.round(compressed.reduce((sum, song) => sum + (song.bitRate || 0) * (song.durationSec || 0), 0) / length)
+    : Math.round(compressed.reduce((sum, song) => sum + (song.bitRate || 0), 0) / compressed.length);
+  return { quality: (bitRate ?? 0) >= NEAR_LOSSLESS_KBPS ? 'near' : 'lossy', bitRate, hiRes: false };
+};
+
 export const groupSongs = (songs: NavidromeSong[]): Map<string, NavidromeSong[]> => {
   const byAlbum = new Map<string, NavidromeSong[]>();
   for (const song of songs) byAlbum.set(song.albumId, [...(byAlbum.get(song.albumId) || []), song]);

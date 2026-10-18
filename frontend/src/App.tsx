@@ -44,12 +44,13 @@ interface SearchCriteria {
   searchText: string;
 }
 
-/** The old Digital page's tabs, as MusicDex's filters with Digital on. */
-const DIGITAL_TAB_FILTERS: Record<string, string> = { buy: 'buy', nocd: 'digital', lossy: 'lossy', physical: 'unripped' };
+/** The old Digital page's tabs, as MusicDex with Digital on: Buy, or words of the search. */
+const DIGITAL_TAB_SEARCHES: Record<string, string> = { nocd: 'cd:no', lossy: 'file:lossy', physical: 'ripped:no' };
 
 const DigitalRedirect = () => {
   const tab = new URLSearchParams(useLocation().search).get('tab') || 'buy';
-  return <Navigate to={`/musicdex?digital=1&filter=${DIGITAL_TAB_FILTERS[tab] || 'all'}`} replace />;
+  const search = DIGITAL_TAB_SEARCHES[tab];
+  return <Navigate to={search ? `/musicdex?digital=1&search=${encodeURIComponent(search)}` : '/musicdex?digital=1&filter=buy'} replace />;
 };
 
 function AppContent() {
@@ -134,7 +135,7 @@ function AppContent() {
   const getAutocompleteOptions = async (text: string): Promise<AutocompleteOption[]> => {
     // Different keywords for MusicDex, BookDex vs DexVault
     const keywords = location.pathname === '/musicdex'
-      ? ['title:', 'artist:', 'genre:', 'track:', 'composer:', 'performer:', 'conductor:', 'instrument:', 'work:', 'label:', 'country:', 'year:', 'stars:', 'stars:>=', 'stars:<=', 'stars:0', 'rated:no', 'rated:yes', 'classical:yes', 'classical:no', 'cd:no', 'cd:yes']
+      ? ['title:', 'artist:', 'genre:', 'track:', 'composer:', 'performer:', 'conductor:', 'instrument:', 'work:', 'label:', 'country:', 'year:', 'stars:', 'stars:>=', 'stars:<=', 'stars:0', 'rated:no', 'rated:yes', 'classical:yes', 'classical:no', 'cd:no', 'cd:yes', 'file:lossless', 'file:lossy', 'ripped:no', 'ripped:yes']
       : location.pathname === '/bookdex'
         ? ['title:', 'author:', 'artist:', 'isbn:', 'series:', 'owner:', 'format:', 'language:', 'genre:', 'tag:', 'type:', 'title_status:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=', 'rating:', 'rating:>', 'rating:<', 'rating:>=', 'rating:<=']
         : [
@@ -429,7 +430,10 @@ function AppContent() {
   // Fetch collections and box sets for filter dropdown
   const fetchFilterData = async () => {
     try {
-      if (location.pathname === '/bookdex') {
+      if (location.pathname === '/musicdex') {
+        // MusicDex's filters are fixed
+        return;
+      } else if (location.pathname === '/bookdex') {
         // Fetch owners for BookDex
         try {
           const ownersData = await bookService.getAutocompleteSuggestions('owner', '') as any[];
@@ -548,12 +552,21 @@ function AppContent() {
       case 'has_ebook':
         predicate = 'has_ebook:true';
         break;
+      case 'music':
+        predicate = filterValue;
+        break;
       default:
         return;
     }
 
     if (predicate) {
-      const currentText = searchCriteria.searchText.trim();
+      let currentText = searchCriteria.searchText.trim();
+      if (filterType === 'music') {
+        // A MusicDex filter takes the place of one of its family already there: stars and rated are one
+        const key = predicate.split(':')[0];
+        const family = key === 'stars' || key === 'rated' ? 'stars|rated' : key;
+        currentText = currentText.replace(new RegExp(`(^|\\s)-?(${family}):\\S+`, 'gi'), '').replace(/\s+/g, ' ').trim();
+      }
       const newText = currentText ? `${currentText} ${predicate}` : predicate;
 
       // Update the state first
@@ -574,7 +587,14 @@ function AppContent() {
   const filterSections = (): Array<{ title: string; options: Array<{ label: string; type: string; value: string }> }> => {
     const plain = (type: string, labels: Array<[string, string]>) => labels.map(([value, label]) => ({ label, type, value }));
     const of = (type: string, values: string[]) => values.map(value => ({ label: value, type, value }));
-    const sections = location.pathname === '/bookdex' ? [
+    const decades = [2020, 2010, 2000, 1990, 1980, 1970, 1960].map(year => ({ label: `${year}s`, type: 'music', value: `year:${year}-${year + 9}` }));
+    const sections = location.pathname === '/musicdex' ? [
+      { title: 'Medium', options: plain('music', [['cd:yes', 'CDs only'], ['cd:no', 'Digital only']]) },
+      { title: 'Files', options: plain('music', [['file:lossless', 'Lossless'], ['file:lossy', 'Lossy'], ['ripped:no', 'Not ripped']]) },
+      { title: 'Music', options: plain('music', [['classical:yes', 'Classical only'], ['classical:no', 'Everything but classical']]) },
+      { title: 'Your Stars', options: plain('music', [['stars:5', '★★★★★'], ['stars:>=4', '4 stars or more'], ['rated:no', 'Not rated yet']]) },
+      { title: 'Decades', options: [...decades, { label: 'Before 1960', type: 'music', value: 'year:<1960' }] },
+    ] : location.pathname === '/bookdex' ? [
       { title: 'Book Type', options: plain('type', [['book', 'Book'], ['graphic-novel', 'Graphic Novel'], ['score', 'Score']]) },
       { title: 'Formats', options: plain('format', [['physical', 'Physical'], ['ebook', 'E-book'], ['audiobook', 'Audiobook']]) },
       { title: 'Title Status', options: plain('title_status', [['owned', 'Owned'], ['borrowed', 'Borrowed']]) },
@@ -657,7 +677,11 @@ function AppContent() {
             'classical:yes': 'Only classical music, as on the shelves',
             'classical:no': 'Everything but classical music',
             'cd:no': 'Only what you have as files or wish, with Digital on',
-            'cd:yes': 'Only your CDs'
+            'cd:yes': 'Only your CDs',
+            'file:lossless': 'Its files are lossless (FLAC, or 256 kbps and more)',
+            'file:lossy': 'Its files are compressed below 256 kbps: a copy to do again',
+            'ripped:no': 'A CD not in Navidrome yet',
+            'ripped:yes': 'A CD in Navidrome'
           }
         : location.pathname === '/bookdex'
           ? {
@@ -1279,7 +1303,7 @@ function AppContent() {
                     }}
                   ><BsX /></IconButton>
                 )}
-                {location.pathname !== '/musicdex' && location.pathname !== '/wishlist' && (
+                {location.pathname !== '/wishlist' && (
                   <Menu align="end" label="Advanced filters" onOpenChange={open => { if (open) fetchFilterData(); }}
                     trigger={(props, open) => (
                       <button type="button" {...props} className={`search-filter-button ${open ? 'active' : ''}`} title="Advanced Filters">

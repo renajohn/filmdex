@@ -223,6 +223,8 @@ export interface AlbumRow {
   navidrome_id?: string | null;
   /** When that album was last missing from Navidrome, null while it is there. */
   navidrome_gone_at?: string | null;
+  /** How good its files in Navidrome are, 'none' for a CD not ripped; null when unknown. */
+  file_quality?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -280,6 +282,7 @@ export interface AlbumFormatted {
   userRating?: number | null;
   navidromeId?: string | null;
   navidromeGoneAt?: string | null;
+  fileQuality?: string | null;
   createdAt: string;
   updatedAt: string;
 }

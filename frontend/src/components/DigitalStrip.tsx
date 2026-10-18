@@ -1,19 +1,18 @@
 import React from 'react';
-import { BsArrowClockwise, BsCartFill, BsCloud } from 'react-icons/bs';
+import { BsArrowClockwise, BsCartFill } from 'react-icons/bs';
 import type { DigitalLibrary, EditionAdoption } from '../services/musicService';
-import { NotRippedIcon } from './shared/DigitalMarks';
 import './DigitalStrip.css';
 import { IconButton } from './shared/Button';
 import Chip from './shared/Chip';
 
 /**
  * The head of MusicDex with Digital on, laid in the collection's own head:
- * the filters after the Digital switch, each with the colour of the mark it
- * picks; Refresh beside the count; below, only when there is one, what
+ * Buy after the Digital switch, the other filters being words of the search
+ * (cd:, file:, ripped:); Refresh beside the count; below, only when there is one, what
  * DexVault did at the last sync and what needs doing.
  */
 
-export type DigitalFilter = 'all' | 'buy' | 'digital' | 'lossy' | 'unripped';
+export type DigitalFilter = 'all' | 'buy';
 
 /** What DexVault did with the editions Picard wrote into the rips; tracks and credits follow each time. */
 const EDITION_NOTICES: Array<{ action: NonNullable<EditionAdoption['action']>; intro: string }> = [
@@ -22,30 +21,22 @@ const EDITION_NOTICES: Array<{ action: NonNullable<EditionAdoption['action']>; i
   { action: 'edition', intro: 'Edition taken from your rip, as Picard identified the disc:' },
 ];
 
-const CHIPS: Array<{ key: DigitalFilter; label: string; icon?: React.ReactNode; className?: string }> = [
-  { key: 'all', label: 'All' },
-  { key: 'buy', label: 'Buy', icon: <BsCartFill aria-hidden="true" />, className: 'digital-chip-buy' },
-  { key: 'digital', label: 'Digital only', icon: <BsCloud aria-hidden="true" /> },
-  { key: 'lossy', label: 'Lossy', icon: <small className="digital-chip-format">MP3</small>, className: 'digital-chip-lossy' },
-  { key: 'unripped', label: 'Not ripped', icon: <NotRippedIcon />, className: 'digital-chip-unripped' },
-];
-
 interface DigitalChipsProps {
   filter: DigitalFilter;
   onFilter: (filter: DigitalFilter) => void;
   counts: Record<DigitalFilter, number>;
 }
 
-/** The filters; one with nothing in it is left out, unless it is the one shown. */
+/** Buy, a pill that a second click lets go; left out with nothing to buy, unless it is shown. */
 export const DigitalChips: React.FC<DigitalChipsProps> = ({ filter, onFilter, counts }) => (
-  <div className="digital-chips" role="group" aria-label="Show">
-    {CHIPS.filter(({ key }) => key === 'all' || counts[key] > 0 || filter === key).map(({ key, label, icon, className }) => (
-      <Chip key={key} active={filter === key} icon={icon} count={key !== 'all' ? counts[key] : undefined}
-        className={className} onClick={() => onFilter(key)}>
-        {label}
+  counts.buy > 0 || filter === 'buy' ? (
+    <div className="digital-chips" role="group" aria-label="Show">
+      <Chip active={filter === 'buy'} icon={<BsCartFill aria-hidden="true" />} count={counts.buy}
+        className="digital-chip-buy" onClick={() => onFilter(filter === 'buy' ? 'all' : 'buy')}>
+        Buy
       </Chip>
-    ))}
-  </div>
+    </div>
+  ) : null
 );
 
 interface DigitalRefreshProps {

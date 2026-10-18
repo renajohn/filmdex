@@ -10,7 +10,7 @@ export const SEARCH_ALBUMS_DEFAULT_LIMIT = 20;
 export const SEARCH_ALBUMS_MAX_LIMIT = 100;
 
 export const searchAlbumsInputShape = {
-  query: z.string().optional().describe('Free-text search across title, artist, label, genre.'),
+  query: z.string().optional().describe('Free-text search across title, artist, label, genre. Also takes file:lossless or file:lossy (how good its files in Navidrome are) and ripped:yes or ripped:no (whether a CD is in Navidrome).'),
   artist: z.string().optional().describe('Artist name substring.'),
   genre: z.string().optional().describe('Genre substring (e.g. "Rock").'),
   format: z.string().optional().describe('Format substring (e.g. "CD", "Vinyl", "Digital"). Filtered in-memory because the album search parser does not support format natively.'),

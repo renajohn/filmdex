@@ -24,7 +24,7 @@ import DigitalMarks from './shared/DigitalMarks';
 import BoughtCdDialog from './BoughtCdDialog';
 import { BsCartFill, BsChevronRight, BsHeartFill } from 'react-icons/bs';
 import {
-  DIGITAL_ON_KEY, buyOrder, buyReason, isDismissed, isLossy, isSuggested, isToBuy, useDigitalLibrary, type AlbumDigital,
+  DIGITAL_ON_KEY, buyOrder, buyReason, isDismissed, isSuggested, isToBuy, useDigitalLibrary, type AlbumDigital,
 } from '../utils/digitalLibrary';
 import Button from './shared/Button';
 import Notice from './shared/Notice';
@@ -72,7 +72,9 @@ interface ShuffleResult {
   [key: string]: any;
 }
 
-const FILTERS: DigitalFilter[] = ['all', 'buy', 'digital', 'lossy', 'unripped'];
+const FILTERS: DigitalFilter[] = ['all', 'buy'];
+/** Words of the search Navidrome answers: they turn Digital on. */
+const DIGITAL_WORDS = /(^|\s)-?(cd|file|ripped):/i;
 const NOTHING_KNOWN: AlbumDigital = { album: null, notRipped: false };
 
 /** An album of the collection, as opposed to a wish or a digital album: there is a CD. */
@@ -221,6 +223,14 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     writeStored(DIGITAL_ON_KEY, next ? '1' : '0');
     if (!next) setDigitalFilter('all');
   };
+
+  // cd:, file: and ripped: ask what Navidrome has: they turn Digital on.
+  useEffect(() => {
+    if (digitalOn || !DIGITAL_WORDS.test(searchCriteria?.searchText || '')) return;
+    setDigitalOn(true);
+    writeStored(DIGITAL_ON_KEY, '1');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchCriteria?.searchText]);
 
   // Load Listen Next albums
   const refreshListenNextAlbums = useCallback(async () => {
@@ -438,9 +448,6 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const filterCounts = useMemo((): Record<DigitalFilter, number> => ({
     all: hybridCds.length,
     buy: hybridCds.filter(cd => !hasCd(cd) && isToBuy(digitalOf(cd).album)).length,
-    digital: hybridCds.filter(cd => !hasCd(cd)).length,
-    lossy: hybridCds.filter(cd => isLossy(digitalOf(cd).album)).length,
-    unripped: hybridCds.filter(cd => hasCd(cd) && digitalOf(cd).notRipped).length,
   }), [hybridCds, digitalOf]);
 
   /** What the grid shows: every album, or those of the filter. Buy is shown in its own sections. */
@@ -449,9 +456,6 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     switch (digitalFilter) {
       case 'buy': return hybridCds.filter(cd => !hasCd(cd) && isToBuy(digitalOf(cd).album))
         .sort((a, b) => buyOrder(digitalOf(a).album!, digitalOf(b).album!));
-      case 'digital': return hybridCds.filter(cd => !hasCd(cd));
-      case 'lossy': return hybridCds.filter(cd => isLossy(digitalOf(cd).album));
-      case 'unripped': return hybridCds.filter(cd => hasCd(cd) && digitalOf(cd).notRipped);
       default: return hybridCds;
     }
   }, [digitalOn, digitalFilter, filteredCds, hybridCds, digitalOf]);

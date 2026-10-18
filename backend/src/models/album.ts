@@ -183,6 +183,9 @@ const Album = {
             }),
             new Promise((resolve) => {
               db.run(`ALTER TABLE albums ADD COLUMN navidrome_gone_at TEXT`, () => resolve());
+            }),
+            new Promise((resolve) => {
+              db.run(`ALTER TABLE albums ADD COLUMN file_quality TEXT`, () => resolve());
             })
           ];
 
@@ -449,6 +452,13 @@ const Album = {
         (err: Error | null) => { if (err) reject(err); else resolve(); });
     }),
 
+  /** How good the album's files in Navidrome are: lossless, near, lossy, 'none' for a CD not ripped, null unknown. */
+  setFileQuality: (id: number, quality: string | null): Promise<void> =>
+    new Promise((resolve, reject) => {
+      getDatabase().run('UPDATE albums SET file_quality = ? WHERE id = ?', [quality, id],
+        (err: Error | null) => { if (err) reject(err); else resolve(); });
+    }),
+
   // Helper function to parse enhanced search query syntax for albums
   // Supports: OR (genre:rock,jazz), negation (-artist:Beatles), ranges (year:2020-2024)
   // Also supports mixed quoted/unquoted: title:21,Absolution,"Anthology 1"
@@ -678,6 +688,28 @@ const Album = {
         whereClauses.push(m[1].toLowerCase() === 'yes'
           ? `COALESCE(title_status, 'owned') = 'owned'`
           : `title_status IN ('digital', 'wish')`);
+      }
+    );
+
+    // How good its files are, as the last reading of Navidrome found them: near-lossless counts as lossless.
+    cleanedQuery = processPattern(
+      /(?:^|\s)file:(lossy|lossless)\b/gi,
+      cleanedQuery,
+      (m) => {
+        hasFilters = true;
+        whereClauses.push(m[1].toLowerCase() === 'lossy' ? `file_quality = 'lossy'` : `file_quality IN ('lossless', 'near')`);
+      }
+    );
+
+    // Whether a CD of the collection is in Navidrome: ripped:no is what is left to rip.
+    cleanedQuery = processPattern(
+      /(?:^|\s)ripped:(yes|no)\b/gi,
+      cleanedQuery,
+      (m) => {
+        hasFilters = true;
+        whereClauses.push(m[1].toLowerCase() === 'yes'
+          ? `COALESCE(title_status, 'owned') = 'owned' AND file_quality IN ('lossless', 'near', 'lossy')`
+          : `COALESCE(title_status, 'owned') = 'owned' AND file_quality = 'none'`);
       }
     );
 
@@ -1076,6 +1108,7 @@ const Album = {
       userRating: row.user_rating ?? null,
       navidromeId: row.navidrome_id ?? null,
       navidromeGoneAt: row.navidrome_gone_at ?? null,
+      fileQuality: row.file_quality ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };

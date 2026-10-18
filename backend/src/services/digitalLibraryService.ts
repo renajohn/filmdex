@@ -4,24 +4,15 @@ import NavidromeListener, { type Favourite } from '../models/navidromeListener';
 import type { DayPlays } from '../models/navidromePlay';
 import type { AlbumFormatted } from '../types';
 import navidromeService, { type NavidromeAlbum, type NavidromeSong } from './navidromeService';
-import ripStatusService, { formatName, groupSongs, isLossless, matchesOf, type Library, type RipMatch } from './ripStatusService';
+import ripStatusService, { formatName, groupSongs, matchesOf, qualityOf, type Library, type Quality, type RipMatch } from './ripStatusService';
+
+export type { Quality };
 import listenHistoryService, { localDay } from './listenHistoryService';
 import musicService from './musicService';
 import digitalAlbumService, { DIGITAL_FORMAT } from './digitalAlbumService';
 import musicbrainzRefreshService from './musicbrainzRefreshService';
 import imageService from './imageService';
 import logger from '../logger';
-
-/**
- * How good the files of an album are:
- * - lossless: every file lossless (FLAC, ALAC…);
- * - near:     compressed, at 256 kbps or more on average (MP3 320, V0, AAC 256);
- * - lossy:    compressed below that.
- * A mixed album is as good as its compressed files.
- */
-export type Quality = 'lossless' | 'near' | 'lossy';
-
-const NEAR_LOSSLESS_KBPS = 256;
 
 /**
  * An album one listens to and has no CD of is one to buy: at least three of
@@ -142,20 +133,6 @@ export interface DigitalTrack {
   rating: number;
   starred: boolean;
 }
-
-const qualityOf = (songs: NavidromeSong[]): { quality: Quality; bitRate: number | null; hiRes: boolean } => {
-  const compressed = songs.filter(song => !isLossless(song));
-  if (songs.length > 0 && compressed.length === 0) {
-    const hiRes = songs.every(song => (song.bitDepth ?? 16) > 16 || (song.samplingRate ?? 44100) > 44100);
-    return { quality: 'lossless', bitRate: null, hiRes };
-  }
-  // Weighed by length: a VBR file's quiet track has a lower bitrate than the album.
-  const length = compressed.reduce((sum, song) => sum + (song.durationSec || 0), 0);
-  const bitRate = compressed.length === 0 ? null : length > 0
-    ? Math.round(compressed.reduce((sum, song) => sum + (song.bitRate || 0) * (song.durationSec || 0), 0) / length)
-    : Math.round(compressed.reduce((sum, song) => sum + (song.bitRate || 0), 0) / compressed.length);
-  return { quality: (bitRate ?? 0) >= NEAR_LOSSLESS_KBPS ? 'near' : 'lossy', bitRate, hiRes: false };
-};
 
 /** The plays of each song over the window, by song. */
 const playsBySong = (plays: DayPlays[]): Map<string, DayPlays[]> => {

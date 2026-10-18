@@ -3,7 +3,7 @@ import Track from '../models/track';
 import { getDatabase } from '../database';
 import type { AlbumFormatted } from '../types';
 import navidromeService, { type NavidromeAlbum } from './navidromeService';
-import ripStatusService, { matchesOf, type Library } from './ripStatusService';
+import ripStatusService, { groupSongs, matchesOf, qualityOf, type Library, type Quality } from './ripStatusService';
 import musicService from './musicService';
 import imageService from './imageService';
 import logger from '../logger';
@@ -85,6 +85,9 @@ const create = async (album: NavidromeAlbum): Promise<AlbumFormatted> => {
 
 const EVERY_MS = 30 * 60 * 1000;
 
+/** A CD with several copies is as good as its best. */
+const QUALITIES: Quality[] = ['lossless', 'near', 'lossy'];
+
 let running: Promise<DigitalAlbumsReport | null> | null = null;
 
 const reconcile = async (): Promise<DigitalAlbumsReport | null> => {
@@ -93,10 +96,20 @@ const reconcile = async (): Promise<DigitalAlbumsReport | null> => {
   if (navidrome.albums.length === 0) return null;
   const report: DigitalAlbumsReport = { added: 0, relinked: 0, retracked: 0, gone: 0, deleted: 0 };
 
+  // How good each album's files are, kept on the album for the search: a CD's best copy, 'none' for a CD not ripped.
+  const songsByAlbum = groupSongs(navidrome.songs);
+  const qualityIn = (navidromeId: string): Quality => qualityOf(songsByAlbum.get(navidromeId) || []).quality;
+  const fileQualities = new Map<number, string | null>();
+
   // The copies of a CD of the collection or of a wish are theirs, not albums of their own.
   const taken = new Set<string>();
-  for (const album of [...await Album.findAll(), ...await Album.findByStatus('wish')]) {
-    for (const { candidate } of matchesOf(album, navidrome.albums, navidrome.lengths)) taken.add(candidate.id);
+  const cdsAndWishes = [...await Album.findAll(), ...await Album.findByStatus('wish')];
+  for (const album of cdsAndWishes) {
+    const copies = matchesOf(album, navidrome.albums, navidrome.lengths).map(({ candidate }) => candidate.id);
+    copies.forEach(id => taken.add(id));
+    const qualities = copies.map(qualityIn);
+    fileQualities.set(album.id, QUALITIES.find(quality => qualities.includes(quality))
+      ?? (album.titleStatus !== 'wish' && /CD|Unknown/i.test(album.format || 'Unknown') ? 'none' : null));
   }
 
   const digital = await Album.findByStatus('digital');
@@ -115,11 +128,13 @@ const reconcile = async (): Promise<DigitalAlbumsReport | null> => {
       if (!mine) {
         const added = await create(album);
         claimed.add(added.id);
+        fileQualities.set(added.id, qualityIn(album.id));
         report.added++;
         logger.info(`Digital album ${added.id} "${album.name}" added from Navidrome`);
         continue;
       }
       claimed.add(mine.id);
+      fileQualities.set(mine.id, qualityIn(album.id));
       if (mine.navidromeId !== album.id || mine.navidromeGoneAt) await Album.setNavidrome(mine.id, album.id);
       // Lengths Navidrome gives in full and the tracks do not have: the files changed, the tracks follow.
       const files = navidrome.lengths.navidrome.get(album.id);
@@ -139,6 +154,7 @@ const reconcile = async (): Promise<DigitalAlbumsReport | null> => {
   // No longer in Navidrome, or now a CD's copy: kept only when the owner made something of it.
   for (const album of digital.filter(candidate => !claimed.has(candidate.id))) {
     if (await hasOwnersTouch(album)) {
+      fileQualities.set(album.id, null);
       if (!album.navidromeGoneAt) {
         await Album.setNavidrome(album.id, album.navidromeId ?? null, new Date().toISOString());
         report.gone++;
@@ -149,6 +165,10 @@ const reconcile = async (): Promise<DigitalAlbumsReport | null> => {
       report.deleted++;
       logger.info(`Digital album ${album.id} "${album.title}" deleted: no longer in Navidrome on its own`);
     }
+  }
+  const known = new Map([...cdsAndWishes, ...digital].map(album => [album.id, album.fileQuality ?? null]));
+  for (const [id, quality] of fileQualities) {
+    if (known.get(id) !== quality) await Album.setFileQuality(id, quality);
   }
   if (report.added + report.relinked + report.retracked + report.gone + report.deleted > 0) {
     logger.info(`Digital albums: ${JSON.stringify(report)}`);
