@@ -28,7 +28,7 @@ const get = async <T>(path: string): Promise<T | null> => {
 };
 
 /** A title without its case, accents, punctuation or what follows in brackets: "Coeur perdu" is "Cœur perdu". */
-const plain = (title: string): string => title
+export const plain = (title: string): string => title
   .replace(/[([].*?[)\]]/g, '')
   .replace(/œ/gi, 'oe').replace(/æ/gi, 'ae')
   .normalize('NFD').replace(/[̀-ͯ]/g, '')

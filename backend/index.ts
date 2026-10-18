@@ -288,6 +288,7 @@ app.delete('/api/music/notes/:id', musicController.deleteAlbumNote);
 app.get('/api/music/autocomplete', musicController.getAutocompleteSuggestions);
 app.get('/api/music/search', musicController.searchMusicBrainz);
 app.get('/api/music/coverart/:releaseId', musicController.getCoverArt);
+app.get('/api/music/search-covers', musicController.getSearchCovers);
 app.get('/api/music/search/catalog', musicController.searchByCatalogNumber);
 app.get('/api/music/search/barcode', musicController.searchByBarcode);
 app.get('/api/music/release/:releaseId', musicController.getMusicBrainzReleaseDetails);

@@ -396,8 +396,8 @@ const musicbrainzService = {
    * the release it picked to represent the group. Many individual editions have
    * no image of their own while the group does.
    */
-  getReleaseGroupCoverArt: async function(releaseGroupId: string): Promise<CoverArtResult | null> {
-    return this.fetchCoverArt(`release-group/${releaseGroupId}`);
+  getReleaseGroupCoverArt: async function(releaseGroupId: string, timeout = 10000): Promise<CoverArtResult | null> {
+    return this.fetchCoverArt(`release-group/${releaseGroupId}`, timeout);
   },
 
   /**
@@ -551,13 +551,13 @@ const musicbrainzService = {
     return { wikidata, wikipedia: resources('wikipedia') };
   },
 
-  fetchCoverArt: async function(resourcePath: string): Promise<CoverArtResult | null> {
+  fetchCoverArt: async function(resourcePath: string, timeout = 10000): Promise<CoverArtResult | null> {
     try {
       const response: AxiosResponse<MBCoverArtResponse | string> = await axios.get(`${this.coverArtBaseUrl}/${resourcePath}`, {
         headers: {
           'User-Agent': this.userAgent
         },
-        timeout: 10000,
+        timeout,
         maxRedirects: 5,
         validateStatus: function (status: number): boolean {
           return status >= 200 && status < 300;

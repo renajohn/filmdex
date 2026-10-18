@@ -23,6 +23,7 @@ import navidromeService from '../services/navidromeService';
 import albumRatingService from '../services/albumRatingService';
 import communityRatingService from '../services/communityRatingService';
 import trackPopularityService from '../services/trackPopularityService';
+import searchCoverService from '../services/searchCoverService';
 import AlbumNote from '../models/albumNote';
 import logger from '../logger';
 
@@ -255,6 +256,18 @@ const musicController = {
     } catch (error) {
       console.error('Error getting cover art:', error);
       res.status(500).json({ error: 'Failed to get cover art' });
+    }
+  },
+
+  /** The covers to try for an album found by a search, best first: { urls }. */
+  getSearchCovers: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
+      const urls = await searchCoverService.coversOf(text(req.query.releaseGroupId) || null, text(req.query.artist), text(req.query.title));
+      res.json({ urls });
+    } catch (error) {
+      logger.error('Error finding the covers of a search result:', error);
+      res.status(500).json({ error: 'Failed to find covers' });
     }
   },
 

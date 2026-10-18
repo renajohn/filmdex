@@ -609,6 +609,22 @@ class MusicService {
     }
   }
 
+  /** The covers to try for an album found by a search, best first: Cover Art Archive's for its group, then Deezer's. */
+  async getSearchCovers(releaseGroupId: string | null, artist: string, title: string): Promise<string[]> {
+    try {
+      const baseUrl = await this.getBaseUrl();
+      const params = new URLSearchParams({ artist, title });
+      if (releaseGroupId) params.set('releaseGroupId', releaseGroupId);
+      const response = await fetch(`${baseUrl}/music/search-covers?${params}`);
+      if (!response.ok) return [];
+      const { urls } = await response.json();
+      return Array.isArray(urls) ? urls : [];
+    } catch (error) {
+      console.error('Error getting the covers of a search result:', error);
+      return [];
+    }
+  }
+
   async searchByCatalogNumber(catalogNumber: string): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();
