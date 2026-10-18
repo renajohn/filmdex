@@ -102,6 +102,10 @@ Every button uses **`Button`** or **`IconButton`** (`frontend/src/components/sha
 ### Stars: StarRating
 The owner's stars on an album or a book are **`StarRating`** (`frontend/src/components/shared/StarRating.tsx`, look in `shared/star-rating.css`): by halves, `value`, `onChange(stars)` (0 takes them away), `size` sm/md/lg. Gold and flat, no glow; under the pointer white for what a click adds, pale gold for what it takes away. Never the focus (the arrows go from record to record). An album's half goes to Navidrome rounded.
 
+### Tooltips and choices: title, TooltipHost, check.css
+A tooltip is a plain **`title="…"`**: the **`TooltipHost`** (`frontend/src/components/shared/Tooltip.tsx`, look in `shared/tooltip.css`), mounted once in `App.tsx`, shows it in the menus' glass, just under the pointer, after 250 ms, at once after another one, and lifts the title off while it is pointed at so the system's tooltip never shows. Never a react-bootstrap `OverlayTrigger`/`Tooltip` or a bubble of a stylesheet's own.
+A radio or a checkbox (a `Form.Check`, or a bare `<input type="radio">`/checkbox) wears **`shared/check.css`**, imported after Bootstrap in `App.tsx`: dark glass, a gold dot or a gold box with a dark ✓ when on. A stylesheet only places one, never its colours or size; a switch of its own (Stack, Digital) hides its input and keeps its look.
+
 ### Key Patterns
 - Each media type (movie, music, book) follows the same layered pattern: controller → service → model, with a corresponding frontend page, detail card, search component, and API service
 - Collections/box sets are shared across media types via `collection` and `movieCollection`/`albumCollection` models

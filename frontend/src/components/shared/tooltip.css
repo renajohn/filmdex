@@ -1,0 +1,40 @@
+/*
+ * A tooltip (Tooltip.tsx): the menus' glass, small words, over everything,
+ * a dialog and a menu included. It never takes the pointer.
+ */
+.ui-tooltip {
+  position: fixed;
+  z-index: 100001;
+  max-width: min(320px, calc(100vw - 16px));
+  padding: 5px 9px;
+  border-radius: var(--dv-radius-sm);
+  background: var(--dv-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--dv-surface-edge);
+  box-shadow: var(--dv-surface-shadow);
+  color: var(--dv-text);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+.ui-tooltip--below { animation: ui-tooltip-below 0.12s ease-out; }
+.ui-tooltip--above { animation: ui-tooltip-above 0.12s ease-out; }
+
+@keyframes ui-tooltip-below {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes ui-tooltip-above {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-tooltip--below, .ui-tooltip--above { animation: none; }
+}

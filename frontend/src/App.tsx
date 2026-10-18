@@ -20,6 +20,8 @@ import musicService from './services/musicService';
 import bookService from './services/bookService';
 import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsDisc, BsArrowLeft, BsBarChart, BsFilm, BsBook } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
+// After Bootstrap, so that its radios and checkboxes wear DexVault's look.
+import './components/shared/check.css';
 import './App.css';
 import { readStored, writeStored } from './utils/safeStorage';
 import { isDigitalOn, useDigitalLibrary } from './utils/digitalLibrary';
@@ -28,6 +30,7 @@ import LyricsPanel from './components/LyricsPanel';
 import { ConfirmHost } from './components/shared/ConfirmDialog';
 import { IconButton } from './components/shared/Button';
 import { toast, toneOf, ToastHost } from './components/shared/Toast';
+import { TooltipHost } from './components/shared/Tooltip';
 
 interface AutocompleteOption {
   keyword: string;
@@ -1289,6 +1292,7 @@ function AppContent() {
       <LyricsPanel />
       <ConfirmHost />
       <ToastHost />
+      <TooltipHost />
 
 
       <AddMovieDialog

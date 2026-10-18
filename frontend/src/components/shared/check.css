@@ -1,0 +1,107 @@
+/*
+ * Radio buttons and checkboxes: the one material, gold when on.
+ *
+ * Bootstrap's `.form-check-input` (Form.Check) and a bare `<input type="radio">`
+ * or checkbox wear the same look. The bare inputs are under `:where()`, so a
+ * component that hides its input behind a switch of its own (Stack, Digital)
+ * keeps it hidden without having to say so twice.
+ */
+.form-check-input,
+:where(input[type="radio"], input[type="checkbox"]) {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  vertical-align: -3px;
+  border: 1.5px solid var(--dv-edge-hover);
+  background: var(--dv-glass) none center / 10px no-repeat;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-check-input[type="radio"],
+:where(input[type="radio"]) {
+  border-radius: 50%;
+}
+
+.form-check-input[type="checkbox"],
+:where(input[type="checkbox"]) {
+  border-radius: 4px;
+}
+
+.form-check-input:hover,
+:where(input[type="radio"], input[type="checkbox"]):hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  background-color: var(--dv-glass-hover);
+}
+
+/* On: a gold dot in a gold ring for a radio, a gold box with a dark ✓ for a checkbox. */
+.form-check-input[type="radio"]:checked,
+:where(input[type="radio"]):checked {
+  border-color: var(--dv-gold);
+  background-color: var(--dv-gold-tint);
+  background-image: radial-gradient(circle, var(--dv-gold) 0 3.5px, transparent 4px);
+  background-size: auto;
+}
+
+.form-check-input[type="checkbox"]:checked,
+:where(input[type="checkbox"]):checked {
+  border-color: var(--dv-gold);
+  background-color: var(--dv-gold);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23111' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+}
+
+.form-check-input[type="checkbox"]:indeterminate,
+:where(input[type="checkbox"]):indeterminate {
+  border-color: var(--dv-gold);
+  background-color: var(--dv-gold);
+  background-image: linear-gradient(var(--dv-gold-ink), var(--dv-gold-ink));
+  background-size: 8px 2px;
+}
+
+.form-check-input:focus,
+:where(input[type="radio"], input[type="checkbox"]):focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.form-check-input:focus-visible,
+:where(input[type="radio"], input[type="checkbox"]):focus-visible {
+  box-shadow: var(--dv-ring);
+}
+
+.form-check-input:disabled,
+:where(input[type="radio"], input[type="checkbox"]):disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Bootstrap's label beside it: the words in the page's colour, a hand over them. */
+.form-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-left: 0;
+}
+
+.form-check .form-check-input {
+  float: none;
+  margin: 0.2em 0 0;
+}
+
+.form-check-label {
+  color: var(--dv-text);
+  cursor: pointer;
+}
+
+.form-check-input:disabled ~ .form-check-label {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form-check-input,
+  :where(input[type="radio"], input[type="checkbox"]) { transition: none; }
+}

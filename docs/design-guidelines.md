@@ -75,6 +75,8 @@ colour goes into `tokens.css` first.
 | ‹ › to the item before or after, in a detail dialog | `DetailSteps` (in a `Dialog`, its `steps`) |
 | A word in a window or on a page: to know, done, to check, failed | `Notice` |
 | A word that passes (exported, added, failed, with Undo) | `toast()` |
+| A word on what an element does, under the pointer | `title="…"`, shown by `TooltipHost` |
+| One of a few in a form, or a box to tick | `Form.Check` or a bare radio/checkbox, themed by `check.css` |
 | A wait: in a button, a field, beside a word | `Spinner` (in a `Button`, its `loading`) |
 | A page or a section that loads | `Loading` |
 | An empty page | `EmptyState` |
@@ -338,6 +340,35 @@ toast('“Heat” left your Watch Next.', { action: { label: 'Undo', onClick: pu
 - Never the focus and no keys: the arrows go from one record to the next.
 - An album's stars go to Navidrome rounded (3.5 is 4 in Amperfy) and stay a
   half here; the prototype is `2026-10-18-etoiles/etoiles-prototype.html`.
+
+### Tooltips: title and TooltipHost (`Tooltip.tsx`, `tooltip.css`)
+
+```tsx
+<IconButton label="Close" onClick={onClose}><BsX /></IconButton>   {/* its label is its tooltip */}
+<span title="43 plays · 3 in 90 days">×43</span>
+```
+
+- Write a plain `title`. `TooltipHost`, mounted once in `App`, shows it in
+  the menus' glass, small words, **just under the pointer**, where it stopped,
+  as the system's own would be (over it when there is no room; under the
+  element's left edge for a focus by the keys), **250 ms** after the pointer
+  comes, **at once** when another one has just gone. A click, a scroll or Esc puts it away.
+- While the element is pointed at, its `title` is lifted off and put back as
+  the pointer leaves: the system's tooltip, slow and grey, never shows. A
+  focus by the keys shows it too; a touch screen shows nothing.
+- A line break in the title (`\n`) breaks the tooltip. Never a react-bootstrap
+  `OverlayTrigger` or a bubble of a stylesheet's own. `Segmented`'s
+  `tooltip` stays its own, a longer word under the option.
+
+### Radio buttons, checkboxes (`check.css`)
+
+- A `Form.Check` (`type="radio"` or `"checkbox"`) or a bare input: 16 px of
+  dark glass with a light edge; **on**, a radio wears a gold dot in a gold
+  ring, a checkbox a plain gold box with a dark ✓. Focus by the keys: the
+  gold ring. Disabled: faded.
+- `check.css` is imported after Bootstrap in `App.tsx`. A component's
+  stylesheet only places one (margins); a switch of its own (Stack, Digital)
+  hides its input and keeps its look.
 
 ### CoverTag, CoverButton (`CoverTag.tsx`, `CoverButton.tsx`, `cover.css`)
 

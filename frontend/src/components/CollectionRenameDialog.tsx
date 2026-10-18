@@ -50,7 +50,7 @@ const CollectionRenameDialog = ({
         </p>
         <p>How would you like to handle this change?</p>
 
-        <Form>
+        <Form className="collection-rename-choices">
           <Form.Check
             type="radio"
             id="create-new"

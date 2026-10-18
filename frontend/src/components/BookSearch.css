@@ -125,11 +125,6 @@
   gap: 6px;
 }
 
-.show-borrowed-toggle .form-check-input:checked {
-  background-color: #007bff;
-  border-color: #007bff;
-}
-
 .show-borrowed-toggle.filter-loading .form-check-input {
   opacity: 0.6;
   cursor: not-allowed;
