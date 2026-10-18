@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Wish list ou favori</title>
+<style>
+  :root {
+    --dv-gold: #fbbf24; --dv-gold-light: #fde68a; --dv-gold-ink: #111;
+    --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+    --dv-glass: rgba(255,255,255,.06); --dv-glass-hover: rgba(255,255,255,.11);
+    --dv-edge: rgba(255,255,255,.12); --dv-veil: rgba(255,255,255,.08);
+    --dv-glass-image: rgba(0,0,0,.68); --dv-glass-image-hover: rgba(0,0,0,.85);
+    --dv-edge-image: inset 0 0 0 1px rgba(255,255,255,.16); --dv-lift-image: 0 2px 8px rgba(0,0,0,.35);
+    --dv-ring-image: 0 0 0 1.5px #fff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(135deg,#1a1a1a,#2d2d2d) fixed; color: var(--dv-text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  svg { display: block; }
+  .bar { position: sticky; top: 0; z-index: 5; display: flex; gap: 14px 20px; align-items: center; flex-wrap: wrap; padding: 12px 24px; background: #111; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .seg-ctl { display: inline-flex; border: 1px solid #444; border-radius: 8px; overflow: hidden; flex-wrap: wrap; }
+  .seg-ctl button { display: inline-flex; gap: 6px; align-items: center; background: #222; color: #ddd; border: 0; padding: 6px 12px; font: inherit; cursor: pointer; }
+  .seg-ctl button svg { width: 13px; height: 13px; }
+  .seg-ctl button + button { border-left: 1px solid #444; }
+  .seg-ctl button.on { background: var(--dv-gold); color: #111; }
+  .verdict { color: #888; font-size: 12.5px; flex-basis: 100%; }
+  main { padding: 16px 24px 100px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 18px; }
+  section { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); border-radius: 12px; padding: 16px 18px 20px; min-width: 0; }
+  section.wide { grid-column: 1 / -1; }
+  section h3 { margin: 0 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: #888; font-weight: 600; }
+  section p.note { margin: 0 0 14px; color: #777; font-size: 12.5px; }
+
+  /* Side by side: every option at once. */
+  .matrix { display: grid; grid-template-columns: 120px repeat(4, minmax(0, 1fr)); gap: 10px 14px; align-items: center; overflow-x: auto; }
+  .matrix .head { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+  .matrix .head.sel { color: var(--dv-gold); }
+  .matrix .row { font-size: 12.5px; color: #999; }
+  .cell { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  /* The top pills. */
+  .nav { display: inline-flex; gap: 4px; padding: 6px; border-radius: 14px; background: var(--dv-glass); border: 1px solid var(--dv-edge); }
+  .nav span { width: 44px; height: 40px; display: grid; place-items: center; border-radius: 10px; color: #bbb; }
+  .nav span svg { width: 18px; height: 18px; }
+  .nav span.on { background: var(--dv-gold); color: #111; }
+  .nav.mini span { width: 34px; height: 32px; }
+  .nav.mini span svg { width: 15px; height: 15px; }
+
+  /* Covers. */
+  .covers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .card { min-width: 0; }
+  .cov { position: relative; aspect-ratio: 1; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.4); overflow: hidden; }
+  .cov .art { position: absolute; inset: 0; }
+  .cov .tags { position: absolute; top: 8px; left: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .cov .btn { position: absolute; right: 8px; bottom: 8px; opacity: 0; transition: opacity .15s; }
+  .card:hover .cov .btn, .cov .btn.on { opacity: 1; }
+  .card .t { margin-top: 8px; font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .a { color: var(--dv-text-muted); font-size: 12.5px; }
+  .tag { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 22px; min-width: 22px; padding: 0 6px; border-radius: 4px;
+    background: rgba(0,0,0,.72); backdrop-filter: blur(6px); box-shadow: var(--dv-edge-image); color: #f5f5f5; font-size: 10.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; line-height: 1; }
+  .tag svg { width: 12px; height: 12px; }
+  .tag.on { background: var(--dv-gold); color: var(--dv-gold-ink); box-shadow: none; }
+  .tag.gold { color: var(--dv-gold); }
+  .cbtn { width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--dv-glass-image); backdrop-filter: blur(6px);
+    box-shadow: var(--dv-edge-image), var(--dv-lift-image); color: #fff; cursor: pointer; padding: 0; }
+  .cbtn svg { width: 16px; height: 16px; }
+  .cbtn:hover { background: var(--dv-glass-image-hover); box-shadow: var(--dv-ring-image), var(--dv-lift-image); }
+  .cbtn.on { background: var(--dv-gold); color: var(--dv-gold-ink); box-shadow: var(--dv-lift-image); }
+
+  /* The album's card. */
+  .detail-head { display: grid; grid-template-columns: 110px 1fr; gap: 16px; }
+  .detail-head .cov { box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+  .detail-head h2 { margin: 0; font-size: 19px; }
+  .detail-head .who { color: var(--dv-text-muted); margin: 2px 0 10px; }
+  .ubtn { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--dv-edge);
+    background: var(--dv-glass); color: var(--dv-text); font: inherit; font-size: 13px; cursor: pointer; }
+  .ubtn svg { width: 14px; height: 14px; }
+  .ubtn:hover { background: var(--dv-glass-hover); }
+  .ubtn.on { color: var(--dv-gold); }
+  .wish-note { display: flex; gap: 8px; align-items: center; margin-top: 10px; padding: 8px 10px; border-left: 3px solid var(--dv-gold); background: rgba(255,255,255,.04); border-radius: 6px; font-size: 13px; }
+  .wish-note svg { width: 13px; height: 13px; color: var(--dv-gold); }
+  .tracks { margin-top: 14px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 6px; }
+  .trk { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 6px; font-size: 13.5px; }
+  .trk:hover { background: rgba(255,255,255,.04); }
+  .trk .no { width: 22px; text-align: right; color: #777; }
+  .trk .ti { flex: 1; min-width: 0; }
+  .trk .fav { width: 28px; height: 28px; margin: -6px -4px; display: grid; place-items: center; border: 0; border-radius: 7px; background: none; color: #999; cursor: pointer; visibility: hidden; }
+  .trk .fav svg { width: 14px; height: 14px; }
+  .trk:hover .fav, .trk .fav.on { visibility: visible; }
+  .trk .fav:hover { background: rgba(255,255,255,.08); color: #fff; }
+  .trk .fav.on { color: var(--dv-gold); }
+  .trk .du { color: #888; font-variant-numeric: tabular-nums; }
+
+  /* The Digital page's heading. */
+  .shelf-head { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; }
+  .shelf-head svg { width: 14px; height: 14px; color: var(--dv-gold); }
+  .shelf-head small { color: #888; font-weight: 400; }
+  .shelf-head + .shelf-head { margin-top: 12px; }
+
+  /* The player. */
+  .player { position: fixed; left: 0; right: 0; bottom: 0; height: 54px; background: #181818; border-top: 1px solid #333; display: flex; align-items: center; gap: 10px; padding: 3px 14px 0; z-index: 6; }
+  .player::before { content: ""; position: absolute; left: 0; top: -1px; height: 4px; width: 32%; background: var(--dv-gold); }
+  .player .pc { width: 38px; height: 38px; border-radius: 5px; background: linear-gradient(135deg,#9ca3af,#1f2937); }
+  .player .meta { flex: 1; min-width: 0; line-height: 1.3; }
+  .player .meta b { display: block; font-weight: 400; font-size: .88rem; }
+  .player .meta span { font-size: .75rem; color: #9aa4b2; }
+  .player .tm { font-size: .75rem; color: #9aa4b2; }
+  .pb { width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: #d6dbe1; cursor: pointer; }
+  .pb svg { width: 16px; height: 16px; }
+  .pb:hover { background: rgba(255,255,255,.1); }
+  .pb.on { color: var(--dv-gold); }
+  .pb.play { width: 38px; height: 38px; background: #d6dbe1; color: #1a1a1a; }
+  .pb.play svg { width: 20px; height: 20px; }
+  @media (max-width: 600px) { .covers { grid-template-columns: repeat(2, minmax(0,1fr)); } .covers .card:nth-child(3) { display: none; } .player .tm { display: none; } }
+</style>
+</head>
+<body>
+<div class="bar">
+  <span>Wish list :</span>
+  <div class="seg-ctl" id="pick"></div>
+  <div class="verdict" id="verdict"></div>
+</div>
+
+<main>
+  <section class="wide">
+    <h3>Côte à côte</h3>
+    <p class="note">Les quatre icônes aux endroits où la wish list se montre. Le ♥ reste partout aux favoris (pistes, lecteur).</p>
+    <div class="matrix" id="matrix"></div>
+  </section>
+
+  <section>
+    <h3>Onglets du haut</h3>
+    <p class="note">L'onglet « Wish List - My precious to come ».</p>
+    <div class="nav" id="nav"></div>
+  </section>
+
+  <section>
+    <h3>Page Digital · rayons</h3>
+    <p class="note">Le titre du rayon Wishlist, à côté du rayon « Buy » au chariot.</p>
+    <div class="shelf-head"><i data-wish="fill"></i> Wishlist <small>3</small></div>
+    <div class="shelf-head"><i data-icon="BsCartFill"></i> Buy <small>12</small></div>
+  </section>
+
+  <section class="wide">
+    <h3>Pochettes</h3>
+    <p class="note">La marque dorée d'un album souhaité, et le bouton rond qui l'ajoute (au survol). Passe la souris sur les pochettes.</p>
+    <div class="covers">
+      <div class="card"><div class="cov"><div class="art" style="background:linear-gradient(140deg,#7c2d12,#1c1917 75%)"></div>
+        <div class="tags"><span class="tag on"><i data-wish="fill"></i></span><span class="tag gold"><i data-icon="BsCloud"></i></span></div>
+        <button class="cbtn btn on" data-toggle-wish><i data-wish="fill"></i></button></div>
+        <div class="t">Low</div><div class="a">David Bowie</div></div>
+      <div class="card"><div class="cov"><div class="art" style="background:linear-gradient(140deg,#1e3a8a,#0f172a 75%)"></div>
+        <div class="tags"><span class="tag gold">MP3 160</span></div>
+        <button class="cbtn btn" data-toggle-wish><i data-wish="line"></i></button></div>
+        <div class="t">Station to Station</div><div class="a">David Bowie</div></div>
+      <div class="card"><div class="cov"><div class="art" style="background:linear-gradient(140deg,#3f6212,#111 75%)"></div>
+        <div class="tags"><span class="tag on"><i data-icon="BsCartFill"></i></span></div>
+        <button class="cbtn btn" data-toggle-wish><i data-wish="line"></i></button></div>
+        <div class="t">Lodger</div><div class="a">David Bowie</div></div>
+    </div>
+  </section>
+
+  <section class="wide">
+    <h3>Fiche d'album · les deux ensemble</h3>
+    <p class="note">Le cas qui prête à confusion : un album souhaité dont tu écoutes déjà des pistes (favoris en ♥).</p>
+    <div class="detail-head">
+      <div class="cov"><div class="art" style="background:linear-gradient(140deg,#d4d4d4,#262626 70%)"></div></div>
+      <div>
+        <h2>“Heroes”</h2>
+        <div class="who">David Bowie · 1977</div>
+        <button class="ubtn on" data-toggle-wish><i data-wish="fill"></i> <span>On the wish list</span></button>
+        <div class="wish-note"><i data-wish="fill"></i> <strong>On your wish list</strong></div>
+      </div>
+    </div>
+    <div class="tracks">
+      <div class="trk"><span class="no">1.</span><span class="ti">Beauty and the Beast</span><button class="fav" data-fav><i data-icon="BsHeart"></i></button><span class="du">3:36</span></div>
+      <div class="trk"><span class="no">2.</span><span class="ti">Joe the Lion</span><button class="fav" data-fav><i data-icon="BsHeart"></i></button><span class="du">3:07</span></div>
+      <div class="trk"><span class="no">3.</span><span class="ti">“Heroes”</span><button class="fav on" data-fav><i data-icon="BsHeartFill"></i></button><span class="du">6:10</span></div>
+      <div class="trk"><span class="no">4.</span><span class="ti">Sons of the Silent Age</span><button class="fav" data-fav><i data-icon="BsHeart"></i></button><span class="du">3:19</span></div>
+    </div>
+  </section>
+</main>
+
+<div class="player">
+  <span class="pc"></span>
+  <span class="meta"><b>“Heroes”</b><span>“Heroes” · David Bowie</span></span>
+  <span class="tm">1:58 / 6:10</span>
+  <button class="pb on" data-fav><i data-icon="BsHeartFill"></i></button>
+  <button class="pb"><i data-icon="BsChatQuote"></i></button>
+  <button class="pb"><i data-icon="BsSkipBackwardFill"></i></button>
+  <button class="pb play"><i data-icon="BsPauseFill"></i></button>
+  <button class="pb"><i data-icon="BsSkipForwardFill"></i></button>
+  <button class="pb"><i data-icon="BsX"></i></button>
+</div>
+
+<script>
+const ICONS = {"BsHeart":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143q.09.083.176.171a3 3 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15\"></path></svg>","BsHeartFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path fill-rule=\"evenodd\" d=\"M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314\"></path></svg>","BsBookmark":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.777.416L8 13.101l-5.223 2.815A.5.5 0 0 1 2 15.5zm2-1a1 1 0 0 0-1 1v12.566l4.723-2.482a.5.5 0 0 1 .554 0L13 14.566V2a1 1 0 0 0-1-1z\"></path></svg>","BsBookmarkFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M2 2v13.5a.5.5 0 0 0 .74.439L8 13.069l5.26 2.87A.5.5 0 0 0 14 15.5V2a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2\"></path></svg>","BsBookmarkStar":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M7.84 4.1a.178.178 0 0 1 .32 0l.634 1.285a.18.18 0 0 0 .134.098l1.42.206c.145.021.204.2.098.303L9.42 6.993a.18.18 0 0 0-.051.158l.242 1.414a.178.178 0 0 1-.258.187l-1.27-.668a.18.18 0 0 0-.165 0l-1.27.668a.178.178 0 0 1-.257-.187l.242-1.414a.18.18 0 0 0-.05-.158l-1.03-1.001a.178.178 0 0 1 .098-.303l1.42-.206a.18.18 0 0 0 .134-.098z\"></path><path d=\"M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.777.416L8 13.101l-5.223 2.815A.5.5 0 0 1 2 15.5zm2-1a1 1 0 0 0-1 1v12.566l4.723-2.482a.5.5 0 0 1 .554 0L13 14.566V2a1 1 0 0 0-1-1z\"></path></svg>","BsBookmarkStarFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path fill-rule=\"evenodd\" d=\"M2 15.5V2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.74.439L8 13.069l-5.26 2.87A.5.5 0 0 1 2 15.5M8.16 4.1a.178.178 0 0 0-.32 0l-.634 1.285a.18.18 0 0 1-.134.098l-1.42.206a.178.178 0 0 0-.098.303L6.58 6.993c.042.041.061.1.051.158L6.39 8.565a.178.178 0 0 0 .258.187l1.27-.668a.18.18 0 0 1 .165 0l1.27.668a.178.178 0 0 0 .257-.187L9.368 7.15a.18.18 0 0 1 .05-.158l1.028-1.001a.178.178 0 0 0-.098-.303l-1.42-.206a.18.18 0 0 1-.134-.098z\"></path></svg>","BsGift":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M3 2.5a2.5 2.5 0 0 1 5 0 2.5 2.5 0 0 1 5 0v.006c0 .07 0 .27-.038.494H15a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1v7.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 14.5V7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h2.038A3 3 0 0 1 3 2.506zm1.068.5H7v-.5a1.5 1.5 0 1 0-3 0c0 .085.002.274.045.43zM9 3h2.932l.023-.07c.043-.156.045-.345.045-.43a1.5 1.5 0 0 0-3 0zM1 4v2h6V4zm8 0v2h6V4zm5 3H9v8h4.5a.5.5 0 0 0 .5-.5zm-7 8V7H2v7.5a.5.5 0 0 0 .5.5z\"></path></svg>","BsGiftFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M3 2.5a2.5 2.5 0 0 1 5 0 2.5 2.5 0 0 1 5 0v.006c0 .07 0 .27-.038.494H15a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h2.038A3 3 0 0 1 3 2.506zm1.068.5H7v-.5a1.5 1.5 0 1 0-3 0c0 .085.002.274.045.43zM9 3h2.932l.023-.07c.043-.156.045-.345.045-.43a1.5 1.5 0 0 0-3 0zm6 4v7.5a1.5 1.5 0 0 1-1.5 1.5H9V7zM2.5 16A1.5 1.5 0 0 1 1 14.5V7h6v9z\"></path></svg>","BsCart":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l1.313 7h8.17l1.313-7zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2\"></path></svg>","BsCartFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2\"></path></svg>","BsCartPlus":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M9 5.5a.5.5 0 0 0-1 0V7H6.5a.5.5 0 0 0 0 1H8v1.5a.5.5 0 0 0 1 0V8h1.5a.5.5 0 0 0 0-1H9z\"></path><path d=\"M.5 1a.5.5 0 0 0 0 1h1.11l.401 1.607 1.498 7.985A.5.5 0 0 0 4 12h1a2 2 0 1 0 0 4 2 2 0 0 0 0-4h7a2 2 0 1 0 0 4 2 2 0 0 0 0-4h1a.5.5 0 0 0 .491-.408l1.5-8A.5.5 0 0 0 14.5 3H2.89l-.405-1.621A.5.5 0 0 0 2 1zm3.915 10L3.102 4h10.796l-1.313 7zM6 14a1 1 0 1 1-2 0 1 1 0 0 1 2 0m7 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0\"></path></svg>","BsCartPlusFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M.5 1a.5.5 0 0 0 0 1h1.11l.401 1.607 1.498 7.985A.5.5 0 0 0 4 12h1a2 2 0 1 0 0 4 2 2 0 0 0 0-4h7a2 2 0 1 0 0 4 2 2 0 0 0 0-4h1a.5.5 0 0 0 .491-.408l1.5-8A.5.5 0 0 0 14.5 3H2.89l-.405-1.621A.5.5 0 0 0 2 1zM6 14a1 1 0 1 1-2 0 1 1 0 0 1 2 0m7 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0M9 5.5V7h1.5a.5.5 0 0 1 0 1H9v1.5a.5.5 0 0 1-1 0V8H6.5a.5.5 0 0 1 0-1H8V5.5a.5.5 0 0 1 1 0\"></path></svg>","BsCloud":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H3.781C1.708 13 0 11.366 0 9.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383m.653.757c-.757.653-1.153 1.44-1.153 2.056v.448l-.445.049C2.064 6.805 1 7.952 1 9.318 1 10.785 2.23 12 3.781 12h8.906C13.98 12 15 10.988 15 9.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 4.825 10.328 3 8 3a4.53 4.53 0 0 0-2.941 1.1z\"></path></svg>","BsDisc":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16\"></path><path d=\"M10 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0M8 4a4 4 0 0 0-4 4 .5.5 0 0 1-1 0 5 5 0 0 1 5-5 .5.5 0 0 1 0 1m4.5 3.5a.5.5 0 0 1 .5.5 5 5 0 0 1-5 5 .5.5 0 0 1 0-1 4 4 0 0 0 4-4 .5.5 0 0 1 .5-.5\"></path></svg>","BsFilm":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M0 1a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1zm4 0v6h8V1zm8 8H4v6h8zM1 1v2h2V1zm2 3H1v2h2zM1 7v2h2V7zm2 3H1v2h2zm-2 3v2h2v-2zM15 1h-2v2h2zm-2 3v2h2V4zm2 3h-2v2h2zm-2 3v2h2v-2zm2 3h-2v2h2z\"></path></svg>","BsBook":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M1 2.828c.885-.37 2.154-.769 3.388-.893 1.33-.134 2.458.063 3.112.752v9.746c-.935-.53-2.12-.603-3.213-.493-1.18.12-2.37.461-3.287.811zm7.5-.141c.654-.689 1.782-.886 3.112-.752 1.234.124 2.503.523 3.388.893v9.923c-.918-.35-2.107-.692-3.287-.81-1.094-.111-2.278-.039-3.213.492zM8 1.783C7.015.936 5.587.81 4.287.94c-1.514.153-3.042.672-3.994 1.105A.5.5 0 0 0 0 2.5v11a.5.5 0 0 0 .707.455c.882-.4 2.303-.881 3.68-1.02 1.409-.142 2.59.087 3.223.877a.5.5 0 0 0 .78 0c.633-.79 1.814-1.019 3.222-.877 1.378.139 2.8.62 3.681 1.02A.5.5 0 0 0 16 13.5v-11a.5.5 0 0 0-.293-.455c-.952-.433-2.48-.952-3.994-1.105C10.413.809 8.985.936 8 1.783\"></path></svg>","BsBarChart":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M4 11H2v3h2zm5-4H7v7h2zm5-5v12h-2V2zm-2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM6 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm-5 4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1z\"></path></svg>","BsGear":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0\"></path><path d=\"M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z\"></path></svg>","BsPlayFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393\"></path></svg>","BsPauseFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5\"></path></svg>","BsSkipBackwardFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M.5 3.5A.5.5 0 0 0 0 4v8a.5.5 0 0 0 1 0V8.753l6.267 3.636c.54.313 1.233-.066 1.233-.697v-2.94l6.267 3.636c.54.314 1.233-.065 1.233-.696V4.308c0-.63-.693-1.01-1.233-.696L8.5 7.248v-2.94c0-.63-.692-1.01-1.233-.696L1 7.248V4a.5.5 0 0 0-.5-.5\"></path></svg>","BsSkipForwardFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M15.5 3.5a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-1 0V8.753l-6.267 3.636c-.54.313-1.233-.066-1.233-.697v-2.94l-6.267 3.636C.693 12.703 0 12.324 0 11.693V4.308c0-.63.693-1.01 1.233-.696L7.5 7.248v-2.94c0-.63.693-1.01 1.233-.696L15 7.248V4a.5.5 0 0 1 .5-.5\"></path></svg>","BsX":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708\"></path></svg>","BsChatQuote":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M2.678 11.894a1 1 0 0 1 .287.801 11 11 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8 8 0 0 0 8 14c3.996 0 7-2.807 7-6s-3.004-6-7-6-7 2.808-7 6c0 1.468.617 2.83 1.678 3.894m-.493 3.905a22 22 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a10 10 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9 9 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105\"></path><path d=\"M7.066 6.76A1.665 1.665 0 0 0 4 7.668a1.667 1.667 0 0 0 2.561 1.406c-.131.389-.375.804-.777 1.22a.417.417 0 0 0 .6.58c1.486-1.54 1.293-3.214.682-4.112zm4 0A1.665 1.665 0 0 0 8 7.668a1.667 1.667 0 0 0 2.561 1.406c-.131.389-.375.804-.777 1.22a.417.417 0 0 0 .6.58c1.486-1.54 1.293-3.214.682-4.112z\"></path></svg>","BsHeadphones":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M8 3a5 5 0 0 0-5 5v1h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a6 6 0 1 1 12 0v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1V8a5 5 0 0 0-5-5\"></path></svg>","BsStarFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z\"></path></svg>","BsStars":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.73 1.73 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.73 1.73 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.73 1.73 0 0 0 3.407 2.31zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z\"></path></svg>","BsBagHeart":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path fill-rule=\"evenodd\" d=\"M10.5 3.5a2.5 2.5 0 0 0-5 0V4h5zm1 0V4H15v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V4h3.5v-.5a3.5 3.5 0 1 1 7 0M14 14V5H2v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1M8 7.993c1.664-1.711 5.825 1.283 0 5.132-5.825-3.85-1.664-6.843 0-5.132\"></path></svg>","BsBagHeartFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M11.5 4v-.5a3.5 3.5 0 1 0-7 0V4H1v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4zM8 1a2.5 2.5 0 0 1 2.5 2.5V4h-5v-.5A2.5 2.5 0 0 1 8 1m0 6.993c1.664-1.711 5.825 1.283 0 5.132-5.825-3.85-1.664-6.843 0-5.132\"></path></svg>","BsBag":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M8 1a2.5 2.5 0 0 1 2.5 2.5V4h-5v-.5A2.5 2.5 0 0 1 8 1m3.5 3v-.5a3.5 3.5 0 1 0-7 0V4H1v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4zM2 5h12v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z\"></path></svg>","BsBagFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M8 1a2.5 2.5 0 0 1 2.5 2.5V4h-5v-.5A2.5 2.5 0 0 1 8 1m3.5 3v-.5a3.5 3.5 0 1 0-7 0V4H1v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4z\"></path></svg>"};
+const OPTIONS = [
+  { key: 'heart', label: 'Aujourd’hui (♥)', line: 'BsHeart', fill: 'BsHeartFill',
+    verdict: 'Pour comparer : le même ♥ pour la wish list et pour les favoris.' },
+  { key: 'bookmark', label: 'Signet', line: 'BsBookmark', fill: 'BsBookmarkFill',
+    verdict: 'Le « gardé pour plus tard » des applis. Sobre, se lit bien en petit ; ne dit pas « acheter ».' },
+  { key: 'gift', label: 'Cadeau', line: 'BsGift', fill: 'BsGiftFill',
+    verdict: 'La liste de souhaits au sens propre, « My precious to come ». Plus chargé en 12 px ; évoque qu’on te l’offre.' },
+  { key: 'stars', label: 'Étincelles', line: 'BsStars', fill: 'BsStars',
+    verdict: 'Le vœu. Pas de version vide/pleine (même icône allumée ou non), et voisin des étoiles de note.' },
+];
+let current = 'bookmark';
+const svg = name => ICONS[name] || '';
+const opt = () => OPTIONS.find(o => o.key === current);
+
+function paint() {
+  const o = opt();
+  document.querySelectorAll('[data-wish]').forEach(el => {
+    const on = el.closest('[data-toggle-wish]')?.classList.contains('on') ?? (el.dataset.wish === 'fill');
+    el.innerHTML = svg(on ? o.fill : o.line);
+  });
+  document.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = svg(el.dataset.icon); });
+  document.getElementById('nav').innerHTML = ['BsFilm','BsDisc','BsBook',null,'BsBarChart']
+    .map(n => `<span${n ? '' : ' class="on"'} title="${n ? '' : 'Wish List - My precious to come'}">${svg(n || o.line)}</span>`).join('');
+  document.getElementById('verdict').textContent = o.verdict;
+  document.querySelectorAll('#pick button').forEach(b => b.classList.toggle('on', b.dataset.key === current));
+  document.querySelectorAll('.matrix .head[data-key]').forEach(h => h.classList.toggle('sel', h.dataset.key === current));
+}
+
+document.getElementById('pick').innerHTML = OPTIONS.map(o => `<button data-key="${o.key}">${svg(o.fill)} ${o.label}</button>`).join('');
+document.getElementById('pick').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { current = b.dataset.key; paint(); } });
+
+const m = document.getElementById('matrix');
+m.innerHTML = '<span></span>' + OPTIONS.map(o => `<span class="head" data-key="${o.key}">${o.label}</span>`).join('')
+  + '<span class="row">Onglet</span>' + OPTIONS.map(o => `<div class="cell"><div class="nav mini"><span>${svg('BsDisc')}</span><span class="on">${svg(o.line)}</span></div><div class="nav mini"><span>${svg(o.line)}</span></div></div>`).join('')
+  + '<span class="row">Marque</span>' + OPTIONS.map(o => `<div class="cell"><span class="tag on">${svg(o.fill)}</span><span class="tag on">${svg('BsCartFill')}</span></div>`).join('')
+  + '<span class="row">Bouton rond</span>' + OPTIONS.map(o => `<div class="cell" style="background:linear-gradient(140deg,#7c2d12,#1c1917);padding:8px;border-radius:6px"><span class="cbtn">${svg(o.line)}</span><span class="cbtn on">${svg(o.fill)}</span></div>`).join('')
+  + '<span class="row">À côté d’un ♥</span>' + OPTIONS.map(o => `<div class="cell"><span class="ubtn on">${svg(o.fill)} Wish list</span><span style="color:var(--dv-gold)">${svg('BsHeartFill')}</span></div>`).join('');
+m.querySelectorAll('svg').forEach(s => { s.style.width = s.closest('.tag') ? '12px' : s.closest('.nav') ? '15px' : '14px'; s.style.height = s.style.width; });
+
+document.addEventListener('click', e => {
+  const w = e.target.closest('[data-toggle-wish]');
+  if (w) { w.classList.toggle('on'); const label = w.querySelector('span'); if (label) label.textContent = w.classList.contains('on') ? 'On the wish list' : 'Add to the wish list'; paint(); }
+  const f = e.target.closest('[data-fav]');
+  if (f) { f.classList.toggle('on'); f.querySelector('i').dataset.icon = f.classList.contains('on') ? 'BsHeartFill' : 'BsHeart'; paint(); }
+});
+paint();
+</script>
+</body>
+</html>

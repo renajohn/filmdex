@@ -260,6 +260,8 @@ app.get('/api/music/digital/:navidromeId/tracks', musicController.getDigitalTrac
 app.get('/api/music/navidrome-cover/:navidromeId', musicController.getNavidromeCover);
 app.get('/api/music/navidrome/stream/:id', playerController.stream);
 app.post('/api/music/navidrome/scrobble/:id', playerController.scrobble);
+app.put('/api/music/navidrome/star/:id', playerController.star);
+app.delete('/api/music/navidrome/star/:id', playerController.star);
 // What the DexVault plugin in Navidrome hands on of every account, as Navidrome told it.
 app.post('/api/music/navidrome/plugin/events', navidromePluginController.authenticate, navidromePluginController.event);
 app.put('/api/music/navidrome/plugin/library/:user', navidromePluginController.authenticate, navidromePluginController.library);

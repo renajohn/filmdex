@@ -8,6 +8,8 @@ export interface PlayerTrack {
   disc: number;
   no: number;
   durationSec: number | null;
+  /** Hearted in Navidrome when the album was started: the bar's ♥ until it knows better. */
+  starred?: boolean;
 }
 
 /** The album a play belongs to, for the bar, the cards and the Mac's own controls. */

@@ -965,7 +965,7 @@
   to { transform: rotate(360deg); }
 }
 
-/* No CD: what it is, and the heart that puts it on the wish list. */
+/* No CD: what it is, and the bookmark that puts it on the wish list. */
 .album-head-physical {
   display: inline-flex;
   flex-wrap: wrap;
@@ -1025,5 +1025,24 @@
 .track-item:hover .track-plays,
 .track-item:focus-visible .track-plays,
 .track-selected .track-plays {
+  visibility: visible;
+}
+
+/*
+ * A track's heart: gold when it is a favourite, else an outline under the
+ * pointer and on the open track only, keeping its room. It takes no more
+ * height than the row's words.
+ */
+.track-favourite {
+  margin: -6px -4px;
+}
+
+.track-favourite:not(.track-favourite-on) {
+  visibility: hidden;
+}
+
+.track-item:hover .track-favourite,
+.track-selected .track-favourite,
+.track-favourite:focus-visible {
   visibility: visible;
 }

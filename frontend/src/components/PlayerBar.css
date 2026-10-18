@@ -182,6 +182,14 @@
   color: var(--dv-gold);
 }
 
+.player-bar-favourite {
+  font-size: 0.95rem;
+}
+
+.player-bar-favourite-on {
+  color: var(--dv-gold);
+}
+
 .player-bar-lyrics-on::after {
   content: "";
   position: absolute;
@@ -201,7 +209,7 @@
   }
 }
 
-/* On a phone: the cover, the track, ⏯, ⏭ and ✕. */
+/* On a phone: the cover, the track, ♥, ⏯, ⏭ and ✕. */
 @media (max-width: 767px) {
   .player-bar-time,
   .player-bar-previous {

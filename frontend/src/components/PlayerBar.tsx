@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BsChatQuote, BsPauseFill, BsPlayFill, BsSkipBackwardFill, BsSkipForwardFill, BsX } from 'react-icons/bs';
+import { BsChatQuote, BsHeart, BsHeartFill, BsPauseFill, BsPlayFill, BsSkipBackwardFill, BsSkipForwardFill, BsX } from 'react-icons/bs';
 import { player, usePlayer } from '../services/player';
+import { seedFavourite, setFavourite, useFavourite } from '../services/favourites';
+import toast from './shared/Toast';
 // Listen Next registers itself with the player, to go on after a reload whatever the page.
 import '../services/listenNextQueue';
 import './PlayerBar.css';
@@ -31,6 +33,10 @@ const PlayerBar: React.FC = () => {
   const shown = usePlayer(state => state.barShown);
   const error = usePlayer(state => state.error);
   const lyricsOpen = usePlayer(state => state.lyricsOpen);
+  const favourite = useFavourite(track?.songId);
+
+  // The heart the track had when the album was started, unless the card has told a newer one since.
+  useEffect(() => { if (track) seedFavourite(track.songId, track.starred, true); }, [track]);
 
   // The room the bar takes, for the pages and the cards: --player-h on the root.
   useEffect(() => {
@@ -77,6 +83,14 @@ const PlayerBar: React.FC = () => {
               </span>
             </button>
             <span className="player-bar-time">{time(position)} / {time(length)}</span>
+            {/* The track's heart, kept in Navidrome: the card's ♥ follows. */}
+            <button type="button" className={`player-bar-button player-bar-favourite${favourite ? ' player-bar-favourite-on' : ''}`}
+              onClick={() => setFavourite(track.songId, !favourite)
+                .catch(error => toast(`Could not change the favourite: ${(error as Error).message}`, { tone: 'danger' }))}
+              aria-label={favourite ? 'Remove from the favourites' : 'Add to the favourites'} aria-pressed={favourite}
+              title={favourite ? 'Favourite' : 'Add to the favourites'}>
+              {favourite ? <BsHeartFill aria-hidden="true" /> : <BsHeart aria-hidden="true" />}
+            </button>
             {/* The words, in their panel on the left: of an album DexVault holds, on a desktop. */}
             {album.id != null && (
               <button type="button" className={`player-bar-button player-bar-lyrics${lyricsOpen ? ' player-bar-lyrics-on' : ''}`}

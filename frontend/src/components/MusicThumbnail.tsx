@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BsDisc, BsHeadphones, BsHeart, BsHeartFill, BsXLg } from 'react-icons/bs';
+import { BsDisc, BsBookmark, BsBookmarkFill, BsHeadphones, BsXLg } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import { isAppleMobile } from '../utils/navidrome';
 import './MusicThumbnail.css';
@@ -32,7 +32,7 @@ interface MusicThumbnailProps {
   dataFirstLetter?: string;
   /** How the album stands in Navidrome, with Digital on; undefined with it off, and no mark is shown. */
   digital?: AlbumDigital;
-  /** In Buy: why, and the heart and ✕ under the pointer in place of Listen Next. */
+  /** In Buy: why, and the bookmark and ✕ under the pointer in place of Listen Next. */
   buy?: { reason: string | null; wished: boolean; onWish: () => void; onDismiss?: () => void };
 }
 
@@ -118,7 +118,7 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onListenNe
               label={buy.wished ? `Take ${cd.title} off the wish list` : `Add ${cd.title} to the wish list`}
               title={buy.wished ? 'Take off the wish list' : 'Add to the wish list'}
               onClick={event => { event.stopPropagation(); buy.onWish(); }}>
-              {buy.wished ? <BsHeartFill aria-hidden="true" /> : <BsHeart aria-hidden="true" />}
+              {buy.wished ? <BsBookmarkFill aria-hidden="true" /> : <BsBookmark aria-hidden="true" />}
             </CoverButton>
           </div>
         )}

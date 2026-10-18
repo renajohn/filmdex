@@ -1,5 +1,5 @@
 import React from 'react';
-import { BsCloud, BsHeartFill } from 'react-icons/bs';
+import { BsBookmarkFill, BsCloud } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import Button from './shared/Button';
 import Dialog from './shared/Dialog';
@@ -37,7 +37,7 @@ const AttachCdDialog: React.FC<AttachCdDialogProps> = ({ albums, onChoose }) => 
               <small className="text-muted">
                 {Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}
                 {' · '}
-                {album.titleStatus === 'wish' ? <><BsHeartFill /> on your wish list</> : <><BsCloud /> digital</>}
+                {album.titleStatus === 'wish' ? <><BsBookmarkFill /> on your wish list</> : <><BsCloud /> digital</>}
               </small>
             </span>
             <span>Attach the CD</span>

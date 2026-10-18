@@ -79,6 +79,8 @@ export interface RipTrackFile {
   channelCount: number | null;
   size: number | null;
   path: string | null;
+  /** Hearted in Navidrome. */
+  starred?: boolean;
 }
 
 /** An album of Listen Next played to its end, gone from the list. */

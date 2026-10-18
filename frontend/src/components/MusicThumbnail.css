@@ -125,7 +125,7 @@
   white-space: nowrap;
 }
 
-/* In Buy: ✕ and the heart at the top right, where a CD's shelf code would be; Listen Next keeps the foot. */
+/* In Buy: ✕ and the bookmark at the top right, where a CD's shelf code would be; Listen Next keeps the foot. */
 .thumbnail-buy-actions {
   position: absolute;
   top: 8px;

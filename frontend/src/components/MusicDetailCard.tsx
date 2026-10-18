@@ -22,12 +22,14 @@ import './MusicDetailCard.css';
 import ShelfCode from './shared/ShelfCode';
 import NowPlayingBars from './shared/NowPlayingBars';
 import DigitalMarks from './shared/DigitalMarks';
-import { BsArrowCounterclockwise, BsCartFill, BsHeart, BsHeartFill, BsSearch } from 'react-icons/bs';
+import { BsArrowCounterclockwise, BsBookmark, BsBookmarkFill, BsCartFill, BsHeart, BsHeartFill, BsSearch } from 'react-icons/bs';
 import type { DigitalTrack } from '../services/musicService';
 import { buyReason, formatLabel, isLossy, isSuggested, isToBuy, playsText, ricardoUrl, type AlbumDigital } from '../utils/digitalLibrary';
-import Button, { LinkButton } from './shared/Button';
+import Button, { IconButton, LinkButton } from './shared/Button';
 import Spinner from './shared/Spinner';
 import StarRating from './shared/StarRating';
+import toast from './shared/Toast';
+import { seedFavourite, setFavourite, useFavourite } from '../services/favourites';
 
 /** How often, and how many times, an album's tracks are asked after while their words are looked up. */
 const LYRICS_POLL_MS = 3000;
@@ -170,6 +172,26 @@ const communityDetail = (ratings: CommunityRatings): string => [
   .map(([source, votes, value]) => `${source}: ${votesLabel(votes!)} → ${Number(value!.toFixed(2))}`)
   .join('\n');
 
+/**
+ * A track's heart, kept in Navidrome: gold when it is a favourite, an outline
+ * under the pointer otherwise. A click on it never opens the track.
+ */
+const TrackFavourite: React.FC<{ songId: string; title: string }> = ({ songId, title }) => {
+  const favourite = useFavourite(songId);
+  const toggle = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    setFavourite(songId, !favourite).catch(error => toast(`Could not change the favourite: ${(error as Error).message}`, { tone: 'danger' }));
+  };
+  return (
+    <IconButton size="sm" className={`track-favourite${favourite ? ' track-favourite-on' : ''}`} active={favourite}
+      label={favourite ? `Remove ${title} from the favourites` : `Add ${title} to the favourites`}
+      title={favourite ? 'Favourite' : 'Add to the favourites'}
+      onClick={toggle} onKeyDown={event => event.stopPropagation()}>
+      {favourite ? <BsHeartFill aria-hidden="true" /> : <BsHeart aria-hidden="true" />}
+    </IconButton>
+  );
+};
+
 const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, onDelete, onSearch, onListenNextChange, onPrevious, onNext, digital, onWish, onDismiss, onBought }) => {
   const [showCoverModal, setShowCoverModal] = useState<boolean>(false);
   const [coverModalData, setCoverModalData] = useState<CoverModalData>({ coverUrl: '', title: '', artist: '', coverType: '' });
@@ -214,7 +236,11 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
     setDigitalTracks(new Map());
     if (!navidromeId) return undefined;
     musicService.getDigitalTracks(navidromeId)
-      .then(tracks => { if (current) setDigitalTracks(new Map(tracks.map(track => [`${track.discNumber}-${track.track}`, track]))); })
+      .then(tracks => {
+        if (!current) return;
+        tracks.forEach(track => seedFavourite(track.id, track.starred));
+        setDigitalTracks(new Map(tracks.map(track => [`${track.discNumber}-${track.track}`, track])));
+      })
       .catch(() => undefined);
     return () => { current = false; };
   }, [navidromeId]);
@@ -412,7 +438,11 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
     setRip(undefined);
     setRipError(null);
     musicService.getNavidromeTracks(cd.id)
-      .then(result => { if (current) setRip(result); })
+      .then(result => {
+        if (!current) return;
+        result?.tracks.forEach(file => seedFavourite(file.id, file.starred));
+        setRip(result);
+      })
       .catch((error: Error) => { if (current) setRipError(error.message); });
     return () => { current = false; };
   }, [cd.id]);
@@ -604,10 +634,10 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                 {!hasCd && (
                   <div className="album-head-line album-head-physical">
                     <span className="album-head-muted">{cd.titleStatus === 'wish' ? 'No CD · on your wish list' : 'No CD'}</span>
-                    {/* The box below holds the heart when there is something to decide. */}
+                    {/* The box below holds the bookmark when there is something to decide. */}
                     {onWish && digital.album && !(isToBuy(digital.album) || cd.titleStatus === 'wish') && (
                       <button type="button" className="album-head-link" onClick={onWish} aria-pressed={cd.titleStatus === 'wish'}>
-                        {cd.titleStatus === 'wish' ? <BsHeartFill aria-hidden="true" /> : <BsHeart aria-hidden="true" />}
+                        {cd.titleStatus === 'wish' ? <BsBookmarkFill aria-hidden="true" /> : <BsBookmark aria-hidden="true" />}
                         {cd.titleStatus === 'wish' ? 'Wished' : 'Add to wishlist'}
                       </button>
                     )}
@@ -774,13 +804,13 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
               {isSuggested(digital.album) ? (
                 <><strong><BsCartFill aria-hidden="true" /> Worth buying</strong> — {buyReason(digital.album)}</>
               ) : (
-                <strong><BsHeartFill aria-hidden="true" /> On your wish list</strong>
+                <strong><BsBookmarkFill aria-hidden="true" /> On your wish list</strong>
               )}
             </div>
             <div className="album-buy-actions">
               {onWish && (
                 <Button active={cd.titleStatus === 'wish'} size="sm" onClick={onWish}
-                  icon={cd.titleStatus === 'wish' ? <BsHeartFill /> : <BsHeart />}>
+                  icon={cd.titleStatus === 'wish' ? <BsBookmarkFill /> : <BsBookmark />}>
                   {cd.titleStatus === 'wish' ? 'Wished' : 'Add to wishlist'}
                 </Button>
               )}
@@ -917,10 +947,10 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                         {(() => {
                           const heard = digitalTracks.get(`${disc.number}-${track.no}`);
                           // Every play ever, under the pointer and on the open track; a lighter grey when heard in the last 90 days.
-                          return heard && (heard.rating > 0 || heard.starred || heard.totalPlays > 0) && (
+                          return heard && (heard.id || heard.rating > 0 || heard.totalPlays > 0) && (
                             <span className="track-digital">
                               {heard.rating > 0 && <span title="Your stars, from Navidrome"><BsStarFill aria-hidden="true" /> {heard.rating}</span>}
-                              {heard.starred && <BsHeartFill aria-hidden="true" />}
+                              {heard.id && <TrackFavourite songId={heard.id} title={track.title} />}
                               {heard.totalPlays > 0 && (
                                 <span className={`track-plays${heard.plays > 0 ? ' track-plays-lately' : ''}`} title={playsText(heard)}>
                                   ×{heard.totalPlays}

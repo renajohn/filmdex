@@ -1,5 +1,5 @@
 import React from 'react';
-import { BsCartFill, BsCloud, BsHeartFill } from 'react-icons/bs';
+import { BsBookmarkFill, BsCartFill, BsCloud } from 'react-icons/bs';
 import { formatLabel, isLossy, isSuggested, isToBuy, type AlbumDigital } from '../../utils/digitalLibrary';
 import './DigitalMarks.css';
 import CoverTag, { CoverTagStack } from './CoverTag';
@@ -15,7 +15,7 @@ interface DigitalMarksProps {
   digital: AlbumDigital | undefined;
   /** 'owned' for a CD of the collection, 'wish' or 'digital' for an album with no CD. */
   titleStatus?: string | null;
-  /** Leaves the heart out where the card's own heart button says it already (in Buy). */
+  /** Leaves the bookmark out where the card's own bookmark button says it already (in Buy). */
   hideWish?: boolean;
   className?: string;
 }
@@ -24,7 +24,7 @@ interface DigitalMarksProps {
  * What sets an album apart from a CD ripped in lossless, which wears nothing:
  * no CD (a cloud, orange with its format when the files are lossy), a CD
  * ripped lossy (its format in orange), a CD not ripped (a disc struck
- * through), and what is to buy (a cart when listening suggests it, a heart
+ * through), and what is to buy (a cart when listening suggests it, a bookmark
  * on the wish list).
  */
 const DigitalMarks: React.FC<DigitalMarksProps> = ({ digital, titleStatus, hideWish = false, className = '' }) => {
@@ -45,7 +45,7 @@ const DigitalMarks: React.FC<DigitalMarksProps> = ({ digital, titleStatus, hideW
   }
   if (!hasCd && titleStatus === 'wish') {
     if (!hideWish) {
-      marks.push(<CoverTag key="wish" variant="on" className="digital-mark" title="On your wish list"><BsHeartFill aria-hidden="true" /></CoverTag>);
+      marks.push(<CoverTag key="wish" variant="on" className="digital-mark" title="On your wish list"><BsBookmarkFill aria-hidden="true" /></CoverTag>);
     }
   } else if (!hasCd && isToBuy(album) && isSuggested(album)) {
     marks.push(<CoverTag key="buy" variant="on" className="digital-mark" title="Worth buying, from your listening"><BsCartFill aria-hidden="true" /></CoverTag>);

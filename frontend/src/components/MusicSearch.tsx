@@ -22,7 +22,7 @@ import { listenNextQueue } from '../services/listenNextQueue';
 import { DigitalChips, DigitalNotices, type DigitalFilter } from './DigitalStrip';
 import DigitalMarks from './shared/DigitalMarks';
 import BoughtCdDialog from './BoughtCdDialog';
-import { BsCartFill, BsChevronRight, BsHeartFill } from 'react-icons/bs';
+import { BsBookmarkFill, BsCartFill, BsChevronRight } from 'react-icons/bs';
 import {
   DIGITAL_ON_KEY, buyOrder, buyReason, isDismissed, isSuggested, isToBuy, useDigitalLibrary, type AlbumDigital,
 } from '../utils/digitalLibrary';
@@ -468,7 +468,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     setShowDismissed(false);
   };
 
-  /** The heart of an album with no CD: on the wish list or off it, the same album either way. */
+  /** The bookmark of an album with no CD: on the wish list or off it, the same album either way. */
   const toggleWish = async (cd: Album) => {
     const album = digitalOf(cd).album;
     if (!album) return;
@@ -910,7 +910,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
         {suggested.length > 0 ? <div className="cd-grid">{suggested.map(cd => buyCard(cd))}</div>
           : <p className="digital-buy-empty">No suggestion yet: they come as you play albums you have no CD of.</p>}
         <h3 className="digital-buy-title">
-          <BsHeartFill aria-hidden="true" /> Wishlist <span className="digital-buy-note">{wishedOnly.length}
+          <BsBookmarkFill aria-hidden="true" /> Wishlist <span className="digital-buy-note">{wishedOnly.length}
             {wishedSuggested > 0 && ` · ${wishedSuggested} more in the suggestions above`}</span>
         </h3>
         {wishedOnly.length > 0 ? <div className="cd-grid">{wishedOnly.map(cd => buyCard(cd))}</div>

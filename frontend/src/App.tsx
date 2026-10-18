@@ -18,7 +18,7 @@ import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
 import musicService from './services/musicService';
 import bookService from './services/bookService';
-import { BsX, BsCollectionFill, BsHeart, BsChevronDown, BsDisc, BsArrowLeft, BsBarChart, BsFilm, BsBook } from 'react-icons/bs';
+import { BsX, BsCollectionFill, BsBookmark, BsChevronDown, BsDisc, BsArrowLeft, BsBarChart, BsFilm, BsBook } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 // After Bootstrap, so that its radios and checkboxes wear DexVault's look.
 import './components/shared/check.css';
@@ -1142,7 +1142,7 @@ function AppContent() {
                   { value: 'filmdex', icon: <BsFilm />, tooltip: 'FilmDex - My precious movies' },
                   { value: 'musicdex', icon: <BsDisc />, tooltip: 'MusicDex - My precious albums' },
                   { value: 'bookdex', icon: <BsBook />, tooltip: 'BookDex - My precious books' },
-                  { value: 'wishlist', icon: <BsHeart />, tooltip: 'Wish List - My precious to come' },
+                  { value: 'wishlist', icon: <BsBookmark />, tooltip: 'Wish List - My precious to come' },
                   { value: 'analytics', icon: <BsBarChart />, tooltip: 'Analytics - The palant\u00EDr of data' },
                 ]}
               />

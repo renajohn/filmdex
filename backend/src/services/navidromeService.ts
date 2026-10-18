@@ -217,6 +217,11 @@ const navidromeService = {
     await request('setRating', { id, rating });
   },
 
+  /** Hearts a song, or takes the heart away: the favourite Amperfy and Navidrome show. */
+  setStarred: async (id: string, starred: boolean): Promise<void> => {
+    await request(starred ? 'star' : 'unstar', { id });
+  },
+
   /**
    * Where each file of an album lies, relative to the library or absolute in
    * Navidrome's container. Subsonic may report a path made up from the tags

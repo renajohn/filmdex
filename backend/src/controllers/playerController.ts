@@ -66,6 +66,23 @@ const playerController = {
     }
     res.json({ ok: true, left });
   },
+
+  /** A song's heart, in Navidrome: what Amperfy and Navidrome's web player show too. */
+  star: async (req: Request, res: Response): Promise<void> => {
+    const id = String(req.params.id);
+    if (!SONG_ID.test(id)) {
+      res.status(400).json({ error: 'Not a song id' });
+      return;
+    }
+    const starred = req.method === 'PUT';
+    try {
+      await navidromeService.setStarred(id, starred);
+      res.json({ starred });
+    } catch (error) {
+      logger.warn(`Starring song ${id}: ${(error as Error).message}`);
+      res.status(502).json({ error: (error as Error).message });
+    }
+  },
 };
 
 export default playerController;

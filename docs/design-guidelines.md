@@ -29,6 +29,9 @@ The prototypes the choices were made on are kept in `docs/superpowers/specs/`:
    button, a menu or a tag: those belong to the shared component.
 7. **Words are English in the UI**, sentence case ("Add to wish list"), with
    the ellipsis for an action that asks more ("Write a listening note…").
+8. **One icon, one meaning.** The heart is a favourite, Navidrome's (a
+   track's ♥, in Amperfy too); the bookmark is the wish list; the cart is
+   what to buy. Never a heart for the wish list.
 
 ## Colour and shape: `tokens.css`
 

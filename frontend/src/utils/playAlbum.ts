@@ -33,12 +33,12 @@ export const playerTracksOf = (album: AlbumLike, rip: RipTracks | null | undefin
     return rip.tracks
       .filter(file => file.id)
       .sort((a, b) => a.discNumber - b.discNumber || a.track - b.track)
-      .map(file => ({ songId: file.id!, title: file.title, disc: file.discNumber, no: file.track, durationSec: file.durationSec ?? null }));
+      .map(file => ({ songId: file.id!, title: file.title, disc: file.discNumber, no: file.track, durationSec: file.durationSec ?? null, starred: file.starred }));
   }
   return (album.discs || []).flatMap(disc => disc.tracks.flatMap(track => {
     const file = ripFileFor(rip.tracks, disc.number, Number(track.no));
     return file?.id
-      ? [{ songId: file.id, title: track.title, disc: disc.number, no: Number(track.no), durationSec: file.durationSec ?? track.durationSec ?? null }]
+      ? [{ songId: file.id, title: track.title, disc: disc.number, no: Number(track.no), durationSec: file.durationSec ?? track.durationSec ?? null, starred: file.starred }]
       : [];
   }));
 };
