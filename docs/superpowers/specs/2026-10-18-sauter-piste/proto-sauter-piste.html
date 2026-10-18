@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Sauter à une piste</title>
+<style>
+  :root {
+    --dv-gold: #fbbf24; --dv-gold-light: #fde68a; --dv-gold-ink: #111;
+    --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+    --dv-glass: rgba(255,255,255,.06); --dv-glass-hover: rgba(255,255,255,.11);
+    --dv-edge: rgba(255,255,255,.12); --dv-veil: rgba(255,255,255,.08);
+    --dv-glass-image: rgba(0,0,0,.68); --dv-edge-image: inset 0 0 0 1px rgba(255,255,255,.16);
+    --dialog-bg: #2d2d2d; --dialog-edge: #3a3a3a; --dialog-line: #3a3a3a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(135deg,#1a1a1a,#2d2d2d) fixed; color: var(--dv-text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  svg { display: block; }
+  button { font: inherit; }
+
+  /* The prototype's own controls. */
+  .bar { position: sticky; top: 0; z-index: 1001; display: flex; gap: 10px 20px; align-items: center; flex-wrap: wrap; padding: 12px 24px; background: #111; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .bar label { display: inline-flex; gap: 8px; align-items: center; }
+  .seg-ctl { display: inline-flex; border: 1px solid #444; border-radius: 8px; overflow: hidden; flex-wrap: wrap; }
+  .seg-ctl button { background: #222; color: #ddd; border: 0; padding: 6px 12px; cursor: pointer; }
+  .seg-ctl button + button { border-left: 1px solid #444; }
+  .seg-ctl button.on { background: var(--dv-gold); color: #111; }
+  .verdict { color: #9a9a9a; font-size: 12.5px; flex-basis: 100%; max-width: 900px; }
+  .verdict b { color: #ddd; font-weight: 600; }
+  .page { padding: 28px 24px 120px; color: #777; max-width: 760px; }
+  .page h1 { color: #ddd; font-size: 18px; margin: 0 0 8px; }
+  .page p { margin: 0 0 10px; }
+  .page kbd { background: #333; border-radius: 4px; padding: 1px 6px; color: #ddd; }
+
+  /* The player bar, as in PlayerBar.css. */
+  .player { position: fixed; left: 0; right: 0; bottom: 0; height: 54px; background: #181818; border-top: 1px solid #333; z-index: 1001; color: #d6dbe1; }
+  .player .prog { position: absolute; left: 0; right: 0; top: -1px; height: 4px; background: rgba(255,255,255,.1); }
+  .player .prog span { display: block; height: 100%; background: var(--dv-gold); }
+  .player .inner { height: 100%; display: flex; align-items: center; gap: 10px; padding: 3px 14px 0; }
+  .player .alb { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
+  .player .alb img { width: 38px; height: 38px; border-radius: 5px; object-fit: cover; }
+  .player .meta { min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+  .player .meta b, .player .meta span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .player .meta b { font-weight: 400; font-size: .88rem; }
+  .player .meta span { font-size: .75rem; color: #9aa4b2; }
+  .player .tm { font-size: .75rem; color: #9aa4b2; font-variant-numeric: tabular-nums; }
+  .pb { position: relative; flex: none; width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: #d6dbe1; cursor: pointer; padding: 0; }
+  .pb svg { width: 16px; height: 16px; }
+  .pb:hover { background: rgba(255,255,255,.1); }
+  .pb.play { width: 38px; height: 38px; background: #d6dbe1; color: #1a1a1a; }
+  .pb.play:hover { background: #fff; }
+  .pb.play svg { width: 20px; height: 20px; }
+  .pb.stop { color: #9aa4b2; }
+  .pb.stop svg { width: 20px; height: 20px; }
+  .pb.on { color: var(--dv-gold); }
+  .pb.on::after { content: ""; position: absolute; bottom: 2px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--dv-gold); }
+  .pb.new { box-shadow: 0 0 0 1.5px rgba(251,191,36,.55); }
+  .pb.new.on, .pb.new:hover { box-shadow: none; }
+  @media (max-width: 767px) { .player .tm, .pb.prev, .pb.lyr { display: none; } }
+
+  /* ------------------------------------------------------------ The dialog */
+  .backdrop { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; padding: 120px 16px calc(54px + 20px); }
+  .backdrop.open { display: flex; }
+  .dlg { width: min(820px, 100%); height: min(640px, 100%); display: flex; flex-direction: column; background: var(--dialog-bg); border: 1px solid var(--dialog-edge); border-radius: 14px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  .dlg-head { display: flex; align-items: center; gap: 10px; padding: 14px 14px 14px 20px; border-bottom: 1px solid var(--dialog-line); flex: none; }
+  .dlg-head .ic { color: var(--dv-text); }
+  .dlg-head .ic svg { width: 20px; height: 20px; }
+  .dlg-head h2 { flex: 1; min-width: 0; margin: 0; font-size: 1.2rem; font-weight: 600; color: #f0f0f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dlg-head .aside { color: var(--dv-text-muted); font-size: 12.5px; white-space: nowrap; }
+  .ib { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px; background: none; color: #bbb; cursor: pointer; padding: 0; }
+  .ib:hover { background: var(--dv-glass-hover); color: #fff; }
+  .ib svg { width: 18px; height: 18px; }
+
+  .dlg-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 240px 1fr; }
+  /* The cover of the album the list is at. */
+  .side { padding: 20px; border-right: 1px solid var(--dialog-line); display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .side .big { position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,.45); background: #333; }
+  .side .big img { width: 100%; height: 100%; object-fit: cover; display: block; transition: filter .2s; }
+  .side .big.gone img { filter: grayscale(1) brightness(.6); }
+  .side .big .tags { position: absolute; top: 8px; left: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .side h3 { margin: 0; font-size: 16px; line-height: 1.25; color: #f0f0f0; }
+  .side .who { color: var(--dv-text-muted); font-size: 13px; }
+  .side .facts { color: var(--dv-text-faint); font-size: 12px; }
+  .side .act { margin-top: 2px; }
+
+  .list { overflow-y: auto; min-width: 0; padding: 0 0 16px; scroll-behavior: smooth; }
+  .album { padding: 0 12px; }
+  .album + .album { margin-top: 6px; }
+  .ahead { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 12px 8px 8px; background: var(--dialog-bg); border-bottom: 1px solid rgba(255,255,255,.06); }
+  .ahead img { width: 32px; height: 32px; border-radius: 4px; object-fit: cover; flex: none; }
+  .album.gone .ahead img { filter: grayscale(1) brightness(.65); }
+  .ahead .t { flex: 1; min-width: 0; }
+  .ahead .t b { display: block; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ahead .t span { display: block; font-size: 12px; color: var(--dv-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .album.gone .ahead .t b { color: #bdbdbd; }
+
+  .tag { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 20px; padding: 0 6px; border-radius: 4px; flex: none;
+    background: rgba(0,0,0,.72); box-shadow: var(--dv-edge-image); color: #f5f5f5; font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; line-height: 1; white-space: nowrap; }
+  .tag svg { width: 11px; height: 11px; }
+  .tag.gold { color: var(--dv-gold); }
+  .tag.muted { color: #a3a3a3; }
+  .tag.on { background: var(--dv-gold); color: var(--dv-gold-ink); box-shadow: none; }
+
+  .ubtn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--dv-edge);
+    background: var(--dv-glass); color: var(--dv-text); font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+  .ubtn svg { width: 13px; height: 13px; }
+  .ubtn:hover { background: var(--dv-glass-hover); }
+  .ubtn.quiet { border-color: transparent; background: none; color: #bbb; }
+  .ubtn.quiet:hover { color: #fff; background: var(--dv-glass); }
+
+  .disc { padding: 10px 8px 2px 40px; font-size: 11px; letter-spacing: .6px; text-transform: uppercase; color: #8a8a8a; font-weight: 600; }
+  .trk { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border: 0; border-radius: 6px; background: none; color: var(--dv-text); text-align: left; font-size: 13.5px; cursor: pointer; }
+  .trk:hover, .trk:focus-visible { background: var(--dv-veil); outline: none; }
+  .trk .no { width: 22px; flex: none; text-align: right; color: #777; font-variant-numeric: tabular-nums; }
+  .trk .ti { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .trk .du { color: #888; font-variant-numeric: tabular-nums; }
+  .trk .pl { width: 14px; height: 14px; display: none; color: #fff; }
+  .trk:hover .no { display: none; }
+  .trk:hover .pl { display: block; margin: 0 4px 0 4px; }
+  .trk.now { color: var(--dv-gold); }
+  .trk.now .no, .trk.now:hover .no { display: none; }
+  .trk.now .pl { display: none; }
+  .bars { width: 22px; flex: none; display: flex; justify-content: flex-end; align-items: flex-end; gap: 2px; height: 12px; }
+  .bars i { width: 3px; background: var(--dv-gold); border-radius: 1px; animation: eq 1s ease-in-out infinite; }
+  .bars i:nth-child(2) { animation-delay: -.4s; } .bars i:nth-child(3) { animation-delay: -.7s; }
+  .paused .bars i { animation-play-state: paused; }
+  @keyframes eq { 0%,100% { height: 30%; } 50% { height: 100%; } }
+  .album.gone .trk { color: #a8a8a8; }
+  .album.gone .trk.now { color: var(--dv-gold); }
+  .album.gone.locked .trk { cursor: default; }
+  .album.gone.locked .trk:hover { background: none; }
+  .album.gone.locked .trk:hover .no { display: block; }
+  .album.gone.locked .trk:hover .pl { display: none; }
+  .trk.heard .du::before { content: "✓ "; color: #666; }
+
+  /* Played this session, folded into one line (variant C). */
+  .folded { margin: 12px 12px 4px; display: flex; align-items: center; gap: 10px; width: calc(100% - 24px); padding: 8px; border: 1px dashed rgba(255,255,255,.12); border-radius: 8px; background: none; color: #aaa; cursor: pointer; text-align: left; }
+  .folded:hover { background: var(--dv-glass); color: #ddd; }
+  .folded .stack { display: flex; }
+  .folded .stack img { width: 26px; height: 26px; border-radius: 3px; object-fit: cover; filter: grayscale(1) brightness(.7); box-shadow: 0 0 0 2px var(--dialog-bg); }
+  .folded .stack img + img { margin-left: -8px; }
+
+  .dlg-foot { flex: none; display: flex; align-items: center; gap: 12px; padding: 10px 16px 10px 20px; border-top: 1px solid var(--dialog-line); min-height: 52px; }
+  .dlg-foot .then { flex: 1; min-width: 0; font-size: 12.5px; color: var(--dv-text-muted); }
+  .dlg-foot .then b { color: var(--dv-text); font-weight: 600; }
+
+  /* The single-album dialog: no list of albums, the cover larger. */
+  .single .dlg { width: min(720px, 100%); height: auto; max-height: 100%; }
+  .single .dlg-body { grid-template-columns: 260px 1fr; }
+  .single .list { max-height: 520px; padding-top: 8px; }
+  .single .ahead { display: none; }
+
+  @media (max-width: 700px) {
+    .bar { position: relative; z-index: 1; }
+    .backdrop { padding: 0 0 54px; align-items: flex-end; }
+    .dlg, .single .dlg { width: 100%; height: calc(100% - 40px); border-radius: 14px 14px 0 0; border-bottom: 0; }
+    .dlg-body, .single .dlg-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .side { flex-direction: row; align-items: center; padding: 12px 16px; border-right: 0; border-bottom: 1px solid var(--dialog-line); }
+    .side .big { width: 64px; flex: none; }
+    .side .big .tags { display: none; }
+    .side .facts, .side .act { display: none; }
+    .dlg-head .aside { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="bar">
+  <label>Lecture : <span class="seg-ctl" id="mode"></span></label>
+  <label>CD sortis : <span class="seg-ctl" id="variant"></span></label>
+  <label><input type="checkbox" id="byhand" checked> montrer le CD retiré à la main</label>
+  <div class="verdict" id="verdict"></div>
+</div>
+
+<div class="page">
+  <h1>Sauter à une piste depuis le lecteur</h1>
+  <p>Le nouveau bouton <span id="ic-inline" style="display:inline-block;vertical-align:-2px"></span> de la barre (cerclé d'or ici pour le repérer) ouvre la fenêtre. Clique une piste pour y sauter : la barre, la piste dorée et la ligne « Puis » du bas suivent.</p>
+  <p>La séance de démonstration : ▶ Listen Next lancé avec <b>OK Computer</b> (écouté jusqu'au bout, donc sorti de la liste), puis <b>Abbey Road</b> (6 pistes écoutées, puis retiré à la main avec ✕), et maintenant les <b>Préludes</b> de Chopin, piste 5. Viennent ensuite A Live One, 21 et Savoir aimer.</p>
+  <p><kbd>Échap</kbd> ferme ; <kbd>↑</kbd> <kbd>↓</kbd> passent de piste en piste, <kbd>Entrée</kbd> lance.</p>
+</div>
+
+<div class="backdrop" id="backdrop">
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+    <div class="dlg-head">
+      <span class="ic" id="dlg-icon"></span>
+      <h2 id="dlg-title">Listen Next</h2>
+      <span class="aside" id="dlg-aside"></span>
+      <button class="ib" id="dlg-close" aria-label="Close"></button>
+    </div>
+    <div class="dlg-body">
+      <div class="side" id="side"></div>
+      <div class="list" id="list"></div>
+    </div>
+    <div class="dlg-foot"><div class="then" id="then"></div></div>
+  </div>
+</div>
+
+<div class="player" id="player"></div>
+
+<script>
+const ICONS = {"BsMusicNoteList":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" height=\"1em\" width=\"1em\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M12 13c0 1.105-1.12 2-2.5 2S7 14.105 7 13s1.12-2 2.5-2 2.5.895 2.5 2\"></path><path fill-rule=\"evenodd\" d=\"M12 3v10h-1V3z\"></path><path d=\"M11 2.82a1 1 0 0 1 .804-.98l3-.6A1 1 0 0 1 16 2.22V4l-5 1z\"></path><path fill-rule=\"evenodd\" d=\"M0 11.5a.5.5 0 0 1 .5-.5H4a.5.5 0 0 1 0 1H.5a.5.5 0 0 1-.5-.5m0-4A.5.5 0 0 1 .5 7H8a.5.5 0 0 1 0 1H.5a.5.5 0 0 1-.5-.5m0-4A.5.5 0 0 1 .5 3H8a.5.5 0 0 1 0 1H.5a.5.5 0 0 1-.5-.5\"></path></svg>","BsArrowCounterclockwise":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" height=\"1em\" width=\"1em\" xmlns=\"http://www.w3.org/2000/svg\"><path fill-rule=\"evenodd\" d=\"M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z\"></path><path d=\"M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466\"></path></svg>","BsCheck2":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" height=\"1em\" width=\"1em\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0\"></path></svg>","BsX":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" height=\"1em\" width=\"1em\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708\"></path></svg>","BsPlayFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" height=\"1em\" width=\"1em\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393\"></path></svg>","BsPauseFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" height=\"1em\" width=\"1em\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5\"></path></svg>","BsSkipBackwardFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" height=\"1em\" width=\"1em\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M.5 3.5A.5.5 0 0 0 0 4v8a.5.5 0 0 0 1 0V8.753l6.267 3.636c.54.313 1.233-.066 1.233-.697v-2.94l6.267 3.636c.54.314 1.233-.065 1.233-.696V4.308c0-.63-.693-1.01-1.233-.696L8.5 7.248v-2.94c0-.63-.692-1.01-1.233-.696L1 7.248V4a.5.5 0 0 0-.5-.5\"></path></svg>","BsSkipForwardFill":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" height=\"1em\" width=\"1em\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M15.5 3.5a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-1 0V8.753l-6.267 3.636c-.54.313-1.233-.066-1.233-.697v-2.94l-6.267 3.636C.693 12.703 0 12.324 0 11.693V4.308c0-.63.693-1.01 1.233-.696L7.5 7.248v-2.94c0-.63.693-1.01 1.233-.696L15 7.248V4a.5.5 0 0 1 .5-.5\"></path></svg>","BsHeart":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" height=\"1em\" width=\"1em\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143q.09.083.176.171a3 3 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15\"></path></svg>","BsChatQuote":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" height=\"1em\" width=\"1em\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M2.678 11.894a1 1 0 0 1 .287.801 11 11 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8 8 0 0 0 8 14c3.996 0 7-2.807 7-6s-3.004-6-7-6-7 2.808-7 6c0 1.468.617 2.83 1.678 3.894m-.493 3.905a22 22 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a10 10 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9 9 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105\"></path><path d=\"M7.066 6.76A1.665 1.665 0 0 0 4 7.668a1.667 1.667 0 0 0 2.561 1.406c-.131.389-.375.804-.777 1.22a.417.417 0 0 0 .6.58c1.486-1.54 1.293-3.214.682-4.112zm4 0A1.665 1.665 0 0 0 8 7.668a1.667 1.667 0 0 0 2.561 1.406c-.131.389-.375.804-.777 1.22a.417.417 0 0 0 .6.58c1.486-1.54 1.293-3.214.682-4.112z\"></path></svg>","BsDashCircle":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" height=\"1em\" width=\"1em\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16\"></path><path d=\"M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8\"></path></svg>","BsRepeat":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" height=\"1em\" width=\"1em\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M11 5.466V4H5a4 4 0 0 0-3.584 5.777.5.5 0 1 1-.896.446A5 5 0 0 1 5 3h6V1.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384l-2.36 1.966a.25.25 0 0 1-.41-.192m3.81.086a.5.5 0 0 1 .67.225A5 5 0 0 1 11 13H5v1.466a.25.25 0 0 1-.41.192l-2.36-1.966a.25.25 0 0 1 0-.384l2.36-1.966a.25.25 0 0 1 .41.192V12h6a4 4 0 0 0 3.585-5.777.5.5 0 0 1 .225-.67Z\"></path></svg>","BsBoxArrowInDown":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 16 16\" height=\"1em\" width=\"1em\" xmlns=\"http://www.w3.org/2000/svg\"><path fill-rule=\"evenodd\" d=\"M3.5 6a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 1 0-1h2A1.5 1.5 0 0 1 14 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-8A1.5 1.5 0 0 1 3.5 5h2a.5.5 0 0 1 0 1z\"></path><path fill-rule=\"evenodd\" d=\"M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z\"></path></svg>"};
+const DATA = [{"id": 126, "title": "OK Computer", "artist": "Radiohead", "year": 1997, "tracks": [{"d": 1, "n": 1, "t": "Airbag", "s": 284}, {"d": 1, "n": 2, "t": "Paranoid Android", "s": 383}, {"d": 1, "n": 3, "t": "Subterranean Homesick Alien", "s": 268}, {"d": 1, "n": 4, "t": "Exit Music (for a Film)", "s": 265}, {"d": 1, "n": 5, "t": "Let Down", "s": 299}, {"d": 1, "n": 6, "t": "Karma Police", "s": 262}, {"d": 1, "n": 7, "t": "Fitter Happier", "s": 117}, {"d": 1, "n": 8, "t": "Electioneering", "s": 231}, {"d": 1, "n": 9, "t": "Climbing Up the Walls", "s": 285}, {"d": 1, "n": 10, "t": "No Surprises", "s": 229}, {"d": 1, "n": 11, "t": "Lucky", "s": 260}, {"d": 1, "n": 12, "t": "The Tourist", "s": 325}]}, {"id": 128, "title": "Abbey Road", "artist": "The Beatles", "year": 1987, "tracks": [{"d": 1, "n": 1, "t": "Come Together", "s": 261}, {"d": 1, "n": 2, "t": "Something", "s": 183}, {"d": 1, "n": 3, "t": "Maxwell’s Silver Hammer", "s": 207}, {"d": 1, "n": 4, "t": "Oh! Darling", "s": 207}, {"d": 1, "n": 5, "t": "Octopus’s Garden", "s": 171}, {"d": 1, "n": 6, "t": "I Want You (She’s So Heavy)", "s": 467}, {"d": 1, "n": 7, "t": "Here Comes the Sun", "s": 186}, {"d": 1, "n": 8, "t": "Because", "s": 166}, {"d": 1, "n": 9, "t": "You Never Give Me Your Money", "s": 242}, {"d": 1, "n": 10, "t": "Sun King", "s": 146}, {"d": 1, "n": 11, "t": "Mean Mr Mustard", "s": 66}, {"d": 1, "n": 12, "t": "Polythene Pam", "s": 73}, {"d": 1, "n": 13, "t": "She Came In Through the Bathroom Window", "s": 118}, {"d": 1, "n": 14, "t": "Golden Slumbers", "s": 92}, {"d": 1, "n": 15, "t": "Carry That Weight", "s": 97}, {"d": 1, "n": 16, "t": "The End", "s": 140}, {"d": 1, "n": 17, "t": "Her Majesty", "s": 23}]}, {"id": 162, "title": "Préludes · Piano Sonata No. 2", "artist": "Frédéric Chopin, Martha Argerich", "year": 2002, "tracks": [{"d": 1, "n": 1, "t": "24 Préludes, op. 28 no. 1 in C major: Agitato", "s": 31}, {"d": 1, "n": 2, "t": "24 Préludes, op. 28 no. 2 in A minor: Lento", "s": 129}, {"d": 1, "n": 3, "t": "24 Préludes, op. 28 no. 3 in G major: Vivace", "s": 51}, {"d": 1, "n": 4, "t": "24 Préludes, op. 28 no. 4 in E minor: Largo", "s": 111}, {"d": 1, "n": 5, "t": "24 Préludes, op. 28 no. 5 in D major: Molto allegro", "s": 30}, {"d": 1, "n": 6, "t": "24 Préludes, op. 28 no. 6 in B minor: Lento assai", "s": 106}, {"d": 1, "n": 7, "t": "24 Préludes, op. 28 no. 7 in A major: Andantino", "s": 44}, {"d": 1, "n": 8, "t": "24 Préludes, op. 28 no. 8 in F‐sharp minor: Molto agitato", "s": 89}, {"d": 1, "n": 9, "t": "24 Préludes, op. 28 no. 9 in E major: Largo", "s": 90}, {"d": 1, "n": 10, "t": "24 Préludes, op. 28 no. 10 in C‐sharp minor: Molto allegro", "s": 24}, {"d": 1, "n": 11, "t": "24 Préludes, op. 28 no. 11 in B major: Vivace", "s": 32}, {"d": 1, "n": 12, "t": "24 Préludes, op. 28 no. 12 in G‐sharp minor: Presto", "s": 57}, {"d": 1, "n": 13, "t": "24 Préludes, op. 28 no. 13 in F‐sharp major: Lento", "s": 164}, {"d": 1, "n": 14, "t": "24 Préludes, op. 28 no. 14 in E‐flat minor: Allegro", "s": 29}, {"d": 1, "n": 15, "t": "24 Préludes, op. 28 no. 15 in D‐flat major: Sostenuto", "s": 290}, {"d": 1, "n": 16, "t": "24 Préludes, op. 28 no. 16 in B‐flat minor: Presto con fuoco", "s": 58}, {"d": 1, "n": 17, "t": "24 Préludes, op. 28 no. 17 in A‐flat major: Allegretto", "s": 170}, {"d": 1, "n": 18, "t": "24 Préludes, op. 28 no. 18 in F minor: Molto allegro", "s": 46}, {"d": 1, "n": 19, "t": "24 Préludes, op. 28 no. 19 in E‐flat major: Vivace", "s": 64}, {"d": 1, "n": 20, "t": "24 Préludes, op. 28 no. 20 in C minor: Largo", "s": 92}, {"d": 1, "n": 21, "t": "24 Préludes, op. 28 no. 21 in B major: Cantabile", "s": 93}, {"d": 1, "n": 22, "t": "24 Préludes, op. 28 no. 22 in G minor: Molto agitato", "s": 34}, {"d": 1, "n": 23, "t": "24 Préludes, op. 28 no. 23 in F major: Moderato", "s": 43}, {"d": 1, "n": 24, "t": "24 Préludes, op. 28 no. 24 in D minor: Allegro appassionato", "s": 136}, {"d": 1, "n": 25, "t": "Prélude no. 25 in C‐sharp minor: op. 45: Sostenuto", "s": 242}, {"d": 1, "n": 26, "t": "Prélude no. 26 in A‐flat major: op. posth: Presto con leggierezza", "s": 46}, {"d": 1, "n": 27, "t": "Piano Sonata no. 2 in B‐flat minor: op. 35: I. Grave – Doppio movimento", "s": 400}, {"d": 1, "n": 28, "t": "Piano Sonata no. 2 in B‐flat minor: op. 35: II. Scherzo", "s": 364}, {"d": 1, "n": 29, "t": "Piano Sonata no. 2 in B‐flat minor: op. 35: III. Marche funèbre. Lento", "s": 514}, {"d": 1, "n": 30, "t": "Piano Sonata no. 2 in B‐flat minor: op. 35: IV. Finale. Presto", "s": 87}]}, {"id": 155, "title": "A Live One", "artist": "Phish", "year": 1995, "tracks": [{"d": 1, "n": 1, "t": "Bouncing Around the Room", "s": 248}, {"d": 1, "n": 2, "t": "Stash", "s": 752}, {"d": 1, "n": 3, "t": "Gumbo", "s": 315}, {"d": 1, "n": 4, "t": "Montana", "s": 124}, {"d": 1, "n": 5, "t": "You Enjoy Myself", "s": 1257}, {"d": 1, "n": 6, "t": "Chalk Dust Torture", "s": 409}, {"d": 1, "n": 7, "t": "Slave to the Traffic Light", "s": 646}, {"d": 2, "n": 1, "t": "Wilson", "s": 307}, {"d": 2, "n": 2, "t": "Tweezer", "s": 1856}, {"d": 2, "n": 3, "t": "Simple", "s": 294}, {"d": 2, "n": 4, "t": "Harry Hood", "s": 912}, {"d": 2, "n": 5, "t": "The Squirming Coil", "s": 750}]}, {"id": 25, "title": "21", "artist": "Adele", "year": 2011, "tracks": [{"d": 1, "n": 1, "t": "Rolling in the Deep", "s": 229}, {"d": 1, "n": 2, "t": "Rumour Has It", "s": 223}, {"d": 1, "n": 3, "t": "Turning Tables", "s": 250}, {"d": 1, "n": 4, "t": "Don’t You Remember", "s": 243}, {"d": 1, "n": 5, "t": "Set Fire to the Rain", "s": 242}, {"d": 1, "n": 6, "t": "He Won’t Go", "s": 278}, {"d": 1, "n": 7, "t": "Take It All", "s": 228}, {"d": 1, "n": 8, "t": "I’ll Be Waiting", "s": 242}, {"d": 1, "n": 9, "t": "One and Only", "s": 348}, {"d": 1, "n": 10, "t": "Lovesong", "s": 316}, {"d": 1, "n": 11, "t": "Someone Like You", "s": 295}, {"d": 1, "n": 12, "t": "Turning Tables (live acoustic)", "s": 261}, {"d": 1, "n": 13, "t": "Don’t You Remember (live acoustic)", "s": 259}, {"d": 1, "n": 14, "t": "Someone Like You (live acoustic)", "s": 316}]}, {"id": 4, "title": "Savoir aimer", "artist": "Florent Pagny", "year": 1997, "tracks": [{"d": 1, "n": 1, "t": "Savoir aimer", "s": 282}, {"d": 1, "n": 2, "t": "Dors", "s": 238}, {"d": 1, "n": 3, "t": "Sierra Cuadrada", "s": 331}, {"d": 1, "n": 4, "t": "Mourir les yeux ouverts", "s": 253}, {"d": 1, "n": 5, "t": "Loin de toi", "s": 315}, {"d": 1, "n": 6, "t": "Une place pour moi", "s": 257}, {"d": 1, "n": 7, "t": "Protection", "s": 254}, {"d": 1, "n": 8, "t": "Combien ça va", "s": 228}, {"d": 1, "n": 9, "t": "Chanter", "s": 229}, {"d": 1, "n": 10, "t": "Sólo le pido a Dios", "s": 260}, {"d": 1, "n": 11, "t": "D’un amour, l’autre", "s": 169}]}];
+const icon = n => ICONS[n];
+const byId = Object.fromEntries(DATA.map(a => [a.id, a]));
+const cover = id => `cover-${id}.jpg`;
+const time = s => s == null ? '' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const long = s => { const m = Math.round(s / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}` : `${m} min`; };
+const sum = a => a.tracks.reduce((t, x) => t + (x.s || 0), 0);
+
+/* The session: in the play's order. state = left (played to its end, out by its scrobble), out (taken out by hand), listed. */
+const SESSION = [
+  { id: 126, state: 'left', heard: 12 },
+  { id: 128, state: 'out', heard: 6 },
+  { id: 162, state: 'listed' },
+  { id: 155, state: 'listed' },
+  { id: 25, state: 'listed' },
+  { id: 4, state: 'listed' },
+];
+
+const VARIANTS = {
+  detour: { label: 'A · Détour (recommandé)',
+    verdict: '<b>A · Détour.</b> Les CD sortis restent en tête, à leur place dans la séance, pochette grise et étiquette « Played » ou « Taken out ». Une piste cliquée s’y joue jusqu’à la fin de ce CD, <b>sans le remettre dans la liste</b> ; puis Listen Next reprend là où tu l’avais laissé, à la piste quittée. Un ↺ « Put back » sur la pochette le remet à sa place dans la liste, comme Keep here.' },
+  putback: { label: 'B · Remis en liste',
+    verdict: '<b>B · Remis en liste.</b> Cliquer une piste d’un CD sorti le remet dans Listen Next à sa place d’origine et le joue depuis cette piste ; la lecture continue ensuite dans l’ordre de la liste. Simple à expliquer, mais un clic modifie la liste (et le CD ressortira s’il est écouté jusqu’au bout).' },
+  folded: { label: 'C · Repliés, consultables',
+    verdict: '<b>C · Repliés.</b> Les CD sortis tiennent sur une ligne « 2 played this session », qui se déplie. Dépliés, ils se comportent comme en A (détour). La fenêtre s’ouvre sur ce qui vient, l’historique ne prend de place que si on le demande.' },
+};
+
+let mode = 'ln';           // ln: Listen Next, one: an album alone
+let variant = 'detour';
+let showByHand = true;
+let unfolded = false;
+let now = { id: 162, index: 4 };
+let resumeAt = null;       // A: where Listen Next goes back to after a detour
+let playing = true;
+let open = false;
+let focusId = 162;
+
+const session = () => SESSION.filter(s => showByHand || s.state !== 'out');
+const gone = s => s.state !== 'listed';
+
+/* ------------------------------------------------------------ What comes next */
+function thenLine() {
+  if (mode === 'one') {
+    const a = byId[now.id];
+    const left = a.tracks.slice(now.index + 1);
+    return left.length ? `Puis : la suite de <b>${a.title}</b>, ${left.length} piste${left.length > 1 ? 's' : ''}, puis le lecteur s’arrête.` : 'Dernière piste : le lecteur s’arrête après.';
+  }
+  const ses = SESSION;
+  const cur = ses.find(s => s.id === now.id);
+  const a = byId[now.id];
+  const rest = a.tracks.length - now.index - 1;
+  if (gone(cur) && variant !== 'putback') {
+    const back = resumeAt ? `retour à <b>${byId[resumeAt.id].title}</b>, piste ${resumeAt.index + 1}` : 'Listen Next reprend';
+    return `Détour : <b>${a.title}</b> joue jusqu’au bout (${rest} piste${rest > 1 ? 's' : ''} après celle-ci), sans revenir dans la liste. Puis ${back}.`;
+  }
+  const listed = ses.filter(s => s.state === 'listed');
+  const at = listed.findIndex(s => s.id === now.id);
+  const next = listed[at + 1];
+  const skippedNote = resumeAt && resumeAt.id !== now.id && byId[resumeAt.id] ? ` <b>${byId[resumeAt.id].title}</b> reste dans la liste (sauté, pas retiré).` : '';
+  return `Puis : ${rest} piste${rest > 1 ? 's' : ''} de <b>${a.title}</b>, ${next ? `puis <b>${byId[next.id].title}</b>` : 'puis la fin de la liste'}.${skippedNote}`;
+}
+
+/* ------------------------------------------------------------ Jumping */
+function jump(id, index) {
+  const s = SESSION.find(x => x.id === id);
+  if (mode === 'ln' && gone(s) && variant === 'putback') {
+    s.state = 'listed';
+    // Back at its place: it comes before the album that was playing.
+  }
+  if (mode === 'ln' && gone(s) && variant !== 'putback' && !gone(SESSION.find(x => x.id === now.id))) {
+    resumeAt = { ...now };
+  } else if (mode === 'ln' && !gone(s)) {
+    const cur = SESSION.find(x => x.id === now.id);
+    resumeAt = now.id !== id && !gone(cur) ? { ...now } : null;
+  }
+  now = { id, index };
+  playing = true;
+  focusId = id;
+  render();
+}
+
+function putBack(id) {
+  const s = SESSION.find(x => x.id === id);
+  s.state = 'listed';
+  render();
+}
+
+/* ------------------------------------------------------------ Rendering */
+function trackRows(a, sesEntry) {
+  const discs = new Set(a.tracks.map(t => t.d)).size;
+  let html = '', lastDisc = null;
+  a.tracks.forEach((t, i) => {
+    if (discs > 1 && t.d !== lastDisc) { html += `<div class="disc">Disc ${t.d}</div>`; lastDisc = t.d; }
+    const isNow = now.id === a.id && now.index === i;
+    const heard = mode === 'ln' && sesEntry && sesEntry.heard && i < sesEntry.heard;
+    html += `<button class="trk${isNow ? ' now' : ''}${heard ? ' heard' : ''}" data-album="${a.id}" data-index="${i}" ${isNow ? 'aria-current="true"' : ''}>
+      ${isNow ? '<span class="bars"><i></i><i></i><i></i></span>' : `<span class="no">${t.n}</span><span class="pl">${icon('BsPlayFill')}</span>`}
+      <span class="ti">${t.t}</span><span class="du">${time(t.s)}</span></button>`;
+  });
+  return html;
+}
+
+function statusTag(s) {
+  if (!s) return '';
+  if (s.id === now.id) return `<span class="tag on">${icon('BsPlayFill')} Playing</span>`;
+  if (s.state === 'left') return `<span class="tag muted">${icon('BsCheck2')} Played</span>`;
+  if (s.state === 'out') return `<span class="tag muted">Taken out</span>`;
+  return '';
+}
+
+function renderSide() {
+  const a = byId[focusId];
+  const s = SESSION.find(x => x.id === focusId);
+  const isGone = mode === 'ln' && s && gone(s);
+  const discs = new Set(a.tracks.map(t => t.d)).size;
+  const actions = isGone && variant !== 'putback'
+    ? `<div class="act"><button class="ubtn" data-putback="${a.id}" title="Back in Listen Next, at its place">${icon('BsArrowCounterclockwise')} Put back</button></div>` : '';
+  document.getElementById('side').innerHTML = `
+    <div class="big${isGone ? ' gone' : ''}"><img src="${cover(a.id)}" alt=""><div class="tags">${mode === 'ln' ? statusTag(s) : ''}</div></div>
+    <div><h3>${a.title}</h3><div class="who">${a.artist}</div></div>
+    <div class="facts">${[a.year, discs > 1 ? `${discs} CDs` : null, `${a.tracks.length} tracks`, long(sum(a))].filter(Boolean).join(' · ')}</div>
+    ${actions}`;
+}
+
+function render() {
+  const bd = document.getElementById('backdrop');
+  bd.classList.toggle('open', open);
+  bd.classList.toggle('single', mode === 'one');
+  bd.classList.toggle('paused', !playing);
+  if (!byId[focusId]) focusId = now.id;
+
+  const list = document.getElementById('list');
+  const scroll = list.scrollTop;
+  let html = '';
+  if (mode === 'one') {
+    html = `<div class="album" data-id="${now.id}">${trackRows(byId[now.id])}</div>`;
+    document.getElementById('dlg-title').textContent = byId[now.id].title;
+    document.getElementById('dlg-icon').innerHTML = icon('BsMusicNoteList');
+    document.getElementById('dlg-aside').textContent = byId[now.id].artist;
+  } else {
+    const ses = session();
+    const past = ses.filter(s => gone(s) && s.id !== now.id);
+    const fold = variant === 'folded' && !unfolded && past.length;
+    if (fold) {
+      html += `<button class="folded" id="unfold"><span class="stack">${past.map(s => `<img src="${cover(s.id)}" alt="">`).join('')}</span>
+        <span style="flex:1">${past.length} played this session</span><span style="font-size:12px">Show</span></button>`;
+    }
+    for (const s of ses) {
+      if (fold && gone(s) && s.id !== now.id) continue;
+      const a = byId[s.id];
+      const g = gone(s);
+      html += `<section class="album${g ? ' gone' : ''}${g && variant === 'none' ? ' locked' : ''}" data-id="${a.id}">
+        <div class="ahead"><img src="${cover(a.id)}" alt=""><span class="t"><b>${a.title}</b><span>${a.artist}</span></span>${statusTag(s)}</div>
+        ${trackRows(a, s)}</section>`;
+    }
+    const listed = SESSION.filter(s => s.state === 'listed');
+    const curIdx = listed.findIndex(s => s.id === now.id);
+    const remaining = listed.slice(Math.max(0, curIdx)).reduce((t, s) => t + sum(byId[s.id]), 0);
+    document.getElementById('dlg-title').textContent = 'Listen Next';
+    document.getElementById('dlg-icon').innerHTML = icon('BsMusicNoteList');
+    document.getElementById('dlg-aside').textContent = `${listed.length} albums · ~${long(remaining)} left`;
+  }
+  list.innerHTML = html;
+  list.scrollTop = scroll;
+  renderSide();
+  document.getElementById('then').innerHTML = thenLine();
+  renderPlayer();
+  renderControls();
+}
+
+function renderPlayer() {
+  const a = byId[now.id], t = a.tracks[now.index];
+  const pos = Math.round((t.s || 200) * 0.32);
+  document.getElementById('player').innerHTML = `
+    <div class="prog"><span style="width:32%"></span></div>
+    <div class="inner">
+      <div class="alb"><img src="${cover(a.id)}" alt=""><span class="meta"><b>${t.t}</b><span>${a.title} · ${a.artist}</span></span></div>
+      <span class="tm">${time(pos)} / ${time(t.s)}</span>
+      <button class="pb">${icon('BsHeart')}</button>
+      <button class="pb lyr">${icon('BsChatQuote')}</button>
+      <button class="pb new${open ? ' on' : ''}" id="open-tracks" title="${mode === 'ln' ? 'Tracks of Listen Next' : 'Tracks'}" aria-label="Tracks" aria-pressed="${open}">${icon('BsMusicNoteList')}</button>
+      <button class="pb prev" id="prev">${icon('BsSkipBackwardFill')}</button>
+      <button class="pb play" id="toggle">${icon(playing ? 'BsPauseFill' : 'BsPlayFill')}</button>
+      <button class="pb" id="next">${icon('BsSkipForwardFill')}</button>
+      <button class="pb stop">${icon('BsX')}</button>
+    </div>`;
+}
+
+function renderControls() {
+  const seg = (el, items, cur) => { el.innerHTML = Object.entries(items).map(([k, v]) => `<button data-k="${k}" class="${k === cur ? 'on' : ''}">${v}</button>`).join(''); };
+  seg(document.getElementById('mode'), { ln: 'Listen Next', one: 'Album seul' }, mode);
+  seg(document.getElementById('variant'), Object.fromEntries(Object.entries(VARIANTS).map(([k, v]) => [k, v.label])), variant);
+  document.getElementById('verdict').innerHTML = mode === 'one'
+    ? '<b>Album seul</b> (lancé depuis une fiche ou une grille) : la même fenêtre, sans liste d’albums. La pochette à gauche, les pistes à droite ; une piste cliquée joue avec la suite de l’album, puis le lecteur s’arrête, comme aujourd’hui.'
+    : VARIANTS[variant].verdict;
+}
+
+/* The cover on the left follows the album the list is at: the one whose head is stuck at the top. */
+function followScroll() {
+  if (mode === 'one') return;
+  const list = document.getElementById('list');
+  const top = list.getBoundingClientRect().top;
+  let id = null;
+  for (const sec of list.querySelectorAll('section.album')) {
+    if (sec.getBoundingClientRect().top - top <= 40) id = Number(sec.dataset.id);
+  }
+  if (id == null) id = Number(list.querySelector('section.album')?.dataset.id);
+  if (id && id !== focusId) { focusId = id; renderSide(); }
+}
+
+function scrollToNow() {
+  const list = document.getElementById('list');
+  const el = list.querySelector('.trk.now');
+  if (!el) return;
+  list.style.scrollBehavior = 'auto';
+  list.scrollTop = el.offsetTop - list.offsetTop - 120;
+  list.style.scrollBehavior = '';
+  followScroll();
+}
+
+/* ------------------------------------------------------------ Events */
+document.addEventListener('click', e => {
+  const t = e.target.closest('button');
+  if (e.target.id === 'backdrop') { open = false; render(); return; }
+  if (!t) return;
+  if (t.id === 'open-tracks') { open = !open; focusId = now.id; render(); if (open) { scrollToNow(); document.querySelector('.trk.now')?.focus({ preventScroll: true }); } return; }
+  if (t.id === 'dlg-close') { open = false; render(); return; }
+  if (t.id === 'toggle') { playing = !playing; render(); return; }
+  if (t.id === 'unfold') { unfolded = true; render(); return; }
+  if (t.dataset.putback) { putBack(Number(t.dataset.putback)); return; }
+  if (t.classList.contains('trk')) {
+    const sec = t.closest('.album');
+    if (sec.classList.contains('locked')) return;
+    jump(Number(t.dataset.album), Number(t.dataset.index));
+    document.querySelector('.trk.now')?.focus({ preventScroll: true });
+    return;
+  }
+  if (t.parentElement?.id === 'mode') { mode = t.dataset.k; if (mode === 'one') { focusId = now.id; } render(); if (open) scrollToNow(); return; }
+  if (t.parentElement?.id === 'variant') {
+    variant = t.dataset.k; unfolded = false; resumeAt = null;
+    SESSION[0].state = 'left'; SESSION[1].state = 'out';
+    if (SESSION.find(s => s.id === now.id).state !== 'listed' || mode === 'ln') { now = { id: 162, index: 4 }; focusId = 162; }
+    render(); if (open) scrollToNow(); return;
+  }
+});
+document.getElementById('byhand').addEventListener('change', e => { showByHand = e.target.checked; render(); });
+document.getElementById('list').addEventListener('scroll', followScroll);
+document.addEventListener('keydown', e => {
+  if (!open) return;
+  if (e.key === 'Escape') { open = false; render(); document.getElementById('open-tracks').focus(); }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    const all = [...document.querySelectorAll('.album:not(.locked) .trk')];
+    const i = all.indexOf(document.activeElement);
+    const n = all[Math.max(0, Math.min(all.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))];
+    if (n) { n.focus(); n.scrollIntoView({ block: 'nearest' }); e.preventDefault(); }
+  }
+});
+
+document.getElementById('ic-inline').innerHTML = icon('BsMusicNoteList');
+document.getElementById('dlg-close').innerHTML = icon('BsX');
+open = true;
+render();
+scrollToNow();
+</script>
+</body>
+</html>

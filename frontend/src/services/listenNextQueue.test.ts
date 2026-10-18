@@ -2,20 +2,20 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { AlbumEnd, PlayOptions } from './player';
 
 const list = vi.hoisted(() => ({ ids: [] as number[], ripped: new Set<number>() }));
-const plays = vi.hoisted(() => [] as Array<{ id: number; options: PlayOptions }>);
+const plays = vi.hoisted(() => [] as Array<{ id: number; options: PlayOptions; index: number }>);
 
 vi.mock('./musicService', () => ({
   default: { getListenNextAlbums: vi.fn(async () => list.ids.map(id => ({ id }))) },
 }));
 vi.mock('../utils/playAlbum', () => ({
-  playAlbumById: vi.fn(async (id: number, options: PlayOptions) => {
+  playAlbumById: vi.fn(async (id: number, options: PlayOptions, index = 0) => {
     if (!list.ripped.has(id)) return false;
-    plays.push({ id, options });
+    plays.push({ id, options, index });
     return true;
   }),
 }));
 
-import { albumsAfter, listenNextQueue, resetListenNextQueue, withCurrent } from './listenNextQueue';
+import { albumsAfter, listenNextQueue, resetListenNextQueue, sessionAlbums, withCurrent } from './listenNextQueue';
 import { player, resetPlayer, restorePlayer } from './player';
 
 const playing = () => plays[plays.length - 1];
@@ -147,5 +147,72 @@ describe('Listen Next after a reload', () => {
     made.find(audio => audio.src.endsWith('/stream/s1'))!.dispatchEvent(new Event('ended'));
 
     await vi.waitFor(() => expect(plays.map(play => play.id)).toEqual([2]));
+  });
+});
+
+describe('the tracks dialog of Listen Next', () => {
+  const session = { startedAt: 1, albums: [1, 2, 3], heard: [1], detour: null };
+
+  it('shows the albums of the play out of the list that were heard, or play, then the list', () => {
+    // 1 heard then out, 2 taken out unheard, 3 still listed.
+    expect(sessionAlbums(session, [3, 4], null)).toEqual({ gone: [1], listed: [3, 4] });
+    expect(sessionAlbums(session, [3, 4], 2)).toEqual({ gone: [1, 2], listed: [3, 4] });
+  });
+
+  it('notes the albums played and those a track of which counted', async () => {
+    await listenNextQueue.start();
+    playing().options.onCounted!();
+    list.ids = [2, 3];
+    await end('ended');
+    expect(listenNextQueue.session()).toMatchObject({ albums: [1, 2], heard: [1] });
+    expect((await listenNextQueue.albums())).toEqual({ gone: [1], listed: [2, 3] });
+  });
+
+  it('jumps to a track of another album of the list, the one left coming round in the turn', async () => {
+    await listenNextQueue.start();
+    expect(await listenNextQueue.jumpTo(3, 4)).toBe(true);
+    expect(playing()).toMatchObject({ id: 3, index: 4 });
+    expect(await end('ended')).toBe(true);
+    expect(playing()).toMatchObject({ id: 1, index: 0 });
+  });
+
+  it('jumps within the album playing without leaving it', async () => {
+    await listenNextQueue.start();
+    const playTrack = vi.spyOn(player, 'playTrack').mockImplementation(() => undefined);
+    expect(await listenNextQueue.jumpTo(1, 3)).toBe(true);
+    expect(playTrack).toHaveBeenCalledWith(3);
+    expect(plays).toHaveLength(1);
+    playTrack.mockRestore();
+  });
+
+  it('takes a detour into an album out of the list, then goes back to the track left', async () => {
+    await listenNextQueue.start(2);
+    playing().options.onCounted!();
+    list.ids = [1, 3];
+    await end('ended');
+    expect(playing().id).toBe(3);
+
+    expect(await listenNextQueue.jumpTo(2, 5)).toBe(true);
+    expect(playing()).toMatchObject({ id: 2, index: 5 });
+    expect(listenNextQueue.session().detour).toEqual({ albumId: 2, back: { albumId: 3, index: 0 } });
+    expect(list.ids).toEqual([1, 3]);
+
+    // Over: back to album 3 where it was left, the detour done with.
+    expect(await end('ended')).toBe(true);
+    expect(playing()).toMatchObject({ id: 3, index: 0 });
+    expect(listenNextQueue.session().detour).toBeNull();
+  });
+
+  it('keeps the way back of the first detour through a second one', async () => {
+    list.ids = [3];
+    await listenNextQueue.start();
+    window.localStorage.setItem('dexvault.listenNext.session', JSON.stringify({
+      startedAt: 1, albums: [1, 2, 3], heard: [1, 2], detour: null,
+    }));
+    await listenNextQueue.jumpTo(1, 2);
+    await listenNextQueue.jumpTo(2, 0);
+    expect(listenNextQueue.session().detour).toEqual({ albumId: 2, back: { albumId: 3, index: 0 } });
+    await end('ended');
+    expect(playing().id).toBe(3);
   });
 });

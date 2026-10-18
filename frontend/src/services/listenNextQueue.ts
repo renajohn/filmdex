@@ -1,6 +1,7 @@
 import musicService from './musicService';
 import { LISTEN_NEXT_LEFT_EVENT, player, registerQueue, type PlayOptions } from './player';
 import { playAlbumById } from '../utils/playAlbum';
+import { readStored, writeStored } from '../utils/safeStorage';
 
 /**
  * Listen Next played on the computer, album after album. The list is read
@@ -12,6 +13,10 @@ import { playAlbumById } from '../utils/playAlbum';
  * With Repeat off, the play stops when nothing is left, or when it comes back
  * to an album skipped or played in this play: a skipped album comes round
  * once, not for ever.
+ *
+ * The tracks' dialog jumps to a track of the list, or to one of an album
+ * that left it in this play: a detour, played to its end out of the list,
+ * after which Listen Next goes back where it was.
  */
 
 /** The list as last read, the album playing kept at its place even once out of it. */
@@ -24,6 +29,59 @@ const skipped = new Set<number>();
 const played = new Set<number>();
 /** Albums that left the list once played, as the server said: not taken out by hand. */
 const departed = new Set<number>();
+
+/** Where Listen Next goes back to once a detour is over: the album and the track it was left on. */
+export interface DetourBack {
+  albumId: number;
+  index: number;
+}
+
+/**
+ * The play of Listen Next since its ▶, kept in the browser for a reload: the
+ * albums played in turn, those of which a track was counted as played, and
+ * the detour under way.
+ */
+export interface ListenNextSession {
+  /** Unix seconds. */
+  startedAt: number;
+  albums: number[];
+  heard: number[];
+  detour: { albumId: number; back: DetourBack } | null;
+}
+
+const SESSION_KEY = 'dexvault.listenNext.session';
+
+const emptySession = (): ListenNextSession => ({ startedAt: 0, albums: [], heard: [], detour: null });
+
+const readSession = (): ListenNextSession => {
+  try {
+    const raw = readStored(SESSION_KEY);
+    const value = raw ? JSON.parse(raw) : null;
+    return value && Array.isArray(value.albums) && Array.isArray(value.heard) ? { ...emptySession(), ...value } : emptySession();
+  } catch {
+    return emptySession();
+  }
+};
+
+const noteSession = (change: (session: ListenNextSession) => void): void => {
+  const session = readSession();
+  change(session);
+  writeStored(SESSION_KEY, JSON.stringify(session));
+};
+
+const noteHeard = (id: number) => noteSession(session => {
+  if (!session.heard.includes(id)) session.heard.push(id);
+});
+
+/**
+ * The albums the tracks' dialog shows: those of this play that left the list
+ * and were heard, at least a track of them (one taken out by hand unheard was
+ * not wanted), or the one playing; then the list as it is.
+ */
+export const sessionAlbums = (session: ListenNextSession, ids: number[], current: number | null): { gone: number[]; listed: number[] } => ({
+  gone: session.albums.filter(id => !ids.includes(id) && (session.heard.includes(id) || id === current)),
+  listed: ids,
+});
 
 const listIds = async (): Promise<number[]> =>
   ((await musicService.getListenNextAlbums()) as Array<{ id: number }>).map(album => album.id);
@@ -68,13 +126,31 @@ const optionsFor = (id: number): PlayOptions => ({
   },
   // Taken out by hand while it plays: its track ends, then the next album.
   leaveAfterTrack: () => currentId === id && listed !== null && !listed.includes(id) && !departed.has(id),
+  onCounted: () => noteHeard(id),
 });
 
-const play = async (id: number): Promise<boolean> => {
-  const started = await playAlbumById(id, optionsFor(id)).catch(() => false);
-  if (started) currentId = id;
+const play = async (id: number, index = 0, options: PlayOptions = optionsFor(id)): Promise<boolean> => {
+  const started = await playAlbumById(id, options, index).catch(() => false);
+  if (started) {
+    currentId = id;
+    noteSession(session => { if (!session.albums.includes(id)) session.albums.push(id); });
+  }
   return started;
 };
+
+/** An album out of the list played to its end, then back to the track Listen Next was left on. */
+const detourOptions = (id: number, back: DetourBack): PlayOptions => ({
+  queue: 'listenNext',
+  onAlbumEnd: async () => {
+    noteSession(session => { session.detour = null; });
+    if (await play(back.albumId, back.index)) return true;
+    const ids = await listIds();
+    order = withCurrent(ids, order, back.albumId);
+    listed = ids;
+    return playFrom(albumsAfter(order, back.albumId, repeat));
+  },
+  onCounted: () => noteHeard(id),
+});
 
 if (typeof window !== 'undefined') {
   window.addEventListener(LISTEN_NEXT_LEFT_EVENT, event => {
@@ -89,6 +165,11 @@ export const listenNextQueue = {
    * goes on after it as before, the list read again meanwhile.
    */
   restore: (albumId: number): PlayOptions => {
+    const detour = readSession().detour;
+    if (detour?.albumId === albumId) {
+      currentId = albumId;
+      return detourOptions(albumId, detour.back);
+    }
     skipped.clear();
     played.clear();
     currentId = albumId;
@@ -106,6 +187,7 @@ export const listenNextQueue = {
   start: async (albumId?: number): Promise<boolean> => {
     skipped.clear();
     played.clear();
+    writeStored(SESSION_KEY, JSON.stringify({ ...emptySession(), startedAt: Math.floor(Date.now() / 1000) }));
     order = await listIds();
     listed = order;
     const at = albumId == null ? -1 : order.indexOf(albumId);
@@ -122,6 +204,42 @@ export const listenNextQueue = {
     order = withCurrent(ids, order, currentId);
     listed = ids;
   },
+
+  /**
+   * Jumps to track `index` of album `albumId`: of the album playing, the list
+   * goes on as it did; of another album of the list, the one left stays in it
+   * and comes round in the turn; of an album out of the list, a detour. False when
+   * nothing could be played.
+   */
+  jumpTo: async (albumId: number, index: number): Promise<boolean> => {
+    if (currentId == null) return false;
+    if (albumId === currentId) {
+      player.playTrack(index);
+      return true;
+    }
+    const ids = await listIds();
+    order = withCurrent(ids, order, currentId);
+    listed = ids;
+    if (ids.includes(albumId)) {
+      noteSession(session => { session.detour = null; });
+      return play(albumId, index);
+    }
+    // Out of the list: back where Listen Next was once it is over, the first detour's place kept.
+    const back = readSession().detour?.back ?? { albumId: currentId, index: player.getState().index };
+    const started = await play(albumId, index, detourOptions(albumId, back));
+    if (started) noteSession(session => { session.detour = { albumId, back }; });
+    return started;
+  },
+
+  /** The albums the tracks' dialog shows, the list read again. */
+  albums: async (): Promise<{ gone: number[]; listed: number[] }> => {
+    const ids = await listIds();
+    listed = ids;
+    return sessionAlbums(readSession(), ids, currentId);
+  },
+
+  /** This play's session, for the dialog to tell an album played to its end from one taken out. */
+  session: (): ListenNextSession => readSession(),
 
   setRepeat: (value: boolean): void => {
     repeat = value;
@@ -140,4 +258,5 @@ export const resetListenNextQueue = (): void => {
   skipped.clear();
   played.clear();
   departed.clear();
+  writeStored(SESSION_KEY, '');
 };

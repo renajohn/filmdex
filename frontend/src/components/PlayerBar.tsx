@@ -1,9 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BsChatQuote, BsHeart, BsHeartFill, BsPauseFill, BsPlayFill, BsSkipBackwardFill, BsSkipForwardFill, BsX } from 'react-icons/bs';
+import { BsChatQuote, BsHeart, BsHeartFill, BsMusicNoteList, BsPauseFill, BsPlayFill, BsSkipBackwardFill, BsSkipForwardFill, BsX } from 'react-icons/bs';
 import { player, usePlayer } from '../services/player';
 import { seedFavourite, setFavourite, useFavourite } from '../services/favourites';
 import toast from './shared/Toast';
+import PlayerTracks from './PlayerTracks';
 // Listen Next registers itself with the player, to go on after a reload whatever the page.
 import '../services/listenNextQueue';
 import './PlayerBar.css';
@@ -34,6 +35,7 @@ const PlayerBar: React.FC = () => {
   const error = usePlayer(state => state.error);
   const lyricsOpen = usePlayer(state => state.lyricsOpen);
   const favourite = useFavourite(track?.songId);
+  const [tracksOpen, setTracksOpen] = useState(false);
 
   // The heart the track had when the album was started, unless the card has told a newer one since.
   useEffect(() => { if (track) seedFavourite(track.songId, track.starred, true); }, [track]);
@@ -75,13 +77,16 @@ const PlayerBar: React.FC = () => {
             <span style={{ width: `${length > 0 ? Math.min(100, (position / length) * 100) : 0}%` }} />
           </div>
           <div className="player-bar-inner">
-            <button type="button" className="player-bar-album" onClick={open} title={`Open ${album.title}`}>
-              {album.cover ? <img src={album.cover} alt="" /> : <span className="player-bar-nocover" aria-hidden="true" />}
-              <span className="player-bar-meta">
+            {/* The cover opens the album's card; the track's name, the tracks to jump to. */}
+            <div className="player-bar-album">
+              <button type="button" className="player-bar-cover" onClick={open} title={`Open ${album.title}`} aria-label={`Open ${album.title}`}>
+                {album.cover ? <img src={album.cover} alt="" /> : <span className="player-bar-nocover" aria-hidden="true" />}
+              </button>
+              <button type="button" className="player-bar-meta" onClick={() => setTracksOpen(true)} title="Tracks">
                 <span className="player-bar-track">{track.title}</span>
                 <span className="player-bar-from">{error || `${album.title} · ${album.artist}`}</span>
-              </span>
-            </button>
+              </button>
+            </div>
             <span className="player-bar-time">{time(position)} / {time(length)}</span>
             {/* The track's heart, kept in Navidrome: the card's ♥ follows. */}
             <button type="button" className={`player-bar-button player-bar-favourite${favourite ? ' player-bar-favourite-on' : ''}`}
@@ -98,6 +103,11 @@ const PlayerBar: React.FC = () => {
                 <BsChatQuote aria-hidden="true" />
               </button>
             )}
+            {/* The tracks, to jump to one: of Listen Next, of its albums. */}
+            <button type="button" className={`player-bar-button player-bar-tracks${tracksOpen ? ' player-bar-tracks-on' : ''}`}
+              onClick={() => setTracksOpen(true)} aria-label="Tracks" aria-pressed={tracksOpen} title="Tracks">
+              <BsMusicNoteList aria-hidden="true" />
+            </button>
             <button type="button" className="player-bar-button player-bar-previous" onClick={() => player.previous()} aria-label="Previous">
               <BsSkipBackwardFill aria-hidden="true" />
             </button>
@@ -114,6 +124,7 @@ const PlayerBar: React.FC = () => {
         </>
         );
       })()}
+      <PlayerTracks show={tracksOpen && out} onClose={() => setTracksOpen(false)} />
     </div>
   );
 };

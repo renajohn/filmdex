@@ -53,6 +53,8 @@ export interface PlayOptions {
   onAlbumEnd?: AlbumEnd;
   /** Asked at the end of each track: the album is to be left there, taken out of its list. */
   leaveAfterTrack?: () => boolean;
+  /** A track of the album was counted as played, as Navidrome is told. */
+  onCounted?: () => void;
 }
 
 export interface PlayerState {
@@ -265,6 +267,7 @@ const setUp = () => {
       if (track && !scrobbled && duration > 0 && (position >= duration / 2 || position >= SCROBBLE_AFTER_SEC)) {
         scrobbled = true;
         post(track.songId, true);
+        options.onCounted?.();
       }
       if (Math.abs(position - lastSaved) >= 5) {
         lastSaved = position;
@@ -339,6 +342,12 @@ export const player = {
   next: () => {
     if (state.index + 1 < state.tracks.length) start(state.index + 1);
     else if (options.onAlbumEnd) endAlbum('skipped');
+  },
+
+  /** Another track of the album playing, from its start, the list it is played from kept. */
+  playTrack: (index: number) => {
+    if (!state.album || !state.tracks[index]) return;
+    start(index);
   },
 
   /** Back to the start of the track, or to the one before in its first seconds. */

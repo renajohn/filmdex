@@ -65,12 +65,31 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.player-bar-cover,
+.player-bar-meta {
   padding: 0;
   border: 0;
   background: none;
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.player-bar-cover {
+  flex: none;
+  display: flex;
+  border-radius: 5px;
+}
+
+.player-bar-cover:hover img,
+.player-bar-cover:focus-visible img {
+  box-shadow: 0 0 0 1.5px #fff;
+}
+
+.player-bar-cover:focus-visible {
+  outline: none;
 }
 
 .player-bar-album img,
@@ -84,6 +103,7 @@
 }
 
 .player-bar-meta {
+  flex: 0 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -106,12 +126,12 @@
   color: #9aa4b2;
 }
 
-.player-bar-album:hover .player-bar-track,
-.player-bar-album:focus-visible .player-bar-track {
+.player-bar-meta:hover .player-bar-track,
+.player-bar-meta:focus-visible .player-bar-track {
   color: var(--dv-gold);
 }
 
-.player-bar-album:focus-visible {
+.player-bar-meta:focus-visible {
   outline: none;
 }
 
@@ -179,6 +199,10 @@
 }
 
 .player-bar-lyrics-on {
+  color: var(--dv-gold);
+}
+
+.player-bar-tracks-on {
   color: var(--dv-gold);
 }
 

@@ -43,19 +43,24 @@ export const playerTracksOf = (album: AlbumLike, rip: RipTracks | null | undefin
   }));
 };
 
-/**
- * Plays an album from the start, from wherever a ▶ stands without its card
- * open: its tracks and its rip are asked for first. False when it has no rip
- * to play, for the caller to offer something else.
- */
-export const playAlbumById = async (albumId: number | string, options?: PlayOptions): Promise<boolean> => {
+/** An album as the player would play it: named, with its tracks that have a file in the rip. */
+export const loadPlayable = async (albumId: number | string): Promise<{ album: PlayerAlbum; tracks: PlayerTrack[] }> => {
   const [album, rip] = await Promise.all([
     musicService.getAlbumById(albumId) as Promise<AlbumLike>,
     musicService.getNavidromeTracks(albumId).catch(() => null),
   ]);
-  const tracks = playerTracksOf(album, rip);
+  return { album: playerAlbumOf(album, rip), tracks: playerTracksOf(album, rip) };
+};
+
+/**
+ * Plays an album from the start, or from its track `index`, from wherever a ▶
+ * stands without its card open: its tracks and its rip are asked for first.
+ * False when it has no rip to play, for the caller to offer something else.
+ */
+export const playAlbumById = async (albumId: number | string, options?: PlayOptions, index = 0): Promise<boolean> => {
+  const { album, tracks } = await loadPlayable(albumId);
   if (tracks.length === 0) return false;
-  player.playAlbum(playerAlbumOf(album, rip), tracks, 0, 0, options);
+  player.playAlbum(album, tracks, index, 0, options);
   return true;
 };
 
