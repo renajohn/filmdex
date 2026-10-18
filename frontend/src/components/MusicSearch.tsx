@@ -74,7 +74,7 @@ interface ShuffleResult {
 
 const FILTERS: DigitalFilter[] = ['all', 'buy'];
 /** Words of the search Navidrome answers: they turn Digital on. */
-const DIGITAL_WORDS = /(^|\s)-?(cd|file|ripped):/i;
+const DIGITAL_WORDS = /(^|\s)-?(cd|file|ripped|favourites):/i;
 const NOTHING_KNOWN: AlbumDigital = { album: null, notRipped: false };
 
 /** An album of the collection, as opposed to a wish or a digital album: there is a CD. */
@@ -224,7 +224,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     if (!next) setDigitalFilter('all');
   };
 
-  // cd:, file: and ripped: ask what Navidrome has: they turn Digital on.
+  // cd:, file:, ripped: and favourites: ask what Navidrome has: they turn Digital on.
   useEffect(() => {
     if (digitalOn || !DIGITAL_WORDS.test(searchCriteria?.searchText || '')) return;
     setDigitalOn(true);
@@ -249,6 +249,19 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
 
   // Playing Listen Next from its banner: ▶, Repeat, the albums leaving it once played.
   const listenNext = useListenNextPlay(listenNextAlbums, refreshListenNextAlbums, albums => setListenNextAlbums(albums as Album[]));
+
+  // Listen Next dragged into a new order: shown at once, then as the server has it; the player goes by it at the next album.
+  const handleListenNextReorder = useCallback(async (ids: number[]) => {
+    setListenNextAlbums(previous => [...previous].sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)));
+    try {
+      const result = await musicService.reorderListenNext(ids);
+      setListenNextAlbums(result.albums as Album[]);
+    } catch (error) {
+      console.error('Error reordering Listen Next:', error);
+      refreshListenNextAlbums();
+      if (onShowAlert) onShowAlert('Failed to reorder Listen Next', 'danger');
+    }
+  }, [refreshListenNextAlbums, onShowAlert]);
 
   // Smart fill Listen Next with suggested albums: from the CDs, or from anything with Digital on.
   const handleSmartFill = useCallback(async (from: 'cds' | 'any' = 'cds') => {
@@ -1134,6 +1147,9 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           renderBadges={digitalOn ? (album) => <DigitalMarks digital={digitalOf(album as Album)} titleStatus={album.titleStatus} /> : undefined}
           onShuffle={(item) => handleShuffleAlbum(item as Album)}
           shufflingItemId={shufflingAlbumId}
+          // An album leaving the list, played to its end, keeps its place: only those in it move.
+          onReorder={handleListenNextReorder}
+          canReorder={(album) => !listenNext.departureOf(album.id)}
           renderPlay={(album) => (
             // ▶ plays Listen Next in DexVault from this album; one with no rip opens its card instead. An iPhone plays in Amperfy.
             <AlbumPlayButton albumId={album.id} title={album.title || ''} offerPlay={!isAppleMobile()}

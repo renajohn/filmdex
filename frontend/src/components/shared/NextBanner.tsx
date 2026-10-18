@@ -1,4 +1,7 @@
 import React, { useRef, useEffect } from 'react';
+import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { BsX, BsFilm, BsDisc } from 'react-icons/bs';
 import ShelfCode from './ShelfCode';
 import CoverButton from './CoverButton';
@@ -43,7 +46,39 @@ interface NextBannerProps {
   getCardClassName?: (item: NextBannerItem) => string;
   /** Laid over each image, above everything else on it. */
   renderOverlay?: (item: NextBannerItem) => React.ReactNode;
+  /** The cards can be dragged into a new order: the ids of those that can, from the first to the last. */
+  onReorder?: (ids: number[]) => void;
+  /** Whether a card can be dragged (all of them by default); one that cannot keeps its place among the others. */
+  canReorder?: (item: NextBannerItem) => boolean;
 }
+
+interface SortableCardProps {
+  id: number;
+  disabled: boolean;
+  className: string;
+  children: React.ReactNode;
+}
+
+/** A card of the banner, which a drag moves along the others. */
+const SortableCard: React.FC<SortableCardProps> = ({ id, disabled, className, children }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled });
+  const style: React.CSSProperties = { transform: CSS.Translate.toString(transform), transition: transition || undefined };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`${className}${isDragging ? ' next-banner__card--dragging' : ''}${disabled ? '' : ' next-banner__card--sortable'}`}
+      {...attributes}
+      {...listeners}
+      // The card is not a control of its own: its image and its buttons are.
+      role={undefined}
+      tabIndex={undefined}
+      aria-roledescription={disabled ? undefined : 'sortable'}
+    >
+      {children}
+    </div>
+  );
+};
 
 const NextBanner: React.FC<NextBannerProps> = ({
   items = [],
@@ -68,9 +103,19 @@ const NextBanner: React.FC<NextBannerProps> = ({
   headerControls,
   footer,
   getCardClassName,
-  renderOverlay
+  renderOverlay,
+  onReorder,
+  canReorder
 }) => {
   const bannerRef = useRef<HTMLDivElement>(null);
+  /** Set from a drag's end to the click that follows it, which must not open the card. */
+  const justDragged = useRef(false);
+
+  // A few pixels before a mouse drags, so that a click stays a click; a touch holds first, so that a swipe scrolls.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  );
 
   // Show banner if there are items OR if smart fill is available
   const hasSmartFill = typeof onSmartFill === 'function';
@@ -111,6 +156,16 @@ const NextBanner: React.FC<NextBannerProps> = ({
     if (onShuffle && shufflingItemId === null) {
       onShuffle(item);
     }
+  };
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    justDragged.current = true;
+    setTimeout(() => { justDragged.current = false; }, 0);
+    if (!onReorder || !over || active.id === over.id) return;
+    const from = items.findIndex(item => item.id === active.id);
+    const to = items.findIndex(item => item.id === over.id);
+    if (from < 0 || to < 0) return;
+    onReorder(arrayMove(items, from, to).filter(item => !canReorder || canReorder(item)).map(item => item.id));
   };
 
   const PlaceholderIcon = type === 'music' ? BsDisc : BsFilm;
@@ -159,10 +214,14 @@ const NextBanner: React.FC<NextBannerProps> = ({
       </div>
 
       <div className="next-banner__carousel">
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={items.map(item => item.id)} strategy={horizontalListSortingStrategy}>
         <div className="next-banner__track">
           {items.map((item) => (
-            <div
+            <SortableCard
               key={item.id}
+              id={item.id}
+              disabled={!onReorder || (canReorder ? !canReorder(item) : false)}
               className={`next-banner__card cover-host ${shufflingItemId === item.id ? 'shuffling' : ''} ${getCardClassName ? getCardClassName(item) : ''}`}
             >
               <CoverButton className="next-banner__remove-btn" onClick={(e) => handleRemove(e, item)} label={`Remove from ${title}`}>
@@ -191,7 +250,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
 
               <div
                 className={`next-banner__image next-banner__image--${type}`}
-                onClick={() => onItemClick && onItemClick(item.id)}
+                onClick={() => !justDragged.current && onItemClick && onItemClick(item.id)}
               >
                 {getImageUrl && getImageUrl(item) ? (
                   <img
@@ -245,7 +304,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
                   )}
                 </div>
               )}
-            </div>
+            </SortableCard>
           ))}
 
           {/* "Help me choose" placeholder card */}
@@ -295,6 +354,8 @@ const NextBanner: React.FC<NextBannerProps> = ({
             </button>
           )}
         </div>
+        </SortableContext>
+        </DndContext>
       </div>
       {footer}
     </div>

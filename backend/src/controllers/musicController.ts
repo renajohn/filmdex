@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import favouriteAlbumService from '../services/favouriteAlbumService';
 import musicService from '../services/musicService';
 import imageService from '../services/imageService';
 import musicbrainzService from '../services/musicbrainzService';
@@ -218,7 +219,7 @@ const musicController = {
       }
 
       // digital=1: MusicDex with Digital on, the albums with no CD found too.
-      const albums = await musicService.searchAlbums(q as string, { withNoCd: req.query.digital === '1' });
+      const albums = await favouriteAlbumService.search(q as string, { withNoCd: req.query.digital === '1' });
       res.json(albums);
     } catch (error) {
       console.error('Error searching albums:', error);
@@ -1126,6 +1127,23 @@ const musicController = {
       res.json(albums);
     } catch (error) {
       logger.error('Error getting Listen Next albums:', error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  },
+
+  /** Listen Next in a new order, dragged on its banner: { albumIds } from the first to the last. */
+  reorderListenNext: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const albumIds = req.body?.albumIds;
+      if (!Array.isArray(albumIds) || !albumIds.every(id => Number.isInteger(id))) {
+        res.status(400).json({ error: 'albumIds must be an array of album ids' });
+        return;
+      }
+      const albums = await musicCollectionService.reorderListenNext(albumIds);
+      listenNextPlaylistService.schedule();
+      res.json({ albums });
+    } catch (error) {
+      logger.error('Error reordering Listen Next:', error);
       res.status(500).json({ error: (error as Error).message });
     }
   },

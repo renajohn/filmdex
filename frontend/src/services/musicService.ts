@@ -1003,6 +1003,18 @@ class MusicService {
     return response.json();
   }
 
+  /** Listen Next in the order given, dragged on its banner; the list as the server now has it. */
+  async reorderListenNext(albumIds: number[]): Promise<{ albums: unknown[] }> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/collections/listen-next/order`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ albumIds }),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  }
+
   async shuffleListenNextAlbum(albumId: number | string): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();

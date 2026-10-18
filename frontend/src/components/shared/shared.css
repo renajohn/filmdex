@@ -651,6 +651,23 @@
   z-index: 10;
 }
 
+/* A card dragged into a new order: it follows the pointer at once, above the others, which make room for it. */
+.next-banner__card--sortable {
+  touch-action: pan-x;
+}
+
+.next-banner__card--dragging {
+  z-index: 30;
+  transition: none;
+  animation: none;
+  cursor: grabbing;
+}
+
+.next-banner__card--dragging .next-banner__image {
+  cursor: grabbing;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.55);
+}
+
 /* Remove (×, top right) and shuffle (top left) on a Next card: round buttons of the covers (CoverButton, cover.css), placed. */
 .next-banner__remove-btn,
 .next-banner__shuffle-btn {
