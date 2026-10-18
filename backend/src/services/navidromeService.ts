@@ -195,6 +195,10 @@ const navidromeService = {
       // Never surface the raw axios error: its config carries the token.
       throw new Error(`Navidrome stream failed${axios.isAxiosError(error) && error.code ? ` (${error.code})` : ''}`);
     });
+    // The timeout is for Navidrome to answer, not for the song: a browser with
+    // enough in hand stops reading for a while, and the socket idle that long
+    // would be cut halfway through the track.
+    (response.request as { setTimeout?: (ms: number) => void } | undefined)?.setTimeout?.(0);
     const headers: Record<string, string> = {};
     for (const name of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
       const value = response.headers[name];

@@ -34,6 +34,11 @@ const playerController = {
       res.setHeader('Cache-Control', 'no-store');
       // A listener who skips closes the request: stop reading from Navidrome too.
       res.on('close', () => (upstream.data as unknown as { destroy?: () => void }).destroy?.());
+      // Navidrome gone halfway: the browser is told, rather than left waiting for the rest.
+      upstream.data.on('error', error => {
+        logger.warn(`Streaming song ${id}: ${error.message}`);
+        res.destroy();
+      });
       upstream.data.pipe(res);
     } catch (error) {
       logger.warn(`Streaming song ${id}: ${(error as Error).message}`);
