@@ -356,9 +356,6 @@
   flex-wrap: wrap;
 }
 
-.quick-add-btn {
-  min-height: 40px}
-
 /* On a phone the pair takes the full width, Add first and largest */
 @media (max-width: 768px) {
   .release-actions {
