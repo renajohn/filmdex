@@ -1225,6 +1225,21 @@ const musicController = {
     }
   },
 
+  /** ⏭ on an album's last track in DexVault's player: it leaves Listen Next as one played to its end. */
+  markListenNextPlayed: async (req: Request, res: Response): Promise<void> => {
+    const albumId = parseInt(req.params.albumId as string, 10);
+    if (!Number.isInteger(albumId)) {
+      res.status(400).json({ error: 'Expected an album id' });
+      return;
+    }
+    try {
+      res.json({ left: await listenNextPlayService.markPlayed(albumId) });
+    } catch (error) {
+      logger.error('Error marking a Listen Next album played:', error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  },
+
   /** Keep here: an album that left Listen Next once played goes back at its place. */
   keepListenNextDeparture: async (req: Request, res: Response): Promise<void> => {
     const id = parseInt(req.params.id as string, 10);

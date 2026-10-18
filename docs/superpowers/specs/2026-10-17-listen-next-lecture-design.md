@@ -39,8 +39,8 @@ Sous le carrousel, alignée à droite, en petit et dans la couleur atténuée du
   - un album inséré avant celui qui joue passe en fin de tour.
 - Un album retiré à la main pendant qu'il joue termine sa piste, puis on passe au suivant.
 - Les albums sans rip sont sautés en silence, comme dans la playlist.
-- ⏭ sur la dernière piste passe à l'album suivant. **Sauter un album ne le retire pas.**
-- **Arrêt en mode retrait :** quand la liste est vide, ou quand le tour revient à un album déjà sauté pendant cette écoute (un album sauté revient une fois, pas en boucle).
+- ⏭ sur la dernière piste passe à l'album suivant, et **l'album compte comme lu** (décidé le 18.10.2026 : « skip → lu ») : il sort de la liste comme un album écouté jusqu'au bout, même passé en entier, sauf avec Repeat (`POST /api/collections/listen-next/played/:albumId`). Sur l'iPhone, seul le scrobble de la dernière piste compte : DexVault ne voit pas les ⏭ d'Amperfy.
+- **Arrêt en mode retrait :** quand la liste est vide, ou quand le tour revient à un album déjà joué pendant cette écoute.
 - Le ▶ d'une pochette **dans le bandeau** lance Listen Next à partir de cet album, dans le même mode. Ailleurs (fiche, grille), ▶ joue l'album seul, comme aujourd'hui.
 
 ## Retrait d'un album écouté

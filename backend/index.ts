@@ -318,6 +318,7 @@ app.get('/api/collections/listen-next/stats', musicController.getSmartPlaylistSt
 app.get('/api/collections/listen-next/play', musicController.getListenNextPlay);
 app.put('/api/collections/listen-next/repeat', musicController.setListenNextRepeat);
 app.post('/api/collections/listen-next/departures/:id/keep', musicController.keepListenNextDeparture);
+app.post('/api/collections/listen-next/played/:albumId', musicController.markListenNextPlayed);
 
 // Book routes
 app.get('/api/books', bookController.getAllBooks);

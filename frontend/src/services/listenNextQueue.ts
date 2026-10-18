@@ -8,11 +8,11 @@ import { readStored, writeStored } from '../utils/safeStorage';
  * again at the end of each album, so what is added, taken out or moved since
  * counts: the next album is the one after the album playing in the list as it
  * now is, the first one after the last. An album played to its end leaves the
- * list on the server, by its scrobble, unless Repeat is on.
+ * list on the server, by its scrobble, unless Repeat is on; so does one
+ * skipped with ⏭ on its last track, heard or not.
  *
  * With Repeat off, the play stops when nothing is left, or when it comes back
- * to an album skipped or played in this play: a skipped album comes round
- * once, not for ever.
+ * to an album played in this play.
  *
  * The tracks' dialog jumps to a track of the list, or to one of an album
  * that left it in this play: a detour, played to its end out of the list,
@@ -25,7 +25,6 @@ let order: number[] = [];
 let listed: number[] | null = null;
 let currentId: number | null = null;
 let repeat = false;
-const skipped = new Set<number>();
 const played = new Set<number>();
 /** Albums that left the list once played, as the server said: not taken out by hand. */
 const departed = new Set<number>();
@@ -107,18 +106,34 @@ export const albumsAfter = (ids: number[], current: number | null, withRepeat: b
 
 const playFrom = async (candidates: number[]): Promise<boolean> => {
   for (const id of candidates) {
-    if (!repeat && (skipped.has(id) || played.has(id))) return false;
+    if (!repeat && played.has(id)) return false;
     if (await play(id)) return true;
   }
   return false;
+};
+
+/** An album skipped to its end: told to the server, which takes it out of the list as one played. */
+const markPlayed = async (id: number): Promise<void> => {
+  noteHeard(id);
+  try {
+    const { left } = await musicService.markListenNextPlayed(id);
+    if (left) window.dispatchEvent(new CustomEvent(LISTEN_NEXT_LEFT_EVENT, { detail: left }));
+  } catch {
+    // Left in the list: the next album plays all the same.
+  }
 };
 
 /** How the player goes on once album `id` of Listen Next is over. */
 const optionsFor = (id: number): PlayOptions => ({
   queue: 'listenNext',
   onAlbumEnd: async how => {
-    if (how === 'skipped') skipped.add(id);
-    else played.add(id);
+    played.add(id);
+    // ⏭ on its last track: the album was listened to, as one played to its end, and leaves the list,
+    // its place in the list as it now is kept first, for the turn to go on after it.
+    if (how === 'skipped' && !repeat) {
+      order = withCurrent(await listIds(), order, id);
+      await markPlayed(id);
+    }
     const ids = await listIds();
     order = withCurrent(ids, order, id);
     listed = ids;
@@ -170,7 +185,6 @@ export const listenNextQueue = {
       currentId = albumId;
       return detourOptions(albumId, detour.back);
     }
-    skipped.clear();
     played.clear();
     currentId = albumId;
     order = [albumId];
@@ -185,7 +199,6 @@ export const listenNextQueue = {
 
   /** Plays Listen Next from `albumId`, from the top without it. False when nothing could be played. */
   start: async (albumId?: number): Promise<boolean> => {
-    skipped.clear();
     played.clear();
     writeStored(SESSION_KEY, JSON.stringify({ ...emptySession(), startedAt: Math.floor(Date.now() / 1000) }));
     order = await listIds();
@@ -255,7 +268,6 @@ export const resetListenNextQueue = (): void => {
   listed = null;
   currentId = null;
   repeat = false;
-  skipped.clear();
   played.clear();
   departed.clear();
   writeStored(SESSION_KEY, '');

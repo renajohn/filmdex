@@ -129,4 +129,20 @@ describe('Listen Next lu', () => {
     expect(kept.body.albums.map((album: { id: number }) => album.id)).toEqual([first, second, third]);
     expect((await request(app).post('/api/collections/listen-next/departures/999999/keep')).status).toBe(404);
   });
+
+  it('un album passé jusqu’au bout dans le lecteur part comme un album lu, une seule fois, sauf avec Repeat', async () => {
+    const skipped = await request(app).post(`/api/collections/listen-next/played/${second}`);
+    expect(skipped.body.left).toMatchObject({ albumId: second });
+    expect(await ids()).toEqual([first, third]);
+    expect(listenNextPlaylistService.schedule).toHaveBeenCalled();
+    // Keep here finds its place again.
+    expect(await listenNextPlayService.keep(skipped.body.left.id)).toBe(true);
+    expect(await ids()).toEqual([first, second, third]);
+
+    expect((await request(app).post(`/api/collections/listen-next/played/999999`)).body).toEqual({ left: null });
+    expect((await request(app).post('/api/collections/listen-next/played/abc')).status).toBe(400);
+    await listenNextPlayService.setRepeat(true);
+    expect((await request(app).post(`/api/collections/listen-next/played/${first}`)).body).toEqual({ left: null });
+    expect(await ids()).toEqual([first, second, third]);
+  });
 });

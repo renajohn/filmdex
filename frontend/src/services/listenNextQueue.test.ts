@@ -5,7 +5,14 @@ const list = vi.hoisted(() => ({ ids: [] as number[], ripped: new Set<number>() 
 const plays = vi.hoisted(() => [] as Array<{ id: number; options: PlayOptions; index: number }>);
 
 vi.mock('./musicService', () => ({
-  default: { getListenNextAlbums: vi.fn(async () => list.ids.map(id => ({ id }))) },
+  default: {
+    getListenNextAlbums: vi.fn(async () => list.ids.map(id => ({ id }))),
+    // ⏭ to the end: out of the list, as the server does.
+    markListenNextPlayed: vi.fn(async (id: number) => {
+      list.ids = list.ids.filter(one => one !== id);
+      return { left: { albumId: id } };
+    }),
+  },
 }));
 vi.mock('../utils/playAlbum', () => ({
   playAlbumById: vi.fn(async (id: number, options: PlayOptions, index = 0) => {
@@ -23,6 +30,12 @@ const playing = () => plays[plays.length - 1];
 const end = (how: Parameters<AlbumEnd>[0]) => playing().options.onAlbumEnd!(how);
 
 beforeEach(() => {
+  // A storage of its own for each test: the play's session and the player's resume.
+  const stored = new Map<string, string>();
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => stored.set(key, value), removeItem: (key: string) => stored.delete(key) },
+  });
   resetListenNextQueue();
   plays.length = 0;
   list.ids = [1, 2, 3];
@@ -76,12 +89,23 @@ describe('listenNextQueue', () => {
     expect(playing().id).toBe(9);
   });
 
-  it('stops when the turn comes back to an album skipped, Repeat off', async () => {
+  it('takes an album skipped to its end out of the list, as one played, and stops when the turn comes back to it', async () => {
+    await listenNextQueue.start();
+    expect(await end('skipped')).toBe(true);
+    expect(playing().id).toBe(2);
+    expect(list.ids).toEqual([2, 3]);
+    expect(listenNextQueue.session().heard).toEqual([1]);
+    // Put back by hand meanwhile: played in this play, the turn stops there.
+    list.ids = [1];
+    expect(await end('ended')).toBe(false);
+  });
+
+  it('keeps an album skipped to its end in the list with Repeat on', async () => {
+    listenNextQueue.setRepeat(true);
     await listenNextQueue.start();
     await end('skipped');
     expect(playing().id).toBe(2);
-    list.ids = [1];
-    expect(await end('ended')).toBe(false);
+    expect(list.ids).toEqual([1, 2, 3]);
   });
 
   it('goes round for ever with Repeat on', async () => {
@@ -119,11 +143,6 @@ describe('Listen Next after a reload', () => {
     vi.spyOn(window.HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
     vi.spyOn(window.HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined);
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('{}'))));
-    const stored = new Map<string, string>();
-    Object.defineProperty(window, 'localStorage', {
-      configurable: true,
-      value: { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => stored.set(key, value), removeItem: (key: string) => stored.delete(key) },
-    });
     resetPlayer();
   });
 

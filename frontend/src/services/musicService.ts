@@ -996,6 +996,14 @@ class MusicService {
   }
 
   /** Keep here: the album that left Listen Next goes back at its place; the list as it now is. */
+  /** ⏭ on an album's last track: it leaves Listen Next as one played to its end, unless Repeat is on. */
+  async markListenNextPlayed(albumId: number): Promise<{ left: ListenNextDeparture | null }> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/collections/listen-next/played/${albumId}`, { method: 'POST' });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  }
+
   async keepListenNextDeparture(departureId: number): Promise<{ albums: unknown[] }> {
     const baseUrl = await this.getBaseUrl();
     const response = await fetch(`${baseUrl}/collections/listen-next/departures/${departureId}/keep`, { method: 'POST' });

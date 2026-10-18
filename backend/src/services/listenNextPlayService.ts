@@ -41,6 +41,9 @@ const run = (sql: string, params: unknown[] = []): Promise<void> =>
 const all = <T>(sql: string, params: unknown[] = []): Promise<T[]> =>
   new Promise((resolve, reject) => getDatabase().all(sql, params, (err: Error | null, rows: T[]) => (err ? reject(err) : resolve(rows))));
 
+const get = <T>(sql: string, params: unknown[] = []): Promise<T | undefined> =>
+  new Promise((resolve, reject) => getDatabase().get(sql, params, (err: Error | null, row: T) => (err ? reject(err) : resolve(row))));
+
 const listenNextId = async (): Promise<number> => {
   const collection = await Collection.findByType('listen_next');
   if (!collection) throw new Error('Listen Next collection not found');
@@ -62,6 +65,17 @@ const lastSongOf = async (navidromeAlbumId: string): Promise<string | null> => {
 
 let checking: Promise<unknown> = Promise.resolve();
 
+/** Album `albumId` of Listen Next, played, leaves it: its place noted for Keep here, the playlist written again. */
+const leave = async (collectionId: number, album: { id: number; title: string }, at: number): Promise<ListenNextDeparture> => {
+  const place = await get<{ collection_order: number | null }>(
+    'SELECT collection_order FROM album_collections WHERE collection_id = ? AND album_id = ?', [collectionId, album.id]);
+  await run('DELETE FROM album_collections WHERE collection_id = ? AND album_id = ?', [collectionId, album.id]);
+  const departure = await ListenNextPlay.addDeparture(album.id, place?.collection_order ?? null, at);
+  listenNextPlaylistService.schedule();
+  logger.info(`Listen Next: "${album.title}" played to its end, out of the list`);
+  return departure;
+};
+
 /**
  * One album of Listen Next played to its end leaves it, unless Repeat is on:
  * the scrobble of its last file by NAVIDROME_USER says so, whoever played it,
@@ -73,25 +87,33 @@ const check = async (user: string, songId: string, at: number): Promise<ListenNe
   if (!mine || user !== mine || !navidromeService.isConfigured()) return null;
   if (await ListenNextPlay.getRepeat()) return null;
   const collectionId = await listenNextId();
-  const places = new Map((await all<{ album_id: number; collection_order: number | null }>(
-    'SELECT album_id, collection_order FROM album_collections WHERE collection_id = ?', [collectionId]))
-    .map(row => [row.album_id, row.collection_order]));
   for (const album of await Collection.getAlbums(collectionId)) {
     const copy = await ripStatusService.navidromeAlbumFor(album.id);
     if (!copy || await lastSongOf(copy.id) !== songId) continue;
-    await run('DELETE FROM album_collections WHERE collection_id = ? AND album_id = ?', [collectionId, album.id]);
-    const departure = await ListenNextPlay.addDeparture(album.id, places.get(album.id) ?? null, at);
-    listenNextPlaylistService.schedule();
-    logger.info(`Listen Next: "${album.title}" played to its end, out of the list`);
-    return departure;
+    return leave(collectionId, album, at);
   }
   return null;
+};
+
+/** ⏭ on its last track in DexVault's player: the album counts as played, whatever was heard of it. */
+const markPlayed = async (albumId: number, at: number): Promise<ListenNextDeparture | null> => {
+  if (await ListenNextPlay.getRepeat()) return null;
+  const collectionId = await listenNextId();
+  const album = (await Collection.getAlbums(collectionId)).find(one => one.id === albumId);
+  return album ? leave(collectionId, album, at) : null;
 };
 
 const listenNextPlayService = {
   /** Notes a scrobble; the departure it caused, if any. */
   noteScrobble: (user: string, songId: string, at = Math.floor(Date.now() / 1000)): Promise<ListenNextDeparture | null> => {
     const next = checking.then(() => check(user, songId, at));
+    checking = next.catch(() => undefined);
+    return next;
+  },
+
+  /** An album skipped to its end on the Mac: it leaves the list as one played does. The departure, if any. */
+  markPlayed: (albumId: number, at = Math.floor(Date.now() / 1000)): Promise<ListenNextDeparture | null> => {
+    const next = checking.then(() => markPlayed(albumId, at));
     checking = next.catch(() => undefined);
     return next;
   },
