@@ -946,19 +946,19 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
               onClick={handleAddMovie}
               title="Add Movie to Wish List"
             >
-              Add Movie
+              <span className="wishlist-add-word">Add </span>Movie
             </Button>
             <Button icon={<BsDisc />} className="add-album-btn"
               onClick={handleAddAlbum}
               title="Add Album to Wish List"
             >
-              Add Album
+              <span className="wishlist-add-word">Add </span>Album
             </Button>
             <Button icon={<BsBook />} className="add-book-btn"
               onClick={handleAddBook}
               title="Add Book to Wish List"
             >
-              Add Book
+              <span className="wishlist-add-word">Add </span>Book
             </Button>
           </div>
         </div>
@@ -1005,7 +1005,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                 Movies ({movies.length})
               </h2>
               <div className="table-responsive">
-                <table className="table table-dark table-striped table-hover">
+                <table className="table table-dark table-striped table-hover wishlist-table">
                   <thead className="thead-dark">
                     <tr>
                       <th scope="col">Poster</th>
@@ -1024,7 +1024,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         onClick={() => handleItemClick(movie.id, 'movie')}
                         style={{ cursor: 'pointer' }}
                       >
-                        <td>
+                        <td className="wl-cover">
                           <div className="table-poster">
                             <MovieThumbnail
                               imdbLink={movie.imdb_id ? `https://www.imdb.com/title/${movie.imdb_id}` : movie.imdb_link}
@@ -1037,7 +1037,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                             />
                           </div>
                         </td>
-                        <td>
+                        <td className="wl-title">
                           <div className="movie-title-cell">
                             <strong>{movie.title}</strong>
                             {movie.original_title && movie.original_title !== movie.title && (
@@ -1045,8 +1045,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                             )}
                           </div>
                         </td>
-                        <td>{getYear(movie)}</td>
-                        <td>
+                        <td className="wl-year">{getYear(movie)}</td>
+                        <td className="wl-ratings">
                           <div className="ratings-cell">
                             {movie.tmdb_rating && (
                               <div className="rating-widget">
@@ -1090,8 +1090,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                             {!movie.tmdb_rating && !movie.imdb_rating && !movie.rotten_tomato_rating && '-'}
                           </div>
                         </td>
-                        <td>{formatDate(movie.acquired_date)}</td>
-                        <td>
+                        <td className="wl-added">{formatDate(movie.acquired_date)}</td>
+                        <td className="wl-actions">
                           <div className="actions-cell">
                             <IconButton label="Search on Ricardo" size="sm" className="action-button ricardo"
                               onClick={(e) => {
@@ -1132,7 +1132,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                 Albums ({albums.length})
               </h2>
               <div className="table-responsive">
-                <table className="table table-dark table-striped table-hover">
+                <table className="table table-dark table-striped table-hover wishlist-table">
                   <thead className="thead-dark">
                     <tr>
                       <th scope="col">Cover</th>
@@ -1152,7 +1152,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         onClick={() => handleItemClick(album.id, 'album')}
                         style={{ cursor: 'pointer' }}
                       >
-                        <td>
+                        <td className="wl-cover">
                           <div className="album-poster">
                             <img
                               {...thumbProps(musicService.getImageUrl(album.cover) || musicService.getImageUrl('/placeholder-album.png') || '', 120)}
@@ -1166,20 +1166,20 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                             />
                           </div>
                         </td>
-                        <td>
+                        <td className="wl-title">
                           <div className="album-title-cell">
                             <strong>{album.title}</strong>
                           </div>
                         </td>
-                        <td>
+                        <td className="wl-by">
                           <div className="artist-cell">
                             {Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}
                           </div>
                         </td>
-                        <td>{album.releaseYear || 'Unknown'}</td>
-                        <td>{album.format || 'CD'}</td>
-                        <td>{formatDate(album.createdAt)}</td>
-                        <td>
+                        <td className="wl-year">{album.releaseYear || 'Unknown'}</td>
+                        <td className="wl-format">{album.format || 'CD'}</td>
+                        <td className="wl-added">{formatDate(album.createdAt)}</td>
+                        <td className="wl-actions">
                           <div className="actions-cell">
                             <IconButton label="Search on Ricardo" size="sm" className="action-button ricardo"
                               onClick={(e) => {
@@ -1220,7 +1220,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                 Books ({books.length})
               </h2>
               <div className="table-responsive">
-                <table className="table table-dark table-striped table-hover">
+                <table className="table table-dark table-striped table-hover wishlist-table">
                   <thead className="thead-dark">
                     <tr>
                       <th scope="col">Cover</th>
@@ -1240,7 +1240,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         onClick={() => handleItemClick(book.id, 'book')}
                         style={{ cursor: 'pointer' }}
                       >
-                        <td>
+                        <td className="wl-cover">
                           <div className="book-poster" style={{ position: 'relative' }}>
                             {book.ebookFile && book.ebookFile.trim() && (
                               <CoverButton
@@ -1273,7 +1273,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                             />
                           </div>
                         </td>
-                        <td>
+                        <td className="wl-title">
                           <div className="book-title-cell">
                             <strong>{book.title}</strong>
                             {book.series && (
@@ -1281,15 +1281,15 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                             )}
                           </div>
                         </td>
-                        <td>
+                        <td className="wl-by">
                           <div className="author-cell">
                             {Array.isArray(book.authors) ? book.authors.join(', ') : book.authors || 'Unknown'}
                           </div>
                         </td>
-                        <td>{book.publishedYear || 'Unknown'}</td>
-                        <td>{book.format || 'Hardcover'}</td>
-                        <td>{formatDate(book.createdAt)}</td>
-                        <td>
+                        <td className="wl-year">{book.publishedYear || 'Unknown'}</td>
+                        <td className="wl-format">{book.format || 'Hardcover'}</td>
+                        <td className="wl-added">{formatDate(book.createdAt)}</td>
+                        <td className="wl-actions">
                           <div className="actions-cell">
                             <IconButton label="Delete book" tone="danger" size="sm" className="action-button delete"
                               onClick={(e) => {

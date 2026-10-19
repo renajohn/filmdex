@@ -437,78 +437,219 @@ label {
 /* Responsive design */
 @media (max-width: 768px) {
   .wishlist-page {
-    padding: 15px;
+    padding: 16px;
   }
-  
+
   .wishlist-header {
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
     align-items: stretch;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
   }
-  
+
   .wishlist-title-section {
-    justify-content: center;
+    justify-content: space-between;
+    align-items: baseline;
   }
-  
+
   .wishlist-header h1 {
-    text-align: center;
+    font-size: 1.6rem;
   }
-  
+
+  /* The copy, then the three additions sharing the row. */
   .wishlist-actions {
-    justify-content: center;
+    gap: 8px;
   }
-  
-  .add-buttons {
-    flex-direction: column;
-    width: 100%;
+
+  .wishlist-actions .add-buttons {
+    flex: 1;
+    min-width: 0;
   }
-  
-  
-  
-  /* Table responsive adjustments */
-  .table-responsive {
+
+  .wishlist-actions .add-buttons > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  /* "Movie", "Album", "Book": the icon and the section say it is an addition. */
+  .wishlist-add-word {
+    display: none;
+  }
+
+  .wishlist-content {
+    gap: 20px;
+  }
+
+  .wishlist-section {
+    padding: 14px 12px 4px;
+  }
+
+  .wish-list-section-title {
+    font-size: 1.2rem !important;
+    margin-bottom: 4px !important;
+    padding-bottom: 8px !important;
+  }
+}
+
+/* On a phone each row is a small card: the cover on the left, the title, who made it and the
+   year and format under it, the actions on the right; the head of the table and the date it
+   was added are left out. */
+@media (max-width: 640px) {
+  .wishlist-section .table-responsive {
+    overflow: visible;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  .wishlist-table {
+    margin-bottom: 0;
+  }
+
+  .wishlist-table thead,
+  .wishlist-table .wl-added {
+    display: none;
+  }
+
+  .wishlist-table,
+  .wishlist-table tbody {
+    display: block;
+  }
+
+  .wishlist-table tbody tr {
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    grid-template-areas:
+      "cover title  title  actions"
+      "cover by     by     actions"
+      "cover year   format actions";
+    grid-template-rows: auto auto 1fr;
+    column-gap: 12px;
+    row-gap: 2px;
+    align-items: start;
+    padding: 10px 0;
+    border-bottom: 1px solid #333;
+  }
+
+  .wishlist-table tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .wishlist-table tbody td {
+    display: block;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    min-width: 0;
+  }
+
+  .wishlist-table .wl-cover   { grid-area: cover; align-self: center; }
+  .wishlist-table .wl-title   { grid-area: title; }
+  .wishlist-table .wl-by      { grid-area: by; }
+  .wishlist-table .wl-year    { grid-area: year; }
+  .wishlist-table .wl-format  { grid-area: format; }
+  .wishlist-table .wl-actions { grid-area: actions; align-self: center; }
+
+  .wishlist-table .wl-year,
+  .wishlist-table .wl-format {
+    color: #888;
+    font-size: 0.8rem;
+  }
+
+  .wishlist-table .wl-format {
+    margin-left: -8px;
+  }
+
+  .wishlist-table .wl-format::before {
+    content: '· ';
+  }
+
+  /* A movie: its ratings beside the year. */
+  .wishlist-table tbody tr:has(.wl-ratings) {
+    grid-template-areas:
+      "cover title   actions"
+      "cover year    actions"
+      "cover ratings actions";
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .wishlist-table .wl-ratings {
+    grid-area: ratings;
+    margin-top: 4px;
+  }
+
+  .wishlist-table .ratings-cell {
+    min-width: 0;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+  }
+
+  /* The ratings as words, "7.6 TMDB": the circles would make each row twice as tall. */
+  .wishlist-table .rating-widget {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .wishlist-table .rating-widget .circular-progress-svg {
+    display: none;
+  }
+
+  .wishlist-table .rating-widget .circular-progress-content {
+    position: static;
+    transform: none;
+  }
+
+  .wishlist-table .rating-widget .rating-score {
+    font-size: 0.8rem;
+  }
+
+  .wishlist-table .movie-title-cell,
+  .wishlist-table .album-title-cell,
+  .wishlist-table .book-title-cell,
+  .wishlist-table .artist-cell,
+  .wishlist-table .author-cell {
+    min-width: 0;
+    padding: 0;
+  }
+
+  .wishlist-table .movie-title-cell strong,
+  .wishlist-table .album-title-cell strong,
+  .wishlist-table .book-title-cell strong {
+    font-size: 0.95rem;
+  }
+
+  .wishlist-table .artist-cell,
+  .wishlist-table .author-cell {
     font-size: 0.85rem;
   }
-  
-  .table-poster {
-    width: 40px;
-    height: 60px;
+
+  .wishlist-table .table-poster {
+    width: 44px;
+    height: 66px;
   }
-  
-  .album-poster {
-    width: 40px;
-    height: 40px;
-    overflow: hidden;
-    border-radius: 4px;
+
+  .wishlist-table .album-poster {
+    width: 56px;
+    height: 56px;
   }
-  
-  .book-poster {
-    width: 35px;
-    height: 52px;
+
+  .wishlist-table .book-poster {
+    width: 44px;
+    height: 66px;
   }
-  
-  .movie-title-cell {
-    min-width: 150px;
+
+  /* The actions side by side, apart, with no frame around them. */
+  .wishlist-table .actions-cell {
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+    gap: 4px;
   }
-  
-  .movie-title-cell strong {
-    font-size: 0.9rem;
-  }
-  
-          .ratings-cell {
-            min-width: 180px;
-            gap: 8px;
-          }
-  
-  .rating-widget {
-    gap: 2px;
-  }
-  
-  .rating-widget .rating-score {
-    font-size: 0.65rem;
-  }
-  
-  .rating-widget .rating-label {
-    font-size: 0.6rem;
+
+  .wishlist-table .action-button {
+    flex: none;
   }
 }
