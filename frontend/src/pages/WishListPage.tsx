@@ -26,7 +26,7 @@ import { TextArea, TextField } from '../components/shared/TextField';
 import Notice from '../components/shared/Notice';
 import Spinner, { Loading } from '../components/shared/Spinner';
 import { thumbProps } from '../utils/thumb';
-import { ricardoSearchUrl } from '../utils/digitalLibrary';
+import { openRicardo, ricardoSearchUrl } from '../utils/digitalLibrary';
 
 export interface WishListPageRef {
   refreshItems: () => Promise<void>;
@@ -1096,7 +1096,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                             <IconButton label="Search on Ricardo" size="sm" className="action-button ricardo"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                window.open(ricardoSearchUrl(`${movie.title} ${movie.format || 'Blu-ray'}`), '_blank', 'noopener,noreferrer');
+                                openRicardo(ricardoSearchUrl(`${movie.title} ${movie.format || 'Blu-ray'}`));
                               }}
                             ><BsSearch /></IconButton>
                             <IconButton label="Delete movie" tone="danger" size="sm" className="action-button delete"
@@ -1184,7 +1184,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                             <IconButton label="Search on Ricardo" size="sm" className="action-button ricardo"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                window.open(ricardoSearchUrl(`${Array.isArray(album.artist) ? album.artist.join(' ') : album.artist} ${album.title} ${album.format || 'CD'}`), '_blank', 'noopener,noreferrer');
+                                openRicardo(ricardoSearchUrl(`${Array.isArray(album.artist) ? album.artist.join(' ') : album.artist} ${album.title} ${album.format || 'CD'}`));
                               }}
                             ><BsSearch /></IconButton>
                             <IconButton label="Delete album" tone="danger" size="sm" className="action-button delete"

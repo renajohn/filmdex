@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import musicService, { type DigitalAlbum, type DigitalLibrary, type EditionAdoption } from '../services/musicService';
 import { readStored, writeStored } from './safeStorage';
+import { isAppleMobile } from './navidrome';
 
 /**
  * The music as files, in Navidrome, as MusicDex shows it with Digital on:
@@ -128,6 +129,16 @@ export const useDigitalLibrary = (enabled: boolean) => {
 export const ricardoSearchUrl = (words: string): string => {
   const plain = words.replace(/[([][^)\]]*[)\]]/g, ' ').replace(/\s+/g, ' ').trim();
   return `https://www.ricardo.ch/fr/s/${encodeURIComponent(plain)}/`;
+};
+
+/**
+ * Opens a Ricardo search. On an iPhone or an iPad it goes in the same tab: iOS hands the link to
+ * Ricardo's app, and DexVault stays as it was; a tab of its own would stay behind, blank, once the
+ * app took the link. Elsewhere it opens in a tab of its own.
+ */
+export const openRicardo = (url: string): void => {
+  if (isAppleMobile()) window.location.assign(url);
+  else window.open(url, '_blank', 'noopener,noreferrer');
 };
 
 /** A search for the CD on ricardo.ch. */

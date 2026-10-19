@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DigitalAlbum } from '../services/musicService';
-import { buyOrder, buyReason, formatLabel, isDismissed, isLossy, isToBuy, ricardoUrl } from './digitalLibrary';
+import { buyOrder, buyReason, formatLabel, isDismissed, isLossy, isToBuy, openRicardo, ricardoUrl } from './digitalLibrary';
 
 const album = (fields: Partial<DigitalAlbum>): DigitalAlbum => ({
   navidromeId: 'nd', name: 'Album', artist: 'Artist', songCount: 10, url: '', formats: ['FLAC'], quality: 'lossless',
@@ -48,5 +48,29 @@ describe('digitalLibrary', () => {
     const old = album({ name: 'O', buy: { listened: true, rated: false, wished: false }, listening: { favourites: 3, needed: 3, plays: 6, lastPlayed: null, score: 1 } });
     const recent = album({ name: 'R', buy: { listened: true, rated: false, wished: false }, listening: { favourites: 3, needed: 3, plays: 6, lastPlayed: null, score: 5 } });
     expect([wished, old, recent].sort(buyOrder).map(entry => entry.name)).toEqual(['R', 'O', 'W']);
+  });
+});
+
+describe('openRicardo', () => {
+  const url = 'https://www.ricardo.ch/fr/s/Steely%20Dan%20Gaucho/';
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('goes in the same tab on an iPhone, so no blank tab stays behind once the app takes it', () => {
+    const assign = vi.fn();
+    const open = vi.fn();
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)', maxTouchPoints: 5 });
+    vi.stubGlobal('location', { assign });
+    vi.stubGlobal('open', open);
+    openRicardo(url);
+    expect(assign).toHaveBeenCalledWith(url);
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it('opens a tab of its own on a computer', () => {
+    const open = vi.fn();
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', maxTouchPoints: 0 });
+    vi.stubGlobal('open', open);
+    openRicardo(url);
+    expect(open).toHaveBeenCalledWith(url, '_blank', 'noopener,noreferrer');
   });
 });

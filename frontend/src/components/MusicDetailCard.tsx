@@ -849,7 +849,7 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                   {cd.titleStatus === 'wish' ? 'Wished' : 'Add to wishlist'}
                 </Button>
               )}
-              <LinkButton size="sm" icon={<BsSearch />} href={ricardoUrl(digital.album)} external title="Search the CD on Ricardo">
+              <LinkButton size="sm" icon={<BsSearch />} href={ricardoUrl(digital.album)} external={!appleMobile} title="Search the CD on Ricardo">
                 Ricardo
               </LinkButton>
               {onDismiss && cd.titleStatus !== 'wish' && (
