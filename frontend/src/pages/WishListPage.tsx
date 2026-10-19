@@ -1343,6 +1343,12 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
           onSearch={onSearch}
           onPrevious={albumSteps.onPrevious}
           onNext={albumSteps.onNext}
+          onCoverChange={(side, coverPath) => {
+            const patch = side === 'front' ? { cover: coverPath } : { backCover: coverPath };
+            const id = selectedAlbumDetails.id;
+            setAlbums(prev => prev.map(album => album.id === id ? { ...album, ...patch } : album));
+            setSelectedAlbumDetails((prev: any) => prev?.id === id ? { ...prev, ...patch } : prev);
+          }}
         />
       )}
 

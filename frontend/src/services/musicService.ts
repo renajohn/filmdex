@@ -1,3 +1,14 @@
+/** A cover an album missing one can take, as the server found it. */
+export interface CoverCandidate {
+  url: string;
+  thumbnail: string;
+  /** "This edition", "Other edition", "Discogs", "Discogs master", "Deezer". */
+  source: string;
+  country: string | null;
+  year: string | null;
+  catalogNumber: string | null;
+}
+
 export interface AlbumStorySection {
   heading: string;
   level: number;
@@ -820,6 +831,18 @@ class MusicService {
   /** The owner's stars, 0 to take them away; Navidrome gets them too when the CD is ripped. */
   setAlbumRating(albumId: number | string, rating: number): Promise<{ userRating: number | null; navidrome: RatingSync }> {
     return this.send(`/music/albums/${albumId}/rating`, 'PUT', { rating });
+  }
+
+  /** The covers the album can take for that side: its other editions', Discogs', Deezer's. */
+  async getCoverCandidates(albumId: number | string, side: 'front' | 'back'): Promise<CoverCandidate[]> {
+    const { candidates } = await this.send<{ candidates: CoverCandidate[] }>(`/music/albums/${albumId}/cover-candidates?side=${side}`, 'GET');
+    return candidates;
+  }
+
+  /** Makes one of those covers that side of the album; answers with its path. */
+  async useCoverCandidate(albumId: number | string, side: 'front' | 'back', url: string): Promise<string> {
+    const { coverPath } = await this.send<{ coverPath: string }>(`/music/albums/${albumId}/cover-candidates`, 'POST', { side, url });
+    return coverPath;
   }
 
   /** Rereads the album's edition on MusicBrainz: its community rating, missing fields, a longer track list. */

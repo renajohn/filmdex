@@ -25,6 +25,7 @@ import albumRatingService from '../services/albumRatingService';
 import communityRatingService from '../services/communityRatingService';
 import trackPopularityService from '../services/trackPopularityService';
 import searchCoverService from '../services/searchCoverService';
+import albumCoverService from '../services/albumCoverService';
 import AlbumNote from '../models/albumNote';
 import logger from '../logger';
 
@@ -748,6 +749,42 @@ const musicController = {
       res.set('Cache-Control', 'public, max-age=86400').type(contentType).send(data);
     } catch {
       res.status(404).end();
+    }
+  },
+
+  /** The covers an album can take for one side, ?side=front|back: { candidates }. */
+  getCoverCandidates: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const id = parseInt(req.params.id as string, 10);
+      const side = req.query.side === 'back' ? 'back' : 'front';
+      const candidates = await albumCoverService.candidates(id, side);
+      if (!candidates) {
+        res.status(404).json({ error: 'Album not found' });
+        return;
+      }
+      res.json({ candidates });
+    } catch (error) {
+      logger.error('Error finding covers for an album:', error);
+      res.status(500).json({ error: 'Failed to find covers' });
+    }
+  },
+
+  /** Makes one of those covers a side of the album, { side, url }: { coverPath }. */
+  useCoverCandidate: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const id = parseInt(req.params.id as string, 10);
+      const { side, url } = req.body || {};
+      if ((side !== 'front' && side !== 'back') || typeof url !== 'string') {
+        res.status(400).json({ error: 'side (front or back) and url are required' });
+        return;
+      }
+      const coverPath = await albumCoverService.useCover(id, side, url);
+      logger.info(`Album ${id} takes its ${side} cover from ${url}`);
+      res.json({ coverPath });
+    } catch (error) {
+      const status = (error as { status?: number }).status || 500;
+      if (status === 500) logger.error('Error setting a cover chosen for an album:', error);
+      res.status(status).json({ error: (error as Error).message || 'Failed to set the cover' });
     }
   },
 

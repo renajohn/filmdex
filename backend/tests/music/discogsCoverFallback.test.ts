@@ -69,6 +69,21 @@ describe('attachCoverArt — falls back on the linked Discogs release', () => {
     expect(releaseSpy).not.toHaveBeenCalled();
   });
 
+  it('takes the Discogs front when the release group front fails to download', async () => {
+    jest.spyOn(musicbrainzService, 'getCoverArt').mockResolvedValue(null as any);
+    jest.spyOn(musicbrainzService, 'getReleaseGroupCoverArt')
+      .mockResolvedValue({ front: { url: 'https://coverartarchive.org/release/other/front-1200.jpg' } } as any);
+    downloadSpy.mockImplementation(async (url, _type, filename) =>
+      url.includes('coverartarchive.org') ? null : `/api/images/cd/${filename}`);
+
+    await musicService.attachCoverArt(1, 'release-mbid');
+
+    expect(downloadSpy).toHaveBeenCalledWith('https://coverartarchive.org/release/other/front-1200.jpg', 'cd', expect.any(String));
+    expect(downloadSpy).toHaveBeenCalledWith('https://i.discogs.com/front.jpg', 'cd', expect.any(String));
+    expect(Album.updateFrontCover).toHaveBeenCalledWith(1, expect.stringContaining('_front_'));
+    expect(Album.updateBackCover).toHaveBeenCalledWith(1, expect.stringContaining('_back_'));
+  });
+
   it('still saves the album when Discogs fails', async () => {
     jest.spyOn(musicbrainzService, 'getCoverArt').mockResolvedValue(null as any);
     releaseSpy.mockRejectedValue(new Error('429'));

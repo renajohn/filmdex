@@ -31,9 +31,9 @@ const COVER_GRACE_MS = 2000;
  * any address it was handed -- including the local network or a cloud metadata
  * endpoint.
  */
-const TRUSTED_COVER_HOSTS = ['coverartarchive.org', 'archive.org', 'discogs.com'];
+const TRUSTED_COVER_HOSTS = ['coverartarchive.org', 'archive.org', 'discogs.com', 'dzcdn.net'];
 
-const isTrustedCoverUrl = (value: string): boolean => {
+export const isTrustedCoverUrl = (value: string): boolean => {
   let url: URL;
   try {
     url = new URL(value);
@@ -45,6 +45,33 @@ const isTrustedCoverUrl = (value: string): boolean => {
 
   const host = url.hostname.toLowerCase();
   return TRUSTED_COVER_HOSTS.some(trusted => host === trusted || host.endsWith(`.${trusted}`));
+};
+
+/**
+ * Downloads a cover into the CD images, resized to 1200 px at most; null when
+ * the download fails, so the caller can try another source.
+ */
+export const downloadCover = async (url: string, key: string, type: string): Promise<string | null> => {
+  if (!url) return null;
+  try {
+    const filename = `album_${key}_${type}_${Date.now()}.jpg`;
+    const pathUrl = await imageService.downloadImageFromUrl(url, 'cd', filename);
+    if (pathUrl) {
+      try {
+        const downloadedFilename = pathUrl.split('/').pop()!;
+        const fullPath = path.join(imageService.getLocalImagesDir(), 'cd', downloadedFilename);
+        await imageService.resizeImage(fullPath, fullPath, 1200, 1200);
+      } catch (resizeError: unknown) {
+        const err = resizeError as { message: string };
+        console.warn(`Failed to resize ${type} cover art:`, err.message);
+      }
+    }
+    return pathUrl;
+  } catch (error: unknown) {
+    const err = error as { message: string };
+    console.warn(`Failed to download ${type} cover art from url ${url}:`, err.message);
+    return null;
+  }
 };
 
 const runStatement = (sql: string): Promise<void> =>
@@ -735,28 +762,7 @@ class MusicService {
     additionalData: AlbumData = {},
     source: 'musicbrainz' | 'discogs' = 'musicbrainz'
   ): Promise<void> {
-    const downloadAndResizeCover = async (url: string, type: string): Promise<string | null> => {
-      if (!url) return null;
-      try {
-        const filename = `album_${releaseId}_${type}_${Date.now()}.jpg`;
-        const pathUrl = await imageService.downloadImageFromUrl(url, 'cd', filename);
-        if (pathUrl) {
-          try {
-            const downloadedFilename = pathUrl.split('/').pop()!;
-            const fullPath = path.join(imageService.getLocalImagesDir(), 'cd', downloadedFilename);
-            await imageService.resizeImage(fullPath, fullPath, 1200, 1200);
-          } catch (resizeError: unknown) {
-            const err = resizeError as { message: string };
-            console.warn(`Failed to resize ${type} cover art:`, err.message);
-          }
-        }
-        return pathUrl;
-      } catch (error: unknown) {
-        const err = error as { message: string };
-        console.warn(`Failed to download ${type} cover art from url ${url}:`, err.message);
-        return null;
-      }
-    };
+    const downloadAndResizeCover = (url: string, type: string) => downloadCover(url, releaseId, type);
 
     // Client-supplied urls are untrusted; archive urls we looked up ourselves
     // below are not filtered again.
@@ -767,44 +773,55 @@ class MusicService {
       return null;
     };
 
-    let frontUrl = fromClient(additionalData?.coverArtData?.frontCoverUrl);
-    let backUrl = fromClient(additionalData?.coverArtData?.backCoverUrl);
+    // Each source is only asked for the sides still missing once the previous
+    // ones were downloaded: an image that is listed but fails to download (a
+    // Cover Art Archive thumbnail timing out on archive.org) must not stop the
+    // next source from being tried, or the album stays without a front.
+    let frontPath: string | null = null;
+    let backPath: string | null = null;
+    const download = async (frontUrl: string | null | undefined, backUrl: string | null | undefined): Promise<void> => {
+      const [front, back] = await Promise.all([
+        !frontPath && frontUrl ? downloadAndResizeCover(frontUrl, 'front') : Promise.resolve(null),
+        !backPath && backUrl ? downloadAndResizeCover(backUrl, 'back') : Promise.resolve(null)
+      ]);
+      frontPath = frontPath || front;
+      backPath = backPath || back;
+    };
+
+    await download(
+      fromClient(additionalData?.coverArtData?.frontCoverUrl),
+      fromClient(additionalData?.coverArtData?.backCoverUrl)
+    );
 
     // Cover Art Archive is keyed on MusicBrainz ids: asking it about a Discogs
     // release just returns 400, so only try it on the MusicBrainz path.
-    if (source === 'musicbrainz' && (!frontUrl || !backUrl)) {
+    if (source === 'musicbrainz' && (!frontPath || !backPath)) {
       const coverArt = await musicbrainzService.getCoverArt(releaseId);
-      if (!frontUrl) frontUrl = coverArt?.front?.url || null;
-      if (!backUrl) backUrl = coverArt?.back?.url || null;
+      await download(coverArt?.front?.url, coverArt?.back?.url);
 
       // An edition is often catalogued without any image while its release group
       // has one, the way a Discogs pressing falls back on its master. Only the
       // front: another edition's back cover would list the wrong tracks.
-      const album = !frontUrl || !backUrl ? await Album.findById(albumId) : null;
-      if (!frontUrl && album?.musicbrainzReleaseGroupId) {
+      const album = !frontPath || !backPath ? await Album.findById(albumId) : null;
+      if (!frontPath && album?.musicbrainzReleaseGroupId) {
         const groupArt = await musicbrainzService.getReleaseGroupCoverArt(album.musicbrainzReleaseGroupId);
-        frontUrl = groupArt?.front?.url || null;
+        await download(groupArt?.front?.url, null);
       }
 
       // Cover Art Archive is often down or has no image typed as the front,
       // while the Discogs release MusicBrainz links to has both sides. It is the
       // same edition, so its back cover lists the right tracks.
       const discogsId = album?.urls?.discogs?.match(/discogs\.com\/release\/(\d+)/)?.[1];
-      if ((!frontUrl || !backUrl) && discogsId && discogsService.isConfigured()) {
+      if ((!frontPath || !backPath) && discogsId && discogsService.isConfigured()) {
         try {
           const formatted = discogsService.formatRelease(await discogsService.getRelease(discogsId));
-          if (!frontUrl) frontUrl = formatted.coverArt.front || await discogsService.getMasterCoverArt(formatted.masterId);
-          if (!backUrl) backUrl = formatted.coverArt.back;
+          await download(formatted.coverArt.front, formatted.coverArt.back);
+          if (!frontPath) await download(await discogsService.getMasterCoverArt(formatted.masterId), null);
         } catch (error) {
           logger.warn(`Could not read Discogs release ${discogsId} for cover art: ${(error as Error).message}`);
         }
       }
     }
-
-    const [frontPath, backPath] = await Promise.all([
-      frontUrl ? downloadAndResizeCover(frontUrl, 'front') : Promise.resolve(null),
-      backUrl ? downloadAndResizeCover(backUrl, 'back') : Promise.resolve(null)
-    ]);
 
     if (frontPath) await Album.updateFrontCover(albumId, frontPath);
     if (backPath) await Album.updateBackCover(albumId, backPath);

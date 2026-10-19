@@ -5,6 +5,7 @@ import Menu, { MenuChevron } from './shared/Menu';
 import { BsPencil, BsTrash, BsDisc, BsApple, BsTags, BsPlayFill, BsPauseFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight, BsStarFill, BsArrowClockwise } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
+import CoverFinder from './CoverFinder';
 import AlbumStory from './AlbumStory';
 import AlbumNotes from './AlbumNotes';
 import AlbumGuide from './AlbumGuide';
@@ -141,6 +142,8 @@ interface MusicDetailCardProps {
   onDismiss?: ((dismissed: boolean) => void) | null;
   /** "I bought the CD", for an album with no CD. */
   onBought?: (() => void) | null;
+  /** A missing side found and kept, from Find a cover… or Find the back…: its path. */
+  onCoverChange?: ((side: 'front' | 'back', coverPath: string) => void) | null;
 }
 
 const CONDITIONS: Record<string, string> = {
@@ -216,7 +219,7 @@ const TrackMixtapes: React.FC<{ songId: string; title: string }> = ({ songId, ti
   );
 };
 
-const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, onDelete, onSearch, onListenNextChange, onPrevious, onNext, digital, onWish, onDismiss, onBought }) => {
+const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, onDelete, onSearch, onListenNextChange, onPrevious, onNext, digital, onWish, onDismiss, onBought, onCoverChange }) => {
   const [showCoverModal, setShowCoverModal] = useState<boolean>(false);
   const [coverModalData, setCoverModalData] = useState<CoverModalData>({ coverUrl: '', title: '', artist: '', coverType: '' });
   const [confirmDelete, setConfirmDelete] = useState<boolean>(false);
@@ -235,6 +238,8 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const [showIsrc, setShowIsrc] = useState<boolean>(false);
   // A front cover whose file would not load: the placeholder takes its place.
   const [coverBroken, setCoverBroken] = useState<boolean>(false);
+  // The side whose covers are being looked through, to choose one.
+  const [findingCover, setFindingCover] = useState<'front' | 'back' | null>(null);
   // The track whose details are open under its row, as "disc-position".
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
   // What the open track shows: its credits, or its words.
@@ -618,9 +623,15 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                 onError={() => setCoverBroken(true)}
               />
             ) : (
-              <div className="album-head-cover album-head-cover-empty" aria-hidden="true">
-                <BsDisc size={40} />
+              <div className="album-head-cover album-head-cover-empty">
+                <BsDisc size={40} aria-hidden="true" />
+                {onCoverChange && (
+                  <Button size="sm" className="album-head-find" onClick={() => setFindingCover('front')}>Find a cover…</Button>
+                )}
               </div>
+            )}
+            {!backCover && onCoverChange && (
+              <Button size="sm" variant="quiet" className="album-head-find-back" onClick={() => setFindingCover('back')}>Find the back…</Button>
             )}
             {backCover && (
               <img
@@ -1117,6 +1128,18 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
           )}
         </div>
       </Dialog.Footer>
+
+      {findingCover && (
+        <CoverFinder albumId={cd.id} side={findingCover} title={cd.title} artist={cd.artist}
+          onClose={() => setFindingCover(null)}
+          onFound={coverPath => {
+            const side = findingCover;
+            setFindingCover(null);
+            if (side === 'front') setCoverBroken(false);
+            onCoverChange?.(side, coverPath);
+            toast(side === 'front' ? 'Cover found' : 'Back cover found', { tone: 'success' });
+          }} />
+      )}
 
       {/* Cover Zoom Modal */}
       <CoverModal

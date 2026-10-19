@@ -384,3 +384,23 @@ describe('MusicDetailCard plays of a track', () => {
     expect(await screen.findByText('43 plays · 3 in 90 days')).toHaveClass('track-details-plays');
   });
 });
+
+describe('MusicDetailCard — a missing side', () => {
+  it('offers to find a cover in the empty cover, and the back under the front', () => {
+    const { rerender } = render(<MusicDetailCard cd={cd({ cover: null }) as any} onClose={vi.fn()} onDelete={vi.fn()} onCoverChange={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Find a cover…' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Find the back…' })).toBeInTheDocument();
+
+    rerender(<MusicDetailCard cd={cd() as any} onClose={vi.fn()} onDelete={vi.fn()} onCoverChange={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Find a cover…' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Find the back…' })).toBeInTheDocument();
+
+    rerender(<MusicDetailCard cd={cd({ backCover: 'covers/1-back.jpg' }) as any} onClose={vi.fn()} onDelete={vi.fn()} onCoverChange={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Find the back…' })).not.toBeInTheDocument();
+  });
+
+  it('offers nothing where the cover found could not be kept', () => {
+    render(<MusicDetailCard cd={cd({ cover: null }) as any} onClose={vi.fn()} onDelete={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Find a cover…' })).not.toBeInTheDocument();
+  });
+});

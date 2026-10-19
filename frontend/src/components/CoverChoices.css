@@ -1,0 +1,111 @@
+/* The covers of one side to choose from (CoverChoices), in the dialog adding a CD and the one finding a missing cover. */
+
+.cover-type-section {
+  margin-bottom: 2rem;
+}
+
+.cover-type-section:last-child {
+  margin-bottom: 0;
+}
+
+.cover-thumbnails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.cover-thumbnail {
+  position: relative;
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 4px;
+  transition: all 0.2s ease;
+  background: rgba(42, 42, 42, 0.8);
+}
+
+.cover-thumbnail:hover {
+  border-color: rgba(251, 191, 36, 0.6);
+  transform: scale(1.05);
+}
+
+.cover-thumbnail.selected {
+  border-color: rgba(251, 191, 36, 0.8);
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.25);
+}
+
+.cover-image {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+}
+
+.cover-clickable {
+  cursor: zoom-in;
+  transition: transform 0.2s ease;
+}
+
+.cover-clickable:hover {
+  transform: scale(1.05);
+}
+
+.album-cover-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: var(--dv-gold);
+  color: #1a202c;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.cover-info {
+  text-align: center;
+  margin-top: 4px;
+}
+
+.cover-info small {
+  display: block;
+  font-size: 10px;
+  color: #ffffff !important;
+}
+
+.cover-dimensions {
+  font-weight: 500;
+  color: #ffffff !important;
+  margin-top: 2px;
+}
+
+/* Override Bootstrap thumbnail styling */
+.cover-image.img-thumbnail {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+.cover-image.loading {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.12) 37%, rgba(255,255,255,0.04) 63%);
+  background-size: 400% 100%;
+  animation: coverShimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes coverShimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@media (max-width: 768px) {
+  .cover-thumbnails {
+    justify-content: center;
+  }
+}

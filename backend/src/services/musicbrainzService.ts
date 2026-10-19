@@ -447,6 +447,39 @@ const musicbrainzService = {
   },
 
   /**
+   * The editions of a release group, with what Cover Art Archive holds for
+   * each (front, back), its country, date, catalog number and format: what a
+   * cover chosen for an album is told apart by.
+   */
+  getReleasesOfGroup: async function(releaseGroupId: string): Promise<Array<{
+    id: string; country: string | null; date: string | null; catalogNumber: string | null; format: string | null; front: boolean; back: boolean;
+  }>> {
+    type Browsed = {
+      id: string; country?: string; date?: string;
+      'cover-art-archive'?: { front?: boolean; back?: boolean };
+      'label-info'?: Array<{ 'catalog-number'?: string }>;
+      media?: Array<{ format?: string }>;
+    };
+    const response: AxiosResponse<{ releases?: Browsed[] }> = await withRetry(
+      'MusicBrainz release group editions',
+      () => axios.get(`${this.baseUrl}/release`, {
+        params: { 'release-group': releaseGroupId, inc: 'labels+media', limit: 100, fmt: 'json' },
+        headers: { 'User-Agent': this.userAgent },
+        timeout: 10000
+      })
+    );
+    return (response.data.releases || []).map(release => ({
+      id: release.id,
+      country: release.country || null,
+      date: release.date || null,
+      catalogNumber: release['label-info']?.find(info => info['catalog-number'])?.['catalog-number'] || null,
+      format: release.media?.[0]?.format || null,
+      front: release['cover-art-archive']?.front === true,
+      back: release['cover-art-archive']?.back === true,
+    }));
+  },
+
+  /**
    * The works each track performs, with the works they are part of when
    * MusicBrainz says so: an aria is part of an act, a movement of a suite.
    */

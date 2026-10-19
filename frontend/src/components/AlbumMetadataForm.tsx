@@ -4,6 +4,7 @@ import Dialog from './shared/Dialog';
 import { BsUpload, BsCheck, BsDisc } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverModal from './CoverModal';
+import CoverChoices, { coverKey, largestFirst, useImageDimensions, type CoverChoice } from './CoverChoices';
 import './AlbumMetadataForm.css';
 import Select from './shared/Select';
 import Button from './shared/Button';
@@ -84,8 +85,6 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
   const [customBackCoverPreview, setCustomBackCoverPreview] = useState<string | null>(null);
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [modalCoverData, setModalCoverData] = useState<ModalCoverData | null>(null);
-  const [imageDimensions, setImageDimensions] = useState<Record<string, { width: number; height: number }>>({});
-  const [sortedCovers, setSortedCovers] = useState<CoverArt[]>([]);
   const [releaseCoverMap, setReleaseCoverMap] = useState<Record<string, ReleaseCoverMapEntry>>({}); // { releaseId: { front: {display, full, sizes}, back: {...} } }
   const [coversLoading, setCoversLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -211,24 +210,9 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
     fetchCovers();
   }, [release, allReleasesInGroup]);
 
-  // Sort covers by size after dimensions are loaded
-  useEffect(() => {
-    if (availableCovers.length > 0 && Object.keys(imageDimensions).length > 0) {
-      const sorted = [...availableCovers].sort((a, b) => {
-        const aDims = imageDimensions[a.url] || { width: 0, height: 0 };
-        const bDims = imageDimensions[b.url] || { width: 0, height: 0 };
-        const aArea = aDims.width * aDims.height;
-        const bArea = bDims.width * bDims.height;
-        return bArea - aArea; // Sort largest first
-      });
-      console.log('Sorted covers by dimensions:', sorted.map(c => ({ type: c.type, url: c.url, area: (imageDimensions[c.url]?.width || 0) * (imageDimensions[c.url]?.height || 0) })));
-      setSortedCovers(sorted);
-    } else if (availableCovers.length > 0) {
-      // If no dimensions loaded yet, use original order
-      console.log('Using original cover order (no dimensions yet):', availableCovers.map(c => ({ type: c.type, url: c.url })));
-      setSortedCovers(availableCovers);
-    }
-  }, [availableCovers, imageDimensions]);
+  // Largest first, as the dimensions come in
+  const imageDimensions = useImageDimensions(availableCovers);
+  const sortedCovers = React.useMemo(() => largestFirst(availableCovers, imageDimensions), [availableCovers, imageDimensions]);
 
   // Auto-select first front and back covers when available (largest first)
   useEffect(() => {
@@ -253,54 +237,6 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
     }
   }, [sortedCovers, selectedFrontCoverIndex, selectedBackCoverIndex]);
 
-  // Load image dimensions for covers
-  const loadImageDimensions = (imageUrl: string): Promise<{ width: number; height: number }> => {
-    return new Promise((resolve) => {
-      const img = document.createElement('img');
-      img.onload = () => {
-        resolve({
-          width: img.naturalWidth,
-          height: img.naturalHeight
-        });
-      };
-      img.onerror = () => {
-        resolve({ width: 0, height: 0 });
-      };
-      img.src = imageUrl;
-    });
-  };
-
-  // Load dimensions for all available covers
-  useEffect(() => {
-    const loadAllDimensions = async () => {
-      const dimensions: Record<string, { width: number; height: number }> = {};
-      for (const cover of availableCovers) {
-        const key = cover.fullUrl || cover.url;
-        if (!imageDimensions[key]) {
-          const dims = await loadImageDimensions(key);
-          dimensions[key] = dims;
-        }
-      }
-      if (Object.keys(dimensions).length > 0) {
-        setImageDimensions(prev => ({ ...prev, ...dimensions }));
-      }
-    };
-
-    if (availableCovers.length > 0) {
-      loadAllDimensions();
-    }
-  }, [availableCovers]);
-
-  const formatImageSize = (width: number, height: number) => {
-    if (width === 0 || height === 0) return 'Loading...';
-
-    // Cap display at 1200px as mentioned
-    const displayWidth = Math.min(width, 1200);
-    const displayHeight = Math.min(height, 1200);
-
-    return `${displayWidth}×${displayHeight}px`;
-  };
-
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
@@ -321,7 +257,7 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
     setCustomBackCoverPreview(null);
   };
 
-  const handleCoverClick = (cover: CoverArt, coverType: string) => {
+  const handleCoverClick = (cover: CoverChoice, coverType: string) => {
     setModalCoverData({
       url: cover.fullUrl || cover.url,
       title: release?.title,
@@ -507,8 +443,6 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
     setCustomBackCoverPreview(null);
     setShowCoverModal(false);
     setModalCoverData(null);
-    setImageDimensions({});
-    setSortedCovers([]);
     setUploadMessage(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -554,103 +488,26 @@ const AlbumMetadataForm: React.FC<AlbumMetadataFormProps> = ({
               )}
               {sortedCovers.length > 0 && (
                 <div className="cover-selection mb-4">
-                  {/* Front Cover Selection */}
-                  <div className="cover-type-section mb-4">
-                    <Form.Label className="text-light">Select Front Cover:</Form.Label>
-                    <div className="cover-thumbnails">
-                      {sortedCovers.filter(cover => cover.type === 'front').map((cover, index) => {
-                        const keyUrl = cover.fullUrl || cover.url;
-                        const originalIndex = sortedCovers.findIndex(c => (c.fullUrl || c.url) === keyUrl);
-                        return (
-                          <div
-                            key={originalIndex}
-                            className={`cover-thumbnail ${selectedFrontCoverIndex === originalIndex ? 'selected' : ''}`}
-                            onClick={() => handleFrontCoverSelect(originalIndex)}
-                          >
-                            <Image
-                              src={cover.fullUrl || cover.url}
-                              alt={`Front cover ${index + 1}`}
-                              thumbnail
-                              className="cover-image cover-clickable loading"
-                              onClick={(e: React.MouseEvent) => {
-                                e.stopPropagation();
-                                handleCoverClick(cover, 'Front');
-                              }}
-                              onLoad={(e: React.SyntheticEvent<HTMLImageElement>) => { (e.target as HTMLImageElement).classList.remove('loading'); }}
-                            />
-                            {selectedFrontCoverIndex === originalIndex && (
-                              <div className="album-cover-check">
-                                <BsCheck />
-                              </div>
-                            )}
-                            <div className="cover-info">
-                              <small className="text-light">Front</small>
-                              <small className="text-muted">{cover.country} {cover.year}</small>
-                              {cover.catalogNumber && <small className="text-muted">{cover.catalogNumber}</small>}
-                              <div className="text-muted">
-                                <small className="cover-dimensions me-2">
-                                  {formatImageSize(
-                                    imageDimensions[keyUrl]?.width || 0,
-                                    imageDimensions[keyUrl]?.height || 0
-                                  )}
-                                </small>
-
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Back Cover Selection */}
-                  <div className="cover-type-section mb-4">
-                    <Form.Label className="text-light">Select Back Cover:</Form.Label>
-                    <div className="cover-thumbnails">
-                      {sortedCovers.filter(cover => cover.type === 'back').map((cover, index) => {
-                        const keyUrl = cover.fullUrl || cover.url;
-                        const originalIndex = sortedCovers.findIndex(c => (c.fullUrl || c.url) === keyUrl);
-                        return (
-                          <div
-                            key={originalIndex}
-                            className={`cover-thumbnail ${selectedBackCoverIndex === originalIndex ? 'selected' : ''}`}
-                            onClick={() => handleBackCoverSelect(originalIndex)}
-                          >
-                            <Image
-                              src={cover.fullUrl || cover.url}
-                              alt={`Back cover ${index + 1}`}
-                              thumbnail
-                              className="cover-image cover-clickable loading"
-                              onClick={(e: React.MouseEvent) => {
-                                e.stopPropagation();
-                                handleCoverClick(cover, 'Back');
-                              }}
-                              onLoad={(e: React.SyntheticEvent<HTMLImageElement>) => { (e.target as HTMLImageElement).classList.remove('loading'); }}
-                            />
-                            {selectedBackCoverIndex === originalIndex && (
-                              <div className="album-cover-check">
-                                <BsCheck />
-                              </div>
-                            )}
-                            <div className="cover-info">
-                              <small className="text-light">Back</small>
-                              <small className="text-muted">{cover.country} {cover.year}</small>
-                              {cover.catalogNumber && <small className="text-muted">{cover.catalogNumber}</small>}
-                              <div className="text-muted">
-                                <small className="cover-dimensions me-2">
-                                  {formatImageSize(
-                                    imageDimensions[keyUrl]?.width || 0,
-                                    imageDimensions[keyUrl]?.height || 0
-                                  )}
-                                </small>
-
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  {(['front', 'back'] as const).map(type => {
+                    const selectedIndex = type === 'front' ? selectedFrontCoverIndex : selectedBackCoverIndex;
+                    const selected = selectedIndex !== null && selectedIndex >= 0 && sortedCovers[selectedIndex] ? coverKey(sortedCovers[selectedIndex]) : null;
+                    const side = type === 'front' ? 'Front' : 'Back';
+                    return (
+                      <CoverChoices
+                        key={type}
+                        label={`Select ${side} Cover:`}
+                        side={side}
+                        covers={sortedCovers.filter(cover => cover.type === type)}
+                        selected={selected}
+                        onSelect={cover => {
+                          const index = sortedCovers.findIndex(c => coverKey(c) === coverKey(cover));
+                          if (type === 'front') handleFrontCoverSelect(index); else handleBackCoverSelect(index);
+                        }}
+                        onZoom={cover => handleCoverClick(cover, side)}
+                        dimensions={imageDimensions}
+                      />
+                    );
+                  })}
                 </div>
               )}
 

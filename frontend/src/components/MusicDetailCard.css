@@ -130,6 +130,16 @@
   transform: none;
 }
 
+/* A missing side: Find a cover… under the disc in the empty cover, Find the back… under the front. */
+.album-head-cover-empty {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.album-head-find-back {
+  align-self: center;
+}
+
 .album-head-back {
   width: 44px;
   height: 44px;

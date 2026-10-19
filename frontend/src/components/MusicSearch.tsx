@@ -544,6 +544,16 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     if (selectedCdDetails?.id === cd.id) setSelectedCdDetails(await musicService.getAlbumById(cd.id));
   };
 
+  /** A side found for an album missing it: every list showing the album takes it. */
+  const setCover = (albumId: Album['id'], side: 'front' | 'back', coverPath: string) => {
+    const patch = side === 'front' ? { cover: coverPath } : { backCover: coverPath };
+    const apply = (list: Album[]) => list.map(album => album.id === albumId ? { ...album, ...patch } : album);
+    setAllCds(apply);
+    setFilteredCds(apply);
+    setExtraCds(apply);
+    setSelectedCdDetails((prev: any) => prev?.id === albumId ? { ...prev, ...patch } : prev);
+  };
+
   const setDismissed = (cd: Album, dismissed: boolean) => {
     const album = digitalOf(cd).album;
     if (album) digital.change(() => musicService.setDigitalDismissed(album.navidromeId, dismissed));
@@ -1381,6 +1391,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           onWish={digitalOn ? () => toggleWish(selectedCdDetails) : null}
           onDismiss={digitalOn ? (dismissed: boolean) => setDismissed(selectedCdDetails, dismissed) : null}
           onBought={() => setBuying(selectedCdDetails)}
+          onCoverChange={(side, coverPath) => setCover(selectedCdDetails.id, side, coverPath)}
         />
       )}
 

@@ -45,6 +45,9 @@ const fromDeezer = async (artist: string, title: string): Promise<string | null>
 };
 
 const searchCoverService = {
+  /** Deezer's cover of the album, large; none when Deezer has no album of that title. */
+  deezerCover: fromDeezer,
+
   /** The covers to try, best first: Cover Art Archive's, then Deezer's. */
   coversOf: (releaseGroupId: string | null, artist: string, title: string): Promise<string[]> => {
     const key = `${releaseGroupId ?? ''}|${artist}|${title}`;
