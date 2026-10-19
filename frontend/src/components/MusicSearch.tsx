@@ -20,6 +20,8 @@ import AlbumPlayButton from './shared/AlbumPlayButton';
 import CoverButton from './shared/CoverButton';
 import { LeavingOverlay, ListenNextControls, ListenNextSummary, useListenNextPlay } from './ListenNextPlay';
 import { listenNextQueue } from '../services/listenNextQueue';
+import { heldOf, keyOf, listenNextTitle } from '../utils/listenNextEntry';
+import CoverTag, { CoverTagStack } from './shared/CoverTag';
 import { DigitalChips, DigitalNotices, type DigitalFilter } from './DigitalStrip';
 import DigitalMarks from './shared/DigitalMarks';
 import BoughtCdDialog from './BoughtCdDialog';
@@ -264,10 +266,11 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const listenNext = useListenNextPlay(listenNextAlbums, refreshListenNextAlbums, albums => setListenNextAlbums(albums as Album[]));
 
   // Listen Next dragged into a new order: shown at once, then as the server has it; the player goes by it at the next album.
-  const handleListenNextReorder = useCallback(async (ids: number[]) => {
-    setListenNextAlbums(previous => [...previous].sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)));
+  const handleListenNextReorder = useCallback(async (keys: Array<string | number>) => {
+    const order = keys.map(String);
+    setListenNextAlbums(previous => [...previous].sort((a, b) => order.indexOf(keyOf(a)) - order.indexOf(keyOf(b))));
     try {
-      const result = await musicService.reorderListenNext(ids);
+      const result = await musicService.reorderListenNext(order);
       setListenNextAlbums(result.albums as Album[]);
     } catch (error) {
       console.error('Error reordering Listen Next:', error);
@@ -889,7 +892,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
       .flatMap(key => sortCds(grouped[key], sortBy).map(cd => cd.id));
   }, [shownCds, groupBy, expandedGroups, groupCds, sortCds, sortBy, digitalOn, digitalFilter, digitalOf, showDismissed, dismissedCds]);
   const shownIds = useMemo(
-    () => stepThrough === 'listenNext' ? listenNextAlbums.map(album => album.id) : gridIds,
+    () => stepThrough === 'listenNext' ? [...new Set(listenNextAlbums.map(album => album.id))] : gridIds,
     [stepThrough, listenNextAlbums, gridIds]);
   const albumSteps = useDetailSteps(shownIds, selectedCdDetails?.id, id => musicService.getAlbumById(id), setSelectedCdDetails,
     { imagesOf: albumImages, summaryOf: id => findById(id, allCds, extraCds, listenNextAlbums) });
@@ -909,11 +912,16 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     }
   };
 
+  /** The tooltip of an album's Listen Next button on its cover: what of it the list holds. */
+  const listenNextTitleOf = (albumId: number) =>
+    listenNextTitle(heldOf(listenNextAlbums, albumId), listenNextAlbums.find(album => album.id === albumId)?.discCount);
+
+  /** ✕ on a card of the banner: that entry out, the album whole or the disc alone. */
   const handleListenNextToggle = async (e: React.MouseEvent, album: Album) => {
     e.stopPropagation(); // Prevent opening album details
 
     // Check if album is currently in Listen Next
-    const isCurrentlyInListenNext = listenNextAlbums.some(a => a.id === album.id);
+    const isCurrentlyInListenNext = listenNextAlbums.some(a => keyOf(a) === keyOf(album));
     const isLastAlbum = isCurrentlyInListenNext && listenNextAlbums.length === 1;
 
     // Handle removal animation in background (non-blocking)
@@ -934,7 +942,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
 
     // Then make the API call
     try {
-      await musicService.toggleListenNext(album.id);
+      await musicService.toggleListenNext(album.id, album.disc || undefined);
 
       // Refresh Listen Next albums after successful toggle
       const updatedListenNextAlbums = await musicService.getListenNextAlbums() as Album[];
@@ -959,6 +967,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
         onClick={() => handleCdClick(cd.id)}
         onListenNextChange={refreshListenNextAlbums}
         isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
+        listenNextTitle={listenNextTitleOf(cd.id)}
         dataItemId={cd.id}
         digital={digitalOf(cd)}
         buy={{
@@ -1064,6 +1073,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
                 onClick={() => handleCdClick(cd.id)}
                 onListenNextChange={refreshListenNextAlbums}
                 isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
+                listenNextTitle={listenNextTitleOf(cd.id)}
                 dataItemId={cd.id}
                 dataFirstLetter={letter}
                 digital={digitalOn ? digitalOf(cd) : undefined}
@@ -1110,6 +1120,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
                         onClick={() => handleCdClick(cd.id)}
                         onListenNextChange={refreshListenNextAlbums}
                         isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
+                        listenNextTitle={listenNextTitleOf(cd.id)}
                         dataFirstLetter={letter}
                         digital={digitalOn ? digitalOf(cd) : undefined}
                       />
@@ -1179,14 +1190,16 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           title="Listen Next"
           icon={<BsHeadphones className="next-banner__icon" aria-hidden="true" />}
           headerControls={<ListenNextControls count={listenNextAlbums.length} play={listenNext.play} onRepeat={listenNext.setRepeat} />}
-          footer={<ListenNextSummary albums={listenNext.items.filter(album => !listenNext.leavingState(album.id))} play={listenNext.play} />}
+          footer={<ListenNextSummary albums={listenNext.items.filter(album => !listenNext.leavingState(keyOf(album)))} play={listenNext.play} />}
+          // Two discs of an album are two cards: each its own key ("12:1", "12:2").
+          getKey={(album) => keyOf(album)}
           getCardClassName={(album) => {
-            const leaving = listenNext.leavingState(album.id);
+            const leaving = listenNext.leavingState(keyOf(album));
             if (leaving) return `next-banner__card--leaving${leaving.collapsing ? ' next-banner__card--collapsing' : ''}`;
-            return listenNext.departureOf(album.id) ? 'next-banner__card--departed' : '';
+            return listenNext.departureOf(keyOf(album)) ? 'next-banner__card--departed' : '';
           }}
           renderOverlay={(album) => {
-            const leaving = listenNext.leavingState(album.id);
+            const leaving = listenNext.leavingState(keyOf(album));
             return leaving && (
               <LeavingOverlay title={album.title || ''} startedAt={leaving.startedAt} onKeep={() => listenNext.keep(leaving.departureId)} />
             );
@@ -1194,7 +1207,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           onItemClick={(id) => handleCdClick(id, 'listenNext')}
           onRemove={(e, item) => {
             // Gone from the list already, played to its end: only off the banner.
-            const departure = listenNext.departureOf(item.id);
+            const departure = listenNext.departureOf(keyOf(item));
             if (departure) listenNext.dismiss(departure.id);
             else handleListenNextToggle(e, item as Album);
           }}
@@ -1207,19 +1220,23 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
             label: 'From anything', hint: 'CDs + digital', onClick: () => handleSmartFill('any'),
           } : undefined}
           smartFillLoading={smartFillLoading}
-          // With Digital on, what sets each album apart: a disc struck through is left out of the Navidrome playlist.
-          renderBadges={digitalOn ? (album) => <DigitalMarks digital={digitalOf(album as Album)} titleStatus={album.titleStatus} /> : undefined}
+          // One disc of an album: its number. With Digital on, what sets each album apart: a disc struck through is left out of the Navidrome playlist.
+          renderBadges={(album) => {
+            const disc = album.disc ? <CoverTag key="disc" variant="plain" title={`Disc ${album.disc} of ${album.title}`}>Disc {album.disc}</CoverTag> : null;
+            if (digitalOn) return <DigitalMarks digital={digitalOf(album as Album)} titleStatus={album.titleStatus} lead={disc} />;
+            return disc && <CoverTagStack direction="row" className="digital-marks">{disc}</CoverTagStack>;
+          }}
           onShuffle={(item) => handleShuffleAlbum(item as Album)}
           // The die only on a disc a draw put there: one put by hand was chosen.
           canShuffle={(album) => Boolean(album.suggested)}
           shufflingItemId={shufflingAlbumId}
           // An album leaving the list, played to its end, keeps its place: only those in it move.
           onReorder={handleListenNextReorder}
-          canReorder={(album) => !listenNext.departureOf(album.id)}
+          canReorder={(album) => !listenNext.departureOf(keyOf(album))}
           renderPlay={(album) => (
             // ▶ plays Listen Next in DexVault from this album; one with no rip opens its card instead. An iPhone plays in Amperfy.
             <AlbumPlayButton albumId={album.id} title={album.title || ''} offerPlay={!isAppleMobile()}
-              onPlay={() => listenNextQueue.start(album.id)}
+              onPlay={() => listenNextQueue.start(keyOf(album))}
               onUnripped={() => handleCdClick(album.id, 'listenNext')} className="next-banner__play" />
           )}
           renderFootRight={(album) => {

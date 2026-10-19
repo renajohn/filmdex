@@ -33,7 +33,8 @@ import toast from './shared/Toast';
 import { seedFavourite, setFavourite, useFavourite } from '../services/favourites';
 import MixtapeMenu from './MixtapeMenu';
 import { useMixtapes } from '../utils/mixtapeStore';
-import { BsCassetteFill } from 'react-icons/bs';
+import { BsCassetteFill, BsXLg } from 'react-icons/bs';
+import { discsInWords, heldOf } from '../utils/listenNextEntry';
 
 /** How often, and how many times, an album's tracks are asked after while their words are looked up. */
 const LYRICS_POLL_MS = 3000;
@@ -232,7 +233,9 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const deleteBtnRef = React.useRef<HTMLButtonElement>(null);
   const [openingApple, setOpeningApple] = useState<boolean>(false);
   const [appleUrl, setAppleUrl] = useState<string | null>(null);
-  const [isInListenNext, setIsInListenNext] = useState<boolean>(false);
+  // What of the album Listen Next holds: all of it, some of its discs, or nothing.
+  const [listenNextHeld, setListenNextHeld] = useState<'all' | number[]>([]);
+  const isInListenNext = listenNextHeld === 'all' || listenNextHeld.length > 0;
   const [togglingListenNext, setTogglingListenNext] = useState<boolean>(false);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
   const [showIsrc, setShowIsrc] = useState<boolean>(false);
@@ -328,8 +331,8 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   useEffect(() => {
     const loadListenNextStatus = async () => {
       try {
-        const listenNextAlbums = await musicService.getListenNextAlbums() as CdData[];
-        setIsInListenNext(listenNextAlbums.some((album: CdData) => album.id === cd.id));
+        const listenNextAlbums = await musicService.getListenNextAlbums() as Array<{ id: number; disc?: number | null }>;
+        setListenNextHeld(heldOf(listenNextAlbums, Number(cd.id)));
       } catch (error) {
         console.error('Error loading Listen Next status:', error);
       }
@@ -398,13 +401,18 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
     }
   };
 
-  const handleListenNextToggle = async () => {
+  /**
+   * Listen Next: with no disc, the whole album in, or whatever of it is there
+   * out; a disc, that disc in or out; 'all', the whole album in place of the discs.
+   */
+  const handleListenNextToggle = async (disc?: number | 'all') => {
     if (togglingListenNext) return;
 
     setTogglingListenNext(true);
     try {
-      await musicService.toggleListenNext(cd.id);
-      setIsInListenNext(!isInListenNext);
+      await musicService.toggleListenNext(cd.id, disc);
+      const listenNextAlbums = await musicService.getListenNextAlbums() as Array<{ id: number; disc?: number | null }>;
+      setListenNextHeld(heldOf(listenNextAlbums, Number(cd.id)));
       // Refresh the listen next banner immediately
       if (onListenNextChange) {
         onListenNextChange();
@@ -898,7 +906,22 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
               return (
                 <div key={discIndex} className="disc-tracks mb-3">
                   {discs.length > 1 && (
-                    <h6 className="disc-title">Disc {disc.number}</h6>
+                    <div className="disc-head">
+                      <h6 className="disc-title">Disc {disc.number}</h6>
+                      {/* This disc alone in Listen Next, or out; held when the whole album is. */}
+                      {(() => {
+                        const on = listenNextHeld === 'all' || listenNextHeld.includes(disc.number);
+                        return (
+                          <Button variant="quiet" size="sm" active={on} icon={<BsHeadphones />}
+                            onClick={() => handleListenNextToggle(disc.number)} disabled={togglingListenNext}
+                            aria-label={on ? `Disc ${disc.number} in Listen Next` : `Disc ${disc.number} to Listen Next`}
+                            title={!on ? `Disc ${disc.number} in Listen Next` : listenNextHeld === 'all'
+                              ? `The whole album is in Listen Next: disc ${disc.number} alone instead` : `Take disc ${disc.number} out of Listen Next`}>
+                            {on ? 'In Listen Next' : 'Listen Next'}
+                          </Button>
+                        );
+                      })()}
+                    </div>
                   )}
                   <div className="track-list">
                     {disc.tracks.map((track: CdTrack, trackIndex: number) => {
@@ -1081,15 +1104,50 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
               )}
             </Button>
           )}
-          <Button active={isInListenNext}
-            aria-label={isInListenNext ? 'In Listen Next' : 'Listen Next'}
-            icon={<BsHeadphones />}
-            onClick={handleListenNextToggle}
-            disabled={togglingListenNext}
-          >
-            <span className="music-detail-long">{isInListenNext ? 'In Listen Next' : 'Listen Next'}</span>
-            <span className="music-detail-short" aria-hidden="true">Next</span>
-          </Button>
+          {/* The whole album in or out; with several discs, its ▾ chooses them, as each disc's button does. */}
+          <span className="ui-button-group">
+            <Button active={isInListenNext}
+              aria-label={isInListenNext ? 'In Listen Next' : 'Listen Next'}
+              title={isInListenNext ? 'Take it out of Listen Next' : undefined}
+              icon={<BsHeadphones />}
+              onClick={() => handleListenNextToggle()}
+              disabled={togglingListenNext}
+            >
+              <span className="music-detail-long">
+                {isInListenNext ? 'In Listen Next' : 'Listen Next'}
+                {Array.isArray(listenNextHeld) && listenNextHeld.length > 0 && (
+                  <span className="music-detail-next-discs"> · {discsInWords(listenNextHeld)}</span>
+                )}
+              </span>
+              <span className="music-detail-short" aria-hidden="true">Next</span>
+            </Button>
+            {discs.length > 1 && (
+              <Menu drop="up" label="Listen Next" trigger={(props, open) => (
+                <Button {...props} active={isInListenNext} className="ui-button--split" aria-label="Choose the discs for Listen Next"
+                  title="Some discs only" disabled={togglingListenNext}>
+                  <MenuChevron open={open} />
+                </Button>
+              )}>
+                <Menu.Choice selected={listenNextHeld === 'all'} hint={`${discs.length} discs`}
+                  onSelect={() => { if (listenNextHeld !== 'all') handleListenNextToggle('all'); }}>
+                  All discs
+                </Menu.Choice>
+                <Menu.Separator />
+                {discs.map(disc => (
+                  <Menu.Choice key={disc.number} selected={Array.isArray(listenNextHeld) && listenNextHeld.includes(disc.number)}
+                    hint={`${disc.tracks.length} tracks`} onSelect={() => handleListenNextToggle(disc.number)}>
+                    Disc {disc.number}
+                  </Menu.Choice>
+                ))}
+                {isInListenNext && (
+                  <>
+                    <Menu.Separator />
+                    <Menu.Item icon={<BsXLg />} onSelect={() => handleListenNextToggle()}>Take out of Listen Next</Menu.Item>
+                  </>
+                )}
+              </Menu>
+            )}
+          </span>
           {/* The whole CD in or out of a mixtape: its tracks that have a file. */}
           {playerTracks.length > 0 && (
             <MixtapeMenu songIds={playerTracks.map(track => track.songId)} align="start"

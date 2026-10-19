@@ -17,6 +17,8 @@ interface DigitalMarksProps {
   titleStatus?: string | null;
   /** Leaves the bookmark out where the card's own bookmark button says it already (in Buy). */
   hideWish?: boolean;
+  /** A mark of the card's own before these: a disc of Listen Next, say. */
+  lead?: React.ReactNode;
   className?: string;
 }
 
@@ -27,10 +29,10 @@ interface DigitalMarksProps {
  * through), and what is to buy (a cart when listening suggests it, a bookmark
  * on the wish list).
  */
-const DigitalMarks: React.FC<DigitalMarksProps> = ({ digital, titleStatus, hideWish = false, className = '' }) => {
+const DigitalMarks: React.FC<DigitalMarksProps> = ({ digital, titleStatus, hideWish = false, lead = null, className = '' }) => {
   const album = digital?.album ?? null;
   const hasCd = titleStatus !== 'digital' && titleStatus !== 'wish';
-  const marks: React.ReactNode[] = [];
+  const marks: React.ReactNode[] = lead ? [lead] : [];
   if (!hasCd) {
     marks.push(
       <CoverTag key="cloud" variant={isLossy(album) ? 'orange' : 'plain'} className="digital-mark"

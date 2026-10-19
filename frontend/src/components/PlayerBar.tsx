@@ -6,7 +6,8 @@ import { seedFavourite, setFavourite, useFavourite } from '../services/favourite
 import toast from './shared/Toast';
 import PlayerTracks from './PlayerTracks';
 // Listen Next registers itself with the player, to go on after a reload whatever the page; the bar asks it what comes next.
-import { listenNextQueue } from '../services/listenNextQueue';
+import { listenNextQueue, playingKey } from '../services/listenNextQueue';
+import { parseEntryKey } from '../utils/listenNextEntry';
 import musicService from '../services/musicService';
 import { loadPlayable } from '../utils/playAlbum';
 import './PlayerBar.css';
@@ -33,19 +34,20 @@ interface Ahead {
  * starts (`started`, its tracks, change even when the same album starts
  * again) and as it plays on after a pause, the list having moved meanwhile.
  */
-const useListenNextAhead = (albumId: number | null | undefined, fromListenNext: boolean, started: unknown, playing: boolean): Ahead | null => {
+const useListenNextAhead = (playingEntry: string | null, fromListenNext: boolean, started: unknown, playing: boolean): Ahead | null => {
   const [ahead, setAhead] = useState<Ahead | null>(null);
   useEffect(() => {
     // Kept while read again, for the time left not to jump; gone out of Listen Next.
-    if (!fromListenNext || albumId == null) {
+    if (!fromListenNext || playingEntry == null) {
       setAhead(null);
       return undefined;
     }
     let live = true;
-    const ids = listenNextQueue.upcoming(albumId);
+    const ids = listenNextQueue.upcoming(playingEntry);
+    const next = ids.length > 0 ? parseEntryKey(ids[0]) : null;
     Promise.all([
       musicService.getListenNextPlay().catch(() => null),
-      ids.length > 0 ? loadPlayable(ids[0], { listenNext: true }).catch(() => null) : Promise.resolve(null),
+      next ? loadPlayable(next.albumId, { listenNext: true, disc: next.disc }).catch(() => null) : Promise.resolve(null),
     ]).then(([play, next]) => {
       if (!live) return;
       const seconds = ids.reduce((sum, id) => sum + (play?.lengths[id]?.durationSec || 0), 0);
@@ -53,7 +55,7 @@ const useListenNextAhead = (albumId: number | null | undefined, fromListenNext: 
       setAhead({ seconds, first: track ? { title: track.title, artist: track.artist ?? next!.album.artist } : null });
     });
     return () => { live = false; };
-  }, [albumId, fromListenNext, started, playing]);
+  }, [playingEntry, fromListenNext, started, playing]);
   return ahead;
 };
 
@@ -109,7 +111,7 @@ const PlayerBar: React.FC = () => {
   const tracks = usePlayer(state => state.tracks);
   const index = usePlayer(state => state.index);
   const fromListenNext = usePlayer(state => state.queue === 'listenNext');
-  const ahead = useListenNextAhead(album?.id, fromListenNext, tracks, playing);
+  const ahead = useListenNextAhead(playingKey(album), fromListenNext, tracks, playing);
   // What is left: this track's end, the tracks after it, and of Listen Next the albums after this one.
   const left = Math.max(0, length - position) + tracks.slice(index + 1).reduce((sum, one) => sum + (one.durationSec || 0), 0)
     + (ahead?.seconds ?? 0);

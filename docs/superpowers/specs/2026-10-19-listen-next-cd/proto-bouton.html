@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Des CD dans Listen Next</title>
+<style>
+  :root {
+    --dv-gold: #fbbf24; --dv-gold-hover: #fcd34d; --dv-gold-ink: #111;
+    --dv-gold-tint: rgba(251,191,36,.12); --dv-gold-tint-edge: rgba(251,191,36,.45);
+    --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+    --dv-glass: rgba(255,255,255,.06); --dv-glass-hover: rgba(255,255,255,.11);
+    --dv-edge: rgba(255,255,255,.12); --dv-edge-hover: rgba(255,255,255,.24);
+    --dv-veil: rgba(255,255,255,.08);
+    --dv-glass-image: rgba(0,0,0,.68); --dv-glass-image-hover: rgba(0,0,0,.85);
+    --dv-edge-image: inset 0 0 0 1px rgba(255,255,255,.16); --dv-ring-image: 0 0 0 1.5px #fff;
+    --dv-surface: rgba(24,24,24,.86); --dv-surface-edge: rgba(255,255,255,.1);
+    --dv-surface-shadow: 0 16px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(135deg,#1a1a1a,#2d2d2d) fixed; color: var(--dv-text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .bar { position: sticky; top: 0; z-index: 50; display: flex; gap: 14px 22px; align-items: center; flex-wrap: wrap;
+    padding: 12px 24px; background: #111; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .seg { display: inline-flex; border: 1px solid #444; border-radius: 8px; overflow: hidden; }
+  .seg button { background: #222; color: #ddd; border: 0; padding: 6px 12px; font: inherit; cursor: pointer; }
+  .seg button + button { border-left: 1px solid #444; }
+  .seg button.on { background: var(--dv-gold); color: #111; }
+  main { padding: 18px 24px 120px; display: grid; gap: 18px; max-width: 1100px; }
+  section { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); border-radius: 12px; padding: 16px 18px 22px; }
+  section h3 { margin: 0 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: #888; font-weight: 600; }
+  section p.how { margin: 0 0 16px; color: #888; font-size: 12.5px; max-width: 760px; }
+  svg.i { width: 15px; height: 15px; flex: none; }
+
+  /* Buttons, as button.css */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 36px; padding: 0 14px;
+    border: 1px solid var(--dv-edge); border-radius: 9px; background: var(--dv-glass); color: var(--dv-text);
+    font: 500 14px/1 inherit; white-space: nowrap; cursor: pointer; transition: background .12s, border-color .12s, color .12s; }
+  .btn:hover { background: var(--dv-glass-hover); border-color: var(--dv-edge-hover); color: #fff; }
+  .btn.primary { background: var(--dv-gold); color: var(--dv-gold-ink); border-color: transparent; font-weight: 600; }
+  .btn.on, .btn.on:hover { background: var(--dv-gold-tint); border-color: var(--dv-gold-tint-edge); color: var(--dv-gold); }
+  .btn .chev { width: 13px; height: 13px; transition: transform .15s; }
+  .btn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+  .btn .sub { font-weight: 400; opacity: .8; }
+  .btn.sm { height: 28px; padding: 0 10px; gap: 6px; border-radius: 7px; font-size: 12.5px; }
+  .btn.sm svg.i { width: 13px; height: 13px; }
+  .btn.quiet { background: none; border-color: transparent; color: var(--dv-text-muted); padding: 0 6px; }
+  .btn.quiet:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .btn.quiet.on, .btn.quiet.on:hover { background: none; border-color: transparent; color: var(--dv-gold); }
+  .group { display: inline-flex; }
+  .group > .btn:first-child:not(:last-child) { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .group > .btn + .btn { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -1px; padding: 0 10px; }
+  .group > .btn:hover { position: relative; z-index: 1; }
+
+  /* The card */
+  .card { border-radius: 14px; background: #202020; border: 1px solid #333; overflow: hidden; max-width: 680px; }
+  .card-head { display: flex; gap: 14px; padding: 16px; align-items: center; }
+  .card-head .mini { width: 64px; height: 64px; border-radius: 6px; flex: none; }
+  .card-head .art::after { display: none; }
+  .card-head b { display: block; font-size: 16px; }
+  .card-head span { color: var(--dv-text-muted); font-size: 13px; }
+  .card-body { padding: 4px 16px 12px; max-height: 360px; overflow-y: auto; border-top: 1px solid #2c2c2c; }
+  .disc-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 14px 0 4px; }
+  .disc-title { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: var(--dv-text-muted); }
+  .disc-title span { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--dv-text-faint); margin-left: 6px; }
+  .track { display: flex; gap: 10px; padding: 6px 12px; border-radius: 6px; font-size: 13.5px; }
+  .track:hover { background: rgba(255,255,255,.04); }
+  .track .no { width: 22px; color: var(--dv-text-faint); text-align: right; }
+  .track .t { flex: 1; }
+  .track .d { color: var(--dv-text-faint); font-variant-numeric: tabular-nums; }
+  .track.more { color: var(--dv-text-faint); font-style: italic; }
+  .card-foot { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px; border-top: 1px solid #333; background: #1b1b1b; }
+
+  /* Covers */
+  .art { background: linear-gradient(160deg,#7a2e3a 0%,#2b2f6b 55%,#0f3d3a 100%); position: relative; }
+  .art.one { background: linear-gradient(160deg,#5b3a29,#1e2a3a); }
+  .art.box { background: linear-gradient(160deg,#2c4a2a,#5a4b1f 60%,#2a2a2a); }
+  .art::after { content: attr(data-t); position: absolute; left: 12px; right: 12px; top: 40%; font: 700 15px/1.15 Georgia, serif; color: rgba(243,233,210,.9); }
+  .thumbs { display: flex; gap: 22px; flex-wrap: wrap; }
+  .thumb { width: 200px; }
+  .thumb .art { width: 200px; height: 200px; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+  .thumb .meta { margin-top: 8px; font-size: 13px; }
+  .thumb .meta span { display: block; color: var(--dv-text-muted); font-size: 12px; }
+
+  /* The real thumbnail's corners: ▶ bottom left, the shelf code top right, the marks top left, Listen Next bottom right. */
+  .round { width: 34px; height: 34px; border-radius: 50%; border: 0; display: grid; place-items: center; flex: none;
+    cursor: pointer; background: var(--dv-glass-image); box-shadow: var(--dv-edge-image); color: #fff; transition: opacity .12s, box-shadow .12s; }
+  .round:hover, .round[aria-expanded="true"] { box-shadow: var(--dv-ring-image); background: var(--dv-glass-image-hover); }
+  .round.on, .round.on:hover, .round.on[aria-expanded="true"] { background: var(--dv-gold); color: var(--dv-gold-ink); }
+  .round.on:hover, .round.on[aria-expanded="true"] { box-shadow: var(--dv-ring-image); }
+  .reveal { opacity: 0; }
+  .thumb:hover .reveal, .reveal.on, .reveal[aria-expanded="true"] { opacity: 1; }
+  .c-play { position: absolute; left: 8px; bottom: 8px; }
+  .c-shelf { position: absolute; top: 8px; right: 8px; padding: 3px 6px; font: 600 11px/1 ui-monospace, Menlo, monospace;
+    background: var(--dv-glass-image); box-shadow: var(--dv-edge-image); color: #ddd; }
+  .c-mark { position: absolute; top: 8px; left: 8px; }
+  .c-next { position: absolute; right: 8px; bottom: 8px; }
+  .tag { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; min-width: 38px; justify-content: center;
+    background: var(--dv-glass-image); box-shadow: var(--dv-edge-image); color: #fff;
+    font: 600 10.5px/1 inherit; letter-spacing: .6px; text-transform: uppercase; white-space: nowrap; }
+  .tag.gold { color: var(--dv-gold); }
+
+  /* The tooltip, as tooltip.css: the menus' glass, just under the pointer, after 250 ms. */
+  .tip { position: fixed; z-index: 130; padding: 6px 9px; border-radius: 8px; font-size: 12.5px; pointer-events: none; max-width: 260px;
+    background: var(--dv-surface); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--dv-surface-edge); box-shadow: var(--dv-surface-shadow); opacity: 0; transition: opacity .1s; }
+  .tip.show { opacity: 1; }
+
+  /* Listen Next banner */
+  .banner { display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 6px; }
+  .banner .slot { width: 120px; flex: none; }
+  .banner .art { width: 120px; height: 120px; border-radius: 6px; }
+  .banner .art::after { font-size: 11px; left: 8px; right: 8px; }
+  .banner .slot .tag { position: absolute; right: 6px; bottom: 6px; }
+  .banner .meta { font-size: 12px; margin-top: 6px; }
+  .banner .meta span { display: block; color: var(--dv-text-muted); font-size: 11.5px; }
+  .banner-sum { color: var(--dv-text-muted); font-size: 12.5px; margin: 0 0 10px; }
+
+  /* The menu, as menu.css */
+  .menu { position: fixed; z-index: 100; min-width: 250px; padding: 6px; border-radius: 12px; display: none;
+    background: var(--dv-surface); backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    border: 1px solid var(--dv-surface-edge); box-shadow: var(--dv-surface-shadow); }
+  .menu.open { display: block; animation: menu-in .14s ease-out; }
+  @keyframes menu-in { from { opacity: 0; transform: scale(.96) translateY(-4px); } to { opacity: 1; transform: none; } }
+  .item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px; padding: 7px 10px; border: 0; border-radius: 8px;
+    background: transparent; color: var(--dv-text); font: 14px/1.25 inherit; text-align: left; cursor: pointer; }
+  .item:hover { background: var(--dv-veil); color: #fff; }
+  .item .check { width: 14px; color: var(--dv-gold); visibility: hidden; flex: none; }
+  .item[aria-checked="true"] { color: var(--dv-gold); font-weight: 500; }
+  .item[aria-checked="true"] .check { visibility: visible; }
+  .item .label { flex: 1; }
+  .item .hint { color: var(--dv-text-faint); font-size: 12px; font-weight: 400; }
+  .item .icon { width: 14px; display: inline-flex; justify-content: center; color: var(--dv-text-muted); flex: none; }
+  .msec { padding: 8px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: var(--dv-text-faint); }
+  .sep { height: 1px; margin: 6px 4px; background: rgba(255,255,255,.08); }
+
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 10px 16px; border-radius: 10px;
+    background: var(--dv-surface); border: 1px solid var(--dv-surface-edge); box-shadow: var(--dv-surface-shadow);
+    font-size: 13.5px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 120; }
+  .toast.show { opacity: 1; }
+  .rules { margin: 0; padding-left: 18px; color: #aaa; font-size: 13px; }
+  .rules li { margin: 4px 0; }
+  .rules b { color: var(--dv-text); font-weight: 600; }
+  [data-only] { display: none; }
+  body.f1 [data-only="f1"], body.f2 [data-only="f2"] { display: revert; }
+</style>
+</head>
+<body class="f1">
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="hp" viewBox="0 0 16 16"><path fill="currentColor" d="M8 3a5 5 0 0 0-5 5v1h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a6 6 0 1 1 12 0v5a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1V8a5 5 0 0 0-5-5"/></symbol>
+  <symbol id="chev" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 6l4 4 4-4"/></symbol>
+  <symbol id="ok" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 8.5l3 3 7-7"/></symbol>
+  <symbol id="play" viewBox="0 0 16 16"><path fill="currentColor" d="M5 3.5v9l7.5-4.5z"/></symbol>
+  <symbol id="cas" viewBox="0 0 16 16"><path fill="currentColor" d="M2 4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-1.5l-1-2h-5l-1 2H3a1 1 0 0 1-1-1zm3.5 5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3m5 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3"/></symbol>
+  <symbol id="x" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M4 4l8 8M12 4l-8 8"/></symbol>
+</svg>
+
+<div class="bar">
+  <span>Pied de la fiche</span>
+  <span class="seg" id="foot">
+    <button data-f="f1" class="on">Casque seul</button><button data-f="f2">Casque + ▾</button>
+  </span>
+  <button class="btn" id="reset" style="height:30px;font-size:13px">Vider Listen Next</button>
+</div>
+
+<main>
+  <section>
+    <h3>Ce qui change</h3>
+    <ul class="rules">
+      <li><b>Plusieurs CD d'un même album</b> : chaque CD choisi est une entrée à part dans Listen Next, avec sa place, son étiquette dans la bannière, et il sort de la liste quand il a été écouté. <b>Whole album</b> reste une seule entrée : le choisir remplace les CD choisis, et ajouter un CD quand l'album entier y est le remplace par ce CD.</li>
+      <li><b>Pochette</b> : à partir de 2 CD, le casque ouvre le menu. Il est doré dès que quelque chose de l'album est dans la liste, et son <b>infobulle</b> dit quoi : « In Listen Next: CD 1, CD 3 ». Rien d'autre sur la pochette.</li>
+      <li><b>Le menu se ferme à chaque choix</b>, comme tous les menus de DexVault : un CD de plus, c'est un clic de plus, et la fiche a ses boutons par CD pour en choisir plusieurs à la suite.</li>
+      <li><b>Fiche</b> : à droite du titre de chaque CD, un bouton discret <b>Listen Next</b>, doré quand ce CD y est (ou l'album entier).</li>
+      <li data-only="f1">Le pied garde un seul <b>casque</b>, pour l'album entier : il l'ajoute, ou retire tout ce qui y est de l'album. Le ▾ n'a plus de raison d'être puisque chaque CD a son bouton.</li>
+      <li data-only="f2">Le pied garde aussi le <b>▾</b> avec le même menu que la pochette, pour qui ne descend pas jusqu'aux CD.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h3>Vignettes de MusicDex</h3>
+    <p class="how">Passer la souris sur les pochettes, puis sur le casque pour son infobulle. La troisième a un seul CD : un clic ajoute ou retire, sans menu.</p>
+    <div class="thumbs">
+      <div class="thumb"><div class="art" data-t="Pure Funk" id="thumb-funk"></div><div class="meta">Pure Funk<span>Various Artists · 3 CD</span></div></div>
+      <div class="thumb"><div class="art box" data-t="Bach · Cantatas" id="thumb-bach"></div><div class="meta">Bach · Sacred Cantatas<span>Harnoncourt · 8 CD</span></div></div>
+      <div class="thumb"><div class="art one" data-t="Kind of Blue" id="thumb-blue"></div><div class="meta">Kind of Blue<span>Miles Davis · 1 CD</span></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Fiche de Pure Funk</h3>
+    <p class="how">Les pistes, CD par CD, chacun avec son bouton ; le pied en bas.</p>
+    <div class="card">
+      <div class="card-head"><div class="art mini"></div><div><b>Pure Funk</b><span>Various Artists · 1998 · 3 CD</span></div></div>
+      <div class="card-body" id="discs-funk"></div>
+      <div class="card-foot">
+        <span class="group"><button class="btn primary"><svg class="i"><use href="#play"/></svg>Play</button><button class="btn primary" style="padding:0 10px"><svg class="i chev"><use href="#chev"/></svg></button></span>
+        <span id="foot-funk"></span>
+        <button class="btn"><svg class="i"><use href="#cas"/></svg>Mixtapes<svg class="i chev"><use href="#chev"/></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Bannière Listen Next</h3>
+    <p class="banner-sum" id="sum"></p>
+    <div class="banner" id="banner"></div>
+  </section>
+</main>
+
+<div class="menu" id="menu" role="menu"></div>
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+  const FUNK = [
+    ['Get Up (I Feel Like Being a) Sex Machine', '5:15'], ['Superstition', '4:26'], ['Brick House', '3:28'], ['Play That Funky Music', '5:05'],
+    ['Pick Up the Pieces', '4:00'], ['Jungle Boogie', '3:07'], ['Car Wash', '3:20'], ['Le Freak', '5:28'], ['Get Down Tonight', '3:15'],
+    ['Flash Light', '5:46'], ['One Nation Under a Groove', '7:31'], ['Fire', '4:32'], ['Ladies Night', '3:30'], ['Shake Your Body', '3:46'],
+  ];
+  const ALBUMS = {
+    funk: { title: 'Pure Funk', art: '', shelf: 'B-2', discs: [[20, 78], [19, 76], [21, 79]] },
+    bach: { title: 'Bach · Sacred Cantatas', art: 'box', shelf: 'C-14', discs: [[8, 71], [9, 74], [7, 68], [8, 72], [9, 75], [8, 70], [7, 66], [9, 77]] },
+    blue: { title: 'Kind of Blue', art: 'one', shelf: 'A-5', discs: [[6, 46]] },
+  };
+  const OTHERS = [
+    { key: 'abbey', title: 'Abbey Road', art: 'one', discs: [[17, 47]] },
+    { key: 'mezz', title: 'Mezzanine', art: 'one', discs: [[11, 63]] },
+  ];
+  // Listen Next as entries in order: { key, disc } where disc 0 is the whole album.
+  let entries = OTHERS.map(o => ({ key: o.key, disc: 0 }));
+  let foot = 'f1';
+
+  const svg = id => `<svg class="i${id === 'chev' ? ' chev' : ''}"><use href="#${id}"/></svg>`;
+  const hm = min => min >= 60 ? `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}` : `${min} min`;
+  const albumOf = key => ALBUMS[key] || OTHERS.find(o => o.key === key);
+  const mine = key => entries.filter(e => e.key === key);
+  const whole = key => mine(key).some(e => e.disc === 0);
+  const discsIn = key => mine(key).map(e => e.disc).filter(Boolean).sort((a, b) => a - b);
+  const inList = key => mine(key).length > 0;
+  const discIn = (key, disc) => whole(key) || discsIn(key).includes(disc);
+  const what = key => !inList(key) ? 'Listen Next' : whole(key) ? 'In Listen Next: the whole album' : `In Listen Next: ${discsIn(key).map(d => `CD ${d}`).join(', ')}`;
+
+  let toastTimer;
+  const toast = text => {
+    const t = document.getElementById('toast');
+    t.textContent = text; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+  };
+
+  /** Replaces the album's entries by `discs` (0 for the whole album), at the place of its first one, or at the end. */
+  const setDiscs = (key, discs) => {
+    const at = entries.findIndex(e => e.key === key);
+    const rest = entries.filter(e => e.key !== key);
+    const place = at < 0 ? rest.length : entries.slice(0, at).filter(e => e.key !== key).length;
+    rest.splice(place, 0, ...discs.map(disc => ({ key, disc })));
+    entries = rest;
+  };
+  const toggleWhole = key => {
+    const a = ALBUMS[key];
+    if (inList(key)) { setDiscs(key, []); toast(`${a.title} out of Listen Next`); }
+    else { setDiscs(key, [0]); toast(`${a.title} in Listen Next`); }
+    render();
+  };
+  const setWhole = key => {
+    if (whole(key)) return;
+    setDiscs(key, [0]); toast(`The whole of ${ALBUMS[key].title} in Listen Next`); render();
+  };
+  const toggleDisc = (key, disc) => {
+    const a = ALBUMS[key];
+    if (discsIn(key).includes(disc)) {
+      // Taken out: its own entry goes, the others stay where they are.
+      entries = entries.filter(e => !(e.key === key && e.disc === disc));
+      toast(`CD ${disc} of ${a.title} out of Listen Next`);
+    } else if (whole(key)) {
+      setDiscs(key, [disc]);
+      toast(`Listen Next now has CD ${disc} of ${a.title}, not the whole album`);
+    } else if (!inList(key)) {
+      setDiscs(key, [disc]);
+      toast(`CD ${disc} of ${a.title} in Listen Next`);
+    } else {
+      // Another CD of an album already there: at the end, as any addition.
+      entries.push({ key, disc });
+      toast(`CD ${disc} of ${a.title} in Listen Next`);
+    }
+    render();
+  };
+
+  // ---------- the menu: it closes at each choice
+  const menu = document.getElementById('menu');
+  let opener = null;
+  const closeMenu = () => {
+    menu.classList.remove('open');
+    if (opener) opener.setAttribute('aria-expanded', 'false');
+    opener = null;
+  };
+  const openMenu = (button, key) => {
+    if (opener === button) { closeMenu(); return; }
+    closeMenu(); hideTip();
+    const a = ALBUMS[key], all = whole(key), discs = discsIn(key);
+    const item = (value, label, hint, checked) =>
+      `<button class="item" role="menuitemcheckbox" aria-checked="${checked}" data-value="${value}"><span class="check">${svg('ok')}</span><span class="label">${label}</span><span class="hint">${hint}</span></button>`;
+    menu.innerHTML = `<div class="msec">Listen Next</div>`
+      + item(0, 'Whole album', `${a.discs.length} CDs · ${hm(a.discs.reduce((s, d) => s + d[1], 0))}`, all)
+      + `<div class="sep"></div>`
+      + a.discs.map((d, i) => item(i + 1, `CD ${i + 1}`, `${d[0]} tracks · ${hm(d[1])}`, discs.includes(i + 1))).join('')
+      + (inList(key) ? `<div class="sep"></div><button class="item" data-value="out"><span class="icon">${svg('x')}</span><span class="label">Take out of Listen Next</span></button>` : '');
+    menu.querySelectorAll('.item').forEach(el => el.addEventListener('click', () => {
+      const value = el.dataset.value;
+      closeMenu();
+      if (value === 'out') { setDiscs(key, []); toast(`${a.title} out of Listen Next`); render(); }
+      else if (value === '0') setWhole(key);
+      else toggleDisc(key, Number(value));
+    }));
+    const r = button.getBoundingClientRect();
+    menu.classList.add('open');
+    const w = menu.offsetWidth, h = menu.offsetHeight;
+    const up = r.bottom + h + 8 > innerHeight;
+    menu.style.top = `${up ? r.top - h - 6 : r.bottom + 6}px`;
+    menu.style.left = `${Math.min(Math.max(8, r.right - w), innerWidth - w - 8)}px`;
+    button.setAttribute('aria-expanded', 'true');
+    opener = button;
+  };
+  document.addEventListener('click', e => {
+    if (opener && !menu.contains(e.target) && !opener.contains(e.target)) closeMenu();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+
+  // ---------- the tooltip, as TooltipHost: data-tip, under the pointer after 250 ms
+  const tip = document.getElementById('tip');
+  let tipTimer, tipFor = null;
+  const hideTip = () => { clearTimeout(tipTimer); tip.classList.remove('show'); tipFor = null; };
+  document.addEventListener('pointerover', e => {
+    const el = e.target.closest('[data-tip]');
+    if (el === tipFor) return;
+    hideTip();
+    if (!el || el.getAttribute('aria-expanded') === 'true') return;
+    tipFor = el;
+    tipTimer = setTimeout(() => {
+      tip.textContent = el.dataset.tip;
+      tip.classList.add('show');
+    }, 250);
+  });
+  document.addEventListener('pointermove', e => {
+    if (!tipFor) return;
+    const w = tip.offsetWidth;
+    tip.style.left = `${Math.min(e.clientX - 8, innerWidth - w - 8)}px`;
+    tip.style.top = `${e.clientY + 20}px`;
+  });
+
+  // ---------- the card
+  const renderDiscs = key => {
+    const a = ALBUMS[key];
+    document.getElementById(`discs-${key}`).innerHTML = a.discs.map((d, i) => {
+      const n = i + 1, on = discIn(key, n);
+      const tracks = FUNK.slice((i * 4) % 10, (i * 4) % 10 + 4).map(([t, len], j) =>
+        `<div class="track"><span class="no">${j + 1}.</span><span class="t">${t}</span><span class="d">${len}</span></div>`).join('');
+      return `<div class="disc-head"><h6 class="disc-title">Disc ${n}<span>${d[0]} tracks · ${hm(d[1])}</span></h6>
+        <button class="btn sm quiet${on ? ' on' : ''}" data-disc="${n}" data-tip="${on ? (whole(key) ? 'The whole album is in Listen Next: this CD alone instead' : `Take CD ${n} out of Listen Next`) : `CD ${n} in Listen Next`}">${svg('hp')}${on ? 'In Listen Next' : 'Listen Next'}</button></div>
+        ${tracks}<div class="track more"><span class="no"></span><span class="t">… ${d[0] - 4} more</span></div>`;
+    }).join('');
+    document.querySelectorAll(`#discs-${key} [data-disc]`).forEach(b => b.onclick = () => toggleDisc(key, Number(b.dataset.disc)));
+  };
+  const renderFoot = key => {
+    const host = document.getElementById(`foot-${key}`);
+    const on = inList(key) ? ' on' : '';
+    const sub = whole(key) || !inList(key) ? '' : ` <span class="sub">· CD ${discsIn(key).join(', ')}</span>`;
+    const main = `<button class="btn${on}" data-tip="${on ? 'Take it out of Listen Next' : 'The whole album in Listen Next'}">${svg('hp')}${on ? 'In Listen Next' : 'Listen Next'}${sub}</button>`;
+    host.innerHTML = foot === 'f1' ? main
+      : `<span class="group">${main}<button class="btn${on}" aria-haspopup="menu" aria-expanded="false" data-tip="Some CDs only">${svg('chev')}</button></span>`;
+    const [hp, more] = host.querySelectorAll('button');
+    hp.onclick = () => toggleWhole(key);
+    if (more) more.onclick = () => openMenu(more, key);
+  };
+
+  // ---------- the thumbnails
+  const renderThumb = key => {
+    const host = document.getElementById(`thumb-${key}`);
+    const a = ALBUMS[key], multi = a.discs.length > 1, on = inList(key);
+    host.innerHTML = `<span class="c-mark tag reveal">Digital</span><span class="c-shelf">${a.shelf}</span>
+      <button class="round c-play reveal" data-tip="Play">${svg('play')}</button>
+      <button class="round c-next reveal${on ? ' on' : ''}" data-tip="${what(key)}">${svg('hp')}</button>`;
+    const hp = host.querySelector('.c-next');
+    if (!multi) { hp.dataset.tip = on ? 'In Listen Next: take it out' : 'Listen Next'; hp.onclick = () => toggleWhole(key); return; }
+    hp.setAttribute('aria-haspopup', 'menu');
+    hp.setAttribute('aria-expanded', 'false');
+    hp.onclick = () => openMenu(hp, key);
+  };
+
+  // ---------- the banner
+  const renderBanner = () => {
+    let discs = 0, tracks = 0, min = 0;
+    document.getElementById('banner').innerHTML = entries.map(e => {
+      const a = albumOf(e.key);
+      const parts = e.disc ? [a.discs[e.disc - 1]] : a.discs;
+      discs += parts.length; tracks += parts.reduce((s, d) => s + d[0], 0); min += parts.reduce((s, d) => s + d[1], 0);
+      const sub = e.disc ? `CD ${e.disc} of ${a.discs.length}` : a.discs.length > 1 ? `${a.discs.length} CDs` : hm(a.discs[0][1]);
+      return `<div class="slot"><div class="art ${a.art}" data-t="${a.title}">${e.disc ? `<span class="tag gold">CD ${e.disc}</span>` : ''}</div><div class="meta">${a.title}<span>${sub}</span></div></div>`;
+    }).join('');
+    document.getElementById('sum').textContent = `${entries.length} in the list · ${discs} CDs · ${tracks} tracks · ${hm(min)}`;
+  };
+
+  const render = () => {
+    hideTip();
+    renderDiscs('funk');
+    renderFoot('funk');
+    ['funk', 'bach', 'blue'].forEach(renderThumb);
+    renderBanner();
+  };
+
+  document.querySelectorAll('#foot button').forEach(button => button.addEventListener('click', () => {
+    foot = button.dataset.f;
+    document.body.className = foot;
+    document.querySelectorAll('#foot button').forEach(b => b.classList.toggle('on', b === button));
+    closeMenu(); render();
+  }));
+  document.getElementById('reset').onclick = () => { entries = OTHERS.map(o => ({ key: o.key, disc: 0 })); closeMenu(); render(); };
+  render();
+</script>
+</body>
+</html>

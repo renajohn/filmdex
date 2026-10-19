@@ -41,7 +41,7 @@ let third: number;
 
 beforeEach(async () => {
   process.env.NAVIDROME_USER = 'me';
-  for (const album of await musicCollectionService.getListenNextAlbums()) await Album.toggleListenNext(album.id);
+  for (const id of new Set((await musicCollectionService.getListenNextAlbums()).map(album => album.id))) await Album.toggleListenNext(id);
   await ListenNextPlay.setRepeat(false);
   await new Promise<void>((resolve, reject) =>
     getDatabase().run('DELETE FROM listen_next_departures', (err: Error | null) => (err ? reject(err) : resolve())));
@@ -97,10 +97,10 @@ describe('Listen Next lu', () => {
     expect(state.playlistId).toBe('pl-1');
     expect(state.playlistUrl).toMatch(/\/app\/#\/playlist\/pl-1\/show$/);
     expect(state.ripped).toEqual([first, second]);
-    expect(state.departures.map(d => [d.id, d.albumId, d.album.id, d.beforeAlbumId])).toEqual([[departure!.id, third, third, null]]);
+    expect(state.departures.map(d => [d.id, d.albumId, d.album.id, d.beforeKey])).toEqual([[departure!.id, third, third, null]]);
     await listenNextPlayService.noteScrobble('me', `nd-${first}-2-1`);
-    expect((await listenNextPlayService.getState()).departures.find(d => d.albumId === first)?.beforeAlbumId).toBe(second);
-    expect(state.lengths[first]).toEqual({ discs: 2, tracks: 2, durationSec: 200, missing: 1 });
+    expect((await listenNextPlayService.getState()).departures.find(d => d.albumId === first)?.beforeKey).toBe(`${second}:0`);
+    expect(state.lengths[`${first}:0`]).toEqual({ discs: 2, tracks: 2, durationSec: 200, missing: 1 });
   });
 
   it('un album remis à la main dans Listen Next ne part plus', async () => {
@@ -192,9 +192,70 @@ describe('Listen Next lu', () => {
     expect(await suggestedOf()).toEqual({ [first]: false, [second]: true, [third]: false });
 
     for (const id of [first, second]) {
-      const left = await listenNextPlayService.markPlayed(id);
+      const left = await listenNextPlayService.markPlayed(id, 0);
       expect(await listenNextPlayService.keep(left!.id)).toBe(true);
     }
     expect(await suggestedOf()).toEqual({ [first]: false, [second]: true, [third]: false });
+  });
+
+  describe('un disque d’un album', () => {
+    const entries = async () => (await musicCollectionService.getListenNextAlbums()).map(album => `${album.id}:${album.disc ?? 0}`);
+
+    it('met un disque à la fin, un autre après, et l’album entier à la place du premier', async () => {
+      await Album.toggleListenNext(first);
+      expect((await request(app).put(`/api/music/albums/${first}/listen-next`).send({ disc: 2 })).body).toEqual({ id: first, action: 'added' });
+      await Album.toggleListenNext(first, 1);
+      expect(await entries()).toEqual([`${second}:0`, `${third}:0`, `${first}:2`, `${first}:1`]);
+
+      // A disc there taken out alone.
+      await Album.toggleListenNext(first, 2);
+      expect(await entries()).toEqual([`${second}:0`, `${third}:0`, `${first}:1`]);
+      await Album.toggleListenNext(first, 2);
+      expect(await Album.toggleListenNext(first, 'all')).toEqual({ id: first, action: 'added' });
+      expect(await entries()).toEqual([`${second}:0`, `${third}:0`, `${first}:0`]);
+      expect(await Album.toggleListenNext(first, 'all')).toEqual({ id: first, action: 'kept' });
+
+      // A disc in place of the whole album; the album's button takes out whatever of it is there.
+      await Album.toggleListenNext(first, 3);
+      expect(await entries()).toEqual([`${second}:0`, `${third}:0`, `${first}:3`]);
+      await Album.toggleListenNext(first, 1);
+      expect(await Album.toggleListenNext(first)).toEqual({ id: first, action: 'removed' });
+      expect(await entries()).toEqual([`${second}:0`, `${third}:0`]);
+
+      expect((await request(app).put(`/api/music/albums/${first}/listen-next`).send({ disc: 'two' })).status).toBe(400);
+    });
+
+    it('range les entrées par leurs clés', async () => {
+      await Album.toggleListenNext(first, 1);
+      await Album.toggleListenNext(first, 2);
+      // first:0 is no longer there: passed over.
+      const body = (await request(app).put('/api/collections/listen-next/order').send({ keys: [`${first}:2`, `${third}`, `${first}:0`, `${first}:1`] })).body;
+      expect(body.albums.map((album: { id: number; disc: number | null }) => `${album.id}:${album.disc ?? 0}`))
+        .toEqual([`${first}:2`, `${third}:0`, `${first}:1`, `${second}:0`]);
+      expect((await request(app).put('/api/collections/listen-next/order').send({ keys: ['x:1'] })).status).toBe(400);
+    });
+
+    it('fait partir un disque sur le scrobble de sa dernière piste, et le remet avec Keep here', async () => {
+      await Album.toggleListenNext(second);
+      await Album.toggleListenNext(second, 1);
+      await Album.toggleListenNext(second, 2);
+      await insertTrack(second, 1, 1, 100);
+      await insertTrack(second, 1, 2, 120);
+      await insertTrack(second, 2, 1, 300);
+      expect((await listenNextPlayService.getState()).lengths).toMatchObject({
+        [`${second}:1`]: { discs: 1, tracks: 2, durationSec: 220, missing: 0 },
+        [`${second}:2`]: { discs: 1, tracks: 1, durationSec: 300, missing: 0 },
+      });
+
+      // Disc 1's last song is 1-2 in Navidrome, not the album's.
+      const departure = await listenNextPlayService.noteScrobble('me', `nd-${second}-1-2`);
+      expect(departure).toMatchObject({ albumId: second, disc: 1 });
+      expect(await entries()).toEqual([`${first}:0`, `${third}:0`, `${second}:2`]);
+      expect((await listenNextPlayService.getState()).departures.map(d => [d.albumId, d.disc, d.beforeKey])).toEqual([[second, 1, `${second}:2`]]);
+
+      expect((await request(app).post(`/api/collections/listen-next/played/${second}`).send({ disc: 2 })).body.left).toMatchObject({ disc: 2 });
+      expect(await listenNextPlayService.keep(departure!.id)).toBe(true);
+      expect(await entries()).toEqual([`${first}:0`, `${third}:0`, `${second}:1`]);
+    });
   });
 });

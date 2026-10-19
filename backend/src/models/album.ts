@@ -37,7 +37,7 @@ interface AlbumStatusResult {
 
 interface AlbumToggleResult {
   id: number;
-  action: 'added' | 'removed';
+  action: 'added' | 'removed' | 'kept';
 }
 
 interface AlbumAutocompleteRow {
@@ -1251,61 +1251,13 @@ const Album = {
     });
   },
 
-  // Toggle Listen Next collection membership
-  toggleListenNext: (id: number): Promise<AlbumToggleResult> => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const db = getDatabase();
-        const Collection = (await import('./collection')).default;
-        const AlbumCollection = (await import('./albumCollection')).default;
-        const PlaylistHistory = (await import('./playlistHistory')).default;
-
-        // Get the Listen Next system collection
-        const listenNextCollection = await Collection.findByType('listen_next');
-        if (!listenNextCollection) {
-          throw new Error('Listen Next collection not found');
-        }
-
-        // Check if album is already in Listen Next
-        const existing = await AlbumCollection.findByAlbumAndCollection(id, listenNextCollection.id);
-
-        if (existing) {
-          // Remove from Listen Next
-          await new Promise<void>((resolve, reject) => {
-            db.run('DELETE FROM album_collections WHERE id = ?', [existing.id], function(this: sqlite3.RunResult, err: Error | null) {
-              if (err) {
-                reject(err);
-              } else {
-                resolve();
-              }
-            });
-          });
-
-          resolve({ id, action: 'removed' });
-        } else {
-          // Add to Listen Next at the end
-          const position = await AlbumCollection.getNextOrder(listenNextCollection.id);
-
-          await AlbumCollection.create({
-            album_id: id,
-            collection_id: listenNextCollection.id,
-            collection_order: position
-          });
-
-          // Record in playlist history (so it won't be re-suggested for 14 days)
-          try {
-            await PlaylistHistory.recordSuggestion(id);
-          } catch (historyError) {
-            // Don't fail the toggle if history recording fails
-            console.warn('Failed to record playlist history:', (historyError as Error).message);
-          }
-
-          resolve({ id, action: 'added' });
-        }
-      } catch (error) {
-        reject(error);
-      }
-    });
+  /**
+   * Listen Next from an album's button: with no disc, the whole album in, or
+   * whatever of it is there out; 'all' or a disc as musicCollectionService.setListenNext.
+   */
+  toggleListenNext: async (id: number, choice?: 'all' | number): Promise<AlbumToggleResult> => {
+    const musicCollectionService = (await import('../services/musicCollectionService')).default;
+    return musicCollectionService.setListenNext(id, choice);
   }
 };
 

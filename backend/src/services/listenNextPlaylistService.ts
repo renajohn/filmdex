@@ -25,7 +25,7 @@ export interface PlaylistReport {
   songs: number;
 }
 
-/** Every song of Listen Next, album after album, disc by disc, track by track; a mixtape's in its own order, or the one drawn. */
+/** Every song of Listen Next, album after album (or the disc chosen), disc by disc, track by track; a mixtape's in its own order, or the one drawn. */
 const songsOfListenNext = async (): Promise<{ songIds: string[]; albums: number; notRipped: number }> => {
   const albums = await musicCollectionService.getListenNextAlbums();
   const songIds: string[] = [];
@@ -39,7 +39,8 @@ const songsOfListenNext = async (): Promise<{ songIds: string[]; albums: number;
     const copy = await ripStatusService.navidromeAlbumFor(album.id);
     if (!copy) { notRipped++; continue; }
     const files = await navidromeService.getAlbumSongs(copy.id);
-    songIds.push(...files.filter(file => file.id)
+    // One disc of it: its songs alone.
+    songIds.push(...files.filter(file => file.id && (!album.disc || file.discNumber === album.disc))
       .sort((a, b) => a.discNumber - b.discNumber || a.track - b.track)
       .map(file => file.id!));
   }

@@ -1072,3 +1072,22 @@
 .track-favourite:focus-visible {
   visibility: visible;
 }
+
+/* A disc's title, and on its right its own Listen Next. */
+.disc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 0.25rem;
+}
+
+.disc-head .disc-title {
+  margin: 0;
+}
+
+/* The discs held, after "In Listen Next": quieter than the words. */
+.music-detail-next-discs {
+  font-weight: 400;
+  opacity: 0.85;
+}

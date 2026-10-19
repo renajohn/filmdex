@@ -6,7 +6,8 @@ import NowPlayingBars from './shared/NowPlayingBars';
 import { Loading } from './shared/Spinner';
 import toast from './shared/Toast';
 import { player, usePlayer, type PlayerAlbum, type PlayerTrack } from '../services/player';
-import { listenNextQueue } from '../services/listenNextQueue';
+import { listenNextQueue, playingKey } from '../services/listenNextQueue';
+import { entryKey, parseEntryKey } from '../utils/listenNextEntry';
 import musicService from '../services/musicService';
 import { loadPlayable } from '../utils/playAlbum';
 import './PlayerTracks.css';
@@ -24,7 +25,7 @@ const time = (seconds: number | null): string => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 };
 
-/** The albums to show: of Listen Next, those of this play that left it and the list; else the album playing. */
+/** The albums to show: of Listen Next, those of this play that left it and the list, an album or one disc of it; else the album playing. */
 const loadShown = async (album: PlayerAlbum, tracks: PlayerTrack[], fromListenNext: boolean): Promise<Shown[]> => {
   if (!fromListenNext) return [{ album, tracks, gone: null }];
   const [{ gone, listed }, play] = await Promise.all([
@@ -32,11 +33,12 @@ const loadShown = async (album: PlayerAlbum, tracks: PlayerTrack[], fromListenNe
     musicService.getListenNextPlay().catch(() => null),
   ]);
   const since = listenNextQueue.session().startedAt;
-  const playedOut = new Set((play?.departures || []).filter(departure => departure.leftAt >= since).map(departure => departure.albumId));
+  const playedOut = new Set((play?.departures || []).filter(departure => departure.leftAt >= since)
+    .map(departure => entryKey(departure.albumId, departure.disc)));
   const ids = [...gone, ...listed];
-  const loaded = await Promise.all(ids.map(id => (id === album.id
+  const loaded = await Promise.all(ids.map(id => (id === playingKey(album)
     ? Promise.resolve({ album, tracks })
-    : loadPlayable(id, { listenNext: true }).catch(() => null))));
+    : loadPlayable(parseEntryKey(id).albumId, { listenNext: true, disc: parseEntryKey(id).disc }).catch(() => null))));
   return ids.flatMap((id, at) => {
     const one = loaded[at];
     // An album with no rip has nothing to jump to.
@@ -74,7 +76,7 @@ const Tracks: React.FC<{ fromListenNext: boolean }> = ({ fromListenNext }) => {
     if (!now) return;
     list.current.scrollTop = Math.max(0, now.offsetTop - list.current.offsetTop - 120);
     now.focus({ preventScroll: true });
-    setFocus(shown.findIndex(one => one.album.id === album?.id));
+    setFocus(shown.findIndex(one => playingKey(one.album) === playingKey(album)));
     // Once, when the albums come.
   }, [shown]);
 
@@ -94,7 +96,7 @@ const Tracks: React.FC<{ fromListenNext: boolean }> = ({ fromListenNext }) => {
       player.playTrack(to);
       return;
     }
-    const started = await listenNextQueue.jumpTo(one.album.id as number, to).catch(() => false);
+    const started = await listenNextQueue.jumpTo(playingKey(one.album)!, to).catch(() => false);
     if (!started) toast(`Could not play ${one.album.title}`, { tone: 'danger' });
   };
 
@@ -114,7 +116,7 @@ const Tracks: React.FC<{ fromListenNext: boolean }> = ({ fromListenNext }) => {
   if (!shown) return <Dialog.Body><Loading>Loading the tracks…</Loading></Dialog.Body>;
   const side = shown[focus] || shown[0];
   const tagOf = (one: Shown) => {
-    if (one.album.id === album?.id) return <CoverTag variant="on"><BsPlayFill aria-hidden="true" /> Playing</CoverTag>;
+    if (playingKey(one.album) === playingKey(album)) return <CoverTag variant="on"><BsPlayFill aria-hidden="true" /> Playing</CoverTag>;
     if (one.gone === 'played') return <CoverTag variant="muted"><BsCheck2 aria-hidden="true" /> Played</CoverTag>;
     if (one.gone === 'out') return <CoverTag variant="muted">Taken out</CoverTag>;
     return null;
@@ -143,15 +145,15 @@ const Tracks: React.FC<{ fromListenNext: boolean }> = ({ fromListenNext }) => {
       <div className="player-tracks-list" ref={list} onScroll={follow} onKeyDown={onKeyDown}>
         {shown.map(one => {
           const several = discsOf(one) > 1;
-          const here = one.album.id === album?.id;
+          const here = playingKey(one.album) === playingKey(album);
           return (
-            <section key={one.album.id ?? 'alone'} className={`player-tracks-album${one.gone ? ' player-tracks-album--gone' : ''}`}
+            <section key={playingKey(one.album) ?? 'alone'} className={`player-tracks-album${one.gone ? ' player-tracks-album--gone' : ''}`}
               aria-label={one.album.title}>
               {fromListenNext && (
                 <div className="player-tracks-head">
                   {one.album.cover ? <img src={one.album.cover} alt="" /> : <span className="player-tracks-nocover" />}
                   <span className="player-tracks-head-meta">
-                    <b>{one.album.title}</b>
+                    <b>{one.album.title}{one.album.disc ? ` · Disc ${one.album.disc}` : ''}</b>
                     <span>{one.album.artist}</span>
                   </span>
                   {tagOf(one)}

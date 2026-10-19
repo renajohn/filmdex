@@ -9,6 +9,8 @@ export interface ListenNextDeparture {
   leftAt: number;
   /** It had come by a draw: Keep here puts it back so, with its die. */
   suggested: boolean;
+  /** The disc that left, 0 for the whole album. */
+  disc: number;
 }
 
 interface DepartureRow {
@@ -17,6 +19,7 @@ interface DepartureRow {
   collection_order: number | null;
   left_at: number;
   suggested: number | null;
+  disc: number | null;
 }
 
 const run = (sql: string, params: unknown[] = []): Promise<void> =>
@@ -29,7 +32,7 @@ const all = <T>(sql: string, params: unknown[] = []): Promise<T[]> =>
   new Promise((resolve, reject) => getDatabase().all(sql, params, (err: Error | null, rows: T[]) => (err ? reject(err) : resolve(rows))));
 
 const toDeparture = (row: DepartureRow): ListenNextDeparture => ({
-  id: row.id, albumId: row.album_id, collectionOrder: row.collection_order, leftAt: row.left_at, suggested: Boolean(row.suggested),
+  id: row.id, albumId: row.album_id, collectionOrder: row.collection_order, leftAt: row.left_at, suggested: Boolean(row.suggested), disc: row.disc || 0,
 });
 
 /**
@@ -51,8 +54,12 @@ const ListenNextPlay = {
       kept INTEGER NOT NULL DEFAULT 0
     )`);
     await run('CREATE INDEX IF NOT EXISTS idx_listen_next_departures_left ON listen_next_departures (left_at)');
-    if (!(await all<{ name: string }>('PRAGMA table_info(listen_next_departures)')).some(column => column.name === 'suggested')) {
+    const columns = (await all<{ name: string }>('PRAGMA table_info(listen_next_departures)')).map(column => column.name);
+    if (!columns.includes('suggested')) {
       await run('ALTER TABLE listen_next_departures ADD COLUMN suggested INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!columns.includes('disc')) {
+      await run('ALTER TABLE listen_next_departures ADD COLUMN disc INTEGER NOT NULL DEFAULT 0');
     }
     await run(`CREATE TABLE IF NOT EXISTS listen_next_shuffles (
       album_id INTEGER PRIMARY KEY,
@@ -89,9 +96,9 @@ const ListenNextPlay = {
     run(`INSERT INTO listen_next_settings (key, value) VALUES ('repeat', ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value`, [String(repeat)]),
 
-  addDeparture: async (albumId: number, collectionOrder: number | null, leftAt: number, suggested = false): Promise<ListenNextDeparture> => {
-    await run('INSERT INTO listen_next_departures (album_id, collection_order, left_at, suggested) VALUES (?, ?, ?, ?)',
-      [albumId, collectionOrder, leftAt, suggested ? 1 : 0]);
+  addDeparture: async (albumId: number, collectionOrder: number | null, leftAt: number, suggested = false, disc = 0): Promise<ListenNextDeparture> => {
+    await run('INSERT INTO listen_next_departures (album_id, collection_order, left_at, suggested, disc) VALUES (?, ?, ?, ?, ?)',
+      [albumId, collectionOrder, leftAt, suggested ? 1 : 0, disc]);
     const row = await get<DepartureRow>('SELECT * FROM listen_next_departures WHERE rowid = last_insert_rowid()');
     return toDeparture(row!);
   },

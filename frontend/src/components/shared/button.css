@@ -240,7 +240,13 @@
   color: #111;
 }
 
-/* Side by side in a group (Play and its ▾): one shape. */
+/* Side by side in a group (Play and its ▾): one shape, on one line, as a Bootstrap ButtonGroup. */
+.ui-button-group {
+  display: inline-flex;
+  align-items: stretch;
+  vertical-align: middle;
+}
+
 /* Square only on a side that meets another button: a panel opened after the
    ▾ (a date picker) is no button, and the ▾ keeps its round end. */
 .btn-group > .ui-button:has(+ .ui-button),

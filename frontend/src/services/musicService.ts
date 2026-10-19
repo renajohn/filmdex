@@ -101,8 +101,10 @@ export interface ListenNextDeparture {
   collectionOrder: number | null;
   /** Unix seconds. */
   leftAt: number;
-  /** The album now after its place in the list, null at the end. */
-  beforeAlbumId: number | null;
+  /** The disc that left, 0 for the whole album. */
+  disc: number;
+  /** The entry now after its place in the list ("12:0", "12:2"), null at the end. */
+  beforeKey: string | null;
   album: { id: number; title: string; artist?: string | string[]; cover?: string | null; [key: string]: unknown };
 }
 
@@ -122,7 +124,8 @@ export interface ListenNextPlayState {
   departures: ListenNextDeparture[];
   /** The albums of Listen Next the player can play. */
   ripped: number[];
-  lengths: Record<number, AlbumLength>;
+  /** By entry key ("12:0", "12:2"): a disc's own length for a disc. */
+  lengths: Record<string, AlbumLength>;
   /** The mixtapes that play shuffled from Listen Next. */
   shuffled: number[];
 }
@@ -966,11 +969,18 @@ class MusicService {
     return `/api/images/${imagePath}`;
   }
 
-  async toggleListenNext(albumId: number | string): Promise<unknown> {
+  /**
+   * Listen Next from an album's button: with no disc, the whole album in, or
+   * whatever of it is there out; a disc, that disc in or out (in place of the
+   * whole album if that is there); 'all', the whole album in place of the discs chosen.
+   */
+  async toggleListenNext(albumId: number | string, disc?: number | 'all'): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();
-      const response = await fetch(`${baseUrl}/music/albums/${albumId}/listen-next`, {
+      const response = await fetch(`${baseUrl}/music/albums/${albumId}/listen-next`, disc === undefined ? { method: 'PUT' } : {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ disc }),
       });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -1111,10 +1121,14 @@ class MusicService {
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  /** ⏭ on an album's last track: it leaves Listen Next as one played to its end, unless Repeat is on. */
-  async markListenNextPlayed(albumId: number): Promise<{ left: ListenNextDeparture | null }> {
+  /** ⏭ on the last track of an album, or of its disc: it leaves Listen Next as one played to its end, unless Repeat is on. */
+  async markListenNextPlayed(albumId: number, disc = 0): Promise<{ left: ListenNextDeparture | null }> {
     const baseUrl = await this.getBaseUrl();
-    const response = await fetch(`${baseUrl}/collections/listen-next/played/${albumId}`, { method: 'POST' });
+    const response = await fetch(`${baseUrl}/collections/listen-next/played/${albumId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ disc }),
+    });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     return response.json();
   }
@@ -1128,12 +1142,12 @@ class MusicService {
   }
 
   /** Listen Next in the order given, dragged on its banner; the list as the server now has it. */
-  async reorderListenNext(albumIds: number[]): Promise<{ albums: unknown[] }> {
+  async reorderListenNext(keys: string[]): Promise<{ albums: unknown[] }> {
     const baseUrl = await this.getBaseUrl();
     const response = await fetch(`${baseUrl}/collections/listen-next/order`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ albumIds }),
+      body: JSON.stringify({ keys }),
     });
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     return response.json();

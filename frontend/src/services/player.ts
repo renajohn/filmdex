@@ -33,6 +33,8 @@ export interface PlayerAlbum {
   title: string;
   artist: string;
   cover: string | null;
+  /** One disc of the album, played from Listen Next alone; absent for the whole album. */
+  disc?: number | null;
 }
 
 /** Where a play was left, kept in the browser: Navidrome's own saved queue is shared with Amperfy. */
@@ -460,13 +462,13 @@ export const player = {
  * again after a reload: the player cannot import the list, the list imports
  * the player.
  */
-const queues = new Map<PlayerQueue, (albumId: number) => PlayOptions>();
+const queues = new Map<PlayerQueue, (album: PlayerAlbum & { id: number }) => PlayOptions>();
 let waitingQueue: { queue: PlayerQueue; album: PlayerAlbum } | null = null;
 
-export const registerQueue = (queue: PlayerQueue, restore: (albumId: number) => PlayOptions): void => {
+export const registerQueue = (queue: PlayerQueue, restore: (album: PlayerAlbum & { id: number }) => PlayOptions): void => {
   queues.set(queue, restore);
   if (waitingQueue?.queue === queue && state.album === waitingQueue.album && waitingQueue.album.id != null) {
-    options = restore(waitingQueue.album.id);
+    options = restore(waitingQueue.album as PlayerAlbum & { id: number });
     waitingQueue = null;
   }
 };
@@ -487,7 +489,7 @@ export const restorePlayer = (): void => {
   waitingQueue = null;
   if (queue && saved.album.id != null) {
     const restore = queues.get(queue);
-    if (restore) options = restore(saved.album.id);
+    if (restore) options = restore(saved.album as PlayerAlbum & { id: number });
     else waitingQueue = { queue, album: saved.album };
   }
   set({ album: saved.album, queue, tracks: saved.tracks, index, playing: false, position: saved.position,

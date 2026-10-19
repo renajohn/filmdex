@@ -30,6 +30,8 @@ interface MusicThumbnailProps {
   onClick: () => void;
   onListenNextChange?: () => void;
   isInListenNext?: boolean;
+  /** The headphones' tooltip: what of the album Listen Next holds ("In Listen Next: Disc 1 & 2 · take it out"). */
+  listenNextTitle?: string;
   dataItemId?: number | string;
   dataFirstLetter?: string;
   /** How the album stands in Navidrome, with Digital on; undefined with it off, and no mark is shown. */
@@ -38,7 +40,7 @@ interface MusicThumbnailProps {
   buy?: { reason: string | null; wished: boolean; onWish: () => void; onDismiss?: () => void };
 }
 
-const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onListenNextChange, isInListenNext: isInListenNextProp, dataItemId, dataFirstLetter, digital, buy }) => {
+const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onListenNextChange, isInListenNext: isInListenNextProp, listenNextTitle, dataItemId, dataFirstLetter, digital, buy }) => {
   const [togglingListenNext, setTogglingListenNext] = useState<boolean>(false);
 
   // Use prop if provided, otherwise local state (for backwards compatibility)
@@ -133,7 +135,8 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onListenNe
         )}
         <CoverButton className="thumbnail-listen-next" active={isInListenNext}
           onClick={handleListenNextToggle} disabled={togglingListenNext}
-          title={isInListenNext ? 'In Listen Next: take it out' : 'Listen Next'}
+          // The whole album in or out, whatever of it is there; the discs one by one are its card's.
+          title={listenNextTitle ?? (isInListenNext ? 'In Listen Next: take it out' : 'Listen Next')}
           label={isInListenNext ? `Take ${cd.title} out of Listen Next` : `Add ${cd.title} to Listen Next`}>
           <BsHeadphones aria-hidden="true" />
         </CoverButton>

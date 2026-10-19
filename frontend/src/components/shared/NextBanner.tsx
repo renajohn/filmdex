@@ -50,14 +50,16 @@ interface NextBannerProps {
   getCardClassName?: (item: NextBannerItem) => string;
   /** Laid over each image, above everything else on it. */
   renderOverlay?: (item: NextBannerItem) => React.ReactNode;
-  /** The cards can be dragged into a new order: the ids of those that can, from the first to the last. */
-  onReorder?: (ids: number[]) => void;
+  /** A card's own key, when an item can be there twice (two discs of an album): its id by default. */
+  getKey?: (item: NextBannerItem) => string | number;
+  /** The cards can be dragged into a new order: the keys of those that can (their ids by default), from the first to the last. */
+  onReorder?: (keys: Array<string | number>) => void;
   /** Whether a card can be dragged (all of them by default); one that cannot keeps its place among the others. */
   canReorder?: (item: NextBannerItem) => boolean;
 }
 
 interface SortableCardProps {
-  id: number;
+  id: string | number;
   disabled: boolean;
   className: string;
   children: React.ReactNode;
@@ -111,7 +113,8 @@ const NextBanner: React.FC<NextBannerProps> = ({
   getCardClassName,
   renderOverlay,
   onReorder,
-  canReorder
+  canReorder,
+  getKey = item => item.id
 }) => {
   const bannerRef = useRef<HTMLDivElement>(null);
   /** Set from a drag's end to the click that follows it, which must not open the card. */
@@ -168,10 +171,10 @@ const NextBanner: React.FC<NextBannerProps> = ({
     justDragged.current = true;
     setTimeout(() => { justDragged.current = false; }, 0);
     if (!onReorder || !over || active.id === over.id) return;
-    const from = items.findIndex(item => item.id === active.id);
-    const to = items.findIndex(item => item.id === over.id);
+    const from = items.findIndex(item => getKey(item) === active.id);
+    const to = items.findIndex(item => getKey(item) === over.id);
     if (from < 0 || to < 0) return;
-    onReorder(arrayMove(items, from, to).filter(item => !canReorder || canReorder(item)).map(item => item.id));
+    onReorder(arrayMove(items, from, to).filter(item => !canReorder || canReorder(item)).map(getKey));
   };
 
   const PlaceholderIcon = type === 'music' ? BsDisc : BsFilm;
@@ -221,12 +224,12 @@ const NextBanner: React.FC<NextBannerProps> = ({
 
       <div className="next-banner__carousel">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={items.map(item => item.id)} strategy={horizontalListSortingStrategy}>
+        <SortableContext items={items.map(getKey)} strategy={horizontalListSortingStrategy}>
         <div className="next-banner__track">
           {items.map((item) => (
             <SortableCard
-              key={item.id}
-              id={item.id}
+              key={getKey(item)}
+              id={getKey(item)}
               disabled={!onReorder || (canReorder ? !canReorder(item) : false)}
               className={`next-banner__card cover-host ${shufflingItemId === item.id ? 'shuffling' : ''} ${getCardClassName ? getCardClassName(item) : ''}`}
             >

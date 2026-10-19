@@ -10,7 +10,7 @@ import musicbrainzService from '../services/musicbrainzService';
 import coverScanService from '../services/coverScanService';
 import discogsService from '../services/discogsService';
 import Album from '../models/album';
-import musicCollectionService from '../services/musicCollectionService';
+import musicCollectionService, { parseEntryKey } from '../services/musicCollectionService';
 import smartPlaylistService from '../services/smartPlaylistService';
 import musicbrainzLinkService from '../services/musicbrainzLinkService';
 import musicbrainzRefreshService from '../services/musicbrainzRefreshService';
@@ -1148,7 +1148,13 @@ const musicController = {
   toggleListenNext: async (req: Request, res: Response): Promise<void> => {
     try {
       const id = parseInt(req.params.id as string, 10);
-      const result = await Album.toggleListenNext(id);
+      // { disc }: one disc in or out, or 'all' for the whole album in place of the discs chosen; none, the album in or out.
+      const disc = req.body?.disc;
+      if (disc !== undefined && disc !== 'all' && !(Number.isInteger(disc) && disc > 0)) {
+        res.status(400).json({ error: "disc must be a disc number or 'all'" });
+        return;
+      }
+      const result = await Album.toggleListenNext(id, disc);
       listenNextPlaylistService.schedule();
       res.json(result);
     } catch (error) {
@@ -1168,15 +1174,18 @@ const musicController = {
     }
   },
 
-  /** Listen Next in a new order, dragged on its banner: { albumIds } from the first to the last. */
+  /**
+   * Listen Next in a new order, dragged on its banner, from the first to the
+   * last: { keys } of its entries ("12:0", "12:2"), or { albumIds } as before.
+   */
   reorderListenNext: async (req: Request, res: Response): Promise<void> => {
     try {
-      const albumIds = req.body?.albumIds;
-      if (!Array.isArray(albumIds) || !albumIds.every(id => Number.isInteger(id))) {
-        res.status(400).json({ error: 'albumIds must be an array of album ids' });
+      const keys = req.body?.keys ?? req.body?.albumIds;
+      if (!Array.isArray(keys) || !keys.every(key => Number.isInteger(key) || (typeof key === 'string' && parseEntryKey(key)))) {
+        res.status(400).json({ error: 'keys must be an array of Listen Next entries' });
         return;
       }
-      const albums = await musicCollectionService.reorderListenNext(albumIds);
+      const albums = await musicCollectionService.reorderListenNext(keys);
       listenNextPlaylistService.schedule();
       res.json({ albums });
     } catch (error) {
@@ -1281,15 +1290,16 @@ const musicController = {
     }
   },
 
-  /** ⏭ on an album's last track in DexVault's player: it leaves Listen Next as one played to its end. */
+  /** ⏭ on the last track of an album, or of a disc ({ disc }), in DexVault's player: it leaves Listen Next as one played to its end. */
   markListenNextPlayed: async (req: Request, res: Response): Promise<void> => {
     const albumId = parseInt(req.params.albumId as string, 10);
-    if (!Number.isInteger(albumId)) {
-      res.status(400).json({ error: 'Expected an album id' });
+    const disc = req.body?.disc ?? 0;
+    if (!Number.isInteger(albumId) || !Number.isInteger(disc) || disc < 0) {
+      res.status(400).json({ error: 'Expected an album id and its disc' });
       return;
     }
     try {
-      res.json({ left: await listenNextPlayService.markPlayed(albumId) });
+      res.json({ left: await listenNextPlayService.markPlayed(albumId, disc) });
     } catch (error) {
       logger.error('Error marking a Listen Next album played:', error);
       res.status(500).json({ error: (error as Error).message });

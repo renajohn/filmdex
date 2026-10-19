@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BsArrowCounterclockwise, BsBoxArrowUpRight, BsCheckLg, BsPauseFill, BsPlayFill, BsRepeat } from 'react-icons/bs';
 import musicService, { type AlbumLength, type ListenNextDeparture, type ListenNextPlayState } from '../services/musicService';
 import { LISTEN_NEXT_LEFT_EVENT, player, usePlayer, type PlayerState } from '../services/player';
-import { listenNextQueue } from '../services/listenNextQueue';
+import { listenNextQueue, playingKey } from '../services/listenNextQueue';
+import { entryKey, keyOf, type EntryKey } from '../utils/listenNextEntry';
 import { amperfyUrl, isAppleMobile } from '../utils/navidrome';
 import { readStored, writeStored } from '../utils/safeStorage';
 import CoverButton from './shared/CoverButton';
@@ -20,10 +21,12 @@ interface ListAlbum {
   id: number;
   title?: string;
   titleStatus?: string;
+  /** One disc of the album in the list, null or absent for the whole album. */
+  disc?: number | null;
   [key: string]: unknown;
 }
 
-/** An album leaving the list, as the banner shows it. */
+/** An entry leaving the list, as the banner shows it. */
 type LeavingItem = ListAlbum & { departureId: number };
 
 const readSeen = (): Set<number> => {
@@ -37,13 +40,13 @@ const readSeen = (): Set<number> => {
 
 const reduceMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-/** Seconds left of the album the player plays from Listen Next, with its id; null otherwise. */
+/** Seconds left of the entry the player plays from Listen Next, after its key ("12:2|600"); null otherwise. */
 const remainingOf = (state: PlayerState): string | null => {
   if (state.queue !== 'listenNext' || !state.album?.id) return null;
   const after = state.tracks.slice(state.index + 1).reduce((sum, track) => sum + (track.durationSec || 0), 0);
   const left = Math.max(0, (state.duration || 0) - state.position) + after;
   // By the minute: the banner need not draw again at each tick.
-  return `${state.album.id}:${Math.ceil(left / 60) * 60}`;
+  return `${playingKey(state.album)}|${Math.ceil(left / 60) * 60}`;
 };
 
 /**
@@ -56,7 +59,7 @@ export const useListenNextPlay = (albums: ListAlbum[], refreshAlbums: () => Prom
   const [seen, setSeen] = useState<Set<number>>(readSeen);
   const [startedAt, setStartedAt] = useState<Record<number, number>>({});
   const [collapsing, setCollapsing] = useState<Set<number>>(() => new Set());
-  const playingId = usePlayer(state => (state.playing ? state.album?.id ?? null : null));
+  const playingEntry = usePlayer(state => (state.playing ? playingKey(state.album) : null));
 
   const load = useCallback(async () => {
     try {
@@ -86,9 +89,9 @@ export const useListenNextPlay = (albums: ListAlbum[], refreshAlbums: () => Prom
 
   // Listen Next can change while it plays here: the player goes by the list as it now is.
   // A new album has a length to tell, and maybe no rip.
-  const ids = albums.map(album => album.id).join(',');
+  const ids = albums.map(keyOf).join(',');
   useEffect(() => {
-    listenNextQueue.noteList(ids ? ids.split(',').map(Number) : []);
+    listenNextQueue.noteList(ids ? ids.split(',') : []);
     load();
   }, [ids, load]);
 
@@ -102,15 +105,15 @@ export const useListenNextPlay = (albums: ListAlbum[], refreshAlbums: () => Prom
 
   /** Departures to show: not seen in this browser, and not back in the list. */
   const departures = useMemo(() => (play?.departures || [])
-    .filter(departure => !seen.has(departure.id) && !albums.some(album => album.id === departure.albumId)),
+    .filter(departure => !seen.has(departure.id) && !albums.some(album => keyOf(album) === entryKey(departure.albumId, departure.disc))),
   [play, seen, albums]);
 
-  // The grace starts once the album is no longer playing: its last track goes on to its end first.
+  // The grace starts once the entry is no longer playing: its last track goes on to its end first.
   useEffect(() => {
     const now = Date.now();
-    const waiting = departures.filter(departure => startedAt[departure.id] == null && departure.albumId !== playingId);
+    const waiting = departures.filter(departure => startedAt[departure.id] == null && entryKey(departure.albumId, departure.disc) !== playingEntry);
     if (waiting.length > 0) setStartedAt(previous => ({ ...previous, ...Object.fromEntries(waiting.map(departure => [departure.id, now])) }));
-  }, [departures, playingId, startedAt]);
+  }, [departures, playingEntry, startedAt]);
 
   useEffect(() => {
     const timers = departures
@@ -122,20 +125,20 @@ export const useListenNextPlay = (albums: ListAlbum[], refreshAlbums: () => Prom
     return () => timers.forEach(clearTimeout);
   }, [departures, startedAt, collapsing, markSeen]);
 
-  /** The list with the albums leaving it at their places. */
+  /** The list with the entries leaving it at their places. */
   const items = useMemo(() => {
     const list: Array<ListAlbum | LeavingItem> = [...albums];
     for (const departure of departures) {
-      const item: LeavingItem = { ...(departure.album as ListAlbum), departureId: departure.id };
-      const at = departure.beforeAlbumId == null ? -1 : list.findIndex(album => album.id === departure.beforeAlbumId);
+      const item: LeavingItem = { ...(departure.album as ListAlbum), disc: departure.disc || null, departureId: departure.id };
+      const at = departure.beforeKey == null ? -1 : list.findIndex(album => keyOf(album) === departure.beforeKey);
       if (at < 0) list.push(item);
       else list.splice(at, 0, item);
     }
     return list;
   }, [albums, departures]);
 
-  const departureOf = useCallback((albumId: number): ListenNextDeparture | undefined =>
-    departures.find(departure => departure.albumId === albumId), [departures]);
+  const departureOf = useCallback((key: EntryKey): ListenNextDeparture | undefined =>
+    departures.find(departure => entryKey(departure.albumId, departure.disc) === key), [departures]);
 
   const keep = useCallback(async (departureId: number) => {
     try {
@@ -172,9 +175,9 @@ export const useListenNextPlay = (albums: ListAlbum[], refreshAlbums: () => Prom
 
   return {
     play, items, departureOf, keep, setRepeat, setShuffled,
-    /** An album leaving: greyed, its ring running down; one still playing its last track is not yet. */
-    leavingState: (albumId: number): { departureId: number; startedAt: number; collapsing: boolean } | null => {
-      const departure = departureOf(albumId);
+    /** An entry leaving: greyed, its ring running down; one still playing its last track is not yet. */
+    leavingState: (key: EntryKey): { departureId: number; startedAt: number; collapsing: boolean } | null => {
+      const departure = departureOf(key);
       if (!departure || startedAt[departure.id] == null) return null;
       return { departureId: departure.id, startedAt: startedAt[departure.id], collapsing: collapsing.has(departure.id) };
     },
@@ -274,9 +277,13 @@ const formatLength = (seconds: number): string => {
   return hours > 0 ? `${hours} h ${String(minutes % 60).padStart(2, '0')}` : `${minutes} min`;
 };
 
-/** The words of the line under the cards: `5 CDs · 63 tracks · ~4 h 10`, or the time left while it plays. */
+/**
+ * The words of the line under the cards: `5 CDs · 63 tracks · ~4 h 10`, or
+ * the time left while it plays; a disc of an album counts as one CD, its
+ * length its own.
+ */
 export const summaryOf = (
-  albums: ListAlbum[], lengths: Record<number, AlbumLength>, playing: { albumId: number; leftSec: number } | null, repeat: boolean,
+  albums: ListAlbum[], lengths: Record<string, AlbumLength>, playing: { key: EntryKey; leftSec: number } | null, repeat: boolean,
 ): string | null => {
   let discs = 0;
   let digital = 0;
@@ -284,7 +291,7 @@ export const summaryOf = (
   let seconds = 0;
   let missing = false;
   for (const album of albums) {
-    const length = lengths[album.id];
+    const length = lengths[keyOf(album)];
     if (album.titleStatus === 'digital') digital++;
     else discs += Math.max(1, length?.discs || 0);
     if (!length) {
@@ -293,7 +300,7 @@ export const summaryOf = (
     }
     tracks += length.tracks;
     if (length.missing > 0) missing = true;
-    if (!(playing && playing.albumId === album.id && !repeat)) seconds += length.durationSec;
+    if (!(playing && playing.key === keyOf(album) && !repeat)) seconds += length.durationSec;
   }
   const left = Boolean(playing) && !repeat;
   if (left && playing) seconds += playing.leftSec;
@@ -314,7 +321,7 @@ interface SummaryProps {
 export const ListenNextSummary: React.FC<SummaryProps> = ({ albums, play }) => {
   const remaining = usePlayer(remainingOf);
   if (!play) return null;
-  const [albumId, leftSec] = remaining ? remaining.split(':').map(Number) : [];
-  const text = summaryOf(albums, play.lengths, remaining ? { albumId, leftSec } : null, play.repeat);
+  const [key, leftSec] = remaining ? remaining.split('|') : [];
+  const text = summaryOf(albums, play.lengths, remaining ? { key, leftSec: Number(leftSec) } : null, play.repeat);
   return text ? <div className="listen-next-summary">{text}</div> : null;
 };

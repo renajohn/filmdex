@@ -601,6 +601,9 @@ export interface AlbumCollectionRow {
   collection_id: number;
   collection_order: number | null;
   created_at: string;
+  suggested?: number;
+  /** One disc of the album, 0 for the whole album. */
+  disc?: number;
   collection_name?: string;
   title?: string;
   release_year?: number;
@@ -612,6 +615,8 @@ export interface AlbumCollectionData {
   collection_order: number | null;
   /** Put in Listen Next by a draw, not by hand. */
   suggested?: boolean;
+  /** One disc of the album, 0 (the default) for the whole album. */
+  disc?: number;
 }
 
 // ============================================================

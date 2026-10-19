@@ -1,7 +1,8 @@
 import musicService from './musicService';
-import { LISTEN_NEXT_LEFT_EVENT, player, registerQueue, type PlayOptions } from './player';
+import { LISTEN_NEXT_LEFT_EVENT, player, registerQueue, type PlayerAlbum, type PlayOptions } from './player';
 import { playAlbumById } from '../utils/playAlbum';
 import { readStored, writeStored } from '../utils/safeStorage';
+import { entryKey, keyOf, parseEntryKey, type EntryKey } from '../utils/listenNextEntry';
 
 /**
  * Listen Next played on the computer, album after album. The list is read
@@ -17,21 +18,24 @@ import { readStored, writeStored } from '../utils/safeStorage';
  * The tracks' dialog jumps to a track of the list, or to one of an album
  * that left it in this play: a detour, played to its end out of the list,
  * after which Listen Next goes back where it was.
+ *
+ * Each entry of the list is an album whole or one of its discs, named by its
+ * key ("12:0", "12:2"): two discs of an album are two turns, each played alone.
  */
 
-/** The list as last read, the album playing kept at its place even once out of it. */
-let order: number[] = [];
+/** The list as last read, the entry playing kept at its place even once out of it. */
+let order: EntryKey[] = [];
 /** The list as last read, as it is; null until read after a reload. */
-let listed: number[] | null = null;
-let currentId: number | null = null;
+let listed: EntryKey[] | null = null;
+let currentKey: EntryKey | null = null;
 let repeat = false;
-const played = new Set<number>();
-/** Albums that left the list once played, as the server said: not taken out by hand. */
-const departed = new Set<number>();
+const played = new Set<EntryKey>();
+/** Entries that left the list once played, as the server said: not taken out by hand. */
+const departed = new Set<EntryKey>();
 
-/** Where Listen Next goes back to once a detour is over: the album and the track it was left on. */
+/** Where Listen Next goes back to once a detour is over: the entry and the track it was left on. */
 export interface DetourBack {
-  albumId: number;
+  key: EntryKey;
   index: number;
 }
 
@@ -43,20 +47,27 @@ export interface DetourBack {
 export interface ListenNextSession {
   /** Unix seconds. */
   startedAt: number;
-  albums: number[];
-  heard: number[];
-  detour: { albumId: number; back: DetourBack } | null;
+  albums: EntryKey[];
+  heard: EntryKey[];
+  detour: { key: EntryKey; back: DetourBack } | null;
 }
 
 const SESSION_KEY = 'dexvault.listenNext.session';
 
 const emptySession = (): ListenNextSession => ({ startedAt: 0, albums: [], heard: [], detour: null });
 
+/** A session kept before the discs named albums by their ids: each the whole album. */
+const asKey = (value: unknown): EntryKey => (typeof value === 'number' ? entryKey(value) : String(value));
+
 const readSession = (): ListenNextSession => {
   try {
     const raw = readStored(SESSION_KEY);
     const value = raw ? JSON.parse(raw) : null;
-    return value && Array.isArray(value.albums) && Array.isArray(value.heard) ? { ...emptySession(), ...value } : emptySession();
+    if (!value || !Array.isArray(value.albums) || !Array.isArray(value.heard)) return emptySession();
+    const detour = value.detour && (value.detour.key ?? value.detour.albumId) != null && value.detour.back
+      ? { key: asKey(value.detour.key ?? value.detour.albumId), back: { key: asKey(value.detour.back.key ?? value.detour.back.albumId), index: value.detour.back.index ?? 0 } }
+      : null;
+    return { ...emptySession(), startedAt: value.startedAt ?? 0, albums: value.albums.map(asKey), heard: value.heard.map(asKey), detour };
   } catch {
     return emptySession();
   }
@@ -68,28 +79,32 @@ const noteSession = (change: (session: ListenNextSession) => void): void => {
   writeStored(SESSION_KEY, JSON.stringify(session));
 };
 
-const noteHeard = (id: number) => noteSession(session => {
-  if (!session.heard.includes(id)) session.heard.push(id);
+const noteHeard = (key: EntryKey) => noteSession(session => {
+  if (!session.heard.includes(key)) session.heard.push(key);
 });
 
 /**
- * The albums the tracks' dialog shows: those of this play that left the list
+ * The entries the tracks' dialog shows: those of this play that left the list
  * and were heard, at least a track of them (one taken out by hand unheard was
  * not wanted), or the one playing; then the list as it is.
  */
-export const sessionAlbums = (session: ListenNextSession, ids: number[], current: number | null): { gone: number[]; listed: number[] } => ({
+export const sessionAlbums = (session: ListenNextSession, ids: EntryKey[], current: EntryKey | null): { gone: EntryKey[]; listed: EntryKey[] } => ({
   gone: session.albums.filter(id => !ids.includes(id) && (session.heard.includes(id) || id === current)),
   listed: ids,
 });
 
-const listIds = async (): Promise<number[]> =>
-  ((await musicService.getListenNextAlbums()) as Array<{ id: number }>).map(album => album.id);
+const listIds = async (): Promise<EntryKey[]> =>
+  ((await musicService.getListenNextAlbums()) as Array<{ id: number; disc?: number | null }>).map(keyOf);
+
+/** The entry an album of the player stands for: its disc, or the whole album. */
+export const playingKey = (album: Pick<PlayerAlbum, 'id' | 'disc'> | null | undefined): EntryKey | null =>
+  album?.id == null ? null : entryKey(album.id, album.disc);
 
 /**
- * The list as it now is, with the album playing kept at its place when it
- * has left it: after the album that came before it, among those still there.
+ * The list as it now is, with the entry playing kept at its place when it
+ * has left it: after the entry that came before it, among those still there.
  */
-export const withCurrent = (ids: number[], previous: number[], current: number | null): number[] => {
+export const withCurrent = <T>(ids: T[], previous: T[], current: T | null): T[] => {
   if (current == null || ids.includes(current)) return ids;
   const at = previous.indexOf(current);
   const before = at < 0 ? [] : previous.slice(0, at).filter(id => ids.includes(id));
@@ -97,34 +112,35 @@ export const withCurrent = (ids: number[], previous: number[], current: number |
   return [...ids.slice(0, place), current, ...ids.slice(place)];
 };
 
-/** The albums to try after `current`, in turn: those after it, then from the top; with Repeat, itself last. */
-export const albumsAfter = (ids: number[], current: number | null, withRepeat: boolean): number[] => {
+/** The entries to try after `current`, in turn: those after it, then from the top; with Repeat, itself last. */
+export const albumsAfter = <T>(ids: T[], current: T | null, withRepeat: boolean): T[] => {
   const at = current == null ? -1 : ids.indexOf(current);
   const turn = at < 0 ? ids : [...ids.slice(at + 1), ...ids.slice(0, at)];
   return withRepeat && current != null && at >= 0 ? [...turn, current] : turn;
 };
 
-const playFrom = async (candidates: number[]): Promise<boolean> => {
-  for (const id of candidates) {
-    if (!repeat && played.has(id)) return false;
-    if (await play(id)) return true;
+const playFrom = async (candidates: EntryKey[]): Promise<boolean> => {
+  for (const key of candidates) {
+    if (!repeat && played.has(key)) return false;
+    if (await play(key)) return true;
   }
   return false;
 };
 
-/** An album skipped to its end: told to the server, which takes it out of the list as one played. */
-const markPlayed = async (id: number): Promise<void> => {
-  noteHeard(id);
+/** An entry skipped to its end: told to the server, which takes it out of the list as one played. */
+const markPlayed = async (key: EntryKey): Promise<void> => {
+  noteHeard(key);
+  const { albumId, disc } = parseEntryKey(key);
   try {
-    const { left } = await musicService.markListenNextPlayed(id);
+    const { left } = await musicService.markListenNextPlayed(albumId, disc);
     if (left) window.dispatchEvent(new CustomEvent(LISTEN_NEXT_LEFT_EVENT, { detail: left }));
   } catch {
     // Left in the list: the next album plays all the same.
   }
 };
 
-/** How the player goes on once album `id` of Listen Next is over. */
-const optionsFor = (id: number): PlayOptions => ({
+/** How the player goes on once entry `id` of Listen Next is over. */
+const optionsFor = (id: EntryKey): PlayOptions => ({
   queue: 'listenNext',
   onAlbumEnd: async how => {
     played.add(id);
@@ -140,70 +156,72 @@ const optionsFor = (id: number): PlayOptions => ({
     return playFrom(albumsAfter(order, id, repeat));
   },
   // Taken out by hand while it plays: its track ends, then the next album.
-  leaveAfterTrack: () => currentId === id && listed !== null && !listed.includes(id) && !departed.has(id),
+  leaveAfterTrack: () => currentKey === id && listed !== null && !listed.includes(id) && !departed.has(id),
   onCounted: () => noteHeard(id),
 });
 
-const play = async (id: number, index = 0, options: PlayOptions = optionsFor(id)): Promise<boolean> => {
-  const started = await playAlbumById(id, options, index).catch(() => false);
+const play = async (key: EntryKey, index = 0, options: PlayOptions = optionsFor(key)): Promise<boolean> => {
+  const { albumId, disc } = parseEntryKey(key);
+  const started = await playAlbumById(albumId, options, index, false, disc).catch(() => false);
   if (started) {
-    currentId = id;
-    noteSession(session => { if (!session.albums.includes(id)) session.albums.push(id); });
+    currentKey = key;
+    noteSession(session => { if (!session.albums.includes(key)) session.albums.push(key); });
   }
   return started;
 };
 
-/** An album out of the list played to its end, then back to the track Listen Next was left on. */
-const detourOptions = (id: number, back: DetourBack): PlayOptions => ({
+/** An entry out of the list played to its end, then back to the track Listen Next was left on. */
+const detourOptions = (id: EntryKey, back: DetourBack): PlayOptions => ({
   queue: 'listenNext',
   onAlbumEnd: async () => {
     noteSession(session => { session.detour = null; });
-    if (await play(back.albumId, back.index)) return true;
+    if (await play(back.key, back.index)) return true;
     const ids = await listIds();
-    order = withCurrent(ids, order, back.albumId);
+    order = withCurrent(ids, order, back.key);
     listed = ids;
-    return playFrom(albumsAfter(order, back.albumId, repeat));
+    return playFrom(albumsAfter(order, back.key, repeat));
   },
   onCounted: () => noteHeard(id),
 });
 
 if (typeof window !== 'undefined') {
   window.addEventListener(LISTEN_NEXT_LEFT_EVENT, event => {
-    const albumId = (event as CustomEvent<{ albumId?: number }>).detail?.albumId;
-    if (typeof albumId === 'number') departed.add(albumId);
+    const left = (event as CustomEvent<{ albumId?: number; disc?: number }>).detail;
+    if (typeof left?.albumId === 'number') departed.add(entryKey(left.albumId, left.disc));
   });
 }
 
 export const listenNextQueue = {
   /**
-   * After a reload, album `albumId` back in the player, paused: Listen Next
-   * goes on after it as before, the list read again meanwhile.
+   * After a reload, the album back in the player, paused: Listen Next goes
+   * on after its entry as before, the list read again meanwhile.
    */
-  restore: (albumId: number): PlayOptions => {
+  restore: (album: Pick<PlayerAlbum, 'id' | 'disc'> & { id: number }): PlayOptions => {
+    const key = playingKey(album)!;
     const detour = readSession().detour;
-    if (detour?.albumId === albumId) {
-      currentId = albumId;
-      return detourOptions(albumId, detour.back);
+    if (detour?.key === key) {
+      currentKey = key;
+      return detourOptions(key, detour.back);
     }
     played.clear();
-    currentId = albumId;
-    order = [albumId];
+    currentKey = key;
+    order = [key];
     listed = null;
     listIds().then(ids => {
-      if (currentId !== albumId) return;
-      order = withCurrent(ids, order, albumId);
+      if (currentKey !== key) return;
+      order = withCurrent(ids, order, key);
       listed = ids;
     }).catch(() => undefined);
-    return optionsFor(albumId);
+    return optionsFor(key);
   },
 
-  /** Plays Listen Next from `albumId`, from the top without it. False when nothing could be played. */
-  start: async (albumId?: number): Promise<boolean> => {
+  /** Plays Listen Next from entry `key`, from the top without it. False when nothing could be played. */
+  start: async (key?: EntryKey): Promise<boolean> => {
     played.clear();
     writeStored(SESSION_KEY, JSON.stringify({ ...emptySession(), startedAt: Math.floor(Date.now() / 1000) }));
     order = await listIds();
     listed = order;
-    const at = albumId == null ? -1 : order.indexOf(albumId);
+    const at = key == null ? -1 : order.indexOf(key);
     const turn = at < 0 ? order : [...order.slice(at), ...order.slice(0, at)];
     for (const id of turn) {
       if (await play(id)) return true;
@@ -211,58 +229,58 @@ export const listenNextQueue = {
     return false;
   },
 
-  /** The list as the page just read it, for an album taken out by hand to be noticed. */
-  noteList: (ids: number[]): void => {
+  /** The list as the page just read it, for an entry taken out by hand to be noticed. */
+  noteList: (ids: EntryKey[]): void => {
     if (player.getState().queue !== 'listenNext') return;
-    order = withCurrent(ids, order, currentId);
+    order = withCurrent(ids, order, currentKey);
     listed = ids;
   },
 
   /**
-   * Jumps to track `index` of album `albumId`: of the album playing, the list
-   * goes on as it did; of another album of the list, the one left stays in it
-   * and comes round in the turn; of an album out of the list, a detour. False when
+   * Jumps to track `index` of entry `key`: of the entry playing, the list
+   * goes on as it did; of another entry of the list, the one left stays in it
+   * and comes round in the turn; of one out of the list, a detour. False when
    * nothing could be played.
    */
-  jumpTo: async (albumId: number, index: number): Promise<boolean> => {
-    if (currentId == null) return false;
-    if (albumId === currentId) {
+  jumpTo: async (key: EntryKey, index: number): Promise<boolean> => {
+    if (currentKey == null) return false;
+    if (key === currentKey) {
       player.playTrack(index);
       return true;
     }
     const ids = await listIds();
-    order = withCurrent(ids, order, currentId);
+    order = withCurrent(ids, order, currentKey);
     listed = ids;
-    if (ids.includes(albumId)) {
+    if (ids.includes(key)) {
       noteSession(session => { session.detour = null; });
-      return play(albumId, index);
+      return play(key, index);
     }
     // Out of the list: back where Listen Next was once it is over, the first detour's place kept.
-    const back = readSession().detour?.back ?? { albumId: currentId, index: player.getState().index };
-    const started = await play(albumId, index, detourOptions(albumId, back));
-    if (started) noteSession(session => { session.detour = { albumId, back }; });
+    const back = readSession().detour?.back ?? { key: currentKey, index: player.getState().index };
+    const started = await play(key, index, detourOptions(key, back));
+    if (started) noteSession(session => { session.detour = { key, back }; });
     return started;
   },
 
-  /** The albums the tracks' dialog shows, the list read again. */
-  albums: async (): Promise<{ gone: number[]; listed: number[] }> => {
+  /** The entries the tracks' dialog shows, the list read again. */
+  albums: async (): Promise<{ gone: EntryKey[]; listed: EntryKey[] }> => {
     const ids = await listIds();
     listed = ids;
-    return sessionAlbums(readSession(), ids, currentId);
+    return sessionAlbums(readSession(), ids, currentKey);
   },
 
   /**
-   * The albums still to come in this turn, in order, after the one playing (or
+   * The entries still to come in this turn, in order, after the one playing (or
    * the one a detour goes back to, itself first): what the bar counts the time
    * left of and announces the next track from. Not Repeat's endless round.
-   * The album playing is given by the player, which knows it first.
+   * The entry playing is given by the player, which knows it first.
    */
-  upcoming: (playing: number | null = currentId): number[] => {
+  upcoming: (playing: EntryKey | null = currentKey): EntryKey[] => {
     // `playing` as the player has it: the bar asks as an album starts, before Listen Next has noted it.
-    const back = readSession().detour?.back.albumId ?? null;
+    const back = readSession().detour?.back.key ?? null;
     const from = back ?? playing;
     if (from == null) return [];
-    const ahead: number[] = back != null && back !== playing ? [back] : [];
+    const ahead: EntryKey[] = back != null && back !== playing ? [back] : [];
     for (const id of albumsAfter(order, from, false)) {
       if (!repeat && played.has(id)) break;
       if (id !== playing && !ahead.includes(id)) ahead.push(id);
@@ -285,7 +303,7 @@ registerQueue('listenNext', listenNextQueue.restore);
 export const resetListenNextQueue = (): void => {
   order = [];
   listed = null;
-  currentId = null;
+  currentKey = null;
   repeat = false;
   played.clear();
   departed.clear();

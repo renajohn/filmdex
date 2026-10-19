@@ -78,24 +78,31 @@ export const shuffledTracks = (tracks: PlayerTrack[], random: () => number = Mat
   return order.map((track, index) => ({ ...track, disc: 1, no: index + 1 }));
 };
 
-/** An album as the player would play it: named, with its tracks that have a file in the rip; `listenNext` as Listen Next plays it. */
-export const loadPlayable = async (albumId: number | string, { listenNext = false } = {}): Promise<{ album: PlayerAlbum; tracks: PlayerTrack[] }> => {
+/**
+ * An album as the player would play it: named, with its tracks that have a
+ * file in the rip; `listenNext` as Listen Next plays it; `disc`, that disc of
+ * it alone, as Listen Next holds it.
+ */
+export const loadPlayable = async (albumId: number | string, { listenNext = false, disc = 0 } = {}): Promise<{ album: PlayerAlbum; tracks: PlayerTrack[] }> => {
   const [album, rip] = await Promise.all([
     musicService.getAlbumById(albumId) as Promise<AlbumLike>,
     musicService.getNavidromeTracks(albumId).catch(() => null),
   ]);
   if (isMixtape(album)) return loadMixtape(album, listenNext);
-  return { album: playerAlbumOf(album, rip), tracks: playerTracksOf(album, rip) };
+  const tracks = playerTracksOf(album, rip);
+  if (!disc) return { album: playerAlbumOf(album, rip), tracks };
+  return { album: { ...playerAlbumOf(album, rip), disc }, tracks: tracks.filter(track => track.disc === disc) };
 };
 
 /**
  * Plays an album from the start, or from its track `index`, from wherever a ▶
  * stands without its card open: its tracks and its rip are asked for first;
- * `shuffle` plays them in an order drawn at random, from the first drawn.
+ * `shuffle` plays them in an order drawn at random, from the first drawn;
+ * `disc`, that disc of it alone.
  * False when it has no rip to play, for the caller to offer something else.
  */
-export const playAlbumById = async (albumId: number | string, options?: PlayOptions, index = 0, shuffle = false): Promise<boolean> => {
-  const { album, tracks } = await loadPlayable(albumId, { listenNext: options?.queue === 'listenNext' });
+export const playAlbumById = async (albumId: number | string, options?: PlayOptions, index = 0, shuffle = false, disc = 0): Promise<boolean> => {
+  const { album, tracks } = await loadPlayable(albumId, { listenNext: options?.queue === 'listenNext', disc });
   if (tracks.length === 0) return false;
   if (shuffle) player.playAlbum(album, shuffledTracks(tracks), 0, 0, options);
   else player.playAlbum(album, tracks, index, 0, options);

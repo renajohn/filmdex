@@ -42,47 +42,63 @@ interface CountRow {
 }
 
 const AlbumCollection = {
-  createTable: (): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      const db = getDatabase();
-      const sql = `
-        CREATE TABLE IF NOT EXISTS album_collections (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          album_id INTEGER NOT NULL,
-          collection_id INTEGER NOT NULL,
-          collection_order INTEGER,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (album_id) REFERENCES albums (id) ON DELETE CASCADE,
-          FOREIGN KEY (collection_id) REFERENCES collections (id) ON DELETE CASCADE,
-          UNIQUE(album_id, collection_id)
-        )
-      `;
-      db.run(sql, (err: Error | null) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        // Put in Listen Next by a draw (Help me choose, the die), not by hand: only those offer the die.
-        db.all('PRAGMA table_info(album_collections)', (infoErr: Error | null, columns: Array<{ name: string }>) => {
-          if (infoErr) { reject(infoErr); return; }
-          if (columns.some(column => column.name === 'suggested')) { resolve(); return; }
-          db.run('ALTER TABLE album_collections ADD COLUMN suggested INTEGER NOT NULL DEFAULT 0', (alterErr: Error | null) => (alterErr ? reject(alterErr) : resolve()));
-        });
-      });
-    });
+  /**
+   * `suggested`: put in Listen Next by a draw (Help me choose, the die), not
+   * by hand; only those offer the die. `disc`: one disc of the album in Listen
+   * Next, 0 for the whole album, so that an album has a row per disc chosen.
+   */
+  createTable: async (): Promise<void> => {
+    const db = getDatabase();
+    const run = (sql: string): Promise<void> =>
+      new Promise((resolve, reject) => db.run(sql, (err: Error | null) => (err ? reject(err) : resolve())));
+    const tableSql = (name: string) => `
+      CREATE TABLE ${name} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        album_id INTEGER NOT NULL,
+        collection_id INTEGER NOT NULL,
+        collection_order INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        suggested INTEGER NOT NULL DEFAULT 0,
+        disc INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (album_id) REFERENCES albums (id) ON DELETE CASCADE,
+        FOREIGN KEY (collection_id) REFERENCES collections (id) ON DELETE CASCADE,
+        UNIQUE(album_id, collection_id, disc)
+      )
+    `;
+    const columns = await new Promise<Array<{ name: string }>>((resolve, reject) =>
+      db.all('PRAGMA table_info(album_collections)', (err: Error | null, rows: Array<{ name: string }>) => (err ? reject(err) : resolve(rows || []))));
+    if (columns.length === 0) {
+      await run(tableSql('album_collections'));
+      return;
+    }
+    if (columns.some(column => column.name === 'disc')) return;
+    // Its UNIQUE(album_id, collection_id) cannot be dropped in place: the table is made again with the disc in it.
+    const suggested = columns.some(column => column.name === 'suggested') ? 'suggested' : '0';
+    await run('BEGIN');
+    try {
+      await run(tableSql('album_collections_new'));
+      await run(`INSERT INTO album_collections_new (id, album_id, collection_id, collection_order, created_at, suggested, disc)
+        SELECT id, album_id, collection_id, collection_order, created_at, ${suggested}, 0 FROM album_collections`);
+      await run('DROP TABLE album_collections');
+      await run('ALTER TABLE album_collections_new RENAME TO album_collections');
+      await run('COMMIT');
+    } catch (error) {
+      await run('ROLLBACK');
+      throw error;
+    }
   },
 
   create: (albumCollectionData: AlbumCollectionData): Promise<AlbumCollectionCreateResult> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
-      const { album_id, collection_id, collection_order, suggested = false } = albumCollectionData;
+      const { album_id, collection_id, collection_order, suggested = false, disc = 0 } = albumCollectionData;
 
       const sql = `
-        INSERT INTO album_collections (album_id, collection_id, collection_order, suggested, created_at)
-        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO album_collections (album_id, collection_id, collection_order, suggested, disc, created_at)
+        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `;
 
-      db.run(sql, [album_id, collection_id, collection_order, suggested ? 1 : 0], function(this: sqlite3.RunResult, err: Error | null) {
+      db.run(sql, [album_id, collection_id, collection_order, suggested ? 1 : 0, disc], function(this: sqlite3.RunResult, err: Error | null) {
         if (err) {
           reject(err);
         } else {
@@ -145,12 +161,13 @@ const AlbumCollection = {
     });
   },
 
-  findByAlbumAndCollection: (albumId: number, collectionId: number): Promise<AlbumCollectionRow | undefined> => {
+  /** The album's row in the collection: the whole album's, or one disc's. */
+  findByAlbumAndCollection: (albumId: number, collectionId: number, disc = 0): Promise<AlbumCollectionRow | undefined> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
-      const sql = 'SELECT * FROM album_collections WHERE album_id = ? AND collection_id = ?';
+      const sql = 'SELECT * FROM album_collections WHERE album_id = ? AND collection_id = ? AND disc = ?';
 
-      db.get(sql, [albumId, collectionId], (err: Error | null, row: AlbumCollectionRow | undefined) => {
+      db.get(sql, [albumId, collectionId, disc], (err: Error | null, row: AlbumCollectionRow | undefined) => {
         if (err) {
           reject(err);
         } else {
@@ -160,16 +177,16 @@ const AlbumCollection = {
     });
   },
 
-  updateOrder: (albumId: number, collectionId: number, collectionOrder: number | null): Promise<AlbumCollectionOrderResult> => {
+  updateOrder: (albumId: number, collectionId: number, collectionOrder: number | null, disc = 0): Promise<AlbumCollectionOrderResult> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
       const sql = `
         UPDATE album_collections
         SET collection_order = ?
-        WHERE album_id = ? AND collection_id = ?
+        WHERE album_id = ? AND collection_id = ? AND disc = ?
       `;
 
-      db.run(sql, [collectionOrder, albumId, collectionId], function(this: sqlite3.RunResult, err: Error | null) {
+      db.run(sql, [collectionOrder, albumId, collectionId, disc], function(this: sqlite3.RunResult, err: Error | null) {
         if (err) {
           reject(err);
         } else {

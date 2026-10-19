@@ -1002,7 +1002,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
           title="Watch Next"
           onItemClick={(id) => handleMovieClick(id, watchNextMovies.map((movie: any) => movie.id))}
           onRemove={handleWatchNextToggle}
-          onReorder={handleWatchNextReorder}
+          onReorder={keys => handleWatchNextReorder(keys as number[])}
           getImageUrl={(movie: any) => getPosterUrl(movie.poster_path)}
           getTitle={(movie: any) => movie.title}
           getYear={(movie: any) => movie.release_date ? new Date(movie.release_date).getFullYear() : null}
