@@ -7,7 +7,7 @@ import app from '../../index';
 import { getDatabase } from '../../src/database';
 import navidromeService from '../../src/services/navidromeService';
 import ripStatusService from '../../src/services/ripStatusService';
-import lyricsService, { artistOf, findByTags, lyricsTiming, pickResult, resolveOnDisk, songInParentheses } from '../../src/services/lyricsService';
+import lyricsService, { artistOf, findByTags, inStep, lagBetween, lyricsTiming, pickResult, resolveOnDisk, songInParentheses } from '../../src/services/lyricsService';
 
 const run = (sql: string, params: unknown[] = []) =>
   new Promise<number>((resolve, reject) =>
@@ -47,10 +47,39 @@ describe('lyrics lookup', () => {
     expect(pickResult([record({ duration: 300 })], 264)).toBeNull();
   });
 
+  it('mesure le retard d’un texte synchronisé sur un autre par les lignes en commun', () => {
+    const jungle = '[00:07.45] Oh, my God\n[00:40.26] Welcome to the jungle\n[00:42.10] We got fun and games\n[01:07.50] Welcome to the jungle';
+    const late = '[00:10.05] Oh, my God\n[00:42.86] Welcome to the jungle\n[00:44.70] We got fun and games\n[01:10.18] Welcome to the jungle';
+    expect(lagBetween(jungle, late)).toBeCloseTo(2.6, 1);
+    expect(lagBetween(late, jungle)).toBeCloseTo(-2.6, 1);
+    expect(lagBetween(jungle, '[00:01.00] Something else\n[00:40.26] Welcome to the jungle')).toBeNull();
+  });
+
+  it('écarte un texte synchronisé en retard sur la plupart des autres de la même durée', () => {
+    const lines = (shift: number, hundredths = 45) => ['Oh, my God', 'Welcome to the jungle', 'We got fun and games', 'We got everything you want']
+      .map((words, index) => `[00:${String(7 + index * 11 + shift).padStart(2, '0')}.${hundredths}] ${words}`).join('\n');
+    const late = record({ id: 1, duration: 274, syncedLyrics: lines(3) });
+    const others = [
+      record({ id: 2, duration: 273.6, syncedLyrics: lines(0) }),
+      record({ id: 3, duration: 273, syncedLyrics: lines(0, 43) }),
+      record({ id: 4, duration: 334, syncedLyrics: lines(0, 40) }),
+    ];
+    expect(inStep(late, [late, ...others], 274).id).toBe(2);
+    // One other alone does not outvote it, nor two when as many agree with it.
+    expect(inStep(late, [others[0]], 274).id).toBe(1);
+    const agreeing = [record({ id: 5, duration: 274, syncedLyrics: lines(3, 50) }), record({ id: 6, duration: 275, syncedLyrics: lines(3, 40) })];
+    expect(inStep(late, [...others, ...agreeing], 274).id).toBe(1);
+    // A text copied under several albums speaks once, and so do the chosen one's copies: the two that differ win.
+    const copies = [1, 2, 3].map(id => record({ id: 10 + id, duration: 274, syncedLyrics: lines(1).replace(/\] /g, ']') }));
+    const ownCopies = [record({ id: 20, duration: 274, syncedLyrics: lines(3) })];
+    expect(inStep(late, [...copies, ...ownCopies, others[0], others[1]], 274).id).toBe(2);
+  });
+
   it('cherche une piste à l’ouverture et garde ce qu’il a trouvé', async () => {
     const albumId = await insertAlbum(`OK Computer ${Math.random()}`, ['Radiohead']);
     await insertTrack(albumId, 6, 'Karma Police');
-    const get = jest.spyOn(axios, 'get').mockResolvedValue({ data: record({ id: 13976, plainLyrics: 'Karma police', syncedLyrics: '[00:01.00] Karma police' }) });
+    const get = jest.spyOn(axios, 'get').mockImplementation(async (url: string) =>
+      ({ data: url.endsWith('/get') ? record({ id: 13976, plainLyrics: 'Karma police', syncedLyrics: '[00:01.00] Karma police' }) : [] }));
 
     const first = await request(app).get(`/api/music/albums/${albumId}/discs/1/tracks/6/lyrics`);
     expect(first.status).toBe(200);
@@ -278,6 +307,46 @@ describe('.lrc files beside the rips', () => {
     expect(fs.readFileSync(path.join(dir, '01 Jackie.lrc'), 'utf8')).toBe('[00:01.00] timed words\n');
     expect(fs.readFileSync(path.join(dir, '02 Angel.lrc'), 'utf8')).toBe('by hand\n');
     expect(fs.existsSync(path.join(dir, '03 Instrumental.lrc'))).toBe(false);
+  });
+
+  it('reprend une piste dont l’entrée exacte est en retard, et réécrit le .lrc que DexVault avait écrit', async () => {
+    process.env.MUSIC_LIBRARY_PATH = root;
+    const albumId = await insertAlbum(`Appetite ${Math.random()}`, ['Guns N’ Roses']);
+    await insertTrack(albumId, 1, 'Welcome to the Jungle', 274);
+    await insertTrack(albumId, 2, 'It’s So Easy', 274);
+    const lines = (shift: number) => ['Oh, my God', 'Welcome to the jungle', 'We got fun and games', 'We got everything you want']
+      .map((words, index) => `[00:${String(7 + index * 11 + shift).padStart(2, '0')}.45] ${words}`).join('\n');
+    const late = lines(3);
+    await run(`INSERT INTO track_lyrics (album_id, disc_number, track_number, title, status, plain, synced, checked_at) VALUES
+      (?, 1, 1, 'Welcome to the Jungle', 'found', 'words', ?, '2026-10-13'),
+      (?, 1, 2, 'It’s So Easy', 'found', 'words', ?, '2026-10-13')`, [albumId, late, albumId, late]);
+    const dir = path.join(root, 'FLAC', 'Guns N’ Roses', 'Appetite for Destruction');
+    fs.mkdirSync(dir, { recursive: true });
+    for (const name of ['01 Welcome.flac', '02 Easy.flac']) fs.writeFileSync(path.join(dir, name), '');
+    fs.writeFileSync(path.join(dir, '01 Welcome.lrc'), `${late}\n`);
+    fs.writeFileSync(path.join(dir, '02 Easy.lrc'), 'by hand\n');
+
+    jest.spyOn(ripStatusService, 'navidromeAlbums').mockResolvedValue(new Map([[albumId, { id: 'nd-3', name: 'Appetite', artist: 'Guns N’ Roses', musicBrainzId: null, songCount: 2, userRating: 0 }]]));
+    jest.spyOn(navidromeService, 'getAlbumSongs').mockResolvedValue(['01 Welcome.flac', '02 Easy.flac'].map((name, index) => ({
+      id: `s${index}`, url: null, discNumber: 1, track: index + 1, title: name, durationSec: 274, suffix: 'flac',
+      bitRate: null, bitDepth: 16, samplingRate: 44100, channelCount: 2, size: null, path: `FLAC/Guns N’ Roses/Appetite for Destruction/${name}`,
+    })));
+    jest.spyOn(axios, 'get').mockImplementation(async (url: string) => {
+      if (url.endsWith('/get')) return { data: record({ id: 5743773, duration: 274, syncedLyrics: late }) };
+      return { data: [
+        record({ id: 5743773, duration: 274, syncedLyrics: late }),
+        record({ id: 22593691, duration: 273.6, syncedLyrics: lines(0) }),
+        record({ id: 21989462, duration: 273, syncedLyrics: lines(0).replace(/\.45\]/g, '.43]') }),
+      ] };
+    });
+
+    const res = await request(app).post(`/api/music/albums/${albumId}/discs/1/tracks/1/lyrics`);
+    expect(res.body).toMatchObject({ status: 'found', sourceId: '22593691', synced: lines(0) });
+    expect(fs.readFileSync(path.join(dir, '01 Welcome.lrc'), 'utf8')).toBe(`${lines(0)}\n`);
+
+    // An .lrc someone wrote by hand stays.
+    expect((await request(app).post(`/api/music/albums/${albumId}/discs/1/tracks/2/lyrics`)).body.sourceId).toBe('22593691');
+    expect(fs.readFileSync(path.join(dir, '02 Easy.lrc'), 'utf8')).toBe('by hand\n');
   });
 
   it('demande le vrai chemin à Navidrome quand Subsonic en invente un à partir des tags', async () => {

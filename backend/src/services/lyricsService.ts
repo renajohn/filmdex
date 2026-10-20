@@ -132,6 +132,77 @@ export const pickResult = (records: LrclibRecord[], durationSec: number | null):
     || (durationSec == null ? 0 : Math.abs((a.duration ?? 0) - durationSec) - Math.abs((b.duration ?? 0) - durationSec)))[0] ?? null;
 };
 
+/** Two timed texts this close sing in step: a tap a little early or late. */
+const IN_STEP_SEC = 1;
+/** Lines in common below which two timed texts cannot be told in step or not. */
+const MIN_LINES_IN_COMMON = 3;
+
+/** The times and words of a timed text, a line sung twice under each of its times. */
+const timedLines = (synced: string): Array<{ at: number; key: string }> =>
+  synced.split('\n').flatMap(line => {
+    const tags = line.match(/^(\[\d+:\d+(?:[.:]\d+)?\])+/)?.[0];
+    if (!tags) return [];
+    const key = plainText(line.slice(tags.length)).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    if (!key) return [];
+    return [...tags.matchAll(/\[(\d+):(\d+(?:[.:]\d+)?)\]/g)].map(([, min, sec]) => ({ at: Number(min) * 60 + Number(sec.replace(':', '.')), key }));
+  }).sort((a, b) => a.at - b.at);
+
+/**
+ * How much later the second timed text sings than the first: the median gap
+ * between their lines in common, each line's first time with the other's
+ * first, its second with its second. Null when they have too few in common.
+ */
+export const lagBetween = (first: string, second: string): number | null => {
+  const seen = new Map<string, number[]>();
+  for (const line of timedLines(second)) seen.set(line.key, [...(seen.get(line.key) ?? []), line.at]);
+  const count = new Map<string, number>();
+  const gaps: number[] = [];
+  for (const line of timedLines(first)) {
+    const nth = count.get(line.key) ?? 0;
+    count.set(line.key, nth + 1);
+    const other = seen.get(line.key)?.[nth];
+    if (other != null) gaps.push(other - line.at);
+  }
+  if (gaps.length < MIN_LINES_IN_COMMON) return null;
+  gaps.sort((a, b) => a - b);
+  const middle = Math.floor(gaps.length / 2);
+  return gaps.length % 2 ? gaps[middle] : (gaps[middle - 1] + gaps[middle]) / 2;
+};
+
+/**
+ * The timed text to keep: the one chosen, unless most of the others of the
+ * same length sing in step with one another and not with it, someone's
+ * tapping a second or more early or late ("Welcome to the Jungle", 2.6 s
+ * late). Then the one of theirs closest to the CD's length.
+ */
+export const inStep = (chosen: LrclibRecord, records: LrclibRecord[], durationSec: number | null): LrclibRecord => {
+  const length = durationSec ?? chosen.duration;
+  if (!chosen.syncedLyrics || length == null) return chosen;
+  // One timed text copied under ten albums is one voice, not ten: the copy closest to the CD's length speaks.
+  const textOf = (synced: string) => timedLines(synced).map(line => `${line.at.toFixed(2)} ${line.key}`).join('\n');
+  const own = textOf(chosen.syncedLyrics);
+  const texts = new Map<string, LrclibRecord>();
+  for (const record of records) {
+    if (!record.syncedLyrics || record.duration == null || Math.abs(record.duration - length) > DURATION_TOLERANCE_SEC) continue;
+    const text = textOf(record.syncedLyrics);
+    if (text === own) continue;
+    const kept = texts.get(text);
+    if (!kept || Math.abs(record.duration - length) < Math.abs(kept.duration! - length)) texts.set(text, record);
+  }
+  const others = [...texts.values()]
+    .map(record => ({ record, lag: lagBetween(chosen.syncedLyrics!, record.syncedLyrics!) }))
+    .filter((other): other is { record: LrclibRecord; lag: number } => other.lag != null);
+  const agreeing = others.filter(other => Math.abs(other.lag) <= IN_STEP_SEC).length;
+  const groups = others.filter(other => Math.abs(other.lag) > IN_STEP_SEC).map(other => {
+    const near = others.filter(another => Math.abs(another.lag - other.lag) <= IN_STEP_SEC);
+    return { ...other, together: near.length, spread: near.reduce((sum, another) => sum + Math.abs(another.lag - other.lag), 0) };
+  });
+  // The most in step with one another, then the closest to them all, then to the CD's length.
+  const best = groups.sort((a, b) => b.together - a.together || a.spread - b.spread
+    || Math.abs(a.record.duration! - length) - Math.abs(b.record.duration! - length))[0];
+  return best && best.together >= 2 && best.together > agreeing ? best.record : chosen;
+};
+
 /**
  * The same song at another length, a live take or a film's cut, for a track
  * no recording of its length matches: the words without their times.
@@ -148,7 +219,8 @@ export const pickOtherTake = (records: LrclibRecord[], name: string, durationSec
  * first, then a search on the artist and title, then on the title without
  * "(Remastered)" and the like, then on the song a scene is set to. Each
  * artist of the track is asked in turn. Failing a recording of the same
- * length, the words of another take of the song, untimed.
+ * length, the words of another take of the song, untimed. Timed lines out of
+ * step with most others of the same length give way to theirs.
  */
 export const lookUp = async (track: TrackToLookUp): Promise<LyricsLookup> => {
   const artists = artistsOf(track);
@@ -162,6 +234,11 @@ export const lookUp = async (track: TrackToLookUp): Promise<LyricsLookup> => {
     });
     if (exact) {
       const found = fromRecord(exact);
+      if (found.status === 'found' && found.synced) {
+        // The others to set it against; without them, it stands as it is.
+        const others = await lrclib<LrclibRecord[]>('search', { artist_name: artist, track_name: title }).catch(() => null);
+        return fromRecord(inStep(exact, others || [], track.durationSec));
+      }
       if (found.status !== 'missing') return found;
     }
   }
@@ -172,7 +249,7 @@ export const lookUp = async (track: TrackToLookUp): Promise<LyricsLookup> => {
     for (const name of names) {
       const results = await lrclib<LrclibRecord[]>('search', { artist_name: singer, track_name: name });
       const best = pickResult(results || [], track.durationSec);
-      if (best) return fromRecord(best);
+      if (best) return fromRecord(inStep(best, results || [], track.durationSec));
       if (results?.length) otherTakes.push({ records: results, name });
     }
   }
@@ -311,17 +388,27 @@ const classicalAlbumIds = async (): Promise<number[]> =>
   (await Album.search('classical:yes')).map(album => album.id);
 
 const lyricsService = {
-  /** The words of one track, looked up there and then when never asked yet. Null when the CD has no such track. */
+  /**
+   * The words of one track, looked up there and then when never asked yet.
+   * Looked up again, the .lrc DexVault wrote beside the rip takes the new
+   * words. Null when the CD has no such track.
+   */
   forTrack: async (albumId: number, discNumber: number, trackNumber: number, { again = false } = {}): Promise<TrackLyricsFormatted | null> => {
     const known = await TrackLyrics.get(albumId, discNumber, trackNumber);
     const album = await Album.findById(albumId);
     const track = album && (await Track.findByCdId(albumId)).find(candidate => candidate.discNumber === discNumber && candidate.trackNumber === trackNumber);
     if (!album || !track) return known;
     if (known && !again && known.title === track.title) return known;
-    return lookUpAndSave({
+    const found = await lookUpAndSave({
       albumId, discNumber, trackNumber, title: track.title, durationSec: track.durationSec,
       trackArtist: JSON.stringify(track.artist || []), albumArtist: JSON.stringify(album.artist || []), albumTitle: album.title,
     });
+    const before = known && lrcText(known);
+    if (before && before !== lrcText(found)) {
+      await lyricsService.writeLrcFiles([albumId], new Map([[`${discNumber}/${trackNumber}`, before]]))
+        .catch(error => logger.warn(`The .lrc of album ${albumId} track ${discNumber}-${trackNumber} not rewritten: ${(error as Error).message}`));
+    }
+    return found;
   },
 
   /**
@@ -417,9 +504,10 @@ const lyricsService = {
   /**
    * Writes an .lrc beside every file of a rip whose track has words and no
    * .lrc yet, for the albums given or for all. An .lrc already there is left
-   * as it is, whoever wrote it.
+   * as it is, whoever wrote it, unless it is word for word what DexVault wrote
+   * before for a track looked up again: `replacing`, by "disc/track".
    */
-  writeLrcFiles: async (albumIds?: number[]): Promise<LrcWriteReport | null> => {
+  writeLrcFiles: async (albumIds?: number[], replacing?: Map<string, string>): Promise<LrcWriteReport | null> => {
     const root = libraryRoot();
     if (!root || !navidromeService.isConfigured()) return null;
     const report: LrcWriteReport = { written: 0, alreadyThere: 0, notOnDisk: 0 };
@@ -450,7 +538,11 @@ const lyricsService = {
         }
         if (!audio) { report.notOnDisk++; continue; }
         const lrc = audio.slice(0, audio.length - path.extname(audio).length) + '.lrc';
-        if (fs.existsSync(lrc)) { report.alreadyThere++; continue; }
+        const previous = replacing?.get(`${words.discNumber}/${words.trackNumber}`);
+        if (fs.existsSync(lrc) && (previous == null || previous === text || fs.readFileSync(lrc, 'utf8') !== previous)) {
+          report.alreadyThere++;
+          continue;
+        }
         fs.writeFileSync(lrc, text, 'utf8');
         // DexVault runs as root: the file goes to whoever owns the album folder.
         try {
