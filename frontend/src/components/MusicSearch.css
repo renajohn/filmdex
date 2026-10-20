@@ -263,6 +263,12 @@
   .music-search {
     padding: 10px;
   }
+
+  /* Listen Next runs to the edges of the screen, past the page's margin, as its covers leave by them. */
+  .music-search > .next-banner {
+    margin-left: -10px;
+    margin-right: -10px;
+  }
   
   .cd-grid {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
