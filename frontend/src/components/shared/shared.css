@@ -574,9 +574,11 @@
   }
 }
 
-/* Banner Carousel */
+/* Banner Carousel: it runs to the banner's edges, so a cover scrolled past leaves by the edge of the screen
+   rather than being cut at the banner's margin; the track keeps the margin before its first and after its last. */
 .next-banner__carousel {
   position: relative;
+  margin: 0 -24px;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
@@ -606,7 +608,8 @@
 .next-banner__track {
   display: flex;
   gap: 20px;
-  padding: 14px 4px;
+  width: max-content;
+  padding: 14px 24px;
   min-height: 200px;
 }
 
@@ -892,6 +895,14 @@
   
   .next-banner {
     padding: 16px;
+  }
+
+  .next-banner__carousel {
+    margin: 0 -16px;
+  }
+
+  .next-banner__track {
+    padding: 14px 16px;
   }
   
   .next-banner__title {
