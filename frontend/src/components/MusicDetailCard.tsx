@@ -18,7 +18,7 @@ import { playerAlbumOf, playerTracksOf } from '../utils/playAlbum';
 import { playingTime, ripSummary, urlLabel } from '../utils/albumHead';
 import TrackDetails from './TrackDetails';
 import DetailSteps, { useScrollKeys, useStepKeys } from './shared/DetailSteps';
-import type { RipTracks } from '../services/musicService';
+import type { AlbumOverlap, RipTracks } from '../services/musicService';
 import './MusicDetailCard.css';
 import ShelfCode from './shared/ShelfCode';
 import NowPlayingBars from './shared/NowPlayingBars';
@@ -145,6 +145,8 @@ interface MusicDetailCardProps {
   onBought?: (() => void) | null;
   /** A missing side found and kept, from Find a cover… or Find the back…: its path. */
   onCoverChange?: ((side: 'front' | 'back', coverPath: string) => void) | null;
+  /** Opens another album's card, from "Also on". */
+  onOpenAlbum?: ((albumId: number) => void) | null;
 }
 
 const CONDITIONS: Record<string, string> = {
@@ -153,6 +155,13 @@ const CONDITIONS: Record<string, string> = {
   'VG+': 'Very Good Plus',
   'VG': 'Very Good'
 };
+
+/** How many albums "Also on" names before "2 more". */
+const OVERLAPS_SHOWN = 3;
+
+/** How many of an album's tracks another holds: "5/11", or "all 11". */
+const overlapCount = (other: AlbumOverlap, trackCount: number): string =>
+  trackCount > 0 && other.shared >= trackCount ? `all ${trackCount}` : trackCount > 0 ? `${other.shared}/${trackCount}` : String(other.shared);
 
 const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <>
@@ -220,7 +229,7 @@ const TrackMixtapes: React.FC<{ songId: string; title: string }> = ({ songId, ti
   );
 };
 
-const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, onDelete, onSearch, onListenNextChange, onPrevious, onNext, digital, onWish, onDismiss, onBought, onCoverChange }) => {
+const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, onDelete, onSearch, onListenNextChange, onPrevious, onNext, digital, onWish, onDismiss, onBought, onCoverChange, onOpenAlbum }) => {
   const [showCoverModal, setShowCoverModal] = useState<boolean>(false);
   const [coverModalData, setCoverModalData] = useState<CoverModalData>({ coverUrl: '', title: '', artist: '', coverType: '' });
   const [confirmDelete, setConfirmDelete] = useState<boolean>(false);
@@ -259,6 +268,9 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const [mbError, setMbError] = useState<string | null>(null);
   // With Digital on, each track's stars, heart and plays of the last 90 days, by "disc-number".
   const [digitalTracks, setDigitalTracks] = useState<Map<string, DigitalTrack>>(new Map());
+  // The other albums of the collection holding some of its tracks, the most first.
+  const [overlaps, setOverlaps] = useState<AlbumOverlap[]>([]);
+  const [showAllOverlaps, setShowAllOverlaps] = useState<boolean>(false);
   const navidromeId = digital?.album?.navidromeId ?? null;
   // A wish or a digital album: no CD, the shelf code gives way to the cloud.
   const hasCd = cd.titleStatus !== 'digital' && cd.titleStatus !== 'wish';
@@ -276,6 +288,16 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
       .catch(() => undefined);
     return () => { current = false; };
   }, [navidromeId]);
+
+  useEffect(() => {
+    let current = true;
+    setOverlaps([]);
+    setShowAllOverlaps(false);
+    musicService.getAlbumOverlaps(cd.id)
+      .then(albums => { if (current) setOverlaps(albums); })
+      .catch(() => undefined);
+    return () => { current = false; };
+  }, [cd.id]);
 
   useEffect(() => {
     setCommunity(communityOf(cd));
@@ -709,6 +731,35 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                     <button type="button" className="album-head-filter" onClick={() => handleSearch('genre', genre)}>{genre}</button>
                   </React.Fragment>
                 ))}
+              </div>
+            )}
+
+            {/* The other albums holding some of its tracks, the most first: how many of this one's, which on hover. */}
+            {overlaps.length > 0 && (
+              <div className="album-head-line album-head-overlaps">
+                <span className="album-head-muted">Also on </span>
+                {(showAllOverlaps ? overlaps : overlaps.slice(0, OVERLAPS_SHOWN)).map((other, index) => {
+                  const tip = `${other.shared === 1 ? 'One track' : `${other.shared} tracks`} also on ${other.title}`
+                    + ` (${other.titleStatus === 'digital' ? 'digital' : other.format || 'CD'}, ${other.trackCount} tracks): `
+                    + other.tracks.map(track => track.title).join(', ');
+                  return (
+                    <React.Fragment key={other.id}>
+                      {index > 0 && <span className="album-head-muted"> · </span>}
+                      {onOpenAlbum ? (
+                        <button type="button" className="album-head-filter" title={tip} onClick={() => onOpenAlbum(other.id)}>{other.title}</button>
+                      ) : <span title={tip}>{other.title}</span>}
+                      <span className="album-head-muted"> {overlapCount(other, trackCount)}</span>
+                    </React.Fragment>
+                  );
+                })}
+                {!showAllOverlaps && overlaps.length > OVERLAPS_SHOWN && (
+                  <>
+                    <span className="album-head-muted"> · </span>
+                    <button type="button" className="album-head-filter album-head-muted" onClick={() => setShowAllOverlaps(true)}>
+                      {overlaps.length - OVERLAPS_SHOWN} more
+                    </button>
+                  </>
+                )}
               </div>
             )}
 

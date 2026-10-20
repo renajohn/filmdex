@@ -27,6 +27,7 @@ import trackPopularityService from '../services/trackPopularityService';
 import searchCoverService from '../services/searchCoverService';
 import albumCoverService from '../services/albumCoverService';
 import AlbumNote from '../models/albumNote';
+import albumOverlapService from '../services/albumOverlapService';
 import logger from '../logger';
 
 /**
@@ -881,6 +882,16 @@ const musicController = {
       res.json(await albumRatingService.syncAll());
     } catch (error) {
       res.status(502).json({ error: (error as Error).message || 'Failed to sync the stars with Navidrome' });
+    }
+  },
+
+  /** The other albums of the collection holding some of this album's tracks, the most first. */
+  getAlbumOverlaps: async (req: Request, res: Response): Promise<void> => {
+    try {
+      res.json(await albumOverlapService.overlaps(parseInt(req.params.id as string, 10)));
+    } catch (error) {
+      logger.error('Error reading the albums sharing tracks:', error);
+      res.status(500).json({ error: 'Failed to read the albums sharing tracks' });
     }
   },
 

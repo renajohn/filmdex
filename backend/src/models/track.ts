@@ -31,6 +31,14 @@ const parseList = <T>(text: string | null): T[] => {
   }
 };
 
+export interface SharedTrackRow {
+  track_id: number;
+  disc_number: number;
+  track_number: number;
+  track_title: string;
+  album_id: number;
+}
+
 interface TrackDeleteResult {
   deleted: number | boolean;
 }
@@ -228,6 +236,28 @@ const Track = {
           resolve(rows.map(Track.formatRow).filter((r): r is TrackFormatted => r !== null));
         }
       });
+    });
+  },
+
+  /**
+   * The album's tracks that another album of the collection (a CD or a digital album, not a wish nor a mixtape)
+   * holds too: the same recording, or the same ISRC when it is on one track only of each album (a CD can give
+   * one code to several tracks). One row per track and other album.
+   */
+  sharedWith: (albumId: number): Promise<SharedTrackRow[]> => {
+    return new Promise((resolve, reject) => {
+      const uniqueIsrc = (alias: string) =>
+        `${alias}.isrc IS NOT NULL AND (SELECT COUNT(*) FROM tracks u WHERE u.album_id = ${alias}.album_id AND u.isrc = ${alias}.isrc) = 1`;
+      const sql = `
+        SELECT DISTINCT m.id AS track_id, m.disc_number, m.track_number, m.title AS track_title, o.album_id
+        FROM tracks m
+        JOIN tracks o ON o.album_id != m.album_id AND (
+          o.musicbrainz_recording_id = m.musicbrainz_recording_id
+          OR (o.isrc = m.isrc AND ${uniqueIsrc('m')} AND ${uniqueIsrc('o')}))
+        JOIN albums a ON a.id = o.album_id AND COALESCE(a.title_status, 'owned') IN ('owned', 'digital')
+        WHERE m.album_id = ?
+        ORDER BY o.album_id, m.disc_number, m.track_number`;
+      getDatabase().all(sql, [albumId], (err: Error | null, rows: SharedTrackRow[]) => (err ? reject(err) : resolve(rows)));
     });
   },
 

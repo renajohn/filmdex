@@ -289,6 +289,7 @@ app.put('/api/music/albums/:id/rating', musicController.setUserRating);
 app.post('/api/music/albums/:id/rating/sync', musicController.syncUserRating);
 app.post('/api/music/ratings/sync', musicController.syncAllUserRatings);
 app.get('/api/music/albums/:id/notes', musicController.getAlbumNotes);
+app.get('/api/music/albums/:id/overlaps', musicController.getAlbumOverlaps);
 app.post('/api/music/albums/:id/notes', musicController.createAlbumNote);
 app.put('/api/music/notes/:id', musicController.updateAlbumNote);
 app.delete('/api/music/notes/:id', musicController.deleteAlbumNote);

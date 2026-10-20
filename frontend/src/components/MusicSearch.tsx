@@ -1409,6 +1409,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           onDismiss={digitalOn ? (dismissed: boolean) => setDismissed(selectedCdDetails, dismissed) : null}
           onBought={() => setBuying(selectedCdDetails)}
           onCoverChange={(side, coverPath) => setCover(selectedCdDetails.id, side, coverPath)}
+          onOpenAlbum={albumId => handleCdClick(albumId)}
         />
       )}
 

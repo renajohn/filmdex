@@ -159,6 +159,20 @@ export interface TrackLyricsState {
   status: TrackLyrics['status'] | 'pending';
 }
 
+/** Another album of the collection holding some of an album's tracks. */
+export interface AlbumOverlap {
+  id: number;
+  title: string;
+  artist: string[];
+  cover: string | null;
+  titleStatus: string;
+  format: string | null;
+  /** How many of the album's tracks it holds too, and how many tracks it has. */
+  shared: number;
+  trackCount: number;
+  tracks: Array<{ disc: number; no: number; title: string }>;
+}
+
 export interface RipTracks {
   configured: boolean;
   found: boolean;
@@ -897,6 +911,17 @@ class MusicService {
   async getNavidromeTracks(albumId: number | string): Promise<RipTracks> {
     const baseUrl = await this.getBaseUrl();
     const response = await fetch(`${baseUrl}/music/albums/${albumId}/navidrome-tracks`);
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.error || `HTTP error! status: ${response.status}`);
+    }
+    return body;
+  }
+
+  /** The other albums of the collection holding some of this album's tracks, the most first. */
+  async getAlbumOverlaps(albumId: number | string): Promise<AlbumOverlap[]> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/albums/${albumId}/overlaps`);
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(body.error || `HTTP error! status: ${response.status}`);

@@ -18,6 +18,7 @@ vi.mock('../services/musicService', () => ({
     syncAlbumRating: vi.fn(() => Promise.resolve({ userRating: null })),
     setAlbumRating: vi.fn((_id: number, rating: number) => Promise.resolve({ userRating: rating || null, navidrome: 'synced' })),
     getAlbumNotes: vi.fn(() => Promise.resolve([])),
+    getAlbumOverlaps: vi.fn(() => Promise.resolve([])),
     getAlbumGuide: vi.fn(() => Promise.resolve(null)),
     refreshFromMusicBrainz: vi.fn(() => Promise.resolve({})),
     getAlbumById: vi.fn(() => Promise.resolve({ rating: 4.15 })),
@@ -61,6 +62,41 @@ beforeEach(() => {
   (musicService.getNavidromeTracks as any).mockResolvedValue({ configured: true, found: false, tracks: [] });
   (musicService.getAlbumNotes as any).mockResolvedValue([]);
   (musicService.getAlbumGuide as any).mockResolvedValue(null);
+  (musicService.getAlbumOverlaps as any).mockResolvedValue([]);
+});
+
+describe('MusicDetailCard also on', () => {
+  const other = (id: number, title: string, shared: number, titleStatus = 'owned') => ({
+    id, title, artist: ['The Beatles'], cover: null, titleStatus, format: 'CD', shared, trackCount: 20,
+    tracks: Array.from({ length: shared }, (_, index) => ({ disc: 1, no: index + 1, title: `Track ${index + 1}` })),
+  });
+
+  it('names the albums holding some of its tracks, how many of them, and opens one on a click', async () => {
+    (musicService.getAlbumOverlaps as any).mockResolvedValue([other(7, '1', 3), other(8, 'Love', 2, 'digital')]);
+    const onOpenAlbum = vi.fn();
+    render(<MusicDetailCard cd={cd() as any} onClose={() => {}} onEdit={() => {}} onDelete={() => {}} onOpenAlbum={onOpenAlbum} />);
+
+    const one = await screen.findByRole('button', { name: '1' });
+    expect(screen.getByText('all 3')).toBeInTheDocument();
+    expect(screen.getByText('2/3')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Love' })).toHaveAttribute('title', '2 tracks also on Love (digital, 20 tracks): Track 1, Track 2');
+    fireEvent.click(one);
+    expect(onOpenAlbum).toHaveBeenCalledWith(7);
+  });
+
+  it('names three albums, the rest on a click', async () => {
+    (musicService.getAlbumOverlaps as any).mockResolvedValue([other(7, 'A', 2), other(8, 'B', 1), other(9, 'C', 1), other(10, 'D', 1), other(11, 'E', 1)]);
+    render(<MusicDetailCard cd={cd() as any} onClose={() => {}} onEdit={() => {}} onDelete={() => {}} onOpenAlbum={() => {}} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: '2 more' }));
+    expect(screen.getByRole('button', { name: 'E' })).toBeInTheDocument();
+  });
+
+  it('says nothing when no other album shares a track', async () => {
+    render(<MusicDetailCard cd={cd() as any} onClose={() => {}} onEdit={() => {}} onDelete={() => {}} />);
+    await waitFor(() => expect(musicService.getAlbumOverlaps).toHaveBeenCalledWith(1));
+    expect(screen.queryByText(/Also on/)).not.toBeInTheDocument();
+  });
 });
 
 describe('MusicDetailCard notes and Wikipedia', () => {
