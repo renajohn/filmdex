@@ -181,6 +181,7 @@ const searchRecording = async (track: TrackFormatted, album: AlbumFormatted, tak
     `recording:"${title}"${length}`,
     // Long classical titles are never written twice the same: their words, then.
     `recording:(${title})${length}`,
+    ...(movement ? [`recording:(${movement})${length}`, `recording:(${movement})`] : []),
   ];
   if (composer) artists.push(composer);
   type Scored = { recording: MBRawRecording; gap: number | null; alike: number; score: number; byArtist: boolean };
@@ -200,11 +201,12 @@ const searchRecording = async (track: TrackFormatted, album: AlbumFormatted, tak
     if (best) return best.recording;
     seen.push(...scored);
   }
-  // The last chances: the same composer or artist at about the same length, a title alike at the same length, a title alike.
+  // The last chances: the same composer or artist at about the same length, a title alike at the same length, a title alike, the likest.
   seen.sort((a, b) => b.score - a.score);
   return (seen.find(entry => entry.byArtist && entry.alike >= 0.2 && entry.gap !== null && entry.gap <= 10)
     ?? seen.find(entry => entry.alike >= 0.3 && entry.gap !== null && entry.gap <= 5)
-    ?? seen.find(entry => entry.alike >= 0.5))?.recording ?? null;
+    ?? seen.find(entry => entry.alike >= 0.5)
+    ?? seen.find(entry => entry.alike > 0))?.recording ?? null;
 };
 
 /** Sets the edition unless another album already has it: the index wants one album per edition. */
