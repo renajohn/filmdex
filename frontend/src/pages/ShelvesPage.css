@@ -56,8 +56,128 @@
   outline: none;
 }
 
+/* The search: its field, ▲ ▼ beside it, and the suggestions under it. */
 .shelves-search {
-  max-width: 240px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 320px;
+  max-width: 100%;
+}
+
+.shelves-search .ui-input-box,
+.shelves-search > .ui-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.shelves-search .ui-input-box__suffix {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Escape empties it; the browser's ✕ would sit on the count. */
+.shelves-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.shelves-search-none {
+  color: var(--dv-danger);
+}
+
+.shelf-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  padding: 4px;
+}
+
+.shelf-suggestions ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shelf-suggestion {
+  gap: 10px;
+  padding: 5px 8px;
+}
+
+.shelf-suggestion-cover {
+  flex: 0 0 30px;
+  height: 30px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--dv-glass);
+}
+
+.shelf-suggestion-cover.shelf-cover-film {
+  height: 42px;
+}
+
+.shelf-suggestion-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.shelf-suggestion-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.shelf-suggestion-name,
+.shelf-suggestion-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shelf-suggestion-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.shelf-suggestion-title {
+  color: var(--dv-text-muted);
+  font-size: 0.78rem;
+}
+
+.shelf-suggestion-where {
+  flex: none;
+  color: var(--dv-text-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  text-align: right;
+}
+
+.shelf-suggestion-where strong {
+  display: block;
+  color: var(--dv-text);
+  font-size: 0.78rem;
+}
+
+.shelf-suggestions-note {
+  padding: 5px 8px 3px;
+  color: var(--dv-text-faint);
+  font-size: 0.75rem;
+}
+
+/* The words a search found, in a row or a suggestion. */
+.shelf-match {
+  padding: 0;
+  background: none;
+  color: var(--dv-gold);
+  text-decoration: underline;
+  text-decoration-color: var(--dv-gold-tint-edge);
+  text-underline-offset: 2px;
 }
 
 .shelves-figures {
@@ -70,7 +190,7 @@
   color: #e0e0e0;
 }
 
-/* The shelves of the section, in the order they fill: one tap takes the list to a shelf. */
+/* The shelves of the section, in the order they fill: one tap takes the list to a shelf; a search lights those it finds on. */
 .shelf-strip {
   display: flex;
   flex-wrap: wrap;
@@ -78,8 +198,53 @@
   margin-bottom: 12px;
 }
 
-.shelf-chip {
-  font-variant-numeric: tabular-nums}
+/*
+ * The margin of a search, beside the list: a gold mark for each result at its
+ * height in the list, a frame for what the screen shows.
+ */
+.shelf-rail {
+  position: fixed;
+  top: 96px;
+  bottom: 80px;
+  right: max(4px, calc((100vw - 960px) / 2 - 22px));
+  z-index: 3;
+  width: 14px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.shelf-rail-view {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border: 1px solid var(--dv-edge-hover);
+  border-radius: 7px;
+  pointer-events: none;
+}
+
+.shelf-rail-mark {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: 3px;
+  margin-top: -1px;
+  border-radius: 2px;
+  background: var(--dv-gold);
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.shelf-rail-mark:hover {
+  opacity: 0.85;
+}
+
+.shelf-rail-mark.current {
+  left: 0;
+  right: 0;
+  height: 5px;
+  margin-top: -2px;
+  opacity: 1;
+}
 
 .shelf-letter {
   /* Reached from the strip, the heading lands below the top of the page. */
@@ -138,6 +303,28 @@
 
 .shelf-row.editing {
   background: rgba(255, 255, 255, 0.05);
+}
+
+/* What a search found: a gold tint; the one the list was taken to, ringed, and a flash as it lands. */
+.shelf-row.found {
+  background: rgba(251, 191, 36, 0.06);
+}
+
+.shelf-row.current {
+  background: var(--dv-gold-tint);
+  box-shadow: inset 0 0 0 1px var(--dv-gold);
+}
+
+.shelf-row.landed {
+  animation: shelf-landed 0.9s ease-out;
+}
+
+@keyframes shelf-landed {
+  from { box-shadow: inset 0 0 0 2px var(--dv-gold), 0 0 0 6px rgba(251, 191, 36, 0.25); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shelf-row.landed { animation: none; }
 }
 
 .shelf-row-main {
@@ -356,8 +543,25 @@
   }
 
   .shelves-search {
-    max-width: none;
     width: 100%;
+  }
+
+  .shelf-suggestion-where {
+    font-size: 0.68rem;
+  }
+}
+
+/* Where the one the list was taken to stands on its shelf. */
+.shelf-from-left {
+  flex: none;
+  color: var(--dv-gold);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .shelf-from-left {
+    display: none;
   }
 }
 

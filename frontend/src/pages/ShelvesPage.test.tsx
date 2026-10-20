@@ -60,15 +60,57 @@ describe('ShelvesPage', () => {
     expect(screen.getByRole('heading', { name: 'J' })).toBeInTheDocument();
   });
 
-  it('marque le nom deviné d’un CD classique, et cherche dans la section', async () => {
+  it('marque le nom deviné d’un CD classique, et cherche dans la section sans rien cacher', async () => {
     render(<ShelvesPage />);
     fireEvent.click(await screen.findByRole('tab', { name: /Classical/ }));
     expect(screen.getByText('guessed')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: /Music/ }));
-    fireEvent.change(screen.getByPlaceholderText('Find on the shelves…'), { target: { value: 'george' } });
-    expect(screen.getByText('Michael, George')).toBeInTheDocument();
-    expect(screen.queryByText('Beatles')).not.toBeInTheDocument();
+    // ⌘F lands in the search of the shelves.
+    fireEvent.keyDown(window, { key: 'f', metaKey: true });
+    const field = screen.getByRole('combobox', { name: 'Find on the shelves' });
+    expect(field).toHaveFocus();
+
+    fireEvent.change(field, { target: { value: 'george' } });
+    // The suggestions say what matches and where; the list keeps everything.
+    const suggestions = screen.getByRole('listbox', { name: 'On the shelves' });
+    expect(within(suggestions).getAllByRole('option')).toHaveLength(1);
+    expect(within(suggestions).getByRole('option')).toHaveTextContent('Michael, GeorgeOlder');
+    expect(screen.getByText('Beatles')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('1 found');
+    expect(document.querySelector('[aria-current="true"]')).toBeNull();
+
+    // ↵ with nothing chosen goes to the first, and closes the suggestions.
+    fireEvent.keyDown(field, { key: 'Enter' });
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(document.querySelector('[aria-current="true"]')).toHaveTextContent('Older');
+    expect(screen.getByRole('status')).toHaveTextContent('1 / 1');
+
+    // Escape twice: the suggestions, then the search.
+    fireEvent.keyDown(field, { key: 'ArrowDown' });
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    fireEvent.keyDown(field, { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    fireEvent.keyDown(field, { key: 'Escape' });
+    expect(field).toHaveValue('');
+  });
+
+  it('va au disque choisi parmi les suggestions avec les flèches', async () => {
+    render(<ShelvesPage />);
+    fireEvent.click(await screen.findByRole('tab', { name: /Music/ }));
+    const field = screen.getByRole('combobox', { name: 'Find on the shelves' });
+    fireEvent.change(field, { target: { value: 'e' } });
+    expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(2);
+
+    fireEvent.keyDown(field, { key: 'ArrowDown' });
+    fireEvent.keyDown(field, { key: 'ArrowDown' });
+    expect(screen.getAllByRole('option')[1]).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(field, { key: 'Enter' });
+    expect(document.querySelector('[aria-current="true"]')).toHaveTextContent('Older');
+
+    // Once there, ↵ goes on to the next, round to the first.
+    fireEvent.keyDown(field, { key: 'Enter' });
+    expect(document.querySelector('[aria-current="true"]')).toHaveTextContent('Abbey Road');
   });
 
   it('range un CD sous un autre nom et ailleurs que sur les étagères', async () => {
@@ -160,10 +202,18 @@ describe('ShelvesPage', () => {
     await waitFor(() => expect(shelvingService.moveBack).toHaveBeenCalledWith('movie', 12));
     expect(screen.getByRole('button', { name: 'No room for Nemo: move it on to the next shelf' })).toBeDisabled();
 
-    // A shelf code finds what stands on it.
+    // A shelf code finds what stands on it, and where on it.
     fireEvent.change(screen.getByPlaceholderText('Find on the shelves…'), { target: { value: 'a-2' } });
-    expect(screen.getByText('Nemo')).toBeInTheDocument();
-    expect(screen.queryByText('Moon')).not.toBeInTheDocument();
+    const suggestions = screen.getByRole('listbox');
+    expect(within(suggestions).getAllByRole('option')).toHaveLength(1);
+    expect(within(suggestions).getByRole('option')).toHaveTextContent('A-21st from the left');
+    expect(screen.getByText('Moon')).toBeInTheDocument();
+    // The strip lights its shelf, the other dim; the row says where it stands once the list goes there.
+    const strip = screen.getByRole('navigation', { name: 'Shelves of Films' });
+    expect(within(strip).getByTitle('A-2: Nemo')).toHaveClass('ui-chip--on');
+    expect(within(strip).getByTitle('A-1: Matrix – Moon')).toHaveClass('ui-chip--muted');
+    fireEvent.click(within(suggestions).getByRole('option'));
+    expect(document.querySelector('[aria-current="true"]')).toHaveTextContent('1st of 1 from the left');
   });
 
   it('dessine chaque meuble en colonne, ouvre un étage pour le régler, et passe de la liste au meuble et retour', async () => {

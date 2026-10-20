@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Trouver sur l'étagère</title>
+<style>
+  :root {
+    --dv-gold: #fbbf24; --dv-gold-hover: #fcd34d; --dv-gold-light: #fde68a; --dv-gold-ink: #111;
+    --dv-gold-tint: rgba(251,191,36,.12); --dv-gold-tint-edge: rgba(251,191,36,.45);
+    --dv-danger: #f87171;
+    --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+    --dv-page: #1a1a1a;
+    --dv-glass: rgba(255,255,255,.06); --dv-glass-hover: rgba(255,255,255,.11);
+    --dv-edge: rgba(255,255,255,.12); --dv-edge-hover: rgba(255,255,255,.24);
+    --dv-veil: rgba(255,255,255,.08);
+    --dv-surface: rgba(24,24,24,.86); --dv-surface-edge: rgba(255,255,255,.1);
+    --dv-surface-shadow: 0 16px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
+    --dv-ring: 0 0 0 3px rgba(251,191,36,.3);
+    --section-music: #5fb3e6;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--dv-page); color: var(--dv-text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+  /* The prototype's own bar: which variant. */
+  .proto { position: sticky; top: 0; z-index: 60; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+    padding: 10px 16px; background: #0e0e0e; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .proto b { color: #ddd; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid #444; border-radius: 8px; overflow: hidden; }
+  .seg button { background: #222; color: #ddd; border: 0; padding: 6px 12px; font: inherit; cursor: pointer; }
+  .seg button + button { border-left: 1px solid #444; }
+  .seg button.on { background: var(--dv-gold); color: #111; }
+  .how { max-width: 960px; margin: 14px auto 0; padding: 0 16px; color: #8a8a8a; font-size: 12.5px; }
+  .how strong { color: #ccc; }
+
+  /* The page, as ShelvesPage.css */
+  .page { max-width: 960px; margin: 0 auto; padding: 16px 16px 60vh; position: relative; }
+  h2 { margin: 0 0 4px; font-size: 1.6rem; font-weight: 600; }
+  .sub { margin: 0 0 16px; color: #9aa4b2; font-size: .9rem; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .tabs { display: inline-flex; border: 1px solid var(--dv-edge); border-radius: 9px; background: var(--dv-glass); padding: 2px; gap: 2px; }
+  .tabs span { padding: 4px 12px; border-radius: 7px; font-size: 13px; color: var(--dv-text-muted); }
+  .tabs span.on { background: var(--dv-gold-tint); color: var(--dv-gold); }
+  .tabs small { opacity: .7; margin-left: 4px; }
+
+  /* Search field with its counter and arrows */
+  .find { display: flex; align-items: center; gap: 4px; height: 28px; width: 320px; max-width: 100%; padding: 0 4px 0 10px;
+    border: 1px solid var(--dv-edge); border-radius: 7px; background: var(--dv-glass); }
+  .find:focus-within { border-color: var(--dv-gold-tint-edge); box-shadow: var(--dv-ring); }
+  .find input { flex: 1; min-width: 0; border: 0; background: none; color: var(--dv-text); font: inherit; font-size: 13px; outline: none; }
+  .find .count { color: var(--dv-text-muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .find .count.none { color: var(--dv-danger); }
+  .findwrap { position: relative; max-width: 100%; }
+  .suggest { position: absolute; top: calc(100% + 4px); right: 0; z-index: 70; width: 400px; max-width: calc(100vw - 32px); padding: 4px;
+    border: 1px solid var(--dv-surface-edge); border-radius: 9px; background: var(--dv-surface); box-shadow: var(--dv-surface-shadow);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+  .suggest[hidden] { display: none; }
+  .sg { display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 7px; cursor: pointer; }
+  .sg:hover, .sg.active { background: var(--dv-veil); }
+  .sg .cover { flex: 0 0 30px; height: 30px; border-radius: 3px; }
+  .sg .info .sn { font-size: .85rem; }
+  .sg .info .ti { font-size: .78rem; color: var(--dv-text-muted); }
+  .sg .where { flex: none; text-align: right; font-size: .72rem; color: var(--dv-text-muted); font-variant-numeric: tabular-nums; line-height: 1.3; }
+  .sg .where b { display: block; color: var(--dv-text); font-weight: 600; font-size: .78rem; }
+  .sg-more, .sg-none { padding: 5px 8px 3px; color: var(--dv-text-faint); font-size: .75rem; }
+  .sg-more kbd, .sg-none kbd { font: inherit; padding: 0 4px; border: 1px solid var(--dv-edge); border-radius: 4px; }
+  .ib { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 0; border-radius: 5px;
+    background: none; color: var(--dv-text-muted); cursor: pointer; font-size: 12px; }
+  .ib:hover { background: var(--dv-veil); color: #fff; }
+  .ib:disabled { opacity: .35; cursor: default; background: none; }
+
+  .figures { margin-bottom: 8px; color: #9aa4b2; font-size: .85rem; }
+
+  /* The strip of shelves */
+  .strip { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
+  .chip { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 13px;
+    border: 1px solid var(--dv-edge); background: var(--dv-glass); color: var(--dv-text); font-size: 12.5px; cursor: pointer;
+    font-variant-numeric: tabular-nums; transition: opacity .15s, background .15s, border-color .15s, color .15s; }
+  .chip small { color: var(--dv-text-faint); }
+  .chip:hover { background: var(--dv-glass-hover); border-color: var(--dv-edge-hover); }
+  .searching .chip.miss { opacity: .35; }
+  .chip.hit { border-color: var(--dv-gold-tint-edge); background: var(--dv-gold-tint); color: var(--dv-gold); }
+  .chip.hit small { color: var(--dv-gold); opacity: .8; }
+  .chip.cur { background: var(--dv-gold); color: var(--dv-gold-ink); border-color: transparent; }
+  .chip.cur small { color: var(--dv-gold-ink); }
+
+  /* Shelf groups and rows */
+  .group-head { position: sticky; top: var(--sticky, 45px); z-index: 2; display: flex; align-items: baseline; gap: 10px; margin: 12px 0 4px; padding: 4px 8px; background: var(--dv-page); }
+  .group-head h3 { margin: 0; color: #f0b73c; font-size: 1rem; font-weight: 600; }
+  .group-head span { color: #9aa4b2; font-size: .8rem; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 6px 8px; border-radius: 8px; cursor: pointer; scroll-margin: 40vh 0;
+    transition: opacity .2s, background .2s, box-shadow .2s; }
+  .row:hover { background: rgba(255,255,255,.05); }
+  .pos { flex: 0 0 32px; color: #7d8590; font-size: .75rem; text-align: right; font-variant-numeric: tabular-nums; }
+  .cover { flex: 0 0 40px; height: 40px; border-radius: 4px; }
+  .info { flex: 1; min-width: 0; }
+  .info div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sn { font-size: .95rem; font-weight: 600; }
+  .ti { font-size: .85rem; }
+  .st { color: #9aa4b2; font-size: .75rem; }
+  .code { flex: none; padding: 1px 7px; border-radius: 4px; background: rgba(255,255,255,.08); color: #c0c6cf; font-size: .75rem; font-variant-numeric: tabular-nums; }
+  .from-left { flex: none; color: var(--dv-gold); font-size: .75rem; white-space: nowrap; display: none; }
+  mark { background: none; color: var(--dv-gold); font-weight: inherit; text-decoration: underline; text-decoration-color: var(--dv-gold-tint-edge); text-underline-offset: 2px; }
+
+  /* A: find in page — every match tinted, the current one ringed */
+  .vA .row.hit { background: var(--dv-gold-tint); }
+  .vA .row.cur { background: var(--dv-gold-tint); box-shadow: inset 0 0 0 1px var(--dv-gold); }
+  .vA .row.cur .from-left { display: inline; }
+
+  /* B: spotlight — the rest dims */
+  .vB.searching .row.miss { opacity: .25; }
+  .vB.searching .group.miss .group-head h3 { opacity: .35; }
+  .vB .row.cur { background: var(--dv-gold-tint); box-shadow: inset 3px 0 0 var(--dv-gold); }
+  .vB .row.cur .from-left { display: inline; }
+
+  /* C: the furniture's map */
+  .map { display: none; position: sticky; top: 45px; z-index: 3; margin: 0 -8px 8px; padding: 10px 8px 8px; background: var(--dv-page); border-bottom: 1px solid #2a2a2a; }
+  .vC .map { display: block; }
+  .vC .strip { display: none; }
+  .vC .group-head { top: var(--sticky-c, 220px); }
+  .vC .row.cur { background: var(--dv-gold-tint); box-shadow: inset 0 0 0 1px var(--dv-gold); }
+  .vC .row.hit:not(.cur) { background: rgba(251,191,36,.06); }
+  .units { display: flex; gap: 14px; overflow-x: auto; }
+  .unit { flex: 1 1 0; min-width: 150px; }
+  .unit-name { font-size: 11px; color: var(--dv-text-faint); text-transform: uppercase; letter-spacing: .6px; margin: 0 0 3px 2px; }
+  .level { display: flex; align-items: flex-end; gap: 6px; height: 28px; margin-bottom: 3px; cursor: pointer; }
+  .level .lc { flex: 0 0 26px; font-size: 10.5px; color: var(--dv-text-faint); font-variant-numeric: tabular-nums; padding-bottom: 3px; }
+  .level .board { flex: 1; display: flex; align-items: flex-end; gap: 1px; height: 100%; padding: 0 2px; border-bottom: 2px solid #4a4a4a; }
+  .level:hover .board { border-bottom-color: #777; }
+  .spine { flex: 1 1 0; min-width: 2px; height: 70%; border-radius: 1px 1px 0 0; background: #3a4048; transition: background .15s, height .15s; }
+  .spine.hit { background: var(--dv-gold); opacity: .55; height: 85%; }
+  .spine.cur { background: var(--dv-gold); opacity: 1; height: 100%; box-shadow: 0 0 0 1px var(--dv-gold-light); }
+  .level.other .board { border-bottom-color: #2c2c2c; }
+  .level.other .spine { background: #262626; }
+  .map-say { margin: 6px 2px 0; min-height: 18px; font-size: 12.5px; color: var(--dv-text-muted); }
+  .map-say b { color: var(--dv-gold); font-weight: 600; }
+
+  /* D: marks in the margin */
+  .rail { display: none; position: fixed; right: max(8px, calc(50vw - 520px)); top: 110px; bottom: 24px; width: 14px;
+    border-radius: 7px; background: rgba(255,255,255,.04); }
+  .vD.searching .rail { display: block; }
+  .rail i { position: absolute; left: 2px; right: 2px; height: 3px; border-radius: 2px; background: var(--dv-gold); opacity: .55; cursor: pointer; }
+  .rail i.cur { opacity: 1; height: 5px; left: 0; right: 0; }
+  .rail .view { position: absolute; left: 0; right: 0; border: 1px solid var(--dv-edge-hover); border-radius: 7px; pointer-events: none; }
+  .vD .row.hit { background: rgba(251,191,36,.06); }
+  .vD .row.cur { background: var(--dv-gold-tint); box-shadow: inset 0 0 0 1px var(--dv-gold); }
+  .vD .row.cur .from-left { display: inline; }
+
+  .row.flash { animation: flash .9s ease-out; }
+  @keyframes flash { 0% { box-shadow: inset 0 0 0 2px var(--dv-gold), 0 0 0 6px rgba(251,191,36,.25); } }
+
+  @media (max-width: 640px) {
+    .find { width: 100%; }
+    .from-left, .code { display: none !important; }
+    .rail { right: 2px; }
+  }
+</style>
+</head>
+<body>
+<div class="proto">
+  <b>Variante</b>
+  <div class="seg" id="variants">
+    <button data-v="A" class="on">A · Chercher dans la page</button>
+    <button data-v="B">B · Projecteur</button>
+    <button data-v="C">C · Plan du meuble</button>
+    <button data-v="D">D · Repères dans la marge</button>
+  </div>
+  <span>Essayer : <i>pink</i>, <i>bowie</i>, <i>live</i>, <i>B-2</i>, <i>radiohead kid</i></span>
+</div>
+<p class="how" id="how"></p>
+
+<div class="page vA" id="page">
+  <h2>Shelves</h2>
+  <p class="sub">The order each section stands in on the shelves, and the shelf each object goes on once the furniture is described.</p>
+  <div class="controls">
+    <div class="tabs"><span>Films<small>412</small></span><span class="on">Music<small id="total"></small></span><span>Classical<small>96</small></span><span>Furniture<small>3</small></span><span>Elsewhere<small>4</small></span></div>
+    <div class="findwrap">
+      <label class="find">
+        <input id="q" type="search" placeholder="Find on the shelves…" autocomplete="off" aria-label="Find on the shelves"
+          role="combobox" aria-controls="suggest" aria-expanded="false">
+        <span class="count" id="count"></span>
+        <button class="ib" id="prev" title="Previous" aria-label="Previous">▲</button>
+        <button class="ib" id="next" title="Next" aria-label="Next">▼</button>
+      </label>
+      <div class="suggest" id="suggest" role="listbox" hidden></div>
+    </div>
+  </div>
+  <div class="figures" id="figures"></div>
+  <div class="map" id="map"><div class="units" id="units"></div><p class="map-say" id="say"></p></div>
+  <nav class="strip" id="strip"></nav>
+  <div id="list"></div>
+  <div class="rail" id="rail"></div>
+</div>
+
+<script>
+const COMMON = "<br><strong>Dans toutes :</strong> taper ne fait pas défiler. Une liste de suggestions s'ouvre sous le champ (où se trouve chaque disque : étagère et place). ↓ ↑ choisissent, ↵ ou un clic y va ; ↵ sans rien choisir va au premier. Une fois arrivé, ▲ ▼ à côté du champ passent au résultat précédent ou suivant ; Échap ferme les suggestions, une seconde fois efface.";
+const HOW = {
+  A: "<strong>A · Chercher dans la page.</strong> Rien ne disparaît, chaque disque trouvé est teinté d'or ; celui où l'on va est cerclé et amené au milieu de l'écran. « 2 / 5 » et ▲▼ passent d'un résultat à l'autre. La bande des étagères reste et allume celles où il y a quelque chose, l'étagère courante en plein or. La ligne courante dit sa place : « 8th from the left ».",
+  B: "<strong>B · Projecteur.</strong> Comme A, mais tout ce qui ne correspond pas s'éteint (25 %) : on voit d'un coup d'œil où sont les résultats dans le rangement, et les voisins restent lisibles pour se repérer devant le meuble. Échap rallume tout.",
+  C: "<strong>C · Plan du meuble.</strong> La bande devient un dessin du meuble : chaque étage avec ses tranches, une par disque, à leur place réelle. Les résultats s'allument en or sur le dessin, le courant plus haut ; une phrase dit « Column B, shelf 2 (from the top), 8th of 14 from the left ». Un clic sur une tranche y mène la liste. C'est la variante qui répond le mieux à « où est-il, physiquement ? ».",
+  D: "<strong>D · Repères dans la marge.</strong> Comme A, avec une gouttière à droite où chaque résultat est un trait d'or à sa hauteur dans la liste (comme dans un éditeur de code) ; un clic sur un trait y saute. Utile quand une recherche large (« live ») trouve beaucoup de disques éparpillés.",
+};
+
+// Fictional music section, already in filing order.
+const RAW = `ABBA|Arrival;Gold
+AC/DC|Back in Black;Highway to Hell;Live
+Adele|21;25
+Air|Moon Safari;Talkie Walkie
+Arcade Fire|Funeral;The Suburbs
+Armstrong, Louis|What a Wonderful World
+Bach Brothers, The|Nothing
+Beach Boys, The|Pet Sounds;Smiley Smile
+Beatles, The|Abbey Road;Revolver;Let It Be;Live at the BBC
+Björk|Homogenic;Post;Debut
+Blur|Parklife;13
+Bowie, David|Hunky Dory;Low;Heroes;Ziggy Stardust;Live Santa Monica '72
+Brel, Jacques|Ces gens-là;Olympia 1964
+Buckley, Jeff|Grace;Live at Sin-é
+Cash, Johnny|At Folsom Prison;American IV
+Cave, Nick & The Bad Seeds|The Boatman's Call;Murder Ballads
+Clash, The|London Calling
+Cohen, Leonard|Songs of Leonard Cohen;I'm Your Man
+Coldplay|Parachutes
+Cure, The|Disintegration;Pornography
+Daft Punk|Discovery;Homework;Random Access Memories
+Davis, Miles|Kind of Blue;Bitches Brew
+Depeche Mode|Violator;Songs of Faith and Devotion
+Dire Straits|Brothers in Arms;Alchemy Live
+Doors, The|L.A. Woman;The Doors
+Dylan, Bob|Blood on the Tracks;Highway 61 Revisited
+Eno, Brian|Music for Airports
+Fleetwood Mac|Rumours
+Gainsbourg, Serge|Histoire de Melody Nelson
+Gorillaz|Demon Days
+Guns N' Roses|Appetite for Destruction
+Hendrix, Jimi|Electric Ladyland;Live at Woodstock
+Joy Division|Unknown Pleasures;Closer
+Kraftwerk|Trans-Europe Express;The Man-Machine
+Led Zeppelin|IV;Physical Graffiti;How the West Was Won
+Massive Attack|Mezzanine;Blue Lines
+Metallica|Master of Puppets;S&M
+Mitchell, Joni|Blue;Court and Spark
+Morricone, Ennio|Once Upon a Time in the West
+Nirvana|Nevermind;MTV Unplugged in New York
+Oasis|(What's the Story) Morning Glory?
+Pink Floyd|The Dark Side of the Moon;Wish You Were Here;Animals;The Wall;Pulse
+Portishead|Dummy;Third
+Prince|Purple Rain;Sign o' the Times
+Queen|A Night at the Opera;Live Killers
+Radiohead|OK Computer;Kid A;In Rainbows;Amnesiac
+Reed, Lou|Transformer
+R.E.M.|Automatic for the People
+Rolling Stones, The|Exile on Main St.;Sticky Fingers;Get Yer Ya-Ya's Out!
+Sigur Rós|Ágætis byrjun
+Simon & Garfunkel|Bridge over Troubled Water
+Smiths, The|The Queen Is Dead
+Springsteen, Bruce|Born to Run;Nebraska
+Talking Heads|Remain in Light;Stop Making Sense
+Tom Waits|Rain Dogs;Swordfishtrombones
+U2|The Joshua Tree;Achtung Baby
+Velvet Underground, The|The Velvet Underground & Nico
+Who, The|Who's Next;Live at Leeds
+Wonder, Stevie|Songs in the Key of Life;Innervisions
+Young, Neil|Harvest;Rust Never Sleeps`;
+
+const items = [];
+RAW.split('\n').forEach(line => {
+  const [artist, albums] = line.split('|');
+  const shown = artist.includes(', ') && !artist.endsWith('The')
+    ? artist.split(', ').reverse().join(' ')
+    : artist.endsWith(', The') ? 'The ' + artist.slice(0, -5) : artist;
+  albums.split(';').forEach((title, i) => items.push({
+    sortName: artist, title, subtitle: `${shown} · ${1965 + ((artist.length * 7 + i * 13) % 55)}`,
+    hue: (artist.charCodeAt(0) * 37 + artist.length * 11 + i * 50) % 360,
+  }));
+});
+
+// Shelves: three columns of five, filled downwards; Music has A-1…C-2, about 13 discs a shelf.
+const UNITS = ['A', 'B', 'C'];
+const musicShelves = ['A-1','A-2','A-3','A-4','A-5','B-1','B-2','B-3','B-4','B-5','C-1','C-2'];
+const per = Math.ceil(items.length / musicShelves.length);
+items.forEach((item, i) => {
+  item.code = musicShelves[Math.floor(i / per)];
+  item.pos = i + 1;
+});
+const shelfItems = code => items.filter(item => item.code === code);
+items.forEach(item => {
+  const on = shelfItems(item.code);
+  item.nth = on.indexOf(item) + 1;
+  item.of = on.length;
+});
+
+const ordinal = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th','st','nd','rd'][n % 10] || 'th');
+const norm = text => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const esc = text => text.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+let variant = 'A', query = '', hits = [], cur = -1;
+
+const page = document.getElementById('page');
+const list = document.getElementById('list');
+document.getElementById('total').textContent = items.length;
+document.getElementById('figures').innerHTML = `${items.length} objects, about <strong>${items.length}</strong> standard cases wide on ${musicShelves.length} shelves`;
+
+function highlight(text, words) {
+  if (!words.length) return esc(text);
+  const n = norm(text);
+  const marks = new Array(text.length).fill(false);
+  words.forEach(word => { let at = n.indexOf(word); while (at >= 0) { for (let k = at; k < at + word.length; k++) marks[k] = true; at = n.indexOf(word, at + 1); } });
+  let out = '', open = false;
+  for (let k = 0; k < text.length; k++) {
+    if (marks[k] && !open) { out += '<mark>'; open = true; }
+    if (!marks[k] && open) { out += '</mark>'; open = false; }
+    out += esc(text[k]);
+  }
+  return out + (open ? '</mark>' : '');
+}
+
+function renderList() {
+  const words = norm(query).split(/\s+/).filter(Boolean);
+  list.innerHTML = musicShelves.map(code => {
+    const on = shelfItems(code);
+    const any = on.some(item => hits.includes(item));
+    return `<section class="group ${query && !any ? 'miss' : ''}" id="g-${code}">
+      <div class="group-head"><h3>${code}</h3><span>${on.length} · ${on.length} of ${per + 2} cases</span></div>
+      <ul>${on.map(item => {
+        const hit = hits.includes(item);
+        return `<li class="row ${query ? (hit ? 'hit' : 'miss') : ''}" id="r-${item.pos}" data-pos="${item.pos}">
+          <span class="pos">${item.pos}</span>
+          <div class="cover" style="background:linear-gradient(135deg,hsl(${item.hue} 45% 38%),hsl(${(item.hue + 40) % 360} 50% 20%))"></div>
+          <div class="info"><div class="sn">${hit ? highlight(item.sortName, words) : esc(item.sortName)}</div>
+            <div class="ti">${hit ? highlight(item.title, words) : esc(item.title)}</div>
+            <div class="st">${esc(item.subtitle)}</div></div>
+          <span class="from-left">${ordinal(item.nth)} from the left</span>
+          <span class="code">${item.code}</span>
+        </li>`;
+      }).join('')}</ul></section>`;
+  }).join('');
+}
+
+function renderStrip() {
+  const current = hits[cur];
+  document.getElementById('strip').innerHTML = musicShelves.map(code => {
+    const n = hits.filter(item => item.code === code).length;
+    const cls = !query ? '' : current && current.code === code ? 'hit cur' : n ? 'hit' : 'miss';
+    const count = query && n ? `${n}<small>/${shelfItems(code).length}</small>` : `<small>${shelfItems(code).length}</small>`;
+    return `<button class="chip ${cls}" data-code="${code}">${code} ${count}</button>`;
+  }).join('');
+}
+
+function renderMap() {
+  const current = hits[cur];
+  document.getElementById('units').innerHTML = UNITS.map(unit => `<div class="unit"><div class="unit-name">Column ${unit}</div>${
+    [1,2,3,4,5].map(level => {
+      const code = `${unit}-${level}`;
+      const on = shelfItems(code);
+      if (!on.length) return `<div class="level other" title="${code}: Classical"><span class="lc">${code}</span><div class="board">${'<i class="spine"></i>'.repeat(10)}</div></div>`;
+      return `<div class="level" data-code="${code}"><span class="lc">${code}</span><div class="board">${on.map(item =>
+        `<i class="spine ${item === current ? 'cur' : hits.includes(item) ? 'hit' : ''}" data-pos="${item.pos}" title="${esc(item.sortName)} · ${esc(item.title)}"></i>`).join('')}</div></div>`;
+    }).join('')}</div>`).join('');
+  const say = document.getElementById('say');
+  if (current) {
+    const [unit, level] = current.code.split('-');
+    say.innerHTML = `<b>${esc(current.title)}</b> · column ${unit}, shelf ${level} from the top, <b>${ordinal(current.nth)} of ${current.of}</b> from the left`;
+  } else say.textContent = query ? 'Nothing matches.' : 'Type a name: it lights up where it stands.';
+  document.documentElement.style.setProperty('--sticky-c', (45 + document.getElementById('map').offsetHeight) + 'px');
+}
+
+function renderRail() {
+  const rail = document.getElementById('rail');
+  const top = list.offsetTop, height = list.offsetHeight;
+  rail.innerHTML = hits.map((item, i) => {
+    const row = document.getElementById('r-' + item.pos);
+    const y = (row.offsetTop - top) / height * 100;
+    return `<i class="${i === cur ? 'cur' : ''}" data-i="${i}" style="top:${y}%"></i>`;
+  }).join('') + '<span class="view" id="view"></span>';
+  updateView();
+}
+
+function updateView() {
+  const view = document.getElementById('view');
+  if (!view) return;
+  const top = list.getBoundingClientRect().top + scrollY, height = list.offsetHeight;
+  view.style.top = Math.max(0, (scrollY - top) / height * 100) + '%';
+  view.style.height = Math.min(100, innerHeight / height * 100) + '%';
+}
+
+/** Takes the list to a result: i = -1 is none yet (only the tints, no scroll). */
+function setCurrent(i, go = true) {
+  cur = i < 0 || !hits.length ? -1 : (i + hits.length) % hits.length;
+  document.querySelectorAll('.row.cur').forEach(row => row.classList.remove('cur', 'flash'));
+  const count = document.getElementById('count');
+  count.textContent = !query ? '' : !hits.length ? 'None' : cur < 0 ? `${hits.length} found` : `${cur + 1} / ${hits.length}`;
+  count.className = 'count' + (query && !hits.length ? ' none' : '');
+  document.getElementById('prev').disabled = document.getElementById('next').disabled = hits.length < 2;
+  renderStrip();
+  if (variant === 'C') renderMap();
+  if (variant === 'D') renderRail();
+  const item = hits[cur];
+  if (!item) return;
+  const row = document.getElementById('r-' + item.pos);
+  row.classList.add('cur');
+  if (!go) return;
+  void row.offsetWidth;
+  row.classList.add('flash');
+  row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+// The lookahead under the field: where each match stands, chosen by the arrows, gone to by ↵.
+const SHOWN = 8;
+let active = -1;
+const suggest = document.getElementById('suggest');
+
+function renderSuggest() {
+  const words = norm(query).split(/\s+/).filter(Boolean);
+  const open = !!words.length;
+  suggest.hidden = !open;
+  document.getElementById('q').setAttribute('aria-expanded', open);
+  if (!open) return;
+  if (!hits.length) { suggest.innerHTML = '<div class="sg-none">Nothing on the shelves matches.</div>'; return; }
+  suggest.innerHTML = hits.slice(0, SHOWN).map((item, i) => `
+    <div class="sg ${i === active ? 'active' : ''}" role="option" aria-selected="${i === active}" data-i="${i}">
+      <div class="cover" style="background:linear-gradient(135deg,hsl(${item.hue} 45% 38%),hsl(${(item.hue + 40) % 360} 50% 20%))"></div>
+      <div class="info"><div class="sn">${highlight(item.sortName, words)}</div><div class="ti">${highlight(item.title, words)}</div></div>
+      <div class="where"><b>${item.code}</b>${ordinal(item.nth)} from the left</div>
+    </div>`).join('') +
+    (hits.length > SHOWN
+      ? `<div class="sg-more">${hits.length - SHOWN} more: <kbd>↵</kbd> goes to the first, then ▼ to the next</div>`
+      : `<div class="sg-more"><kbd>↵</kbd> goes to ${active < 0 ? 'the first' : 'the one chosen'}</div>`);
+}
+
+function closeSuggest() { suggest.hidden = true; document.getElementById('q').setAttribute('aria-expanded', false); }
+
+function goTo(i) { closeSuggest(); setCurrent(i); }
+
+function search() {
+  const words = norm(query).split(/\s+/).filter(Boolean);
+  hits = words.length ? items.filter(item => {
+    const text = norm(`${item.sortName} ${item.title} ${item.subtitle} ${item.code}`);
+    return words.every(word => text.includes(word));
+  }) : [];
+  page.classList.toggle('searching', !!words.length);
+  renderList();
+  active = -1;
+  setCurrent(-1, false);
+  renderSuggest();
+}
+
+const input = document.getElementById('q');
+input.addEventListener('input', () => { query = input.value; search(); });
+input.addEventListener('focus', () => { if (query && cur < 0) renderSuggest(); });
+input.addEventListener('keydown', event => {
+  const open = !suggest.hidden;
+  const shown = Math.min(hits.length, SHOWN);
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    // Closed (once at a result), the arrows reopen the lookahead.
+    if (!open) { if (query) renderSuggest(); return; }
+    if (!shown) return;
+    active = event.key === 'ArrowDown' ? (active + 1) % shown : (active <= 0 ? shown : active) - 1;
+    renderSuggest();
+  }
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    if (!hits.length) return;
+    // Enter in the lookahead goes to the one chosen, or the first; once there, to the next.
+    goTo(open ? Math.max(active, 0) : cur + 1);
+  }
+  if (event.key === 'Escape') {
+    if (open) closeSuggest();
+    else { input.value = query = ''; search(); }
+  }
+});
+input.addEventListener('blur', () => setTimeout(closeSuggest, 120));
+suggest.addEventListener('mousedown', event => event.preventDefault());
+suggest.addEventListener('click', event => {
+  const option = event.target.closest('.sg');
+  if (option) goTo(+option.dataset.i);
+});
+document.getElementById('prev').onclick = event => { event.preventDefault(); goTo(cur < 0 ? hits.length - 1 : cur - 1); };
+document.getElementById('next').onclick = event => { event.preventDefault(); goTo(cur + 1); };
+
+document.getElementById('strip').addEventListener('click', event => {
+  const chip = event.target.closest('.chip');
+  if (!chip) return;
+  const i = hits.findIndex(item => item.code === chip.dataset.code);
+  if (i >= 0) setCurrent(i);
+  else document.getElementById('g-' + chip.dataset.code).scrollIntoView({ behavior: 'smooth' });
+});
+document.getElementById('units').addEventListener('click', event => {
+  const spine = event.target.closest('.spine[data-pos]');
+  const level = event.target.closest('.level[data-code]');
+  if (spine) {
+    const item = items.find(entry => entry.pos === +spine.dataset.pos);
+    const i = hits.indexOf(item);
+    if (i >= 0) return setCurrent(i);
+    document.getElementById('r-' + item.pos).scrollIntoView({ block: 'center', behavior: 'smooth' });
+  } else if (level) {
+    const i = hits.findIndex(item => item.code === level.dataset.code);
+    if (i >= 0) return setCurrent(i);
+    document.getElementById('g-' + level.dataset.code).scrollIntoView({ behavior: 'smooth' });
+  }
+});
+document.getElementById('rail').addEventListener('click', event => {
+  const mark = event.target.closest('i[data-i]');
+  if (mark) setCurrent(+mark.dataset.i);
+});
+addEventListener('scroll', updateView, { passive: true });
+addEventListener('resize', () => { if (variant === 'C') renderMap(); if (variant === 'D') renderRail(); });
+
+document.getElementById('variants').addEventListener('click', event => {
+  const button = event.target.closest('button');
+  if (!button) return;
+  variant = button.dataset.v;
+  document.querySelectorAll('#variants button').forEach(b => b.classList.toggle('on', b === button));
+  page.className = `page v${variant}` + (query ? ' searching' : '');
+  document.getElementById('how').innerHTML = HOW[variant] + COMMON;
+  setCurrent(cur, false);
+  if (variant === 'C') renderMap();
+});
+
+document.getElementById('how').innerHTML = HOW.A + COMMON;
+renderList();
+renderStrip();
+renderMap();
+setCurrent(-1);
+</script>
+</body>
+</html>

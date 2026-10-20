@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Form } from 'react-bootstrap';
 import { BsArrowBarDown, BsArrowBarUp, BsPencil, BsTrash, BsX } from 'react-icons/bs';
 import shelvingService, {
@@ -11,9 +11,12 @@ import './ShelvesPage.css';
 import Select from '../components/shared/Select';
 import Button, { IconButton } from '../components/shared/Button';
 import Segmented from '../components/shared/Segmented';
-import Chip from '../components/shared/Chip';
 import { TextField } from '../components/shared/TextField';
 import Notice from '../components/shared/Notice';
+import ShelfSearch from './ShelfSearch';
+import ShelfRail from './ShelfRail';
+import Chip from '../components/shared/Chip';
+import { highlight, keyOf, matches, normalize, ordinal, placesOf, thumbnail, type Place } from './shelfFind';
 
 type Tab = ShelfSection | 'furniture' | 'places';
 
@@ -28,27 +31,16 @@ const SECTIONS_FOR: Record<ShelvedItem['kind'], ShelfSection[]> = {
 const locationOf = (item: ShelvedItem): string =>
   item.placeId != null ? `place:${item.placeId}` : item.pinned && item.levelId != null ? `level:${item.levelId}` : '';
 
-const normalize = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
 /** The letter a filing name stands under; digits share one heading. */
 const letterOf = (sortName: string): string => {
   const first = normalize(sortName).replace(/[^a-z0-9]/g, '').charAt(0).toUpperCase();
   return !first ? '#' : /[0-9]/.test(first) ? '0–9' : first;
 };
 
-/** A small poster: TMDB's original size is several megabytes. */
-const thumbnail = (image: string | null): string | null => {
-  if (!image) return null;
-  if (image.includes('image.tmdb.org/t/p/original')) return image.replace('/t/p/original', '/t/p/w92');
-  if (image.startsWith('http') || image.startsWith('/')) return image;
-  return `/api/images/${image}`;
-};
-
-const keyOf = (item: ShelvedItem) => `${item.kind}:${item.id}`;
-
 /** The heading a shelf's objects stand under, and the id to scroll to it by. */
 const NO_SHELF = 'No shelf yet';
 const anchorOf = (heading: string) => `shelf-group-${heading === NO_SHELF ? 'none' : heading}`;
+const rowIdOf = (item: ShelvedItem) => `shelf-row-${item.kind}-${item.id}`;
 
 interface EditorProps {
   item: ShelvedItem;
@@ -186,10 +178,15 @@ interface RowProps {
   after?: string | null;
   /** Whether it stands first on its shelf, where no room cannot be told. */
   firstOnShelf?: boolean;
+  /** A search's words, when it answers them; whether the list was taken to it. */
+  found?: string;
+  current?: boolean;
+  /** Where it stands on its shelf, said on the one the list was taken to. */
+  place?: Place;
 }
 
 const ShelfRow: React.FC<RowProps> = ({
-  item, position, editing, places, units, onEdit, onSave, onClose, onNoRoom, onMoveBack, onTogether, before, after, firstOnShelf,
+  item, position, editing, places, units, onEdit, onSave, onClose, onNoRoom, onMoveBack, onTogether, before, after, firstOnShelf, found, current, place,
 }) => {
   const collection = item.together && item.collections?.find(entry => entry.id === item.together!.id);
   const image = thumbnail(item.image);
@@ -197,7 +194,8 @@ const ShelfRow: React.FC<RowProps> = ({
   const unsure = item.sortSource === 'guess' && item.kind === 'album';
   const movable = item.code && !item.pinned && !editing;
   return (
-    <li className={`shelf-row ${editing ? 'editing' : ''}`}>
+    <li id={rowIdOf(item)} className={['shelf-row', editing && 'editing', found != null && 'found', current && 'current'].filter(Boolean).join(' ')}
+      aria-current={current || undefined}>
       <div className="shelf-row-main" onClick={editing ? undefined : onEdit}>
         {position != null && <span className="shelf-position">{position}</span>}
         <div className={`shelf-cover ${item.kind === 'album' ? '' : 'shelf-cover-film'}`}>
@@ -205,13 +203,13 @@ const ShelfRow: React.FC<RowProps> = ({
         </div>
         <div className="shelf-info">
           <div className="shelf-sort-name">
-            {item.sortName}
+            {found != null ? highlight(item.sortName, found) : item.sortName}
             {item.sortSource === 'manual' && <span className="shelf-tag">set by hand</span>}
             {collection && <span className="shelf-tag shelf-tag-collection" title="Kept together with its collection">{collection.name}</span>}
             {unsure && item.section === 'classical' && <span className="shelf-tag shelf-tag-guess">guessed</span>}
           </div>
           {/* A film filed under its own title would show it twice. */}
-          {!(item.kind === 'movie' && normalize(item.title).endsWith(normalize(item.sortName))) && <div className="shelf-title">{item.title}</div>}
+          {!(item.kind === 'movie' && normalize(item.title).endsWith(normalize(item.sortName))) && <div className="shelf-title">{found != null ? highlight(item.title, found) : item.title}</div>}
           <div className="shelf-subtitle">{item.subtitle}</div>
         </div>
         {(item.units > 1 || !item.unitsAuto) && (
@@ -219,6 +217,7 @@ const ShelfRow: React.FC<RowProps> = ({
             {item.units} {item.units === 1 ? 'case' : 'cases'}
           </span>
         )}
+        {current && item.code && place && <span className="shelf-from-left">{ordinal(place.nth)} of {place.of} from the left</span>}
         {!item.sectionAuto && <span className="shelf-tag">{SECTION_LABELS[item.section]}</span>}
         {item.code && (
           <span className={`shelf-code ${item.pinned ? 'pinned' : ''}`} title={item.pinned ? 'Put on this shelf by hand' : 'Its place in order'}>
@@ -269,6 +268,10 @@ const ShelvesPage: React.FC = () => {
   // A shelf's heading to scroll to once its section shows, and a shelf to open as the furniture shows.
   const [jumpTo, setJumpTo] = useState<string | null>(null);
   const [furnitureFocus, setFurnitureFocus] = useState<number | null>(null);
+  // The search's result the list was taken to, and each time it is taken there, to scroll even to the same one.
+  const [current, setCurrent] = useState(-1);
+  const [landing, setLanding] = useState(0);
+  const list = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     try {
@@ -299,28 +302,49 @@ const ShelvesPage: React.FC = () => {
     }
   };
 
-  // A shelf code finds what stands on it: "A-3".
-  const matches = useCallback((item: ShelvedItem) => {
-    const words = normalize(query).split(/\s+/).filter(Boolean);
-    const text = normalize(`${item.sortName} ${item.title} ${item.subtitle} ${item.code || ''}`);
-    return words.every(word => text.includes(word));
-  }, [query]);
-
   const section = plan?.sections.find(entry => entry.key === tab);
+  // A search hides nothing: it lights up what it finds, and the list goes to one only when asked.
+  const searching = query.trim() !== '';
+  const hits = useMemo(() => section?.items.filter(item => matches(item, query)) ?? [], [section, query]);
+  const hitKeys = useMemo(() => new Set(hits.map(keyOf)), [hits]);
+  const places = useMemo(() => placesOf(section?.items ?? []), [section]);
+  const placeOf = useCallback((item: ShelvedItem) => places.get(keyOf(item)), [places]);
+  const currentItem = hits[current] ?? null;
+
+  const changeQuery = (value: string) => {
+    setQuery(value);
+    setCurrent(-1);
+  };
+
+  const goTo = (index: number) => {
+    setCurrent(index);
+    setLanding(count => count + 1);
+  };
+
+  useEffect(() => {
+    if (!landing || !currentItem) return;
+    const row = document.getElementById(rowIdOf(currentItem));
+    row?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    // A flash, for the eye to find it once the list stops.
+    row?.classList.remove('landed');
+    void row?.offsetWidth;
+    row?.classList.add('landed');
+    // Only a new landing scrolls, not the plan reloading.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [landing]);
   // Once the section has shelves, the list reads shelf by shelf, as it is arranged; before, letter by letter.
   const byShelf = !!section?.items.some(item => item.code);
   const groups = useMemo(() => {
     if (!section) return [];
     const result: Array<{ heading: string; rows: Array<{ item: ShelvedItem; position: number }> }> = [];
     section.items.forEach((item, index) => {
-      if (!matches(item)) return;
       const heading = byShelf ? item.code || NO_SHELF : letterOf(item.sortName);
       const last = result[result.length - 1];
       if (last?.heading === heading) last.rows.push({ item, position: index + 1 });
       else result.push({ heading, rows: [{ item, position: index + 1 }] });
     });
     return result;
-  }, [section, matches, byShelf]);
+  }, [section, byShelf]);
 
   // The section's shelves in the order they fill, and each shelf by its code.
   const shelves = useMemo(
@@ -356,8 +380,15 @@ const ShelvesPage: React.FC = () => {
   /** Takes a section's list to a shelf's objects, from the furniture. */
   const showShelf = (level: ShelfLevel, inSection: ShelfSection) => {
     setTab(inSection);
-    setQuery('');
+    changeQuery('');
     setJumpTo(level.code);
+  };
+
+  /** From the strip: a shelf takes the list to what the search found on it, or to the shelf itself. */
+  const showLevel = (code: string) => {
+    const index = hits.findIndex(item => (item.code || NO_SHELF) === code);
+    if (index >= 0) goTo(index);
+    else setJumpTo(code);
   };
 
   /** Takes the furniture to a shelf, from its heading in the list. */
@@ -389,6 +420,9 @@ const ShelvesPage: React.FC = () => {
     onNoRoom: () => run(() => shelvingService.noRoom(item.kind, item.id)),
     onMoveBack: () => run(() => shelvingService.moveBack(item.kind, item.id)),
     onTogether: (collectionId: number, together: boolean) => run(() => shelvingService.setTogether(collectionId, together)),
+    found: hitKeys.has(keyOf(item)) ? query : undefined,
+    current: item === currentItem,
+    place: placeOf(item),
     ...neighbours(item),
   });
 
@@ -412,7 +446,7 @@ const ShelvesPage: React.FC = () => {
           kind="tabs"
           className="shelves-tabs"
           value={tab}
-          onChange={setTab}
+          onChange={next => { setTab(next); setCurrent(-1); }}
           options={[
             ...(plan?.sections.map(entry => ({ value: entry.key as Tab, label: SECTION_LABELS[entry.key], count: entry.items.length })) ?? []),
             plan && { value: 'furniture' as Tab, label: 'Furniture', count: plan.units.length },
@@ -420,8 +454,7 @@ const ShelvesPage: React.FC = () => {
           ]}
         />
         {tab !== 'places' && tab !== 'furniture' && (
-          <TextField className="shelves-search" size="sm" type="search" placeholder="Find on the shelves…"
-            value={query} onChange={event => setQuery(event.target.value)} />
+          <ShelfSearch query={query} onQuery={changeQuery} hits={hits} current={current} onGo={goTo} placeOf={placeOf} />
         )}
       </div>
 
@@ -439,53 +472,61 @@ const ShelvesPage: React.FC = () => {
               </button></>
             )}
           </div>
-          {/* The shelves in the order they fill: one click takes the list to what stands on one. */}
-          {byShelf && !query && (
+          {/* The shelves in the order they fill: one click takes the list to what stands on one, those a search finds on lit. */}
+          {byShelf && (
             <nav className="shelf-strip" aria-label={`Shelves of ${SECTION_LABELS[section.key]}`}>
-              {stripShelves.map(level => (
-                <Chip key={level.id} tone="gold" muted={level.count === 0} count={level.count}
-                  title={level.count === 0 ? `${level.code}: empty` : `${level.code}: ${level.first}${level.count > 1 ? ` – ${level.last}` : ''}`}
-                  onClick={() => setJumpTo(level.code)}>
-                  {level.code}
-                </Chip>
-              ))}
+              {stripShelves.map(level => {
+                const found = hits.filter(item => item.levelId === level.id).length;
+                return (
+                  <Chip key={level.id} tone="gold" muted={searching ? !found : level.count === 0}
+                    active={searching && found > 0 ? true : undefined} count={searching ? found : level.count}
+                    title={level.count === 0 ? `${level.code}: empty` : `${level.code}: ${level.first}${level.count > 1 ? ` – ${level.last}` : ''}`}
+                    onClick={() => showLevel(level.code)}>
+                    {level.code}
+                  </Chip>
+                );
+              })}
               {section.unshelved > 0 && (
-                <Chip tone="alert" count={section.unshelved} onClick={() => setJumpTo(NO_SHELF)}>
+                <Chip tone="alert" count={searching ? hits.filter(item => !item.code).length : section.unshelved}
+                  muted={searching && !hits.some(item => !item.code)} onClick={() => showLevel(NO_SHELF)}>
                   {NO_SHELF}
                 </Chip>
               )}
             </nav>
           )}
-          {groups.length === 0 && <div className="shelves-empty">Nothing matches.</div>}
-          {groups.map(group => {
-            const level = byShelf ? levelByCode.get(group.heading) : undefined;
-            return (
-              <section key={group.heading} id={anchorOf(group.heading)} className="shelf-letter">
-                <div className="shelf-letter-heading">
-                  <h3>{group.heading}</h3>
-                  {level && (
-                    <span className="shelf-letter-meta">
-                      {level.count} · {level.used} of {level.capacity} cases{level.locked && ' · locked'}
-                    </span>
+          <ShelfRail list={list} hits={searching ? hits : []} current={current} rowIdOf={rowIdOf} onGo={goTo} />
+          {groups.length === 0 && <div className="shelves-empty">Nothing here yet.</div>}
+          <div ref={list}>
+            {groups.map(group => {
+              const level = byShelf ? levelByCode.get(group.heading) : undefined;
+              return (
+                <section key={group.heading} id={anchorOf(group.heading)} className="shelf-letter">
+                  <div className="shelf-letter-heading">
+                    <h3>{group.heading}</h3>
+                    {level && (
+                      <span className="shelf-letter-meta">
+                        {level.count} · {level.used} of {level.capacity} cases{level.locked && ' · locked'}
+                      </span>
+                    )}
+                    {level && (
+                      <button type="button" className="shelves-link" onClick={() => setUpShelf(level)}>Set up {level.code} ›</button>
+                    )}
+                  </div>
+                  {group.heading === NO_SHELF && (
+                    <p className="shelf-letter-note">
+                      The {SECTION_LABELS[section.key].toLowerCase()} shelves are full from here. Give {SECTION_LABELS[section.key]} another
+                      shelf, or a shelf more room, in <button type="button" className="shelves-link" onClick={() => setTab('furniture')}>Furniture</button>.
+                    </p>
                   )}
-                  {level && (
-                    <button type="button" className="shelves-link" onClick={() => setUpShelf(level)}>Set up {level.code} ›</button>
-                  )}
-                </div>
-                {group.heading === NO_SHELF && (
-                  <p className="shelf-letter-note">
-                    The {SECTION_LABELS[section.key].toLowerCase()} shelves are full from here. Give {SECTION_LABELS[section.key]} another
-                    shelf, or a shelf more room, in <button type="button" className="shelves-link" onClick={() => setTab('furniture')}>Furniture</button>.
-                  </p>
-                )}
-                <ul className="shelf-list">
-                  {group.rows.map(({ item, position }) => (
-                    <ShelfRow key={keyOf(item)} position={position} {...rowProps(item)} />
-                  ))}
-                </ul>
-              </section>
-            );
-          })}
+                  <ul className="shelf-list">
+                    {group.rows.map(({ item, position }) => (
+                      <ShelfRow key={keyOf(item)} position={position} {...rowProps(item)} />
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
         </>
       )}
 
