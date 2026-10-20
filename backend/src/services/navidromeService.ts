@@ -129,6 +129,9 @@ export interface NavidromeTrackFile {
   title: string;
   /** The track's own artist tag, null when the file has none. */
   artist?: string | null;
+  /** The MusicBrainz recording Picard tagged the file with. */
+  musicbrainzRecordingId?: string | null;
+  isrc?: string | null;
   durationSec: number | null;
   suffix: string;
   bitRate: number | null;
@@ -146,7 +149,7 @@ export interface NavidromeTrackFile {
 type RawAlbum = { id: string; name: string; artist?: string; year?: number; musicBrainzId?: string; songCount?: number; userRating?: number; starred?: string };
 type RawAlbumSong = {
   id?: string; title?: string; artist?: string; track?: number; discNumber?: number; duration?: number; suffix?: string; bitRate?: number;
-  bitDepth?: number; samplingRate?: number; channelCount?: number; size?: number; path?: string;
+  musicBrainzId?: string; isrc?: string[]; bitDepth?: number; samplingRate?: number; channelCount?: number; size?: number; path?: string;
   playCount?: number; played?: string; userRating?: number; starred?: string;
 };
 type RawSong = {
@@ -382,6 +385,9 @@ const navidromeService = {
       track: song.track || 0,
       title: song.title || '',
       artist: song.artist || null,
+      musicbrainzRecordingId: song.musicBrainzId || null,
+      // One tag can hold every ISRC of the recording, joined by semicolons.
+      isrc: song.isrc?.flatMap(codes => codes.split(';')).map(code => code.trim()).find(Boolean) ?? null,
       durationSec: song.duration ?? null,
       suffix: (song.suffix || '').toLowerCase(),
       bitRate: song.bitRate || null,

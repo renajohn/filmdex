@@ -231,6 +231,18 @@ const Track = {
     });
   },
 
+  /** Fills in a recording found after the fact, and its ISRC when the track has none; never overwrites a recording. */
+  setRecordingId: (id: number, recordingId: string, isrc: string | null = null): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      getDatabase().run(
+        `UPDATE tracks SET musicbrainz_recording_id = ?, isrc = COALESCE(isrc, ?), updated_at = ?
+         WHERE id = ? AND musicbrainz_recording_id IS NULL`,
+        [recordingId, isrc, new Date().toISOString(), id],
+        (err: Error | null) => (err ? reject(err) : resolve())
+      );
+    });
+  },
+
   update: (id: number, trackData: TrackCreateData): Promise<TrackCreateData & { id: number; updated_at: string }> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();

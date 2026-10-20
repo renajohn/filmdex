@@ -34,6 +34,16 @@ interface MBCoverArtResponse {
 }
 
 /** Raw MusicBrainz release shape (loosely typed -- external API) */
+export interface MBRawRecording {
+  id: string;
+  title: string;
+  score?: number;
+  length?: number;
+  isrcs?: string[];
+  'artist-credit'?: Array<{ name?: string; artist?: { name?: string } }>;
+  releases?: Array<{ id: string; title?: string; 'release-group'?: { id?: string } }>;
+}
+
 interface MBRawRelease {
   id: string;
   title: string;
@@ -269,6 +279,19 @@ const musicbrainzService = {
       }
       throw new Error(`Failed to search MusicBrainz: ${err.message}`);
     }
+  },
+
+  /** Recordings matching a Lucene query, each with its length and the releases it is on. */
+  searchRecording: async function(query: string, limit: number = 10): Promise<MBRawRecording[]> {
+    const response: AxiosResponse<{ recordings?: MBRawRecording[] }> = await withRetry(
+      'MusicBrainz recording search',
+      () => axios.get(`${this.baseUrl}/recording`, {
+        params: { query, limit, fmt: 'json' },
+        headers: { 'User-Agent': this.userAgent },
+        timeout: 10000
+      })
+    );
+    return response.data.recordings || [];
   },
 
   getReleaseDetails: async function(releaseId: string): Promise<MBRawRelease> {

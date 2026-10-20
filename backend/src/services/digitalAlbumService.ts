@@ -6,6 +6,7 @@ import navidromeService, { type NavidromeAlbum } from './navidromeService';
 import ripStatusService, { groupSongs, matchesOf, qualityOf, type Library, type Quality } from './ripStatusService';
 import musicService from './musicService';
 import imageService from './imageService';
+import recordingIdService from './recordingIdService';
 import logger from '../logger';
 
 /**
@@ -47,10 +48,13 @@ const hasOwnersTouch = async (album: AlbumFormatted): Promise<boolean> =>
 /** The tracks of an album as its files are tagged, disc by disc. */
 const discsOf = async (navidromeId: string) => {
   const files = await navidromeService.getAlbumSongs(navidromeId);
-  const discs = new Map<number, Array<{ trackNumber: number; title: string; durationSec: number | null; artist: string[] }>>();
+  const discs = new Map<number, Array<{
+    trackNumber: number; title: string; durationSec: number | null; artist: string[]; musicbrainzRecordingId: string | null; isrc: string | null;
+  }>>();
   for (const file of [...files].sort((a, b) => a.discNumber - b.discNumber || a.track - b.track)) {
     discs.set(file.discNumber, [...(discs.get(file.discNumber) || []), {
       trackNumber: file.track, title: file.title, durationSec: file.durationSec, artist: file.artist ? [file.artist] : [],
+      musicbrainzRecordingId: file.musicbrainzRecordingId ?? null, isrc: file.isrc ?? null,
     }]);
   }
   return [...discs].map(([number, tracks]) => ({ number, tracks }));
@@ -144,6 +148,7 @@ const reconcile = async (): Promise<DigitalAlbumsReport | null> => {
         for (const disc of discs) {
           for (const track of disc.tracks) await Track.create({ albumId: mine.id, discNumber: disc.number, ...track });
         }
+        recordingIdService.forget(mine.id);
         report.retracked++;
       }
     } catch (error) {
@@ -189,10 +194,19 @@ const digitalAlbumService = {
     return running;
   },
 
-  /** A minute after the start, before the words are looked up, then every half hour. */
+  /**
+   * A minute after the start, before the words are looked up, then every
+   * half hour; then the recordings the albums lack, which tell the same song
+   * on two albums.
+   */
   startAutoSync: (): void => {
     if (!navidromeService.isConfigured()) return;
-    const tick = () => { digitalAlbumService.reconcile().catch(error => logger.warn(`Digital albums not brought in step with Navidrome: ${(error as Error).message}`)); };
+    const tick = () => {
+      digitalAlbumService.reconcile()
+        .catch(error => logger.warn(`Digital albums not brought in step with Navidrome: ${(error as Error).message}`))
+        .then(() => recordingIdService.fillAll())
+        .catch(error => logger.warn(`Recordings not filled in: ${(error as Error).message}`));
+    };
     setTimeout(tick, 60 * 1000).unref();
     setInterval(tick, EVERY_MS).unref();
   },
