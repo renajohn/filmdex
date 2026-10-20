@@ -106,8 +106,8 @@ const Lyrics: React.FC<{ albumId: number; disc: number; track: number }> = ({ al
  * hold it; how to hear it, a strip at the foot. Or, asked from its row, its words.
  */
 const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumId, albumArtists = [], id, rip, ripError, heard, onSearch, view = 'credits' }) => {
-  // A credited name or role opens the CDs that credit it as well.
-  const link = (field: string, value: string, { label = value, title = `CDs with ${value}`, className = '' } = {}) => (onSearch
+  // A credited name or role opens the albums that credit it as well.
+  const link = (field: string, value: string, { label = value, title = `Albums with ${value}`, className = '' } = {}) => (onSearch
     ? <button type="button" className={`track-details-search ${className}`} title={title}
         onClick={() => onSearch(predicate(field, value))}>{label}</button>
     : <span className={className}>{label}</span>);
@@ -156,7 +156,7 @@ const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumId, albumArtist
     <div className="track-details" id={id}>
       {credited || artists.length > 0 ? (
         <div className="track-details-credits">
-          {work && credit('work', link('work', work, { title: 'CDs with this work', className: 'track-details-person' }), 'work')}
+          {work && credit('work', link('work', work, { title: 'Albums with this work', className: 'track-details-person' }), 'work')}
           {composers.length > 0 && credit(composers.length > 1 ? 'composers' : 'composer', names('composer', composers), 'composer')}
           {artists.length > 0 && credit('track artist', names('artist', artists), 'artist')}
           {groups.map(group => credit(
@@ -164,8 +164,8 @@ const TrackDetails: React.FC<TrackDetailsProps> = ({ track, albumId, albumArtist
               <React.Fragment key={role}>
                 {index > 0 && ', '}
                 {/conduct/i.test(role)
-                  ? link('conductor', group.names[0], { label: role, title: `CDs ${group.names[0]} conducts`, className: 'track-details-role-link' })
-                  : link('instrument', role, { title: `CDs with ${role}`, className: 'track-details-role-link' })}
+                  ? link('conductor', group.names[0], { label: role, title: `Albums ${group.names[0]} conducts`, className: 'track-details-role-link' })
+                  : link('instrument', role, { title: `Albums with ${role}`, className: 'track-details-role-link' })}
               </React.Fragment>
             )),
             names('performer', group.names),

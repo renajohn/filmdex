@@ -138,7 +138,7 @@ const MixtapeDialog: React.FC<MixtapeDialogProps> = ({ albumId, onClose, onOpenA
     if (!mixtape) return;
     const yes = await confirm({
       title: `Delete ${mixtape.album.title}?`,
-      message: `The mixtape goes from Navidrome too, and from Amperfy${inListenNext ? ', and leaves Listen Next' : ''}. Its tracks stay on their CDs.`,
+      message: `The mixtape goes from Navidrome too, and from Amperfy${inListenNext ? ', and leaves Listen Next' : ''}. Its tracks stay on their albums.`,
       confirmLabel: 'Delete',
       danger: true,
     });
@@ -219,7 +219,7 @@ const MixtapeDialog: React.FC<MixtapeDialogProps> = ({ albumId, onClose, onOpenA
             </div>
           </aside>
           <div className={`mixtape-songs${busy ? ' mixtape-songs--busy' : ''}`}>
-            {mixtape.songs.length === 0 && <p className="mixtape-empty">No track yet: add some from a CD's card, with its cassette.</p>}
+            {mixtape.songs.length === 0 && <p className="mixtape-empty">No track yet: add some from an album's card, with its cassette.</p>}
             {mixtape.songs.map((song, at) => {
               const now = placeNow === at;
               const twice = mixtape.songs.filter(one => one.songId === song.songId).length > 1;

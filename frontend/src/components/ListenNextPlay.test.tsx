@@ -13,21 +13,21 @@ const lengths = {
 
 describe('the line under Listen Next', () => {
   it('counts the discs, the tracks and the length', () => {
-    expect(summaryOf([{ id: 1 }, { id: 2 }], lengths, null, false)).toBe('4 CDs · 60 tracks · 4 h 20');
+    expect(summaryOf([{ id: 1 }, { id: 2 }], lengths, null, false)).toBe('4 discs · 60 tracks · 4 h 20');
   });
 
   it('says the length is about when some tracks have none, and counts a digital album apart', () => {
-    expect(summaryOf([{ id: 1 }, { id: 3, titleStatus: 'digital' }], lengths, null, false)).toBe('1 CD · 1 digital · 18 tracks · ~1 h 10');
+    expect(summaryOf([{ id: 1 }, { id: 3, titleStatus: 'digital' }], lengths, null, false)).toBe('1 disc · 1 digital · 18 tracks · ~1 h 10');
   });
 
   it('tells the time left while it plays, the album playing by what is left of it', () => {
-    expect(summaryOf([{ id: 1 }, { id: 2 }], lengths, { key: '1:0', leftSec: 600 }, false)).toBe('4 CDs · 60 tracks · ~3 h 50 left');
+    expect(summaryOf([{ id: 1 }, { id: 2 }], lengths, { key: '1:0', leftSec: 600 }, false)).toBe('4 discs · 60 tracks · ~3 h 50 left');
     // With Repeat on it never ends: the whole length.
-    expect(summaryOf([{ id: 1 }, { id: 2 }], lengths, { key: '1:0', leftSec: 600 }, true)).toBe('4 CDs · 60 tracks · 4 h 20');
+    expect(summaryOf([{ id: 1 }, { id: 2 }], lengths, { key: '1:0', leftSec: 600 }, true)).toBe('4 discs · 60 tracks · 4 h 20');
   });
 
-  it('counts one disc of an album as one CD, of its own length', () => {
-    expect(summaryOf([{ id: 1 }, { id: 2, disc: 2 }], lengths, null, false)).toBe('2 CDs · 26 tracks · 1 h 50');
+  it('counts one disc of an album as one disc, of its own length', () => {
+    expect(summaryOf([{ id: 1 }, { id: 2, disc: 2 }], lengths, null, false)).toBe('2 discs · 26 tracks · 1 h 50');
   });
 });
 

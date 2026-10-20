@@ -278,8 +278,8 @@ const formatLength = (seconds: number): string => {
 };
 
 /**
- * The words of the line under the cards: `5 CDs · 63 tracks · ~4 h 10`, or
- * the time left while it plays; a disc of an album counts as one CD, its
+ * The words of the line under the cards: `5 discs · 63 tracks · ~4 h 10`, or
+ * the time left while it plays; a disc of an album counts as one disc, its
  * length its own.
  */
 export const summaryOf = (
@@ -305,7 +305,7 @@ export const summaryOf = (
   const left = Boolean(playing) && !repeat;
   if (left && playing) seconds += playing.leftSec;
   const parts = [
-    discs > 0 && `${discs} CD${discs === 1 ? '' : 's'}`,
+    discs > 0 && `${discs} disc${discs === 1 ? '' : 's'}`,
     digital > 0 && `${digital} digital`,
     tracks > 0 && `${tracks} track${tracks === 1 ? '' : 's'}`,
     seconds > 0 && `${missing || left ? '~' : ''}${formatLength(seconds)}${left ? ' left' : ''}`,

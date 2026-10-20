@@ -136,7 +136,7 @@ const Tracks: React.FC<{ fromListenNext: boolean }> = ({ fromListenNext }) => {
             <h3>{side.album.title}</h3>
             <div className="player-tracks-artist">{side.album.artist}</div>
             <div className="player-tracks-facts">
-              {[discsOf(side) > 1 ? `${discsOf(side)} CDs` : null, `${side.tracks.length} tracks`, length > 0 ? `${Math.round(length / 60)} min` : null]
+              {[discsOf(side) > 1 ? `${discsOf(side)} discs` : null, `${side.tracks.length} tracks`, length > 0 ? `${Math.round(length / 60)} min` : null]
                 .filter(Boolean).join(' · ')}
             </div>
           </div>

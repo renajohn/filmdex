@@ -130,7 +130,7 @@ const PlayerBar: React.FC = () => {
       {last.current && (() => {
         const { album, track } = last.current;
         // A song of a mixtape shows the cover of its CD, and leads there.
-        const cover = track.cover !== undefined ? { src: track.cover, title: `the CD of ${track.title}` } : { src: album.cover, title: album.title };
+        const cover = track.cover !== undefined ? { src: track.cover, title: `the album of ${track.title}` } : { src: album.cover, title: album.title };
         return (
         <>
           <div className={`player-bar-progress${playing ? '' : ' player-bar-progress--paused'}`} role="slider" aria-label="Position in the track"

@@ -656,7 +656,7 @@ function AppContent() {
     } else {
       const hintMap: Record<string, string> = location.pathname === '/musicdex'
         ? {
-            'title:': 'Search by CD title',
+            'title:': 'Search by album title',
             'artist:': 'Search by artist name',
             'genre:': 'Search by genre',
             'composer:': 'A composer of one of its tracks',

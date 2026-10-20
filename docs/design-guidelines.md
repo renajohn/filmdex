@@ -32,6 +32,13 @@ The prototypes the choices were made on are kept in `docs/superpowers/specs/`:
 8. **One icon, one meaning.** The heart is a favourite, Navidrome's (a
    track's ♥, in Amperfy too); the bookmark is the wish list; the cart is
    what to buy. Never a heart for the wish list.
+9. **Album, disc, CD: three words, three meanings.** An **album** is the work,
+   all its discs: what one searches, opens, plays, puts in Listen Next ("Albums
+   with this work", "Search by album title"). A **disc** is one numbered part
+   of it, and what one counts ("Disc 2", "3 discs · 40 tracks"). **CD** is the
+   medium alone, set against the digital files or the wish list ("No CD",
+   "I bought the CD", "CDs only", "rip the CD again"): a box of three discs is
+   one CD in that sense. Never "CD" for an album or for a disc.
 
 ## Colour and shape: `tokens.css`
 
