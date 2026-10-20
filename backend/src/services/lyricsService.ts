@@ -132,8 +132,8 @@ export const pickResult = (records: LrclibRecord[], durationSec: number | null):
     || (durationSec == null ? 0 : Math.abs((a.duration ?? 0) - durationSec) - Math.abs((b.duration ?? 0) - durationSec)))[0] ?? null;
 };
 
-/** Two timed texts this close sing in step: a tap a little early or late. */
-const IN_STEP_SEC = 1;
+/** Two timed texts this close sing in step: a tap a little early or late. A second apart is heard. */
+const IN_STEP_SEC = 0.5;
 /** Lines in common below which two timed texts cannot be told in step or not. */
 const MIN_LINES_IN_COMMON = 3;
 
@@ -172,7 +172,7 @@ export const lagBetween = (first: string, second: string): number | null => {
 /**
  * The timed text to keep: the one chosen, unless most of the others of the
  * same length sing in step with one another and not with it, someone's
- * tapping a second or more early or late ("Welcome to the Jungle", 2.6 s
+ * tapping half a second or more early or late ("Welcome to the Jungle", 2.6 s
  * late). Then the one of theirs closest to the CD's length.
  */
 export const inStep = (chosen: LrclibRecord, records: LrclibRecord[], durationSec: number | null): LrclibRecord => {
@@ -215,6 +215,19 @@ export const pickOtherTake = (records: LrclibRecord[], name: string, durationSec
 };
 
 /**
+ * The timed texts to set one against: those already in hand, and those a
+ * free search on the artist and title finds. LRCLIB answers a search with 20
+ * at most, which for a well-known song can all be copies of one text; the
+ * free search reaches others ("Once Upon a Time in the West"). Without an
+ * answer, those in hand.
+ */
+const othersLike = async (artist: string, title: string, inHand: LrclibRecord[]): Promise<LrclibRecord[]> => {
+  const more = await lrclib<LrclibRecord[]>('search', { q: `${artist} ${title}` }).catch(() => null);
+  const ids = new Set(inHand.map(record => record.id));
+  return [...inHand, ...(more || []).filter(record => !ids.has(record.id))];
+};
+
+/**
  * Looks a track up: the exact entry for this artist, title, album and length
  * first, then a search on the artist and title, then on the title without
  * "(Remastered)" and the like, then on the song a scene is set to. Each
@@ -237,7 +250,7 @@ export const lookUp = async (track: TrackToLookUp): Promise<LyricsLookup> => {
       if (found.status === 'found' && found.synced) {
         // The others to set it against; without them, it stands as it is.
         const others = await lrclib<LrclibRecord[]>('search', { artist_name: artist, track_name: title }).catch(() => null);
-        return fromRecord(inStep(exact, others || [], track.durationSec));
+        return fromRecord(inStep(exact, await othersLike(artist, title, others || []), track.durationSec));
       }
       if (found.status !== 'missing') return found;
     }
@@ -249,7 +262,7 @@ export const lookUp = async (track: TrackToLookUp): Promise<LyricsLookup> => {
     for (const name of names) {
       const results = await lrclib<LrclibRecord[]>('search', { artist_name: singer, track_name: name });
       const best = pickResult(results || [], track.durationSec);
-      if (best) return fromRecord(inStep(best, results || [], track.durationSec));
+      if (best) return fromRecord(best.syncedLyrics ? inStep(best, await othersLike(singer, name, results || []), track.durationSec) : best);
       if (results?.length) otherTakes.push({ records: results, name });
     }
   }

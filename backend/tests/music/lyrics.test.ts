@@ -75,6 +75,22 @@ describe('lyrics lookup', () => {
     expect(inStep(late, [...copies, ...ownCopies, others[0], others[1]], 274).id).toBe(2);
   });
 
+  it('cherche aussi librement quand la recherche par artiste ne rend que des copies du texte en retard', async () => {
+    const albumId = await insertAlbum(`Communiqué ${Math.random()}`, ['Dire Straits']);
+    await insertTrack(albumId, 1, 'Once Upon a Time in the West', 325);
+    const lines = (shift: number, hundredths = 18) => ['Some people get a cheap laugh', 'Scaring the pedestrians', 'Crossing up progress', 'Leaving just enough room']
+      .map((words, index) => `[01:${String(10 + index * 6 - shift).padStart(2, '0')}.${hundredths}] ${words}`).join('\n');
+    const get = jest.spyOn(axios, 'get').mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
+      if (url.endsWith('/get')) return { data: record({ id: 810736, duration: 325, syncedLyrics: lines(0) }) };
+      if (config?.params?.q) return { data: [record({ id: 25094621, duration: 325, syncedLyrics: lines(1, 20) }), record({ id: 1472803, duration: 325, syncedLyrics: lines(1, 10) })] };
+      return { data: [810736, 36842731, 34372084].map(id => record({ id, duration: 325, syncedLyrics: lines(0) })) };
+    });
+
+    const res = await request(app).get(`/api/music/albums/${albumId}/discs/1/tracks/1/lyrics`);
+    expect(res.body).toMatchObject({ status: 'found', sourceId: '25094621' });
+    expect(get).toHaveBeenCalledWith('https://lrclib.net/api/search', expect.objectContaining({ params: { q: 'Dire Straits Once Upon a Time in the West' } }));
+  });
+
   it('cherche une piste à l’ouverture et garde ce qu’il a trouvé', async () => {
     const albumId = await insertAlbum(`OK Computer ${Math.random()}`, ['Radiohead']);
     await insertTrack(albumId, 6, 'Karma Police');
