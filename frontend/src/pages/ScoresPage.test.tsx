@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import ScoresPage from './ScoresPage';
 import bookSectionsService, { Score } from '../services/bookSectionsService';
 import bookService from '../services/bookService';
@@ -10,6 +11,8 @@ vi.mock('../services/bookSectionsService', async importOriginal => ({
   default: { scores: vi.fn(), setComposers: vi.fn() },
 }));
 vi.mock('../services/bookService', () => ({ default: { uploadEbook: vi.fn(), getImageUrl: (p: string | null) => p, getBookById: vi.fn(), updateBook: vi.fn(), deleteBook: vi.fn(), addBook: vi.fn() } }));
+
+const page = (props: React.ComponentProps<typeof ScoresPage> = {}) => <MemoryRouter><ScoresPage {...props} /></MemoryRouter>;
 
 const score = (id: number, title: string, fields: Partial<Score> = {}): Score => ({
   id, title, authors: [], publisher: 'G. Henle Verlag', cover: null, composer: null, composerSuggestion: null, ebookFile: null, isbn13: null, urls: {}, titleStatus: 'owned', ...fields,
@@ -27,7 +30,7 @@ beforeEach(() => {
 
 describe('ScoresPage', () => {
   it('range les partitions par compositeur, les recueils à la fin, avec la référence et l’éditeur', async () => {
-    render(<ScoresPage />);
+    render(page());
 
     const debussy = (await screen.findByRole('heading', { name: /Claude Debussy/ })).closest('section') as HTMLElement;
     expect(within(debussy).getByText('Préludes Vol. 1')).toBeInTheDocument();
@@ -39,7 +42,7 @@ describe('ScoresPage', () => {
 
   it('ouvre le PDF dans le navigateur, et propose d’en joindre un à celle qui n’en a pas', async () => {
     const open = vi.spyOn(window, 'open').mockImplementation(() => null);
-    render(<ScoresPage />);
+    render(page());
 
     fireEvent.click(await screen.findByRole('button', { name: 'PDF' }));
     expect(open).toHaveBeenCalledWith('/api/books/1/ebook/download?inline=1', '_blank', 'noopener');
@@ -53,7 +56,7 @@ describe('ScoresPage', () => {
 
   it('mène à IMSLP par le compositeur et la pièce', async () => {
     const open = vi.spyOn(window, 'open').mockImplementation(() => null);
-    render(<ScoresPage />);
+    render(page());
     const preludes = (await screen.findByText('Préludes Vol. 1')).closest('.scores-page__score') as HTMLElement;
 
     fireEvent.click(within(preludes).getByRole('button', { name: 'On IMSLP' }));
@@ -62,7 +65,7 @@ describe('ScoresPage', () => {
   });
 
   it('propose les compositeurs suggérés, qu’on peut corriger, et les garde', async () => {
-    render(<ScoresPage />);
+    render(page());
     fireEvent.click(await screen.findByRole('button', { name: /review the suggestions/i }));
 
     const field = screen.getByLabelText('Composer of Bach : suites françaises BWV 812-817');
@@ -73,17 +76,17 @@ describe('ScoresPage', () => {
   });
 
   it('filtre par la recherche de l’en-tête : des mots, composer:, publisher:', async () => {
-    const { rerender } = render(<ScoresPage searchCriteria={{ searchText: 'faber' }} />);
+    const { rerender } = render(page({ searchCriteria: { searchText: 'faber' } }));
     expect(await screen.findByText('Improve your sight-reading !')).toBeInTheDocument();
     expect(screen.queryByText('Préludes Vol. 1')).not.toBeInTheDocument();
 
-    rerender(<ScoresPage searchCriteria={{ searchText: 'composer:debussy' }} />);
+    rerender(page({ searchCriteria: { searchText: 'composer:debussy' } }));
     expect(screen.getByText('Préludes Vol. 1')).toBeInTheDocument();
     expect(screen.queryByText('Improve your sight-reading !')).not.toBeInTheDocument();
   });
 
   it('pose la lettre de chaque compositeur pour l’index sur le côté', async () => {
-    render(<ScoresPage />);
+    render(page());
     const debussy = (await screen.findByRole('heading', { name: /Claude Debussy/ })).closest('section') as HTMLElement;
     expect(debussy).toHaveAttribute('data-first-letter', 'D');
   });

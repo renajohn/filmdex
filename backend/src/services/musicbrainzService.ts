@@ -101,6 +101,7 @@ interface MBRelation {
   place?: { name: string };
   url?: { resource: string };
   work?: MBRawWork;
+  'ordering-key'?: number;
 }
 
 interface MBRawWork {
@@ -114,16 +115,31 @@ export interface MBWorkRef {
   id: string;
   title: string;
   parentIds: string[];
+  /** The same parents, with their titles. */
+  parents?: Array<{ id: string; title: string }>;
 }
 
-const workRef = (work: MBRawWork): MBWorkRef => ({
-  id: work.id,
-  title: work.title,
+const workRef = (work: MBRawWork): MBWorkRef => {
   // "parts" read backward: this work is a part of the related one.
-  parentIds: (work.relations || [])
+  const parents = (work.relations || [])
     .filter(relation => relation.type === 'parts' && relation.direction === 'backward' && relation.work)
-    .map(relation => relation.work!.id),
-});
+    .map(relation => ({ id: relation.work!.id, title: relation.work!.title }));
+  return { id: work.id, title: work.title, parentIds: parents.map(parent => parent.id), parents };
+};
+
+/** A work with its parts, in their order: the movements of a sonata, the préludes of a book. */
+export interface MBWorkWithParts extends MBWorkRef {
+  parts: Array<{ id: string; title: string }>;
+}
+
+/** A work as a search finds it, with who composed it. */
+export interface MBWorkHit {
+  id: string;
+  title: string;
+  score: number;
+  composers: string[];
+  disambiguation: string | null;
+}
 
 interface FormattedTrack {
   trackNumber: string;
@@ -627,6 +643,80 @@ const musicbrainzService = {
       name: credit.name || credit.artist?.name || '',
       sortName: credit.artist?.['sort-name'] || null,
       type: credit.artist?.type || null,
+    }));
+  },
+
+  /** The works each recording of an edition performs, by recording, with the works they are part of. */
+  getReleaseRecordingWorks: async function(releaseId: string): Promise<Map<string, MBWorkRef[]>> {
+    const response: AxiosResponse<MBRawRelease> = await withRetry(
+      'MusicBrainz release works lookup',
+      () => axios.get(`${this.baseUrl}/release/${releaseId}`, {
+        params: { inc: 'recordings+recording-level-rels+work-rels+work-level-rels', fmt: 'json' },
+        headers: { 'User-Agent': this.userAgent },
+        timeout: 15000
+      })
+    );
+    const works = new Map<string, MBWorkRef[]>();
+    for (const medium of response.data.media || []) {
+      for (const track of medium.tracks || []) {
+        if (!track.recording?.id) continue;
+        works.set(track.recording.id, (track.recording.relations || [])
+          .filter(relation => relation.type === 'performance' && relation.work)
+          .map(relation => workRef(relation.work!)));
+      }
+    }
+    return works;
+  },
+
+  /** The works one recording performs: a recording found by search, on no edition of the album. */
+  getRecordingWorks: async function(recordingId: string): Promise<MBWorkRef[]> {
+    const response: AxiosResponse<{ relations?: MBRelation[] }> = await withRetry(
+      'MusicBrainz recording works lookup',
+      () => axios.get(`${this.baseUrl}/recording/${recordingId}`, {
+        params: { inc: 'work-rels+work-level-rels', fmt: 'json' },
+        headers: { 'User-Agent': this.userAgent },
+        timeout: 10000
+      })
+    );
+    return (response.data.relations || [])
+      .filter(relation => relation.type === 'performance' && relation.work)
+      .map(relation => workRef(relation.work!));
+  },
+
+  /** A work with its parts in their order, and the works it is part of. */
+  getWorkWithParts: async function(workId: string): Promise<MBWorkWithParts> {
+    const response: AxiosResponse<MBRawWork> = await withRetry(
+      'MusicBrainz work lookup',
+      () => axios.get(`${this.baseUrl}/work/${workId}`, {
+        params: { inc: 'work-rels', fmt: 'json' },
+        headers: { 'User-Agent': this.userAgent },
+        timeout: 10000
+      })
+    );
+    const parts = (response.data.relations || [])
+      .filter(relation => relation.type === 'parts' && relation.direction === 'forward' && relation.work)
+      .map((relation, index) => ({ id: relation.work!.id, title: relation.work!.title, order: relation['ordering-key'] ?? 1000 + index }))
+      .sort((a, b) => a.order - b.order)
+      .map(({ id, title }) => ({ id, title }));
+    return { ...workRef(response.data), parts };
+  },
+
+  /** Works by a search: "BWV 816" AND artist:bach, a title, a number. */
+  searchWorks: async function(query: string, limit: number = 10): Promise<MBWorkHit[]> {
+    const response: AxiosResponse<{ works?: Array<MBRawWork & { score?: number; disambiguation?: string }> }> = await withRetry(
+      'MusicBrainz work search',
+      () => axios.get(`${this.baseUrl}/work`, {
+        params: { query, limit, fmt: 'json' },
+        headers: { 'User-Agent': this.userAgent },
+        timeout: 10000
+      })
+    );
+    return (response.data.works || []).map(work => ({
+      id: work.id,
+      title: work.title,
+      score: work.score ?? 0,
+      composers: [...new Set((work.relations || []).filter(relation => relation.type === 'composer' && relation.artist?.name).map(relation => relation.artist!.name))],
+      disambiguation: work.disambiguation || null,
     }));
   },
 

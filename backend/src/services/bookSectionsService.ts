@@ -2,6 +2,7 @@ import { getDatabase } from '../database';
 import Book from '../models/book';
 import BookReading from '../models/bookReading';
 import { suggestComposer } from '../utils/scoreComposer';
+import scorePiecesService from './scorePiecesService';
 import { normalizeSeriesName } from './utils/bookUtils';
 import type { BookFormatted } from '../types';
 
@@ -39,11 +40,14 @@ export interface SeriesNote { id: number; series: string; name: string | null; n
 
 const bookSectionsService = {
   /** Every score, with the composer the title suggests when none is kept yet. */
-  list: async (): Promise<Array<BookFormatted & { composerSuggestion: string | null }>> => {
+  list: async (): Promise<Array<BookFormatted & { composerSuggestion: string | null; pieceCount: number; heardCount: number }>> => {
     const rows = await all<Record<string, unknown>>(`SELECT * FROM books WHERE book_type = 'score' AND title_status IN ('owned', 'borrowed', 'wish') ORDER BY title`);
+    // Its pieces and how many the music plays; none before the pieces exist.
+    const counts = await scorePiecesService.counts().catch(() => new Map<number, { pieces: number; heard: number }>());
     return rows.map(row => {
       const book = Book.formatRow(row as never)!;
-      return { ...book, composerSuggestion: book.composer ? null : suggestComposer(book.title, book.authors || []) };
+      const count = counts.get(book.id);
+      return { ...book, composerSuggestion: book.composer ? null : suggestComposer(book.title, book.authors || []), pieceCount: count?.pieces ?? 0, heardCount: count?.heard ?? 0 };
     });
   },
 

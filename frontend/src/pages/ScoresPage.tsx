@@ -6,6 +6,8 @@ import AddBookDialog from '../components/AddBookDialog';
 import AlphabeticalIndex from '../components/AlphabeticalIndex';
 import BookDetailCard from '../components/BookDetailCard';
 import BookForm from '../components/BookForm';
+import ScoreCard from '../components/ScoreCard';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Button, { IconButton } from '../components/shared/Button';
 import Dialog from '../components/shared/Dialog';
 import Menu from '../components/shared/Menu';
@@ -66,11 +68,23 @@ const ScoresPage: React.FC<{ searchCriteria?: { searchText?: string } }> = ({ se
   const [details, setDetails] = useState<any>(null);
   const [editing, setEditing] = useState<any>(null);
   const [composerOf, setComposerOf] = useState<Score | null>(null);
+  // The score whose card is open: its pieces and the music playing them.
+  const [open, setOpen] = useState<Score | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
   const [attaching, setAttaching] = useState<Score | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = () => bookSectionsService.scores().then(setScores).catch(e => { setScores([]); toast((e as Error).message, { tone: 'danger' }); });
   useEffect(() => { load(); }, []);
+  // ?score=12 from an album's card opens that score's card.
+  useEffect(() => {
+    const wanted = Number(new URLSearchParams(location.search).get('score'));
+    if (!wanted || !scores) return;
+    const score = scores.find(s => s.id === wanted);
+    if (score) setOpen(score);
+    navigate(location.pathname, { replace: true });
+  }, [location.search, scores]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const suggested = (scores || []).filter(s => !s.composer && s.composerSuggestion);
   const shown = useMemo(() => (scores || []).filter(matcher(filter.trim())), [scores, filter]);
@@ -128,12 +142,14 @@ const ScoresPage: React.FC<{ searchCriteria?: { searchText?: string } }> = ({ se
                   const reference = referenceOf(score.title);
                   const editors = editorsOf(score);
                   return (
-                    <div key={score.id} className="scores-page__score" onClick={() => openDetails(score)}>
+                    <div key={score.id} className="scores-page__score" onClick={() => setOpen(score)}>
                       {score.cover ? <img src={bookService.getImageUrl(score.cover) || ''} alt="" loading="lazy" /> : <span className="scores-page__blank" />}
                       <span className="scores-page__text">
                         <span className="scores-page__title">{pieceOf(score.title)}</span>
                         <span className="scores-page__meta">{[score.publisher, editors.length ? `ed. ${editors.join(', ')}` : null].filter(Boolean).join(' · ')}</span>
                       </span>
+                      {score.heardCount ? <span className="scores-page__heard" title="Its pieces the music plays">♪ {score.heardCount} in your music</span>
+                        : !score.pieceCount && <span className="scores-page__find" title="Its pieces are not known yet">Contents?</span>}
                       {reference && <span className="scores-page__reference">{reference}</span>}
                       <span className="scores-page__actions" onClick={e => e.stopPropagation()}>
                         {score.ebookFile ? (
@@ -174,6 +190,17 @@ const ScoresPage: React.FC<{ searchCriteria?: { searchText?: string } }> = ({ se
         onBookAdded={() => load()}
         onShowAlert={(message: string) => toast(message)}
       />
+
+      {open && (
+        <ScoreCard
+          score={open}
+          title={pieceOf(open.title)}
+          onClose={() => setOpen(null)}
+          onDetails={() => { const score = open; setOpen(null); openDetails(score); }}
+          onAttach={() => { setAttaching(open); fileRef.current?.click(); }}
+          onChanged={() => load()}
+        />
+      )}
 
       {details && (
         <BookDetailCard

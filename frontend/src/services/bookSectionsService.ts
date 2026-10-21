@@ -16,6 +16,9 @@ export interface Score {
   isbn13: string | null;
   urls: Record<string, string>;
   titleStatus: string;
+  /** Its pieces, and how many of them the music plays. */
+  pieceCount?: number;
+  heardCount?: number;
   [key: string]: unknown;
 }
 

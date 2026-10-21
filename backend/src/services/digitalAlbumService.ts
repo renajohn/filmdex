@@ -6,6 +6,7 @@ import navidromeService, { type NavidromeAlbum } from './navidromeService';
 import ripStatusService, { groupSongs, matchesOf, qualityOf, type Library, type Quality } from './ripStatusService';
 import musicService from './musicService';
 import imageService from './imageService';
+import scorePiecesService from './scorePiecesService';
 import recordingIdService from './recordingIdService';
 import logger from '../logger';
 
@@ -205,7 +206,10 @@ const digitalAlbumService = {
       digitalAlbumService.reconcile()
         .catch(error => logger.warn(`Digital albums not brought in step with Navidrome: ${(error as Error).message}`))
         .then(() => recordingIdService.fillAll())
-        .catch(error => logger.warn(`Recordings not filled in: ${(error as Error).message}`));
+        .catch(error => logger.warn(`Recordings not filled in: ${(error as Error).message}`))
+        // Then the works they play, which tie a score's pieces to the music.
+        .then(() => scorePiecesService.indexAll())
+        .catch(error => logger.warn(`Works of the recordings not read: ${(error as Error).message}`));
     };
     setTimeout(tick, 60 * 1000).unref();
     setInterval(tick, EVERY_MS).unref();

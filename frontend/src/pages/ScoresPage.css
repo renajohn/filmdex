@@ -97,6 +97,21 @@
   text-overflow: ellipsis;
 }
 
+.scores-page__heard {
+  flex: none;
+  color: var(--dv-gold);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.scores-page__find {
+  flex: none;
+  color: var(--dv-text-faint);
+  font-size: 0.78rem;
+  font-style: italic;
+  white-space: nowrap;
+}
+
 .scores-page__reference {
   flex: none;
   color: var(--dv-text-faint);
@@ -138,7 +153,8 @@
 }
 
 @media (max-width: 575px) {
-  .scores-page__reference {
+  .scores-page__reference,
+  .scores-page__find {
     display: none;
   }
 

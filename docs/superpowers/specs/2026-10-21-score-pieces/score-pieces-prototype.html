@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Les pièces d'une partition</title>
+<style>
+  :root {
+    --dv-gold: #fbbf24; --dv-gold-hover: #fcd34d; --dv-gold-ink: #111;
+    --dv-gold-tint: rgba(251,191,36,.12); --dv-gold-tint-edge: rgba(251,191,36,.45);
+    --dv-danger: #f87171; --dv-orange: #fb923c;
+    --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+    --dv-page: #1a1a1a;
+    --dv-glass: rgba(255,255,255,.06); --dv-glass-hover: rgba(255,255,255,.11);
+    --dv-edge: rgba(255,255,255,.12); --dv-edge-hover: rgba(255,255,255,.24);
+    --dv-veil: rgba(255,255,255,.08);
+    --dv-surface: rgba(24,24,24,.96); --dv-surface-edge: rgba(255,255,255,.1);
+    --dv-surface-shadow: 0 16px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--dv-page); color: var(--dv-text); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding-bottom: 70px; }
+  button, input { font: inherit; color: inherit; }
+  .proto { position: sticky; top: 0; z-index: 200; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+    padding: 10px 16px; background: #0e0e0e; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .proto b { color: #ddd; }
+  .segm { display: inline-flex; padding: 2px; border-radius: 8px; background: var(--dv-glass); border: 1px solid var(--dv-edge); }
+  .segm button { border: 0; background: none; padding: 4px 10px; border-radius: 6px; cursor: pointer; color: var(--dv-text-muted); font-size: 13px; }
+  .segm button.on { background: var(--dv-veil); color: var(--dv-text); }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--dv-edge);
+    background: var(--dv-glass); cursor: pointer; font-size: 13px; white-space: nowrap; }
+  .btn:hover { background: var(--dv-glass-hover); border-color: var(--dv-edge-hover); }
+  .btn.primary { background: var(--dv-gold); color: var(--dv-gold-ink); border-color: var(--dv-gold); font-weight: 600; }
+  .btn.quiet { background: none; border-color: transparent; color: var(--dv-text-muted); }
+  .btn.quiet:hover { color: var(--dv-text); background: var(--dv-veil); }
+  .btn.sm { height: 26px; padding: 0 9px; font-size: 12px; }
+  .tag { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; font-weight: 600;
+    border: 1px solid var(--dv-edge); border-radius: 2px; background: rgba(0,0,0,.55); color: var(--dv-text); }
+  .tag.gold { color: var(--dv-gold); border-color: var(--dv-gold-tint-edge); }
+  .tag.muted { color: var(--dv-text-faint); }
+
+  .page { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  .bar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; color: var(--dv-text-muted); font-size: 13px; }
+  .bar .count { margin-left: auto; }
+  h3.composer { display: flex; align-items: baseline; gap: 10px; margin: 20px 0 6px; padding-bottom: 6px; border-bottom: 1px solid var(--dv-edge); font-size: 1.05rem; }
+  h3.composer small { color: var(--dv-text-faint); font-weight: 400; font-size: .8rem; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 7px 6px; border-radius: 8px; cursor: pointer; }
+  .row:hover, .row.on { background: var(--dv-veil); }
+  .row img, .row .blank { width: 34px; height: 46px; border-radius: 2px; object-fit: cover; background: var(--dv-glass); flex: none; }
+  .row .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .row .tt { font-weight: 600; }
+  .row .mt { color: var(--dv-text-muted); font-size: 12px; }
+  .row .hear { color: var(--dv-gold); font-size: 12px; white-space: nowrap; }
+  .row .find { color: var(--dv-text-faint); font-size: 12px; white-space: nowrap; font-style: italic; }
+
+  /* The score's card: a panel at the right, as BookDetailCard's. */
+  .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 50; display: none; }
+  .panel { position: fixed; top: 45px; right: 0; bottom: 52px; width: min(640px, 100%); z-index: 60; background: #1d1d1d; border-left: 1px solid var(--dv-edge);
+    box-shadow: var(--dv-surface-shadow); display: none; flex-direction: column; }
+  .open .scrim { display: block; } .open .panel { display: flex; }
+  .ph { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--dv-edge); }
+  .ph h2 { margin: 0; font-size: 1.15rem; flex: 1; }
+  .ph .x { cursor: pointer; color: var(--dv-text-muted); border: 0; background: none; font-size: 18px; }
+  .pb { flex: 1; overflow: auto; padding: 16px 18px 24px; }
+  .head { display: flex; gap: 16px; margin-bottom: 18px; }
+  .head img, .head .blank { width: 96px; aspect-ratio: 3/4; object-fit: cover; border-radius: 3px; background: var(--dv-glass); flex: none; }
+  .head .who { font-size: 1rem; font-weight: 600; }
+  .head .facts { color: var(--dv-text-muted); font-size: 13px; margin: 2px 0 10px; }
+  .head .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .section { margin-top: 18px; }
+  .section > h4 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--dv-text-faint); }
+  .section > h4 .act { margin-left: auto; text-transform: none; letter-spacing: 0; }
+
+  .work { border: 1px solid var(--dv-edge); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+  .work-h { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--dv-glass); }
+  .work-h .wt { flex: 1; min-width: 0; }
+  .work-h .wt b { display: block; }
+  .work-h .wt small { color: var(--dv-text-muted); }
+  .piece { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: center; padding: 6px 12px; border-top: 1px solid rgba(255,255,255,.05); }
+  .piece .n { color: var(--dv-text-faint); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+  .piece .pn { min-width: 0; }
+  .piece .pn small { display: block; color: var(--dv-text-faint); font-size: 11px; }
+  .piece.none .pn { color: var(--dv-text-muted); }
+  .recs { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .rec { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 12px; border: 1px solid var(--dv-edge);
+    background: var(--dv-glass); font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .rec:hover { border-color: var(--dv-edge-hover); background: var(--dv-glass-hover); }
+  .rec.playing { background: var(--dv-gold); color: var(--dv-gold-ink); border-color: var(--dv-gold); }
+  .rec .d { color: var(--dv-text-faint); font-variant-numeric: tabular-nums; }
+  .rec.playing .d { color: rgba(0,0,0,.6); }
+  .notin { color: var(--dv-text-faint); font-size: 12px; font-style: italic; }
+  a.btn { text-decoration: none; }
+  .split { display: inline-flex; }
+  .split .btn:first-child:not(:last-child) { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .split .chev { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 0; padding: 0 7px; }
+  .work { position: relative; overflow: visible; }
+  .menu.perf { position: absolute; right: 12px; top: 44px; z-index: 5; min-width: 320px; }
+  .recs { position: relative; }
+  .menu.others { position: absolute; right: 0; top: 28px; z-index: 5; min-width: 260px; text-align: left; }
+  .more { padding: 6px 12px; border-top: 1px solid rgba(255,255,255,.05); }
+
+  /* Variant B: the contents plain, then the albums. */
+  .plain-list { columns: 2; column-gap: 24px; font-size: 13px; }
+  .plain-list div { break-inside: avoid; padding: 3px 0; display: flex; gap: 6px; }
+  .plain-list .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dv-gold); margin-top: 7px; flex: none; }
+  .plain-list .dot.off { background: transparent; border: 1px solid var(--dv-edge-hover); }
+  .album { display: flex; gap: 12px; align-items: center; padding: 8px; border-radius: 10px; border: 1px solid var(--dv-edge); margin-bottom: 8px; }
+  .album img { width: 56px; height: 56px; border-radius: 4px; object-fit: cover; background: var(--dv-glass); }
+  .album .at { flex: 1; min-width: 0; }
+  .album .at b { display: block; }
+  .album .at small { color: var(--dv-text-muted); }
+
+  /* Finding the contents. */
+  .notice { display: flex; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--dv-glass); border: 1px solid var(--dv-edge); border-left: 3px solid var(--dv-text-faint); margin-bottom: 12px; font-size: 13px; }
+  .sugg { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--dv-edge); margin-bottom: 6px; cursor: pointer; }
+  .sugg:hover { background: var(--dv-veil); }
+  .sugg .box { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--dv-edge-hover); flex: none; display: grid; place-items: center; font-size: 11px; color: var(--dv-gold-ink); }
+  .sugg.on .box { background: var(--dv-gold); border-color: var(--dv-gold); }
+  .sugg .st { flex: 1; min-width: 0; }
+  .sugg .st small { display: block; color: var(--dv-text-muted); font-size: 12px; }
+  .why { font-size: 11px; color: var(--dv-text-faint); white-space: nowrap; }
+  .field { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--dv-edge); background: rgba(0,0,0,.25); }
+  .field input { flex: 1; border: 0; outline: 0; background: none; }
+  .menu { margin-top: 4px; border-radius: 10px; border: 1px solid var(--dv-surface-edge); background: var(--dv-surface); box-shadow: var(--dv-surface-shadow); padding: 4px; }
+  .menu div { padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .menu div:hover { background: var(--dv-veil); }
+  .menu small { color: var(--dv-text-muted); margin-left: 6px; }
+  .pf { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--dv-edge); }
+
+  .albumside { margin-top: 36px; padding-top: 16px; border-top: 1px dashed #444; }
+  .albumside .card { display: flex; gap: 16px; padding: 14px; border-radius: 12px; background: #1d1d1d; border: 1px solid var(--dv-edge); max-width: 640px; }
+  .albumside .card img { width: 120px; height: 120px; object-fit: cover; border-radius: 4px; }
+  .line { font-size: 13px; color: var(--dv-text-muted); margin-top: 6px; }
+  .line a { color: var(--dv-text); text-decoration: underline dotted; cursor: pointer; }
+
+  .player { position: fixed; left: 0; right: 0; bottom: 0; height: 52px; background: #111; border-top: 1px solid #333; display: flex; align-items: center; gap: 12px; padding: 0 16px; z-index: 100; font-size: 13px; }
+  .player .pp { width: 30px; height: 30px; border-radius: 50%; background: var(--dv-text); color: #111; display: grid; place-items: center; font-size: 12px; }
+  .player small { color: var(--dv-text-muted); }
+  .note { max-width: 1100px; margin: 0 auto; padding: 12px 16px 0; color: #999; font-size: 12.5px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="proto">
+  <b>Prototype · les pièces d'une partition</b>
+  <span>Fiche : <span class="segm" id="variant"><button data-v="A" class="on">A · pièces et enregistrements</button><button data-v="B">B · contenu, puis albums</button></span></span>
+  <label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="many"> Plusieurs enregistrements (simulés : Pollini, Zimerman…)</label>
+  <span>▶ joue dans le lecteur (simulé)</span>
+</div>
+<div class="note">
+  Données réelles de prod : 9 partitions sur 41 ont des enregistrements dans ta musique, reliés par l'œuvre MusicBrainz de chaque piste.
+  « Suites françaises » montre la recherche du contenu (proposé d'après les numéros BWV), « A romantic sketchbook » un recueil que le titre ne décrit pas.
+</div>
+
+<div class="page">
+  <div class="bar"><span class="segm"><button class="on">Scores</button></span><span class="count">Showing 9 of 41 scores</span></div>
+  <div id="list"></div>
+
+  <div class="albumside">
+    <div class="note" style="padding:0 0 10px">Et dans l'autre sens, sur la fiche d'un album : une ligne comme « Also on ».</div>
+    <div class="card">
+      <img src="https://dexvault.lab.crog.org/api/images/cd/album_2503466_front_1789070804166.jpg" alt="" onerror="this.style.background='#333';this.removeAttribute('src')">
+      <div>
+        <div style="font-size:1.1rem;font-weight:600">Préludes · Piano Sonata No. 2</div>
+        <div style="color:var(--dv-text-muted)">Frédéric Chopin, Martha Argerich · 2002 · CD</div>
+        <div class="line">On the shelf of scores: <a data-open="228">Preludes (Henle HN 882)</a> · <a data-open="224">Marche funèbre (Henle)</a></div>
+        <div class="line">Also on: Dinu Lipatti</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="shell">
+  <div class="scrim" id="scrim"></div>
+  <div class="panel" id="panel">
+    <div class="ph"><span>🎼</span><h2 id="ptitle"></h2><button class="x" id="close">✕</button></div>
+    <div class="pb" id="pbody"></div>
+    <div class="pf" id="pfoot"></div>
+  </div>
+</div>
+
+<div class="player" id="player"><span class="pp">▶</span><span id="now"><small>Nothing playing</small></span></div>
+
+<script>
+const IMG = p => p ? 'https://dexvault.lab.crog.org' + p : '';
+const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const ALBUMS = {
+  177: { title: '24 Préludes', by: 'Ruth Schmid-Gagnebin', year: 2003, cover: '/api/images/cd/custom/cd_177_1789107562476.jpg' },
+  162: { title: 'Préludes · Piano Sonata No. 2', by: 'Martha Argerich', year: 2002, cover: '/api/images/cd/album_2503466_front_1789070804166.jpg' },
+  180: { title: 'Die 32 Klaviersonaten', by: 'Wilhelm Kempff', year: 1965, cover: '/api/images/cd/custom/cd_180_1789123578082.jpg' },
+  168: { title: 'Liebesträume · Consolations', by: 'Daniel Barenboim', year: 1993, cover: '/api/images/cd/album_6793256_front_1789071237779.jpg' },
+  181: { title: 'Dinu Lipatti', by: 'Dinu Lipatti', year: 1990, cover: '/api/images/cd/album_13654909_front_1789123615359.jpg' },
+  // Simulated, to see several recordings of the same pieces.
+  901: { title: 'Chopin: 24 Préludes', by: 'Maurizio Pollini', year: 1975, cover: '', fake: true },
+  902: { title: 'Chopin: Préludes', by: 'Grigory Sokolov', year: 2002, cover: '', fake: true },
+  903: { title: 'Debussy: Préludes I & II', by: 'Krystian Zimerman', year: 1994, cover: '', fake: true },
+};
+const P = (name, sub, recs = []) => ({ name, sub, recs });
+const R = (album, s) => ({ album, s });
+const debussy = [
+  ['Danseuses de Delphes', 'Lent et grave', 149], ['Voiles', 'Modéré', 176], ['Le vent dans la plaine', 'Animé', 141],
+  ['« Les sons et les parfums tournent dans l’air du soir »', 'Modéré', 195], ['Les collines d’Anacapri', 'Très modéré', 186],
+  ['Des pas sur la neige', 'Triste et lent', 190], ['Ce qu’a vu le vent d’ouest', 'Animé et tumultueux', 238],
+  ['La fille aux cheveux de lin', 'Très calme et doucement expressif', 135], ['La sérénade interrompue', 'Modérément animé', 164],
+  ['La cathédrale engloutie', 'Profondément calme', 318], ['La danse de Puck', 'Capricieux et léger', 170], ['Minstrels', 'Modéré', 148],
+];
+const chopinKeys = ['C major', 'A minor', 'G major', 'E minor', 'D major', 'B minor', 'A major', 'F‐sharp minor', 'E major', 'C‐sharp minor', 'B major', 'G‐sharp minor',
+  'F‐sharp major', 'E‐flat minor', 'D‐flat major “Raindrop”', 'B‐flat minor', 'A‐flat major', 'F minor', 'E‐flat major', 'C minor', 'B‐flat major', 'G minor', 'F major', 'D minor'];
+const chopinTempo = ['Agitato', 'Lento', 'Vivace', 'Largo', 'Molto allegro', 'Lento assai', 'Andantino', 'Molto agitato', 'Largo', 'Molto allegro', 'Vivace', 'Presto',
+  'Lento', 'Allegro', 'Sostenuto', 'Presto con fuoco', 'Allegretto', 'Molto allegro', 'Vivace', 'Largo', 'Cantabile', 'Molto agitato', 'Moderato', 'Allegro appassionato'];
+const chopinSec = [31, 129, 51, 111, 30, 106, 44, 89, 90, 24, 32, 57, 164, 29, 290, 58, 170, 46, 64, 92, 93, 34, 43, 136];
+
+const SCORES = [
+  { id: 219, composer: 'Claude Debussy', title: 'Préludes Vol. 1', facts: 'G. Henle Verlag · HN 383', cover: '/api/images/book/book_1764506095845_0.jpg',
+    works: [{ title: 'Préludes, Livre I', cat: 'L. 117 · CD 125', pieces: debussy.map(([n, t, s]) => P(n, t, [R(177, s)])) }] },
+  { id: 206, composer: 'Claude Debussy', title: 'La cathédrale engloutie', facts: 'Dorseval', cover: '/api/images/book/book_1764505493392_0.jpg',
+    works: [{ title: 'La cathédrale engloutie', cat: 'Préludes, Livre I, no. 10', single: true, pieces: [P('La cathédrale engloutie', 'Profondément calme', [R(177, 318)])] }] },
+  { id: 216, composer: 'Claude Debussy', title: 'Clair de lune', facts: 'G. Henle Verlag · HN 391', cover: '/api/images/book/book_1764506003327_0.jpg',
+    works: [{ title: 'Clair de lune', cat: 'Suite bergamasque, L. 75, no. 3', single: true, pieces: [P('Clair de lune', 'Andante très expressif')] }] },
+  { id: 228, composer: 'Frédéric Chopin', title: 'Preludes', facts: 'G. Henle · HN 882', cover: '/api/images/book/book_1764506649414_0.jpg',
+    works: [
+      { title: '24 Préludes', cat: 'op. 28', pieces: chopinKeys.map((k, i) => P(`No. ${i + 1} in ${k}`, chopinTempo[i], [R(162, chopinSec[i])])) },
+      { title: 'Prélude in C‐sharp minor', cat: 'op. 45', single: true, pieces: [P('Prélude in C‐sharp minor', 'Sostenuto', [R(162, 242)])] },
+      { title: 'Prélude in A‐flat major', cat: 'op. posth., KK IVb/7', single: true, pieces: [P('Prélude in A‐flat major', 'Presto con leggierezza', [R(162, 46)])] },
+    ] },
+  { id: 224, composer: 'Frédéric Chopin', title: 'Marche funèbre de la Sonate op. 35', facts: 'G. Henle Verlag', cover: '/api/images/book/book_1764506394458_0.jpg',
+    works: [{ title: 'Marche funèbre', cat: 'Sonata no. 2 in B‐flat minor, op. 35: III', single: true, pieces: [P('Marche funèbre', 'Lento', [R(162, 514)])],
+      whole: 'The whole sonata in your music: Argerich (4 movements)' }] },
+  { id: 222, composer: 'Ludwig van Beethoven', title: 'Piano Sonata no. 14 “Moonlight”', facts: 'G. Henle · HN 1062', cover: '/api/images/book/book_1764506194020_0.jpg',
+    works: [{ title: 'Sonata for Piano no. 14 in C‐sharp minor “Moonlight”', cat: 'op. 27 no. 2', pieces: [
+      P('I. Adagio sostenuto', '', [R(180, 364)]), P('II. Allegretto', '', [R(180, 142)]), P('III. Presto agitato', '', [R(180, 330)])] }] },
+  { id: 213, composer: 'Franz Liszt', title: 'Consolations', facts: 'G. Henle Verlag', cover: '/api/images/book/book_1764505887262_0.jpg',
+    works: [{ title: 'Consolations', cat: 'S. 172', pieces: [['E major', 'Andante con moto', 82], ['E major', 'Un poco più mosso', 194], ['D‐flat major', 'Lento placido', 254],
+      ['D‐flat major', 'Quasi adagio', 194], ['E major', 'Andantino', 147], ['E major', 'Allegretto sempre cantabile', 170]].map(([k, t, s], i) => P(`No. ${i + 1} in ${k}`, t, [R(168, s)])) }] },
+  { id: 211, composer: 'Johann Sebastian Bach', title: 'Suites françaises BWV 812-817', facts: 'G. Henle Verlag · HN 71', cover: '/api/images/book/book_1764505800189_0.jpg',
+    works: [], suggestions: [
+      ['Französische Suite Nr. 1 d-Moll', 'BWV 812', 6], ['Französische Suite Nr. 2 c-Moll', 'BWV 813', 6], ['Französische Suite Nr. 3 h-Moll', 'BWV 814', 7],
+      ['Französische Suite Nr. 4 Es-Dur', 'BWV 815', 7], ['Französische Suite Nr. 5 G-Dur', 'BWV 816', 7], ['Französische Suite Nr. 6 E-Dur', 'BWV 817', 8]] },
+  { id: 197, composer: 'Anthologies & methods', title: 'A romantic sketchbook for piano', facts: 'ABRSM · Alan Jones', cover: '/api/images/book/book_1764504534800_0.jpg', works: [], suggestions: [] },
+];
+
+let variant = 'A', current = null, playing = null, chosen = new Set(), many = false, pick = {}, others = null;
+const recsOf = (w, p) => many ? [...p.recs, ...(w.title === '24 Préludes' ? [R(901, Math.round(p.recs[0]?.s * 0.9 || 60)), R(902, Math.round(p.recs[0]?.s * 1.15 || 70))]
+  : w.title === 'Préludes, Livre I' ? [R(903, Math.round(p.recs[0]?.s * 1.05 || 60))] : [])] : p.recs;
+const ytUrl = (s, w, p) => 'https://www.youtube.com/results?search_query=' + encodeURIComponent([s.composer, w.title, w.single ? '' : p.name].join(' ').replace(/\s+/g, ' ').trim());
+const heard = s => s.works.flatMap(w => w.pieces).filter(p => p.recs.length).length;
+const total = s => s.works.flatMap(w => w.pieces).length;
+
+function renderList() {
+  const groups = {};
+  SCORES.forEach(s => (groups[s.composer] = groups[s.composer] || []).push(s));
+  document.getElementById('list').innerHTML = Object.entries(groups).map(([c, list]) => `
+    <section><h3 class="composer">${c} <small>${list.length} score${list.length > 1 ? 's' : ''}</small></h3>
+    ${list.map(s => `<div class="row ${current?.id === s.id ? 'on' : ''}" data-open="${s.id}">
+      <img src="${IMG(s.cover)}" alt="" onerror="this.removeAttribute('src')">
+      <div class="tx"><span class="tt">${s.title}</span><span class="mt">${s.facts}${s.works.length ? ` · ${total(s)} piece${total(s) > 1 ? 's' : ''}` : ''}</span></div>
+      ${!s.works.length ? `<span class="find">${s.suggestions.length ? `${s.suggestions.length} pieces to confirm` : 'Contents?'}</span>`
+        : heard(s) ? `<span class="hear">♪ ${heard(s)} in your music</span>` : ''}
+      <button class="btn sm">PDF</button>
+    </div>`).join('')}</section>`).join('');
+}
+
+const last = name => name.split(' ').slice(-1)[0];
+function recChip(r, piece) {
+  const a = ALBUMS[r.album];
+  const id = `${r.album}:${piece}`;
+  return `<span class="rec ${playing === id ? 'playing' : ''}" data-play="${id}" data-label="${piece} — ${a.by}" title="${a.title} (${a.year})">▶ ${last(a.by)} <span class="d">${fmt(r.s)}</span></span>`;
+}
+/** A piece's recordings: the one chosen for the work, the others behind +N. */
+function recCell(s, w, p, key) {
+  const recs = recsOf(w, p);
+  if (!recs.length) return `<span class="notin">${w.single ? 'Not in your music' : '—'}</span>
+    <a class="btn sm quiet" href="${ytUrl(s, w, p)}" target="_blank" rel="noopener" title="Search it on YouTube">YouTube ↗</a>`;
+  const main = recs.find(r => r.album === pick[key]) || recs[0];
+  const rest = recs.filter(r => r !== main);
+  const open = others === `${key}:${p.name}`;
+  return `${recChip(main, p.name)}${rest.length ? `<span class="rec" data-others="${key}:${p.name}" title="Its other recordings">+${rest.length}</span>` : ''}
+    ${open ? `<div class="menu others">${rest.map(r => `<div data-play="${r.album}:${p.name}" data-label="${p.name} — ${ALBUMS[r.album].by}">▶ ${ALBUMS[r.album].by} <small>${ALBUMS[r.album].year} · ${fmt(r.s)}</small></div>`).join('')}
+      <div><a href="${ytUrl(s, w, p)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">On YouTube ↗</a></div></div>` : ''}`;
+}
+
+function cardA(s) {
+  return s.works.map((w, wi) => {
+    const key = `${s.id}:${wi}`;
+    const albums = [...new Set(w.pieces.flatMap(p => recsOf(w, p).map(r => r.album)))];
+    const chosenAlbum = albums.includes(pick[key]) ? pick[key] : albums[0];
+    const heardHere = w.pieces.filter(p => recsOf(w, p).length).length;
+    const playAll = albums.length && !w.single ? `<span class="split">
+        <button class="btn sm" data-play="${chosenAlbum}:all:${key}" data-label="${w.title} — ${ALBUMS[chosenAlbum].by}">▶ All · ${last(ALBUMS[chosenAlbum].by)}</button>${albums.length > 1
+        ? `<button class="btn sm chev" data-performers="${key}" title="Which recording">▾ ${albums.length}</button>` : ''}</span>` : '';
+    const menu = others === `perf:${key}` ? `<div class="menu perf">${albums.map(al => `<div data-pickalbum="${key}:${al}">${al === chosenAlbum ? '<b style="color:var(--dv-gold)">✓</b> ' : '<span style="display:inline-block;width:12px"></span> '}${ALBUMS[al].by}
+        <small>${ALBUMS[al].title} · ${ALBUMS[al].year} · ${w.pieces.filter(p => recsOf(w, p).some(r => r.album === al)).length} of ${w.pieces.length}</small></div>`).join('')}</div>` : '';
+    const head = `<div class="work-h"><div class="wt"><b>${w.title}</b><small>${w.cat}${w.single ? '' : ` · ${w.pieces.length} pieces`}${heardHere ? ` · ${heardHere} in your music${albums.length > 1 ? `, ${albums.length} recordings` : ''}` : ''}</small></div>
+      ${playAll}<button class="btn sm quiet" title="On IMSLP">IMSLP</button></div>${menu}`;
+    const rows = w.pieces.map((p, i) => `<div class="piece ${recsOf(w, p).length ? '' : 'none'}"><span class="n">${w.single ? '' : i + 1}</span>
+        <span class="pn">${w.single ? '' : p.name}${p.sub ? `<small>${p.sub}</small>` : ''}</span><span class="recs">${recCell(s, w, p, key)}</span></div>`).join('');
+    return `<div class="work">${head}${rows}${w.whole ? `<div class="more"><span class="notin">${w.whole}</span></div>` : ''}</div>`;
+  }).join('');
+}
+
+function cardB(s) {
+  const pieces = s.works.flatMap(w => w.single ? [{ ...w.pieces[0], name: `${w.title}, ${w.cat}` }] : w.pieces.map(p => ({ ...p, name: p.name })));
+  const byAlbum = {};
+  s.works.forEach(w => w.pieces.forEach(p => recsOf(w, p).forEach(r => (byAlbum[r.album] = byAlbum[r.album] || []).push(p))));
+  return `<div class="plain-list">${pieces.map(p => `<div><span class="dot ${p.recs.length ? '' : 'off'}"></span><span>${p.name}</span></div>`).join('')}</div>
+    <div class="section"><h4>In your music</h4>${Object.entries(byAlbum).length ? Object.entries(byAlbum).map(([a, ps]) => `
+      <div class="album"><img src="${IMG(ALBUMS[a].cover)}" alt="" onerror="this.removeAttribute('src')" ${ALBUMS[a].fake ? 'style="outline:1px dashed #666"' : ''}><div class="at"><b>${ALBUMS[a].title}</b><small>${ALBUMS[a].by} · ${ALBUMS[a].year} · ${ps.length} of ${pieces.length} piece${pieces.length > 1 ? 's' : ''}</small></div>
+      <button class="btn sm" data-play="${a}:all" data-label="${s.title} — ${ALBUMS[a].by}">▶ Play</button></div>`).join('')
+      : `<span class="notin">None of its pieces is in your music yet.</span> <a class="btn sm quiet" href="${ytUrl(s, s.works[0], s.works[0].pieces[0])}" target="_blank" rel="noopener">YouTube ↗</a> <button class="btn sm quiet">Wish an album</button>`}</div>`;
+}
+
+function finding(s) {
+  if (s.suggestions.length) {
+    return `<div class="notice">Its contents, read from MusicBrainz by its numbers (BWV 812-817): check what the score holds.</div>
+      ${s.suggestions.map(([t, c, n], i) => `<div class="sugg ${chosen.has(i) ? 'on' : ''}" data-pick="${i}"><span class="box">${chosen.has(i) ? '✓' : ''}</span>
+        <div class="st">${t}, ${c}<small>${n} movements · none in your music</small></div><span class="why">by its number</span></div>`).join('')}
+      <div class="section"><h4>Something else in it</h4>${searchField()}</div>`;
+  }
+  return `<div class="notice">The title says nothing of its pieces: an anthology. Photograph its table of contents, the pieces are read and found; or add them one by one.</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px"><button class="btn">📷 Photo of the contents</button><button class="btn">PDF: read its first pages</button></div>
+    ${searchField(true)}`;
+}
+
+function searchField(open) {
+  return `<div class="field">🔎<input placeholder="A piece: a title, a composer, a number (op. 28, BWV 816)" value="${open ? 'träumerei' : ''}"></div>
+    ${open ? `<div class="menu"><div>Kinderszenen, op. 15: VII. Träumerei <small>Robert Schumann · 2 in your music</small></div>
+      <div>Träumerei, op. 9 no. 4 <small>Richard Strauss</small></div><div>Kinderszenen, op. 15 (all 13) <small>Robert Schumann</small></div></div>` : ''}`;
+}
+
+function openScore(id) {
+  current = SCORES.find(s => s.id === +id);
+  chosen = new Set(current.suggestions ? current.suggestions.map((_, i) => i) : []);
+  document.body.classList.add('open');
+  render();
+}
+
+function render() {
+  renderList();
+  if (!current) return;
+  const s = current;
+  document.getElementById('ptitle').textContent = s.title;
+  document.getElementById('pbody').innerHTML = `
+    <div class="head"><img src="${IMG(s.cover)}" alt="" onerror="this.removeAttribute('src')"><div>
+      <div class="who">${s.composer}</div><div class="facts">${s.facts}</div>
+      <div class="acts"><button class="btn">PDF</button><button class="btn quiet">On IMSLP</button>${s.works.length && heard(s) ? `<span class="tag gold">♪ ${heard(s)} of ${total(s)} in your music</span>` : ''}</div></div></div>
+    <div class="section"><h4>${s.works.length ? 'Its pieces' : 'Its pieces, to find'}${s.works.length ? '<span class="act"><button class="btn sm quiet">+ Add a piece</button></span>' : ''}</h4>
+      ${s.works.length ? (variant === 'A' ? cardA(s) : cardB(s)) : finding(s)}</div>`;
+  document.getElementById('pfoot').innerHTML = !s.works.length && s.suggestions.length
+    ? `<button class="btn quiet" id="close2">Later</button><button class="btn primary">Keep these ${chosen.size}</button>`
+    : `<button class="btn quiet">Details</button>`;
+}
+
+document.addEventListener('click', e => {
+  if (e.target.closest('a[href]')) return;
+  const t = e.target.closest('[data-open],[data-play],[data-pick],[data-others],[data-performers],[data-pickalbum],#close,#close2,#scrim,#variant button');
+  if (!t) { if (others) { others = null; render(); } return; }
+  if (t.dataset.others) { others = others === t.dataset.others ? null : t.dataset.others; render(); return; }
+  if (t.dataset.performers) { others = others === `perf:${t.dataset.performers}` ? null : `perf:${t.dataset.performers}`; render(); return; }
+  if (t.dataset.pickalbum) { const [sid, wi, al] = t.dataset.pickalbum.split(':'); pick[`${sid}:${wi}`] = +al; others = null; render(); return; }
+  others = null;
+  if (t.dataset.open) openScore(t.dataset.open);
+  else if (t.dataset.play) {
+    playing = playing === t.dataset.play ? null : t.dataset.play;
+    document.getElementById('now').innerHTML = playing ? `<b>${t.dataset.label}</b> <small>· via Navidrome</small>` : '<small>Nothing playing</small>';
+    render();
+  } else if (t.dataset.pick) { const i = +t.dataset.pick; chosen.has(i) ? chosen.delete(i) : chosen.add(i); render(); }
+  else if (t.dataset.v) { variant = t.dataset.v; document.querySelectorAll('#variant button').forEach(b => b.classList.toggle('on', b === t)); render(); }
+  else { document.body.classList.remove('open'); current = null; render(); }
+});
+document.getElementById('many').addEventListener('change', e => { many = e.target.checked; render(); });
+render();
+</script>
+</body>
+</html>

@@ -456,6 +456,41 @@ async function transcribeSleeveBack(base64Image: string, mimeType: string): Prom
   };
 }
 
+/** One piece as a score's table of contents prints it. */
+export interface ContentsLine {
+  title: string;
+  composer: string | null;
+  catalogue: string | null;
+  page: number | null;
+}
+
+/**
+ * Read the table of contents of a score: its pieces, each with its composer
+ * when the page names one (an anthology), its number (op. 28 no. 4) and its page.
+ */
+async function transcribeScoreContents(base64Image: string, mimeType: string): Promise<{ lines: ContentsLine[]; truncated: boolean }> {
+  const prompt =
+    'This is the TABLE OF CONTENTS of a book of sheet music (a score).\n' +
+    TRANSCRIPTION_RULE + '\n' +
+    'List every piece in the order printed. For each: its title as printed, its composer when the page names one, ' +
+    'its catalogue number when printed (op. 28 no. 4, BWV 816, K. 545) and its page number.\n' +
+    'Return ONLY this JSON object:\n' +
+    '{"pieces":[{"title":"","composer":"","catalogue":"","page":0}]}';
+  const { text, truncated } = await askVision(prompt, base64Image, mimeType, 3000);
+  const parsed = parseSleeveJson(text);
+  if (!parsed) throw new Error('Could not read the contents from the model response');
+  const raw = Array.isArray(parsed.data.pieces) ? parsed.data.pieces as Array<Record<string, unknown>> : [];
+  return {
+    truncated: parsed.truncated || truncated,
+    lines: raw.map(line => ({
+      title: asText(line.title) || '',
+      composer: asText(line.composer),
+      catalogue: asText(line.catalogue),
+      page: Number.isFinite(Number(line.page)) && Number(line.page) > 0 ? Number(line.page) : null,
+    })).filter(line => line.title),
+  };
+}
+
 /**
  * Read the front of a sleeve: the identity, as designed.
  *
@@ -1113,6 +1148,7 @@ export default {
   analyzeBookImage,
   transcribeSleeveBack,
   transcribeSleeveFront,
+  transcribeScoreContents,
   parseResponse,
   normalizeFormat,
   rankResults,

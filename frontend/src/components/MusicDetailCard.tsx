@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link, useInRouterContext } from 'react-router-dom';
 import { ButtonGroup } from 'react-bootstrap';
 import Dialog from './shared/Dialog';
+import scorePiecesService, { type AlbumScore } from '../services/scorePiecesService';
 import Menu, { MenuChevron } from './shared/Menu';
 import { BsPencil, BsTrash, BsDisc, BsApple, BsTags, BsPlayFill, BsPauseFill, BsHeadphones, BsBoxArrowUpRight, BsChevronRight, BsStarFill, BsArrowClockwise } from 'react-icons/bs';
 import musicService from '../services/musicService';
@@ -156,6 +158,11 @@ const CONDITIONS: Record<string, string> = {
   'VG': 'Very Good'
 };
 
+/** A score of the shelf, its card in Scores; a plain link outside the app's router (a test, say). */
+const ScoreLink: React.FC<{ id: number; title: string }> = ({ id, title }) => (useInRouterContext()
+  ? <Link className="album-head-filter" to={`/scores?score=${id}`} title="Its pieces and their recordings">{title}</Link>
+  : <a className="album-head-filter" href={`/scores?score=${id}`}>{title}</a>);
+
 /** How many albums "Also on" names before "2 more". */
 const OVERLAPS_SHOWN = 3;
 
@@ -270,6 +277,8 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const [digitalTracks, setDigitalTracks] = useState<Map<string, DigitalTrack>>(new Map());
   // The other albums of the collection holding some of its tracks, the most first.
   const [overlaps, setOverlaps] = useState<AlbumOverlap[]>([]);
+  // The scores holding what it plays: "On the shelf of scores".
+  const [scores, setScores] = useState<AlbumScore[]>([]);
   const [showAllOverlaps, setShowAllOverlaps] = useState<boolean>(false);
   const navidromeId = digital?.album?.navidromeId ?? null;
   // A wish or a digital album: no CD, the shelf code gives way to the cloud.
@@ -295,6 +304,10 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
     setShowAllOverlaps(false);
     musicService.getAlbumOverlaps(cd.id)
       .then(albums => { if (current) setOverlaps(albums); })
+      .catch(() => undefined);
+    setScores([]);
+    scorePiecesService.ofAlbum(Number(cd.id))
+      .then(list => { if (current) setScores(Array.isArray(list) ? list : []); })
       .catch(() => undefined);
     return () => { current = false; };
   }, [cd.id]);
@@ -760,6 +773,19 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                     </button>
                   </>
                 )}
+              </div>
+            )}
+
+            {/* The scores on the shelf that hold what it plays: their card, in Scores. */}
+            {scores.length > 0 && (
+              <div className="album-head-line album-head-scores">
+                <span className="album-head-muted">On the shelf of scores: </span>
+                {scores.map((score, index) => (
+                  <React.Fragment key={score.id}>
+                    {index > 0 && <span className="album-head-muted"> · </span>}
+                    <ScoreLink id={score.id} title={[score.title.replace(/\s*[-–]\s*(?:piano|klavier)\b.*$/i, '').replace(/\s*\(.*?\)\s*/g, ' ').trim(), score.publisher].filter(Boolean).join(', ')} />
+                  </React.Fragment>
+                ))}
               </div>
             )}
 

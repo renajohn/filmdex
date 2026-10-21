@@ -410,6 +410,47 @@ const runAutoMigrations = async (): Promise<void> => {
         });
         console.log('  ✓ Added book_readings, the comments with their reading');
       }
+    },
+    {
+      name: '021_score_pieces',
+      up: async () => {
+        // The pieces a score holds, as MusicBrainz works, and the works each recording of the music plays.
+        const statements = [
+          `CREATE TABLE IF NOT EXISTS mb_works (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            parent_ids TEXT,
+            parts TEXT,
+            imslp TEXT,
+            fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )`,
+          `CREATE TABLE IF NOT EXISTS recording_works (
+            recording_id TEXT NOT NULL,
+            work_id TEXT NOT NULL,
+            depth INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (recording_id, work_id)
+          )`,
+          'CREATE INDEX IF NOT EXISTS idx_recording_works_work ON recording_works(work_id)',
+          `CREATE TABLE IF NOT EXISTS recordings_indexed (
+            recording_id TEXT PRIMARY KEY,
+            indexed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )`,
+          `CREATE TABLE IF NOT EXISTS score_pieces (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            book_id INTEGER NOT NULL,
+            work_id TEXT,
+            title TEXT NOT NULL,
+            position INTEGER NOT NULL DEFAULT 0,
+            preferred_album_id INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )`,
+          'CREATE INDEX IF NOT EXISTS idx_score_pieces_book ON score_pieces(book_id)',
+        ];
+        for (const sql of statements) {
+          await new Promise<void>((resolve, reject) => currentDb.run(sql, (err: Error | null) => (err ? reject(err) : resolve())));
+        }
+        console.log('  ✓ Added score_pieces and the works of the recordings');
+      }
     }
   ];
 

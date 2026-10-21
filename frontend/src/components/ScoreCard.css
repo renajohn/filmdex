@@ -1,0 +1,216 @@
+/* A score's card (ScoreCard): its head, its pieces with their recordings, and finding them. */
+.score-card__head {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.score-card__head img,
+.score-card__blank {
+  flex: none;
+  width: 96px;
+  aspect-ratio: 3 / 4;
+  border-radius: 3px;
+  object-fit: cover;
+  background: var(--dv-glass);
+}
+
+.score-card__composer {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.score-card__facts {
+  margin: 2px 0 10px;
+  color: var(--dv-text-muted);
+  font-size: 0.85rem;
+}
+
+.score-card__acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.score-card__section h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--dv-text-faint);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.score-card__add {
+  margin-left: auto;
+}
+
+/* A piece: its head over its parts. */
+.score-piece {
+  margin-bottom: 10px;
+  border: 1px solid var(--dv-edge);
+  border-radius: var(--dv-radius-md);
+}
+
+.score-piece__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--dv-radius-md) var(--dv-radius-md) 0 0;
+  background: var(--dv-glass);
+}
+
+.score-piece__title {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.score-piece__title small {
+  color: var(--dv-text-muted);
+  font-size: 0.8rem;
+}
+
+.score-piece__row {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 12px;
+  border-top: 1px solid var(--dv-edge);
+}
+
+.score-piece__row--none .score-piece__name {
+  color: var(--dv-text-muted);
+}
+
+.score-piece__n {
+  color: var(--dv-text-faint);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.score-piece__name {
+  min-width: 0;
+  font-size: 0.9rem;
+}
+
+.score-piece__name small {
+  display: block;
+  color: var(--dv-text-faint);
+  font-size: 0.75rem;
+}
+
+.score-piece__recs {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.score-piece__time {
+  color: var(--dv-text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.score-piece__none {
+  color: var(--dv-text-faint);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+/* Finding its pieces. */
+.score-find__hint {
+  margin: 0 0 8px;
+  color: var(--dv-text-muted);
+  font-size: 0.85rem;
+}
+
+.score-find__sugg {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--dv-edge);
+  border-radius: var(--dv-radius-md);
+  cursor: pointer;
+}
+
+.score-find__sugg:hover {
+  background: var(--dv-veil);
+}
+
+.score-find__sugg .form-check {
+  margin: 0;
+}
+
+.score-find__text {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+}
+
+.score-find__text small {
+  display: block;
+  color: var(--dv-text-muted);
+  font-size: 0.78rem;
+}
+
+.score-find__why {
+  color: var(--dv-text-faint);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.score-find__keep {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+
+.score-find__notice {
+  margin-bottom: 12px;
+}
+
+.score-find__more {
+  margin-top: 14px;
+}
+
+.score-find__more h5 {
+  margin: 0 0 6px;
+  color: var(--dv-text-faint);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.score-find__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.score-find__tools > :first-child {
+  flex: 1;
+  min-width: 220px;
+}
+
+.score-find__hits {
+  margin-top: 4px;
+  padding: 4px;
+}
+
+.score-find__hits .menu-item {
+  width: 100%;
+}
