@@ -148,3 +148,12 @@
 .modal-backdrop.fade:not(.show) {
   pointer-events: none;
 }
+
+/* A form holding a dialog's body and foot (BookForm) is the column they would be: full screen on a
+   phone, the body scrolls and the foot stays in sight, rather than both pushed below the screen. */
+.dialog .modal-content > form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}

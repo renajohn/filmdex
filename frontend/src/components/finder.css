@@ -251,8 +251,12 @@
 }
 
 @media (max-width: 575px) {
+  /* Full screen on a phone: the body takes what the head and the foot leave, and scrolls; the
+     foot, two rows of buttons on an iPhone, stays in sight rather than below a height of its own. */
   .finder.dialog-body {
-    height: calc(100dvh - 140px);
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   .finder__grid {
