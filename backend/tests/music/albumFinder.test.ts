@@ -40,6 +40,8 @@ describe('le chercheur d’albums', () => {
     expect(namesArtist('black', 'The Black Eyed Peas')).toBe(false);
     expect(namesArtist('muse', 'Jimin')).toBe(false);
     expect(namesArtist('back in black', 'AC/DC')).toBe(false);
+    expect(namesArtist('jarre', 'Jean-Michel Jarre')).toBe(true);
+    expect(namesArtist('jeunet', 'Jean-Pierre Jeunet')).toBe(true);
   });
 
   it('trouve les albums, leurs éditions en un, sans les singles, et dit ce qu’on a déjà', async () => {

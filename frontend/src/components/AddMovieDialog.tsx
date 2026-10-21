@@ -9,6 +9,7 @@ import { BsX, BsPlus } from 'react-icons/bs';
 import Segmented from './shared/Segmented';
 import { TextArea, TextField } from './shared/TextField';
 import Spinner from './shared/Spinner';
+import MovieFinder, { MovieFinderHead } from './MovieFinder';
 
 interface MovieEdition {
   title: string;
@@ -69,6 +70,9 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
   const [selectedMovie, setSelectedMovie] = useState<MovieResult | null>(null);
   const [mode, setMode] = useState(initialMode);
   const [currentStep, setCurrentStep] = useState(0); // 0: Cover Scan, 1: Search, 2: Collection Info
+  // The finder is the way in; the cover scan (and its steps) as before, from its Photo.
+  const [finder, setFinder] = useState(true);
+  const [finderHead, setFinderHead] = useState<MovieFinderHead>({ title: 'Add a movie' });
   const [showPosterSelector, setShowPosterSelector] = useState(false);
   const [customPosterUrl, setCustomPosterUrl] = useState<string | null>(null);
   const [selectorPosition, setSelectorPosition] = useState<SelectorPosition>({ top: 0, left: 0 });
@@ -110,6 +114,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
   useEffect(() => {
     if (isOpen) {
       setMode(initialMode);
+      setFinder(true);
       setCurrentStep(0);
       const newFormData = {
         title: '',
@@ -536,7 +541,18 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
   }, [loading]);
 
   return (
-    <Dialog show={isOpen} onClose={handleClose} modal={loading} size="lg" icon={<BsPlus />} title="Add Movie" className="add-movie-dialog">
+    <Dialog show={isOpen} onClose={handleClose} modal={loading} size="lg" icon={finder ? undefined : <BsPlus />}
+      title={finder ? finderHead.title : 'Add Movie'} onBack={finder ? finderHead.onBack : () => setFinder(true)}
+      className="add-movie-dialog">
+      {finder ? (
+        <MovieFinder
+          mode={mode === 'wishlist' ? 'wish' : 'owned'}
+          onHead={setFinderHead}
+          onChanged={result => onSuccess?.(result)}
+          onClose={handleClose}
+          onPhoto={() => { setFinder(false); setCurrentStep(0); }}
+        />
+      ) : (<>
       {/* Loading Overlay */}
       {loading && (
         <div className="loading-overlay" ref={loadingOverlayRef}>
@@ -690,7 +706,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
               </div>
 
               <Button className="scan-fallback-btn"
-                onClick={() => setCurrentStep(1)}
+                onClick={() => setFinder(true)}
               >
                 Search by title
               </Button>
@@ -991,6 +1007,7 @@ const AddMovieDialog = ({ isOpen, onClose, initialMode = 'collection', onSuccess
             </div>
           )}
         </Dialog.Body>
+      </>)}
     </Dialog>
   );
 };

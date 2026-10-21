@@ -680,3 +680,8 @@ label {
   margin-left: 8px;
   vertical-align: middle;
 }
+
+/* A movie of a wished box set: the box set's name under its title. */
+.wl-box-set {
+  margin-top: 4px;
+}

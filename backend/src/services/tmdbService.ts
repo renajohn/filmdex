@@ -127,7 +127,90 @@ const getTmdbApiKey = (): string | undefined => {
   }
 };
 
+/* What the finder asks TMDB again and again as a search is refined: kept an hour. */
+const KEEP_MS = 60 * 60 * 1000;
+const kept = new Map<string, { at: number; value: Promise<unknown> }>();
+const tmdbGet = <T>(path: string, params: Record<string, string | number | boolean> = {}): Promise<T> => {
+  const apiKey = getTmdbApiKey();
+  if (!apiKey) return Promise.reject(new Error('TMDB_API_KEY not configured'));
+  const key = `${path}?${JSON.stringify(params)}`;
+  const known = kept.get(key);
+  if (known && Date.now() - known.at < KEEP_MS) return known.value as Promise<T>;
+  const value = axios.get(`${TMDB_BASE_URL}${path}`, { params: { ...params, api_key: apiKey }, timeout: 10000 }).then(response => response.data as T);
+  kept.set(key, { at: Date.now(), value });
+  value.catch(() => kept.delete(key));
+  return value;
+};
+
+/** For tests: forget what TMDB said. */
+export const forgetTmdbAnswers = (): void => kept.clear();
+
+export interface TMDBPersonFound {
+  id: number;
+  name: string;
+  known_for_department?: string;
+  profile_path?: string | null;
+  popularity?: number;
+  known_for?: Array<{ id: number; media_type?: string; title?: string; name?: string; poster_path?: string | null; release_date?: string }>;
+}
+
+export interface TMDBCreditedMovie {
+  id: number;
+  title: string;
+  original_title?: string;
+  release_date?: string;
+  poster_path?: string | null;
+  popularity?: number;
+  job?: string;
+  character?: string;
+}
+
+export interface TMDBCollectionFound {
+  id: number;
+  name: string;
+  poster_path?: string | null;
+}
+
+export interface TMDBCollectionDetails {
+  id: number;
+  name: string;
+  poster_path?: string | null;
+  parts: Array<{ id: number; title: string; original_title?: string; release_date?: string; poster_path?: string | null; popularity?: number }>;
+}
+
 const tmdbService = {
+  /** The people a search names, best known first. */
+  searchPeople: async (query: string): Promise<TMDBPersonFound[]> =>
+    (await tmdbGet<{ results?: TMDBPersonFound[] }>('/search/person', { query, include_adult: false })).results || [],
+
+  /** The movies a person directed and played in. */
+  getPersonMovieCredits: (personId: number): Promise<{ cast: TMDBCreditedMovie[]; crew: TMDBCreditedMovie[] }> =>
+    tmdbGet<{ cast?: TMDBCreditedMovie[]; crew?: TMDBCreditedMovie[] }>(`/person/${personId}/movie_credits`)
+      .then(data => ({ cast: data.cast || [], crew: data.crew || [] })),
+
+  /** A person's name and face. */
+  getPerson: (personId: number): Promise<{ id: number; name: string; profile_path?: string | null; known_for_department?: string }> =>
+    tmdbGet(`/person/${personId}`),
+
+  /** The sagas (TMDB's collections) a search names. */
+  searchCollections: async (query: string): Promise<TMDBCollectionFound[]> =>
+    (await tmdbGet<{ results?: TMDBCollectionFound[] }>('/search/collection', { query })).results || [],
+
+  /** A saga and its movies. */
+  getCollection: (collectionId: number): Promise<TMDBCollectionDetails> =>
+    tmdbGet<TMDBCollectionDetails>(`/collection/${collectionId}`).then(data => ({ ...data, parts: data.parts || [] })),
+
+  /** Who made a movie: its directors, for a search's results. */
+  getMovieDirectors: async (tmdbId: number, mediaType: string = 'movie'): Promise<string[]> => {
+    if (mediaType === 'tv') {
+      const tv = await tmdbGet<{ created_by?: Array<{ name: string }> }>(`/tv/${tmdbId}`);
+      return (tv.created_by || []).map(person => person.name);
+    }
+    const credits = await tmdbGet<TMDBCreditsResponse>(`/movie/${tmdbId}/credits`);
+    return (credits.crew || []).filter(person => person.job === 'Director').map(person => person.name);
+  },
+
+
   // Search for multiple movies by title and year
   searchMovies: async (query: string, year: number | string | null = null): Promise<FormattedSearchResult[]> => {
     try {

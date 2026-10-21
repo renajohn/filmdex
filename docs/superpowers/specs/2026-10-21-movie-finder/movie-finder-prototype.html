@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Trouver un film</title>
+<style>
+  :root {
+    --dv-gold: #fbbf24; --dv-gold-hover: #fcd34d; --dv-gold-ink: #111;
+    --dv-gold-tint: rgba(251,191,36,.12); --dv-gold-tint-edge: rgba(251,191,36,.45);
+    --dv-danger: #f87171; --dv-orange: #fb923c;
+    --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+    --dv-page: #1a1a1a;
+    --dv-glass: rgba(255,255,255,.06); --dv-glass-hover: rgba(255,255,255,.11);
+    --dv-edge: rgba(255,255,255,.12); --dv-edge-hover: rgba(255,255,255,.24);
+    --dv-veil: rgba(255,255,255,.08);
+    --dv-surface: rgba(24,24,24,.92); --dv-surface-edge: rgba(255,255,255,.1);
+    --dv-surface-shadow: 0 16px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
+    --dv-ring: 0 0 0 3px rgba(251,191,36,.3);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--dv-page); color: var(--dv-text); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  button, input { font: inherit; }
+
+  .proto { position: sticky; top: 0; z-index: 200; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+    padding: 10px 16px; background: #0e0e0e; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .proto b { color: #ddd; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid #444; border-radius: 8px; overflow: hidden; }
+  .seg button { background: #222; color: #ddd; border: 0; padding: 6px 12px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid #444; }
+  .seg button.on { background: var(--dv-gold); color: #111; }
+  .how { max-width: 1000px; margin: 14px auto 0; padding: 0 16px; color: #8a8a8a; font-size: 12.5px; }
+  .how strong { color: #ccc; }
+
+  .page { max-width: 1000px; margin: 0 auto; padding: 16px 16px 140px; }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid #333; padding-bottom: 14px; margin-bottom: 16px; }
+  h1 { margin: 0; font-size: 1.8rem; font-weight: 600; }
+  h1 small { font-size: .95rem; color: var(--dv-text-muted); font-weight: 400; margin-left: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--dv-text-muted); padding: 8px; border-bottom: 1px solid #333; }
+  td { padding: 8px; border-bottom: 1px solid #2a2a2a; vertical-align: middle; }
+  td.muted { color: var(--dv-text-muted); }
+  .poster-sm { width: 40px; height: 60px; border-radius: 3px; object-fit: cover; display: block; background: #333; }
+  tr.fresh { animation: fresh 2.4s ease-out; }
+  @keyframes fresh { 0%, 30% { background: var(--dv-gold-tint); } 100% { background: transparent; } }
+
+  .btn { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--dv-edge);
+    background: var(--dv-glass); color: var(--dv-text); cursor: pointer; white-space: nowrap; }
+  .btn:hover { background: var(--dv-glass-hover); border-color: var(--dv-edge-hover); }
+  .btn svg { width: 16px; height: 16px; }
+  .btn.primary { background: var(--dv-gold); border-color: var(--dv-gold); color: var(--dv-gold-ink); font-weight: 600; }
+  .btn.primary:hover { background: var(--dv-gold-hover); }
+  .btn.primary:disabled { opacity: .4; cursor: default; }
+  .btn.quiet { background: none; border-color: transparent; color: var(--dv-text-muted); }
+  .btn.quiet:hover { color: #fff; }
+  .ib { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; border: 1px solid transparent; background: none;
+    color: var(--dv-text-muted); cursor: pointer; flex: none; }
+  .ib:hover { color: #fff; background: var(--dv-veil); }
+  .ib svg { width: 16px; height: 16px; }
+  .ib.on { color: var(--dv-gold); }
+
+  .field { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--dv-edge); background: #1f1f1f; }
+  .field:focus-within { border-color: var(--dv-gold-tint-edge); box-shadow: var(--dv-ring); }
+  .field svg { width: 16px; height: 16px; color: var(--dv-text-faint); flex: none; }
+  .field input { flex: 1; min-width: 0; border: 0; background: none; color: var(--dv-text); font-size: 15px; outline: none; }
+  .field .hint { color: var(--dv-text-faint); font-size: 12px; white-space: nowrap; }
+  .field.sm { height: 34px; } .field.sm input { font-size: 14px; }
+
+  /* Segmented */
+  .segm { display: inline-flex; padding: 2px; gap: 2px; border-radius: 9px; border: 1px solid var(--dv-edge); background: var(--dv-glass); }
+  .segm button { border: 0; background: none; color: var(--dv-text-muted); padding: 5px 12px; border-radius: 7px; cursor: pointer; font-size: 13px; }
+  .segm button.on { background: var(--dv-gold-tint); color: var(--dv-gold); }
+  .segm.big button { padding: 8px 16px; font-size: 14px; }
+
+  .scrim { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.6); display: none; align-items: flex-start; justify-content: center; padding: 6vh 16px 16px; }
+  .scrim.open { display: flex; }
+  .dialog { width: 780px; max-width: 100%; height: 82vh; display: flex; flex-direction: column; border-radius: 14px; background: #262626; border: 1px solid #3a3a3a;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6); overflow: hidden; }
+  .dlg-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px; border-bottom: 1px solid #333; }
+  .dlg-head h3 { margin: 0; font-size: 1.1rem; font-weight: 600; flex: 1; min-width: 0; }
+  .dlg-top { padding: 12px 16px 6px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .dlg-top .field { flex: 1; min-width: 240px; }
+  .dlg-body { padding: 4px 16px 12px; overflow: auto; flex: 1; }
+  .dlg-foot { display: flex; align-items: center; gap: 8px; justify-content: flex-end; padding: 12px 16px; border-top: 1px solid #333; flex-wrap: wrap; }
+  .dlg-foot .note { flex: 1; color: var(--dv-text-faint); font-size: 12.5px; min-width: 160px; }
+  .label { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--dv-text-faint); margin: 10px 2px 6px; }
+  .empty, .loading { color: var(--dv-text-faint); padding: 22px 8px; text-align: center; }
+  .loading::before { content: ''; display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -1px; border: 2px solid #555;
+    border-top-color: var(--dv-text-muted); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(1turn); } }
+
+  .res { display: flex; align-items: center; gap: 12px; padding: 6px 8px; border-radius: 9px; cursor: pointer; }
+  .res.active { background: var(--dv-veil); }
+  .res img { width: 44px; height: 66px; border-radius: 4px; object-fit: cover; background: #333; flex: none; }
+  .res .txt { flex: 1; min-width: 0; }
+  .res .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .res .s { color: var(--dv-text-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .res .key { color: var(--dv-text-faint); font-size: 11px; border: 1px solid var(--dv-edge); border-radius: 5px; padding: 1px 5px; visibility: hidden; }
+  .res.active .key { visibility: visible; }
+  .res .go { color: var(--dv-text-faint); }
+  .tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 6px; border-radius: 4px; background: rgba(0,0,0,.72);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); color: #bbb; font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; white-space: nowrap; }
+  .tag.on { background: var(--dv-gold); color: var(--dv-gold-ink); box-shadow: none; }
+  .tag.gold { color: var(--dv-gold); }
+
+  .people { display: flex; flex-wrap: wrap; gap: 8px; }
+  .person { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 4px; border-radius: 18px; cursor: pointer;
+    border: 1px solid var(--dv-edge); background: var(--dv-glass); color: var(--dv-text); font-size: 13px; }
+  .person:hover { border-color: var(--dv-edge-hover); background: var(--dv-glass-hover); }
+  .person .face { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: #333; }
+  .person .faces { display: inline-flex; }
+  .person .faces img { width: 20px; height: 30px; border-radius: 3px; object-fit: cover; box-shadow: 0 0 0 2px #2b2b2b; }
+  .person .faces img + img { margin-left: -8px; }
+  .person b { font-weight: 600; } .person small { color: var(--dv-text-faint); }
+
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 14px; cursor: pointer; border: 1px solid var(--dv-edge);
+    background: var(--dv-glass); color: var(--dv-text); font-size: 12.5px; }
+  .chip small { color: var(--dv-text-faint); }
+  .chip.on { border-color: var(--dv-gold-tint-edge); background: var(--dv-gold-tint); color: var(--dv-gold); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 14px; }
+  .card { cursor: pointer; }
+  .cover { position: relative; aspect-ratio: 2/3; border-radius: 6px; overflow: hidden; background: #333; }
+  .cover img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .2s; }
+  .card:hover .cover img { transform: scale(1.03); }
+  .cover .tl { position: absolute; top: 6px; left: 6px; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+  .cbtn { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; border: 0; cursor: pointer;
+    background: rgba(0,0,0,.6); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); opacity: 0; transition: opacity .15s; }
+  .cbtn svg { width: 15px; height: 15px; stroke-width: 2.5; }
+  .card:hover .cbtn, .cbtn.on { opacity: 1; }
+  .cbtn.on { background: var(--dv-gold); color: var(--dv-gold-ink); box-shadow: none; }
+  .card .t { margin-top: 6px; font-weight: 600; font-size: 13px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card .s { color: var(--dv-text-muted); font-size: 12px; }
+
+  /* L'édition */
+  .movie-head { display: flex; gap: 16px; align-items: flex-start; margin: 4px 0 16px; }
+  .movie-head img { width: 92px; aspect-ratio: 2/3; border-radius: 6px; object-fit: cover; background: #333; }
+  .movie-head .t { font-weight: 600; font-size: 1.15rem; }
+  .movie-head .s { color: var(--dv-text-muted); font-size: 13px; margin-top: 2px; }
+  .movie-head .already { margin-top: 10px; font-size: 13px; color: var(--dv-text-muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+  .form .row { display: flex; flex-direction: column; gap: 6px; }
+  .form .row.wide { grid-column: 1 / -1; }
+  .form label { font-size: 12.5px; color: var(--dv-text-muted); }
+  .form .help { font-size: 12px; color: var(--dv-text-faint); }
+  .warn { color: var(--dv-orange); font-size: 12.5px; }
+  input[type=date] { color-scheme: dark; }
+
+  .card.picked .cover { box-shadow: 0 0 0 3px var(--dv-gold); }
+  .card.unpicked .cover img { opacity: .35; filter: grayscale(.6); }
+  .person.saga .faces img { width: 20px; height: 30px; }
+  .boxlist { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+  .boxlist .it { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .boxlist .it img { width: 28px; height: 42px; border-radius: 3px; object-fit: cover; background: #333; }
+  .boxlist .it .n { color: var(--dv-text-faint); width: 18px; text-align: right; }
+  .boxtag { display: inline-block; margin-top: 3px; }
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 300; display: none; align-items: center; gap: 12px; padding: 9px 10px 9px 14px;
+    border-radius: 10px; background: var(--dv-surface); border: 1px solid var(--dv-surface-edge); box-shadow: var(--dv-surface-shadow); font-size: 13px; }
+  #toast .ok { color: var(--dv-gold); }
+  #toast button { background: none; border: 0; color: var(--dv-gold); font-weight: 600; cursor: pointer; padding: 4px 6px; }
+
+  @media (max-width: 640px) {
+    .scrim { padding: 0; align-items: stretch; } .dialog { height: 100vh; border-radius: 0; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+    .form { grid-template-columns: 1fr; } .hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="proto">
+  <span><b>Ajouter</b></span>
+  <div class="seg" id="modes">
+    <button data-m="wish" class="on">À la wish list</button>
+    <button data-m="owned">À la collection</button>
+  </div>
+  <span style="color:#777">Puis sur la wish list : le <b>$</b> d'un film = l'acheter.</span>
+</div>
+<p class="how" id="how"></p>
+
+<div class="page">
+  <div class="head">
+    <h1 id="pageTitle">My Wish List <small id="count"></small></h1>
+    <button class="btn" id="openBtn"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18M17 3v18M3 12h18"/></svg><span>Add Movie</span></button>
+  </div>
+  <table><thead><tr><th>Poster</th><th>Title</th><th class="hide-sm">Director</th><th class="hide-sm">Year</th><th>Format</th><th></th></tr></thead><tbody id="body"></tbody></table>
+</div>
+
+<div class="scrim" id="scrim"><div class="dialog" id="dialog"></div></div>
+<div id="toast"></div>
+
+<script>
+/* ---------- Outils ---------- */
+const PROD = 'https://dexvault.lab.crog.org/api';
+// A poster of the collection lives on DexVault (/images/…, /api/images/…); one found, on TMDB.
+const IMG = (path, size = 'w185') => !path ? '' : /^\/(api\/)?images\//.test(path)
+  ? `https://dexvault.lab.crog.org${path.startsWith('/api/') ? path : '/api' + path}` : `https://image.tmdb.org/t/p/${size}${path}`;
+const I = {
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>', plus: '<path d="M12 5v14M5 12h14"/>', check: '<path d="M20 6 9 17l-5-5"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>', back: '<path d="M19 12H5M12 19l-7-7 7-7"/>', next: '<path d="m9 18 6-6-6-6"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/>',
+  filter: '<path d="M3 6h18M7 12h10M10 18h4"/>', dollar: '<line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  film: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18M17 3v18M3 12h18"/>',
+};
+const svg = k => `<svg viewBox="0 0 24 24">${I[k]}</svg>`;
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const plain = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const yearOf = d => (d || '').slice(0, 4);
+const FORMATS = ['Blu-ray 4K', 'Blu-ray', 'DVD', 'Digital'];
+const short = f => f === 'Blu-ray 4K' ? '4K' : f;
+
+// Un nom tapé sans ses accents ni son orthographe exacte (comme pour les artistes).
+function near(a, b) { if (Math.abs(a.length - b.length) > 1) return false; let i = 0, j = 0, e = 0;
+  while (i < a.length && j < b.length) { if (a[i] === b[j]) { i++; j++; continue; } if (++e > 1) return false;
+    if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; } } return e + (a.length - i) + (b.length - j) <= 1; }
+const wordOk = (t, w) => t === w || (t.length >= 3 && w.startsWith(t)) || (w.length >= 3 && t.startsWith(w)) || (t.length >= 4 && w.length >= 4 && near(t, w));
+function names(query, name) { const typed = plain(query).split(' '), words = plain(name).split(' ').filter(w => w.length >= 2);
+  if (!words.length) return false;
+  // The surname alone names a person (jeunet, tautou); otherwise half the name.
+  if (words.length > 1 && typed.some(t => wordOk(t, words[words.length - 1]))) return true;
+  return words.filter(w => typed.some(t => wordOk(t, w))).length * 2 >= words.length; }
+
+const FILM_PEOPLE = /cin[ée]aste|r[ée]alisat|acteur|actrice|com[ée]dien|film director|filmmaker|actor|actress|sc[ée]nariste/i;
+const DIRECTOR = /cin[ée]aste|r[ée]alisat|director|filmmaker/i;
+const cache = new Map();
+const get = url => { if (!cache.has(url)) cache.set(url, fetch(url).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).catch(e => { cache.delete(url); throw e; })); return cache.get(url); };
+const details = id => get(`${PROD}/tmdb/movie/${id}`);
+const directorOf = d => (d?.credits?.crew || []).filter(c => c.job === 'Director').map(c => c.name);
+
+/* ---------- Ta collection, ta wish list (prod, en lecture) ---------- */
+let owned = [], wished = [];
+async function loadLists() {
+  [owned, wished] = await Promise.all([get(`${PROD}/movies/status/owned`), get(`${PROD}/movies/status/wish`)]);
+  owned = owned.map(m => ({ ...m })); wished = wished.map(m => ({ ...m }));
+  renderList();
+}
+const editionsOf = tmdbId => owned.filter(m => m.tmdb_id === tmdbId);
+const wishOf = tmdbId => wished.find(m => m.tmdb_id === tmdbId);
+function statusTags(m) {
+  const eds = editionsOf(m.id), w = wishOf(m.id), t = [];
+  if (eds.length) t.push(`<span class="tag ${mode === 'owned' ? 'on' : 'gold'}">${[...new Set(eds.map(e => short(e.format)))].join(' · ')}</span>`);
+  if (w) t.push(`<span class="tag ${mode === 'wish' ? 'on' : 'gold'}">Wished${w.format ? ' · ' + short(w.format) : ''}</span>`);
+  return t.length ? `<span class="tags">${t.join('')}</span>` : '';
+}
+
+/* ---------- Page en fond ---------- */
+let fresh = null;
+function renderList() {
+  const list = mode === 'wish' ? wished : owned.slice().sort((a, b) => (b.acquired_date || '').localeCompare(a.acquired_date || '')).slice(0, 12);
+  document.getElementById('body').innerHTML = list.map(m => `<tr class="${fresh === m.tmdb_id ? 'fresh' : ''}">
+    <td><img class="poster-sm" src="${IMG(m.poster_path, 'w92')}"></td><td><strong>${esc(m.title)}</strong>${m.box ? `<div class="boxtag"><span class="tag gold">Box set · ${esc(m.box)}</span></div>` : ''}</td>
+    <td class="muted hide-sm">${esc(m.director || '')}</td><td class="muted hide-sm">${yearOf(m.release_date)}</td><td class="muted">${esc(m.format || '')}</td>
+    <td>${mode === 'wish' ? `<button class="ib" data-buy="${m.tmdb_id}" title="I bought it">${svg('dollar')}</button>` : ''}</td></tr>`).join('');
+  document.getElementById('count').textContent = mode === 'wish' ? `(${wished.length} movies)` : `(${owned.length} movies, the last added first)`;
+  document.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => F.buy(wished.find(m => m.tmdb_id == b.dataset.buy)));
+  fresh = null;
+}
+let toastTimer;
+function toast(html, undo) { const t = document.getElementById('toast'); t.innerHTML = `<span>${html}</span>` + (undo ? '<button>Undo</button>' : '');
+  t.style.display = 'flex'; if (undo) t.querySelector('button').onclick = () => { undo(); t.style.display = 'none'; };
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.style.display = 'none', 6000); }
+
+/* ---------- Le chercheur ---------- */
+let mode = 'wish';
+let wishFormat = 'Blu-ray 4K';
+const F = {
+  view: 'search', q: '', results: [], people: [], active: 0, loading: false,
+  person: null, filmo: null, filmoRole: 'dir', filmoFilter: '', movie: null, buying: null, form: {},
+  sagas: [], saga: null, sagaFilms: null, picked: new Set(), box: {}, boxBuying: null,
+
+  open() {
+    document.getElementById('dialog').innerHTML = `<div class="dlg-head"><span id="fBack"></span><h3 id="fTitle"></h3><button class="ib" data-close>${svg('x')}</button></div>
+      <div class="dlg-top" id="fTop"></div><div class="dlg-body" id="fBody"></div><div class="dlg-foot" id="fFoot"></div>`;
+    document.getElementById('scrim').classList.add('open');
+    document.querySelector('[data-close]').onclick = close;
+    this.buying = null; this.boxBuying = null; this.view = 'search'; this.render(true);
+  },
+  async buy(w) {
+    this.open(); this.buying = w;
+    if (w.box) {
+      // A movie of a wished box set: the box set is what was bought.
+      const members = wished.filter(x => x.box === w.box);
+      this.boxBuying = members; this.saga = { name: w.box };
+      this.sagaFilms = members.map(x => ({ id: x.tmdb_id, year: yearOf(x.release_date), d: { title: x.title, poster_path: x.poster_path, release_date: x.release_date } }));
+      this.picked = new Set(members.map(x => x.tmdb_id));
+      this.box = { name: w.box, format: w.format || 'Blu-ray 4K', price: '', date: new Date().toISOString().slice(0, 10) };
+      this.view = 'box'; this.render(true); return;
+    }
+    const d = await details(w.tmdb_id).catch(() => null);
+    this.chooseMovie({ id: w.tmdb_id, title: w.title, release_date: w.release_date, poster_path: w.poster_path, _d: d });
+  },
+  m() { return this.buying ? 'owned' : mode; },
+
+  run: debounce(async function (q) {
+    const self = F;
+    if (q.trim().length < 2) { self.results = []; self.people = []; self.sagas = []; self.loading = false; self.render(); return; }
+    try {
+      // Le prototype cherche les personnes dans Wikidata ; DexVault les cherchera dans TMDB (search/person).
+      const WD = 'https://www.wikidata.org/w/api.php?format=json&origin=*';
+      const peopleFound = fetch(`${WD}&action=query&list=search&srlimit=8&srsearch=${encodeURIComponent(q + ' haswbstatement:P31=Q5')}`).then(r => r.json())
+        .then(j => (j.query?.search || []).map(x => x.title))
+        .then(ids => ids.length ? fetch(`${WD}&action=wbgetentities&props=labels%7Cdescriptions&languages=fr%7Cen&ids=${ids.join('%7C')}`).then(r => r.json()).then(j => ids.map(id => j.entities[id])) : [])
+        .then(es => es.map(e => ({ qid: e.id, name: (e.labels.fr || e.labels.en || {}).value || '', note: (e.descriptions.fr || e.descriptions.en || {}).value || '' }))
+          .filter(x => FILM_PEOPLE.test(x.note) && names(q, x.name))
+          .map(x => ({ ...x, role: DIRECTOR.test(x.note) ? 'dir' : 'cast', posters: [] }))).catch(() => []);
+      // Les sagas : Wikidata dans le prototype, les collections de TMDB (search/collection) dans DexVault.
+      const sagasFound = fetch(`${WD}&action=query&list=search&srlimit=4&srsearch=${encodeURIComponent(q + ' haswbstatement:P31=Q24856')}`).then(r => r.json())
+        .then(j => (j.query?.search || []).map(x => x.title))
+        .then(ids => ids.length ? fetch(`${WD}&action=wbgetentities&props=labels&languages=fr%7Cen&ids=${ids.join('%7C')}`).then(r => r.json()).then(j => ids.map(id => j.entities[id])) : [])
+        .then(es => es.map(e => ({ qid: e.id, name: (e.labels.fr || e.labels.en || {}).value || '' }))
+          .filter(x => plain(q).split(' ').some(t => t.length >= 3 && plain(x.name).split(' ').some(w => wordOk(t, w))))).catch(() => []);
+      const all = await get(`${PROD}/movies/search/all?query=${encodeURIComponent(q)}`);
+      if (self.q !== q) return;
+      self.results = all.slice(0, 20); self.active = 0; self.loading = false; self.render();
+      // Le réalisateur des premiers résultats, et les personnes que les mots nomment.
+      const top = self.results.filter(r => r.media_type === 'movie').slice(0, 8);
+      const ds = await Promise.all(top.map(r => details(r.id).catch(() => null)));
+      if (self.q !== q) return;
+      top.forEach((r, i) => { r._d = ds[i]; r._dir = directorOf(ds[i]).join(', '); });
+      const people = new Map();
+      top.forEach((r, i) => {
+        const d = ds[i]; if (!d) return;
+        const credits = [...directorOf(d).map(n => ({ name: n, role: 'dir' })), ...(d.credits?.cast || []).slice(0, 4).map(c => ({ name: c.name, role: 'cast', face: c.profile_path }))];
+        for (const c of credits) { if (!names(q, c.name)) continue;
+          const p = people.get(c.name) || { name: c.name, role: c.role, face: c.face, posters: [] };
+          if (c.role === 'dir') p.role = 'dir'; if (c.face) p.face = c.face;
+          if (r.poster_path && p.posters.length < 3) p.posters.push(r.poster_path); people.set(c.name, p); }
+      });
+      for (const p of await peopleFound) { const had = people.get(p.name); people.set(p.name, had ? { ...had, qid: p.qid, note: p.note, role: p.role === 'dir' ? 'dir' : had.role } : p); }
+      if (self.q !== q) return;
+      self.people = [...people.values()].sort((a, b) => b.posters.length - a.posters.length).slice(0, 4);
+      self.sagas = (await sagasFound).slice(0, 2);
+      if (self.q !== q) return;
+      self.renderResults();
+    } catch (e) { self.loading = false; self.error = 'The search does not answer: ' + e.message; self.render(); }
+  }, 300),
+
+  async openSaga(saga) {
+    this.view = 'saga'; this.saga = saga; this.sagaFilms = null; this.picked = new Set(); this.render(true);
+    const sparql = `SELECT ?tmdb ?date WHERE { { ?film wdt:P179 wd:${saga.qid} } UNION { wd:${saga.qid} wdt:P527 ?film } ?film wdt:P4947 ?tmdb . OPTIONAL { ?film wdt:P577 ?date } }`;
+    try {
+      const r = await fetch('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(sparql)).then(r => r.json());
+      const by = new Map();
+      for (const b of r.results.bindings) { const id = +b.tmdb.value, y = (b.date?.value || '').slice(0, 4);
+        const f = by.get(id) || { id, year: y }; if (y && (!f.year || y < f.year)) f.year = y; by.set(id, f); }
+      const films = [...by.values()].sort((a, b) => (a.year || '9999').localeCompare(b.year || '9999'));
+      await Promise.all(films.map(async f => { f.d = await details(f.id).catch(() => null); }));
+      if (this.saga !== saga) return;
+      this.sagaFilms = films.filter(f => f.d);
+      // All of it, but for what one already has: a box set fills in what is missing.
+      const have = id => this.m() === 'wish' ? wishOf(id) || editionsOf(id).length : editionsOf(id).length;
+      this.picked = new Set(this.sagaFilms.filter(f => !have(f.id)).map(f => f.id));
+      if (!this.picked.size) this.picked = new Set(this.sagaFilms.map(f => f.id));
+      this.render();
+    } catch (e) { this.sagaFilms = []; this.render(); }
+  },
+
+  pickedFilms() { return (this.sagaFilms || []).filter(f => this.picked.has(f.id)); },
+
+  boxName() { const n = this.picked.size; return `${this.saga.name}${n > 1 ? `, ${n} movies` : ''}`; },
+
+  wishBox() {
+    const films = this.pickedFilms(), name = this.boxName();
+    const rows = films.map(f => ({ tmdb_id: f.id, title: f.d.title, release_date: f.d.release_date, poster_path: f.d.poster_path,
+      director: directorOf(f.d).join(', '), format: wishFormat, box: name }));
+    rows.forEach(r => { const w = wishOf(r.tmdb_id); if (w) wished.splice(wished.indexOf(w), 1); });
+    wished.unshift(...rows); fresh = rows[0]?.tmdb_id; renderList(); close();
+    toast(`<span class="ok">✓</span> The box set ${esc(name)} on the wish list: ${rows.length} movies, in ${esc(wishFormat)}`,
+      () => { rows.forEach(r => wished.splice(wished.indexOf(r), 1)); renderList(); });
+  },
+
+  addBox() {
+    const films = this.pickedFilms(), b = this.box, n = films.length;
+    const each = b.price ? (parseFloat(b.price) / n).toFixed(2) : null;
+    localStorage.setItem('dv.lastFormat', b.format);
+    const rows = films.map(f => ({ tmdb_id: f.id, title: f.d.title, release_date: f.d.release_date, poster_path: f.d.poster_path,
+      director: directorOf(f.d).join(', '), format: b.format, acquired_date: b.date, price: each, box: b.name }));
+    if (this.boxBuying) this.boxBuying.forEach(w => { const i = wished.indexOf(w); if (i >= 0) wished.splice(i, 1); });
+    owned.unshift(...rows); fresh = rows[0]?.tmdb_id;
+    const bought = !!this.boxBuying; this.buying = null; this.boxBuying = null;
+    close(); renderList();
+    toast(`<span class="ok">✓</span> The box set ${esc(b.name)} ${bought ? 'bought' : 'added'}: ${n} movies in ${esc(b.format)}${each ? `, ${each} CHF each` : ''}`);
+  },
+
+  async openPerson(p) {
+    this.view = 'person'; this.person = p; this.filmo = null; this.filmoFilter = ''; this.filmoRole = p.role; this.render(true);
+    // Le prototype lit la filmographie dans Wikidata ; DexVault la lira dans TMDB (person/movie_credits).
+    const label = p.name.replace(/"/g, '');
+    const who = p.qid ? `BIND(wd:${p.qid} AS ?p)` : `VALUES ?lang { "en" "fr" "de" } ?p rdfs:label ?l . FILTER(STR(?l) = "${label}")`;
+    const sparql = `SELECT DISTINCT ?tmdb ?date ?role WHERE { ${who}
+      { ?film wdt:P57 ?p . BIND("dir" AS ?role) } UNION { ?film wdt:P161 ?p . BIND("cast" AS ?role) }
+      ?film wdt:P4947 ?tmdb . OPTIONAL { ?film wdt:P577 ?date } } LIMIT 300`;
+    try {
+      const r = await fetch('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(sparql)).then(r => r.json());
+      const by = new Map();
+      for (const b of r.results.bindings) { const id = +b.tmdb.value, y = (b.date?.value || '').slice(0, 4), role = b.role.value;
+        const f = by.get(id) || { id, year: y, roles: new Set() }; if (y && (!f.year || y < f.year)) f.year = y; f.roles.add(role); by.set(id, f); }
+      if (this.person !== p) return;
+      this.filmo = [...by.values()].sort((a, b) => (a.year || '9999').localeCompare(b.year || '9999'));
+      if (!this.filmo.some(f => f.roles.has(this.filmoRole))) this.filmoRole = this.filmo.some(f => f.roles.has('dir')) ? 'dir' : 'cast';
+      this.render();
+      // Les affiches, à mesure.
+      let i = 0; const queue = this.filmo.slice(0, 60);
+      await Promise.all([0, 1, 2, 3, 4, 5].map(async () => { while (i < queue.length) { const f = queue[i++]; try { f.d = await details(f.id); } catch { f.d = null; } if (this.person === p && this.view === 'person') this.renderFilmo(); } }));
+    } catch (e) { this.filmo = []; this.render(); }
+  },
+
+  toggleWish(m) {
+    const w = wishOf(m.id);
+    if (w) { wished.splice(wished.indexOf(w), 1); renderList(); this.render(); return; }
+    const d = m._d || {};
+    const row = { tmdb_id: m.id, title: m.title, release_date: m.release_date, poster_path: m.poster_path, director: directorOf(d).join(', '), format: wishFormat };
+    wished.unshift(row); fresh = m.id; renderList(); this.render();
+    toast(`<span class="ok">✓</span> ${esc(m.title)} on the wish list, in ${esc(wishFormat)}`, () => { wished.splice(wished.indexOf(row), 1); renderList(); this.render(); });
+  },
+
+  chooseMovie(m, from = this.view) {
+    if (this.m() === 'wish') { this.toggleWish(m); return; }
+    this.cameFrom = from; this.movie = m; this.view = 'edition';
+    const eds = editionsOf(m.id);
+    const fmt = this.buying?.format || localStorage.getItem('dv.lastFormat') || 'Blu-ray 4K';
+    this.form = { format: eds.some(e => e.format === fmt) ? FORMATS.find(f => !eds.some(e => e.format === f)) || fmt : fmt,
+      title: m.title, variant: '', price: '', date: new Date().toISOString().slice(0, 10), comments: '' };
+    this.render(true);
+    if (!m._d) details(m.id).then(d => { m._d = d; if (this.movie === m) this.render(); }).catch(() => {});
+  },
+
+  back() {
+    if (this.buying) { close(); return; }
+    if (this.view === 'box') { this.view = 'saga'; this.render(true); return; }
+    if (this.view === 'saga') { this.view = 'search'; this.render(true); return; }
+    if (this.view === 'edition') this.view = this.cameFrom === 'person' ? 'person' : 'search';
+    else this.view = 'search';
+    this.render(true);
+  },
+
+  render(focus) {
+    const title = document.getElementById('fTitle'); if (!title) return;
+    const top = document.getElementById('fTop'), body = document.getElementById('fBody'), foot = document.getElementById('fFoot');
+    document.getElementById('fBack').innerHTML = this.view !== 'search' ? `<button class="ib" id="fBackBtn" title="Back">${svg('back')}</button>` : '';
+    document.getElementById('fBackBtn')?.addEventListener('click', () => this.back());
+
+    if (this.view === 'search') {
+      title.textContent = this.m() === 'wish' ? 'Add a movie to the wish list' : 'Add a movie to the collection';
+      if (focus || !document.getElementById('fq')) {
+        top.innerHTML = `<label class="field">${svg('search')}<input id="fq" placeholder="A title, a director, an actor: amélie, jeunet, audrey tautou…" autocomplete="off"><span class="hint" id="fcount"></span></label>
+          ${this.m() === 'wish' ? `<div class="segm" id="wishFmt" title="The format the movies are wished in">${FORMATS.slice(0, 3).map(f => `<button data-f="${f}" class="${f === wishFormat ? 'on' : ''}">${short(f)}</button>`).join('')}</div>` : ''}`;
+        const input = document.getElementById('fq'); input.value = this.q; input.focus();
+        input.oninput = () => { this.q = input.value; this.loading = input.value.trim().length >= 2; this.run(input.value); this.renderResults(); };
+        input.onkeydown = e => { const n = this.results.length;
+          if (e.key === 'ArrowDown') { this.active = Math.min(this.active + 1, n - 1); this.renderResults(); e.preventDefault(); }
+          if (e.key === 'ArrowUp') { this.active = Math.max(this.active - 1, 0); this.renderResults(); e.preventDefault(); }
+          if (e.key === 'Enter' && this.results[this.active]) this.chooseMovie(this.results[this.active], 'search'); };
+        document.querySelectorAll('#wishFmt button').forEach(b => b.onclick = () => { wishFormat = b.dataset.f; document.querySelectorAll('#wishFmt button').forEach(x => x.classList.toggle('on', x === b)); input.focus(); });
+      }
+      this.renderResults();
+      foot.innerHTML = this.m() === 'wish'
+        ? `<span class="note">One click wishes the movie, in the format chosen beside the field.</span><button class="btn quiet" data-done>Done</button>`
+        : `<span class="note">Choose the movie, then its edition.</span><button class="btn" title="Photograph the cover, as before">${svg('camera')}Photo</button><button class="btn quiet" data-done>Cancel</button>`;
+    }
+
+    if (this.view === 'person') {
+      const p = this.person;
+      title.textContent = p.name;
+      if (focus || !document.getElementById('pq')) {
+        top.innerHTML = `<label class="field">${svg('filter')}<input id="pq" placeholder="Filter the movies of ${esc(p.name)}: a title, a year…" autocomplete="off"><span class="hint" id="pcount"></span></label>
+          <div class="segm" id="roles"><button data-r="dir">Directed</button><button data-r="cast">Acted in</button></div>`;
+        const input = document.getElementById('pq'); input.value = this.filmoFilter; input.focus();
+        input.oninput = () => { this.filmoFilter = input.value; this.renderFilmo(); };
+        document.querySelectorAll('#roles button').forEach(b => b.onclick = () => { this.filmoRole = b.dataset.r; this.renderFilmo(); });
+      }
+      this.renderFilmo();
+      foot.innerHTML = `<span class="note">The oldest first · ${this.m() === 'wish' ? 'click a poster to wish it' : 'click the one you have'}</span><button class="btn quiet" data-done>${this.m() === 'wish' ? 'Done' : 'Cancel'}</button>`;
+    }
+
+    if (this.view === 'saga') {
+      title.textContent = this.saga.name; top.innerHTML = '';
+      const films = this.sagaFilms;
+      if (!films) body.innerHTML = '<div class="loading">Loading the saga…</div>';
+      else if (!films.length) body.innerHTML = '<div class="empty">No movie of this saga found.</div>';
+      else body.innerHTML = `<p class="label" style="margin-top:4px">${films.length} movies · click to take one out of the box set</p><div class="grid">${films.map(f => {
+          const m = { id: f.id, title: f.d.title, release_date: f.d.release_date, poster_path: f.d.poster_path }, on = this.picked.has(f.id);
+          return `<div class="card ${on ? 'picked' : 'unpicked'}" data-id="${f.id}"><div class="cover"><img src="${IMG(m.poster_path)}" loading="lazy"><div class="tl">${statusTags(m)}</div>
+            <button class="cbtn ${on ? 'on' : ''}">${svg(on ? 'check' : 'plus')}</button></div><div class="t">${esc(m.title)}</div><div class="s">${f.year || ''}</div></div>`; }).join('')}</div>`;
+      body.querySelectorAll('.card').forEach(c => c.onclick = () => { const id = +c.dataset.id; this.picked.has(id) ? this.picked.delete(id) : this.picked.add(id); this.render(); });
+      const n = this.picked.size;
+      foot.innerHTML = `<span class="note">${this.m() === 'wish' ? `The movies are wished together, in ${esc(wishFormat)}, as one box set.` : 'Then its format and its price, for the whole box.'}</span>
+        <button class="btn quiet" data-done>Cancel</button>
+        <button class="btn primary" id="boxGo" ${n ? '' : 'disabled'}>${this.m() === 'wish' ? `Wish the box set (${n})` : `I have the box set (${n})`}</button>`;
+      document.getElementById('boxGo').onclick = () => {
+        if (this.m() === 'wish') { this.wishBox(); return; }
+        this.box = { name: this.boxName(), format: localStorage.getItem('dv.lastFormat') || 'Blu-ray 4K', price: '', date: new Date().toISOString().slice(0, 10) };
+        this.view = 'box'; this.render(true);
+      };
+    }
+
+    if (this.view === 'box') {
+      const b = this.box, films = this.pickedFilms(), n = films.length;
+      title.textContent = this.boxBuying ? 'Which box set did you buy?' : 'Which box set do you have?'; top.innerHTML = '';
+      const each = b.price && n ? (parseFloat(b.price) / n).toFixed(2) : null;
+      body.innerHTML = `<div class="form" style="margin-top:6px">
+          <div class="row wide"><label>Box set</label><span class="field sm"><input id="bname" value="${esc(b.name)}"></span>
+            <div class="boxlist">${films.map((f, i) => `<div class="it"><span class="n">${i + 1}</span><img src="${IMG(f.d.poster_path, 'w92')}"><span>${esc(f.d.title)}</span><span style="color:var(--dv-text-faint)">${f.year || ''}</span></div>`).join('')}</div></div>
+          <div class="row wide"><label>Format, for every movie of the box</label><div class="segm big" id="bfmt">${FORMATS.map(x => `<button data-f="${x}" class="${x === b.format ? 'on' : ''}">${x === 'Blu-ray 4K' ? '4K UHD' : x}</button>`).join('')}</div></div>
+          <div class="row"><label>Price of the box CHF</label><span class="field sm"><input id="bprice" inputmode="decimal" value="${esc(b.price)}" placeholder="—"></span>
+            <span class="help" id="beach">${each ? `${each} CHF a movie` : 'Shared out among its movies'}</span></div>
+          <div class="row"><label>${this.boxBuying ? 'Bought' : 'Acquired'}</label><span class="field sm"><input id="bdate" type="date" value="${b.date}"></span></div>
+        </div>`;
+      body.querySelectorAll('#bfmt button').forEach(x => x.onclick = () => { b.format = x.dataset.f; this.render(); });
+      document.getElementById('bname').oninput = e => b.name = e.target.value;
+      document.getElementById('bdate').oninput = e => b.date = e.target.value;
+      document.getElementById('bprice').oninput = e => { b.price = e.target.value; const v = parseFloat(b.price); document.getElementById('beach').textContent = v && n ? `${(v / n).toFixed(2)} CHF a movie` : 'Shared out among its movies'; };
+      foot.innerHTML = `<span class="note">One box set: its movies, in their order, each a ${esc(b.format)} of the collection.</span>
+        <button class="btn quiet" data-cancel>Cancel</button><button class="btn primary" id="boxAdd">${this.boxBuying ? 'I bought the box set' : `Add the box set (${n})`}</button>`;
+      foot.querySelector('[data-cancel]').onclick = () => this.back();
+      document.getElementById('boxAdd').onclick = () => this.addBox();
+    }
+
+    if (this.view === 'edition') this.renderEdition(title, top, body, foot, focus);
+    foot.querySelectorAll('[data-done]').forEach(b => b.onclick = close);
+  },
+
+  renderResults() {
+    const body = document.getElementById('fBody'); if (!body || this.view !== 'search') return;
+    const c = document.getElementById('fcount'); if (c) c.textContent = this.loading ? '…' : this.results.length ? `${this.results.length} found` : '';
+    if (this.q.trim().length < 2) { body.innerHTML = '<div class="empty">Movies appear as you type: a title, a director, an actor.</div>'; return; }
+    if (this.error) { body.innerHTML = `<div class="empty">${esc(this.error)}</div>`; return; }
+    const people = this.people.length ? `<div class="label">People</div><div class="people">${this.people.map((p, i) =>
+      `<span class="person" data-p="${i}">${p.face ? `<img class="face" src="${IMG(p.face, 'w92')}">` : p.posters.length ? `<span class="faces">${p.posters.map(x => `<img src="${IMG(x, 'w92')}">`).join('')}</span>` : `<span class="face" style="display:grid;place-items:center;color:#888">${svg('user')}</span>`}
+        <b>${esc(p.name)}</b><small>${p.role === 'dir' ? 'director' : 'actor'} · all their movies</small>${svg('next')}</span>`).join('')}</div>` : '';
+    const list = this.results.length ? `<div class="label">Movies</div>` + this.results.map((m, i) => {
+      const w = wishOf(m.id), on = this.m() === 'wish' && w;
+      return `<div class="res ${i === this.active ? 'active' : ''}" data-i="${i}"><img src="${IMG(m.poster_path, 'w92')}" loading="lazy">
+        <div class="txt"><div class="t">${esc(m.title || m.name)}</div>
+        <div class="s">${[yearOf(m.release_date || m.first_air_date), m.media_type === 'tv' ? 'TV series' : m._dir || (m.media_type === 'movie' ? '…' : ''), m.original_title && m.original_title !== m.title ? m.original_title : ''].filter(Boolean).map(esc).join(' · ')}</div></div>
+        ${statusTags(m)}<span class="key">↵</span>
+        ${this.m() === 'wish' ? `<button class="ib ${on ? 'on' : ''}" title="${on ? 'Take it off the wish list' : 'Wish it'}">${svg(on ? 'check' : 'plus')}</button>` : `<span class="ib go">${svg('next')}</span>`}</div>`; }).join('')
+      : this.loading ? '<div class="loading">Searching…</div>' : '<div class="empty">No movie found.</div>';
+    const sagas = this.sagas.length ? `<div class="label">Sagas</div><div class="people">${this.sagas.map((x, i) =>
+      `<span class="person saga" data-s="${i}"><span class="face" style="display:grid;place-items:center;color:#888;border-radius:6px">${svg('film')}</span>
+        <b>${esc(x.name)}</b><small>saga · its movies, or its box set</small>${svg('next')}</span>`).join('')}</div>` : '';
+    body.innerHTML = sagas + people + list;
+    body.querySelectorAll('.person[data-p]').forEach(el => el.onclick = () => this.openPerson(this.people[+el.dataset.p]));
+    body.querySelectorAll('.person[data-s]').forEach(el => el.onclick = () => this.openSaga(this.sagas[+el.dataset.s]));
+    body.querySelectorAll('.res').forEach(el => { el.onmouseenter = () => { this.active = +el.dataset.i; body.querySelectorAll('.res').forEach(x => x.classList.toggle('active', x === el)); };
+      el.onclick = () => this.chooseMovie(this.results[+el.dataset.i], 'search'); });
+  },
+
+  renderFilmo() {
+    const body = document.getElementById('fBody'); if (!body || this.view !== 'person') return;
+    document.querySelectorAll('#roles button').forEach(b => { b.classList.toggle('on', b.dataset.r === this.filmoRole); b.style.display = this.filmo && !this.filmo.some(f => f.roles.has(b.dataset.r)) ? 'none' : ''; });
+    if (!this.filmo) { body.innerHTML = '<div class="loading">Loading the movies…</div>'; return; }
+    const f = plain(this.filmoFilter);
+    const all = this.filmo.filter(x => x.roles.has(this.filmoRole));
+    const shown = all.filter(x => !f || plain(x.d?.title).includes(f) || (x.year || '').startsWith(f));
+    document.getElementById('pcount').textContent = f ? `${shown.length} of ${all.length}` : `${all.length} movies`;
+    body.innerHTML = shown.length ? `<div class="grid">${shown.map(x => { const m = { id: x.id, title: x.d?.title || '…', release_date: x.d?.release_date, poster_path: x.d?.poster_path, _d: x.d };
+      const on = this.m() === 'wish' && wishOf(x.id);
+      return `<div class="card" data-id="${x.id}"><div class="cover">${m.poster_path ? `<img src="${IMG(m.poster_path)}" loading="lazy">` : ''}<div class="tl">${statusTags(m)}</div>
+        <button class="cbtn ${on ? 'on' : ''}">${svg(this.m() === 'wish' ? (on ? 'check' : 'plus') : 'next')}</button></div>
+        <div class="t">${esc(m.title)}</div><div class="s">${x.year || ''}</div></div>`; }).join('')}</div>`
+      : `<div class="empty">No movie${f ? ` with “${esc(this.filmoFilter)}”` : ''}.</div>`;
+    body.querySelectorAll('.card').forEach(c => c.onclick = () => { const x = this.filmo.find(y => y.id == c.dataset.id); if (!x.d) return;
+      this.chooseMovie({ id: x.id, title: x.d.title, release_date: x.d.release_date, poster_path: x.d.poster_path, _d: x.d }, 'person'); });
+  },
+
+  renderEdition(title, top, body, foot) {
+    const m = this.movie, d = m._d, eds = editionsOf(m.id), f = this.form;
+    title.textContent = this.buying ? 'Which edition did you buy?' : 'Which edition do you have?';
+    top.innerHTML = '';
+    const dup = eds.find(e => e.format === f.format && plain(e.title) === plain(f.title + (f.variant ? ' ' + f.variant : '')));
+    body.innerHTML = `<div class="movie-head"><img src="${IMG(m.poster_path)}"><div>
+        <div class="t">${esc(m.title)}</div><div class="s">${[yearOf(m.release_date), directorOf(d).join(', '), d?.runtime ? d.runtime + ' min' : ''].filter(Boolean).map(esc).join(' · ')}</div>
+        ${eds.length ? `<div class="already">Already in your collection: ${eds.map(e => `<span class="tag gold">${esc(short(e.format))}${plain(e.title) !== plain(m.title) ? ' · ' + esc(e.title) : ''}</span>`).join('')}</div>` : ''}
+        ${this.buying ? `<div class="already">Wished in <span class="tag">${esc(this.buying.format || 'any format')}</span></div>` : ''}
+      </div></div>
+      <div class="form">
+        <div class="row wide"><label>Format</label><div class="segm big" id="fmt">${FORMATS.map(x => `<button data-f="${x}" class="${x === f.format ? 'on' : ''}">${x === 'Blu-ray 4K' ? '4K UHD' : x}</button>`).join('')}</div></div>
+        <div class="row wide"><label>Edition <span class="help">— what tells it apart, if anything</span></label>
+          <span class="field sm"><input id="variant" placeholder="Steelbook, Director's Cut, Collector, 2-disc…" value="${esc(f.variant)}"></span>
+          <div class="chips">${["Steelbook", "Director's Cut", "Collector", "Extended", "Box set"].map(v => `<span class="chip ${f.variant === v ? 'on' : ''}" data-v="${v}">${v}</span>`).join('')}</div></div>
+        <div class="row"><label>Price CHF</label><span class="field sm"><input id="price" inputmode="decimal" value="${esc(f.price)}" placeholder="—"></span></div>
+        <div class="row"><label>${this.buying ? 'Bought' : 'Acquired'}</label><span class="field sm"><input id="date" type="date" value="${f.date}"></span></div>
+        <div class="row wide"><label>Comments</label><span class="field sm"><input id="comments" value="${esc(f.comments)}" placeholder="Where, from whom…"></span></div>
+      </div>
+      ${dup ? `<p class="warn">You already have this ${esc(short(f.format))}. Name what tells this one apart (a Steelbook…), or choose another format.</p>` : ''}`;
+    body.querySelectorAll('#fmt button').forEach(b => b.onclick = () => { f.format = b.dataset.f; this.render(); });
+    body.querySelectorAll('.chip[data-v]').forEach(c => c.onclick = () => { f.variant = f.variant === c.dataset.v ? '' : c.dataset.v; this.render(); });
+    ['variant', 'price', 'date', 'comments'].forEach(id => { const el = document.getElementById(id); el.oninput = () => { f[id] = el.value; if (id === 'variant') { const w = !!dup; this.renderEditionFoot(foot, eds); } }; });
+    this.renderEditionFoot(foot, eds);
+  },
+  renderEditionFoot(foot, eds) {
+    const f = this.form, m = this.movie;
+    const dup = eds.find(e => e.format === f.format && plain(e.title) === plain(m.title + (f.variant ? ' ' + f.variant : '')));
+    foot.innerHTML = `<span class="note">The details, ratings and cast come in the background: the movie is added at once.</span>
+      <button class="btn quiet" data-cancel>Cancel</button>
+      <button class="btn primary" id="addEd" ${dup ? 'disabled' : ''}>${this.buying ? 'I bought it' : `Add this ${esc(f.format === 'Blu-ray 4K' ? '4K UHD' : f.format)}`}</button>`;
+    foot.querySelector('[data-cancel]').onclick = () => this.back();
+    document.getElementById('addEd').onclick = () => this.addEdition();
+  },
+  addEdition() {
+    const f = this.form, m = this.movie;
+    localStorage.setItem('dv.lastFormat', f.format);
+    const row = { tmdb_id: m.id, title: m.title + (f.variant ? ` (${f.variant})` : ''), release_date: m.release_date, poster_path: m.poster_path,
+      director: directorOf(m._d).join(', '), format: f.format, acquired_date: f.date };
+    if (this.buying) { const w = wished.indexOf(this.buying); if (w >= 0) wished.splice(w, 1); }
+    owned.unshift(row); fresh = m.id;
+    const bought = !!this.buying; this.buying = null;
+    close(); renderList();
+    toast(`<span class="ok">✓</span> ${esc(row.title)} ${bought ? 'bought: now in the collection' : 'in the collection'}, ${esc(f.format)}`);
+  },
+};
+function close() { document.getElementById('scrim').classList.remove('open'); }
+document.getElementById('scrim').onmousedown = e => { if (e.target.id === 'scrim') close(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('scrim').classList.contains('open')) { if (F.view !== 'search') F.back(); else close(); } });
+document.getElementById('openBtn').onclick = () => F.open();
+
+const HOW = {
+  wish: '<strong>À la wish list.</strong> Tape un titre, un réalisateur ou un acteur : les films arrivent pendant la frappe, avec leur réalisateur, et ce que tu as déjà (4K · Blu-ray, Wished). Un clic ou ↵ souhaite le film dans le format choisi à côté du champ (4K, Blu-ray, DVD), la fenêtre restant ouverte. Une personne nommée par ce que tu tapes a sa pastille : sa filmographie en affiches, réalisée ou jouée, filtrable. Une saga aussi (essaie « bourne », « harry potter ») : ses films, à cocher, puis « Wish the box set » les souhaite ensemble, comme un coffret.',
+  owned: '<strong>À la collection.</strong> Le même chercheur, puis l\'édition : le format (le dernier utilisé d\'office), ce qui la distingue (Steelbook, Director\'s Cut…), le prix, la date. Ce que tu as déjà de ce film est rappelé, et un doublon exact est refusé avant l\'envoi. Le film est ajouté tout de suite, ses notes et son casting arrivant après. Une saga : « I have the box set », puis son nom, un format pour tous, le prix du coffret partagé entre ses films. Sur la wish list, le $ d\'un film d\'un coffret souhaité achète le coffret entier.',
+};
+function setMode(m) {
+  mode = m; close();
+  document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  document.getElementById('how').innerHTML = HOW[m] + ' <em>Données réelles : recherche et listes de dexvault.lab.crog.org (lecture seule), filmographies de Wikidata ; rien n\'est enregistré.</em>';
+  document.getElementById('pageTitle').firstChild.textContent = m === 'wish' ? 'My Wish List ' : 'FilmDex ';
+  renderList(); F.open();
+}
+document.getElementById('modes').onclick = e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.m); };
+loadLists().catch(() => {}); setMode('wish');
+</script>
+</body>
+</html>

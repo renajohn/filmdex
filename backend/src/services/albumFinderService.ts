@@ -3,6 +3,7 @@ import { getDatabase } from '../database';
 import musicbrainzService from './musicbrainzService';
 import musicService, { downloadCover, isTrustedCoverUrl } from './musicService';
 import { plain } from './trackPopularityService';
+import { namesSomeone } from '../utils/searchNames';
 import type { AlbumFormatted } from '../types';
 import logger from '../logger';
 
@@ -191,41 +192,8 @@ const withHave = async (albums: Omit<FinderAlbum, 'have'>[]): Promise<FinderAlbu
 
 /* ---------- An artist named by a search ---------- */
 
-/** One letter apart at most: a letter more, less or other ("edit" for "edith"). */
-const nearlyEqual = (a: string, b: string): boolean => {
-  if (Math.abs(a.length - b.length) > 1) return false;
-  let i = 0;
-  let j = 0;
-  let edits = 0;
-  while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) { i++; j++; continue; }
-    if (++edits > 1) return false;
-    if (a.length > b.length) i++;
-    else if (b.length > a.length) j++;
-    else { i++; j++; }
-  }
-  return edits + (a.length - i) + (b.length - j) <= 1;
-};
-
-/** A word typed is a word of the name: the same, its start (or the name's word the start of it), or one letter apart. */
-const wordMatches = (typed: string, word: string): boolean =>
-  typed === word
-  || (typed.length >= 3 && word.startsWith(typed))
-  || (word.length >= 3 && typed.startsWith(word))
-  || (typed.length >= 4 && word.length >= 4 && nearlyEqual(typed, word));
-
-/**
- * Whether a search names this artist, without its accents or its exact
- * spelling: "edit piaf" and "piaf" name Édith Piaf, at least half the words
- * of a name being typed ("black" does not name The Black Eyed Peas).
- */
-export const namesArtist = (query: string, name: string): boolean => {
-  const typed = plain(query).split(' ').filter(Boolean);
-  const words = plain(name).split(' ').filter(word => word.length >= 2 && word !== 'the');
-  if (!words.length || !typed.length) return false;
-  const found = words.filter(word => typed.some(t => wordMatches(t, word))).length;
-  return found * 2 >= words.length;
-};
+/** Whether a search names this artist (searchNames): "edit piaf" and "piaf" name Édith Piaf. */
+export const namesArtist = namesSomeone;
 
 /* ---------- The service ---------- */
 

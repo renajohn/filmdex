@@ -11,7 +11,7 @@ import Menu from './shared/Menu';
 import { Loading } from './shared/Spinner';
 import { TextField } from './shared/TextField';
 import toast from './shared/Toast';
-import './AlbumFinder.css';
+import './finder.css';
 
 export type AlbumFinderMode = 'wish' | 'cd';
 
@@ -101,7 +101,7 @@ const AlbumFinder: React.FC<AlbumFinderProps> = ({ mode, onHead, onChanged, onAd
   }, [view, artist, mode]);
 
   useEffect(() => {
-    (listRef.current?.querySelector('.album-finder__row--active') as HTMLElement | null)?.scrollIntoView?.({ block: 'nearest' });
+    (listRef.current?.querySelector('.finder__row--active') as HTMLElement | null)?.scrollIntoView?.({ block: 'nearest' });
   }, [active]);
 
   const openArtist = (chosen: FinderArtist) => {
@@ -188,7 +188,7 @@ const AlbumFinder: React.FC<AlbumFinderProps> = ({ mode, onHead, onChanged, onAd
   };
 
   const rowAction = (a: FinderAlbum) => {
-    if (mode === 'cd') return <BsChevronRight className="album-finder__go" aria-hidden="true" />;
+    if (mode === 'cd') return <BsChevronRight className="finder__go" aria-hidden="true" />;
     const had = haveOf(a);
     if (had?.status === 'owned') return null;
     const on = had?.status === 'wish';
@@ -204,7 +204,7 @@ const AlbumFinder: React.FC<AlbumFinderProps> = ({ mode, onHead, onChanged, onAd
 
   const searchView = (
     <>
-      <div className="album-finder__top">
+      <div className="finder__top">
         <TextField
           ref={searchRef}
           icon={<BsSearch />}
@@ -221,25 +221,25 @@ const AlbumFinder: React.FC<AlbumFinderProps> = ({ mode, onHead, onChanged, onAd
           }}
         />
       </div>
-      <div className="album-finder__results" ref={listRef}>
+      <div className="finder__results" ref={listRef}>
         {query.trim().length < 2 ? (
-          <p className="album-finder__empty">Albums appear as you type.</p>
+          <p className="finder__empty">Albums appear as you type.</p>
         ) : error ? (
-          <p className="album-finder__empty">{error}</p>
+          <p className="finder__empty">{error}</p>
         ) : (
           <>
             {artists.length > 0 && (
               <>
-                <div className="album-finder__label">Artists</div>
-                <div className="album-finder__artists">
+                <div className="finder__label">Artists</div>
+                <div className="finder__artists">
                   {artists.map(a => (
-                    <button key={`${a.source}:${a.id}`} type="button" className="album-finder__artist" onClick={() => openArtist(a)}
+                    <button key={`${a.source}:${a.id}`} type="button" className="finder__artist" onClick={() => openArtist(a)}
                       title={`All the albums of ${a.name}`}>
-                      <span className="album-finder__faces" aria-hidden="true">
+                      <span className="finder__faces" aria-hidden="true">
                         {a.covers.map(cover => <img key={cover} src={coverAt(cover, 60) || cover} alt="" />)}
                       </span>
-                      <span className="album-finder__artist-name">{a.name}</span>
-                      <span className="album-finder__artist-note">{[a.genre, 'all their albums'].filter(Boolean).join(' · ')}</span>
+                      <span className="finder__artist-name">{a.name}</span>
+                      <span className="finder__artist-note">{[a.genre, 'all their albums'].filter(Boolean).join(' · ')}</span>
                       <BsChevronRight aria-hidden="true" />
                     </button>
                   ))}
@@ -248,21 +248,21 @@ const AlbumFinder: React.FC<AlbumFinderProps> = ({ mode, onHead, onChanged, onAd
             )}
             {albums.length > 0 ? (
               <>
-                <div className="album-finder__label">Albums</div>
+                <div className="finder__label">Albums</div>
                 <div role="listbox" aria-label="Albums">
                   {albums.map((a, i) => (
                     <div key={keyOf(a)} role="option" aria-selected={i === active}
-                      className={`album-finder__row${i === active ? ' album-finder__row--active' : ''}`}
+                      className={`finder__row${i === active ? ' finder__row--active' : ''}`}
                       onMouseEnter={() => setActive(i)} onClick={() => choose(a, 'search')}>
-                      <img className="album-finder__thumb" src={coverAt(a.cover, 120) || '/placeholder-album.png'} alt="" loading="lazy" />
-                      <span className="album-finder__text">
-                        <span className="album-finder__title">{a.title}</span>
-                        <span className="album-finder__meta">
+                      <img className="finder__thumb" src={coverAt(a.cover, 120) || '/placeholder-album.png'} alt="" loading="lazy" />
+                      <span className="finder__text">
+                        <span className="finder__title">{a.title}</span>
+                        <span className="finder__meta">
                           {[a.artist, a.year, a.tracks ? `${a.tracks} tracks` : null, a.editions > 1 ? `${a.editions} editions` : null].filter(Boolean).join(' · ')}
                         </span>
                       </span>
                       {haveTag(a)}
-                      <kbd className="album-finder__key" aria-hidden="true">↵</kbd>
+                      <kbd className="finder__key" aria-hidden="true">↵</kbd>
                       {rowAction(a)}
                     </div>
                   ))}
@@ -271,7 +271,7 @@ const AlbumFinder: React.FC<AlbumFinderProps> = ({ mode, onHead, onChanged, onAd
             ) : searching ? (
               <Loading>Searching…</Loading>
             ) : (
-              <p className="album-finder__empty">No album found.</p>
+              <p className="finder__empty">No album found.</p>
             )}
           </>
         )}
@@ -281,7 +281,7 @@ const AlbumFinder: React.FC<AlbumFinderProps> = ({ mode, onHead, onChanged, onAd
 
   const artistView = artist && (
     <>
-      <div className="album-finder__top">
+      <div className="finder__top">
         <TextField
           icon={<BsFilter />}
           placeholder={`Filter the albums of ${artist.name}: a title, a year…`}
@@ -293,35 +293,35 @@ const AlbumFinder: React.FC<AlbumFinderProps> = ({ mode, onHead, onChanged, onAd
           onKeyDown={event => { if (event.key === 'Enter' && shownDiscography.length === 1) choose(shownDiscography[0], 'artist'); }}
         />
       </div>
-      <div className="album-finder__results">
+      <div className="finder__results">
         {!discography ? (
           <Loading>Loading the albums…</Loading>
         ) : !shownDiscography.length ? (
-          <p className="album-finder__empty">{discoFilter ? `No album of ${artist.name} with “${discoFilter}”.` : 'No album.'}</p>
+          <p className="finder__empty">{discoFilter ? `No album of ${artist.name} with “${discoFilter}”.` : 'No album.'}</p>
         ) : (
           <>
-            <p className="album-finder__hint">
+            <p className="finder__hint">
               The oldest first · {mode === 'wish' ? 'click a cover to wish it' : 'click the one you have'}
             </p>
-            <div className="album-finder__grid">
+            <div className="finder__grid">
               {shownDiscography.map(a => {
                 const had = haveOf(a);
                 const on = mode === 'wish' && had?.status === 'wish';
                 return (
-                  <div key={keyOf(a)} className="album-finder__card cover-host" onClick={() => choose(a, 'artist')}>
-                    <div className="album-finder__cover">
+                  <div key={keyOf(a)} className="finder__card cover-host" onClick={() => choose(a, 'artist')}>
+                    <div className="finder__cover">
                       <img src={coverAt(a.cover, 300) || '/placeholder-album.png'} alt="" loading="lazy" />
-                      <span className="album-finder__card-tag">{haveTag(a)}</span>
+                      <span className="finder__card-tag">{haveTag(a)}</span>
                       {(mode === 'cd' || had?.status !== 'owned') && (
-                        <CoverButton className="album-finder__card-button" size="small" reveal={on ? 'always' : 'hover'} active={on}
+                        <CoverButton className="finder__card-button" size="small" reveal={on ? 'always' : 'hover'} active={on}
                           label={mode === 'cd' ? 'Choose its CD' : on ? 'Take it off the wish list' : 'Add to the wish list'}
                           onClick={event => { event.stopPropagation(); choose(a, 'artist'); }}>
                           {mode === 'cd' ? <BsChevronRight /> : on ? <BsCheckLg /> : <BsPlusLg />}
                         </CoverButton>
                       )}
                     </div>
-                    <div className="album-finder__card-title">{a.title}</div>
-                    <div className="album-finder__card-meta">{[a.year, a.editions > 1 ? `${a.editions} editions` : null].filter(Boolean).join(' · ')}</div>
+                    <div className="finder__card-title">{a.title}</div>
+                    <div className="finder__card-meta">{[a.year, a.editions > 1 ? `${a.editions} editions` : null].filter(Boolean).join(' · ')}</div>
                   </div>
                 );
               })}
@@ -333,12 +333,12 @@ const AlbumFinder: React.FC<AlbumFinderProps> = ({ mode, onHead, onChanged, onAd
   );
 
   const editionView = album && (
-    <div className="album-finder__results">
-      <div className="album-finder__album">
+    <div className="finder__results">
+      <div className="finder__album">
         <img src={coverAt(album.cover, 200) || '/placeholder-album.png'} alt="" />
         <div>
-          <div className="album-finder__title">{album.title}</div>
-          <div className="album-finder__meta">{[album.artist, album.year].filter(Boolean).join(' · ')}</div>
+          <div className="finder__title">{album.title}</div>
+          <div className="finder__meta">{[album.artist, album.year].filter(Boolean).join(' · ')}</div>
         </div>
       </div>
       <CdEditionPicker artist={album.artist} title={album.title} cover={album.cover} selected={edition?.id ?? null} autoFocus
@@ -350,13 +350,13 @@ const AlbumFinder: React.FC<AlbumFinderProps> = ({ mode, onHead, onChanged, onAd
 
   const footer = view === 'edition' ? (
     <>
-      <span className="album-finder__note">{edition ? '' : 'Not sure which? It can be told later.'}</span>
+      <span className="finder__note">{edition ? '' : 'Not sure which? It can be told later.'}</span>
       {!edition && <Button variant="quiet" onClick={() => addCd(false)} disabled={saving}>Add without the edition</Button>}
       <Button variant="primary" onClick={() => addCd(true)} disabled={!edition} loading={saving && Boolean(edition)}>Add this CD</Button>
     </>
   ) : (
     <>
-      <span className="album-finder__note">
+      <span className="finder__note">
         {view === 'search' && (mode === 'wish' ? 'One click adds the album: its CD is chosen when you buy it.' : 'Choose the album, then its CD.')}
       </span>
       {mode === 'cd' && onPhoto && <Button icon={<BsCamera />} onClick={onPhoto} title="Photograph the CD, as before">Photo</Button>}
@@ -374,12 +374,12 @@ const AlbumFinder: React.FC<AlbumFinderProps> = ({ mode, onHead, onChanged, onAd
 
   return (
     <>
-      <Dialog.Body className="album-finder">
+      <Dialog.Body className="finder">
         {view === 'search' && searchView}
         {view === 'artist' && artistView}
         {view === 'edition' && editionView}
       </Dialog.Body>
-      <Dialog.Footer className="album-finder__footer">{footer}</Dialog.Footer>
+      <Dialog.Footer className="finder__footer">{footer}</Dialog.Footer>
     </>
   );
 };

@@ -14,6 +14,7 @@ import BookThumbnail from '../components/BookThumbnail';
 import BookDetailCard from '../components/BookDetailCard';
 import AddMusicDialog from '../components/AddMusicDialog';
 import BoughtCdDialog from '../components/BoughtCdDialog';
+import MovieFinder, { MovieBuying, MovieFinderHead } from '../components/MovieFinder';
 import AddBookDialog from '../components/AddBookDialog';
 import MusicForm from '../components/MusicForm';
 import CircularProgressBar from '../components/CircularProgressBar';
@@ -79,6 +80,9 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
   const [allBooks, setAllBooks] = useState<any[]>([]);
   // A wished album bought: which CD, then how it was bought.
   const [buyingAlbum, setBuyingAlbum] = useState<any>(null);
+  // A wished movie bought, or its wished box set: which edition, then it is of the collection.
+  const [buyingMovies, setBuyingMovies] = useState<MovieBuying | null>(null);
+  const [buyingHead, setBuyingHead] = useState<MovieFinderHead>({ title: 'Which edition did you buy?' });
   const [books, setBooks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -115,7 +119,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
   }, []);
 
   useImperativeHandle(ref, () => ({
-    refreshItems: () => loadWishListItems()
+    // Refreshed under an open window (adding a movie): no loading screen.
+    refreshItems: () => loadWishListItems({ quiet: true })
   }));
 
   // quiet: the list refreshed under an open window (the album finder), which a
@@ -652,6 +657,12 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
     <CoverTag variant="muted" className="wl-spoken-for-tag">Spoken for</CoverTag>
   );
 
+  const buyMovie = (movie: any) => {
+    const asBuying = (m: any) => ({ id: m.id, tmdbId: m.tmdb_id, title: m.title, posterPath: m.poster_path || null, year: getYear(m) ? String(getYear(m)) : null, format: m.format || null });
+    const box = movie.box_set_name ? allMovies.filter(m => m.box_set_name === movie.box_set_name) : [movie];
+    setBuyingMovies({ movies: box.map(asBuying), boxName: movie.box_set_name || null });
+  };
+
   const handleMarkOwnedClick = (item: any, itemType: string, e: React.MouseEvent | { stopPropagation: () => void }) => {
     e.stopPropagation();
     let defaultFormat = 'CD';
@@ -1080,6 +1091,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         <td className="wl-title">
                           <div className="movie-title-cell">
                             <strong>{movie.title}</strong>{spokenForTag(movie)}
+                            {movie.box_set_name && <div className="wl-box-set"><CoverTag variant="gold">Box set · {movie.box_set_name}</CoverTag></div>}
                             {movie.original_title && movie.original_title !== movie.title && (
                               <div className="original-title">{movie.original_title}</div>
                             )}
@@ -1140,12 +1152,11 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                               }}
                             ><BsSearch /></IconButton>
                             {spokenForButton(movie, 'movie')}
-                            <IconButton label="Mark as owned" size="sm" className="action-button mark-owned"
+                            <IconButton label={movie.box_set_name ? 'I bought the box set' : 'I bought it'} size="sm" className="action-button mark-owned"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleMarkOwnedClick(movie, 'movie', e);
+                                buyMovie(movie);
                               }}
-                              title="Mark as owned"
                             ><BsCurrencyDollar /></IconButton>
                             <IconButton label="Delete movie" tone="danger" size="sm" className="action-button delete"
                               onClick={(e) => {
@@ -1588,6 +1599,23 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
             if (onShowAlert) onShowAlert('Failed to add album: ' + (err?.message || ''), 'danger');
           }}
         />
+      )}
+
+      {buyingMovies && (
+        <Dialog show onClose={() => setBuyingMovies(null)} size="lg" zIndex={10200} title={buyingHead.title} onBack={buyingHead.onBack}>
+          <MovieFinder
+            mode="owned"
+            buying={buyingMovies}
+            onHead={setBuyingHead}
+            onClose={() => setBuyingMovies(null)}
+            onChanged={() => {
+              const ids = new Set(buyingMovies.movies.map(m => m.id));
+              setAllMovies(prev => prev.filter(m => !ids.has(m.id)));
+              setMovies(prev => prev.filter(m => !ids.has(m.id)));
+              if (onMovieMovedToCollection) onMovieMovedToCollection();
+            }}
+          />
+        </Dialog>
       )}
 
       {buyingAlbum && (
