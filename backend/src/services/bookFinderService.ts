@@ -312,20 +312,28 @@ const coversOf = (cover: string | null | undefined) => (!cover ? [] : [
 const addFound = async (input: AddBookInput, priceChf: number | null): Promise<BookFormatted> => {
   const book = input.book;
   if (!book?.title?.trim()) throw new BookFinderError('A book needs a title', 400);
-  const titleStatus = input.titleStatus === 'owned' ? 'owned' : 'wish';
+  // Borrowed: of the library for a while, whose it is in its owner.
+  const titleStatus = input.titleStatus === 'owned' || input.titleStatus === 'borrowed' ? input.titleStatus : 'wish';
   const format = FORMATS.includes(String(input.format)) ? String(input.format) : 'physical';
   const bookType = KINDS.includes(String(input.bookType)) ? String(input.bookType) : book.bookType;
 
-  // One already there: a wish bought becomes the book of the library; the same twice is refused.
+  // One already there: a wish (or a book borrowed) bought becomes the book of the library; the same twice is refused.
   const [have] = await withHave([{ googleId: book.googleId || '', title: book.title, subtitle: null, authors: book.authors || [], year: null, publisher: null,
     language: null, isbn13: book.isbn13 || null, isbn10: book.isbn10 || null, cover: null, pageCount: null, series: book.series || null,
     seriesNumber: book.seriesNumber || null, bookType: 'book', description: null, categories: [] }]);
   if (have.have) {
-    if (have.have.status === 'wish' && titleStatus === 'owned') {
+    if ((have.have.status === 'wish' || have.have.status === 'borrowed') && titleStatus === 'owned') {
       return (await buyBooks([have.have.id], { priceChf, purchasedAt: input.purchasedAt, format }))[0];
     }
+    if (have.have.status === 'wish' && titleStatus === 'borrowed') {
+      // A wish borrowed rather than bought: the same book, of the library for a while.
+      const wished = (await Book.findById(have.have.id))!;
+      await Book.update(wished.id, { ...wished, titleStatus: 'borrowed', owner: input.owner || wished.owner, priceChf: null, purchasedAt: null } as never);
+      return (await Book.findById(wished.id))!;
+    }
     if (have.have.status === titleStatus || have.have.status === 'owned') {
-      throw new BookFinderError(have.have.status === 'owned' ? 'This book is already in the library' : 'This book is already on the wish list', 409);
+      throw new BookFinderError(have.have.status === 'owned' ? 'This book is already in the library'
+        : have.have.status === 'borrowed' ? 'This book is already in the library, borrowed' : 'This book is already on the wish list', 409);
     }
   }
 

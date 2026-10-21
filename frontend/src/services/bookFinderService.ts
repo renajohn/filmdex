@@ -61,10 +61,10 @@ const bookFinderService = {
   author: (name: string, language: BookLanguage) =>
     fetch(`/api/books/finder/authors?${query({ name, language })}`).then(response => json<{ name: string; books: FinderBook[] }>(response)),
 
-  add: (book: FinderBook, titleStatus: 'owned' | 'wish', edition: BookEdition) =>
+  add: (book: FinderBook, titleStatus: 'owned' | 'wish' | 'borrowed', edition: BookEdition) =>
     post<{ id: number; title: string }>('/api/books/finder/books', { book, titleStatus, ...edition }),
 
-  addMany: (books: FinderBook[], titleStatus: 'owned' | 'wish', edition: BookEdition) =>
+  addMany: (books: FinderBook[], titleStatus: 'owned' | 'wish' | 'borrowed', edition: BookEdition) =>
     post<{ added: Array<{ id: number; title: string }>; errors: Array<{ title: string; error: string }> }>('/api/books/finder/books/batch', {
       books: books.map(book => ({ book, titleStatus, ...edition, priceChf: undefined })), priceChf: edition.priceChf,
     }),

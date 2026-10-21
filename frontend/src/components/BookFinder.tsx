@@ -101,6 +101,8 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
     priceChf: '', purchasedAt: today(),
   }));
   const [saving, setSaving] = useState(false);
+  // Mine, or borrowed (a friend's, the library's): then no price, and whose it is.
+  const [borrowed, setBorrowed] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -183,6 +185,7 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
     if (wishMode) { toggleWish(book); return; }
     setChosen([book]);
     setForm(editionFor(book));
+    setBorrowed(false);
     setCameFrom(from);
     setView('edition');
   };
@@ -234,13 +237,13 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
         onChanged(bought);
         toast(`${bought.length > 1 ? `${bought.length} books` : bought[0]?.title} in the library`, { tone: 'success' });
       } else if (chosen.length > 1) {
-        const result = await bookFinderService.addMany(chosen, 'owned', form);
+        const result = await bookFinderService.addMany(chosen, borrowed ? 'borrowed' : 'owned', borrowed ? { ...form, priceChf: undefined, purchasedAt: undefined } : form);
         onChanged(result.added);
-        toast(`${result.added.length} volumes in the library${result.errors.length ? `; ${result.errors.map(e => e.error).join(', ')}` : ''}`, { tone: result.errors.length ? 'warning' : 'success' });
+        toast(`${result.added.length} volumes in the library${borrowed ? ', borrowed' : ''}${result.errors.length ? `; ${result.errors.map(e => e.error).join(', ')}` : ''}`, { tone: result.errors.length ? 'warning' : 'success' });
       } else {
-        const added = await bookFinderService.add(chosen[0], 'owned', form);
+        const added = await bookFinderService.add(chosen[0], borrowed ? 'borrowed' : 'owned', borrowed ? { ...form, priceChf: undefined, purchasedAt: undefined } : form);
         onChanged(added);
-        toast(`${added.title} is in the library`, { tone: 'success' });
+        toast(`${added.title} is in the library${borrowed ? ', borrowed' : ''}`, { tone: 'success' });
       }
       onClose();
     } catch (e) {
@@ -483,6 +486,12 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
         </div>
       </div>
       <div className="finder__form">
+        {!buying && (
+          <div className="finder__field finder__field--wide"><span>Whose</span>
+            <Segmented label="Whose" value={borrowed ? 'borrowed' : 'mine'} onChange={value => setBorrowed(value === 'borrowed')}
+              options={[{ value: 'mine', label: 'Mine' }, { value: 'borrowed', label: 'Borrowed' }]} />
+          </div>
+        )}
         <div className="finder__field"><span>Kind</span>
           <Segmented label="Kind" value={form.bookType} onChange={bookType => setForm(prev => ({ ...prev, bookType }))} options={KINDS.slice(1) as Array<{ value: BookEdition['bookType']; label: string }>} />
         </div>
@@ -493,18 +502,22 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
           <Segmented label="Language" value={form.language} onChange={value => setForm(prev => ({ ...prev, language: value }))} options={LANGUAGES.slice(0, 3)} />
         </div>
         <label className="finder__field">
-          <span>Belongs to <small>if not you</small></span>
-          <TextField value={form.owner} onChange={set('owner')} placeholder="Violaine, the children…" />
+          <span>{borrowed ? 'Borrowed from' : <>Belongs to <small>if not you</small></>}</span>
+          <TextField value={form.owner} onChange={set('owner')} placeholder={borrowed ? 'A friend, the library…' : 'Violaine, the children…'} />
         </label>
-        <label className="finder__field">
-          <span>{many > 1 ? 'Price of them all CHF' : 'Price CHF'}</span>
-          <TextField inputMode="decimal" value={form.priceChf} onChange={set('priceChf')} placeholder="—" />
-          {many > 1 && <small>{Number.isFinite(total) ? `${(total / many).toFixed(2)} CHF a volume` : 'Shared out among them'}</small>}
-        </label>
-        <label className="finder__field">
-          <span>{buying ? 'Bought' : 'Acquired'}</span>
-          <TextField type="date" value={form.purchasedAt} onChange={set('purchasedAt')} />
-        </label>
+        {!borrowed && (
+          <>
+            <label className="finder__field">
+              <span>{many > 1 ? 'Price of them all CHF' : 'Price CHF'}</span>
+              <TextField inputMode="decimal" value={form.priceChf} onChange={set('priceChf')} placeholder="—" />
+              {many > 1 && <small>{Number.isFinite(total) ? `${(total / many).toFixed(2)} CHF a volume` : 'Shared out among them'}</small>}
+            </label>
+            <label className="finder__field">
+              <span>{buying ? 'Bought' : 'Acquired'}</span>
+              <TextField type="date" value={form.purchasedAt} onChange={set('purchasedAt')} />
+            </label>
+          </>
+        )}
       </div>
     </div>
   );
@@ -518,7 +531,7 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
           <span className="finder__note" />
           <Button variant="quiet" onClick={back}>Cancel</Button>
           <Button variant="primary" onClick={save} loading={saving}>
-            {buying ? 'I bought it' : many > 1 ? `Add the ${many} volumes` : 'Add this book'}
+            {buying ? 'I bought it' : borrowed ? (many > 1 ? `Add the ${many} volumes, borrowed` : 'Add it, borrowed') : many > 1 ? `Add the ${many} volumes` : 'Add this book'}
           </Button>
         </>
       );
@@ -530,7 +543,7 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
           <span className="finder__note" />
           <Button variant="quiet" onClick={onClose}>Cancel</Button>
           <Button variant="primary" loading={saving} disabled={!n}
-            onClick={() => { if (wishMode) wishVolumes(); else { setChosen(pickedVolumes); setForm(editionFor(pickedVolumes[0])); setCameFrom('series'); setView('edition'); } }}>
+            onClick={() => { if (wishMode) wishVolumes(); else { setChosen(pickedVolumes); setForm(editionFor(pickedVolumes[0])); setBorrowed(false); setCameFrom('series'); setView('edition'); } }}>
             {wishMode ? `Wish ${n} volume${n > 1 ? 's' : ''}` : `I have these ${n}`}
           </Button>
         </>

@@ -132,4 +132,16 @@ describe('le chercheur de livres', () => {
     await request(app).put(`/api/books/${a}`).send({ ...withoutThem, title: `${book.title}!` }).expect(200);
     expect((await request(app).get(`/api/books/${a}`).expect(200)).body).toMatchObject({ priceChf: 15, purchasedAt: '2026-10-21' });
   });
+
+  it('ajoute un livre emprunté, sans prix, à qui il est ; un souhait emprunté devient ce livre', async () => {
+    const book = { googleId: 'b', title: `Les Sisters - Tome 18 ${tag()}`, authors: ['Cazenove'], isbn13: isbn(), series: 'Les Sisters', seriesNumber: 18 };
+
+    const res = await request(app).post('/api/books/finder/books').send({ book, titleStatus: 'borrowed', owner: 'La bibliothèque', priceChf: 12 }).expect(201);
+    expect(res.body).toMatchObject({ titleStatus: 'borrowed', owner: 'La bibliothèque', priceChf: null, purchasedAt: null });
+
+    const wishedBook = { ...book, googleId: 'c', title: `Les Sisters - Tome 19 ${tag()}`, isbn13: isbn(), seriesNumber: 19 };
+    const wished = await request(app).post('/api/books/finder/books').send({ book: wishedBook, titleStatus: 'wish' }).expect(201);
+    const borrowed = await request(app).post('/api/books/finder/books').send({ book: wishedBook, titleStatus: 'borrowed', owner: 'Léa' }).expect(201);
+    expect(borrowed.body).toMatchObject({ id: wished.body.id, titleStatus: 'borrowed', owner: 'Léa' });
+  });
 });

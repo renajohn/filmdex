@@ -133,4 +133,18 @@ describe('BookFinder', () => {
     await waitFor(() => expect(bookFinderService.buy).toHaveBeenCalledWith([7], expect.objectContaining({ priceChf: '18', bookType: 'graphic-novel' })));
     expect(onChanged).toHaveBeenCalled();
   });
+
+  it('ajoute un livre emprunté : sans prix ni date, à qui il est', async () => {
+    open('owned');
+    type('sorceline');
+    fireEvent.click(await screen.findByText('Sorceline - Tome 09'));
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Borrowed' }));
+    expect(screen.queryByLabelText(/price chf/i)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/borrowed from/i), { target: { value: 'Léa' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add it, borrowed' }));
+
+    await waitFor(() => expect(bookFinderService.add).toHaveBeenCalledWith(expect.objectContaining({ googleId: 'g9' }), 'borrowed',
+      expect.objectContaining({ owner: 'Léa', priceChf: undefined, purchasedAt: undefined })));
+  });
 });
