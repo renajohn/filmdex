@@ -481,6 +481,21 @@ const runAutoMigrations = async (): Promise<void> => {
         }
         console.log('  ✓ Added score_pieces.parts_left_out');
       }
+    },
+    {
+      name: '024_book_back_cover',
+      up: async () => {
+        // A photograph of a book's back, its blurb, as an album has its back cover.
+        const columns = await new Promise<Array<{ name: string }>>((resolve, reject) => {
+          currentDb.all('PRAGMA table_info(books)', (err: Error | null, rows: Array<{ name: string }>) => (err ? reject(err) : resolve(rows || [])));
+        });
+        if (!columns.some(c => c.name === 'back_cover')) {
+          await new Promise<void>((resolve, reject) => {
+            currentDb.run('ALTER TABLE books ADD COLUMN back_cover TEXT', (err: Error | null) => (err ? reject(err) : resolve()));
+          });
+        }
+        console.log('  ✓ Added books.back_cover');
+      }
     }
   ];
 

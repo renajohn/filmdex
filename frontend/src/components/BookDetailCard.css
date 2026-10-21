@@ -1940,3 +1940,28 @@
 .book-read-again__date {
   width: 160px;
 }
+
+/* The photograph of its back, its blurb: a small one under the cover, large on a click. */
+.book-back-cover {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dv-text-muted);
+  font-size: 0.78rem;
+  cursor: zoom-in;
+}
+
+.book-back-cover img {
+  width: 34px;
+  height: 46px;
+  border-radius: 2px;
+  object-fit: cover;
+}
+
+.book-back-cover:hover {
+  color: var(--dv-text);
+}

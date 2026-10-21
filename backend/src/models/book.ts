@@ -1006,6 +1006,12 @@ const Book = {
     });
   },
 
+  /** The photograph of its back, alone. */
+  updateBackCover: (id: number, path: string): Promise<void> => new Promise((resolve, reject) => {
+    getDatabase().run('UPDATE books SET back_cover = ?, updated_at = ? WHERE id = ?', [path, new Date().toISOString(), id],
+      (err: Error | null) => (err ? reject(err) : resolve()));
+  }),
+
   updateCover: (id: number, coverPath: string): Promise<BookCoverResult> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
@@ -1149,6 +1155,7 @@ const Book = {
       purchasedAt: row.purchased_at ?? null,
       composer: row.composer ?? null,
       difficulty: row.difficulty ?? null,
+      backCover: row.back_cover ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };

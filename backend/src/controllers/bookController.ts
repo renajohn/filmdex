@@ -444,11 +444,14 @@ const bookController = {
       // Construct the cover path using API endpoint
       const coverPath = `/api/images/book/custom/${file.filename}`;
 
-      // Update only the cover field
-      await Book.updateCover(id, coverPath);
+      // Update only the cover field, or the back's
+      if (req.path.endsWith('/upload-back-cover')) await Book.updateBackCover(id, coverPath);
+      else await Book.updateCover(id, coverPath);
 
       res.json({
         success: true,
+        // The card reads cover: without it a new cover showed as none until the page was reloaded.
+        cover: coverPath,
         coverPath: coverPath,
         filename: file.filename,
         width,

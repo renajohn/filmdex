@@ -1500,6 +1500,13 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                   <BsCamera size={14} />
                 </CoverButton>
               </div>
+              {(currentBook as any).backCover && (
+                <button type="button" className="book-back-cover" title="Its back"
+                  onClick={() => handleCoverClick(bookService.getImageUrl((currentBook as any).backCover), 'Back Cover')}>
+                  <img src={bookService.getImageUrl((currentBook as any).backCover) || undefined} alt={`${currentBook.title} back`} />
+                  <span>Back</span>
+                </button>
+              )}
               {!getCoverImage() && (
                 <div 
                   className="book-cover-placeholder cover-host"
@@ -1826,6 +1833,10 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                   book={currentBook}
                   isOpen={showCoverSelector}
                   onCoverSelected={handleCoverSelected}
+                  onBackSelected={backCover => {
+                    setLocalBookData((prev: any) => ({ ...prev, backCover }));
+                    onBookUpdated?.({ ...currentBook, backCover } as any);
+                  }}
                   currentCover={currentBook.cover}
                   onClose={() => setShowCoverSelector(false)}
                 />

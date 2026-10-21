@@ -380,6 +380,16 @@ class BookService {
     }
   }
 
+  /** The photograph of a book's back, its blurb. */
+  async uploadBackCover(bookId: number | string, file: File): Promise<unknown> {
+    const baseUrl = await this.getBaseUrl();
+    const formData = new FormData();
+    formData.append('cover', file);
+    const response = await fetch(`${baseUrl}/books/${bookId}/upload-back-cover`, { method: 'POST', body: formData });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  }
+
   async uploadCover(bookId: number | string, file: File): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();

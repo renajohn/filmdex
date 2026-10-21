@@ -447,6 +447,7 @@ export interface BookRow {
   title_status: string | null;
   composer?: string | null;
   difficulty?: number | null;
+  back_cover?: string | null;
   price_chf?: number | null;
   purchased_at?: string | null;
   spoken_for?: number;
@@ -489,6 +490,8 @@ export interface BookFormatted {
   composer: string | null;
   /** A score's level, Henle's 1 to 9. */
   difficulty: number | null;
+  /** The photograph of its back, its blurb. */
+  backCover: string | null;
   /** What it cost, CHF, and when it was bought. */
   priceChf: number | null;
   purchasedAt: string | null;

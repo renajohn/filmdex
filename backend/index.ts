@@ -417,6 +417,7 @@ app.put('/api/books/:id/status', bookController.updateBookStatus);
 app.put('/api/books/:id/spoken-for', spokenForController.updateBook);
 app.delete('/api/books/:id', bookController.deleteBook);
 app.post('/api/books/:id/upload-cover', bookController.coverUploadMiddleware, bookController.uploadCustomCover);
+app.post('/api/books/:id/upload-back-cover', bookController.coverUploadMiddleware, bookController.uploadCustomCover);
 app.post('/api/books/:id/upload-ebook', bookController.ebookUploadMiddleware, bookController.uploadEbook);
 app.get('/api/books/:id/ebook/info', bookController.getEbookInfo);
 app.get('/api/books/:id/ebook/download', bookController.downloadEbook);
