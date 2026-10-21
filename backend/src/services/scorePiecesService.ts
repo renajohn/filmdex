@@ -645,11 +645,15 @@ const describe = async (hit: { id: string; title: string; composers?: string[] }
  */
 const suggest = async (bookId: number): Promise<PieceSuggestion[]> => {
   const book = await scoreOf(bookId);
+  return suggestFor({ title: book.title, composer: book.composer }, new Set((await piecesRows(bookId)).map(row => row.work_id)));
+};
+
+/** What a score of this title and composer likely holds, those taken aside. */
+const suggestFor = async (book: { title: string; composer: string | null }, taken: Set<string | null>): Promise<PieceSuggestion[]> => {
   if (!book.composer) return [];
   const surname = book.composer.split(' ').slice(-1)[0];
   // Bach, not C. P. E. Bach: a work whose composers are known is by this one.
   const theirs = (hit: MBWorkHit) => !hit.composers.length || hit.composers.some(name => plain(name) === plain(book.composer!) || plain(book.composer!).includes(plain(name)));
-  const taken = new Set((await piecesRows(bookId)).map(row => row.work_id));
   const found = new Map<string, { hit: { id: string; title: string; composers?: string[] }; why: PieceSuggestion['why'] }>();
   const offer = (hit: { id: string; title: string; composers?: string[] }, why: PieceSuggestion['why']) => {
     if (!taken.has(hit.id) && !found.has(hit.id)) found.set(hit.id, { hit, why });
@@ -775,4 +779,4 @@ const scoresOfAlbum = async (albumId: number): Promise<Array<{ id: number; title
     .map(book => ({ id: book.id, title: book.title, composer: book.composer, publisher: book.publisher || null, cover: book.cover || null }));
 };
 
-export default { indexAll, pieces, addPieces, removePiece, choose, counts, suggest, searchPieces, fromContents, scoresOfAlbum, imslpPage };
+export default { indexAll, pieces, addPieces, removePiece, choose, counts, suggest, suggestFor, searchPieces, fromContents, scoresOfAlbum, imslpPage };

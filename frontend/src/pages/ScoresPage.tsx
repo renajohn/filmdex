@@ -2,10 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BsBoxArrowUpRight, BsFileEarmarkPdf, BsPaperclip, BsThreeDots } from 'react-icons/bs';
 import bookSectionsService, { imslpUrl, Score, scorePdfUrl } from '../services/bookSectionsService';
 import bookService from '../services/bookService';
-import AddBookDialog from '../components/AddBookDialog';
 import AlphabeticalIndex from '../components/AlphabeticalIndex';
-import BookDetailCard from '../components/BookDetailCard';
-import BookForm from '../components/BookForm';
 import ScoreCard from '../components/ScoreCard';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Button, { IconButton } from '../components/shared/Button';
@@ -15,6 +12,7 @@ import Notice from '../components/shared/Notice';
 import { Loading } from '../components/shared/Spinner';
 import { TextField } from '../components/shared/TextField';
 import toast from '../components/shared/Toast';
+import { pieceOf, referenceOf } from '../utils/scoreTitle';
 import './ScoresPage.css';
 
 const OTHERS = 'Anthologies & methods';
@@ -38,14 +36,6 @@ const matcher = (text: string) => {
     return fields.composer.every(v => composer.includes(v)) && fields.publisher.every(v => publisher.includes(v)) && fields.words.every(v => all.includes(v));
   };
 };
-/** "(HN 383)", Henle's number, and the like: a publisher's reference. */
-const referenceOf = (title: string) => title.match(/\(\s*((?:HN|BA|EB|UT|ED)\s*[\d.]+)\s*\)/i)?.[1] || null;
-/** The piece, without its reference nor its instrument: "Préludes Vol. 1 - piano - (HN 383)" is "Préludes Vol. 1". */
-const pieceOf = (title: string) => title
-  .replace(/\(\s*(?:HN|BA|EB|UT|ED)\s*[\d.]+\s*\)/i, '')
-  .replace(/\s*-\s*(?:piano|violon|violin|violoncelle|cello|fl[uû]te|guitare|guitar)\s*(?=-|$)/i, '')
-  .replace(/[\s\-–]+$/, '')
-  .trim();
 /** The authors who are not the composer: its editors. */
 const editorsOf = (score: Score) => (score.authors || []).filter(a => !score.composer || !plain(score.composer).includes(plain(a.split(' ').slice(-1)[0])));
 
@@ -65,11 +55,12 @@ const ScoresPage: React.FC<{ searchCriteria?: { searchText?: string } }> = ({ se
   }, []);
   const [reviewing, setReviewing] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [details, setDetails] = useState<any>(null);
-  const [editing, setEditing] = useState<any>(null);
   const [composerOf, setComposerOf] = useState<Score | null>(null);
   // The score whose card is open: its pieces and the music playing them.
-  const [open, setOpen] = useState<Score | null>(null);
+  // By its id, the card follows the list as it reloads (a PDF attached, its title changed).
+  const [openId, setOpenId] = useState<number | null>(null);
+  const open = (scores || []).find(s => s.id === openId) || null;
+  const setOpen = (score: Score | null) => setOpenId(score?.id ?? null);
   const location = useLocation();
   const navigate = useNavigate();
   const [attaching, setAttaching] = useState<Score | null>(null);
@@ -111,8 +102,6 @@ const ScoresPage: React.FC<{ searchCriteria?: { searchText?: string } }> = ({ se
       if (fileRef.current) fileRef.current.value = '';
     }
   };
-
-  const openDetails = async (score: Score) => setDetails(await bookService.getBookById(score.id));
 
   return (
     <div className="scores-page" ref={rootRef}>
@@ -161,7 +150,6 @@ const ScoresPage: React.FC<{ searchCriteria?: { searchText?: string } }> = ({ se
                         <Menu align="end" trigger={props => <IconButton {...props} label="More" size="sm"><BsThreeDots /></IconButton>}>
                           <Menu.Item onSelect={() => setComposerOf(score)}>Change the composer</Menu.Item>
                           {score.ebookFile && <Menu.Item onSelect={() => { setAttaching(score); fileRef.current?.click(); }}>Replace the PDF</Menu.Item>}
-                          <Menu.Item onSelect={() => openDetails(score)}>Details</Menu.Item>
                         </Menu>
                       </span>
                     </div>
@@ -182,41 +170,14 @@ const ScoresPage: React.FC<{ searchCriteria?: { searchText?: string } }> = ({ se
       {reviewing && <ComposerReview scores={suggested} onClose={() => setReviewing(false)} onSaved={() => { setReviewing(false); load(); }} />}
       {composerOf && <ComposerReview scores={[composerOf]} onClose={() => setComposerOf(null)} onSaved={() => { setComposerOf(null); load(); }} />}
 
-      <AddBookDialog
-        show={adding}
-        onHide={() => setAdding(false)}
-        defaultBookKind="score"
-        onAddBook={async (bookData: any) => bookService.addBook({ ...bookData, bookType: 'score' })}
-        onBookAdded={() => load()}
-        onShowAlert={(message: string) => toast(message)}
-      />
-
-      {open && (
+      {(open || adding) && (
         <ScoreCard
-          score={open}
-          title={pieceOf(open.title)}
-          onClose={() => setOpen(null)}
-          onDetails={() => { const score = open; setOpen(null); openDetails(score); }}
-          onAttach={() => { setAttaching(open); fileRef.current?.click(); }}
+          score={adding ? null : open}
+          onClose={() => { setOpen(null); setAdding(false); }}
+          onAttach={score => { setAttaching(score); fileRef.current?.click(); }}
           onChanged={() => load()}
-        />
-      )}
-
-      {details && (
-        <BookDetailCard
-          book={details}
-          onClose={() => setDetails(null)}
-          onEdit={() => { setEditing(details); setDetails(null); }}
-          onUpdateBook={(id, data) => bookService.updateBook(id, data)}
-          onBookUpdated={() => load()}
-          onDelete={async id => { await bookService.deleteBook(id); setDetails(null); load(); }}
-        />
-      )}
-      {editing && (
-        <BookForm
-          book={editing}
-          onSave={async data => { await bookService.updateBook(editing.id, data); setEditing(null); load(); }}
-          onCancel={() => setEditing(null)}
+          onCreated={id => { setAdding(false); load().then(() => setOpenId(id)); }}
+          onDeleted={() => { setOpen(null); load(); }}
         />
       )}
     </div>

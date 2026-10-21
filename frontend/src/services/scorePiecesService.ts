@@ -44,6 +44,35 @@ export interface PieceSuggestion {
   likely?: boolean;
 }
 
+export interface ScoreEdition {
+  title: string;
+  composer: string | null;
+  publisher: string | null;
+  number: string | null;
+  code: string | null;
+  cover: string | null;
+  level: number | null;
+  url: string | null;
+}
+
+export interface ScoreLookup { edition: ScoreEdition; works: PieceSuggestion[]; from: 'henle' | 'code' | 'words' }
+
+export interface NewScore {
+  title: string;
+  composer: string | null;
+  publisher: string | null;
+  number: string | null;
+  code: string | null;
+  cover: string | null;
+  level: number | null;
+  url: string | null;
+  priceChf: string | null;
+  purchasedAt: string | null;
+  titleStatus: 'owned' | 'borrowed';
+  owner: string | null;
+  workIds: string[];
+}
+
 export interface AlbumScore { id: number; title: string; composer: string | null; publisher: string | null; cover: string | null }
 
 const json = async <T>(response: Response): Promise<T> => {
@@ -64,6 +93,9 @@ const scorePiecesService = {
   search: (query: string) => fetch(`/api/scores/works/search?q=${encodeURIComponent(query)}`).then(response => json<PieceSuggestion[]>(response)),
   contentsPhoto: (scoreId: number, image: string, mimeType: string) =>
     send<{ suggestions: PieceSuggestion[]; truncated: boolean }>('POST', `/api/scores/${scoreId}/contents-photo`, { image, mimeType }),
+  lookup: (query: string) => fetch(`/api/scores/lookup?q=${encodeURIComponent(query)}`).then(response => json<ScoreLookup>(response)),
+  create: (score: NewScore) => send<{ id: number }>('POST', '/api/scores', score),
+  henle: (scoreId: number) => fetch(`/api/scores/${scoreId}/henle`).then(response => json<{ url: string | null; level: number | null }>(response)),
   imslpPage: (scoreId: number) => fetch(`/api/scores/${scoreId}/imslp`).then(response => json<{ page: string | null }>(response)),
   ofAlbum: (albumId: number) => fetch(`/api/music/albums/${albumId}/scores`).then(response => json<AlbumScore[]>(response)),
 };

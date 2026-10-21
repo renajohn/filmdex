@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Une partition, une vue</title>
+<style>
+  :root {
+    --dv-gold: #fbbf24; --dv-gold-ink: #111;
+    --dv-gold-tint: rgba(251,191,36,.12); --dv-gold-tint-edge: rgba(251,191,36,.45);
+    --dv-danger: #f87171;
+    --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+    --dv-page: #1a1a1a;
+    --dv-glass: rgba(255,255,255,.06); --dv-glass-hover: rgba(255,255,255,.11);
+    --dv-edge: rgba(255,255,255,.12); --dv-edge-hover: rgba(255,255,255,.24);
+    --dv-veil: rgba(255,255,255,.08);
+    --dv-surface: rgba(24,24,24,.97); --dv-surface-edge: rgba(255,255,255,.1);
+    --dv-surface-shadow: 0 16px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--dv-page); color: var(--dv-text); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  button, input { font: inherit; color: inherit; }
+  .proto { position: sticky; top: 0; z-index: 200; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+    padding: 10px 16px; background: #0e0e0e; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .proto b { color: #ddd; }
+  .proto button { border: 1px solid #444; background: #1c1c1c; border-radius: 6px; padding: 3px 9px; cursor: pointer; color: #ccc; font-size: 12.5px; }
+  .proto button.on { border-color: var(--dv-gold-tint-edge); color: var(--dv-gold); }
+  .note { max-width: 700px; margin: 14px auto 0; padding: 0 16px; color: #999; font-size: 12.5px; line-height: 1.5; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 8px; border: 1px solid var(--dv-edge);
+    background: var(--dv-glass); cursor: pointer; font-size: 13px; white-space: nowrap; text-decoration: none; }
+  .btn:hover { background: var(--dv-glass-hover); border-color: var(--dv-edge-hover); }
+  .btn.primary { background: var(--dv-gold); color: var(--dv-gold-ink); border-color: var(--dv-gold); font-weight: 600; }
+  .btn.quiet { background: none; border-color: transparent; color: var(--dv-text-muted); }
+  .btn.quiet:hover { color: var(--dv-text); background: var(--dv-veil); }
+  .btn.sm { height: 26px; padding: 0 9px; font-size: 12px; }
+  .icon { width: 26px; height: 26px; border-radius: 6px; border: 0; background: none; color: var(--dv-text-muted); cursor: pointer; }
+  .icon:hover { background: var(--dv-veil); color: var(--dv-text); }
+  .tag { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; font-weight: 600;
+    border: 1px solid var(--dv-edge); border-radius: 2px; background: rgba(0,0,0,.4); color: var(--dv-text-muted); white-space: nowrap; }
+  .tag.gold { color: var(--dv-gold); border-color: var(--dv-gold-tint-edge); }
+
+  .panel { width: min(660px, calc(100% - 24px)); margin: 16px auto 60px; border-radius: 14px; background: #1d1d1d; border: 1px solid var(--dv-edge); box-shadow: var(--dv-surface-shadow); }
+  .ph { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-bottom: 1px solid var(--dv-edge); }
+  .ph h2 { margin: 0; font-size: 1.1rem; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pb { padding: 16px; }
+  .pf { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--dv-edge); }
+  .pf .grow { flex: 1; color: var(--dv-text-muted); font-size: 12.5px; }
+
+  .head { display: grid; grid-template-columns: 104px 1fr; gap: 16px; }
+  .cover { width: 104px; aspect-ratio: 3/4; border-radius: 3px; background: #2a2a2a; overflow: hidden; display: grid; place-items: center; color: var(--dv-text-faint); font-size: 11px; text-align: center; border: 1px dashed transparent; }
+  .cover.empty { border-color: var(--dv-edge-hover); cursor: pointer; }
+  .cover img { width: 100%; height: 100%; object-fit: cover; }
+  .composer { font-size: 1.05rem; font-weight: 600; }
+  .composer.muted { color: var(--dv-text-faint); font-weight: 400; }
+  .line { color: var(--dv-text-muted); font-size: 13px; margin-top: 3px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+  .line .sep { color: var(--dv-text-faint); }
+  .edit-link { border: 0; background: none; color: var(--dv-text-faint); cursor: pointer; padding: 0 2px; }
+  .edit-link:hover { color: var(--dv-text); }
+  .acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+  .edition { margin-top: 12px; padding: 12px; border-radius: 10px; background: var(--dv-glass); border: 1px solid var(--dv-edge); display: grid; grid-template-columns: 96px 1fr; gap: 8px 10px; align-items: center; }
+  .edition label { color: var(--dv-text-muted); font-size: 12px; }
+  .field { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--dv-edge-hover); background: rgba(0,0,0,.25); }
+  .field input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: 13px; }
+  .field.big { height: 40px; }
+  .field.big input { font-size: 15px; }
+  .hint { color: var(--dv-text-faint); font-size: 11.5px; }
+  .hint.ok { color: var(--dv-gold); }
+  .seg { display: inline-flex; padding: 2px; border-radius: 8px; background: var(--dv-glass); border: 1px solid var(--dv-edge); }
+  .seg button { border: 0; background: none; padding: 3px 10px; border-radius: 6px; cursor: pointer; color: var(--dv-text-muted); font-size: 12.5px; }
+  .seg button.on { background: var(--dv-veil); color: var(--dv-text); }
+
+  .section { margin-top: 18px; }
+  .section > h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--dv-text-faint); }
+  .section > h4 .act { margin-left: auto; }
+  .work { border: 1px solid var(--dv-edge); border-radius: 10px; margin-bottom: 8px; }
+  .wh { display: flex; align-items: center; gap: 8px; padding: 9px 11px; background: var(--dv-glass); border-radius: 10px 10px 0 0; }
+  .wh .wt { flex: 1; min-width: 0; }
+  .wh .wt small { display: block; color: var(--dv-text-muted); font-size: 12px; }
+  .piece { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; padding: 5px 11px; border-top: 1px solid var(--dv-edge); font-size: 13px; }
+  .piece .n { color: var(--dv-text-faint); font-size: 11.5px; text-align: right; }
+  .piece small { display: block; color: var(--dv-text-faint); font-size: 11.5px; }
+  .more { padding: 6px 11px; border-top: 1px solid var(--dv-edge); color: var(--dv-text-muted); font-size: 12px; cursor: pointer; }
+
+  .cand { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--dv-edge); margin-bottom: 6px; cursor: pointer; }
+  .cand:hover { background: var(--dv-veil); }
+  .cand.on { border-color: var(--dv-gold-tint-edge); background: var(--dv-gold-tint); }
+  .box { width: 17px; height: 17px; border-radius: 4px; border: 1px solid var(--dv-edge-hover); flex: none; display: grid; place-items: center; font-size: 11px; color: var(--dv-gold-ink); }
+  .cand.on .box { background: var(--dv-gold); border-color: var(--dv-gold); }
+  .cand .ct { flex: 1; min-width: 0; }
+  .cand .ct small { display: block; color: var(--dv-text-muted); font-size: 12px; }
+  .heard { color: var(--dv-gold); font-size: 12px; white-space: nowrap; }
+  .notice { padding: 10px 12px; border-radius: 10px; background: var(--dv-glass); border: 1px solid var(--dv-edge); border-left: 3px solid var(--dv-text-faint); font-size: 13px; margin: 10px 0; }
+  .notice.gold { border-left-color: var(--dv-gold); }
+  .menu { position: absolute; right: 14px; top: 46px; z-index: 5; min-width: 220px; border-radius: 10px; border: 1px solid var(--dv-surface-edge); background: var(--dv-surface); box-shadow: var(--dv-surface-shadow); padding: 4px; }
+  .menu div { padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .menu div:hover { background: var(--dv-veil); }
+  .menu .danger { color: var(--dv-danger); }
+  .rel { position: relative; }
+  .comment { margin-top: 8px; padding: 8px 12px; border-left: 2px solid var(--dv-gold-tint-edge); background: var(--dv-glass); font-size: 13px; border-radius: 0 6px 6px 0; }
+  .comment small { display: block; color: var(--dv-text-faint); margin-top: 3px; }
+  @media (max-width: 560px) { .head { grid-template-columns: 1fr; } .edition { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="proto">
+  <b>Prototype · une partition, une vue</b>
+  <span>Ouvrir :</span><span id="scenarios"></span>
+</div>
+<div class="note">
+  Une seule fenêtre par partition : la même sert à l'ajouter, à la consulter et à la modifier. Plus de « Details » qui ouvre une seconde fiche :
+  l'édition (éditeur, numéro, ISMN, prix, date, PDF) se modifie en place, sous l'en-tête. Données réelles : Henle répond pour 19 de tes 21 partitions Henle
+  (titre, couverture, niveau de difficulté) ; Google Books et Open Library ne trouvent aucune partition par son ISMN.
+</div>
+
+<div class="panel rel" id="panel"></div>
+
+<script>
+const PROD = p => 'https://dexvault.lab.crog.org' + p;
+const DEBUSSY = ['Danseuses de Delphes', 'Voiles', 'Le vent dans la plaine', '« Les sons et les parfums… »', 'Les collines d’Anacapri', 'Des pas sur la neige',
+  'Ce qu’a vu le vent d’ouest', 'La fille aux cheveux de lin', 'La sérénade interrompue', 'La cathédrale engloutie', 'La danse de Puck', 'Minstrels'];
+const SCORES = {
+  'Préludes (Henle, la tienne)': {
+    mode: 'view', title: 'Préludes, Premier livre', composer: 'Claude Debussy', cover: PROD('/api/images/book/book_1764506095845_0.jpg'),
+    publisher: 'G. Henle Verlag', number: 'HN 383', ismn: '979-0-2018-0383-8', level: 7, bought: 'bought (its price, its date)', pdf: false,
+    works: [{ title: 'Préludes, Livre I', meta: 'L. 117 · 12 pieces · 12 in your music', pieces: DEBUSSY.map(n => [n, '▶ Schmid-Gagnebin']) }],
+    words: [{ text: '(an example of a note) Travailler Voiles en premier.', who: 'Renault' }],
+  },
+  '+ Add · scan d’un ISMN Henle': {
+    mode: 'add', step: 'scanned', query: '979-0-2018-0465-1',
+    title: 'Consolations', composer: 'Franz Liszt', cover: '', publisher: 'G. Henle Verlag', number: 'HN 465', ismn: '979-0-2018-0465-1', level: null,
+    henle: 'Franz Liszt · Consolations (including first edition of the early version) · HN 465',
+    cands: [
+      { t: 'Consolations, S. 172', m: 'MusicBrainz · 6 pieces', heard: 6, on: true },
+      { t: 'Consolations, S. 171a (first version)', m: 'MusicBrainz · 6 pieces', heard: 0, on: true },
+    ],
+  },
+  '+ Add · par le titre': {
+    mode: 'add', step: 'typed', query: 'ballades impromptus chopin',
+    title: 'Ballades & Impromptus', composer: 'Frédéric Chopin', cover: '', publisher: '', number: '', ismn: '', level: null,
+    cands: [
+      { t: 'Ballades', m: 'IMSLP · 4 pieces · op. 23, 38, 47, 52', heard: 0, on: true },
+      { t: 'Impromptus', m: 'IMSLP · 4 pieces · op. 29, 36, 51, 66', heard: 0, on: true },
+      { t: 'Ballade no. 1 in G minor, op. 23', m: 'MusicBrainz · one piece', heard: 0 },
+    ],
+  },
+  '+ Add · un recueil sans œuvre': {
+    mode: 'add', step: 'anthology', query: 'romantic sketchbook',
+    title: 'A Romantic Sketchbook for Piano, Book I', composer: '', cover: '', publisher: 'ABRSM', number: '', ismn: '', isbn: '978-1-85472-715-2', level: null, cands: [],
+  },
+};
+
+let current = Object.keys(SCORES)[0], editing = false, menu = false, picked = new Set(), showAll = false;
+
+const coverOf = s => s.cover ? `<div class="cover"><img src="${s.cover}" alt=""></div>`
+  : `<div class="cover empty">📷<br>Its cover<br><span style="font-size:10px">from Henle when known</span></div>`;
+
+function editionLine(s) {
+  const parts = [s.publisher, s.number, s.level ? `Henle level ${s.level}` : null, s.bought].filter(Boolean);
+  return `<div class="line">${parts.map((p, i) => `${i ? '<span class="sep">·</span>' : ''}<span>${p}</span>`).join('')}
+    <button class="edit-link" id="edit" title="Your edition: publisher, number, ISMN, price, date">✎</button></div>`;
+}
+
+function editionForm(s, adding) {
+  return `<div class="edition">
+    <label>Title</label><div class="field"><input value="${s.title}"></div>
+    <label>Composer</label><div class="field"><input value="${s.composer}" placeholder="${s.cands?.length === 0 ? 'Several: an anthology' : ''}"></div>
+    <label>Publisher</label><div class="field"><input value="${s.publisher}" placeholder="G. Henle Verlag, Bärenreiter, Wiener Urtext, Peters…"></div>
+    <label>Its number</label><div><div class="field"><input value="${s.number}" placeholder="HN 383, BA 5234…"></div>${s.number && adding ? '<div class="hint ok">✓ read from its ISMN, found on henle.de</div>' : ''}</div>
+    <label>ISMN / ISBN</label><div class="field">▥<input value="${s.ismn || s.isbn || ''}" placeholder="979-0-… on its back"></div>
+    <label>Bought</label><div style="display:flex;gap:6px"><div class="field" style="width:100px"><input placeholder="CHF" value="${adding ? '' : '24.50'}"></div><div class="field" style="width:130px"><input value="${adding ? '21.10.2026' : '30.11.2025'}"></div>
+      <span class="seg" style="margin-left:auto"><button class="on">Mine</button><button>Borrowed</button></span></div>
+  </div>`;
+}
+
+function piecesView(s) {
+  return s.works.map(w => {
+    const shown = showAll ? w.pieces : w.pieces.slice(0, 5);
+    return `<div class="work"><div class="wh"><div class="wt"><b>${w.title}</b><small>${w.meta}</small></div>
+      <button class="btn sm">▶ All · Schmid-Gagnebin</button><button class="icon" title="More">⋯</button></div>
+      ${shown.map(([n, r], i) => `<div class="piece"><span class="n">${i + 1}</span><span>${n}</span><button class="btn sm">${r}</button></div>`).join('')}
+      ${!showAll && w.pieces.length > 5 ? `<div class="more" id="all">${w.pieces.length - 5} more pieces ▾</div>` : ''}</div>`;
+  }).join('');
+}
+
+function candidates(s) {
+  if (!s.cands.length) return `<div class="notice">No work by this title: a book of pieces by several hands. Its pieces from a photo of its contents, after it is added, or one by one.</div>
+    <button class="btn">📷 Photo of the contents</button>`;
+  return s.cands.map((c, i) => `<div class="cand ${picked.has(i) ? 'on' : ''}" data-c="${i}"><span class="box">${picked.has(i) ? '✓' : ''}</span>
+    <div class="ct">${c.t}<small>${c.m}</small></div>${c.heard ? `<span class="heard">♪ ${c.heard} in your music</span>` : ''}</div>`).join('')
+    + `<div style="margin-top:8px"><button class="btn sm quiet">+ Another work</button><button class="btn sm quiet">📷 Photo of the contents</button></div>`;
+}
+
+function render() {
+  const s = SCORES[current];
+  const adding = s.mode === 'add';
+  const p = document.getElementById('panel');
+  p.innerHTML = `
+    <div class="ph"><span>🎼</span><h2>${adding ? 'Add a score' : s.title}</h2>
+      ${adding ? '' : '<button class="icon" id="menu" title="More">⋯</button>'}<button class="icon" title="Close">✕</button></div>
+    ${menu ? `<div class="menu"><div>Change the composer</div><div>Replace the PDF</div><div>Lend it…</div><div class="danger">Delete the score</div></div>` : ''}
+    <div class="pb">
+      ${adding ? `
+        <div class="field big">🔎<input value="${s.query}" placeholder="A work, a composer, or its ISMN"><button class="btn sm">▥ Scan</button></div>
+        ${s.henle ? `<div class="notice gold">▥ ISMN 979-0-2018-… is Henle's: <b>${s.henle}</b>. Its title and its cover come with it (and its difficulty level when Henle gives one).</div>` : ''}
+        <div class="head" style="margin-top:14px">
+          ${s.step === 'scanned' ? `<div class="cover"><img src="https://www.henle.de/media/b0/c6/4c/1686742553/HN-0465-1686742553-sync.jpg" alt="" onerror="this.parentNode.innerHTML='Henle\\'s cover,<br>kept at its adding'"></div>` : coverOf(s)}
+          <div>
+            <div class="composer ${s.composer ? '' : 'muted'}">${s.composer || 'Composer: several'}</div>
+            <div style="font-size:1.05rem;margin-top:2px">${s.title}</div>
+            ${editing ? '' : editionLine({ ...s, bought: 'bought today' })}
+          </div>
+        </div>
+        ${editing ? editionForm(s, true) : ''}
+        <div class="section"><h4>Its pieces <span style="text-transform:none;letter-spacing:0">— check what it holds</span></h4>${candidates(s)}</div>`
+      : `
+        <div class="head">
+          ${coverOf(s)}
+          <div>
+            <div class="composer">${s.composer}</div>
+            ${editing ? '' : editionLine(s)}
+            <div class="line"><span>ISMN ${s.ismn}</span></div>
+            <div class="acts">
+              ${s.pdf ? '<button class="btn sm">PDF</button>' : '<button class="btn sm">↗ Find the PDF on IMSLP</button><button class="btn sm quiet">📎 Attach PDF</button>'}
+              <button class="btn sm quiet">↗ henle.de</button>
+              <span class="tag gold">♪ 12 of 12 in your music</span>
+            </div>
+          </div>
+        </div>
+        ${editing ? editionForm(s, false) + '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:8px"><button class="btn sm quiet" id="cancel">Cancel</button><button class="btn sm primary" id="cancel2">Keep it</button></div>' : ''}
+        <div class="section"><h4>Its pieces <span class="act"><button class="btn sm quiet">+ Add a piece</button></span></h4>${piecesView(s)}</div>
+        <div class="section"><h4>Notes <span class="act"><button class="btn sm quiet">+ A note</button></span></h4>
+          ${s.words.map(w => `<div class="comment">${w.text}<small>${w.who}</small></div>`).join('')}</div>`}
+    </div>
+    <div class="pf">
+      ${adding ? `<span class="grow">${s.cands.length ? `${picked.size} work${picked.size > 1 ? 's' : ''} checked` : 'Its edition only, its pieces after'}</span>
+        <button class="btn quiet">Cancel</button><button class="btn primary">Add the score</button>`
+        : `<span class="grow">One window: its pieces, its edition, its notes</span>`}
+    </div>`;
+}
+
+document.getElementById('scenarios').innerHTML = Object.keys(SCORES).map(n => `<button>${n}</button>`).join(' ');
+function open(name) {
+  current = name; editing = false; menu = false; showAll = false;
+  picked = new Set((SCORES[name].cands || []).map((c, i) => (c.on ? i : -1)).filter(i => i >= 0));
+  document.querySelectorAll('#scenarios button').forEach(b => b.classList.toggle('on', b.textContent === name));
+  render();
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('#scenarios button, #edit, #cancel, #cancel2, #menu, [data-c], #all');
+  if (!t) { if (menu) { menu = false; render(); } return; }
+  if (t.closest('#scenarios')) return open(t.textContent);
+  if (t.id === 'edit') editing = true;
+  else if (t.id === 'cancel' || t.id === 'cancel2') editing = false;
+  else if (t.id === 'menu') menu = !menu;
+  else if (t.id === 'all') showAll = true;
+  else if (t.dataset.c) { const i = +t.dataset.c; picked.has(i) ? picked.delete(i) : picked.add(i); }
+  render();
+});
+open(Object.keys(SCORES)[0]);
+</script>
+</body>
+</html>

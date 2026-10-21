@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Form } from 'react-bootstrap';
-import { BsBoxArrowUpRight, BsCamera, BsFileEarmarkPdf, BsFileMusic, BsPaperclip, BsPlayFill, BsSearch, BsThreeDots, BsYoutube } from 'react-icons/bs';
-import scorePiecesService, { imslpPieceUrl, PieceRecording, PieceSuggestion, ScorePiece, youtubeUrl } from '../services/scorePiecesService';
+import { BsBoxArrowUpRight, BsCamera, BsFileEarmarkPdf, BsFileMusic, BsPaperclip, BsPencil, BsPlayFill, BsSearch, BsThreeDots, BsUpcScan, BsYoutube } from 'react-icons/bs';
+import scorePiecesService, { imslpPieceUrl, PieceRecording, PieceSuggestion, ScoreLookup, ScorePiece, youtubeUrl } from '../services/scorePiecesService';
+import bookCommentService from '../services/bookCommentService';
+import { decodeBarcode } from '../utils/decodeBarcode';
+import { pieceOf, referenceOf, titleWithNumber } from '../utils/scoreTitle';
 import { imslpUrl, Score, scorePdfUrl } from '../services/bookSectionsService';
 import bookService from '../services/bookService';
 import { player, usePlayer } from '../services/player';
@@ -12,7 +15,9 @@ import Dialog from './shared/Dialog';
 import Menu, { MenuChevron } from './shared/Menu';
 import Notice from './shared/Notice';
 import Spinner, { Loading } from './shared/Spinner';
-import { TextField } from './shared/TextField';
+import { TextArea, TextField } from './shared/TextField';
+import Segmented from './shared/Segmented';
+import { confirm } from './shared/ConfirmDialog';
 import toast from './shared/Toast';
 import './ScoreCard.css';
 
@@ -46,28 +51,101 @@ const usePlaying = () => usePlayer(state => (state.album?.id && state.tracks[sta
 const keyOf = (r: PieceRecording) => `${r.albumId}:${r.disc}:${r.no}`;
 
 interface ScoreCardProps {
-  score: Score;
-  title: string;
+  /** The score; none to add one. */
+  score: Score | null;
   onClose: () => void;
-  onDetails: () => void;
-  onAttach: () => void;
-  /** Its pieces changed: the list's counts. */
+  /** It changed (its pieces, its edition): the list's counts and titles. */
   onChanged: () => void;
+  /** Added: its id, for its card to open. */
+  onCreated?: (id: number) => void;
+  onDeleted?: () => void;
+  onAttach: (score: Score) => void;
 }
 
+/** What one edits of an edition, as typed. */
+interface EditionValues {
+  title: string;
+  composer: string;
+  publisher: string;
+  number: string;
+  code: string;
+  priceChf: string;
+  purchasedAt: string;
+  borrowed: boolean;
+  owner: string;
+}
+
+const today = () => new Date().toLocaleDateString('sv-SE');
+const COMMENTER = 'dv.readingName';
+const commenter = () => { try { return localStorage.getItem(COMMENTER) || 'Renault'; } catch { return 'Renault'; } };
+
+/** Its edition as one line: "G. Henle Verlag · HN 383 · Henle level 7 · CHF 24.50, 30.11.2025". */
+const editionLine = (values: EditionValues, level: number | null) => [
+  values.publisher.trim() || null,
+  values.number.trim() || null,
+  level ? `Henle level ${level}` : null,
+  values.borrowed ? `Borrowed${values.owner.trim() ? ` from ${values.owner.trim()}` : ''}`
+    : [values.priceChf.trim() ? `CHF ${values.priceChf.trim()}` : null, values.purchasedAt ? new Date(values.purchasedAt).toLocaleDateString('fr-CH') : null].filter(Boolean).join(', ') || null,
+].filter(Boolean) as string[];
+
+/** Its edition, unfolded in place: title, composer, publisher and number, its code, its price and date, borrowed. */
+const EditionForm: React.FC<{ values: EditionValues; onChange: (values: EditionValues) => void }> = ({ values, onChange }) => {
+  const set = (field: keyof EditionValues) => (event: React.ChangeEvent<HTMLInputElement>) => onChange({ ...values, [field]: event.target.value });
+  return (
+    <div className="score-edition">
+      <label htmlFor="score-title">Title</label><TextField id="score-title" size="sm" value={values.title} onChange={set('title')} />
+      <label htmlFor="score-composer">Composer</label><TextField id="score-composer" size="sm" value={values.composer} onChange={set('composer')} placeholder="Several: an anthology" />
+      <label htmlFor="score-publisher">Publisher</label>
+      <TextField id="score-publisher" size="sm" value={values.publisher} onChange={set('publisher')} placeholder="G. Henle Verlag, Bärenreiter, Wiener Urtext, Peters…" />
+      <label htmlFor="score-number">Its number</label><TextField id="score-number" size="sm" value={values.number} onChange={set('number')} placeholder="HN 383, BA 5234…" />
+      <label htmlFor="score-code">ISMN / ISBN</label><TextField id="score-code" size="sm" value={values.code} onChange={set('code')} placeholder="979-0-… on its back" />
+      <label>Whose</label>
+      <div className="score-edition__whose">
+        <Segmented label="Whose" size="sm" value={values.borrowed ? 'borrowed' : 'mine'}
+          onChange={value => onChange({ ...values, borrowed: value === 'borrowed' })}
+          options={[{ value: 'mine', label: 'Mine' }, { value: 'borrowed', label: 'Borrowed' }]} />
+        {values.borrowed
+          ? <TextField size="sm" value={values.owner} onChange={set('owner')} placeholder="From whom" aria-label="Borrowed from" />
+          : (
+            <>
+              <TextField size="sm" className="score-edition__price" value={values.priceChf} onChange={set('priceChf')} placeholder="CHF" aria-label="Its price" />
+              <TextField size="sm" type="date" className="score-edition__date" value={values.purchasedAt} onChange={set('purchasedAt')} aria-label="Bought on" />
+            </>
+          )}
+      </div>
+    </div>
+  );
+};
+
 /**
- * A score's card: its pieces, each with the recordings of the music that play
- * it, one chosen to play first and the others behind +N; YouTube when the
- * music has none. A score without pieces offers what it likely holds (its
- * numbers, the music's works, its title), a search, and a photo of its contents.
+ * A score in one window: to add it, to read it, to change it. Its head (its
+ * composer, its edition in a line unfolded in place by ✎), its PDF and its
+ * pages (IMSLP, henle.de), its pieces with the recordings of the music that
+ * play them, its notes. Added from a title or the ISMN on its back: its works
+ * to check, its edition from Henle's site when the ISMN is Henle's.
  */
-const ScoreCard: React.FC<ScoreCardProps> = ({ score, title, onClose, onDetails, onAttach, onChanged }) => {
+const ScoreCard: React.FC<ScoreCardProps> = props => (props.score ? <ScoreView {...props} score={props.score} /> : <AddScore {...props} />);
+
+const ScoreView: React.FC<ScoreCardProps & { score: Score }> = ({ score, onClose, onChanged, onDeleted, onAttach }) => {
   const [pieces, setPieces] = useState<ScorePiece[] | null>(null);
   const [finding, setFinding] = useState(false);
+  const [book, setBook] = useState<Record<string, any> | null>(null);
+  const [editing, setEditing] = useState<EditionValues | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [henle, setHenle] = useState<{ url: string | null; level: number | null }>({ url: null, level: null });
+  const [notes, setNotes] = useState<Array<{ id: number; name: string; comment: string; date: string }>>([]);
+  const [writing, setWriting] = useState<string | null>(null);
   // Its page on IMSLP, where its free editions are: the one its pieces or its title find.
   const [imslpPage, setImslpPage] = useState<string | null>(null);
   const playing = usePlaying();
-  useEffect(() => { setImslpPage(null); }, [score.id]);
+
+  const loadBook = () => bookService.getBookById(score.id).then(found => setBook(found as Record<string, any>)).catch(() => undefined);
+  const loadNotes = () => bookCommentService.getCommentsByBookId(score.id).then(list => setNotes(Array.isArray(list) ? list as typeof notes : [])).catch(() => undefined);
+  useEffect(() => {
+    setImslpPage(null); setBook(null); setEditing(null); setNotes([]); setHenle({ url: null, level: null });
+    loadBook(); loadNotes();
+    scorePiecesService.henle(score.id).then(found => setHenle(found || { url: null, level: null })).catch(() => undefined);
+  }, [score.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     let current = true;
     // Asked again once its pieces are known or change: a set's page is the score's.
@@ -85,11 +163,60 @@ const ScoreCard: React.FC<ScoreCardProps> = ({ score, title, onClose, onDetails,
   const heard = (pieces || []).reduce((n, p) => n + (p.single ? (p.albums.length ? 1 : 0) : p.parts.filter(part => part.recordings.length).length), 0);
   const total = (pieces || []).reduce((n, p) => n + (p.single ? 1 : p.parts.length), 0);
 
+  const values: EditionValues = {
+    title: pieceOf(String(book?.title ?? score.title)),
+    composer: String(book?.composer ?? score.composer ?? ''),
+    publisher: String(book?.publisher ?? score.publisher ?? ''),
+    number: referenceOf(String(book?.title ?? score.title)) || '',
+    code: String(book?.isbn13 ?? score.isbn13 ?? ''),
+    priceChf: book?.priceChf != null ? String(book.priceChf) : '',
+    purchasedAt: book?.purchasedAt ? String(book.purchasedAt).slice(0, 10) : '',
+    borrowed: (book?.titleStatus ?? score.titleStatus) === 'borrowed',
+    owner: String(book?.owner ?? ''),
+  };
+  const level = henle.level ?? (book?.difficulty as number | null) ?? null;
+
+  const save = async () => {
+    if (!editing || !book) return;
+    setSaving(true);
+    try {
+      const price = parseFloat(editing.priceChf.replace(',', '.'));
+      await bookService.updateBook(score.id, {
+        ...book,
+        title: titleWithNumber(editing.title, editing.number),
+        composer: editing.composer.trim() || null,
+        publisher: editing.publisher.trim() || null,
+        isbn13: editing.code.replace(/[\s-]/g, '') || null,
+        titleStatus: editing.borrowed ? 'borrowed' : 'owned',
+        owner: editing.owner.trim() || null,
+        priceChf: editing.borrowed || !Number.isFinite(price) ? null : price,
+        purchasedAt: editing.borrowed ? null : editing.purchasedAt || null,
+      });
+      setEditing(null);
+      await loadBook();
+      onChanged();
+    } catch (error) { toast((error as Error).message, { tone: 'danger' }); } finally { setSaving(false); }
+  };
+
+  const remove = async () => {
+    if (!(await confirm({ title: 'Delete this score?', message: 'Its pieces and its notes go with it.', confirmLabel: 'Delete', danger: true }))) return;
+    try { await bookService.deleteBook(score.id); onDeleted?.(); onClose(); } catch (error) { toast((error as Error).message, { tone: 'danger' }); }
+  };
+
+  const keepNote = async () => {
+    if (!writing?.trim()) return;
+    try {
+      await bookCommentService.createComment({ bookId: score.id, name: commenter(), comment: writing.trim(), date: new Date().toISOString() });
+      setWriting(null);
+      loadNotes();
+    } catch (error) { toast((error as Error).message, { tone: 'danger' }); }
+  };
+
   const choose = async (piece: ScorePiece, albumId: number) => {
     setPieces(prev => (prev || []).map(p => (p.id === piece.id ? { ...p, preferredAlbumId: albumId } : p)));
     try { await scorePiecesService.choose(score.id, piece.id, albumId); } catch (error) { toast((error as Error).message, { tone: 'danger' }); }
   };
-  const remove = async (piece: ScorePiece) => {
+  const removePiece = async (piece: ScorePiece) => {
     try {
       await scorePiecesService.removePiece(score.id, piece.id);
       const left = (pieces || []).filter(p => p.id !== piece.id);
@@ -99,14 +226,21 @@ const ScoreCard: React.FC<ScoreCardProps> = ({ score, title, onClose, onDetails,
     } catch (error) { toast((error as Error).message, { tone: 'danger' }); }
   };
 
+  const cover = book?.cover ?? score.cover;
   return (
-    <Dialog show onClose={onClose} variant="panel" size="lg" icon={<BsFileMusic />} title={title} className="score-card">
+    <Dialog show onClose={onClose} variant="panel" size="lg" icon={<BsFileMusic />} title={pieceOf(String(book?.title ?? score.title))} className="score-card">
       <Dialog.Body>
         <div className="score-card__head">
-          {score.cover ? <img src={bookService.getImageUrl(score.cover) || ''} alt="" /> : <span className="score-card__blank" />}
-          <div>
-            <div className="score-card__composer">{score.composer || 'Composer unknown'}</div>
-            <div className="score-card__facts">{[score.publisher, (score.authors || []).filter(a => a !== score.composer).join(', ')].filter(Boolean).join(' · ')}</div>
+          {cover ? <img src={bookService.getImageUrl(String(cover)) || ''} alt="" /> : <span className="score-card__blank" />}
+          <div className="score-card__about">
+            <div className="score-card__composer">{values.composer || 'Composer unknown'}</div>
+            {!editing && (
+              <div className="score-card__facts">
+                {editionLine(values, level).join(' · ') || 'Its edition'}
+                <IconButton size="sm" label="Change its edition" onClick={() => setEditing(values)}><BsPencil /></IconButton>
+              </div>
+            )}
+            {!editing && values.code && <div className="score-card__code">{values.code.length === 13 && values.code.startsWith('9790') ? 'ISMN' : 'ISBN'} {values.code}</div>}
             <div className="score-card__acts">
               {score.ebookFile ? (
                 <>
@@ -117,13 +251,29 @@ const ScoreCard: React.FC<ScoreCardProps> = ({ score, title, onClose, onDetails,
                 <>
                   <Button size="sm" icon={<BsBoxArrowUpRight />} onClick={() => window.open(imslp, '_blank', 'noopener')}
                     title={imslpPage ? `Its page on IMSLP: ${imslpPage}` : 'A search on IMSLP'}>Find the PDF on IMSLP</Button>
-                  <Button size="sm" variant="quiet" icon={<BsPaperclip />} onClick={onAttach}>Attach PDF</Button>
+                  <Button size="sm" variant="quiet" icon={<BsPaperclip />} onClick={() => onAttach(score)}>Attach PDF</Button>
                 </>
               )}
+              {henle.url && <Button size="sm" variant="quiet" icon={<BsBoxArrowUpRight />} onClick={() => window.open(henle.url!, '_blank', 'noopener')}>henle.de</Button>}
               {total > 0 && heard > 0 && <CoverTag variant="gold">♪ {heard} of {total} in your music</CoverTag>}
+              <Menu align="end" trigger={props => <IconButton {...props} label="More" size="sm"><BsThreeDots /></IconButton>}>
+                <Menu.Item icon={<BsPencil />} onSelect={() => setEditing(values)}>Change its edition</Menu.Item>
+                {score.ebookFile && <Menu.Item icon={<BsPaperclip />} onSelect={() => onAttach(score)}>Replace the PDF</Menu.Item>}
+                <Menu.Separator />
+                <Menu.Item danger onSelect={remove}>Delete the score</Menu.Item>
+              </Menu>
             </div>
           </div>
         </div>
+        {editing && (
+          <>
+            <EditionForm values={editing} onChange={setEditing} />
+            <div className="score-edition__actions">
+              <Button size="sm" variant="quiet" onClick={() => setEditing(null)}>Cancel</Button>
+              <Button size="sm" onClick={save} loading={saving} disabled={!editing.title.trim()}>Keep it</Button>
+            </div>
+          </>
+        )}
 
         <section className="score-card__section">
           <h4>
@@ -134,15 +284,204 @@ const ScoreCard: React.FC<ScoreCardProps> = ({ score, title, onClose, onDetails,
             <>
               {pieces.map(piece => (
                 <PieceBlock key={piece.id} piece={piece} composer={score.composer} playing={playing}
-                  onChoose={albumId => choose(piece, albumId)} onRemove={() => remove(piece)} />
+                  onChoose={albumId => choose(piece, albumId)} onRemove={() => removePiece(piece)} />
               ))}
               {finding && <FindPieces score={score} first={!pieces.length} onAdded={changed} onCancel={pieces.length ? () => setFinding(false) : undefined} />}
             </>
           )}
         </section>
+
+        <section className="score-card__section">
+          <h4>
+            Notes
+            {writing === null && <Button size="sm" variant="quiet" className="score-card__add" onClick={() => setWriting('')}>+ A note</Button>}
+          </h4>
+          {notes.map(note => (
+            <blockquote key={note.id} className="score-card__note">{note.comment}<small>{note.name}, {new Date(note.date).toLocaleDateString('fr-CH')}</small></blockquote>
+          ))}
+          {writing !== null && (
+            <div className="score-card__write">
+              <TextArea rows={3} value={writing} autoFocus onChange={e => setWriting(e.target.value)} placeholder="What to work on, a fingering, a tempo…" aria-label="A note on the score" />
+              <div className="score-edition__actions">
+                <Button size="sm" variant="quiet" onClick={() => setWriting(null)}>Cancel</Button>
+                <Button size="sm" onClick={keepNote} disabled={!writing.trim()}>Keep it</Button>
+              </div>
+            </div>
+          )}
+          {!notes.length && writing === null && <p className="score-card__empty">No note yet.</p>}
+        </section>
+      </Dialog.Body>
+    </Dialog>
+  );
+};
+
+/** A score to add, in a dialog as the other sections' are: from a title or its ISMN, its works to check, its edition in a line; its card opens once added. */
+const AddScore: React.FC<ScoreCardProps> = ({ onClose, onCreated }) => {
+  const [query, setQuery] = useState('');
+  const [found, setFound] = useState<ScoreLookup | null>(null);
+  const [looking, setLooking] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [values, setValues] = useState<EditionValues>({ title: '', composer: '', publisher: '', number: '', code: '', priceChf: '', purchasedAt: today(), borrowed: false, owner: '' });
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [coverShown, setCoverShown] = useState(true);
+  const scanRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  // Another work in it, found by a search: Impromptus beside Ballades.
+  const [extra, setExtra] = useState<PieceSuggestion[]>([]);
+  const [another, setAnother] = useState('');
+  const [hits, setHits] = useState<PieceSuggestion[] | null>(null);
+  useEffect(() => {
+    if (another.trim().length < 2) { setHits(null); return undefined; }
+    const timer = setTimeout(() => { scorePiecesService.search(another).then(setHits).catch(() => setHits([])); }, 400);
+    return () => clearTimeout(timer);
+  }, [another]);
+  const addAnother = (hit: PieceSuggestion) => {
+    setExtra(prev => (prev.some(work => work.workId === hit.workId) ? prev : [...prev, hit]));
+    setPicked(prev => new Set(prev).add(hit.workId));
+    setAnother('');
+    setHits(null);
+  };
+
+  useEffect(() => {
+    const words = query.trim();
+    if (words.length < 3) { setFound(null); return undefined; }
+    setLooking(true);
+    let current = true;
+    const timer = setTimeout(() => {
+      scorePiecesService.lookup(words)
+        .then(result => {
+          if (!current) return;
+          setFound(result);
+          setCoverShown(true);
+          setPicked(new Set(result.works.filter(work => work.likely !== false).map(work => work.workId)));
+          setValues(prev => ({
+            ...prev,
+            title: result.edition.title || prev.title,
+            composer: result.edition.composer || '',
+            publisher: result.edition.publisher || (result.from === 'words' ? prev.publisher : ''),
+            number: result.edition.number || (result.from === 'words' ? prev.number : ''),
+            code: result.edition.code || (result.from === 'words' ? prev.code : ''),
+          }));
+        })
+        .catch(error => { if (current) toast((error as Error).message, { tone: 'danger' }); })
+        .finally(() => { if (current) setLooking(false); });
+    }, 600);
+    return () => { current = false; clearTimeout(timer); };
+  }, [query]);
+
+  const scan = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const code = await decodeBarcode(file);
+      if (code) setQuery(code); else toast('No barcode read on the photo', { tone: 'warning' });
+    } catch (error) { toast((error as Error).message, { tone: 'danger' }); } finally { if (scanRef.current) scanRef.current.value = ''; }
+  };
+
+  const add = async () => {
+    setSaving(true);
+    try {
+      const { id } = await scorePiecesService.create({
+        title: values.title.trim(),
+        composer: values.composer.trim() || null,
+        publisher: values.publisher.trim() || null,
+        number: values.number.trim() || null,
+        code: values.code.replace(/[\s-]/g, '') || null,
+        cover: found?.edition.cover ?? null,
+        level: found?.edition.level ?? null,
+        url: found?.edition.url ?? null,
+        priceChf: values.borrowed ? null : values.priceChf.trim() || null,
+        purchasedAt: values.borrowed ? null : values.purchasedAt || null,
+        titleStatus: values.borrowed ? 'borrowed' : 'owned',
+        owner: values.borrowed ? values.owner.trim() || null : null,
+        workIds: [...picked],
+      });
+      toast(`${values.title.trim()}: added to Scores`, { tone: 'success' });
+      onCreated?.(id);
+    } catch (error) { toast((error as Error).message, { tone: 'danger' }); } finally { setSaving(false); }
+  };
+
+  const works = [...(found?.works || []), ...extra.filter(work => !(found?.works || []).some(other => other.workId === work.workId))];
+  const slow = works.some(work => picked.has(work.workId) && /^(?:wd|imslp):/.test(work.workId));
+  return (
+    <Dialog show onClose={onClose} modal={saving} size="lg" icon={<BsFileMusic />} title="Add a score" className="score-card score-add" onEntered={() => searchRef.current?.focus()}>
+      <Dialog.Body>
+        <div className="score-add__search">
+          <TextField ref={searchRef} icon={<BsSearch />} value={query} onChange={e => setQuery(e.target.value)} aria-label="A work, a composer, or its ISMN"
+            placeholder="A work, a composer, or the ISMN on its back" suffix={looking ? <Spinner size="sm" /> : undefined} />
+          <Button icon={<BsUpcScan />} onClick={() => scanRef.current?.click()} title="Photograph its barcode">Scan</Button>
+          <input ref={scanRef} type="file" accept="image/*" capture="environment" hidden data-testid="score-scan" onChange={e => scan(e.target.files?.[0])} />
+        </div>
+
+        {found?.from === 'henle' && (
+          <Notice className="score-add__notice" title="An edition of G. Henle Verlag">
+            {[found.edition.composer, found.edition.title, found.edition.number].filter(Boolean).join(' · ')}: its title and its cover come with it.
+          </Notice>
+        )}
+        {found?.from === 'code' && (
+          <Notice className="score-add__notice" tone="warning">
+            This code says nothing found{found.edition.number ? ` (${found.edition.number}, not on henle.de)` : ''}: type its title to find its work.
+          </Notice>
+        )}
+
+        {found && (
+          <>
+            <div className="score-card__head">
+              {found.edition.cover && coverShown
+                ? <img src={found.edition.cover} alt="" onError={() => setCoverShown(false)} />
+                : <span className="score-card__blank" title="Its cover: from Henle when known, else a photo on its card" />}
+              <div className="score-card__about">
+                <div className="score-card__composer">{values.composer || (works.length ? 'Composer unknown' : 'Several composers')}</div>
+                <div className="score-add__title">{values.title || 'Its title'}</div>
+                {!editing && (
+                  <div className="score-card__facts">
+                    {editionLine(values, found.edition.level).join(' · ') || 'Its edition'}
+                    <IconButton size="sm" label="Change its edition" onClick={() => setEditing(true)}><BsPencil /></IconButton>
+                  </div>
+                )}
+              </div>
+            </div>
+            {editing && <EditionForm values={values} onChange={setValues} />}
+
+            <section className="score-card__section">
+              <h4>Its pieces <span className="score-add__hint">— check what it holds</span></h4>
+              {works.length ? works.map(work => (
+                <label key={work.workId} className={`score-find__sugg${picked.has(work.workId) ? ' score-find__sugg--on' : ''}`}>
+                  <Form.Check type="checkbox" checked={picked.has(work.workId)} aria-label={work.title}
+                    onChange={() => setPicked(prev => { const next = new Set(prev); if (next.has(work.workId)) next.delete(work.workId); else next.add(work.workId); return next; })} />
+                  <span className="score-find__text">
+                    {work.title}
+                    <small>{[work.parts ? `${work.parts} pieces` : 'one piece', work.inYourMusic ? `${work.inYourMusic} in your music` : null].filter(Boolean).join(' · ')}</small>
+                  </span>
+                  {WHY[work.why] && <span className="score-find__why">{WHY[work.why]}</span>}
+                </label>
+              )) : (
+                <Notice className="score-find__notice">
+                  No work found for it: a book of pieces by several hands, a method. Its pieces come after, on its card: a photo of its contents, or one by one.
+                </Notice>
+              )}
+              <div className="score-find__more">
+                <TextField size="sm" icon={<BsSearch />} value={another} onChange={e => setAnother(e.target.value)}
+                  placeholder="Another work in it: a title, a number (op. 29)" aria-label="Another work in it" />
+                {hits && (
+                  <div className="score-find__hits menu-surface" role="listbox" aria-label="Works found">
+                    {!hits.length ? <div className="menu-item" aria-disabled="true">Nothing found</div> : hits.map(hit => (
+                      <button key={hit.workId} type="button" role="option" aria-selected="false" className="menu-item" onClick={() => addAnother(hit)}>
+                        <span className="menu-item__label">{hit.title}</span>
+                        <span className="menu-item__hint">{[hit.composers.join(', '), hit.inYourMusic ? 'in your music' : ''].filter(Boolean).join(' · ')}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          </>
+        )}
       </Dialog.Body>
       <Dialog.Footer>
-        <Button variant="quiet" onClick={onDetails}>Details</Button>
+        {slow && saving && <Loading>Finding each of its pieces: about a second a piece…</Loading>}
+        <Button variant="quiet" onClick={onClose}>Cancel</Button>
+        <Button variant="primary" onClick={add} loading={saving} disabled={!found || !values.title.trim()}>Add the score</Button>
       </Dialog.Footer>
     </Dialog>
   );
@@ -163,6 +502,8 @@ const PieceBlock: React.FC<PieceBlockProps> = ({ piece, composer, playing, onCho
     ? [{ workId: piece.workId || String(piece.id), title: piece.title, name: '', sub: null as string | null, imslp: piece.imslp, recordings: piece.albums.length ? recordingsOfSingle(piece) : [] }]
     : piece.parts;
   const heardHere = piece.single ? (piece.albums.length ? 1 : 0) : piece.parts.filter(part => part.recordings.length).length;
+  // A long set (24 préludes, 67 pieces of a notebook) shows its first five, the others on asking.
+  const [allShown, setAllShown] = useState(rows.length <= 7);
   // Its parts in the chosen recording; an album playing it whole in one track plays that track.
   const partsOfChosen = chosen ? rows.flatMap(row => row.recordings.filter(r => r.albumId === chosen.albumId).slice(0, 1)) : [];
   const ofChosen = partsOfChosen.length || !chosen ? partsOfChosen : piece.whole.filter(r => r.albumId === chosen.albumId).slice(0, 1);
@@ -207,7 +548,7 @@ const PieceBlock: React.FC<PieceBlockProps> = ({ piece, composer, playing, onCho
         </Menu>
       </div>
 
-      {rows.map((row, index) => (
+      {(allShown ? rows : rows.slice(0, 5)).map((row, index) => (
         <div key={row.workId + index} className={`score-piece__row${row.recordings.length ? '' : ' score-piece__row--none'}`}>
           <span className="score-piece__n">{piece.single ? '' : index + 1}</span>
           <span className="score-piece__name">{row.name}{row.sub && <small>{row.sub}</small>}</span>
@@ -222,6 +563,9 @@ const PieceBlock: React.FC<PieceBlockProps> = ({ piece, composer, playing, onCho
           </span>
         </div>
       ))}
+      {!allShown && (
+        <Button size="sm" variant="quiet" className="score-piece__more" onClick={() => setAllShown(true)}>{rows.length - 5} more pieces</Button>
+      )}
     </div>
   );
 };

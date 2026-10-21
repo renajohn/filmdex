@@ -451,6 +451,21 @@ const runAutoMigrations = async (): Promise<void> => {
         }
         console.log('  ✓ Added score_pieces and the works of the recordings');
       }
+    },
+    {
+      name: '022_score_difficulty',
+      up: async () => {
+        // A score's level of difficulty: Henle's, 1 to 9, read from its page.
+        const columns = await new Promise<Array<{ name: string }>>((resolve, reject) => {
+          currentDb.all('PRAGMA table_info(books)', (err: Error | null, rows: Array<{ name: string }>) => (err ? reject(err) : resolve(rows || [])));
+        });
+        if (!columns.some(c => c.name === 'difficulty')) {
+          await new Promise<void>((resolve, reject) => {
+            currentDb.run('ALTER TABLE books ADD COLUMN difficulty INTEGER', (err: Error | null) => (err ? reject(err) : resolve()));
+          });
+        }
+        console.log('  ✓ Added books.difficulty');
+      }
     }
   ];
 

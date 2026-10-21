@@ -369,6 +369,8 @@ app.post('/api/books/finder/buy', bookFinderController.buy);
 app.get('/api/scores', bookSectionsController.list);
 app.put('/api/scores/composers', bookSectionsController.setComposers);
 // A score's pieces, as MusicBrainz works, and the recordings of the music playing them
+app.get('/api/scores/lookup', scorePiecesController.lookup);
+app.post('/api/scores', scorePiecesController.create);
 app.get('/api/scores/works/search', scorePiecesController.search);
 app.post('/api/scores/works/index', scorePiecesController.index);
 app.get('/api/scores/:id/pieces', scorePiecesController.pieces);
@@ -377,6 +379,7 @@ app.put('/api/scores/:id/pieces/:pieceId', scorePiecesController.choose);
 app.delete('/api/scores/:id/pieces/:pieceId', scorePiecesController.removePiece);
 app.get('/api/scores/:id/suggestions', scorePiecesController.suggestions);
 app.get('/api/scores/:id/imslp', scorePiecesController.imslpPage);
+app.get('/api/scores/:id/henle', scorePiecesController.henle);
 app.post('/api/scores/:id/contents-photo', scorePiecesController.contentsPhoto);
 app.get('/api/books/reading', bookSectionsController.reading);
 app.put('/api/books/readings/:id', bookSectionsController.changeReading);

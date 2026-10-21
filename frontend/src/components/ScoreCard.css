@@ -214,3 +214,126 @@
 .score-find__hits .menu-item {
   width: 100%;
 }
+
+.score-card__about {
+  min-width: 0;
+}
+
+.score-card__facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+}
+
+.score-card__code {
+  margin-bottom: 10px;
+  color: var(--dv-text-faint);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-piece__more {
+  margin: 4px 8px 6px;
+}
+
+/* Its edition, unfolded in place. */
+.score-edition {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 8px 10px;
+  align-items: center;
+  margin: 4px 0 8px;
+  padding: 12px;
+  border: 1px solid var(--dv-edge);
+  border-radius: var(--dv-radius-md);
+  background: var(--dv-glass);
+}
+
+.score-edition label {
+  color: var(--dv-text-muted);
+  font-size: 0.8rem;
+}
+
+.score-edition__whose {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.score-edition__price {
+  width: 90px;
+}
+
+.score-edition__date {
+  width: 150px;
+}
+
+.score-edition__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* Its notes. */
+.score-card__note {
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border-left: 2px solid var(--dv-gold-tint-edge);
+  border-radius: 0 var(--dv-radius-sm) var(--dv-radius-sm) 0;
+  background: var(--dv-glass);
+  font-size: 0.9rem;
+  white-space: pre-line;
+}
+
+.score-card__note small {
+  display: block;
+  margin-top: 4px;
+  color: var(--dv-text-faint);
+}
+
+.score-card__empty {
+  margin: 0;
+  color: var(--dv-text-faint);
+  font-size: 0.85rem;
+}
+
+/* Adding: what was typed or scanned. */
+.score-add__search {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.score-add__search > :first-child {
+  flex: 1;
+}
+
+.score-add__notice {
+  margin-bottom: 12px;
+}
+
+.score-add__title {
+  margin: 2px 0 4px;
+  font-size: 1rem;
+}
+
+.score-add__hint {
+  color: var(--dv-text-faint);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+@media (max-width: 575px) {
+  .score-edition {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Adding: a dialog of its height as it fills, the works scrolling within. */
+.score-add .modal-body {
+  min-height: 160px;
+}

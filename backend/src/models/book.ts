@@ -113,6 +113,7 @@ const Book = {
             price_chf REAL,
             purchased_at TEXT,
             composer TEXT,
+            difficulty INTEGER,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
           )
@@ -231,6 +232,7 @@ const Book = {
                   price_chf REAL,
                   purchased_at TEXT,
                   composer TEXT,
+                  difficulty INTEGER,
                   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
@@ -416,6 +418,7 @@ const Book = {
         price_chf: bookData.priceChf ?? null,
         purchased_at: bookData.purchasedAt || null,
         composer: bookData.composer || null,
+        difficulty: bookData.difficulty ?? null,
         created_at: now,
         updated_at: now
       };
@@ -425,8 +428,8 @@ const Book = {
           isbn, isbn13, title, subtitle, authors, artists, publisher, published_year,
           language, format, filetype, drm, narrator, runtime, series, series_number,
           genres, tags, rating, cover, owner, read_date, page_count, description, urls, annotation, ebook_file, title_status, book_type,
-          price_chf, purchased_at, composer, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          price_chf, purchased_at, composer, difficulty, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const params = [
@@ -435,7 +438,7 @@ const Book = {
         book.narrator, book.runtime, book.series, book.series_number, book.genres,
         book.tags, book.rating, book.cover, book.owner, book.read_date, book.page_count, book.description,
         book.urls, book.annotation, bookData.ebookFile || null, book.title_status, book.book_type,
-        book.price_chf, book.purchased_at, book.composer, book.created_at, book.updated_at
+        book.price_chf, book.purchased_at, book.composer, book.difficulty, book.created_at, book.updated_at
       ];
 
       db.run(sql, params, async function(this: sqlite3.RunResult, err: Error | null) {
@@ -939,7 +942,7 @@ const Book = {
           published_year = ?, language = ?, format = ?, filetype = ?, drm = ?,
           narrator = ?, runtime = ?, series = ?, series_number = ?, genres = ?,
           tags = ?, rating = ?, cover = ?, owner = ?, read_date = ?, page_count = ?, description = ?,
-          urls = ?, annotation = ?, ebook_file = ?, title_status = ?, book_type = ?, price_chf = ?, purchased_at = ?, composer = ?, updated_at = ?
+          urls = ?, annotation = ?, ebook_file = ?, title_status = ?, book_type = ?, price_chf = ?, purchased_at = ?, composer = ?, difficulty = ?, updated_at = ?
         WHERE id = ?
       `;
 
@@ -984,6 +987,7 @@ const Book = {
         bookData.priceChf !== undefined ? bookData.priceChf : existingBook?.priceChf ?? null,
         bookData.purchasedAt !== undefined ? bookData.purchasedAt : existingBook?.purchasedAt ?? null,
         bookData.composer !== undefined ? bookData.composer : existingBook?.composer ?? null,
+        bookData.difficulty !== undefined ? bookData.difficulty : existingBook?.difficulty ?? null,
         now,
         id
       ];
@@ -1144,6 +1148,7 @@ const Book = {
       priceChf: row.price_chf ?? null,
       purchasedAt: row.purchased_at ?? null,
       composer: row.composer ?? null,
+      difficulty: row.difficulty ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };

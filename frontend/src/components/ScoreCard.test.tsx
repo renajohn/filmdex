@@ -6,13 +6,18 @@ import scorePiecesService, { ScorePiece } from '../services/scorePiecesService';
 import { player } from '../services/player';
 import { loadPlayable } from '../utils/playAlbum';
 import type { Score } from '../services/bookSectionsService';
+import bookService from '../services/bookService';
+import bookCommentService from '../services/bookCommentService';
+import { confirm } from './shared/ConfirmDialog';
 
 vi.mock('../services/scorePiecesService', async importOriginal => ({
   ...(await importOriginal<typeof import('../services/scorePiecesService')>()),
-  default: { pieces: vi.fn(), addPieces: vi.fn(), removePiece: vi.fn(), choose: vi.fn(), suggestions: vi.fn(), search: vi.fn(), contentsPhoto: vi.fn(), imslpPage: vi.fn() },
+  default: { pieces: vi.fn(), addPieces: vi.fn(), removePiece: vi.fn(), choose: vi.fn(), suggestions: vi.fn(), search: vi.fn(), contentsPhoto: vi.fn(), imslpPage: vi.fn(), henle: vi.fn(), lookup: vi.fn(), create: vi.fn() },
 }));
 vi.mock('../utils/playAlbum', () => ({ loadPlayable: vi.fn() }));
-vi.mock('../services/bookService', () => ({ default: { getImageUrl: (p: string | null) => p } }));
+vi.mock('../services/bookService', () => ({ default: { getImageUrl: (p: string | null) => p, getBookById: vi.fn(), updateBook: vi.fn(), deleteBook: vi.fn() } }));
+vi.mock('../services/bookCommentService', () => ({ default: { getCommentsByBookId: vi.fn(), createComment: vi.fn() } }));
+vi.mock('../components/shared/ConfirmDialog', async importOriginal => ({ ...(await importOriginal<typeof import('./shared/ConfirmDialog')>()), confirm: vi.fn() }));
 
 const score: Score = {
   id: 219, title: 'Préludes Vol. 1 - piano - (HN 383)', authors: [], publisher: 'G. Henle Verlag', cover: null, composer: 'Claude Debussy',
@@ -33,7 +38,7 @@ const livre: ScorePiece = {
 };
 const clair: ScorePiece = { id: 2, workId: 'w-clair', imslp: null, title: 'Clair de lune', single: true, parts: [], whole: [], albums: [], preferredAlbumId: null };
 
-const card = () => render(<ScoreCard score={score} title="Préludes Vol. 1" onClose={vi.fn()} onDetails={vi.fn()} onAttach={vi.fn()} onChanged={vi.fn()} />);
+const card = (props: Partial<React.ComponentProps<typeof ScoreCard>> = {}) => render(<ScoreCard score={score} onClose={vi.fn()} onAttach={vi.fn()} onChanged={vi.fn()} {...props} />);
 
 beforeEach(() => {
   vi.mocked(scorePiecesService.pieces).mockReset().mockResolvedValue([livre, clair]);
@@ -44,6 +49,15 @@ beforeEach(() => {
     tracks: [1, 2, 3].map(no => ({ songId: `s${no}`, title: `Track ${no}`, disc: 1, no, durationSec: 150 })),
   });
   vi.spyOn(player, 'playAlbum').mockImplementation(() => undefined);
+  vi.mocked(scorePiecesService.henle).mockReset().mockResolvedValue({ url: 'https://www.henle.de/Preludes-Premier-livre/HN-383', level: 7 });
+  vi.mocked(bookService.getBookById).mockReset().mockResolvedValue({
+    id: 219, title: 'Préludes Vol. 1 - piano - (HN 383)', composer: 'Claude Debussy', publisher: 'G. Henle Verlag', isbn13: '9790201803838',
+    priceChf: 24.5, purchasedAt: '2025-11-30', titleStatus: 'owned', owner: null, bookType: 'score', authors: [],
+  });
+  vi.mocked(bookService.updateBook).mockReset().mockResolvedValue({});
+  vi.mocked(bookService.deleteBook).mockReset().mockResolvedValue({});
+  vi.mocked(bookCommentService.getCommentsByBookId).mockReset().mockResolvedValue([{ id: 1, name: 'Renault', comment: 'Voiles d’abord', date: '2025-12-02' }]);
+  vi.mocked(bookCommentService.createComment).mockReset().mockResolvedValue({});
 });
 
 describe('ScoreCard', () => {
@@ -127,5 +141,60 @@ describe('ScoreCard', () => {
     fireEvent.click(await screen.findByRole('option', { name: /Träumerei/ }, { timeout: 2000 }));
 
     await waitFor(() => expect(scorePiecesService.addPieces).toHaveBeenCalledWith(219, { workIds: ['w-tr'] }));
+  });
+
+  it('montre son édition en une ligne, et la change en place', async () => {
+    const onChanged = vi.fn();
+    card({ onChanged });
+    expect(await screen.findByText(/G\. Henle Verlag · HN 383 · Henle level 7 · CHF 24\.5, 30\.11\.2025/)).toBeInTheDocument();
+    expect(screen.getByText('ISMN 9790201803838')).toBeInTheDocument();
+    expect(screen.getByText('Voiles d’abord')).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Change its edition' })[0]);
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Préludes, Premier livre' } });
+    fireEvent.change(screen.getByLabelText('Its price'), { target: { value: '26' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Keep it' }));
+
+    await waitFor(() => expect(bookService.updateBook).toHaveBeenCalledWith(219, expect.objectContaining({
+      title: 'Préludes, Premier livre (HN 383)', priceChf: 26, publisher: 'G. Henle Verlag', titleStatus: 'owned',
+    })));
+    expect(onChanged).toHaveBeenCalled();
+  });
+
+  it('se supprime après confirmation', async () => {
+    vi.mocked(confirm).mockResolvedValue(true);
+    const onDeleted = vi.fn();
+    card({ onDeleted });
+    fireEvent.click(await screen.findByRole('button', { name: 'More' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Delete the score' }));
+    await waitFor(() => expect(bookService.deleteBook).toHaveBeenCalledWith(219));
+    expect(onDeleted).toHaveBeenCalled();
+  });
+
+  it('s’ajoute dans la même vue : son ISMN de Henle, son œuvre cochée, son édition', async () => {
+    vi.mocked(scorePiecesService.lookup).mockResolvedValue({
+      from: 'henle',
+      edition: { title: 'Consolations', composer: 'Franz Liszt', publisher: 'G. Henle Verlag', number: 'HN 465', code: '9790201804651', cover: null, level: 5, url: 'https://www.henle.de/Consolations/HN-465' },
+      works: [
+        { workId: 's172', title: 'Consolations, S. 172', composers: [], parts: 6, inYourMusic: 6, why: 'your music', likely: true },
+        { workId: 's171', title: 'Consolations, S. 171a', composers: [], parts: 6, inYourMusic: 0, why: 'title', likely: false },
+      ],
+    });
+    vi.mocked(scorePiecesService.create).mockResolvedValue({ id: 300 });
+    const onCreated = vi.fn();
+    card({ score: null, onCreated });
+
+    fireEvent.change(screen.getByLabelText('A work, a composer, or its ISMN'), { target: { value: '979-0-2018-0465-1' } });
+    expect(await screen.findByText(/An edition of G\. Henle Verlag/, {}, { timeout: 2000 })).toBeInTheDocument();
+    expect(screen.getByText(/G\. Henle Verlag · HN 465 · Henle level 5/)).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Consolations, S. 172' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Consolations, S. 171a' })).not.toBeChecked();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add the score' }));
+    await waitFor(() => expect(scorePiecesService.create).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Consolations', composer: 'Franz Liszt', number: 'HN 465', code: '9790201804651', level: 5, url: 'https://www.henle.de/Consolations/HN-465',
+      titleStatus: 'owned', workIds: ['s172'],
+    })));
+    expect(onCreated).toHaveBeenCalledWith(300);
   });
 });

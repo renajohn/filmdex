@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Ajouter une partition</title>
+<style>
+  :root {
+    --dv-gold: #fbbf24; --dv-gold-ink: #111;
+    --dv-gold-tint: rgba(251,191,36,.12); --dv-gold-tint-edge: rgba(251,191,36,.45);
+    --dv-danger: #f87171; --dv-orange: #fb923c;
+    --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+    --dv-page: #1a1a1a;
+    --dv-glass: rgba(255,255,255,.06); --dv-glass-hover: rgba(255,255,255,.11);
+    --dv-edge: rgba(255,255,255,.12); --dv-edge-hover: rgba(255,255,255,.24);
+    --dv-veil: rgba(255,255,255,.08);
+    --dv-surface: rgba(24,24,24,.97); --dv-surface-edge: rgba(255,255,255,.1);
+    --dv-surface-shadow: 0 16px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--dv-page); color: var(--dv-text); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  button, input { font: inherit; color: inherit; }
+  .proto { position: sticky; top: 0; z-index: 200; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+    padding: 10px 16px; background: #0e0e0e; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .proto b { color: #ddd; }
+  .proto button { border: 1px solid #444; background: #1c1c1c; border-radius: 6px; padding: 3px 9px; cursor: pointer; color: #ccc; font-size: 12.5px; }
+  .proto button.on { border-color: var(--dv-gold-tint-edge); color: var(--dv-gold); }
+  .note { max-width: 760px; margin: 14px auto 0; padding: 0 16px; color: #999; font-size: 12.5px; line-height: 1.5; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--dv-edge);
+    background: var(--dv-glass); cursor: pointer; font-size: 13px; white-space: nowrap; }
+  .btn:hover { background: var(--dv-glass-hover); border-color: var(--dv-edge-hover); }
+  .btn.primary { background: var(--dv-gold); color: var(--dv-gold-ink); border-color: var(--dv-gold); font-weight: 600; }
+  .btn.quiet { background: none; border-color: transparent; color: var(--dv-text-muted); }
+  .btn.quiet:hover { color: var(--dv-text); background: var(--dv-veil); }
+  .btn.sm { height: 26px; padding: 0 9px; font-size: 12px; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .tag { display: inline-flex; align-items: center; height: 17px; padding: 0 5px; font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; font-weight: 600;
+    border: 1px solid var(--dv-edge); border-radius: 2px; color: var(--dv-text-muted); white-space: nowrap; }
+  .tag.gold { color: var(--dv-gold); border-color: var(--dv-gold-tint-edge); }
+
+  /* The dialog. */
+  .dialog { width: min(720px, calc(100% - 32px)); margin: 18px auto 40px; border-radius: 14px; background: #1d1d1d; border: 1px solid var(--dv-edge); box-shadow: var(--dv-surface-shadow); overflow: hidden; }
+  .dh { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--dv-edge); }
+  .dh h2 { margin: 0; font-size: 1.1rem; flex: 1; }
+  .dh .back { border: 0; background: none; cursor: pointer; color: var(--dv-text-muted); font-size: 16px; }
+  .steps { display: flex; gap: 6px; font-size: 11px; color: var(--dv-text-faint); text-transform: uppercase; letter-spacing: .06em; }
+  .steps .on { color: var(--dv-gold); }
+  .db { padding: 16px 18px; min-height: 420px; }
+  .df { display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--dv-edge); }
+  .df .grow { flex: 1; color: var(--dv-text-muted); font-size: 12.5px; }
+
+  .field { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--dv-edge-hover); background: rgba(0,0,0,.25); }
+  .field input { flex: 1; border: 0; outline: 0; background: none; font-size: 15px; }
+  .field.sm { height: 32px; }
+  .field.sm input { font-size: 13px; }
+  .tools { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 2px; }
+  .sec { margin-top: 16px; }
+  .sec > h4 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 6px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--dv-text-faint); }
+  .sec > h4 small { text-transform: none; letter-spacing: 0; font-size: 11.5px; }
+
+  .work { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--dv-edge); margin-bottom: 6px; cursor: pointer; }
+  .work:hover { background: var(--dv-veil); }
+  .work.on { border-color: var(--dv-gold-tint-edge); background: var(--dv-gold-tint); }
+  .box { width: 17px; height: 17px; border-radius: 4px; border: 1px solid var(--dv-edge-hover); flex: none; display: grid; place-items: center; font-size: 11px; color: var(--dv-gold-ink); }
+  .work.on .box { background: var(--dv-gold); border-color: var(--dv-gold); }
+  .work .wt { flex: 1; min-width: 0; }
+  .work .wt b { font-weight: 600; }
+  .work .wt small { display: block; color: var(--dv-text-muted); font-size: 12px; }
+  .work .heard { color: var(--dv-gold); font-size: 12px; white-space: nowrap; }
+
+  .ed { display: flex; gap: 10px; align-items: center; padding: 7px 8px; border-radius: 10px; cursor: pointer; }
+  .ed:hover { background: var(--dv-veil); }
+  .ed.on { background: var(--dv-gold-tint); outline: 1px solid var(--dv-gold-tint-edge); }
+  .ed img, .ed .blank { width: 36px; height: 48px; border-radius: 2px; object-fit: cover; background: #333; flex: none; }
+  .ed .et { flex: 1; min-width: 0; }
+  .ed .et small { display: block; color: var(--dv-text-muted); font-size: 12px; }
+  .ed .why { font-size: 11px; color: var(--dv-text-faint); }
+
+  .chosen { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 14px; background: var(--dv-gold-tint); border: 1px solid var(--dv-gold-tint-edge); color: var(--dv-gold); font-size: 12.5px; }
+  .chip small { color: var(--dv-text-muted); }
+
+  .form { display: grid; grid-template-columns: 112px 1fr; gap: 16px; }
+  .cover { width: 112px; aspect-ratio: 3/4; border-radius: 4px; background: #2a2a2a; border: 1px dashed var(--dv-edge-hover); display: grid; place-items: center; text-align: center; color: var(--dv-text-faint); font-size: 11.5px; overflow: hidden; }
+  .cover img { width: 100%; height: 100%; object-fit: cover; }
+  .rows { display: grid; grid-template-columns: 110px 1fr; gap: 10px 12px; align-items: center; }
+  .rows label { color: var(--dv-text-muted); font-size: 12.5px; }
+  .seg { display: inline-flex; padding: 2px; border-radius: 8px; background: var(--dv-glass); border: 1px solid var(--dv-edge); }
+  .seg button { border: 0; background: none; padding: 4px 10px; border-radius: 6px; cursor: pointer; color: var(--dv-text-muted); font-size: 12.5px; }
+  .seg button.on { background: var(--dv-veil); color: var(--dv-text); }
+  .hint { color: var(--dv-text-faint); font-size: 11.5px; margin-top: 3px; }
+  .ok { color: var(--dv-gold); }
+  .menu { margin-top: 4px; border-radius: 10px; border: 1px solid var(--dv-surface-edge); background: var(--dv-surface); box-shadow: var(--dv-surface-shadow); padding: 4px; }
+  .menu div { padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .menu div:hover { background: var(--dv-veil); }
+  .notice { display: flex; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--dv-glass); border: 1px solid var(--dv-edge); border-left: 3px solid var(--dv-text-faint); font-size: 13px; margin: 10px 0; }
+  .wait { color: var(--dv-text-muted); font-size: 12.5px; display: flex; align-items: center; gap: 8px; }
+  .spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #555; border-top-color: #ddd; animation: s 0.8s linear infinite; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 10px 14px; border-radius: 10px; background: var(--dv-surface); border: 1px solid var(--dv-surface-edge); box-shadow: var(--dv-surface-shadow); font-size: 13px; display: none; }
+  .toast.on { display: block; }
+  @media (max-width: 600px) { .form { grid-template-columns: 1fr; } .rows { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="proto">
+  <b>Prototype · ajouter une partition</b>
+  <span>Essayer :</span>
+  <span id="scenarios"></span>
+</div>
+<div class="note">
+  On part de l'<b>œuvre</b>, pas du livre : tu tapes ce que tu joues, on trouve l'œuvre (MusicBrainz, Wikidata, IMSLP) et ses pièces,
+  puis l'édition que tu as en main (son ISMN, l'éditeur et sa référence, la couverture). Les éditions de Google Books restent en dessous, comme raccourci.
+  Résultats réels de MusicBrainz, Wikidata et IMSLP pour ces exemples.
+</div>
+
+<div class="dialog">
+  <div class="dh">
+    <button class="back" id="back" title="Back" style="display:none">←</button>
+    <span>🎼</span><h2 id="dtitle">Add a score</h2>
+    <span class="steps"><span id="s1" class="on">1 · The work</span><span>›</span><span id="s2">2 · Your edition</span></span>
+  </div>
+  <div class="db" id="body"></div>
+  <div class="df" id="foot"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const IMG = p => 'https://dexvault.lab.crog.org' + p;
+const SCENARIOS = {
+  'Ballades Chopin': {
+    query: 'ballades impromptus chopin',
+    works: [
+      { id: 'b', title: 'Ballades', composer: 'Frédéric Chopin', meta: '4 pieces · op. 23, 38, 47, 52', source: 'IMSLP', heard: 0, on: true },
+      { id: 'i', title: 'Impromptus', composer: 'Frédéric Chopin', meta: '4 pieces · op. 29, 36, 51, 66', source: 'IMSLP', heard: 0, on: true },
+      { id: 'b1', title: 'Ballade no. 1 in G minor, op. 23', composer: 'Frédéric Chopin', meta: 'one piece', source: 'MusicBrainz', heard: 0 },
+    ],
+    editions: [
+      { title: 'Chopin: Ballads and Impromptus for Piano', meta: 'CreateSpace · 2014 · Edition Peters, 1905 · ISBN 9781500885632', cover: '', why: 'Google Books' },
+      { title: 'Balladen (Urtext)', meta: 'G. Henle Verlag · example of a second edition', cover: '', why: 'Google Books' },
+    ],
+    edition: { publisher: 'Edition Peters', reference: '', ismn: '', isbn: '9781500885632', cover: '', title: 'Ballades & Impromptus' },
+  },
+  'Préludes Debussy': {
+    query: 'préludes debussy',
+    works: [
+      { id: 'l1', title: 'Préludes, Livre I', composer: 'Claude Debussy', meta: '12 pieces · L. 117', source: 'MusicBrainz', heard: 12, on: true },
+      { id: 'l2', title: 'Préludes, Livre II', composer: 'Claude Debussy', meta: '12 pieces · L. 123', source: 'MusicBrainz', heard: 12 },
+      { id: 'p', title: 'Préludes (both books)', composer: 'Claude Debussy', meta: '2 books · 24 pieces', source: 'Wikidata', heard: 24 },
+    ],
+    editions: [
+      { title: 'Préludes Vol. 1 - piano - (HN 383)', meta: 'G. Henle Verlag · ISMN 979-0-2018-0383-8', cover: '/api/images/book/book_1764506095845_0.jpg', why: 'Google Books' },
+      { title: 'Préludes, Book 1 (Wiener Urtext)', meta: 'Wiener Urtext Edition · example of a second edition', cover: '', why: 'Google Books' },
+    ],
+    edition: { publisher: 'G. Henle Verlag', reference: 'HN 383', ismn: '979-0-2018-0383-8', isbn: '', cover: '/api/images/book/book_1764506095845_0.jpg', title: 'Préludes, Livre I' },
+  },
+  'ISMN scanné': {
+    query: '979-0-2018-0383-8',
+    ismn: true,
+    works: [
+      { id: 'l1', title: 'Préludes, Livre I', composer: 'Claude Debussy', meta: '12 pieces · L. 117', source: 'MusicBrainz', heard: 12, on: true },
+    ],
+    editions: [
+      { title: 'Préludes Vol. 1 - piano - (HN 383)', meta: 'G. Henle Verlag · HN 383 · read from its ISMN', cover: '/api/images/book/book_1764506095845_0.jpg', why: 'Google Books', on: true },
+    ],
+    edition: { publisher: 'G. Henle Verlag', reference: 'HN 383', ismn: '979-0-2018-0383-8', isbn: '', cover: '/api/images/book/book_1764506095845_0.jpg', title: 'Préludes, Livre I' },
+  },
+  'Inventionen': {
+    query: 'inventionen und sinfonien',
+    works: [
+      { id: 'inv', title: '15 Inventions', composer: 'Johann Sebastian Bach', meta: '15 pieces · BWV 772–786', source: 'Wikidata', heard: 0, on: true },
+      { id: 'sin', title: '15 Sinfonias', composer: 'Johann Sebastian Bach', meta: '15 pieces · BWV 787–801', source: 'Wikidata', heard: 0, on: true },
+    ],
+    editions: [
+      { title: 'Inventionen und Sinfonien', meta: 'Hal Leonard · ISMN 979-0-2018-0589-4 (Henle HN 589)', cover: '', why: 'Google Books' },
+    ],
+    edition: { publisher: 'G. Henle Verlag', reference: 'HN 589', ismn: '979-0-2018-0589-4', isbn: '', cover: '', title: 'Inventionen und Sinfonien' },
+  },
+  'Romantic Sketchbook': {
+    query: 'romantic sketchbook',
+    works: [],
+    editions: [
+      { title: 'A romantic sketchbook for piano, Book I', meta: 'ABRSM · Alan Jones · ISBN 9781854727152', cover: '/api/images/book/book_1764504534800_0.jpg', why: 'Google Books' },
+    ],
+    edition: { publisher: 'ABRSM', reference: '', ismn: '', isbn: '9781854727152', cover: '/api/images/book/book_1764504534800_0.jpg', title: 'A Romantic Sketchbook for Piano, Book I', anthology: true },
+  },
+};
+
+let scenario = 'Ballades Chopin', step = 1, picked = new Set(), edition = null, whose = 'Mine', reading = false, ismnOpen = false;
+
+function setScenario(name) {
+  scenario = name; step = 1; edition = null; ismnOpen = false;
+  const s = SCENARIOS[name];
+  picked = new Set(s.works.filter(w => w.on).map(w => w.id));
+  if (s.editions.some(e => e.on)) edition = s.editions.findIndex(e => e.on);
+  document.querySelectorAll('#scenarios button').forEach(b => b.classList.toggle('on', b.textContent === name));
+  render();
+}
+
+function stepOne(s) {
+  const works = s.works;
+  return `
+    <div class="field">🔎<input value="${s.query}" aria-label="A piece, a composer, a book of scores, its ISMN"></div>
+    <div class="tools">
+      <button class="btn sm">▥ Scan its ISMN / ISBN</button>
+      <button class="btn sm">📷 Photo of the cover</button>
+      <button class="btn sm">📷 Photo of the contents</button>
+      <button class="btn sm quiet">Manual</button>
+    </div>
+    ${s.ismn ? `<div class="notice">ISMN 979-0-<b>2018</b>-0383-8: an edition of <b>G. Henle Verlag</b>, its number <b>HN 383</b>. Its work, from its title: below.</div>` : ''}
+    <div class="sec"><h4>The work <small>${works.length ? '— check what the score holds; several for a book of several' : ''}</small></h4>
+      ${works.length ? works.map(w => `
+        <div class="work ${picked.has(w.id) ? 'on' : ''}" data-work="${w.id}">
+          <span class="box">${picked.has(w.id) ? '✓' : ''}</span>
+          <div class="wt"><b>${w.title}</b><small>${w.composer} · ${w.meta}</small></div>
+          ${w.heard ? `<span class="heard">♪ ${w.heard} in your music</span>` : ''}
+          <span class="tag">${w.source}</span>
+        </div>`).join('')
+        : `<div class="notice">No work by this title: a book of pieces by several hands (an anthology, a method). Choose its edition below; its pieces come from a photo of its contents, or one by one.</div>`}
+    </div>
+    <div class="sec"><h4>Editions <small>— Google Books; the one you have, to fill your edition</small></h4>
+      ${s.editions.map((e, i) => `
+        <div class="ed ${edition === i ? 'on' : ''}" data-ed="${i}">
+          ${e.cover ? `<img src="${IMG(e.cover)}" alt="">` : '<span class="blank"></span>'}
+          <div class="et">${e.title}<small>${e.meta}</small></div>
+          <span class="why">${edition === i ? '✓ this one' : e.why}</span>
+        </div>`).join('')}
+      <div class="ed" data-ed="-1"><span class="blank" style="background:transparent;border:1px dashed #555"></span><div class="et">Another edition<small>its publisher, its number, its cover: in the next step</small></div></div>
+    </div>`;
+}
+
+function stepTwo(s) {
+  const e = s.edition;
+  const g = edition != null && edition >= 0 ? s.editions[edition] : null;
+  const cover = (g && g.cover) || e.cover;
+  const works = s.works.filter(w => picked.has(w.id));
+  const title = works.length > 1 ? works.map(w => w.title).join(' & ') : works[0]?.title || e.title;
+  return `
+    <div class="chosen">${works.length ? works.map(w => `<span class="chip">♪ ${w.title} <small>${w.meta.split(' · ')[0]}</small></span>`).join('')
+      : '<span class="chip" style="color:var(--dv-text-muted);border-color:var(--dv-edge);background:var(--dv-glass)">Its pieces: from a photo of its contents, after</span>'}</div>
+    <div class="form">
+      <div>
+        <div class="cover">${cover ? `<img src="${IMG(cover)}" alt="">` : '📷<br>Photo<br>of its cover'}</div>
+        <div class="hint" style="text-align:center">${cover ? 'from Google Books' : 'or found by its ISMN'}</div>
+      </div>
+      <div class="rows">
+        <label>Title</label><div class="field sm"><input value="${title}"></div>
+        <label>Composer</label><div class="field sm"><input value="${works[0]?.composer || (e.anthology ? 'Anthology · Alan Jones (ed.)' : '')}"></div>
+        <label>Publisher</label>
+        <div>
+          <div class="field sm"><input value="${e.publisher}" id="pub"></div>
+          <div class="hint">G. Henle Verlag · Bärenreiter · Wiener Urtext · Peters · Schott · ABRSM · Faber</div>
+        </div>
+        <label>Its number</label>
+        <div><div class="field sm"><input value="${e.reference}" placeholder="HN 383, BA 5234, UT 50215, EP 1234"></div>
+          ${e.reference ? `<div class="hint ok">✓ read from its ISMN</div>` : ''}</div>
+        <label>ISMN / ISBN</label>
+        <div><div class="field sm">▥<input value="${e.ismn || e.isbn}" placeholder="979-0-… on its back"></div>
+          <div class="hint">Its barcode: scan it, the publisher and its number follow (Henle: 979-0-2018-<b>0383</b> is HN 383)</div></div>
+        <label>Whose</label>
+        <div class="seg">${['Mine', 'Oriane', 'Alice', 'Borrowed'].map(w => `<button class="${whose === w ? 'on' : ''}" data-whose="${w}">${w}</button>`).join('')}</div>
+        <label>Bought</label>
+        <div style="display:flex;gap:8px"><div class="field sm" style="width:110px"><input placeholder="CHF" value="${scenario === 'Préludes Debussy' || scenario === 'ISMN scanné' ? '24.50' : ''}"></div><div class="field sm" style="width:150px"><input value="21.10.2026"></div></div>
+        <label>PDF</label>
+        <div style="display:flex;gap:6px;align-items:center"><button class="btn sm">📎 Attach</button><button class="btn sm quiet">↗ Find it on IMSLP</button><span class="hint">or later, from its card</span></div>
+      </div>
+    </div>`;
+}
+
+function render() {
+  const s = SCENARIOS[scenario];
+  document.getElementById('s1').classList.toggle('on', step === 1);
+  document.getElementById('s2').classList.toggle('on', step === 2);
+  document.getElementById('back').style.display = step === 2 ? '' : 'none';
+  document.getElementById('dtitle').textContent = step === 1 ? 'Add a score' : 'Your edition';
+  document.getElementById('body').innerHTML = step === 1 ? stepOne(s) : stepTwo(s);
+  const works = s.works.filter(w => picked.has(w.id));
+  const pieces = works.reduce((n, w) => n + (parseInt(w.meta) || 1), 0);
+  document.getElementById('foot').innerHTML = step === 1
+    ? `<span class="grow">${works.length ? `${works.length} work${works.length > 1 ? 's' : ''}, ${pieces} piece${pieces > 1 ? 's' : ''}` : 'No work: its edition only'}${edition != null && edition >= 0 ? ' · its edition chosen' : ''}</span>
+       <button class="btn quiet">Cancel</button><button class="btn primary" id="next">Next: your edition</button>`
+    : `<span class="grow">${works.length ? `${pieces} pieces, ${works.some(w => w.source !== 'MusicBrainz') ? 'found one by one in MusicBrainz: a few seconds' : 'with their recordings'}` : 'Its pieces from a photo of its contents, next'}</span>
+       <button class="btn quiet" id="back2">Back</button><button class="btn primary" id="add">Add the score</button>`;
+}
+
+document.getElementById('scenarios').innerHTML = Object.keys(SCENARIOS).map(n => `<button>${n}</button>`).join(' ');
+document.addEventListener('click', e => {
+  const t = e.target.closest('#scenarios button, [data-work], [data-ed], [data-whose], #next, #back, #back2, #add');
+  if (!t) return;
+  if (t.closest('#scenarios')) return setScenario(t.textContent);
+  if (t.dataset.work) { picked.has(t.dataset.work) ? picked.delete(t.dataset.work) : picked.add(t.dataset.work); }
+  else if (t.dataset.ed) { const i = +t.dataset.ed; edition = edition === i ? null : i; }
+  else if (t.dataset.whose) whose = t.dataset.whose;
+  else if (t.id === 'next') step = 2;
+  else if (t.id === 'back' || t.id === 'back2') step = 1;
+  else if (t.id === 'add') {
+    const s = SCENARIOS[scenario];
+    const toast = document.getElementById('toast');
+    toast.innerHTML = s.works.some(w => picked.has(w.id))
+      ? `<span class="wait"><span class="spin"></span>Adding · finding its pieces…</span>`
+      : `Added. <b>Photo of its contents</b> to find its pieces?`;
+    toast.classList.add('on');
+    setTimeout(() => { toast.innerHTML = `✓ Added to Scores · its card opens with its pieces`; }, 1400);
+    setTimeout(() => toast.classList.remove('on'), 3200);
+  }
+  render();
+});
+setScenario('Ballades Chopin');
+</script>
+</body>
+</html>

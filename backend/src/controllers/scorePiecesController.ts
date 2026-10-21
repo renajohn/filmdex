@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import scorePiecesService, { ScorePiecesError } from '../services/scorePiecesService';
 import coverScanService from '../services/coverScanService';
+import scoreAddService from '../services/scoreAddService';
 import logger from '../logger';
 
 const fail = (res: Response, error: unknown): void => {
@@ -36,6 +37,18 @@ const scorePiecesController = {
   // GET: the score's page on IMSLP, for its PDF
   imslpPage: async (req: Request, res: Response): Promise<void> => {
     try { res.json({ page: await scorePiecesService.imslpPage(id(req.params.id)) }); } catch (error) { fail(res, error); }
+  },
+  // GET ?q=: a score to add, from a title or its ISMN
+  lookup: async (req: Request, res: Response): Promise<void> => {
+    try { res.json(await scoreAddService.lookup(String(req.query.q || ''))); } catch (error) { fail(res, error); }
+  },
+  // POST: a score kept, with its pieces
+  create: async (req: Request, res: Response): Promise<void> => {
+    try { res.status(201).json(await scoreAddService.create(req.body || {})); } catch (error) { fail(res, error); }
+  },
+  // GET: a Henle score's page and level
+  henle: async (req: Request, res: Response): Promise<void> => {
+    try { res.json(await scoreAddService.henleOf(id(req.params.id))); } catch (error) { fail(res, error); }
   },
   // GET ?q=: works to add
   search: async (req: Request, res: Response): Promise<void> => {
