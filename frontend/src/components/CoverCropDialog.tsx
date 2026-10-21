@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Spinner from './shared/Spinner';
 import { BsArrowCounterclockwise, BsArrowClockwise } from 'react-icons/bs';
-import { detectSleeveQuad, defaultQuad, DEFAULT_QUAD, CONFIDENT, type Quad, type Point } from '../utils/detectSleeveQuad';
+import { detectSleeveQuad, defaultQuad, DEFAULT_QUAD, CONFIDENT, imagePixels, type Quad, type Point, type Subject } from '../utils/detectSleeveQuad';
 import { warpQuad } from '../utils/warpQuad';
 import './CoverCropDialog.css';
 import Button from './shared/Button';
@@ -18,6 +18,8 @@ interface CoverCropDialogProps {
   file: File | null;
   /** Which side is being straightened; only changes what the title says. */
   slot?: 'front' | 'back';
+  /** What is in the photo: a CD's sleeve unless told otherwise. A book is not square. */
+  subject?: Subject;
   onCancel: () => void;
   /**
    * The finished photograph: straightened if a frame was set, or as it stands
@@ -28,14 +30,15 @@ interface CoverCropDialogProps {
 }
 
 /**
- * Straighten a photographed sleeve before it becomes the cover.
+ * Straighten a photographed sleeve, or book, before it becomes the cover.
  *
- * The corners are found automatically when the sleeve stands out from what it
- * is lying on, and guessed at when it does not -- so they are always shown for
- * confirmation rather than applied silently. Dragging is the fallback that
- * never fails, and the reason an imperfect detector is safe to ship.
+ * The corners are found automatically, and always shown for confirmation
+ * rather than applied silently: the detector's best guess goes on the photo
+ * whether it is sure of it or not, since a guess a little off needs a nudge
+ * where a square in the middle needs four drags. Dragging is the fallback
+ * that never fails, and the reason an imperfect detector is safe to ship.
  */
-const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'front', onCancel, onConfirm }) => {
+const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'front', subject = 'sleeve', onCancel, onConfirm }) => {
   // The photo as it currently stands: the one picked, or the one a rotation
   // produced from it. Everything downstream -- detection, corners, upload --
   // refers to this and not to the original.
@@ -43,7 +46,9 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
   const [src, setSrc] = useState<string | null>(null);
   const [quad, setQuad] = useState<Quad>(DEFAULT_QUAD);
   const [detecting, setDetecting] = useState(false);
-  const [autoFound, setAutoFound] = useState<boolean | null>(null);
+  // Sure of the corners, offering them as a guess, or nothing found at all.
+  const [autoFound, setAutoFound] = useState<'found' | 'guess' | 'none' | null>(null);
+  const what = subject === 'book' ? 'the cover' : 'the sleeve';
   const [dragging, setDragging] = useState<keyof Quad | null>(null);
   const [rotating, setRotating] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -72,34 +77,29 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
     image.onload = () => {
       if (cancelled) return;
       try {
-        const canvas = document.createElement('canvas');
-        canvas.width = image.naturalWidth;
-        canvas.height = image.naturalHeight;
-        const context = canvas.getContext('2d', { willReadFrequently: true });
-        // Decoding through an <img> has already applied EXIF orientation, so
-        // these coordinates match what the user is about to see and drag.
-        const found = context
-          ? (context.drawImage(image, 0, 0),
-             detectSleeveQuad(context.getImageData(0, 0, canvas.width, canvas.height)))
-          : null;
+        const pixels = imagePixels(image);
+        const found = pixels ? detectSleeveQuad(pixels, { subject }) : null;
 
-        if (found && found.confidence >= CONFIDENT) {
+        if (found) {
+          // Shown whether or not it is sure: the words say which, and a
+          // corner a little off is a short drag.
           setQuad(found.quad);
-          setAutoFound(true);
+          setAutoFound(found.confidence >= CONFIDENT ? 'found' : 'guess');
         } else {
-          // No canvas, or nothing convincing. Fall back to a square the size
-          // of the photo's shorter side rather than a slab of the frame.
+          // No canvas, or nothing that looks like a cover. Fall back to a
+          // square the size of the photo's shorter side rather than a slab
+          // of the frame.
           setQuad(defaultQuad(image.naturalWidth / image.naturalHeight));
-          setAutoFound(false);
+          setAutoFound('none');
         }
       } catch (_) {
-        setAutoFound(false);
+        setAutoFound('none');
       }
       setDetecting(false);
     };
     image.onerror = () => {
       if (cancelled) return;
-      setAutoFound(false);
+      setAutoFound('none');
       setDetecting(false);
     };
     image.src = url;
@@ -284,7 +284,7 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
           {detecting && (
             <div className="cover-crop-detecting">
               <Spinner size="sm" className="me-2" />
-              Looking for the sleeve…
+              Looking for {what}…
             </div>
           )}
           </div>
@@ -312,11 +312,13 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
         {error && <div className="cover-crop-error">{error}</div>}
 
         <div className="cover-crop-status">
-          {detecting
+          {detecting || !autoFound
             ? null
-            : autoFound
-              ? 'Found the sleeve — drag a corner if it sits wrong.'
-              : 'Could not pick out the sleeve; drag the corners onto it.'}
+            : autoFound === 'found'
+              ? `Found ${what} — drag a corner if it sits wrong.`
+              : autoFound === 'guess'
+                ? `Probably ${what} — check the corners and drag any that sit wrong.`
+                : `Could not pick out ${what}; drag the corners onto it.`}
         </div>
       </Dialog.Body>
 

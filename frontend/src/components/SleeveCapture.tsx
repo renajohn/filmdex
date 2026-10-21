@@ -4,7 +4,7 @@ import { BsCamera, BsCheckCircleFill, BsArrowRepeat } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverCropDialog from './CoverCropDialog';
 import { downscaleImage, base64ToFile } from '../utils/downscaleImage';
-import { detectSleeveQuad, CONFIDENT } from '../utils/detectSleeveQuad';
+import { detectSleeveQuad, CONFIDENT, imagePixels, type Subject } from '../utils/detectSleeveQuad';
 import { warpQuad } from '../utils/warpQuad';
 import './SleeveCapture.css';
 import Button from './shared/Button';
@@ -58,6 +58,8 @@ interface SleeveCaptureProps {
   /** How the photographs are read: a CD's sleeve unless given (a book's covers). */
   transcribe?: (photos: { front?: Photo; back?: Photo }) => Promise<Omit<SleeveDraftResult, 'coverPhoto' | 'backPhoto'>>;
   words?: Partial<SleeveCaptureWords>;
+  /** What is photographed, for finding its corners: a sleeve is square, a book is not. */
+  subject?: Subject;
 }
 
 /**
@@ -68,7 +70,7 @@ interface SleeveCaptureProps {
  * camera. The front comes first, since it is the one that becomes the artwork
  * and the one whose absence used to mean no cover at all.
  */
-const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, initialBack, onDraft, onSkip, transcribe, words: given }) => {
+const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, initialBack, onDraft, onSkip, transcribe, words: given, subject = 'sleeve' }) => {
   const words = { ...SLEEVE_WORDS, ...given };
   const [photos, setPhotos] = useState<Record<Side, Photo | null>>({
     front: initialFront || null,
@@ -188,14 +190,12 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, initialBack
         img.src = url;
       });
 
-      const canvas = document.createElement('canvas');
-      canvas.width = image.naturalWidth;
-      canvas.height = image.naturalHeight;
-      const context = canvas.getContext('2d', { willReadFrequently: true });
-      if (!context) return null;
-      context.drawImage(image, 0, 0);
+      const pixels = imagePixels(image);
+      if (!pixels) return null;
 
-      const found = detectSleeveQuad(context.getImageData(0, 0, canvas.width, canvas.height));
+      // Only a sure answer is applied unasked; a guess waits for the crop
+      // button, where it is shown for checking.
+      const found = detectSleeveQuad(pixels, { subject });
       if (!found || found.confidence < CONFIDENT) return null;
 
       const cropped = await warpQuad(image, found.quad);
@@ -321,6 +321,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, initialBack
         show={Boolean(cropping)}
         file={cropping ? files.current[cropping] : null}
         slot={cropping || 'front'}
+        subject={subject}
         onCancel={() => setCropping(null)}
         onConfirm={async (photo) => {
           const side = cropping;

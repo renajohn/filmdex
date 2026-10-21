@@ -265,6 +265,7 @@ const InlineCoverSelector = ({ book, isOpen, onCoverSelected, onBackSelected, cu
         show={Boolean(cropping)}
         file={cropping?.file || null}
         slot={cropping?.slot || 'front'}
+        subject="book"
         onCancel={() => { setCropping(null); [fileInputRef, frontPhotoRef, backPhotoRef].forEach(ref => { if (ref.current) ref.current.value = ''; }); }}
         onConfirm={photo => {
           const pending = cropping;

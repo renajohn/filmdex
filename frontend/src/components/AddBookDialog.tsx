@@ -1319,6 +1319,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
             initialFront={photosFront}
             initialBack={photosBack}
             words={BOOK_PHOTO_WORDS}
+            subject="book"
             transcribe={photos => bookService.readPhotos(photos) as never}
             onDraft={result => {
               const draft = result.draft as unknown as BookPhotosDraft;

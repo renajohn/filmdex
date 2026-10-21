@@ -100,15 +100,34 @@ describe('CoverCropDialog', () => {
     await waitFor(() => expect(onConfirm).toHaveBeenCalledWith(expect.any(File)));
   });
 
-  it('falls back to a draggable rectangle when it is not sure', async () => {
-    // Low confidence must not be passed off as an answer.
+  it('shows its guess for checking when it is not sure', async () => {
+    // A guess a little off is a short drag; a square in the middle is four.
+    // Low confidence changes the words, not the corners.
     (detectSleeveQuad as any).mockReturnValue({ quad: DETECTED, confidence: 0.3 });
     const { onConfirm } = renderDialog();
 
-    await waitFor(() => expect(screen.getByText(/could not pick out the sleeve/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/probably the sleeve/i)).toBeInTheDocument());
+    expect(screen.getByTestId('crop-corner-topLeft').style.left).toBe('20%');
     fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
 
     await waitFor(() => expect(onConfirm).toHaveBeenCalledWith(expect.any(File)));
+  });
+
+  it('falls back to a draggable square when nothing looks like a sleeve', async () => {
+    (detectSleeveQuad as any).mockReturnValue(null);
+    renderDialog();
+
+    await waitFor(() => expect(screen.getByText(/could not pick out the sleeve/i)).toBeInTheDocument());
+    // A square the size of the 800x600 photo's shorter side, centred.
+    expect(screen.getByTestId('crop-corner-topLeft').style.left).toBe(`${defaultQuad(800 / 600).topLeft[0] * 100}%`);
+  });
+
+  it('speaks of a cover, not a sleeve, when it is a book', async () => {
+    (detectSleeveQuad as any).mockReturnValue({ quad: DETECTED, confidence: 0.9 });
+    renderDialog({ subject: 'book' });
+
+    await waitFor(() => expect(screen.getByText(/found the cover/i)).toBeInTheDocument());
+    expect(detectSleeveQuad).toHaveBeenCalledWith(expect.anything(), { subject: 'book' });
   });
 
   it('lets the photo through untouched', async () => {

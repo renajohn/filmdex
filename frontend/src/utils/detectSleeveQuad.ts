@@ -1,5 +1,5 @@
 /**
- * Finding the sleeve in a photograph.
+ * Finding the sleeve, or the book, in a photograph.
  *
  * Two ways of looking. Colour separation -- the region that differs from the
  * border of the frame, cornered by its extremes along the diagonals -- is
@@ -7,14 +7,17 @@
  * detectByEdges does not care what is behind, only that a rectangle has four
  * straight sides. Colour's answer is handed to the edge search as one more
  * candidate, and every candidate is judged the same way: by whether the
- * picture really has an edge along each of its sides.
+ * picture really has an edge along each of its sides, and changes across it.
  *
- * Measured on real photographs in evalsets/handheld-cd. It reports a
- * confidence and declines rather than guessing, and the caller shows the
- * result for confirmation either way.
+ * Measured on real photographs in evalsets/handheld-cd and made-up ones in
+ * evalsets/synthetic-covers. It always offers its best guess, with a
+ * confidence that says whether to apply it unasked or show it for dragging:
+ * a guess a little off needs a nudge, where a fixed square needs four drags.
  */
 
-import { detectByEdges } from './detectByEdges';
+import { detectByEdges, type Subject } from './detectByEdges';
+
+export type { Subject };
 
 export type Point = [number, number];
 
@@ -27,8 +30,13 @@ export interface Quad {
 
 export interface Detection {
   quad: Quad;
-  /** 0 to 1. Below roughly 0.6 the corners are a starting point, not an answer. */
+  /** 0 to 1. Below CONFIDENT the corners are a starting point, not an answer. */
   confidence: number;
+}
+
+export interface DetectOptions {
+  /** What the photo is of; a sleeve is square, a book is not. Unknown: either. */
+  subject?: Subject;
 }
 
 /**
@@ -59,6 +67,28 @@ export const defaultQuad = (aspect = 1): Quad => {
 
 /** The square-photo case, kept for callers with nothing better to go on. */
 export const DEFAULT_QUAD: Quad = defaultQuad(1);
+
+/** Longest edge a photo is read at for detection. */
+const READ_EDGE = 1600;
+
+/**
+ * A decoded photo's pixels, at no more than READ_EDGE on the long side.
+ *
+ * The detector works on an 800-pixel copy, so a 12-megapixel photo brings it
+ * nothing but a 48 MB buffer, which a phone's browser hands over slowly or
+ * not at all. Drawn through a canvas, so the EXIF orientation is applied and
+ * the coordinates match what the user is about to see and drag.
+ */
+export const imagePixels = (image: HTMLImageElement, maxEdge = READ_EDGE): ImageData | null => {
+  const scale = Math.min(1, maxEdge / Math.max(1, image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) return null;
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return context.getImageData(0, 0, canvas.width, canvas.height);
+};
 
 const WORK_SIZE = 200;
 
@@ -258,12 +288,13 @@ const expandQuad = (quad: Quad, by = 0.02): Quad => {
 };
 
 /**
- * Locate the sleeve, or say it could not.
+ * Locate the cover: the best guess there is, and how far to trust it.
  *
- * Returns null, or a low confidence, rather than a poor guess; the caller
- * falls back to a centred square so there is always something to drag.
+ * Returns null only when nothing in the picture looks like a cover at all;
+ * the caller then falls back to a centred square so there is something to
+ * drag. A guess below CONFIDENT is shown for checking, never applied unasked.
  */
-export const detectSleeveQuad = (image: ImageData): Detection | null => {
+export const detectSleeveQuad = (image: ImageData, options: DetectOptions = {}): Detection | null => {
   const byColour = detectByColour(image);
 
   // Whatever colour found is only a proposal. Judged by its shape alone it
@@ -271,8 +302,8 @@ export const detectSleeveQuad = (image: ImageData): Detection | null => {
   // blob; judged by whether the picture has an edge along each of its sides,
   // it does not.
   try {
-    const byEdges = detectByEdges(image, byColour ? [byColour.quad] : []);
-    // Used as found: its sides already sit on the sleeve's edges. Measured on
+    const byEdges = detectByEdges(image, byColour ? [byColour.quad] : [], undefined, { subject: options.subject });
+    // Used as found: its sides already sit on the cover's edges. Measured on
     // the evalset, 2% of padding tripled the table left round each cover
     // (4.5% of its area against 1.7%) to spare a clipping that did not show.
     if (byEdges) return byEdges;
