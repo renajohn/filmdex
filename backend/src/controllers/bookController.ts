@@ -9,6 +9,7 @@ import Book from '../models/book';
 import logger from '../logger';
 import coverScanService from '../services/coverScanService';
 import bookLanguageService from '../services/bookLanguageService';
+import bookBnfService from '../services/bookBnfService';
 import { searchAmazonProducts } from '../services/amazonSearchService';
 
 // Helper function to format file size
@@ -109,6 +110,16 @@ const ebookUpload = multer({
 });
 
 const bookController = {
+  // POST: every French book completed from the BnF's catalogue: what each gained
+  enrichFromBnf: async (_req: Request, res: Response): Promise<void> => {
+    try {
+      res.json(await bookBnfService.enrichAll());
+    } catch (error) {
+      logger.error('Completing the books from the BnF:', error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  },
+
   // POST: every description in neither French nor English, translated into French by the local LLM
   translateDescriptions: async (_req: Request, res: Response): Promise<void> => {
     try {
