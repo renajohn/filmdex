@@ -158,6 +158,24 @@
     display: none;
   }
 
+  /* A phone: the title on two lines at most, its actions narrowed to PDF and ⋯. */
+  .scores-page__score {
+    gap: 10px;
+    padding: 7px 0;
+  }
+
+  .scores-page__title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.3;
+  }
+
+  .scores-page__head h2 {
+    font-size: 1.35rem;
+  }
+
   .scores-review__row {
     grid-template-columns: 1fr;
   }

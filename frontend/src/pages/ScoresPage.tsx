@@ -45,8 +45,23 @@ const editorsOf = (score: Score) => (score.authors || []).filter(a => !score.com
  * The books do not keep a composer, Google's "author" of a score being most
  * often its editor: the ones the titles suggest are offered to confirm.
  */
+const NARROW = '(max-width: 575px)';
+/** A phone's width: a row keeps its title, its PDF and its ⋯, the rest in the ⋯. */
+const useNarrow = () => {
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(NARROW).matches);
+  useEffect(() => {
+    const query = window.matchMedia?.(NARROW);
+    if (!query) return undefined;
+    const changed = () => setNarrow(query.matches);
+    query.addEventListener('change', changed);
+    return () => query.removeEventListener('change', changed);
+  }, []);
+  return narrow;
+};
+
 const ScoresPage: React.FC<{ searchCriteria?: { searchText?: string } }> = ({ searchCriteria }) => {
   const [scores, setScores] = useState<Score[] | null>(null);
+  const narrow = useNarrow();
   const filter = searchCriteria?.searchText || '';
   const rootRef = useRef<HTMLDivElement>(null);
   const [scrollContainer, setScrollContainer] = useState<HTMLElement | null>(null);
@@ -137,17 +152,20 @@ const ScoresPage: React.FC<{ searchCriteria?: { searchText?: string } }> = ({ se
                         <span className="scores-page__title">{pieceOf(score.title)}</span>
                         <span className="scores-page__meta">{[score.publisher, editors.length ? `ed. ${editors.join(', ')}` : null].filter(Boolean).join(' · ')}</span>
                       </span>
-                      {score.heardCount ? <span className="scores-page__heard" title="Its pieces the music plays">♪ {score.heardCount} in your music</span>
+                      {score.heardCount ? <span className="scores-page__heard" title="Its pieces the music plays">♪ {score.heardCount}{narrow ? '' : ' in your music'}</span>
                         : !score.pieceCount && <span className="scores-page__find" title="Its pieces are not known yet">Contents?</span>}
                       {reference && <span className="scores-page__reference">{reference}</span>}
                       <span className="scores-page__actions" onClick={e => e.stopPropagation()}>
                         {score.ebookFile ? (
                           <Button size="sm" icon={<BsFileEarmarkPdf />} onClick={() => window.open(scorePdfUrl(score.id), '_blank', 'noopener')}>PDF</Button>
-                        ) : (
+                        ) : !narrow && (
                           <Button size="sm" variant="quiet" icon={<BsPaperclip />} onClick={() => { setAttaching(score); fileRef.current?.click(); }}>Attach PDF</Button>
                         )}
-                        <IconButton label="On IMSLP" size="sm" onClick={() => window.open(imslpUrl(score), '_blank', 'noopener')}><BsBoxArrowUpRight /></IconButton>
+                        {!narrow && <IconButton label="On IMSLP" size="sm" onClick={() => window.open(imslpUrl(score), '_blank', 'noopener')}><BsBoxArrowUpRight /></IconButton>}
                         <Menu align="end" trigger={props => <IconButton {...props} label="More" size="sm"><BsThreeDots /></IconButton>}>
+                          {narrow && !score.ebookFile && <Menu.Item icon={<BsPaperclip />} onSelect={() => { setAttaching(score); fileRef.current?.click(); }}>Attach PDF</Menu.Item>}
+                          {narrow && <Menu.Item icon={<BsBoxArrowUpRight />} onSelect={() => window.open(imslpUrl(score), '_blank', 'noopener')}>On IMSLP</Menu.Item>}
+                          {narrow && <Menu.Separator />}
                           <Menu.Item onSelect={() => setComposerOf(score)}>Change the composer</Menu.Item>
                           {score.ebookFile && <Menu.Item onSelect={() => { setAttaching(score); fileRef.current?.click(); }}>Replace the PDF</Menu.Item>}
                         </Menu>

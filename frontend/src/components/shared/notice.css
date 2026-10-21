@@ -183,6 +183,23 @@
 @keyframes ui-toast-out { to { opacity: 0; transform: translateY(10px); } }
 @keyframes ui-toast-time { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
+/* A phone: the action under the words, which keep the width. */
+@media (max-width: 575px) {
+  .ui-notice {
+    flex-wrap: wrap;
+  }
+
+  .ui-notice__words {
+    flex: 1 1 0;
+  }
+
+  .ui-notice__action {
+    order: 3;
+    flex-basis: 100%;
+    padding-left: 25px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ui-toast, .ui-toast--leaving { animation: none; }
 }
