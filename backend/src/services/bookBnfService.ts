@@ -79,13 +79,15 @@ const afterAdding = (bookId: number): void => {
   later(() => enrichBook(bookId)).catch(error => logger.warn(`[BnF] Book ${bookId} not completed: ${(error as Error).message}`));
 };
 
-/** Every French book completed from the BnF: what each gained, those not found, those that failed. */
+/** Every French book not done yet completed from the BnF: what each gained, those not found, those that failed. */
 const enrichAll = async (): Promise<{ completed: Array<{ id: number; title: string; gained: Gained }>; notFound: Array<{ id: number; title: string }>; failed: Array<{ id: number; title: string; error: string }> }> => {
-  const rows = await new Promise<Array<{ id: number; title: string; language: string | null; book_type: string | null }>>((resolve, reject) =>
-    getDatabase().all('SELECT id, title, language, book_type FROM books', (err: Error | null, found: Array<{ id: number; title: string; language: string | null; book_type: string | null }>) =>
+  type Row = { id: number; title: string; language: string | null; book_type: string | null; urls: string | null };
+  const rows = await new Promise<Row[]>((resolve, reject) =>
+    getDatabase().all('SELECT id, title, language, book_type, urls FROM books', (err: Error | null, found: Row[]) =>
       (err ? reject(err) : resolve(found || []))));
   const result = { completed: [] as Array<{ id: number; title: string; gained: Gained }>, notFound: [] as Array<{ id: number; title: string }>, failed: [] as Array<{ id: number; title: string; error: string }> };
-  for (const row of rows.filter(r => isFrench({ language: r.language, bookType: r.book_type }))) {
+  // Those with their notice already were done: only the others are asked again.
+  for (const row of rows.filter(r => isFrench({ language: r.language, bookType: r.book_type }) && !/"bnf"\s*:/.test(r.urls || ''))) {
     try {
       const { found, gained } = await later(() => enrichBook(row.id));
       if (!found) result.notFound.push({ id: row.id, title: row.title });

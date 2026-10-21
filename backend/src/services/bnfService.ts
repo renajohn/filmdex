@@ -80,12 +80,31 @@ export const parseRecord = (record: string): BnfBook | null => {
   };
 };
 
+/** The catalogue answers 429 to more than about one question a second: a second between two, and a pause when it says so. */
+let spacingMs = 1100;
+const PAUSES_MS = [5000, 15000, 30000];
+let nextAt = 0;
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 const ask = async (query: string, max: number): Promise<string[]> => {
-  const { data } = await axios.get(SRU, {
-    params: { version: '1.2', operation: 'searchRetrieve', recordSchema: 'unimarcxchange', maximumRecords: max, query },
-    timeout: TIMEOUT_MS,
-    responseType: 'text',
-  });
+  let data: unknown;
+  for (let attempt = 0; ; attempt++) {
+    const now = Date.now();
+    const at = Math.max(now, nextAt);
+    nextAt = at + spacingMs;
+    if (at > now) await wait(at - now);
+    try {
+      ({ data } = await axios.get(SRU, {
+        params: { version: '1.2', operation: 'searchRetrieve', recordSchema: 'unimarcxchange', maximumRecords: max, query },
+        timeout: TIMEOUT_MS,
+        responseType: 'text',
+      }));
+      break;
+    } catch (error) {
+      if ((error as { response?: { status?: number } }).response?.status !== 429 || attempt >= PAUSES_MS.length) throw error;
+      await wait(PAUSES_MS[attempt]);
+    }
+  }
   return [...String(data).matchAll(/<srw:record>([\s\S]*?)<\/srw:record>/g)].map(match => match[1]);
 };
 
@@ -139,5 +158,8 @@ const find = async (book: { isbn13?: string | null; isbn?: string | null; title:
   if (book.series) return byVolume(book.series, book.seriesNumber ?? null, author, like);
   return byVolume(book.title, null, author, like);
 };
+
+/** For the tests: no spacing, no pauses. */
+export const unpaced = (): void => { spacingMs = 0; nextAt = 0; PAUSES_MS.fill(0); };
 
 export default { byIsbn, byVolume, find };

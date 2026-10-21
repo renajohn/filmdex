@@ -4,7 +4,7 @@ import axios from 'axios';
 import request from 'supertest';
 import app from '../../index';
 import { getDatabase } from '../../src/database';
-import bnfService, { parseRecord } from '../../src/services/bnfService';
+import bnfService, { parseRecord, unpaced } from '../../src/services/bnfService';
 import bookBnfService from '../../src/services/bookBnfService';
 
 const run = (sql: string, params: unknown[] = []) => new Promise<number>((resolve, reject) =>
@@ -17,6 +17,7 @@ const record = ANSWER.match(/<srw:record>([\s\S]*?)<\/srw:record>/)![1];
 /** The same notice as volume n of another series. */
 const volume = (series: string, n: number) => record.replace(/Les mondes perdus/g, series).replace(/code="v">1</g, `code="v">${n}<`);
 
+beforeAll(() => unpaced());
 afterEach(() => jest.restoreAllMocks());
 
 describe('le catalogue de la BnF', () => {
@@ -45,6 +46,16 @@ describe('le catalogue de la BnF', () => {
     expect(await bnfService.find({ isbn13: '9782302099999', title: 'x', series: 'Sorceline', seriesNumber: 4, bookType: 'book' })).toBeNull();
     expect(await bnfService.find({ isbn13: '9782302099999', title: 'x', series: 'Sorceline', seriesNumber: 4, pageCount: 384 })).toBeNull();
     expect(await bnfService.find({ isbn13: '9782302099999', title: 'x', series: 'Sorceline', seriesNumber: 4, bookType: 'book', pageCount: 70 })).not.toBeNull();
+  });
+  it('attend quand le catalogue dit 429, puis redemande', async () => {
+    let calls = 0;
+    jest.spyOn(axios, 'get').mockImplementation(async () => {
+      calls++;
+      if (calls === 1) throw Object.assign(new Error('Request failed with status code 429'), { response: { status: 429 } });
+      return { data: ANSWER } as never;
+    });
+    expect((await bnfService.byIsbn('9782808501972'))?.title).toBe('Le crâne de Lubaantun');
+    expect(calls).toBe(2);
   });
 });
 
