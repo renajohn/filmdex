@@ -19,7 +19,19 @@ export interface HenleEdition {
   cover: string | null;
   /** Henle's level, 1 (easy) to 9 (very difficult), when its page gives it. */
   level: number | null;
+  /** What Henle writes of the work and its edition, paragraphs apart. */
+  description: string | null;
 }
+
+/** Henle's words on an edition, its blog's link left out. */
+export const descriptionOf = (html: string): string | null => {
+  const block = html.match(/class="cms-section-werbetext-bio"[^>]*>([\s\S]*?)<\/p>/)?.[1];
+  if (!block) return null;
+  const paragraphs = block.split(/(?:<br\s*\/?>\s*){2,}/)
+    .map(paragraph => text(paragraph.replace(/<br\s*\/?>/g, ' ')))
+    .filter(paragraph => paragraph && !/^Read more about this edition\b/i.test(paragraph));
+  return paragraphs.join('\n\n') || null;
+};
 
 /** The HN number an ISMN holds, when the ISMN is Henle's. */
 export const henleNumberOf = (code: string | null | undefined): number | null => {
@@ -44,8 +56,14 @@ const edition = async (number: number): Promise<HenleEdition | null> => {
   const title = link[3].match(/class="product-name"[^>]*>([\s\S]*?)<\/p>/)?.[1];
   const cover = link[3].match(/<img[^>]+src="([^"]+)"/)?.[1] ?? null;
   let level: number | null = null;
+  let description: string | null = null;
+  let bigCover: string | null = null;
   try {
-    const page = text((await axios.get(link[1], { headers: HEADERS, timeout: 15000 })).data as string);
+    const html = (await axios.get(link[1], { headers: HEADERS, timeout: 15000 })).data as string;
+    description = descriptionOf(html);
+    // Its page's own image is larger than the suggestion's.
+    bigCover = html.match(/<meta property="og:image"\s+content="([^"]+)"/)?.[1] ?? null;
+    const page = text(html);
     // "Levels of Difficulty Piano Difficult 7": its block in the shop, not the menu's "Level of Difficulty".
     const found = page.match(/Shop Levels of Difficulty\s+[\p{L} ]{2,40}?\s+(?:Very easy|Easy|Medium|Difficult|Very difficult)\s+(\d)\b/u);
     level = found ? Number(found[1]) : null;
@@ -55,8 +73,9 @@ const edition = async (number: number): Promise<HenleEdition | null> => {
     title: text(title || '') || text(link[3]),
     composer: composer ? text(composer) || null : null,
     url: link[1],
-    cover,
+    cover: bigCover || cover,
     level,
+    description,
   };
   cache.set(number, result);
   return result;

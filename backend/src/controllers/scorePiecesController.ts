@@ -54,6 +54,10 @@ const scorePiecesController = {
     try { res.status(201).json(await scoreAddService.create(req.body || {})); } catch (error) { fail(res, error); }
   },
   // GET: a Henle score's page and level
+  // POST: every Henle score read again from henle.de, what each gained
+  henleAll: async (_req: Request, res: Response): Promise<void> => {
+    try { res.json(await scoreAddService.henleAll()); } catch (error) { fail(res, error); }
+  },
   henle: async (req: Request, res: Response): Promise<void> => {
     try { res.json(await scoreAddService.henleOf(id(req.params.id))); } catch (error) { fail(res, error); }
   },

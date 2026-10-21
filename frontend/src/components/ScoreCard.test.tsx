@@ -84,6 +84,26 @@ describe('ScoreCard', () => {
     expect(screen.getByRole('button', { name: /All · Zimerman/ })).toBeInTheDocument();
   });
 
+  it('montre les mots de son éditeur, pas ceux d’une boutique, et sa pochette en grand', async () => {
+    vi.mocked(bookService.getBookById).mockResolvedValueOnce({ id: 219, title: 'Préludes (HN 383)', composer: 'Claude Debussy', bookType: 'score', authors: [], cover: '/api/images/book/b.jpg',
+      description: 'In 1910 the Préludes were published.\n\nRead on.' });
+    card();
+    expect(await screen.findByText('In 1910 the Préludes were published.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Read more' }));
+    expect(screen.getByRole('button', { name: 'Less' })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('See it large'));
+    expect(document.querySelectorAll('img[src="/api/images/book/b.jpg"]').length).toBe(2);
+  });
+
+  it('cache la fiche d’une boutique prise pour une description, et se relit quand henle.de a donné du neuf', async () => {
+    vi.mocked(scorePiecesService.henle).mockResolvedValueOnce({ url: 'https://www.henle.de/X/HN-383', level: 7, changed: true });
+    vi.mocked(bookService.getBookById).mockResolvedValue({ id: 219, title: 'Préludes (HN 383)', composer: 'Claude Debussy', bookType: 'score', authors: [],
+      description: 'Support - PartitionInstrumentation - Klavier' });
+    card();
+    await waitFor(() => expect(bookService.getBookById).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(/Support - Partition/)).not.toBeInTheDocument();
+  });
+
   it('ne garde que les mouvements que tient la partition', async () => {
     vi.mocked(scorePiecesService.keepParts).mockReset().mockResolvedValue([{ ...livre, parts: [livre.parts[1]], choices: livre.choices.map(c => ({ ...c, kept: c.workId === 'w2' })) }, clair]);
     card();

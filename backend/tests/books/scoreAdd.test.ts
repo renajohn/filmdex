@@ -5,7 +5,9 @@ import { getDatabase } from '../../src/database';
 import musicbrainzService from '../../src/services/musicbrainzService';
 import wikidataWorksService from '../../src/services/wikidataWorksService';
 import imslpWorksService from '../../src/services/imslpWorksService';
+import sharp from 'sharp';
 import henleService, { henleNumberOf } from '../../src/services/henleService';
+import { henleNumberOfBook, isShopNoise } from '../../src/services/scoreAddService';
 
 const run = (sql: string, params: unknown[] = []) => new Promise<number>((resolve, reject) =>
   getDatabase().run(sql, params, function (this: { lastID: number }, err: Error | null) { if (err) reject(err); else resolve(this.lastID); }));
@@ -15,7 +17,10 @@ const SUGGEST = `<div><a href="https://www.henle.de/Preludes-Premier-livre/HN-38
   <img src="https://www.henle.de/media/9e/HN-0383-1-sync.jpg" />
   <p class="product-componist-name">Claude Debussy</p><p class="product-name">Préludes, Premier livre</p><div>HN 383</div></a>
   <a href="https://www.henle.de/Something/HN-3830"><p class="product-name">Else</p></a></div>`;
-const PAGE = '<div>Search shop: Composer Level of Difficulty</div><div>Shop Levels of Difficulty</div><div>Piano</div><div>Difficult 7</div><p>Claude Debussy Préludes</p>';
+const PAGE = `<meta property="og:image"
+          content="https://www.henle.de/media/9e/HN-0383-big.jpg"/>
+  <div>Search shop: Composer Level of Difficulty</div><div>Shop Levels of Difficulty</div><div>Piano</div><div>Difficult 7</div><p>Claude Debussy Préludes</p>
+  <p class="cms-section-werbetext-bio">In 1910 the Préludes were published. This first volume became an immediate success.<br /><br />Read more about this edition in the <a href="x">Henle Blog.</a></p>`;
 
 beforeEach(() => {
   jest.spyOn(wikidataWorksService, 'byMusicBrainz').mockResolvedValue(null);
@@ -39,8 +44,20 @@ describe('Henle', () => {
     jest.spyOn(axios, 'get').mockImplementation(async (url: string) => ({ data: url.endsWith('/suggest') ? SUGGEST : PAGE }) as never);
     expect(await henleService.edition(383)).toEqual({
       number: 'HN 383', title: 'Préludes, Premier livre', composer: 'Claude Debussy',
-      url: 'https://www.henle.de/Preludes-Premier-livre/HN-383', cover: 'https://www.henle.de/media/9e/HN-0383-1-sync.jpg', level: 7,
+      url: 'https://www.henle.de/Preludes-Premier-livre/HN-383', cover: 'https://www.henle.de/media/9e/HN-0383-big.jpg', level: 7,
+      description: 'In 1910 the Préludes were published. This first volume became an immediate success.',
     });
+  });
+
+  it('reconnaît une partition Henle à son ISMN, au numéro de son titre ou à sa page ; et le bruit d’une boutique', () => {
+    expect(henleNumberOfBook({ isbn13: '9790201803838', title: 'Préludes' })).toBe(383);
+    expect(henleNumberOfBook({ isbn13: null, title: 'Deux Arabesques (HN 380)' })).toBe(380);
+    expect(henleNumberOfBook({ title: 'Berceuse', urls: { henle: 'https://www.henle.de/Berceuse/HN-1258' } })).toBe(1258);
+    expect(henleNumberOfBook({ isbn13: '9790230954983', title: 'Kinderszenen' })).toBeNull();
+    expect(isShopNoise('Support - PartitionInstrumentation - KlavierGenre - Classique')).toBe(true);
+    expect(isShopNoise('Search\n   opt')).toBe(true);
+    expect(isShopNoise('')).toBe(true);
+    expect(isShopNoise('L’été 1844 fut déjà le cinquième que Chopin passa à Nohant.')).toBe(false);
   });
 });
 
@@ -48,7 +65,7 @@ describe('ajouter une partition', () => {
   it('trouve par son ISMN de Henle l’édition et l’œuvre qu’elle tient', async () => {
     jest.spyOn(henleService, 'edition').mockResolvedValue({
       number: 'HN 465', title: 'Consolations (including first edition of the early version)', composer: 'Franz Liszt',
-      url: 'https://www.henle.de/Consolations/HN-465', cover: 'https://www.henle.de/media/HN-0465.jpg', level: null,
+      url: 'https://www.henle.de/Consolations/HN-465', cover: 'https://www.henle.de/media/HN-0465.jpg', level: null, description: null,
     });
     jest.spyOn(musicbrainzService, 'searchWorks').mockResolvedValue([
       { id: uuid(172), title: 'Consolations, S. 172', score: 100, composers: ['Franz Liszt'], disambiguation: null },
@@ -83,12 +100,33 @@ describe('ajouter une partition', () => {
 
   it('lit une fois la page et le niveau Henle d’une partition déjà là', async () => {
     const id = await run(`INSERT INTO books (title, authors, book_type, title_status, isbn13, urls) VALUES ('Berceuse', '[]', 'score', 'owned', '9790201812588', '{}')`);
-    const asked = jest.spyOn(henleService, 'edition').mockResolvedValue({ number: 'HN 1258', title: 'Berceuse', composer: 'Frédéric Chopin', url: 'https://www.henle.de/Berceuse/HN-1258', cover: null, level: 7 });
+    const asked = jest.spyOn(henleService, 'edition').mockResolvedValue({ number: 'HN 1258', title: 'Berceuse', composer: 'Frédéric Chopin', url: 'https://www.henle.de/Berceuse/HN-1258', cover: null, level: 7, description: null });
 
-    expect((await request(app).get(`/api/scores/${id}/henle`).expect(200)).body).toEqual({ url: 'https://www.henle.de/Berceuse/HN-1258', level: 7 });
+    expect((await request(app).get(`/api/scores/${id}/henle`).expect(200)).body).toEqual({ url: 'https://www.henle.de/Berceuse/HN-1258', level: 7, changed: false });
     expect((await request(app).get(`/api/scores/${id}/henle`).expect(200)).body).toEqual({ url: 'https://www.henle.de/Berceuse/HN-1258', level: 7 });
     expect(asked).toHaveBeenCalledTimes(1);
     expect(asked).toHaveBeenCalledWith(1258);
+  });
+
+  it('relit henle.de pour les partitions Henle : leurs mots s’ils n’en ont pas de vrais, leur couverture si elle est plus grande', async () => {
+    const big = await sharp({ create: { width: 585, height: 773, channels: 3, background: '#888' } }).jpeg().toBuffer();
+    const noisy = await run(`INSERT INTO books (title, authors, book_type, title_status, urls, description) VALUES ('Deux Arabesques (HN 380)', '[]', 'score', 'owned', '{}', 'Support - PartitionInstrumentation - Klavier')`);
+    const written = await run(`INSERT INTO books (title, authors, book_type, title_status, isbn13, urls, description) VALUES ('Berceuse', '[]', 'score', 'owned', '9790201812588', '{}', 'L’été 1844 à Nohant.')`);
+    await run(`INSERT INTO books (title, authors, book_type, title_status, urls) VALUES ('Kinderszenen', '[]', 'score', 'owned', '{}')`);
+    jest.spyOn(henleService, 'edition').mockImplementation(async number => ({
+      number: `HN ${number}`, title: 'X', composer: null, url: `https://www.henle.de/X/HN-${number}`, cover: `https://www.henle.de/media/HN-${number}.jpg`, level: 4,
+      description: `Henle on ${number}.`,
+    }));
+    jest.spyOn(axios, 'get').mockImplementation(async () => ({ data: big, status: 200, headers: { 'content-type': 'image/jpeg' } }) as never);
+
+    const read = (await request(app).post('/api/scores/henle').expect(200)).body as Array<{ id: number; cover: boolean; description: boolean }>;
+
+    expect(read.find(r => r.id === noisy)).toMatchObject({ cover: true, description: true, level: 4 });
+    expect(read.find(r => r.id === written)).toMatchObject({ description: false });
+    const arabesques = (await request(app).get(`/api/books/${noisy}`).expect(200)).body;
+    expect(arabesques).toMatchObject({ description: 'Henle on 380.', difficulty: 4, urls: { henle: 'https://www.henle.de/X/HN-380' } });
+    expect(arabesques.cover).toMatch(/^\/api\/images\/book\//);
+    expect((await request(app).get(`/api/books/${written}`).expect(200)).body.description).toBe('L’été 1844 à Nohant.');
   });
 
   it('par des mots : le compositeur qu’ils nomment, écrit comme les partitions l’écrivent ; jamais deviné', async () => {

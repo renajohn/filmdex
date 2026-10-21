@@ -5,6 +5,15 @@
   margin-bottom: 18px;
 }
 
+/* Its cover opens large on a click. */
+.score-card__cover {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
 .score-card__head img,
 .score-card__blank {
   flex: none;
@@ -13,6 +22,29 @@
   border-radius: 3px;
   object-fit: cover;
   background: var(--dv-glass);
+}
+
+/* What its publisher writes of it: three lines, the rest on asking. */
+.score-card__about-text {
+  margin: -6px 0 18px;
+  color: var(--dv-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.score-card__about-text p {
+  margin: 0 0 8px;
+}
+
+.score-card__about-text:not(.score-card__about-text--open) p {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.score-card__about-text:not(.score-card__about-text--open) p + p {
+  display: none;
 }
 
 .score-card__composer {

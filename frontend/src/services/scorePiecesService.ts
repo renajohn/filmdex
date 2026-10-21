@@ -54,6 +54,7 @@ export interface ScoreEdition {
   code: string | null;
   cover: string | null;
   level: number | null;
+  description?: string | null;
   url: string | null;
 }
 
@@ -67,6 +68,7 @@ export interface NewScore {
   code: string | null;
   cover: string | null;
   level: number | null;
+  description?: string | null;
   url: string | null;
   priceChf: string | null;
   purchasedAt: string | null;
@@ -98,7 +100,7 @@ const scorePiecesService = {
     send<{ suggestions: PieceSuggestion[]; truncated: boolean }>('POST', `/api/scores/${scoreId}/contents-photo`, { image, mimeType }),
   lookup: (query: string) => fetch(`/api/scores/lookup?q=${encodeURIComponent(query)}`).then(response => json<ScoreLookup>(response)),
   create: (score: NewScore) => send<{ id: number }>('POST', '/api/scores', score),
-  henle: (scoreId: number) => fetch(`/api/scores/${scoreId}/henle`).then(response => json<{ url: string | null; level: number | null }>(response)),
+  henle: (scoreId: number) => fetch(`/api/scores/${scoreId}/henle`).then(response => json<{ url: string | null; level: number | null; changed?: boolean }>(response)),
   imslpPage: (scoreId: number) => fetch(`/api/scores/${scoreId}/imslp`).then(response => json<{ page: string | null }>(response)),
   ofAlbum: (albumId: number) => fetch(`/api/music/albums/${albumId}/scores`).then(response => json<AlbumScore[]>(response)),
 };

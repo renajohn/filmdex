@@ -1,4 +1,9 @@
+import fs from 'fs';
+import path from 'path';
+import axios from 'axios';
+import sharp from 'sharp';
 import Book from '../models/book';
+import imageService from './imageService';
 import { getDatabase } from '../database';
 import bookService from './bookService';
 import musicbrainzService from './musicbrainzService';
@@ -24,6 +29,8 @@ export interface ScoreEdition {
   level: number | null;
   /** Its page at its publisher's. */
   url: string | null;
+  /** What its publisher writes of it. */
+  description: string | null;
 }
 
 export interface ScoreLookup {
@@ -85,11 +92,11 @@ const lookup = async (query: string): Promise<ScoreLookup> => {
     if (henle) {
       return {
         from: 'henle',
-        edition: { title: henle.title, composer: henle.composer, publisher: 'G. Henle Verlag', number: henle.number, code, cover: henle.cover, level: henle.level, url: henle.url },
+        edition: { title: henle.title, composer: henle.composer, publisher: 'G. Henle Verlag', number: henle.number, code, cover: henle.cover, level: henle.level, url: henle.url, description: henle.description },
         works: henle.composer ? await scorePiecesService.suggestFor({ title: henle.title, composer: henle.composer }, new Set()).catch(() => []) : [],
       };
     }
-    return { from: 'code', edition: { title: '', composer: null, publisher: number ? 'G. Henle Verlag' : null, number: number ? `HN ${number}` : null, code, cover: null, level: null, url: null }, works: [] };
+    return { from: 'code', edition: { title: '', composer: null, publisher: number ? 'G. Henle Verlag' : null, number: number ? `HN ${number}` : null, code, cover: null, level: null, url: null, description: null }, works: [] };
   }
   const composer = await composerOf(words);
   // The work's words: the typed ones without the composer's name.
@@ -103,7 +110,7 @@ const lookup = async (query: string): Promise<ScoreLookup> => {
   const chosen = works.filter(work => work.likely !== false);
   return {
     from: 'words',
-    edition: { title: chosen.length ? chosen.map(work => work.title).join(' & ') : title, composer, publisher: null, number: null, code: null, cover: null, level: null, url: null },
+    edition: { title: chosen.length ? chosen.map(work => work.title).join(' & ') : title, composer, publisher: null, number: null, code: null, cover: null, level: null, url: null, description: null },
     works,
   };
 };
@@ -117,6 +124,7 @@ export interface NewScore {
   cover?: string | null;
   level?: number | null;
   url?: string | null;
+  description?: string | null;
   priceChf?: number | string | null;
   purchasedAt?: string | null;
   titleStatus?: 'owned' | 'borrowed';
@@ -144,6 +152,7 @@ const create = async (input: NewScore): Promise<{ id: number }> => {
     format: 'physical',
     composer: input.composer || null,
     difficulty: input.level ?? null,
+    description: input.description || null,
     urls: input.url ? { henle: input.url } : {},
     availableCovers: input.cover ? [{ url: input.cover, source: 'Henle', type: 'front', priority: 30 }] : [],
     titleStatus: borrowed ? 'borrowed' : 'owned',
@@ -155,17 +164,78 @@ const create = async (input: NewScore): Promise<{ id: number }> => {
   return { id: book.id };
 };
 
-/** A Henle score's page and level, read once from henle.de by the number its ISMN holds. */
-const henleOf = async (bookId: number): Promise<{ url: string | null; level: number | null }> => {
+/** The HN number of a score: its ISMN's, else "(HN 383)" in its title, else its Henle page's. */
+export const henleNumberOfBook = (book: { isbn13?: string | null; title?: string | null; urls?: Record<string, string> | null }): number | null =>
+  henleNumberOf(book.isbn13)
+  ?? (Number(String(book.title || '').match(/\bHN\s*(\d{1,4})\b/)?.[1] || book.urls?.henle?.match(/\/HN-(\d+)$/)?.[1] || 0) || null);
+
+/** A shop's listing taken for a description ("Support - Partition Instrumentation - Klavier…"), or a page's menu. */
+export const isShopNoise = (text: string | null | undefined): boolean =>
+  !String(text || '').trim() || /^\s*(?:Support\s*-\s*Partition|Search\b)/.test(String(text));
+
+/** An image's size in pixels, local or on the web; 0 when unread. */
+const pixelsOf = async (source: string | Buffer): Promise<number> => {
+  try { const { width = 0, height = 0 } = await sharp(source).metadata(); return width * height; } catch { return 0; }
+};
+const localCover = (cover: string | null | undefined): string | null => {
+  const file = String(cover || '').match(/^\/api\/images\/book\/([^/?]+)$/)?.[1];
+  return file ? path.join(imageService.getLocalImagesDir(), 'book', file) : null;
+};
+
+export interface HenleRead { url: string | null; level: number | null; cover: boolean; description: boolean }
+
+/**
+ * What henle.de says of a score, kept: its page, its level, its words when it
+ * has none or only a shop's listing, its cover when larger than the one it has.
+ */
+const readHenle = async (bookId: number): Promise<HenleRead> => {
+  const book = await Book.findById(bookId);
+  if (!book || book.bookType !== 'score') throw new ScorePiecesError('No such score', 404);
+  const none = { url: book.urls?.henle ?? null, level: book.difficulty ?? null, cover: false, description: false };
+  const number = henleNumberOfBook(book);
+  if (!number) return none;
+  const henle = await henleService.edition(number).catch(() => null);
+  if (!henle) return none;
+  const description = henle.description && isShopNoise(book.description) ? henle.description : null;
+  let coverUrl: string | null = null;
+  if (henle.cover) {
+    const theirs = await axios.get(henle.cover, { responseType: 'arraybuffer', timeout: 15000 }).then(r => pixelsOf(Buffer.from(r.data))).catch(() => 0);
+    const file = localCover(book.cover);
+    const ours = file && fs.existsSync(file) ? await pixelsOf(file) : 0;
+    if (theirs > ours) coverUrl = henle.cover;
+  }
+  await bookService.updateBook(book.id, {
+    ...book,
+    urls: { ...(book.urls || {}), henle: henle.url },
+    difficulty: henle.level ?? book.difficulty ?? null,
+    ...(description ? { description } : {}),
+    ...(coverUrl ? { coverUrl } : {}),
+  } as never);
+  return { url: henle.url, level: henle.level ?? book.difficulty ?? null, cover: !!coverUrl, description: !!description };
+};
+
+/** A Henle score's page and level, read once from henle.de, with its words and cover. */
+const henleOf = async (bookId: number): Promise<{ url: string | null; level: number | null; changed?: boolean }> => {
   const book = await Book.findById(bookId);
   if (!book || book.bookType !== 'score') throw new ScorePiecesError('No such score', 404);
   if (book.urls?.henle) return { url: book.urls.henle, level: book.difficulty ?? null };
-  const number = henleNumberOf(book.isbn13);
-  if (!number) return { url: null, level: null };
-  const henle = await henleService.edition(number).catch(() => null);
-  if (!henle) return { url: null, level: null };
-  await Book.update(book.id, { ...book, urls: { ...(book.urls || {}), henle: henle.url }, difficulty: henle.level ?? book.difficulty ?? null } as never);
-  return { url: henle.url, level: henle.level ?? book.difficulty ?? null };
+  const { url, level, cover, description } = await readHenle(bookId);
+  return { url, level, changed: cover || description };
 };
 
-export default { lookup, create, henleOf };
+/** Every Henle score read again from henle.de: what each gained. */
+const henleAll = async (): Promise<Array<{ id: number; title: string } & HenleRead>> => {
+  const scores = await all<{ id: number; title: string; isbn13: string | null; urls: string | null }>(`SELECT id, title, isbn13, urls FROM books WHERE book_type = 'score'`);
+  const result: Array<{ id: number; title: string } & HenleRead> = [];
+  for (const score of scores) {
+    let urls: Record<string, string> | null = null;
+    try { urls = score.urls ? JSON.parse(score.urls) : null; } catch { /* none */ }
+    if (!henleNumberOfBook({ ...score, urls })) continue;
+    try { result.push({ id: score.id, title: score.title, ...(await readHenle(score.id)) }); } catch (error) {
+      logger.warn(`henle.de for score ${score.id}: ${(error as Error).message}`);
+    }
+  }
+  return result;
+};
+
+export default { lookup, create, henleOf, henleAll };

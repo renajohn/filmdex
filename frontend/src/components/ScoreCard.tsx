@@ -19,6 +19,7 @@ import { TextArea, TextField } from './shared/TextField';
 import Segmented from './shared/Segmented';
 import { confirm } from './shared/ConfirmDialog';
 import toast from './shared/Toast';
+import CoverModal from './CoverModal';
 import './ScoreCard.css';
 
 const fmt = (seconds: number | null) => (seconds == null ? '' : `${Math.floor(seconds / 60)}:${String(Math.round(seconds) % 60).padStart(2, '0')}`);
@@ -137,6 +138,8 @@ const ScoreView: React.FC<ScoreCardProps & { score: Score }> = ({ score, onClose
   const [writing, setWriting] = useState<string | null>(null);
   // Its page on IMSLP, where its free editions are: the one its pieces or its title find.
   const [imslpPage, setImslpPage] = useState<string | null>(null);
+  const [coverShown, setCoverShown] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const playing = usePlaying();
   // The row last played from: several pieces one track holds (waltzes 1, 2 and 5 in one) light that one alone.
   const [playedFrom, setPlayedFrom] = useState<{ row: string; track: string } | null>(null);
@@ -146,7 +149,11 @@ const ScoreView: React.FC<ScoreCardProps & { score: Score }> = ({ score, onClose
   useEffect(() => {
     setImslpPage(null); setBook(null); setEditing(null); setNotes([]); setHenle({ url: null, level: null });
     loadBook(); loadNotes();
-    scorePiecesService.henle(score.id).then(found => setHenle(found || { url: null, level: null })).catch(() => undefined);
+    scorePiecesService.henle(score.id).then(found => {
+      setHenle(found || { url: null, level: null });
+      // henle.de gave it a larger cover or its words: shown at once, and in the list.
+      if (found?.changed) { loadBook(); onChanged(); }
+    }).catch(() => undefined);
   }, [score.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     let current = true;
@@ -232,11 +239,17 @@ const ScoreView: React.FC<ScoreCardProps & { score: Score }> = ({ score, onClose
   };
 
   const cover = book?.cover ?? score.cover;
+  // What its publisher writes of it; a shop's listing taken for words ("Support - Partition…") is not shown.
+  const about = typeof book?.description === 'string' && !/^\s*(?:Support\s*-\s*Partition|Search\b)/.test(book.description) ? book.description.trim() : '';
   return (
     <Dialog show onClose={onClose} variant="panel" size="lg" icon={<BsFileMusic />} title={pieceOf(String(book?.title ?? score.title))} className="score-card">
       <Dialog.Body>
         <div className="score-card__head">
-          {cover ? <img src={bookService.getImageUrl(String(cover)) || ''} alt="" /> : <span className="score-card__blank" />}
+          {cover ? (
+            <button type="button" className="score-card__cover" onClick={() => setCoverShown(true)} title="See it large">
+              <img src={bookService.getImageUrl(String(cover)) || ''} alt="" />
+            </button>
+          ) : <span className="score-card__blank" />}
           <div className="score-card__about">
             <div className="score-card__composer">{values.composer || 'Composer unknown'}</div>
             {!editing && (
@@ -279,6 +292,14 @@ const ScoreView: React.FC<ScoreCardProps & { score: Score }> = ({ score, onClose
             </div>
           </>
         )}
+        {!editing && about && (
+          <div className={`score-card__about-text${aboutOpen ? ' score-card__about-text--open' : ''}`}>
+            {about.split(/\n{2,}/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+            {(about.length > 260 || about.includes('\n')) && (
+              <Button size="sm" variant="quiet" onClick={() => setAboutOpen(open => !open)}>{aboutOpen ? 'Less' : 'Read more'}</Button>
+            )}
+          </div>
+        )}
 
         <section className="score-card__section">
           <h4>
@@ -317,6 +338,8 @@ const ScoreView: React.FC<ScoreCardProps & { score: Score }> = ({ score, onClose
           {!notes.length && writing === null && <p className="score-card__empty">No note yet.</p>}
         </section>
       </Dialog.Body>
+      <CoverModal isOpen={coverShown} onClose={() => setCoverShown(false)} coverUrl={bookService.getImageUrl(String(cover)) || ''}
+        title={pieceOf(String(book?.title ?? score.title))} artist={values.composer || undefined} />
     </Dialog>
   );
 };
@@ -396,6 +419,7 @@ const AddScore: React.FC<ScoreCardProps> = ({ onClose, onCreated }) => {
         cover: found?.edition.cover ?? null,
         level: found?.edition.level ?? null,
         url: found?.edition.url ?? null,
+        description: found?.edition.description ?? null,
         priceChf: values.borrowed ? null : values.priceChf.trim() || null,
         purchasedAt: values.borrowed ? null : values.purchasedAt || null,
         titleStatus: values.borrowed ? 'borrowed' : 'owned',

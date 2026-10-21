@@ -371,6 +371,7 @@ app.put('/api/scores/composers', bookSectionsController.setComposers);
 // A score's pieces, as MusicBrainz works, and the recordings of the music playing them
 app.get('/api/scores/lookup', scorePiecesController.lookup);
 app.post('/api/scores', scorePiecesController.create);
+app.post('/api/scores/henle', scorePiecesController.henleAll);
 app.get('/api/scores/works/search', scorePiecesController.search);
 app.post('/api/scores/works/index', scorePiecesController.index);
 app.get('/api/scores/:id/pieces', scorePiecesController.pieces);
