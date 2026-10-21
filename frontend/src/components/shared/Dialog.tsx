@@ -104,6 +104,15 @@ const DialogRoot: React.FC<DialogProps> = ({
     const timer = window.setTimeout(left, 600);
     return () => window.clearTimeout(timer);
   }, [leaving, left]);
+  // Closed by the page that holds it (Add this book), it leaves the same way: should its fade never end
+  // (Safari), it is taken off the page, rather than staying over it, unseen, catching every click.
+  const [present, setPresent] = useState(show);
+  useEffect(() => {
+    if (show) { setPresent(true); return undefined; }
+    const timer = window.setTimeout(() => setPresent(false), 700);
+    return () => window.clearTimeout(timer);
+  }, [show]);
+  if (!present && !show) return null;
   return (
     <DialogClose.Provider value={close}>
     <Modal

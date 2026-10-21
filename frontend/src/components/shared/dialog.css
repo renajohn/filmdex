@@ -142,3 +142,9 @@
   font-size: 13px;
   white-space: nowrap;
 }
+
+/* A dialog on its way out takes no click: one whose fade did not end would hold the page under it. */
+.modal.fade:not(.show),
+.modal-backdrop.fade:not(.show) {
+  pointer-events: none;
+}

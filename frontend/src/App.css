@@ -343,10 +343,15 @@ body {
   height: calc(100vh - var(--player-h)) !important;
 }
 
-/* A centred dialog ends above the bar too: the bar stays out while something plays. */
+/* A centred dialog ends above the bar too: the bar stays out while something plays.
+   Its fade stays Bootstrap's: a transition of the height alone took it away, and a dialog closed
+   by its page then waited for an end its opacity never sent. */
 .modal {
   height: calc(100% - var(--player-h));
-  transition: height 0.25s ease-out;
+}
+
+.modal.fade:not(.side-panel-modal) {
+  transition: opacity 0.15s linear, height 0.25s ease-out;
 }
 
 /* Three classes: the book card's styles hold .modal-backdrop.show to 100vh, important too. */
