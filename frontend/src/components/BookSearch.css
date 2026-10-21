@@ -440,3 +440,10 @@
   height: 12px;
 }
 
+
+/* Whose books, in the bar: the family's names. */
+.book-owner-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

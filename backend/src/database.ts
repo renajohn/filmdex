@@ -340,6 +340,76 @@ const runAutoMigrations = async (): Promise<void> => {
         }
         console.log('  ✓ Added price_chf and purchased_at to books');
       }
+    },
+    {
+      name: '019_score_composer',
+      up: async () => {
+        // A score's composer: its "author" is most often an editor (Ashkenazy for Bach's French Suites).
+        const columns = await new Promise<Array<{ name: string }>>((resolve, reject) => {
+          currentDb.all('PRAGMA table_info(books)', (err: Error | null, rows: Array<{ name: string }>) => (err ? reject(err) : resolve(rows || [])));
+        });
+        if (!columns.some(c => c.name === 'composer')) {
+          await new Promise<void>((resolve, reject) => {
+            currentDb.run('ALTER TABLE books ADD COLUMN composer TEXT', (err: Error | null) => (err ? reject(err) : resolve()));
+          });
+        }
+        await new Promise<void>((resolve, reject) => {
+          currentDb.run(`
+            CREATE TABLE IF NOT EXISTS series_notes (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              series_key TEXT NOT NULL,
+              series TEXT NOT NULL,
+              name TEXT,
+              note TEXT NOT NULL,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`, (err: Error | null) => (err ? reject(err) : resolve()));
+        });
+        await new Promise<void>((resolve, reject) => {
+          currentDb.run('CREATE INDEX IF NOT EXISTS idx_series_notes_key ON series_notes(series_key)', (err: Error | null) => (err ? reject(err) : resolve()));
+        });
+        console.log('  ✓ Added books.composer and series_notes');
+      }
+    },
+    {
+      name: '020_book_readings',
+      up: async () => {
+        // A book read again keeps its first reading: one row per reading, the dates kept so far as the first.
+        await new Promise<void>((resolve, reject) => {
+          currentDb.run(`
+            CREATE TABLE IF NOT EXISTS book_readings (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              book_id INTEGER NOT NULL,
+              read_date TEXT NOT NULL,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`, (err: Error | null) => (err ? reject(err) : resolve()));
+        });
+        await new Promise<void>((resolve, reject) => {
+          currentDb.run('CREATE INDEX IF NOT EXISTS idx_book_readings_book ON book_readings(book_id)', (err: Error | null) => (err ? reject(err) : resolve()));
+        });
+        await new Promise<void>((resolve, reject) => {
+          currentDb.run(`INSERT INTO book_readings (book_id, read_date)
+            SELECT id, substr(read_date, 1, 10) FROM books
+            WHERE read_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*'
+              AND id NOT IN (SELECT book_id FROM book_readings)`, (err: Error | null) => (err ? reject(err) : resolve()));
+        });
+        // Each comment with the reading it was written after (before the first, with the first).
+        const commentColumns = await new Promise<Array<{ name: string }>>((resolve, reject) => {
+          currentDb.all('PRAGMA table_info(book_comments)', (err: Error | null, rows: Array<{ name: string }>) => (err ? reject(err) : resolve(rows || [])));
+        });
+        if (!commentColumns.some(c => c.name === 'reading_id')) {
+          await new Promise<void>((resolve, reject) => {
+            currentDb.run('ALTER TABLE book_comments ADD COLUMN reading_id INTEGER', (err: Error | null) => (err ? reject(err) : resolve()));
+          });
+        }
+        await new Promise<void>((resolve, reject) => {
+          currentDb.run(`UPDATE book_comments SET reading_id = COALESCE(
+              (SELECT r.id FROM book_readings r WHERE r.book_id = book_comments.book_id AND r.read_date <= substr(book_comments.date, 1, 10) ORDER BY r.read_date DESC, r.id DESC LIMIT 1),
+              (SELECT r.id FROM book_readings r WHERE r.book_id = book_comments.book_id ORDER BY r.read_date, r.id LIMIT 1))
+            WHERE reading_id IS NULL`, (err: Error | null) => (err ? reject(err) : resolve()));
+        });
+        console.log('  ✓ Added book_readings, the comments with their reading');
+      }
     }
   ];
 

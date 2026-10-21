@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Livres, partitions, lectures</title>
+<style>
+  :root {
+    --dv-gold: #fbbf24; --dv-gold-hover: #fcd34d; --dv-gold-ink: #111;
+    --dv-gold-tint: rgba(251,191,36,.12); --dv-gold-tint-edge: rgba(251,191,36,.45);
+    --dv-danger: #f87171; --dv-orange: #fb923c;
+    --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+    --dv-page: #1a1a1a;
+    --dv-glass: rgba(255,255,255,.06); --dv-glass-hover: rgba(255,255,255,.11);
+    --dv-edge: rgba(255,255,255,.12); --dv-edge-hover: rgba(255,255,255,.24);
+    --dv-veil: rgba(255,255,255,.08);
+    --dv-surface: rgba(24,24,24,.92); --dv-surface-edge: rgba(255,255,255,.1);
+    --dv-surface-shadow: 0 16px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
+    --dv-ring: 0 0 0 3px rgba(251,191,36,.3);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--dv-page); color: var(--dv-text); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  button, input { font: inherit; }
+
+  .proto { position: sticky; top: 0; z-index: 200; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+    padding: 10px 16px; background: #0e0e0e; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .proto b { color: #ddd; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid #444; border-radius: 8px; overflow: hidden; }
+  .seg button { background: #222; color: #ddd; border: 0; padding: 6px 12px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid #444; }
+  .seg button.on { background: var(--dv-gold); color: #111; }
+  .how { max-width: 1000px; margin: 14px auto 0; padding: 0 16px; color: #8a8a8a; font-size: 12.5px; }
+  .how strong { color: #ccc; }
+
+  .page { max-width: 1000px; margin: 0 auto; padding: 16px 16px 140px; }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid #333; padding-bottom: 14px; margin-bottom: 16px; }
+  h1 { margin: 0; font-size: 1.8rem; font-weight: 600; }
+  h1 small { font-size: .95rem; color: var(--dv-text-muted); font-weight: 400; margin-left: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--dv-text-muted); padding: 8px; border-bottom: 1px solid #333; }
+  td { padding: 8px; border-bottom: 1px solid #2a2a2a; vertical-align: middle; }
+  td.muted { color: var(--dv-text-muted); }
+  .poster-sm { width: 40px; height: 60px; border-radius: 3px; object-fit: cover; display: block; background: #333; }
+  tr.fresh { animation: fresh 2.4s ease-out; }
+  @keyframes fresh { 0%, 30% { background: var(--dv-gold-tint); } 100% { background: transparent; } }
+
+  .btn { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--dv-edge);
+    background: var(--dv-glass); color: var(--dv-text); cursor: pointer; white-space: nowrap; }
+  .btn:hover { background: var(--dv-glass-hover); border-color: var(--dv-edge-hover); }
+  .btn svg { width: 16px; height: 16px; }
+  .btn.primary { background: var(--dv-gold); border-color: var(--dv-gold); color: var(--dv-gold-ink); font-weight: 600; }
+  .btn.primary:hover { background: var(--dv-gold-hover); }
+  .btn.primary:disabled { opacity: .4; cursor: default; }
+  .btn.quiet { background: none; border-color: transparent; color: var(--dv-text-muted); }
+  .btn.quiet:hover { color: #fff; }
+  .ib { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; border: 1px solid transparent; background: none;
+    color: var(--dv-text-muted); cursor: pointer; flex: none; }
+  .ib:hover { color: #fff; background: var(--dv-veil); }
+  .ib svg { width: 16px; height: 16px; }
+  .ib.on { color: var(--dv-gold); }
+
+  .field { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--dv-edge); background: #1f1f1f; }
+  .field:focus-within { border-color: var(--dv-gold-tint-edge); box-shadow: var(--dv-ring); }
+  .field svg { width: 16px; height: 16px; color: var(--dv-text-faint); flex: none; }
+  .field input { flex: 1; min-width: 0; border: 0; background: none; color: var(--dv-text); font-size: 15px; outline: none; }
+  .field .hint { color: var(--dv-text-faint); font-size: 12px; white-space: nowrap; }
+  .field.sm { height: 34px; } .field.sm input { font-size: 14px; }
+
+  /* Segmented */
+  .segm { display: inline-flex; padding: 2px; gap: 2px; border-radius: 9px; border: 1px solid var(--dv-edge); background: var(--dv-glass); }
+  .segm button { border: 0; background: none; color: var(--dv-text-muted); padding: 5px 12px; border-radius: 7px; cursor: pointer; font-size: 13px; }
+  .segm button.on { background: var(--dv-gold-tint); color: var(--dv-gold); }
+  .segm.big button { padding: 8px 16px; font-size: 14px; }
+
+  .scrim { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.6); display: none; align-items: flex-start; justify-content: center; padding: 6vh 16px 16px; }
+  .scrim.open { display: flex; }
+  .dialog { width: 780px; max-width: 100%; height: 82vh; display: flex; flex-direction: column; border-radius: 14px; background: #262626; border: 1px solid #3a3a3a;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6); overflow: hidden; }
+  .dlg-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px; border-bottom: 1px solid #333; }
+  .dlg-head h3 { margin: 0; font-size: 1.1rem; font-weight: 600; flex: 1; min-width: 0; }
+  .dlg-top { padding: 12px 16px 6px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .dlg-top .field { flex: 1; min-width: 240px; }
+  .dlg-body { padding: 4px 16px 12px; overflow: auto; flex: 1; }
+  .dlg-foot { display: flex; align-items: center; gap: 8px; justify-content: flex-end; padding: 12px 16px; border-top: 1px solid #333; flex-wrap: wrap; }
+  .dlg-foot .note { flex: 1; color: var(--dv-text-faint); font-size: 12.5px; min-width: 160px; }
+  .label { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--dv-text-faint); margin: 10px 2px 6px; }
+  .empty, .loading { color: var(--dv-text-faint); padding: 22px 8px; text-align: center; }
+  .loading::before { content: ''; display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -1px; border: 2px solid #555;
+    border-top-color: var(--dv-text-muted); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(1turn); } }
+
+  .res { display: flex; align-items: center; gap: 12px; padding: 6px 8px; border-radius: 9px; cursor: pointer; }
+  .res.active { background: var(--dv-veil); }
+  .res img { width: 44px; height: 66px; border-radius: 4px; object-fit: cover; background: #333; flex: none; }
+  .res .txt { flex: 1; min-width: 0; }
+  .res .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .res .s { color: var(--dv-text-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .res .key { color: var(--dv-text-faint); font-size: 11px; border: 1px solid var(--dv-edge); border-radius: 5px; padding: 1px 5px; visibility: hidden; }
+  .res.active .key { visibility: visible; }
+  .res .go { color: var(--dv-text-faint); }
+  .tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 6px; border-radius: 4px; background: rgba(0,0,0,.72);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); color: #bbb; font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; white-space: nowrap; }
+  .tag.on { background: var(--dv-gold); color: var(--dv-gold-ink); box-shadow: none; }
+  .tag.gold { color: var(--dv-gold); }
+
+  .people { display: flex; flex-wrap: wrap; gap: 8px; }
+  .person { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 4px; border-radius: 18px; cursor: pointer;
+    border: 1px solid var(--dv-edge); background: var(--dv-glass); color: var(--dv-text); font-size: 13px; }
+  .person:hover { border-color: var(--dv-edge-hover); background: var(--dv-glass-hover); }
+  .person .face { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: #333; }
+  .person .faces { display: inline-flex; }
+  .person .faces img { width: 20px; height: 30px; border-radius: 3px; object-fit: cover; box-shadow: 0 0 0 2px #2b2b2b; }
+  .person .faces img + img { margin-left: -8px; }
+  .person b { font-weight: 600; } .person small { color: var(--dv-text-faint); }
+
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 14px; cursor: pointer; border: 1px solid var(--dv-edge);
+    background: var(--dv-glass); color: var(--dv-text); font-size: 12.5px; }
+  .chip small { color: var(--dv-text-faint); }
+  .chip.on { border-color: var(--dv-gold-tint-edge); background: var(--dv-gold-tint); color: var(--dv-gold); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 14px; }
+  .card { cursor: pointer; }
+  .cover { position: relative; aspect-ratio: 2/3; border-radius: 6px; overflow: hidden; background: #333; }
+  .cover img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .2s; }
+  .card:hover .cover img { transform: scale(1.03); }
+  .cover .tl { position: absolute; top: 6px; left: 6px; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+  .cbtn { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; border: 0; cursor: pointer;
+    background: rgba(0,0,0,.6); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); opacity: 0; transition: opacity .15s; }
+  .cbtn svg { width: 15px; height: 15px; stroke-width: 2.5; }
+  .card:hover .cbtn, .cbtn.on { opacity: 1; }
+  .cbtn.on { background: var(--dv-gold); color: var(--dv-gold-ink); box-shadow: none; }
+  .card .t { margin-top: 6px; font-weight: 600; font-size: 13px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card .s { color: var(--dv-text-muted); font-size: 12px; }
+
+  /* L'édition */
+  .movie-head { display: flex; gap: 16px; align-items: flex-start; margin: 4px 0 16px; }
+  .movie-head img { width: 92px; aspect-ratio: 2/3; border-radius: 6px; object-fit: cover; background: #333; }
+  .movie-head .t { font-weight: 600; font-size: 1.15rem; }
+  .movie-head .s { color: var(--dv-text-muted); font-size: 13px; margin-top: 2px; }
+  .movie-head .already { margin-top: 10px; font-size: 13px; color: var(--dv-text-muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+  .form .row { display: flex; flex-direction: column; gap: 6px; }
+  .form .row.wide { grid-column: 1 / -1; }
+  .form label { font-size: 12.5px; color: var(--dv-text-muted); }
+  .form .help { font-size: 12px; color: var(--dv-text-faint); }
+  .warn { color: var(--dv-orange); font-size: 12.5px; }
+  input[type=date] { color-scheme: dark; }
+
+  .card.picked .cover { box-shadow: 0 0 0 3px var(--dv-gold); }
+  .card.unpicked .cover img { opacity: .35; filter: grayscale(.6); }
+  .person.saga .faces img { width: 20px; height: 30px; }
+  .boxlist { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+  .boxlist .it { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .boxlist .it img { width: 28px; height: 42px; border-radius: 3px; object-fit: cover; background: #333; }
+  .boxlist .it .n { color: var(--dv-text-faint); width: 18px; text-align: right; }
+  .boxtag { display: inline-block; margin-top: 3px; }
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 300; display: none; align-items: center; gap: 12px; padding: 9px 10px 9px 14px;
+    border-radius: 10px; background: var(--dv-surface); border: 1px solid var(--dv-surface-edge); box-shadow: var(--dv-surface-shadow); font-size: 13px; }
+  #toast .ok { color: var(--dv-gold); }
+  #toast button { background: none; border: 0; color: var(--dv-gold); font-weight: 600; cursor: pointer; padding: 4px 6px; }
+
+  @media (max-width: 640px) {
+    .scrim { padding: 0; align-items: stretch; } .dialog { height: 100vh; border-radius: 0; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+    .form { grid-template-columns: 1fr; } .hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+<style>
+  .tabs-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 16px; }
+  .tabs-bar .segm button { font-size: 14px; padding: 7px 16px; }
+  .tabs-bar .segm button small { color: var(--dv-text-faint); margin-left: 4px; }
+  .tabs-bar .segm button.on small { color: var(--dv-gold); opacity: .7; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .filters .field { width: 300px; max-width: 100%; height: 32px; }
+  .filters .field input { font-size: 13px; }
+  .chip small { margin-left: 4px; }
+  .shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 16px; }
+  .bk { cursor: pointer; }
+  .bk .cv { position: relative; aspect-ratio: 2/3; border-radius: 4px; overflow: hidden; background: #333; }
+  .bk .cv img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .bk.stack .cv { box-shadow: 4px -4px 0 -1px #3a3a3a, 8px -8px 0 -2px #2e2e2e; margin: 8px 8px 0 0; }
+  .bk .cv .tl { position: absolute; top: 6px; left: 6px; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+  .bk .cv .br { position: absolute; bottom: 6px; right: 6px; }
+  .bk .t { margin-top: 6px; font-weight: 600; font-size: 13px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .bk .s { color: var(--dv-text-muted); font-size: 12px; }
+  .owner-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+
+  /* Partitions */
+  .composer { margin: 18px 0 6px; display: flex; align-items: baseline; gap: 10px; border-bottom: 1px solid #333; padding-bottom: 6px; }
+  .composer h3 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+  .composer span { color: var(--dv-text-faint); font-size: 12.5px; }
+  .score { display: grid; grid-template-columns: 34px 1fr auto; gap: 12px; align-items: center; padding: 7px 6px; border-radius: 8px; }
+  .score:hover { background: var(--dv-veil); }
+  .score img { width: 34px; height: 46px; object-fit: cover; border-radius: 2px; background: #333; }
+  .score .t { font-weight: 600; }
+  .score .s { color: var(--dv-text-muted); font-size: 12.5px; }
+  .score .acts { display: flex; gap: 6px; align-items: center; }
+  .score .ref { font-variant-numeric: tabular-nums; color: var(--dv-text-faint); font-size: 12px; margin-right: 6px; }
+  .btn.sm { height: 28px; padding: 0 10px; font-size: 12.5px; border-radius: 7px; }
+  .btn.sm svg { width: 14px; height: 14px; }
+  .alpha { display: flex; gap: 2px; flex-wrap: wrap; margin-bottom: 6px; }
+  .alpha a { color: var(--dv-text-muted); text-decoration: none; font-size: 12px; padding: 2px 6px; border-radius: 5px; }
+  .alpha a:hover { background: var(--dv-veil); color: #fff; }
+
+  /* Lectures */
+  .year { margin: 20px 0 8px; font-size: 1.2rem; font-weight: 600; display: flex; align-items: baseline; gap: 10px; }
+  .year span { color: var(--dv-text-faint); font-size: 13px; font-weight: 400; }
+  .entry { display: grid; grid-template-columns: 60px 1fr; gap: 14px; padding: 12px 8px; border-bottom: 1px solid #2a2a2a; }
+  .entry img { width: 60px; aspect-ratio: 2/3; object-fit: cover; border-radius: 3px; background: #333; }
+  .entry .t { font-weight: 600; font-size: 1rem; }
+  .entry .s { color: var(--dv-text-muted); font-size: 13px; margin-top: 1px; }
+  .entry .meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; font-size: 12.5px; color: var(--dv-text-muted); }
+  .stars { color: var(--dv-gold); letter-spacing: 1px; font-size: 14px; }
+  .stars .off { color: #555; }
+  .quote { margin-top: 8px; padding: 8px 12px; border-left: 2px solid var(--dv-gold-tint-edge); background: var(--dv-glass); border-radius: 0 6px 6px 0; font-size: 13.5px; color: var(--dv-text); line-height: 1.5; }
+  .quote small { display: block; color: var(--dv-text-faint); margin-top: 4px; }
+  .note-box { max-width: 1000px; margin: 0 auto 10px; padding: 10px 14px; border: 1px dashed #444; border-radius: 10px; color: var(--dv-text-faint); font-size: 12.5px; }
+  .note-box b { color: #ccc; }
+  .rowhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+</style>
+
+<div class="proto">
+  <span><b>Prototype</b> · la section Livres en trois onglets, sur tes vraies données (prod, lecture seule)</span>
+</div>
+<p class="how" id="how"></p>
+
+<div class="page" style="padding-bottom:60px">
+  <div class="head" style="border:0;margin-bottom:6px">
+    <h1>BookDex <small id="count"></small></h1>
+    <button class="btn" id="addBtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Add Book</span></button>
+  </div>
+  <div class="tabs-bar"><div class="segm" id="tabs"></div></div>
+  <div id="view"><div class="loading">Loading your books…</div></div>
+</div>
+
+<script>
+const PROD = 'https://dexvault.lab.crog.org/api';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const plain = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const img = c => !c ? '' : /^\/(api\/)?images\//.test(c) ? `https://dexvault.lab.crog.org${c.startsWith('/api/') ? c : '/api' + c}` : c;
+const svg = p => `<svg viewBox="0 0 24 24">${p}</svg>`;
+const ICON = {
+  pdf: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
+  disc: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  play: '<path d="M6 4l14 8-14 8z"/>',
+};
+const OWNER_COLOR = { Oriane: '#c084fc', Alice: '#5fb3e6', Renault: '#fbbf24', Violaine: '#f87171' };
+
+let books = [], comments = {}, tab = 'library', owner = 'all', kind = 'all', q = '';
+const TABS = [['library', 'Library'], ['scores', 'Scores'], ['reading', 'Reading']];
+const isScore = b => b.bookType === 'score';
+const isRead = b => b.readDate || b.titleStatus === 'borrowed' || (comments[b.id] || []).length;
+const library = () => books.filter(b => !isScore(b) && b.titleStatus !== 'borrowed');
+const scores = () => books.filter(isScore);
+const reading = () => books.filter(isRead);
+
+async function load() {
+  const all = await fetch(`${PROD}/books`).then(r => r.json());
+  books = (Array.isArray(all) ? all : all.books).filter(b => b.titleStatus !== 'wish');
+  // Comments: the books one reads (read, borrowed), as the journal shows them.
+  const candidates = books.filter(b => b.bookType === 'book');
+  await Promise.all(candidates.map(async b => { try { const c = await fetch(`${PROD}/books/${b.id}/comments`).then(r => r.json()); if (c.length) comments[b.id] = c; } catch {} }));
+  render();
+}
+
+function renderTabs() {
+  const n = { library: library().length, scores: scores().length, reading: reading().length };
+  document.getElementById('tabs').innerHTML = TABS.map(([v, l]) => `<button data-t="${v}" class="${tab === v ? 'on' : ''}">${l}<small>${n[v]}</small></button>`).join('');
+  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { tab = b.dataset.t; q = ''; render(); });
+  document.getElementById('count').textContent = `(${books.length} books)`;
+  document.getElementById('addBtn').lastChild.textContent = { library: 'Add Book', scores: 'Add Score', reading: 'Add a reading' }[tab];
+  document.getElementById('how').innerHTML = {
+    library: '<strong>Library</strong> : ce qui est sur une étagère à la maison, BD et livres, sans les partitions ni les livres empruntés. Pastilles par propriétaire et par type ; une série tient en une pile (« 8 vol. », le prochain à avoir).',
+    scores: '<strong>Scores</strong> : tes partitions, par compositeur — un champ que les livres n\'ont pas : ici déduit du titre ou de l\'œuvre, l\'auteur de Google (souvent un éditeur) devenant « ed. » — avec l\'éditeur et sa référence (HN 383). « PDF » ouvrirait le fichier (à joindre, ou trouvé sur IMSLP pour le domaine public) en plein écran, la page tournée à la pédale ; « Recordings » mène aux enregistrements de la pièce dans MusicDex. Plus tard : listes de travail, lecture façon forScore.',
+    reading: '<strong>Reading</strong> : ton journal de lecture, par année : ce que tu as lu, à toi ou emprunté (et à qui), ta note et tes commentaires en entier. Un livre emprunté n\'est que là. « Add a reading » ajouterait un livre lu sans qu\'il entre dans la bibliothèque.',
+  }[tab];
+}
+
+function filters(owners, kinds, placeholder) {
+  return `<div class="filters"><label class="field">${svg(ICON.search)}<input id="q" placeholder="${placeholder}" value="${esc(q)}"></label>
+    ${owners ? `<span class="chip ${owner === 'all' ? 'on' : ''}" data-o="all">Everyone</span>${owners.map(([o, n]) => `<span class="chip ${owner === o ? 'on' : ''}" data-o="${esc(o)}"><span class="owner-dot" style="background:${OWNER_COLOR[o] || '#888'}"></span>${esc(o)}<small>${n}</small></span>`).join('')}` : ''}
+    ${kinds ? `<span style="width:8px"></span>${kinds.map(([k, l, n]) => `<span class="chip ${kind === k ? 'on' : ''}" data-k="${k}">${l}${n != null ? `<small>${n}</small>` : ''}</span>`).join('')}` : ''}</div>`;
+}
+function wire() {
+  const i = document.getElementById('q'); if (i) { i.oninput = () => { q = i.value; const pos = i.selectionStart; render(); const j = document.getElementById('q'); j.focus(); j.setSelectionRange(pos, pos); }; }
+  document.querySelectorAll('[data-o]').forEach(c => c.onclick = () => { owner = c.dataset.o; render(); });
+  document.querySelectorAll('[data-k]').forEach(c => c.onclick = () => { kind = c.dataset.k; render(); });
+}
+const count = (list, f) => { const m = new Map(); list.forEach(b => { const k = f(b); if (k) m.set(k, (m.get(k) || 0) + 1); }); return [...m].sort((a, b) => b[1] - a[1]); };
+
+function renderLibrary() {
+  const all = library();
+  let list = all.filter(b => (owner === 'all' || b.owner === owner) && (kind === 'all' || b.bookType === kind) && (!q || plain(`${b.title} ${b.series || ''} ${(b.authors || []).join(' ')}`).includes(plain(q))));
+  // A series is one pile.
+  const piles = new Map(), alone = [];
+  list.forEach(b => b.series ? piles.set(plain(b.series), [...(piles.get(plain(b.series)) || []), b]) : alone.push(b));
+  const tiles = [...[...piles.values()].map(v => ({ series: v[0].series, books: v.sort((a, b) => (a.seriesNumber || 0) - (b.seriesNumber || 0)) })), ...alone.map(b => ({ book: b }))]
+    .sort((a, b) => plain(a.series || a.book.title).localeCompare(plain(b.series || b.book.title)));
+  return filters(count(all, b => b.owner), [['all', 'All'], ['graphic-novel', 'BD', all.filter(b => b.bookType === 'graphic-novel').length], ['book', 'Books', all.filter(b => b.bookType === 'book').length]], 'Filter: a title, a series, an author…')
+    + `<div class="shelf">${tiles.map(t => {
+      if (t.book) { const b = t.book; return `<div class="bk"><div class="cv">${b.cover ? `<img src="${img(b.cover)}" loading="lazy">` : ''}${b.owner ? `<span class="br"><span class="tag"><span class="owner-dot" style="background:${OWNER_COLOR[b.owner] || '#888'}"></span>${esc(b.owner)}</span></span>` : ''}</div><div class="t">${esc(b.title)}</div><div class="s">${esc((b.authors || [])[0] || '')}</div></div>`; }
+      const v = t.books, nums = v.map(b => b.seriesNumber).filter(Boolean), max = Math.max(0, ...nums), gap = Array.from({ length: max }, (_, i) => i + 1).find(n => !nums.includes(n));
+      const last = v[v.length - 1], who = [...new Set(v.map(b => b.owner).filter(Boolean))];
+      return `<div class="bk stack"><div class="cv">${last.cover ? `<img src="${img(last.cover)}" loading="lazy">` : ''}<span class="tl"><span class="tag gold">${v.length} vol.</span></span>
+        ${who.length ? `<span class="br"><span class="tag">${who.map(o => `<span class="owner-dot" style="background:${OWNER_COLOR[o] || '#888'}"></span>`).join('')}${esc(who.join(', '))}</span></span>` : ''}</div>
+        <div class="t">${esc(t.series)}</div><div class="s">${gap ? `T${gap} missing` : `next: T${max + 1}`}</div></div>`;
+    }).join('')}</div>`;
+}
+
+// "Préludes Vol. 1 - piano - (HN 383)" → the piece, the instrument, the publisher's reference.
+function scoreParts(b) {
+  const ref = (b.title.match(/\((?:HN|BA|EB|UT|ED)\s*[\d.]+\)/i) || [])[0]?.replace(/[()]/g, '') || '';
+  const instr = (b.title.match(/\b(piano|violin|violon|cello|violoncelle|flute|flûte|guitar|guitare|orgue|organ)\b/i) || [])[0] || (/(Piano)/.test((b.genres || []).join(' ')) ? 'piano' : '');
+  const piece = b.title.replace(/\((?:HN|BA|EB|UT|ED)\s*[\d.]+\)/i, '').replace(/\s*-\s*(piano|violon|violin)\s*-?\s*/i, ' ').replace(/\s+piano$/i, '').replace(/\s*-\s*$/, '').trim();
+  return { ref, instr, piece };
+}
+// The composer, which the books do not keep: Google's "author" is often an editor (Ashkenazy for Bach's
+// French Suites) or a publisher. Read from the title, from a well-known work, else the author if a composer.
+const COMPOSERS = { bach: 'Johann Sebastian Bach', beethoven: 'Ludwig van Beethoven', brahms: 'Johannes Brahms', chopin: 'Frédéric Chopin',
+  debussy: 'Claude Debussy', mozart: 'Wolfgang Amadeus Mozart', schubert: 'Franz Schubert', schumann: 'Robert Schumann', mendelssohn: 'Felix Mendelssohn',
+  bertini: 'Henri Bertini', burgmuller: 'Friedrich Burgmüller', czerny: 'Carl Czerny', liszt: 'Franz Liszt', satie: 'Erik Satie', ravel: 'Maurice Ravel',
+  haydn: 'Joseph Haydn', grieg: 'Edvard Grieg', clementi: 'Muzio Clementi', scarlatti: 'Domenico Scarlatti', bartok: 'Béla Bartók', williams: 'John Williams' };
+const WORKS = [[/arabesque|clair de lune|suite bergamasque|children.?s corner|pr[ée]ludes|cath[ée]drale engloutie|little negro/i, 'debussy'],
+  [/lettre [àa] [ée]lise|f[üu]r elise|woo 59/i, 'beethoven'], [/consolations/i, 'liszt'], [/invention|suites? fran[cç]aises|well.?tempered|clavier/i, 'bach'], [/op\.?\s*100.*petites mains/i, 'bertini']];
+function composerOf(b) {
+  const text = plain(`${b.title} ${(b.authors || []).join(' ')}`);
+  for (const k of Object.keys(COMPOSERS)) if (plain(b.title).split(' ').includes(k)) return { name: COMPOSERS[k], found: 'title' };
+  for (const k of Object.keys(COMPOSERS)) if (text.includes(k)) return { name: COMPOSERS[k], found: 'author' };
+  for (const [w, k] of WORKS) if (w.test(b.title)) return { name: COMPOSERS[k], found: 'work' };
+  return { name: 'Anthologies & methods', found: null, editor: (b.authors || [])[0] };
+}
+const surname = n => n === 'Anthologies & methods' ? '~' : (n || '').split(' ').slice(-1)[0];
+function renderScores() {
+  const list = scores().filter(b => !q || plain(`${b.title} ${(b.authors || []).join(' ')} ${b.publisher || ''}`).includes(plain(q)));
+  const byComposer = new Map();
+  // One composer however spelled: Frederic and Frédéric Chopin, Edna Mae and Edna-Mae Burnam.
+  const names = new Map();
+  list.forEach(b => { const c = composerOf(b).name, k = plain(c); if (!names.has(k) || /[^\x00-\x7f]/.test(c)) names.set(k, c);
+    byComposer.set(k, [...(byComposer.get(k) || []), b]); });
+  const composers = [...byComposer].map(([k, l]) => [names.get(k), l]).sort((a, b) => plain(surname(a[0])).localeCompare(plain(surname(b[0]))));
+  const letters = [...new Set(composers.filter(([c]) => surname(c) !== '~').map(([c]) => surname(c)[0].toUpperCase()))];
+  return filters(null, null, 'Filter: a composer, a piece, a publisher…')
+    + `<div class="alpha">${letters.map(l => `<a href="#L${l}">${l}</a>`).join('')}</div>`
+    + composers.map(([c, list], i) => {
+      const L = surname(c) === '~' ? '~' : surname(c)[0].toUpperCase(), first = i === 0 || surname(composers[i - 1][0])[0].toUpperCase() !== L;
+      return `<div class="composer" ${first ? `id="L${L}"` : ''}><h3>${esc(c)}</h3><span>${list.length} score${list.length > 1 ? 's' : ''}</span></div>`
+        + list.map(b => { const p = scoreParts(b);
+          return `<div class="score"><img src="${img(b.cover)}" loading="lazy"><div><div class="t">${esc(p.piece)}</div>
+            <div class="s">${[p.instr, b.publisher, (b.authors || [])[0] && !plain(composerOf(b).name).includes(plain((b.authors || [])[0]).split(' ').pop()) ? 'ed. ' + b.authors[0] : ''].filter(Boolean).map(esc).join(' · ')}</div></div>
+            <div class="acts">${p.ref ? `<span class="ref">${esc(p.ref)}</span>` : ''}
+              <button class="btn sm" title="Open its PDF full screen, the page turned with the pedal">${svg(ICON.pdf)}PDF</button>
+              <button class="btn sm" title="Its recordings in MusicDex">${svg(ICON.disc)}Recordings</button></div></div>`; }).join('');
+    }).join('');
+}
+
+const stars = r => { if (!r) return ''; const full = Math.floor(r), half = r - full >= .5; return `<span class="stars">${'★'.repeat(full)}${half ? '½' : ''}<span class="off">${'★'.repeat(5 - full - (half ? 1 : 0))}</span></span>`; };
+function renderReading() {
+  const list = reading().filter(b => !q || plain(`${b.title} ${(b.authors || []).join(' ')}`).includes(plain(q)))
+    .sort((a, b) => (b.readDate || '0000').localeCompare(a.readDate || '0000'));
+  const byYear = new Map(); list.forEach(b => { const y = (b.readDate || '').slice(0, 4) || 'Not dated'; byYear.set(y, [...(byYear.get(y) || []), b]); });
+  return filters(null, null, 'Filter: a title, an author…') + [...byYear].map(([y, l]) => `<div class="year">${y}<span>${l.length} book${l.length > 1 ? 's' : ''}</span></div>` + l.map(b => {
+    const c = comments[b.id] || [];
+    return `<div class="entry"><img src="${img(b.cover)}" loading="lazy"><div>
+      <div class="t">${esc(b.title)}</div><div class="s">${esc((b.authors || []).join(', '))}${b.publishedYear ? ' · ' + b.publishedYear : ''}</div>
+      <div class="meta">${stars(b.rating)}${b.readDate ? `<span>read ${new Date(b.readDate).toLocaleDateString('fr-CH', { day: 'numeric', month: 'long' })}</span>` : ''}
+        ${b.titleStatus === 'borrowed' ? `<span class="tag" style="color:var(--dv-danger)">Borrowed</span>` : '<span class="tag gold">Mine</span>'}</div>
+      ${c.map(x => `<div class="quote">${esc(x.comment)}<small>${esc(x.name)}, ${new Date(x.date).toLocaleDateString('fr-CH')}</small></div>`).join('')}
+    </div></div>`; }).join('')).join('');
+}
+
+function render() {
+  renderTabs();
+  document.getElementById('view').innerHTML = tab === 'library' ? renderLibrary() : tab === 'scores' ? renderScores() : renderReading();
+  wire();
+}
+load().catch(e => document.getElementById('view').innerHTML = `<div class="empty">Could not read the books: ${esc(e.message)}</div>`);
+</script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+/**
+ * The books as three things (backend bookSectionsService): the scores, by
+ * composer; the reading journal; and the notes on a series of the library.
+ */
+
+export interface Score {
+  id: number;
+  title: string;
+  authors: string[];
+  publisher: string | null;
+  cover: string | null;
+  composer: string | null;
+  /** The composer its title, authors or work suggest, when none is kept yet. */
+  composerSuggestion: string | null;
+  ebookFile: string | null;
+  isbn13: string | null;
+  urls: Record<string, string>;
+  titleStatus: string;
+  [key: string]: unknown;
+}
+
+export interface ReadingEntry {
+  id: number;
+  title: string;
+  authors: string[];
+  cover: string | null;
+  publishedYear: number | null;
+  readDate: string | null;
+  rating: number | null;
+  titleStatus: 'owned' | 'borrowed';
+  owner: string | null;
+  /** This reading; none for a book borrowed or commented on and not read yet. */
+  readingId: number | null;
+  /** 1 for the first reading, 2 when read again… */
+  readNumber: number;
+  readCount: number;
+  /** Every reading of the book, the first first. */
+  readDates: string[];
+  comments: Array<{ id: number; name: string; comment: string; date: string }>;
+  [key: string]: unknown;
+}
+
+export interface BookReading { id: number; bookId: number; readDate: string }
+
+export interface SeriesNote { id: number; series: string; name: string | null; note: string; createdAt: string }
+
+const json = async <T>(response: Response): Promise<T> => {
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error((data as { error?: string }).error || `HTTP error! status: ${response.status}`);
+  return data as T;
+};
+const send = <T>(method: string, url: string, body: unknown) =>
+  fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(response => json<T>(response));
+
+const bookSectionsService = {
+  scores: () => fetch('/api/scores').then(response => json<Score[]>(response)),
+  setComposers: (updates: Array<{ id: number; composer: string | null }>) => send<{ changed: number }>('PUT', '/api/scores/composers', { updates }),
+  reading: () => fetch('/api/books/reading').then(response => json<ReadingEntry[]>(response)),
+  readingsOf: (bookId: number) => fetch(`/api/books/${bookId}/readings`).then(response => json<BookReading[]>(response)),
+  addReading: (bookId: number, date: string) => send<BookReading>('POST', `/api/books/${bookId}/readings`, { date }),
+  changeReading: (id: number, date: string) => send<BookReading>('PUT', `/api/books/readings/${id}`, { date }),
+  removeReading: async (id: number) => {
+    const response = await fetch(`/api/books/readings/${id}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  },
+  seriesNotes: (series?: string) => fetch(`/api/books/series-notes${series ? `?series=${encodeURIComponent(series)}` : ''}`).then(response => json<SeriesNote[]>(response)),
+  addSeriesNote: (series: string, note: string, name?: string) => send<SeriesNote>('POST', '/api/books/series-notes', { series, note, name }),
+  deleteSeriesNote: async (id: number) => {
+    const response = await fetch(`/api/books/series-notes/${id}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  },
+};
+
+/** A score's PDF, opened in the browser. */
+export const scorePdfUrl = (id: number) => `/api/books/${id}/ebook/download?inline=1`;
+
+/** IMSLP: the page DexVault knows, else its search for the composer and the piece. */
+export const imslpUrl = (score: Pick<Score, 'title' | 'composer' | 'urls'>) =>
+  score.urls?.imslp || `https://imslp.org/index.php?search=${encodeURIComponent([score.composer, score.title.replace(/\((?:HN|BA|EB|UT)\s*[\d.]+\)/i, '')].filter(Boolean).join(' '))}`;
+
+export default bookSectionsService;

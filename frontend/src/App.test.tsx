@@ -49,6 +49,7 @@ describe('App shell', () => {
       expect.stringContaining('FilmDex'),
       expect.stringContaining('MusicDex'),
       expect.stringContaining('BookDex'),
+      expect.stringContaining('Scores'),
       expect.stringContaining('Wish List'),
       expect.stringContaining('Analytics')
     ]);

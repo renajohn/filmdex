@@ -1,6 +1,7 @@
 import type sqlite3 from 'sqlite3';
 import { getDatabase } from '../database';
 import cacheService from '../services/cacheService';
+import BookReading from './bookReading';
 import type { BookRow, BookFormatted, BookCreateData, BookSearchParsed } from '../types';
 
 interface BookUpdateResult {
@@ -111,6 +112,7 @@ const Book = {
             read_date DATE,
             price_chf REAL,
             purchased_at TEXT,
+            composer TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
           )
@@ -228,6 +230,7 @@ const Book = {
                   read_date DATE,
                   price_chf REAL,
                   purchased_at TEXT,
+                  composer TEXT,
                   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
@@ -412,6 +415,7 @@ const Book = {
         book_type: bookData.bookType || 'book',
         price_chf: bookData.priceChf ?? null,
         purchased_at: bookData.purchasedAt || null,
+        composer: bookData.composer || null,
         created_at: now,
         updated_at: now
       };
@@ -421,8 +425,8 @@ const Book = {
           isbn, isbn13, title, subtitle, authors, artists, publisher, published_year,
           language, format, filetype, drm, narrator, runtime, series, series_number,
           genres, tags, rating, cover, owner, read_date, page_count, description, urls, annotation, ebook_file, title_status, book_type,
-          price_chf, purchased_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          price_chf, purchased_at, composer, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const params = [
@@ -431,7 +435,7 @@ const Book = {
         book.narrator, book.runtime, book.series, book.series_number, book.genres,
         book.tags, book.rating, book.cover, book.owner, book.read_date, book.page_count, book.description,
         book.urls, book.annotation, bookData.ebookFile || null, book.title_status, book.book_type,
-        book.price_chf, book.purchased_at, book.created_at, book.updated_at
+        book.price_chf, book.purchased_at, book.composer, book.created_at, book.updated_at
       ];
 
       db.run(sql, params, async function(this: sqlite3.RunResult, err: Error | null) {
@@ -440,9 +444,14 @@ const Book = {
         } else {
           // Invalidate analytics cache when book is created
           await cacheService.invalidateAnalytics();
+          const bookId = this.lastID;
+          // A book added read: its first reading.
+          if (BookReading.day(book.read_date)) {
+            try { await BookReading.add(bookId, book.read_date as string); } catch (e) { console.warn('Could not keep the reading:', (e as Error).message); }
+          }
 
           // Get the created book with proper formatting
-          db.get('SELECT * FROM books WHERE id = ?', [this.lastID], (err: Error | null, row: BookRow | undefined) => {
+          db.get('SELECT * FROM books WHERE id = ?', [bookId], (err: Error | null, row: BookRow | undefined) => {
             if (err) {
               reject(err);
             } else {
@@ -930,7 +939,7 @@ const Book = {
           published_year = ?, language = ?, format = ?, filetype = ?, drm = ?,
           narrator = ?, runtime = ?, series = ?, series_number = ?, genres = ?,
           tags = ?, rating = ?, cover = ?, owner = ?, read_date = ?, page_count = ?, description = ?,
-          urls = ?, annotation = ?, ebook_file = ?, title_status = ?, book_type = ?, price_chf = ?, purchased_at = ?, updated_at = ?
+          urls = ?, annotation = ?, ebook_file = ?, title_status = ?, book_type = ?, price_chf = ?, purchased_at = ?, composer = ?, updated_at = ?
         WHERE id = ?
       `;
 
@@ -974,6 +983,7 @@ const Book = {
         // The form does not show them: undefined keeps the price and the date of purchase.
         bookData.priceChf !== undefined ? bookData.priceChf : existingBook?.priceChf ?? null,
         bookData.purchasedAt !== undefined ? bookData.purchasedAt : existingBook?.purchasedAt ?? null,
+        bookData.composer !== undefined ? bookData.composer : existingBook?.composer ?? null,
         now,
         id
       ];
@@ -984,6 +994,8 @@ const Book = {
         } else {
           // Invalidate analytics cache when book is updated
           await cacheService.invalidateAnalytics();
+          // The form's one date: the last reading corrected, or one added.
+          try { await BookReading.followForm(id, existingBook?.readDate, bookData.readDate || null); } catch (e) { console.warn('Could not follow the reading:', (e as Error).message); }
           resolve({ id, ...bookData, updated_at: now });
         }
       });
@@ -1067,7 +1079,9 @@ const Book = {
         } else {
           // Invalidate analytics cache when book is deleted
           await cacheService.invalidateAnalytics();
-          resolve({ deleted: this.changes > 0 });
+          const deleted = this.changes > 0;
+          if (deleted) { try { await BookReading.removeAllOf(id); } catch { /* no readings yet */ } }
+          resolve({ deleted });
         }
       });
     });
@@ -1129,6 +1143,7 @@ const Book = {
       bookType: row.book_type || 'book',
       priceChf: row.price_chf ?? null,
       purchasedAt: row.purchased_at ?? null,
+      composer: row.composer ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };

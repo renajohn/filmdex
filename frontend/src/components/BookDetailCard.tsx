@@ -6,6 +6,7 @@ import bookService from '../services/bookService';
 import CoverButton from './shared/CoverButton';
 import CoverTag, { CoverTagStack } from './shared/CoverTag';
 import bookCommentService from '../services/bookCommentService';
+import bookSectionsService from '../services/bookSectionsService';
 import CoverModal from './CoverModal';
 import BookForm from './BookForm';
 import StarRating from './shared/StarRating';
@@ -135,6 +136,38 @@ const SeriesBookItem = ({ bookItem, onBookClick, getCoverUrl, currentBookId }: S
 const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, onDelete, onSearch, onAddNextVolume, onAddBooksBatch, onAddStart, onBookAdded, onAddError, onBookClick, onPrevious, onNext }: BookDetailCardProps) => {
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  // Every reading of the book, a book read again keeping its first.
+  const [readDates, setReadDates] = useState<string[]>([]);
+  useEffect(() => {
+    let live = true;
+    setReadDates([]);
+    if (book?.id && book.readDate) {
+      bookSectionsService.readingsOf(book.id).then(list => { if (live) setReadDates(list.map(r => r.readDate)); }).catch(() => { /* the one date then */ });
+    }
+    return () => { live = false; };
+  }, [book?.id, book?.readDate]);
+  // Read (again): the date being given, today unless changed.
+  const [rereading, setRereading] = useState<string | null>(null);
+  // What one thought this time, if one wishes: a comment of that reading.
+  const [rereadWords, setRereadWords] = useState('');
+  const keepReading = async () => {
+    if (!rereading) return;
+    try {
+      const reading = await bookSectionsService.addReading(book.id, rereading);
+      if (rereadWords.trim()) {
+        let name = 'Renault';
+        try { name = localStorage.getItem('dv.readingName') || name; } catch { /* a private window */ }
+        await bookCommentService.createComment({ bookId: book.id, readingId: reading.id, name, comment: rereadWords.trim(), date: new Date().toISOString() });
+        setRereadWords('');
+        loadComments();
+      }
+      const dates = [...(readDates.length ? readDates : book.readDate ? [String(book.readDate).slice(0, 10)] : []), rereading].sort();
+      setReadDates(dates);
+      setRereading(null);
+      toast(readDates.length || book.readDate ? 'Read again: a new reading in the journal' : 'Marked as read', { tone: 'success' });
+      onBookUpdated?.({ ...book, readDate: dates[dates.length - 1] });
+    } catch (e) { toast((e as Error).message, { tone: 'danger' }); }
+  };
   const [coverModalData, setCoverModalData] = useState<{ coverUrl: string; title: string; author: string; coverType?: string }>({ coverUrl: '', title: '', author: '' });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDeleteEbook, setConfirmDeleteEbook] = useState(false);
@@ -1633,6 +1666,32 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                 </span>
               </div>
 
+              {/* When it was read, every time, and read again from here. */}
+              {(book.readDate || (book.titleStatus !== 'wish' && book.bookType !== 'score')) && (
+                <div className="book-head-read">
+                  {book.readDate && <span className="book-head-muted">Read</span>}
+                  {book.readDate && (readDates.length ? readDates : [book.readDate])
+                    .map(date => new Date(date).toLocaleDateString('fr-CH', { day: '2-digit', month: '2-digit', year: 'numeric' })).join(', ')}
+                  {rereading === null ? (
+                    <Button variant="quiet" size="sm" className="book-read-again" onClick={() => setRereading(new Date().toLocaleDateString('sv-SE'))}>
+                      {book.readDate ? 'Read again' : 'Mark as read'}
+                    </Button>
+                  ) : (
+                    <div className="book-read-again__form">
+                      <TextField type="date" size="sm" className="book-read-again__date" value={rereading} max={new Date().toLocaleDateString('sv-SE')}
+                        onChange={e => setRereading(e.target.value)} aria-label={`When you read ${book.title}`} />
+                      <TextArea rows={3} value={rereadWords} autoFocus onChange={e => setRereadWords(e.target.value)}
+                        placeholder={book.readDate ? 'What you thought this time (optional)…' : 'What you thought of it (optional)…'}
+                        aria-label={`Your words on this reading of ${book.title}`} />
+                      <div className="book-read-again__actions">
+                        <Button variant="quiet" size="sm" onClick={() => { setRereading(null); setRereadWords(''); }}>Cancel</Button>
+                        <Button size="sm" onClick={keepReading} disabled={!rereading}>Keep it</Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {(mainLinks.length > 0 || hasEbook) && (
                 <div className="book-head-links">
                   {hasEbook && (
@@ -1750,7 +1809,6 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
                       )}
                     </BookField>
                   )}
-                  {book.readDate && <BookField label="Read">{book.readDate}</BookField>}
                   {book.borrowed && (book.borrowedDate || book.returnedDate || book.borrowedNotes) && (
                     <BookField label="Lent">
                       {[book.borrowedDate && `on ${book.borrowedDate}`, book.returnedDate && `back ${book.returnedDate}`].filter(Boolean).join(' · ')}

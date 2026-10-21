@@ -1,5 +1,6 @@
 import { getDatabase } from '../database';
 import Book from '../models/book';
+import BookReading from '../models/bookReading';
 import bookService from './bookService';
 import type { BookFormatted } from '../types';
 import axios from 'axios';
@@ -8,6 +9,7 @@ import logger from '../logger';
 import { extractSeriesFromTitle, normalizeSeriesName, detectBookType } from './utils/bookUtils';
 import { plain } from './trackPopularityService';
 import { namesSomeone, namesSomething } from '../utils/searchNames';
+import { suggestComposer } from '../utils/scoreComposer';
 
 /**
  * Finding a book as one finds an album or a movie: as one types, a title, an
@@ -293,6 +295,10 @@ export interface AddBookInput {
   owner?: string | null;
   priceChf?: number | string | null;
   purchasedAt?: string | null;
+  /** A score's composer; suggested from its title when not given. */
+  composer?: string | null;
+  /** When it was read: a book added from the reading journal. */
+  readDate?: string | null;
 }
 
 const FORMATS = ['physical', 'ebook', 'audiobook'];
@@ -325,6 +331,12 @@ const addFound = async (input: AddBookInput, priceChf: number | null): Promise<B
     if ((have.have.status === 'wish' || have.have.status === 'borrowed') && titleStatus === 'owned') {
       return (await buyBooks([have.have.id], { priceChf, purchasedAt: input.purchasedAt, format }))[0];
     }
+    if (input.readDate && (have.have.status === 'owned' || have.have.status === 'borrowed')) {
+      // A book of the library read (again): a reading of its date, not a second copy nor the first reading lost.
+      const known = await BookReading.list(have.have.id);
+      if (!known.some(r => r.readDate === BookReading.day(input.readDate))) await BookReading.add(have.have.id, input.readDate);
+      return (await Book.findById(have.have.id))!;
+    }
     if (have.have.status === 'wish' && titleStatus === 'borrowed') {
       // A wish borrowed rather than bought: the same book, of the library for a while.
       const wished = (await Book.findById(have.have.id))!;
@@ -356,6 +368,8 @@ const addFound = async (input: AddBookInput, priceChf: number | null): Promise<B
     bookType,
     owner: input.owner || null,
     titleStatus,
+    composer: bookType === 'score' ? (input.composer?.trim() || suggestComposer(book.title, book.authors || [])) : null,
+    readDate: input.readDate || null,
     priceChf: titleStatus === 'owned' ? priceChf : null,
     purchasedAt: titleStatus === 'owned' ? input.purchasedAt || new Date().toISOString().slice(0, 10) : null,
   } as never);

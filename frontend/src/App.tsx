@@ -6,6 +6,7 @@ import AddMovieDialog from './components/AddMovieDialog';
 import WishListPage from './pages/WishListPage';
 import MusicDexPage from './pages/MusicDexPage';
 import BookDexPage from './pages/BookDexPage';
+import ScoresPage from './pages/ScoresPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import BackupPage from './pages/BackupPage';
 import ShelvesPage from './pages/ShelvesPage';
@@ -18,7 +19,7 @@ import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
 import musicService from './services/musicService';
 import bookService from './services/bookService';
-import { BsX, BsCollectionFill, BsBookmark, BsChevronDown, BsDisc, BsArrowLeft, BsBarChart, BsFilm, BsBook } from 'react-icons/bs';
+import { BsX, BsCollectionFill, BsBookmark, BsChevronDown, BsDisc, BsArrowLeft, BsBarChart, BsFilm, BsBook, BsFileMusic } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 // After Bootstrap, so that its radios and checkboxes wear DexVault's look.
 import './components/shared/check.css';
@@ -67,6 +68,7 @@ function AppContent() {
     if (path === '/filmdex') return 'filmdex';
     if (path === '/musicdex') return 'musicdex';
     if (path === '/bookdex') return 'bookdex';
+    if (path === '/scores') return 'scores';
     if (path === '/wishlist') return 'wishlist';
     return null;
   };
@@ -100,10 +102,10 @@ function AppContent() {
   const isThumbnailView = location.pathname === '/filmdex';
 
   // Check if we should show the search bar (filmdex, musicdex, bookdex, wishlist)
-  const showSearchBar = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/bookdex' || location.pathname === '/wishlist';
+  const showSearchBar = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/bookdex' || location.pathname === '/scores' || location.pathname === '/wishlist';
 
   // Check if we should show the navigation pills (all main sections)
-  const showNavigationPills = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/bookdex' || location.pathname === '/wishlist' || location.pathname === '/shelves' || location.pathname === '/analytics' || location.pathname === '/backup';
+  const showNavigationPills = location.pathname === '/filmdex' || location.pathname === '/musicdex' || location.pathname === '/bookdex' || location.pathname === '/scores' || location.pathname === '/wishlist' || location.pathname === '/shelves' || location.pathname === '/analytics' || location.pathname === '/backup';
 
   // Get the page title based on current route
   const getPageTitle = (): string => {
@@ -114,6 +116,8 @@ function AppContent() {
         return 'MusicDex';
       case '/bookdex':
         return 'BookDex';
+      case '/scores':
+        return 'Scores';
       case '/wishlist':
         return 'DexVault';
       case '/shelves':
@@ -129,6 +133,8 @@ function AppContent() {
 
 
   const getAutocompleteOptions = async (text: string): Promise<AutocompleteOption[]> => {
+    // The scores filter their list as one types: composer:, publisher: or any words.
+    if (location.pathname === '/scores') return [];
     // Different keywords for MusicDex, BookDex vs DexVault
     const keywords = location.pathname === '/musicdex'
       ? ['title:', 'artist:', 'genre:', 'track:', 'composer:', 'performer:', 'conductor:', 'instrument:', 'work:', 'label:', 'country:', 'year:', 'stars:', 'stars:>=', 'stars:<=', 'stars:0', 'rated:no', 'rated:yes', 'favourites:yes', 'favourites:no', 'classical:yes', 'classical:no', 'cd:no', 'cd:yes', 'mixtape:yes', 'mixtape:no', 'file:lossless', 'file:lossy', 'ripped:no', 'ripped:yes']
@@ -1031,7 +1037,8 @@ function AppContent() {
     const params = new URLSearchParams(location.search);
     const searchParam = params.get('search');
 
-    if (searchParam) {
+    // An empty one counts too: the last filter taken away empties the search.
+    if (searchParam !== null) {
       // Set the search criteria
       setSearchCriteria({ searchText: searchParam });
       // Clear the URL parameter after a brief delay to keep URL clean
@@ -1141,11 +1148,12 @@ function AppContent() {
                 className="app-sections"
                 reselect
                 value={location.pathname.startsWith('/musicdex') ? 'musicdex' : location.pathname.slice(1)}
-                onChange={section => ({ filmdex: handleCollection, musicdex: handleMusicDex, bookdex: handleBookDex, wishlist: handleWishList, analytics: handleAnalytics } as Record<string, () => void>)[section]?.()}
+                onChange={section => ({ filmdex: handleCollection, musicdex: handleMusicDex, bookdex: handleBookDex, scores: () => navigate('/scores'), wishlist: handleWishList, analytics: handleAnalytics } as Record<string, () => void>)[section]?.()}
                 options={[
                   { value: 'filmdex', icon: <BsFilm />, tooltip: 'FilmDex - My precious movies' },
                   { value: 'musicdex', icon: <BsDisc />, tooltip: 'MusicDex - My precious albums' },
                   { value: 'bookdex', icon: <BsBook />, tooltip: 'BookDex - My precious books' },
+                  { value: 'scores', icon: <BsFileMusic />, tooltip: 'Scores - My sheet music' },
                   { value: 'wishlist', icon: <BsBookmark />, tooltip: 'Wish List - My precious to come' },
                   { value: 'analytics', icon: <BsBarChart />, tooltip: 'Analytics - The palant\u00EDr of data' },
                 ]}
@@ -1193,6 +1201,8 @@ function AppContent() {
                       ? 'Search MusicDex by title, artist...'
                       : location.pathname === '/bookdex'
                         ? 'Search BookDex by title, author...'
+                        : location.pathname === '/scores'
+                        ? 'Search scores by composer, piece, publisher...'
                         : location.pathname === '/wishlist'
                           ? 'Search wish list by title, director...'
                           : 'Search FilmDex by title, director...'
@@ -1286,6 +1296,7 @@ function AppContent() {
           <Route path="/musicdex/digital" element={<DigitalRedirect />} />
           <Route path="/musicdex/rip" element={<Navigate to="/musicdex?digital=1" replace />} />
           <Route path="/bookdex" element={<BookDexPage ref={bookDexRef} searchCriteria={searchCriteria} />} />
+          <Route path="/scores" element={<ScoresPage searchCriteria={searchCriteria} />} />
           <Route path="/wishlist" element={<WishListPage ref={wishListRef} searchCriteria={searchCriteria} onAddMovie={handleWishListAddMovie} onAddAlbum={handleWishListAddAlbum} onAddBook={handleWishListAddBook} onMovieMovedToCollection={handleMovieMovedToCollection} onAlbumMovedToCollection={handleAlbumMovedToCollection} onBookMovedToCollection={handleBookMovedToCollection} onShowAlert={handleShowAlert} onMovieAdded={handleMovieAdded} onAlbumAdded={handleAlbumAdded} onBookAdded={handleBookAdded} onSearch={handleSearchFromMovieDetail} />} />
           <Route path="/shelves" element={<ShelvesPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />

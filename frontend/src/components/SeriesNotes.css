@@ -1,0 +1,44 @@
+/* Notes on a series (SeriesNotes), under its volumes. */
+.series-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--dv-edge);
+}
+
+.series-notes__note {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--dv-gold-tint-edge);
+  border-radius: 0 var(--dv-radius-sm) var(--dv-radius-sm) 0;
+  background: var(--dv-glass);
+  font-size: 0.88rem;
+}
+
+.series-notes__words {
+  flex: 1;
+}
+
+.series-notes__who {
+  color: var(--dv-text-faint);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.series-notes__form {
+  display: flex;
+  gap: 6px;
+}
+
+.series-notes__field {
+  flex: 1;
+  min-width: 0;
+}
+
+.series-notes__name {
+  width: 110px;
+}

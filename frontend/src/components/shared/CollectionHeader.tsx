@@ -38,6 +38,8 @@ interface CollectionHeaderProps {
   extraControls?: React.ReactNode;
   /** Beside the count, at the right end: a button that acts on the whole list, say. */
   countExtra?: React.ReactNode;
+  /** First in the controls: which view of the section (BookDex's Library and Reading). */
+  leading?: React.ReactNode;
 }
 
 const CollectionHeader: React.FC<CollectionHeaderProps> = ({
@@ -61,7 +63,8 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
   onAdd,
   loading = false,
   extraControls,
-  countExtra
+  countExtra,
+  leading
 }) => {
   // Default: show stack toggle when no grouping is active
   const shouldShowStackToggle = showStackToggle !== undefined
@@ -74,6 +77,8 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
   return (
     <div className="collection-header">
       <div className="collection-controls">
+        {leading}
+
         {/* Sort */}
         {sortOptions.length > 0 && (
           <Menu label="Sort" trigger={(props, open) => (

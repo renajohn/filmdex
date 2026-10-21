@@ -1,3 +1,4 @@
+import BookReading from '../models/bookReading';
 import BookComment from '../models/bookComment';
 import type { BookCommentFormatted, BookCommentCreateData, DeleteResult } from '../types';
 
@@ -6,6 +7,8 @@ interface CommentInput {
   name?: string;
   comment?: string;
   date?: string;
+  /** The reading it is about; the book's last one when not said. */
+  readingId?: number | null;
 }
 
 interface NameSuggestion {
@@ -62,7 +65,10 @@ class BookCommentService {
         comment: commentData.comment.trim(),
         date: commentData.date || new Date().toISOString()
       };
-      return await BookComment.create(createData) as BookCommentFormatted;
+      const created = await BookComment.create(createData) as BookCommentFormatted;
+      // With the reading it is written after; an old database without the column keeps it by its date.
+      try { await BookReading.pinComment(created.id, Number(createData.bookId), commentData.readingId); } catch { /* no reading_id yet */ }
+      return created;
     } catch (error) {
       console.error('Error creating comment:', error);
       throw error;

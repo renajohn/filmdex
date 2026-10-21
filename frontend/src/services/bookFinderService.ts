@@ -37,6 +37,8 @@ export interface BookEdition {
   owner?: string;
   priceChf?: string;
   purchasedAt?: string;
+  /** When it was read: a book added from the reading journal. */
+  readDate?: string;
 }
 
 const json = async <T>(response: Response): Promise<T> => {

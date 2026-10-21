@@ -445,6 +445,7 @@ export interface BookRow {
   annotation: string | null;
   ebook_file: string | null;
   title_status: string | null;
+  composer?: string | null;
   price_chf?: number | null;
   purchased_at?: string | null;
   spoken_for?: number;
@@ -483,6 +484,8 @@ export interface BookFormatted {
   annotation: string | null;
   ebookFile: string | null;
   titleStatus: string | null;
+  /** A score's composer; its authors are often its editors. */
+  composer: string | null;
   /** What it cost, CHF, and when it was bought. */
   priceChf: number | null;
   purchasedAt: string | null;
@@ -521,6 +524,7 @@ export interface BookCreateData {
   annotation?: string | null;
   ebookFile?: string | null;
   titleStatus?: string;
+  composer?: string | null;
   /** Undefined keeps what the book had (an update); null clears it. */
   priceChf?: number | null;
   purchasedAt?: string | null;

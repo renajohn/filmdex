@@ -1909,3 +1909,34 @@
     justify-content: center;
   }
 }
+
+/* When it was read, under the stars; Read again beside the dates. */
+.book-head-read {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 4px;
+  font-size: 0.9rem;
+}
+
+.book-read-again {
+  margin-left: 0;
+}
+
+.book-read-again__form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.book-read-again__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.book-read-again__date {
+  width: 160px;
+}

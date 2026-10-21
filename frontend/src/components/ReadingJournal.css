@@ -1,0 +1,178 @@
+/* The reading journal (ReadingJournal): by year, a book each, its stars and the words on it. */
+.reading-journal {
+  padding: 20px;
+}
+
+.reading-journal > section {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.reading-journal__empty {
+  padding: 24px 0;
+  color: var(--dv-text-faint);
+}
+
+.reading-journal__year {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 22px 0 6px;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.reading-journal__year small {
+  color: var(--dv-text-faint);
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+.reading-journal__entry {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 14px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--dv-edge);
+}
+
+.reading-journal__cover {
+  align-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.reading-journal__cover img,
+.reading-journal__cover span {
+  display: block;
+  width: 64px;
+  aspect-ratio: 2 / 3;
+  border-radius: 3px;
+  object-fit: cover;
+  background: var(--dv-glass);
+}
+
+.reading-journal__title {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.reading-journal__title:hover {
+  text-decoration: underline;
+}
+
+.reading-journal__by {
+  color: var(--dv-text-muted);
+  font-size: 0.85rem;
+}
+
+.reading-journal__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  color: var(--dv-text-muted);
+  font-size: 0.82rem;
+}
+
+.reading-journal__comment {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-left: 2px solid var(--dv-gold-tint-edge);
+  border-radius: 0 var(--dv-radius-sm) var(--dv-radius-sm) 0;
+  background: var(--dv-glass);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.reading-journal__comment {
+  position: relative;
+  padding-right: 36px;
+  white-space: pre-line;
+}
+
+/* Its pencil, at its top right, under the pointer. */
+.reading-journal__revise {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  opacity: 0;
+}
+
+.reading-journal__comment:hover .reading-journal__revise,
+.reading-journal__revise:focus-visible {
+  opacity: 1;
+}
+
+.reading-journal__unsay {
+  margin-right: auto;
+}
+
+.reading-journal__comment small {
+  display: block;
+  margin-top: 4px;
+  color: var(--dv-text-faint);
+}
+
+.reading-journal__actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+/* Its date, a click to correct it. */
+.reading-journal__date {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.reading-journal__date:hover {
+  color: var(--dv-text);
+  text-decoration: underline dotted;
+}
+
+.reading-journal__again {
+  color: var(--dv-text-faint);
+  font-style: italic;
+}
+
+.reading-journal__dating {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.reading-journal__date-field {
+  width: 170px;
+}
+
+.reading-journal__write {
+  margin-top: 8px;
+}
+
+.reading-journal__write-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.reading-journal__words {
+  margin-top: 6px;
+}

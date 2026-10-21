@@ -5,6 +5,12 @@ import bookService from '../services/bookService';
 import { IconButton } from '../components/shared/Button';
 import { BsX } from 'react-icons/bs';
 import { toast, toneOf } from '../components/shared/Toast';
+import Segmented from '../components/shared/Segmented';
+import ReadingJournal from '../components/ReadingJournal';
+
+type BookDexView = 'library' | 'reading';
+const VIEW = 'dv.bookdexView';
+const rememberedView = (): BookDexView => { try { return localStorage.getItem(VIEW) === 'reading' ? 'reading' : 'library'; } catch { return 'library'; } };
 
 const BookSearch = BookSearchComponent;
 
@@ -21,10 +27,18 @@ const BookDexPage = forwardRef<BookDexPageRef, BookDexPageProps>(({ searchCriter
   const [books, setBooks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const bookSearchRef = useRef<any>(null);
+  // The shelves at home, or what one has read (one's own or borrowed): two views of the books.
+  const [view, setView] = useState<BookDexView>(rememberedView);
+  const chooseView = (next: BookDexView) => { setView(next); try { localStorage.setItem(VIEW, next); } catch { /* a private window */ } };
 
+  // Once: a search in the URL (a pill, a filter taken away) must not reload every book,
+  // which made the shelves flicker at each click.
   useEffect(() => {
     loadBooks();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  useEffect(() => {
     // Check for URL search parameters
     const urlParams = new URLSearchParams(location.search);
     const searchParam = urlParams.get('search');
@@ -113,8 +127,21 @@ const BookDexPage = forwardRef<BookDexPageRef, BookDexPageProps>(({ searchCriter
     }
   };
 
+  // First in the bar, as MusicDex's Digital: the shelves or the journal.
+  const viewSwitch = (
+    <Segmented
+      label="Books"
+      kind="tabs"
+      size="sm"
+      value={view}
+      onChange={chooseView}
+      options={[{ value: 'library', label: 'Library' }, { value: 'reading', label: 'Reading' }]}
+    />
+  );
+
   return (
     <div className="bookdex-page">
+      {view === 'reading' ? <ReadingJournal viewSwitch={viewSwitch} searchCriteria={searchCriteria} /> : (
       <BookSearch
         ref={bookSearchRef}
         books={books}
@@ -127,7 +154,9 @@ const BookDexPage = forwardRef<BookDexPageRef, BookDexPageProps>(({ searchCriter
         refreshTrigger={books.length}
         searchCriteria={searchCriteria}
         defaultTitleStatus={isWishlistMode ? 'wish' : undefined}
+        viewSwitch={viewSwitch}
       />
+      )}
 
     </div>
   );

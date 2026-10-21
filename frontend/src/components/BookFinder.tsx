@@ -37,6 +37,10 @@ interface BookFinderProps {
   onIsbn?: () => void;
   onManual?: () => void;
   buying?: BookBuying | null;
+  /** The kind it opens on, rather than the last chosen: Score from the scores' section. */
+  initialKind?: BookKind;
+  /** From the reading journal: the edition asks when it was read. */
+  reading?: boolean;
 }
 
 type View = 'search' | 'series' | 'author' | 'edition';
@@ -68,11 +72,11 @@ const volumeTitle = (book: FinderBook) => book.subtitle
  * books. On the wish list a click wishes the book; for the library it asks its
  * edition: kind, format, language, price, date, whose it is.
  */
-const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClose, onPhoto, onIsbn, onManual, buying }) => {
+const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClose, onPhoto, onIsbn, onManual, buying, initialKind, reading }) => {
   const [view, setView] = useState<View>(buying ? 'edition' : 'search');
   const [query, setQuery] = useState('');
   const [language, setLanguage] = useState<BookLanguage>(() => remembered('dv.bookLanguage', 'fr'));
-  const [kind, setKind] = useState<BookKind>(() => remembered('dv.bookKind', 'all'));
+  const [kind, setKind] = useState<BookKind>(() => initialKind ?? remembered('dv.bookKind', 'all'));
   const [books, setBooks] = useState<FinderBook[]>([]);
   const [series, setSeries] = useState<FinderSeries[]>([]);
   const [authors, setAuthors] = useState<FinderAuthor[]>([]);
@@ -132,7 +136,7 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
 
   useEffect(() => {
     const titles: Record<View, string> = {
-      search: mode === 'wish' ? 'Add a book to the wish list' : 'Add a book',
+      search: mode === 'wish' ? 'Add a book to the wish list' : reading ? 'Add a reading' : initialKind === 'score' ? 'Add a score' : 'Add a book',
       series: serie?.name || '',
       author: author?.name || '',
       edition: buying ? 'Which edition did you buy?' : chosen.length > 1 ? `${chosen.length} volumes of ${serie?.name || ''}` : 'Which edition do you have?',
@@ -153,6 +157,7 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
     format: 'physical',
     language: book.language || (language !== 'any' ? language : 'fr'),
     owner: '', priceChf: '', purchasedAt: today(),
+    ...(reading ? { readDate: today() } : {}),
   });
 
   const toggleWish = async (book: FinderBook) => {
@@ -505,6 +510,12 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
           <span>{borrowed ? 'Borrowed from' : <>Belongs to <small>if not you</small></>}</span>
           <TextField value={form.owner} onChange={set('owner')} placeholder={borrowed ? 'A friend, the library…' : 'Violaine, the children…'} />
         </label>
+        {reading && (
+          <label className="finder__field">
+            <span>Read</span>
+            <TextField type="date" value={form.readDate || ''} onChange={set('readDate')} />
+          </label>
+        )}
         {!borrowed && (
           <>
             <label className="finder__field">

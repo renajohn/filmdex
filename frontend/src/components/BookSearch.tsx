@@ -1,4 +1,4 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import bookService from '../services/bookService';
 import BookForm from './BookForm';
@@ -32,6 +32,8 @@ interface BookSearchProps {
   refreshTrigger?: number;
   searchCriteria?: { searchText?: string; [key: string]: any } | null;
   defaultTitleStatus?: string;
+  /** Library or Reading, first in the header's controls. */
+  viewSwitch?: React.ReactNode;
 }
 
 interface Book {
@@ -91,6 +93,12 @@ interface CombinedItem {
   book?: Book;
 }
 
+/**
+ * The books of the shelves at home: the scores have a section of their own
+ * (/scores), and a book borrowed lives in the reading journal alone.
+ */
+const onShelf = (books: Book[]): Book[] => books.filter(book => book.bookType !== 'score' && book.titleStatus !== 'borrowed');
+
 const BookSearch = forwardRef<any, BookSearchProps>(({
   books,
   loading,
@@ -101,7 +109,8 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
   onOpenAddDialog,
   refreshTrigger,
   searchCriteria,
-  defaultTitleStatus
+  defaultTitleStatus,
+  viewSwitch
 }, ref) => {
   const [allBooks, setAllBooks] = useState<Book[]>([]);
   const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
@@ -218,14 +227,15 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
 
   const loadBooks = async () => {
     try {
-      // getAllBooks() now returns both 'owned' and 'borrowed' books (excludes 'wish')
-      const data = await bookService.getAllBooks() as Book[];
+      // getAllBooks() now returns both 'owned' and 'borrowed' books (excludes 'wish');
+      // the scores have a section of their own.
+      const data = onShelf(await bookService.getAllBooks() as Book[]);
       const sortedInitial = sortBooks(data, sortBy);
       setAllBooks(data); // Keep all books for total count
 
       const currentSearchText = searchCriteria?.searchText || '';
       if (currentSearchText.trim()) {
-        const localResults = await bookService.searchBooks(currentSearchText) as Book[];
+        const localResults = onShelf(await bookService.searchBooks(currentSearchText) as Book[]);
         const sortedResults = sortBooks(localResults, sortBy);
         setFilteredBooks(sortedResults);
         setBookCount({ filtered: sortedResults.length, total: data.length });
@@ -250,7 +260,7 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
     }
 
     try {
-      const localResults = await bookService.searchBooks(query) as Book[];
+      const localResults = onShelf(await bookService.searchBooks(query) as Book[]);
       const sortedResults = sortBooks(localResults, sortBy);
       setFilteredBooks(sortedResults);
       setBookCount({ filtered: sortedResults.length, total: allBooks.length });
@@ -263,6 +273,21 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
   };
 
   // Displayable books (same as filtered books, type filtering done via search syntax)
+  // Whose books: one of the family's, at a click, written into the search as owner:Alice,
+  // so the pill and the search box say the same thing whichever one changes.
+  const OWNER_TOKEN = /(^|\s)owner:("[^"]*"|\S+)/i;
+  const ownerMatch = (searchCriteria?.searchText || '').match(OWNER_TOKEN);
+  const ownerFilter = ownerMatch ? ownerMatch[2].replace(/"/g, '') : null;
+  const chooseOwner = (owner: string | null) => {
+    const rest = (searchCriteria?.searchText || '').replace(OWNER_TOKEN, ' ').replace(/\s+/g, ' ').trim();
+    const token = owner ? `owner:${/\s/.test(owner) ? `"${owner}"` : owner}` : '';
+    updateSearchViaUrl([token, rest].filter(Boolean).join(' '));
+  };
+  const owners = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const book of allBooks) if (book.owner) counts.set(book.owner, (counts.get(book.owner) || 0) + 1);
+    return [...counts].sort((a, b) => b[1] - a[1]);
+  }, [allBooks]);
   const displayBooks = filteredBooks;
 
   // Helper to parse active filters from search text
@@ -1433,6 +1458,14 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
           addButtonLabel="Add Book"
           onAdd={() => setShowAddDialog(true)}
           loading={loading}
+          leading={viewSwitch}
+          extraControls={owners.length > 1 && (
+            <span className="book-owner-chips" role="group" aria-label="Whose books">
+              {owners.map(([owner, count]) => (
+                <Chip key={owner} active={ownerFilter?.toLowerCase() === owner.toLowerCase()} count={count} onClick={() => chooseOwner(ownerFilter?.toLowerCase() === owner.toLowerCase() ? null : owner)}>{owner}</Chip>
+              ))}
+            </span>
+          )}
         />
 
         {/* Active Filter Chips */}

@@ -1,5 +1,6 @@
 
 import React, { useRef, useEffect, useState } from 'react';
+import SeriesNotes from './SeriesNotes';
 import { Popover, Overlay } from 'react-bootstrap';
 import { BsPencil, BsCheck, BsX, BsPlus } from 'react-icons/bs';
 import BookThumbnail from './BookThumbnail';
@@ -391,6 +392,7 @@ const SeriesStack: React.FC<SeriesStackProps> = ({ seriesName, books, onBookClic
                   </div>
                 ))}
               </div>
+              <SeriesNotes series={seriesName} />
               {onAddBooksToSeries && (
                 <div className="series-expansion-footer">
                   <Button icon={<BsPlus size={18} />}

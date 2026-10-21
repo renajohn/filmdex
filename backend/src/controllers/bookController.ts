@@ -620,8 +620,10 @@ const bookController = {
       originalFilename = originalFilename.replace(/^[""'']+|[""'']+$/g, '').trim();
 
       // Set headers for file download
-      res.setHeader('Content-Disposition', `attachment; filename="${originalFilename}"`);
-      res.setHeader('Content-Type', 'application/octet-stream');
+      // ?inline=1: a score's PDF opened in the browser, full screen, rather than saved.
+      const inline = req.query.inline === '1' && /\.pdf$/i.test(book.ebookFile);
+      res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="${originalFilename}"`);
+      res.setHeader('Content-Type', inline ? 'application/pdf' : 'application/octet-stream');
 
       // Stream the file
       const fileStream = fs.createReadStream(filePath);

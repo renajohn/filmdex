@@ -73,9 +73,13 @@ interface AddBookDialogProps {
   onAddBooksBatch?: (books: any[]) => Promise<void>;
   defaultTitleStatus?: string;
   onShowAlert?: (message: string, variant: string) => void;
+  /** The kind the finder opens on: Score from the scores' section. */
+  defaultBookKind?: 'book' | 'graphic-novel' | 'score';
+  /** From the reading journal: the finder asks when the book was read. */
+  reading?: boolean;
 }
 
-const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAddError, templateBook, onAddBooksBatch, defaultTitleStatus, onShowAlert }: AddBookDialogProps) => {
+const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAddError, templateBook, onAddBooksBatch, defaultTitleStatus, onShowAlert, defaultBookKind, reading }: AddBookDialogProps) => {
   const [searchTab, setSearchTab] = useState('isbn'); // 'isbn' or 'title'
   const [searchQuery, setSearchQuery] = useState('');
   const [searchIsbn, setSearchIsbn] = useState('');
@@ -1271,6 +1275,8 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       <Dialog show={show} onClose={() => handleClose(true)} size="lg" zIndex={10100} className="add-book-dialog" title={finderHead.title} onBack={finderHead.onBack}>
         <BookFinder
           mode={defaultTitleStatus === 'wish' ? 'wish' : 'owned'}
+          initialKind={defaultBookKind}
+          reading={reading}
           onHead={setFinderHead}
           onChanged={book => onBookAdded?.(book)}
           onClose={() => handleClose(true)}
