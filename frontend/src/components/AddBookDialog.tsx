@@ -16,6 +16,22 @@ import { TextField } from './shared/TextField';
 import Notice from './shared/Notice';
 import { toneOf } from './shared/Toast';
 import Spinner, { Loading } from './shared/Spinner';
+import SleeveCapture from './SleeveCapture';
+import type { BookPhotosDraft } from '../services/bookService';
+import { base64ToFile } from '../utils/downscaleImage';
+
+type Photo = { base64: string; mimeType: string };
+
+/** The covers screen of a CD, said of a book. */
+const BOOK_PHOTO_WORDS = {
+  title: 'Fill the form from its photos',
+  lead: 'The front becomes its cover and names it; its back gives its blurb, its ISBN, its publisher. Both photographs are kept. Nothing is saved until you review it.',
+  frontHint: 'Its cover',
+  backHint: 'Its blurb and its ISBN',
+  read: 'Read the photos',
+  reading: 'Reading the photos…',
+  failed: 'Could not read the photos',
+};
 
 interface BookData {
   title?: string;
@@ -91,6 +107,10 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState('');
   const [showMetadataForm, setShowMetadataForm] = useState(false);
+  // The photographs screen, with the front already taken in the finder when there is one; undefined when not on it.
+  const [photosFront, setPhotosFront] = useState<Photo | null | undefined>(undefined);
+  // The photographs read, to become the new book's cover and back once it is saved.
+  const photosRef = useRef<{ front?: Photo; back?: Photo }>({});
   const [selectedBook, setSelectedBook] = useState<BookData | null>(null);
   const [selectedBookGroup, setSelectedBookGroup] = useState<BookData[] | null>(null);
   // Load language preference from localStorage, default to 'any'
@@ -825,6 +845,8 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   };
 
   const handleClose = (forceClose: boolean = false) => {
+    setPhotosFront(undefined);
+    photosRef.current = {};
     // If forceClose is true or addMultipleBooks is false, close normally
     // Otherwise, if addMultipleBooks is true, just reset the form but keep dialog open
     if (!forceClose && addMultipleBooks && !error) {
@@ -1251,6 +1273,23 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
               ? { ...bookData, titleStatus: defaultTitleStatus }
               : bookData;
             const createdBook = await onAddBook(bookDataWithStatus);
+            // Its photographs, read for the form: its cover and its back.
+            const taken = photosRef.current;
+            photosRef.current = {};
+            if (createdBook?.id && (taken.front || taken.back)) {
+              try {
+                if (taken.front) {
+                  const { cover } = await bookService.uploadCover(createdBook.id, base64ToFile(taken.front.base64, taken.front.mimeType, 'front.jpg')) as { cover: string };
+                  createdBook.cover = cover;
+                }
+                if (taken.back) {
+                  const { cover } = await bookService.uploadBackCover(createdBook.id, base64ToFile(taken.back.base64, taken.back.mimeType, 'back.jpg')) as { cover: string };
+                  createdBook.backCover = cover;
+                }
+              } catch (e) {
+                onShowAlert?.(`The book is added, its photos not: ${(e as Error).message}`, 'warning');
+              }
+            }
             handleBookAdded(createdBook);
             return createdBook;
           } catch (err) {
@@ -1270,6 +1309,36 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   }
 
 
+  if (photosFront !== undefined) {
+    return (
+      <Dialog show={show} onClose={() => handleClose(true)} size="lg" zIndex={10100} className="add-book-dialog" icon={<BsCamera />} title="Its photos"
+        onBack={() => { setPhotosFront(undefined); setFinder(true); }}>
+        <Dialog.Body>
+          <SleeveCapture
+            initialFront={photosFront}
+            words={BOOK_PHOTO_WORDS}
+            transcribe={photos => bookService.readPhotos(photos) as never}
+            onDraft={result => {
+              const draft = result.draft as unknown as BookPhotosDraft;
+              photosRef.current = { front: result.coverPhoto, back: result.backPhoto };
+              setPhotosFront(undefined);
+              setFinder(false);
+              setSelectedBook({
+                title: draft.title || '', subtitle: draft.subtitle || undefined, authors: draft.authors, artists: draft.artists,
+                series: draft.series || undefined, seriesNumber: draft.seriesNumber ?? undefined, publisher: draft.publisher || undefined,
+                isbn13: draft.isbn13 || undefined, description: draft.description || undefined, language: draft.language || undefined,
+                bookType: draft.bookType || undefined,
+              } as unknown as BookData);
+              setSelectedBookGroup([]);
+              setShowMetadataForm(true);
+            }}
+            onSkip={() => { setPhotosFront(undefined); setFinder(false); handleManualEntry(); }}
+          />
+        </Dialog.Body>
+      </Dialog>
+    );
+  }
+
   if (finder) {
     return (
       <Dialog show={show} onClose={() => handleClose(true)} size="lg" zIndex={10100} className="add-book-dialog" title={finderHead.title} onBack={finderHead.onBack}>
@@ -1280,7 +1349,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
           onHead={setFinderHead}
           onChanged={book => onBookAdded?.(book)}
           onClose={() => handleClose(true)}
-          onPhoto={() => { setFinder(false); setShowCoverScanStep(true); }}
+          onPhotos={front => setPhotosFront(front)}
           onIsbn={() => { setFinder(false); setShowCoverScanStep(false); setSearchTab('isbn'); }}
           onManual={() => { setFinder(false); handleManualEntry(); }}
         />

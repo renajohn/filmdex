@@ -27,11 +27,35 @@ export interface SleeveDraftResult {
   backPhoto?: Photo;
 }
 
+/** What the screen says, a CD's sleeve unless told otherwise (a book's covers). */
+export interface SleeveCaptureWords {
+  title: string;
+  lead: string;
+  frontHint: string;
+  backHint: string;
+  read: string;
+  reading: string;
+  failed: string;
+}
+
+const SLEEVE_WORDS: SleeveCaptureWords = {
+  title: 'Fill the form from the sleeve',
+  lead: 'Both photographs are kept as the covers, and the back is where the track list is read from. Nothing is saved until you review it.',
+  frontHint: 'The artwork',
+  backHint: 'Where the track list is',
+  read: 'Read the sleeve',
+  reading: 'Reading the sleeve…',
+  failed: 'Could not read the sleeve',
+};
+
 interface SleeveCaptureProps {
   /** A front photo already taken by the scan, so it need not be shot twice. */
   initialFront?: Photo | null;
   onDraft: (result: SleeveDraftResult) => void;
   onSkip: () => void;
+  /** How the photographs are read: a CD's sleeve unless given (a book's covers). */
+  transcribe?: (photos: { front?: Photo; back?: Photo }) => Promise<Omit<SleeveDraftResult, 'coverPhoto' | 'backPhoto'>>;
+  words?: Partial<SleeveCaptureWords>;
 }
 
 /**
@@ -42,7 +66,8 @@ interface SleeveCaptureProps {
  * camera. The front comes first, since it is the one that becomes the artwork
  * and the one whose absence used to mean no cover at all.
  */
-const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, onSkip }) => {
+const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, onSkip, transcribe, words: given }) => {
+  const words = { ...SLEEVE_WORDS, ...given };
   const [photos, setPhotos] = useState<Record<Side, Photo | null>>({
     front: initialFront || null,
     back: null
@@ -193,10 +218,11 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
     setReading(true);
     setError('');
     try {
-      const result = await musicService.transcribeSleeve({
+      const sides = {
         front: photos.front ? { base64: photos.front.base64, mimeType: photos.front.mimeType } : undefined,
         back: photos.back ? { base64: photos.back.base64, mimeType: photos.back.mimeType } : undefined
-      }) as SleeveDraftResult;
+      };
+      const result = (transcribe ? await transcribe(sides) : await musicService.transcribeSleeve(sides)) as SleeveDraftResult;
 
       // A record no database knows has no artwork to download, so these photos
       // are the only covers it will ever have. Both travel, with whatever
@@ -207,7 +233,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
         backPhoto: photos.back || undefined
       });
     } catch (err) {
-      setError((err as Error).message || 'Could not read the sleeve');
+      setError((err as Error).message || words.failed);
     } finally {
       setReading(false);
     }
@@ -279,15 +305,12 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
         onChange={onPick('back')}
       />
 
-      <h6 className="sleeve-capture-title">Fill the form from the sleeve</h6>
-      <p className="sleeve-capture-lead">
-        Both photographs are kept as the covers, and the back is where the track list is
-        read from. Nothing is saved until you review it.
-      </p>
+      <h6 className="sleeve-capture-title">{words.title}</h6>
+      <p className="sleeve-capture-lead">{words.lead}</p>
 
       <div className="sleeve-capture-slots">
-        {slot('front', 'Front cover', 'The artwork')}
-        {slot('back', 'Back cover', 'Where the track list is')}
+        {slot('front', 'Front cover', words.frontHint)}
+        {slot('back', 'Back cover', words.backHint)}
       </div>
 
       {error && <Notice tone="warning" className="mt-3 mb-0">{error}</Notice>}
@@ -320,10 +343,10 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, on
           {reading ? (
             <>
               <Spinner size="sm" className="me-2" />
-              Reading the sleeve…
+              {words.reading}
             </>
           ) : (
-            'Read the sleeve'
+            words.read
           )}
         </Button>
       </div>

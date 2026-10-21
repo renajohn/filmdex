@@ -456,6 +456,96 @@ async function transcribeSleeveBack(base64Image: string, mimeType: string): Prom
   };
 }
 
+/** What a book's photographs say: its front names it, its back holds its blurb and its ISBN. */
+export interface BookPhotosDraft {
+  title: string | null;
+  subtitle: string | null;
+  authors: string[];
+  /** Who drew or illustrated it. */
+  artists: string[];
+  translators: string[];
+  series: string | null;
+  seriesNumber: number | null;
+  publisher: string | null;
+  isbn13: string | null;
+  /** Its blurb, as printed on its back. */
+  description: string | null;
+  language: string | null;
+  bookType: 'book' | 'graphic-novel' | 'score' | null;
+}
+
+/**
+ * A cover's capitals, should the model keep them, each word capitalised:
+ * BRET EASTON ELLIS, Bret Easton Ellis. The model is asked for the case one
+ * writes, which knows a title's proper nouns (L'Évangile selon Pilate).
+ */
+export const unshout = (text: string | null): string | null => {
+  if (!text || /\p{Ll}/u.test(text) || !/\p{Lu}{2}/u.test(text)) return text;
+  return text.toLowerCase().replace(/(^|[\s\-'’(«"])(\p{L})/gu, (_, before: string, letter: string) => before + letter.toUpperCase());
+};
+
+const isbnOf = (value: unknown): string | null => {
+  const digits = String(value ?? '').replace(/[^\dX]/gi, '');
+  return digits.length === 13 && /^97[89]/.test(digits) ? digits : null;
+};
+const kindOf = (value: unknown): BookPhotosDraft['bookType'] => {
+  const kind = String(value ?? '').toLowerCase();
+  return kind.includes('graphic') || kind.includes('comic') || kind.includes('manga') ? 'graphic-novel' : kind.includes('score') ? 'score' : kind ? 'book' : null;
+};
+const numberOf = (value: unknown): number | null => {
+  const n = parseInt(String(value ?? '').match(/\d+/)?.[0] || '', 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+/**
+ * Read a book's photographs: its front for what it is (title, authors, series
+ * and volume, its kind and language), its back for its blurb, its ISBN, its
+ * publisher and its translator. Either may be missing.
+ */
+async function readBookPhotos(photos: { front?: { image: string; mimeType?: string }; back?: { image: string; mimeType?: string } }): Promise<{ draft: BookPhotosDraft; sources: { front: boolean; back: boolean } }> {
+  const draft: BookPhotosDraft = { title: null, subtitle: null, authors: [], artists: [], translators: [], series: null, seriesNumber: null,
+    publisher: null, isbn13: null, description: null, language: null, bookType: null };
+  const [front, back] = await Promise.all([
+    photos.front?.image ? askVision(
+      'This is the FRONT COVER of a book (a novel, a comic, a manga, or sheet music).\n' + TRANSCRIPTION_RULE + '\n' +
+      'Give the title as printed, its subtitle, its authors (for a comic, its writers), who drew or illustrated it, the series and the ' +
+      'volume number when printed (Tome 4, Vol. 2), the publisher or imprint, its kind ("book", "graphic-novel" for comics and manga, ' +
+      '"score" for sheet music), and the language of the cover as a two-letter code. Write the titles and the names as a ' +
+      'catalogue writes them, not in the capitals a cover may print them in: L\'Évangile selon Pilate, Bret Easton Ellis.\n' +
+      'Return ONLY this JSON object:\n' +
+      '{"title":"","subtitle":"","authors":[],"artists":[],"series":"","volume":0,"publisher":"","kind":"","language":""}',
+      photos.front.image, photos.front.mimeType || 'image/jpeg', 700) : Promise.resolve(null),
+    photos.back?.image ? askVision(
+      'This is the BACK COVER of a book.\n' + TRANSCRIPTION_RULE + '\n' +
+      'Give its blurb: the text that tells what the book is about, word for word, its paragraphs apart, without the quotations ' +
+      'of reviews or other authors. Give its ISBN as printed (13 digits), the publisher or imprint, who translated it when printed ' +
+      '("Traduit de l\'anglais par …"), its title, its authors, the series and volume when printed, and the language of the text as a two-letter code. ' +
+      'Write the titles and the names as a catalogue writes them, not in capitals.\n' +
+      'Return ONLY this JSON object:\n' +
+      '{"blurb":"","isbn":"","publisher":"","translators":[],"title":"","authors":[],"series":"","volume":0,"language":""}',
+      photos.back.image, photos.back.mimeType || 'image/jpeg', 1500) : Promise.resolve(null),
+  ]);
+  const f = front ? parseSleeveJson(front.text)?.data || {} : {};
+  const b = back ? parseSleeveJson(back.text)?.data || {} : {};
+  if (front && !Object.keys(f).length && back && !Object.keys(b).length) throw new Error('Could not read the photographs from the model response');
+  // The front names it; the back fills what the front does not print.
+  draft.title = unshout(asText(f.title) || asText(b.title));
+  draft.subtitle = unshout(asText(f.subtitle));
+  draft.authors = (asList(f.authors).length ? asList(f.authors) : asList(b.authors)).map(name => unshout(name)!);
+  draft.artists = asList(f.artists).map(name => unshout(name)!);
+  draft.translators = asList(b.translators).map(name => unshout(name)!);
+  draft.series = unshout(asText(f.series) || asText(b.series));
+  draft.seriesNumber = numberOf(f.volume) ?? numberOf(b.volume);
+  draft.publisher = asText(b.publisher) || asText(f.publisher);
+  // A publisher's collection is not a series: 10/18, Folio, Points.
+  if (draft.series && draft.publisher && draft.series.toLowerCase() === draft.publisher.toLowerCase()) { draft.series = null; draft.seriesNumber = null; }
+  draft.isbn13 = isbnOf(b.isbn);
+  draft.description = asText(b.blurb);
+  draft.language = (asText(b.language) || asText(f.language))?.slice(0, 2).toLowerCase() || null;
+  draft.bookType = kindOf(f.kind);
+  return { draft, sources: { front: !!front, back: !!back } };
+}
+
 /** One piece as a score's table of contents prints it. */
 export interface ContentsLine {
   title: string;
@@ -1149,6 +1239,7 @@ export default {
   transcribeSleeveBack,
   transcribeSleeveFront,
   transcribeScoreContents,
+  readBookPhotos,
   parseResponse,
   normalizeFormat,
   rankResults,

@@ -110,6 +110,23 @@ const ebookUpload = multer({
 });
 
 const bookController = {
+  // POST { front?, back? }: a book's photographs read, its front and its back, for a form filled from them
+  readPhotos: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { front, back } = req.body || {};
+      if (!front?.image && !back?.image) {
+        res.status(400).json({ error: 'At least one photograph is required (front or back)' });
+        return;
+      }
+      res.json(await coverScanService.readBookPhotos({ front, back }));
+    } catch (error) {
+      const message = (error as Error).message || '';
+      const unreachable = /network error|no response received|econnrefused|enotfound|timed? ?out|HTTP 5\d\d/i.test(message);
+      logger.error('Reading the book photographs failed:', message);
+      res.status(unreachable ? 503 : 422).json({ error: unreachable ? 'Cover scan service is not available' : 'Could not read the photographs', details: message });
+    }
+  },
+
   // POST: every French book completed from the BnF's catalogue: what each gained
   enrichFromBnf: async (_req: Request, res: Response): Promise<void> => {
     try {

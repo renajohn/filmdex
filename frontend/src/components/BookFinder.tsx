@@ -12,6 +12,7 @@ import Segmented from './shared/Segmented';
 import { Loading } from './shared/Spinner';
 import { TextField } from './shared/TextField';
 import toast from './shared/Toast';
+import { downscaleImage } from '../utils/downscaleImage';
 import './finder.css';
 
 export type BookFinderMode = 'wish' | 'owned';
@@ -33,7 +34,8 @@ interface BookFinderProps {
   /** A book added, wished, bought or taken off the wish list. */
   onChanged: (book: unknown) => void;
   onClose: () => void;
-  onPhoto?: () => void;
+  /** Fill the form from the book's photographs, its front already taken when there is one. */
+  onPhotos?: (front: { base64: string; mimeType: string } | null) => void;
   onIsbn?: () => void;
   onManual?: () => void;
   buying?: BookBuying | null;
@@ -72,7 +74,7 @@ const volumeTitle = (book: FinderBook) => book.subtitle
  * books. On the wish list a click wishes the book; for the library it asks its
  * edition: kind, format, language, price, date, whose it is.
  */
-const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClose, onPhoto, onIsbn, onManual, buying, initialKind, reading }) => {
+const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClose, onPhotos, onIsbn, onManual, buying, initialKind, reading }) => {
   const [view, setView] = useState<View>(buying ? 'edition' : 'search');
   const [query, setQuery] = useState('');
   const [language, setLanguage] = useState<BookLanguage>(() => remembered('dv.bookLanguage', 'fr'));
@@ -108,6 +110,31 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
   // Mine, or borrowed (a friend's, the library's): then no price, and whose it is.
   const [borrowed, setBorrowed] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  // A photographed cover, read by the model into the words searched; kept for the form when nothing is found.
+  const photoRef = useRef<HTMLInputElement>(null);
+  const [photo, setPhoto] = useState<{ base64: string; mimeType: string } | null>(null);
+  const [readingPhoto, setReadingPhoto] = useState(false);
+
+  /** The cover photographed and read: its title and author become the search, its kind the filter. */
+  const photographed = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setReadingPhoto(true);
+    try {
+      const front = await downscaleImage(file);
+      setPhoto(front);
+      const { draft } = await bookService.readPhotos({ front });
+      if (!draft.title) { toast('Nothing could be read on this cover: try another photo, or fill the form from the photos.', { tone: 'warning' }); return; }
+      setQuery([draft.series && draft.seriesNumber ? `${draft.series} ${draft.seriesNumber}` : draft.title, draft.authors[0]].filter(Boolean).join(' '));
+      // Its kind, not its language: a French edition keeps its title in English (American Psycho).
+      if (draft.bookType && draft.bookType !== 'score') { setKind(draft.bookType); }
+    } catch (e) {
+      toast((e as Error).message, { tone: 'danger' });
+    } finally {
+      setReadingPhoto(false);
+    }
+  };
   const listRef = useRef<HTMLDivElement>(null);
 
   const wishMode = mode === 'wish' && !buying;
@@ -304,6 +331,13 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
         <Segmented label="Kind" value={kind} onChange={value => { setKind(value); remember('dv.bookKind', value); setActive(0); }} options={KINDS} />
         <Segmented label="Language" value={language} onChange={value => { setLanguage(value); remember('dv.bookLanguage', value); }} options={LANGUAGES} />
       </div>
+      {(photo || readingPhoto) && (
+        <div className="finder__photo">
+          {photo && <img src={`data:${photo.mimeType};base64,${photo.base64}`} alt="Your photo" />}
+          <span>{readingPhoto ? 'Reading the cover…' : 'Searched with what your photo says.'}</span>
+          {onPhotos && !readingPhoto && <Button size="sm" icon={<BsCamera />} onClick={() => onPhotos(photo)} title="Photograph its back too: its blurb, its ISBN, read into the form">From the photos</Button>}
+        </div>
+      )}
       <div className="finder__results" ref={listRef}>
         {query.trim().length < 2 ? (
           <p className="finder__empty">Books appear as you type: a title, an author, a series.</p>
@@ -565,7 +599,7 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
         <span className="finder__note">
           {view === 'search' && (wishMode ? 'One click wishes the book; a series wishes its missing volumes.' : 'Choose the book, then its edition.')}
         </span>
-        {!wishMode && onPhoto && <Button icon={<BsCamera />} onClick={onPhoto} title="Photograph the cover, as before">Photo</Button>}
+        {!wishMode && <Button icon={<BsCamera />} onClick={() => photoRef.current?.click()} loading={readingPhoto} title="Photograph its cover: what it says is searched">Photo</Button>}
         {!wishMode && onIsbn && <Button icon={<BsUpcScan />} onClick={onIsbn} title="Search by its ISBN, as before">ISBN</Button>}
         {onManual && <Button icon={<BsPencil />} onClick={onManual} title="Type it all by hand">Manual</Button>}
         <Button variant="quiet" onClick={onClose}>{wishMode ? 'Done' : 'Cancel'}</Button>
@@ -575,6 +609,8 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
 
   return (
     <>
+      {/* Always there: iOS opens the camera only from inside the tap. */}
+      <input ref={photoRef} type="file" accept="image/*,.heic,.heif" capture="environment" style={{ display: 'none' }} onChange={photographed} data-testid="finder-photo" />
       <Dialog.Body className="finder">
         {view === 'search' && searchView}
         {view === 'series' && seriesView}

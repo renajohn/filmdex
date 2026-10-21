@@ -13,6 +13,22 @@ interface SeriesSearchOptions {
   maxVolumes?: string | number;
 }
 
+/** What a book's photographs say, as the server reads them. */
+export interface BookPhotosDraft {
+  title: string | null;
+  subtitle: string | null;
+  authors: string[];
+  artists: string[];
+  translators: string[];
+  series: string | null;
+  seriesNumber: number | null;
+  publisher: string | null;
+  isbn13: string | null;
+  description: string | null;
+  language: string | null;
+  bookType: 'book' | 'graphic-novel' | 'score' | null;
+}
+
 class BookService {
   async getBaseUrl(): Promise<string> {
     return '/api';
@@ -378,6 +394,18 @@ class BookService {
       console.error('Error deleting ebook:', error);
       throw error;
     }
+  }
+
+  /** A book's photographs read: its front names it, its back holds its blurb, its ISBN, its publisher. */
+  async readPhotos(photos: { front?: { base64: string; mimeType: string }; back?: { base64: string; mimeType: string } }): Promise<{ draft: BookPhotosDraft; sources: { front: boolean; back: boolean }; truncated: boolean }> {
+    const baseUrl = await this.getBaseUrl();
+    const body: Record<string, unknown> = {};
+    if (photos.front) body.front = { image: photos.front.base64, mimeType: photos.front.mimeType };
+    if (photos.back) body.back = { image: photos.back.base64, mimeType: photos.back.mimeType };
+    const response = await fetch(`${baseUrl}/books/read-photos`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await response.json().catch(() => ({})) as { error?: string };
+    if (!response.ok) throw new Error(data.error || `HTTP error! status: ${response.status}`);
+    return { ...(data as { draft: BookPhotosDraft; sources: { front: boolean; back: boolean } }), truncated: false };
   }
 
   /** The photograph of a book's back, its blurb. */

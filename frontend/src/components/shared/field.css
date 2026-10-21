@@ -165,3 +165,21 @@ select.ui-input {
   color: var(--dv-text-faint);
   font-size: 12px;
 }
+
+/*
+ * On a phone, every field at 16px: Safari on an iPhone zooms the whole page
+ * into a field written smaller as soon as it takes the focus, and does not
+ * zoom back. The fields of the old forms (Bootstrap's form-control, a bare
+ * input or textarea) take it too, whatever their own stylesheet says.
+ */
+@media (hover: none) and (pointer: coarse) {
+  .ui-input,
+  .ui-input input,
+  .form-control,
+  .form-select,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

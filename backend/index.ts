@@ -401,6 +401,7 @@ app.post('/api/books', bookController.addBook);
 app.post('/api/books/batch', bookController.addBooksBatch);
 app.post('/api/books/enrich', bookController.enrichBook);
 app.post('/api/books/scan-cover', bookController.scanCover);
+app.post('/api/books/read-photos', bookController.readPhotos);
 
 // Book comment routes - Must come before /:id route
 app.get('/api/books/comments/autocomplete/names', bookCommentController.getCommentNameSuggestions);

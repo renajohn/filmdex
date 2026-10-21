@@ -10,7 +10,8 @@ vi.mock('../services/bookFinderService', async importOriginal => ({
   ...(await importOriginal<typeof import('../services/bookFinderService')>()),
   default: { search: vi.fn(), series: vi.fn(), author: vi.fn(), add: vi.fn(), addMany: vi.fn(), buy: vi.fn() },
 }));
-vi.mock('../services/bookService', () => ({ default: { deleteBook: vi.fn(), getImageUrl: (p: string | null) => p } }));
+vi.mock('../services/bookService', () => ({ default: { deleteBook: vi.fn(), readPhotos: vi.fn(), getImageUrl: (p: string | null) => p } }));
+vi.mock('../utils/downscaleImage', () => ({ downscaleImage: vi.fn(async () => ({ base64: 'AAAA', mimeType: 'image/jpeg' })) }));
 
 const book = (n: number, fields: Partial<FinderBook> = {}): FinderBook => ({
   googleId: `g${n}`, title: `Sorceline - Tome 0${n}`, subtitle: null, authors: ['Sylvia Douyé'], year: String(2017 + n), publisher: "Vents d'Ouest",
@@ -18,9 +19,10 @@ const book = (n: number, fields: Partial<FinderBook> = {}): FinderBook => ({
   bookType: 'graphic-novel', description: null, categories: [], have: null, ...fields,
 });
 
-const open = (mode: 'wish' | 'owned', buying?: BookBuying) => {
+const open = (mode: 'wish' | 'owned', buying?: BookBuying | Record<string, unknown>) => {
   const handlers = { onHead: vi.fn(), onChanged: vi.fn(), onClose: vi.fn() };
-  render(<Dialog show onClose={() => undefined} title="Add"><BookFinder mode={mode} buying={buying} {...handlers} /></Dialog>);
+  const extra = buying && !('books' in buying) ? buying : {};
+  render(<Dialog show onClose={() => undefined} title="Add"><BookFinder mode={mode} buying={buying && 'books' in buying ? buying as BookBuying : undefined} {...handlers} {...extra} /></Dialog>);
   return handlers;
 };
 
@@ -146,5 +148,16 @@ describe('BookFinder', () => {
 
     await waitFor(() => expect(bookFinderService.add).toHaveBeenCalledWith(expect.objectContaining({ googleId: 'g9' }), 'borrowed',
       expect.objectContaining({ owner: 'Léa', priceChf: undefined, purchasedAt: undefined })));
+  });
+
+  it('cherche ce que dit la couverture photographiée, et offre de remplir la fiche depuis les photos', async () => {
+    vi.mocked(bookService.readPhotos).mockResolvedValue({ draft: { title: 'American Psycho', subtitle: null, authors: ['Bret Easton Ellis'], artists: [], translators: [],
+      series: null, seriesNumber: null, publisher: '10/18', isbn13: null, description: null, language: 'fr', bookType: 'book' }, sources: { front: true, back: false }, truncated: false });
+    const onPhotos = vi.fn();
+    open('owned', { onPhotos });
+    fireEvent.change(screen.getByTestId('finder-photo'), { target: { files: [new File(['x'], 'cover.jpg', { type: 'image/jpeg' })] } });
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Search for a book' })).toHaveValue('American Psycho Bret Easton Ellis'));
+    fireEvent.click(screen.getByRole('button', { name: /From the photos/ }));
+    expect(onPhotos).toHaveBeenCalledWith({ base64: 'AAAA', mimeType: 'image/jpeg' });
   });
 });

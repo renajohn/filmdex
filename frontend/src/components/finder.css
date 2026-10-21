@@ -452,3 +452,26 @@
   letter-spacing: 0;
   font-weight: 400;
 }
+
+/* A photographed cover, what it says searched: the photo, the words, the form filled from the photos. */
+.finder__photo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  color: var(--dv-text-muted);
+  font-size: 0.85rem;
+}
+
+.finder__photo img {
+  flex: none;
+  width: 34px;
+  height: 46px;
+  border-radius: 2px;
+  object-fit: cover;
+}
+
+.finder__photo span {
+  flex: 1;
+  min-width: 0;
+}
