@@ -395,6 +395,7 @@ app.get('/api/books/search/series', bookController.searchSeriesVolumes);
 app.get('/api/books/series', bookController.getBooksBySeries);
 app.get('/api/books/status/:status', bookController.getBooksByStatus);
 app.get('/api/books/autocomplete', bookController.getAutocompleteSuggestions); // Must come before /:id route
+app.post('/api/books/descriptions/translate', bookController.translateDescriptions);
 app.post('/api/books', bookController.addBook);
 app.post('/api/books/batch', bookController.addBooksBatch);
 app.post('/api/books/enrich', bookController.enrichBook);

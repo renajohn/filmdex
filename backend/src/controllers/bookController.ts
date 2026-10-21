@@ -8,6 +8,7 @@ import configManager from '../config';
 import Book from '../models/book';
 import logger from '../logger';
 import coverScanService from '../services/coverScanService';
+import bookLanguageService from '../services/bookLanguageService';
 import { searchAmazonProducts } from '../services/amazonSearchService';
 
 // Helper function to format file size
@@ -108,6 +109,16 @@ const ebookUpload = multer({
 });
 
 const bookController = {
+  // POST: every description in neither French nor English, translated into French by the local LLM
+  translateDescriptions: async (_req: Request, res: Response): Promise<void> => {
+    try {
+      res.json(await bookLanguageService.translateAll());
+    } catch (error) {
+      logger.error('Translating the descriptions:', error);
+      res.status(500).json({ error: (error as Error).message });
+    }
+  },
+
   // Get all books
   getAllBooks: async (req: Request, res: Response): Promise<void> => {
     try {

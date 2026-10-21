@@ -18,6 +18,7 @@ import bookCoverService from './bookCoverService';
 import type { CoverOption } from './bookCoverService';
 import bookEnrichmentService from './bookEnrichmentService';
 import bookImslpService from './bookImslpService';
+import bookLanguageService from './bookLanguageService';
 import {
   normalizeArrayField,
   extractSeriesFromTitle,
@@ -197,7 +198,10 @@ class BookService {
         }
       }
 
-      return await Book.create(normalizedData as unknown as BookCreateData);
+      const created = await Book.create(normalizedData as unknown as BookCreateData);
+      // Its description in French or English: another language is translated, in the background.
+      if (created?.id) bookLanguageService.afterAdding(created.id);
+      return created;
     } catch (error) {
       console.error('Error adding book:', error);
       throw error;
