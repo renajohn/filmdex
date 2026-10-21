@@ -114,6 +114,17 @@ describe('les pièces d’une partition et les enregistrements de la musique', (
     // Its parts are read once.
     expect(lookups).toHaveBeenCalledTimes(1);
 
+    // It holds Voiles alone: the others are left out, still offered to choose, and the album still knows it.
+    await request(app).put(`/api/scores/${score}/pieces/${piece.id}/parts`).send({ workIds: [] }).expect(400);
+    const [voiles] = (await request(app).put(`/api/scores/${score}/pieces/${piece.id}/parts`).send({ workIds: [parts[1].id] }).expect(200)).body;
+    expect(voiles.parts.map((p: { name: string }) => p.name)).toEqual(['Voiles']);
+    expect(voiles.choices.map((c: { name: string; kept: boolean }) => [c.name, c.kept])).toEqual([['Danseuses de Delphes', false], ['Voiles', true], ['Le Vent dans la plaine', false]]);
+    expect(voiles.albums.map((a: { albumId: number; covered: number }) => [a.albumId, a.covered])).toEqual([[other, 1], [cd, 1]]);
+    expect((await request(app).get('/api/scores').expect(200)).body.find((s: { id: number }) => s.id === score)).toMatchObject({ pieceCount: 1, heardCount: 1 });
+    expect((await request(app).get(`/api/music/albums/${cd}/scores`).expect(200)).body).toEqual([expect.objectContaining({ id: score })]);
+    await request(app).put(`/api/scores/${score}/pieces/${piece.id}/parts`).send({ workIds: parts.map(part => part.id) }).expect(200);
+    expect((await request(app).get(`/api/scores/${score}/pieces`).expect(200)).body[0].parts).toHaveLength(3);
+
     // Its suggestions leave out what it holds already.
     jest.spyOn(musicbrainzService, 'searchWorks').mockResolvedValue([]);
     expect((await request(app).get(`/api/scores/${score}/suggestions`).expect(200)).body).toEqual([]);

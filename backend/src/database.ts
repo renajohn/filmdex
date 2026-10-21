@@ -466,6 +466,21 @@ const runAutoMigrations = async (): Promise<void> => {
         }
         console.log('  ✓ Added books.difficulty');
       }
+    },
+    {
+      name: '023_score_parts_left_out',
+      up: async () => {
+        // The parts of a work a score does not hold: a sonata's funeral march alone.
+        const columns = await new Promise<Array<{ name: string }>>((resolve, reject) => {
+          currentDb.all('PRAGMA table_info(score_pieces)', (err: Error | null, rows: Array<{ name: string }>) => (err ? reject(err) : resolve(rows || [])));
+        });
+        if (!columns.some(c => c.name === 'parts_left_out')) {
+          await new Promise<void>((resolve, reject) => {
+            currentDb.run('ALTER TABLE score_pieces ADD COLUMN parts_left_out TEXT', (err: Error | null) => (err ? reject(err) : resolve()));
+          });
+        }
+        console.log('  ✓ Added score_pieces.parts_left_out');
+      }
     }
   ];
 

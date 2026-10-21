@@ -12,7 +12,7 @@ import { confirm } from './shared/ConfirmDialog';
 
 vi.mock('../services/scorePiecesService', async importOriginal => ({
   ...(await importOriginal<typeof import('../services/scorePiecesService')>()),
-  default: { pieces: vi.fn(), addPieces: vi.fn(), removePiece: vi.fn(), choose: vi.fn(), suggestions: vi.fn(), search: vi.fn(), contentsPhoto: vi.fn(), imslpPage: vi.fn(), henle: vi.fn(), lookup: vi.fn(), create: vi.fn() },
+  default: { pieces: vi.fn(), addPieces: vi.fn(), removePiece: vi.fn(), keepParts: vi.fn(), choose: vi.fn(), suggestions: vi.fn(), search: vi.fn(), contentsPhoto: vi.fn(), imslpPage: vi.fn(), henle: vi.fn(), lookup: vi.fn(), create: vi.fn() },
 }));
 vi.mock('../utils/playAlbum', () => ({ loadPlayable: vi.fn() }));
 vi.mock('../services/bookService', () => ({ default: { getImageUrl: (p: string | null) => p, getBookById: vi.fn(), updateBook: vi.fn(), deleteBook: vi.fn() } }));
@@ -35,8 +35,10 @@ const livre: ScorePiece = {
     { workId: 'w3', title: '…: III. Le vent dans la plaine', name: 'Le vent dans la plaine', sub: 'Animé', imslp: null, recordings: [] },
   ],
   albums: [album(177, ['Ruth Schmid-Gagnebin'], 2), album(903, ['Krystian Zimerman'], 1, 1994)],
+  choices: [],
 };
-const clair: ScorePiece = { id: 2, workId: 'w-clair', imslp: null, title: 'Clair de lune', single: true, parts: [], whole: [], albums: [], preferredAlbumId: null };
+livre.choices = livre.parts.map(part => ({ workId: part.workId, name: part.name, sub: part.sub, kept: true }));
+const clair: ScorePiece = { id: 2, workId: 'w-clair', imslp: null, title: 'Clair de lune', single: true, parts: [], choices: [], whole: [], albums: [], preferredAlbumId: null };
 
 const card = (props: Partial<React.ComponentProps<typeof ScoreCard>> = {}) => render(<ScoreCard score={score} onClose={vi.fn()} onAttach={vi.fn()} onChanged={vi.fn()} {...props} />);
 
@@ -80,6 +82,21 @@ describe('ScoreCard', () => {
     fireEvent.click(await screen.findByRole('menuitemradio', { name: /Krystian Zimerman/ }));
     await waitFor(() => expect(scorePiecesService.choose).toHaveBeenCalledWith(219, 1, 903));
     expect(screen.getByRole('button', { name: /All · Zimerman/ })).toBeInTheDocument();
+  });
+
+  it('ne garde que les mouvements que tient la partition', async () => {
+    vi.mocked(scorePiecesService.keepParts).mockReset().mockResolvedValue([{ ...livre, parts: [livre.parts[1]], choices: livre.choices.map(c => ({ ...c, kept: c.workId === 'w2' })) }, clair]);
+    card();
+    const set = (await screen.findByText('Voiles')).closest('.score-piece') as HTMLElement;
+    fireEvent.click(within(set).getByRole('button', { name: 'More' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Choose the parts it holds/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Danseuses de Delphes' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Le vent dans la plaine' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Keep 1 of 3' }));
+
+    await waitFor(() => expect(scorePiecesService.keepParts).toHaveBeenCalledWith(219, 1, ['w2']));
+    expect(await screen.findByText(/1 of its 3 pieces/)).toBeInTheDocument();
+    expect(screen.queryByText('Danseuses de Delphes')).not.toBeInTheDocument();
   });
 
   it('garde les autres enregistrements d’une pièce derrière +N', async () => {

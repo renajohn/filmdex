@@ -377,6 +377,7 @@ app.get('/api/scores/:id/pieces', scorePiecesController.pieces);
 app.post('/api/scores/:id/pieces', scorePiecesController.addPieces);
 app.put('/api/scores/:id/pieces/:pieceId', scorePiecesController.choose);
 app.delete('/api/scores/:id/pieces/:pieceId', scorePiecesController.removePiece);
+app.put('/api/scores/:id/pieces/:pieceId/parts', scorePiecesController.keepParts);
 app.get('/api/scores/:id/suggestions', scorePiecesController.suggestions);
 app.get('/api/scores/:id/imslp', scorePiecesController.imslpPage);
 app.get('/api/scores/:id/henle', scorePiecesController.henle);

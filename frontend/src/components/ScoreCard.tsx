@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Form } from 'react-bootstrap';
-import { BsBoxArrowUpRight, BsCamera, BsFileEarmarkPdf, BsFileMusic, BsPaperclip, BsPencil, BsPlayFill, BsSearch, BsThreeDots, BsUpcScan, BsVolumeUpFill, BsYoutube } from 'react-icons/bs';
+import { BsBoxArrowUpRight, BsCamera, BsFileEarmarkPdf, BsFileMusic, BsListCheck, BsPaperclip, BsPencil, BsPlayFill, BsSearch, BsThreeDots, BsUpcScan, BsVolumeUpFill, BsYoutube } from 'react-icons/bs';
 import scorePiecesService, { imslpPieceUrl, PieceRecording, PieceSuggestion, ScoreLookup, ScorePiece, youtubeUrl } from '../services/scorePiecesService';
 import bookCommentService from '../services/bookCommentService';
 import { decodeBarcode } from '../utils/decodeBarcode';
@@ -218,6 +218,9 @@ const ScoreView: React.FC<ScoreCardProps & { score: Score }> = ({ score, onClose
     setPieces(prev => (prev || []).map(p => (p.id === piece.id ? { ...p, preferredAlbumId: albumId } : p)));
     try { await scorePiecesService.choose(score.id, piece.id, albumId); } catch (error) { toast((error as Error).message, { tone: 'danger' }); }
   };
+  const keepParts = async (piece: ScorePiece, workIds: string[]) => {
+    try { setPieces(await scorePiecesService.keepParts(score.id, piece.id, workIds)); onChanged(); } catch (error) { toast((error as Error).message, { tone: 'danger' }); }
+  };
   const removePiece = async (piece: ScorePiece) => {
     try {
       await scorePiecesService.removePiece(score.id, piece.id);
@@ -287,7 +290,7 @@ const ScoreView: React.FC<ScoreCardProps & { score: Score }> = ({ score, onClose
               {pieces.map(piece => (
                 <PieceBlock key={piece.id} piece={piece} composer={score.composer} playing={playing}
                   heard={playedFrom?.track === playing ? playedFrom.row : null} onHeard={(row, track) => setPlayedFrom({ row, track })}
-                  onChoose={albumId => choose(piece, albumId)} onRemove={() => removePiece(piece)} />
+                  onChoose={albumId => choose(piece, albumId)} onKeep={workIds => keepParts(piece, workIds)} onRemove={() => removePiece(piece)} />
               ))}
               {finding && <FindPieces score={score} first={!pieces.length} onAdded={changed} onCancel={pieces.length ? () => setFinding(false) : undefined} />}
             </>
@@ -498,11 +501,13 @@ interface PieceBlockProps {
   heard: string | null;
   onHeard: (row: string, track: string) => void;
   onChoose: (albumId: number) => void;
+  /** The parts of its work the score holds. */
+  onKeep: (workIds: string[]) => Promise<void>;
   onRemove: () => void;
 }
 
 /** A piece: its parts, each with the chosen recording, the others behind +N. */
-const PieceBlock: React.FC<PieceBlockProps> = ({ piece, composer, playing, heard, onHeard, onChoose, onRemove }) => {
+const PieceBlock: React.FC<PieceBlockProps> = ({ piece, composer, playing, heard, onHeard, onChoose, onKeep, onRemove }) => {
   const chosen = piece.albums.find(album => album.albumId === piece.preferredAlbumId) || piece.albums[0];
   const rows = piece.single
     ? [{ workId: piece.workId || String(piece.id), title: piece.title, name: '', sub: null as string | null, imslp: piece.imslp, recordings: piece.albums.length ? recordingsOfSingle(piece) : [] }]
@@ -510,6 +515,10 @@ const PieceBlock: React.FC<PieceBlockProps> = ({ piece, composer, playing, heard
   const heardHere = piece.single ? (piece.albums.length ? 1 : 0) : piece.parts.filter(part => part.recordings.length).length;
   // A long set (24 préludes, 67 pieces of a notebook) shows its first five, the others on asking.
   const [allShown, setAllShown] = useState(rows.length <= 7);
+  // Choosing the parts it holds (a sonata's funeral march alone): every part of the work, checked or not.
+  const [keeping, setKeeping] = useState<Set<string> | null>(null);
+  const [saving, setSaving] = useState(false);
+  const total = piece.choices.length;
   // Its parts in the chosen recording; an album playing it whole in one track plays that track.
   const partsOfChosen = chosen ? rows.flatMap(row => row.recordings.filter(r => r.albumId === chosen.albumId).slice(0, 1)) : [];
   const ofChosen = partsOfChosen.length || !chosen ? partsOfChosen : piece.whole.filter(r => r.albumId === chosen.albumId).slice(0, 1);
@@ -526,12 +535,20 @@ const PieceBlock: React.FC<PieceBlockProps> = ({ piece, composer, playing, heard
         <div className="score-piece__title">
           <b>{piece.title}</b>
           <small>
-            {piece.single ? 'One piece' : `${piece.parts.length} pieces`}
+            {piece.single ? 'One piece' : piece.parts.length < total ? `${piece.parts.length} of its ${total} pieces` : `${piece.parts.length} pieces`}
             {heardHere > 0 && ` · ${heardHere} in your music${piece.albums.length > 1 ? `, ${piece.albums.length} recordings` : ''}`}
             {!piece.workId && ' · not found in MusicBrainz'}
           </small>
         </div>
-        {chosen && !piece.single && (
+        {keeping ? (
+          <span className="score-piece__keeping">
+            <Button size="sm" variant="quiet" onClick={() => setKeeping(null)}>Cancel</Button>
+            <Button size="sm" loading={saving} disabled={!keeping.size}
+              onClick={async () => { setSaving(true); await onKeep([...keeping]); setSaving(false); setKeeping(null); }}>
+              Keep {keeping.size} of {total}
+            </Button>
+          </span>
+        ) : chosen && !piece.single && (
           <span className="ui-button-group">
             <Button size="sm" icon={<BsPlayFill />} onClick={() => play(ofChosen)} title={`${chosen.title} (${chosen.year ?? '—'})`}>
               All · {surnameOf(chosen.performers)}
@@ -556,11 +573,22 @@ const PieceBlock: React.FC<PieceBlockProps> = ({ piece, composer, playing, heard
             onSelect={() => window.open(imslpPieceUrl(piece.imslp, composer, piece.title), '_blank', 'noopener')}>On IMSLP</Menu.Item>
           <Menu.Item icon={<BsYoutube />} onSelect={() => window.open(youtubeUrl(composer, piece.title), '_blank', 'noopener')}>On YouTube</Menu.Item>
           <Menu.Separator />
+          {total > 1 && (
+            <Menu.Item icon={<BsListCheck />} hint={piece.parts.length < total ? `${total - piece.parts.length} left out` : undefined}
+              onSelect={() => setKeeping(new Set(piece.choices.filter(c => c.kept).map(c => c.workId)))}>Choose the parts it holds</Menu.Item>
+          )}
           <Menu.Item danger onSelect={onRemove}>Take it out of the score</Menu.Item>
         </Menu>
       </div>
 
-      {(allShown ? rows : rows.slice(0, 5)).map((row, index) => (
+      {keeping && piece.choices.map(choice => (
+        <label key={choice.workId} className={`score-piece__row score-piece__row--choice${keeping.has(choice.workId) ? '' : ' score-piece__row--none'}`}>
+          <Form.Check type="checkbox" checked={keeping.has(choice.workId)} aria-label={choice.name}
+            onChange={() => setKeeping(prev => { const next = new Set(prev); if (next.has(choice.workId)) next.delete(choice.workId); else next.add(choice.workId); return next; })} />
+          <span className="score-piece__name">{choice.name}{choice.sub && <small>{choice.sub}</small>}</span>
+        </label>
+      ))}
+      {!keeping && (allShown ? rows : rows.slice(0, 5)).map((row, index) => (
         <div key={row.workId + index} className={`score-piece__row${row.recordings.length ? '' : ' score-piece__row--none'}${index === playingAt ? ' score-piece__row--playing' : ''}`}>
           <span className="score-piece__n">{index === playingAt ? <BsVolumeUpFill aria-label="Playing" /> : piece.single ? '' : index + 1}</span>
           <span className="score-piece__name">{row.name}{row.sub && <small>{row.sub}</small>}</span>
@@ -576,7 +604,7 @@ const PieceBlock: React.FC<PieceBlockProps> = ({ piece, composer, playing, heard
           </span>
         </div>
       ))}
-      {!allShown && (
+      {!keeping && !allShown && (
         <Button size="sm" variant="quiet" className="score-piece__more" onClick={() => setAllShown(true)}>{rows.length - 5} more pieces</Button>
       )}
     </div>

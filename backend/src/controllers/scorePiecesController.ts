@@ -23,6 +23,13 @@ const scorePiecesController = {
   removePiece: async (req: Request, res: Response): Promise<void> => {
     try { await scorePiecesService.removePiece(id(req.params.id), id(req.params.pieceId)); res.status(204).end(); } catch (error) { fail(res, error); }
   },
+  // PUT { workIds }: the parts of its work the score holds
+  keepParts: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const workIds = Array.isArray(req.body?.workIds) ? req.body.workIds.map(String) : [];
+      res.json(await scorePiecesService.keepParts(id(req.params.id), id(req.params.pieceId), workIds));
+    } catch (error) { fail(res, error); }
+  },
   // PUT { preferredAlbumId }: the recording played first
   choose: async (req: Request, res: Response): Promise<void> => {
     try {

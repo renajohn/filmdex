@@ -95,7 +95,18 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
-.score-piece__row--playing .score-piece__n {
+.score-piece__row--playing .score-piece__row--choice {
+  grid-template-columns: 24px 1fr;
+  margin: 0;
+  cursor: pointer;
+}
+
+.score-piece__keeping {
+  display: flex;
+  gap: 4px;
+}
+
+.score-piece__n {
   color: var(--dv-gold);
   font-size: 0.85rem;
   display: flex;

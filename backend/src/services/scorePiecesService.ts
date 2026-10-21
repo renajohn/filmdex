@@ -277,7 +277,13 @@ export const partLabel = (whole: string, part: string): { name: string; sub: str
 // ---------------------------------------------------------------------------
 // A score's pieces.
 
-interface PieceRow { id: number; book_id: number; work_id: string | null; title: string; position: number; preferred_album_id: number | null }
+interface PieceRow { id: number; book_id: number; work_id: string | null; title: string; position: number; preferred_album_id: number | null; parts_left_out?: string | null }
+
+/** The parts of its work a score holds: all but those left out. */
+const keptParts = (work: { parts?: StoredPart[] | null } | undefined, row: PieceRow): StoredPart[] => {
+  const out = new Set(parse<string[]>(row.parts_left_out ?? null, []));
+  return (work?.parts || []).filter(part => !out.has(part.id));
+};
 
 export interface ScorePiece {
   id: number;
@@ -288,6 +294,8 @@ export interface ScorePiece {
   /** A piece of one movement: no parts of its own. */
   single: boolean;
   parts: Array<{ workId: string; title: string; name: string; sub: string | null; imslp: string | null; recordings: PieceRecording[] }>;
+  /** Every part of its work, the score's checked: to choose those it holds. */
+  choices: Array<{ workId: string; name: string; sub: string | null; kept: boolean }>;
   /** Tracks playing the piece whole, in one track: a piece of one movement's recordings. */
   whole: PieceRecording[];
   /** The albums playing it, the one played first first. */
@@ -321,11 +329,13 @@ const pieces = async (bookId: number): Promise<ScorePiece[]> => {
 
   return rows.map(row => {
     const work = row.work_id ? works.get(row.work_id) : undefined;
-    const parts = (work?.parts || []).map(part => ({
+    const kept = keptParts(work, row);
+    const parts = kept.map(part => ({
       workId: part.id, title: part.title, ...partLabel(work!.title, part.title), imslp: part.imslp ?? null,
       recordings: (byWork.get(part.id) || []).map(recordingOf),
     }));
-    const wholeRows = row.work_id ? byWork.get(row.work_id) || [] : [];
+    // A track playing the work whole plays more than a score holding a part of it.
+    const wholeRows = row.work_id && kept.length === (work?.parts || []).length ? byWork.get(row.work_id) || [] : [];
     const playing = parts.length ? parts.flatMap(part => (byWork.get(part.workId) || [])) : wholeRows;
     const albumRows = new Map<number, RecordingRow[]>();
     for (const r of [...playing, ...(parts.length ? wholeRows : [])]) albumRows.set(r.album_id, [...(albumRows.get(r.album_id) || []), r]);
@@ -350,6 +360,7 @@ const pieces = async (bookId: number): Promise<ScorePiece[]> => {
       imslp: work?.imslp ?? null,
       single: !parts.length,
       parts,
+      choices: (work?.parts || []).map(part => ({ workId: part.id, ...partLabel(work!.title, part.title), kept: kept.includes(part) })),
       whole: wholeRows.map(recordingOf),
       albums,
       preferredAlbumId: albums.some(album => album.albumId === row.preferred_album_id) ? row.preferred_album_id : albums[0]?.albumId ?? null,
@@ -388,6 +399,20 @@ const removePiece = async (bookId: number, pieceId: number): Promise<void> => {
   if (!(await run('DELETE FROM score_pieces WHERE id = ? AND book_id = ?', [pieceId, bookId])).changes) throw new ScorePiecesError('No such piece', 404);
 };
 
+/** The parts of its work a score holds; the others left out. */
+const keepParts = async (bookId: number, pieceId: number, workIds: string[]): Promise<ScorePiece[]> => {
+  const book = await scoreOf(bookId);
+  const row = (await piecesRows(bookId)).find(piece => piece.id === pieceId);
+  if (!row) throw new ScorePiecesError('No such piece', 404);
+  if (!row.work_id) throw new ScorePiecesError('This piece has no parts', 400);
+  const parts = (await workWithParts(row.work_id, book.composer)).parts || [];
+  const keep = new Set(workIds);
+  if (!parts.some(part => keep.has(part.id))) throw new ScorePiecesError('Keep one of its parts at least, or take the piece out', 400);
+  const out = parts.filter(part => !keep.has(part.id)).map(part => part.id);
+  await run('UPDATE score_pieces SET parts_left_out = ? WHERE id = ?', [out.length ? JSON.stringify(out) : null, pieceId]);
+  return pieces(bookId);
+};
+
 /** The recording played first for a piece: an album, or none to let the most complete be. */
 const choose = async (bookId: number, pieceId: number, albumId: number | null): Promise<void> => {
   if (!(await run('UPDATE score_pieces SET preferred_album_id = ? WHERE id = ? AND book_id = ?', [albumId || null, pieceId, bookId])).changes) {
@@ -401,7 +426,7 @@ const counts = async (): Promise<Map<number, { pieces: number; heard: number }>>
   const works = await storedWorks([...new Set(rows.map(row => row.work_id).filter(Boolean) as string[])]);
   const units = rows.map(row => {
     const work = row.work_id ? works.get(row.work_id) : undefined;
-    return { bookId: row.book_id, ids: work?.parts?.length ? work.parts.map(part => part.id) : row.work_id ? [row.work_id] : [] };
+    return { bookId: row.book_id, ids: work?.parts?.length ? keptParts(work, row).map(part => part.id) : row.work_id ? [row.work_id] : [] };
   });
   const heard = new Set((await all<{ work_id: string }>(`
     SELECT DISTINCT rw.work_id FROM recording_works rw JOIN tracks t ON t.musicbrainz_recording_id = rw.recording_id
@@ -772,11 +797,11 @@ const scoresOfAlbum = async (albumId: number): Promise<Array<{ id: number; title
   const works = await storedWorks([...new Set(rows.map(row => row.work_id!))]);
   const bookIds = [...new Set(rows.filter(row => {
     const work = works.get(row.work_id!);
-    return played.has(row.work_id!) || (work?.parts || []).some(part => played.has(part.id));
+    return played.has(row.work_id!) || keptParts(work, row).some(part => played.has(part.id));
   }).map(row => row.book_id))];
   const books = await Promise.all(bookIds.map(id => Book.findById(id)));
   return books.filter((book): book is NonNullable<typeof book> => !!book && book.bookType === 'score')
     .map(book => ({ id: book.id, title: book.title, composer: book.composer, publisher: book.publisher || null, cover: book.cover || null }));
 };
 
-export default { indexAll, pieces, addPieces, removePiece, choose, counts, suggest, suggestFor, searchPieces, fromContents, scoresOfAlbum, imslpPage };
+export default { indexAll, pieces, addPieces, removePiece, keepParts, choose, counts, suggest, suggestFor, searchPieces, fromContents, scoresOfAlbum, imslpPage };

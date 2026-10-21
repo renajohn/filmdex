@@ -25,6 +25,8 @@ export interface ScorePiece {
   /** A piece of one movement: no parts of its own. */
   single: boolean;
   parts: Array<{ workId: string; title: string; name: string; sub: string | null; imslp: string | null; recordings: PieceRecording[] }>;
+  /** Every part of its work, the score's checked: to choose those it holds. */
+  choices: Array<{ workId: string; name: string; sub: string | null; kept: boolean }>;
   /** Tracks playing the piece whole, in one track. */
   whole: PieceRecording[];
   /** The albums playing it, the one played first first. */
@@ -88,6 +90,7 @@ const scorePiecesService = {
   pieces: (scoreId: number) => fetch(`/api/scores/${scoreId}/pieces`).then(response => json<ScorePiece[]>(response)),
   addPieces: (scoreId: number, input: { workIds?: string[]; title?: string }) => send<ScorePiece[]>('POST', `/api/scores/${scoreId}/pieces`, input),
   removePiece: (scoreId: number, pieceId: number) => send<void>('DELETE', `/api/scores/${scoreId}/pieces/${pieceId}`),
+  keepParts: (scoreId: number, pieceId: number, workIds: string[]) => send<ScorePiece[]>('PUT', `/api/scores/${scoreId}/pieces/${pieceId}/parts`, { workIds }),
   choose: (scoreId: number, pieceId: number, preferredAlbumId: number | null) => send<void>('PUT', `/api/scores/${scoreId}/pieces/${pieceId}`, { preferredAlbumId }),
   suggestions: (scoreId: number) => fetch(`/api/scores/${scoreId}/suggestions`).then(response => json<PieceSuggestion[]>(response)),
   search: (query: string) => fetch(`/api/scores/works/search?q=${encodeURIComponent(query)}`).then(response => json<PieceSuggestion[]>(response)),
