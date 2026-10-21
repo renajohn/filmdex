@@ -17,6 +17,7 @@ import bookService from './src/services/bookService';
 import backupController from './src/controllers/backupController';
 import dropboxBackupController from './src/controllers/dropboxBackupController';
 import bookCommentController from './src/controllers/bookCommentController';
+import spokenForController from './src/controllers/spokenForController';
 import warningsController from './src/controllers/warningsController';
 import albumStoryController from './src/controllers/albumStoryController';
 import albumGuideController from './src/controllers/albumGuideController';
@@ -187,6 +188,7 @@ app.delete('/api/movies/:id', movieController.deleteMovie);
 // Wish list routes
 app.get('/api/movies/status/:status', movieController.getMoviesByStatus);
 app.put('/api/movies/:id/status', movieController.updateMovieStatus);
+app.put('/api/movies/:id/spoken-for', spokenForController.updateMovie);
 app.post('/api/migrate/title-status', movieController.migrateTitleStatus);
 
 // Watch Next routes
@@ -278,6 +280,7 @@ app.post('/api/music/albums/:id/track-popularity', musicController.refreshTrackP
 app.get('/api/music/albums/:id', musicController.getAlbumById);
 app.put('/api/music/albums/:id', musicController.updateAlbum);
 app.put('/api/music/albums/:id/status', musicController.updateAlbumStatus);
+app.put('/api/music/albums/:id/spoken-for', spokenForController.updateAlbum);
 app.delete('/api/music/albums/:id', musicController.deleteAlbum);
 app.post('/api/music/albums/:id/upload-cover', musicController.coverUploadMiddleware, musicController.uploadCustomCover);
 app.post('/api/music/albums/:id/upload-back-cover', musicController.coverUploadMiddleware, musicController.uploadCustomBackCover);
@@ -358,6 +361,7 @@ app.post('/api/books/:id/re-enrich', bookController.reEnrichBook); // Must come 
 app.get('/api/books/:id', bookController.getBookById);
 app.put('/api/books/:id', bookController.updateBook);
 app.put('/api/books/:id/status', bookController.updateBookStatus);
+app.put('/api/books/:id/spoken-for', spokenForController.updateBook);
 app.delete('/api/books/:id', bookController.deleteBook);
 app.post('/api/books/:id/upload-cover', bookController.coverUploadMiddleware, bookController.uploadCustomCover);
 app.post('/api/books/:id/upload-ebook', bookController.ebookUploadMiddleware, bookController.uploadEbook);

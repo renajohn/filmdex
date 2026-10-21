@@ -653,3 +653,30 @@ label {
     flex: none;
   }
 }
+
+/* Spoken for: a wish already taken care of (ordered, a bid made, a gift to
+   come). The row steps back, its cover in grey; its actions stay as they
+   are. The cells' contents step back, not the cells, which carry the
+   table's stripes; a year or a date is bare text, which only its colour can
+   set back. */
+.wishlist-table tr.spoken-for > td:not(.wl-actions) {
+  color: var(--dv-text-faint);
+}
+
+.wishlist-table tr.spoken-for > td:not(.wl-actions) > * {
+  opacity: 0.45;
+  transition: opacity 0.2s;
+}
+
+.wishlist-table tr.spoken-for:hover > td:not(.wl-actions) > * {
+  opacity: 0.8;
+}
+
+.wishlist-table tr.spoken-for .wl-cover img {
+  filter: grayscale(1);
+}
+
+.wl-spoken-for-tag {
+  margin-left: 8px;
+  vertical-align: middle;
+}

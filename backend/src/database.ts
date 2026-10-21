@@ -296,6 +296,34 @@ const runAutoMigrations = async (): Promise<void> => {
         }
         console.log(`  ✓ Watch Next in its collection's order (${shown.length} movies)`);
       }
+    },
+    {
+      name: '017_spoken_for',
+      up: async () => {
+        // A wish already taken care of (ordered, a bid made, a gift to come) is
+        // "spoken for": still wished, nothing more to do. It means nothing once
+        // the title leaves the wish list, so a trigger clears it then, whatever
+        // the path that moves it, and a title wished again starts afresh.
+        for (const table of ['movies', 'albums', 'books']) {
+          const columns = await new Promise<Array<{ name: string }>>((resolve, reject) => {
+            currentDb.all(`PRAGMA table_info(${table})`, (err: Error | null, rows: Array<{ name: string }>) => (err ? reject(err) : resolve(rows || [])));
+          });
+          if (!columns.some(c => c.name === 'spoken_for')) {
+            await new Promise<void>((resolve, reject) => {
+              currentDb.run(`ALTER TABLE ${table} ADD COLUMN spoken_for INTEGER NOT NULL DEFAULT 0`, (err: Error | null) => (err ? reject(err) : resolve()));
+            });
+          }
+          await new Promise<void>((resolve, reject) => {
+            currentDb.run(`
+              CREATE TRIGGER IF NOT EXISTS ${table}_spoken_for_leaves_wish
+              AFTER UPDATE OF title_status ON ${table}
+              WHEN NEW.title_status IS NOT 'wish' AND NEW.spoken_for = 1
+              BEGIN UPDATE ${table} SET spoken_for = 0 WHERE id = NEW.id; END
+            `, (err: Error | null) => (err ? reject(err) : resolve()));
+          });
+        }
+        console.log('  ✓ Added spoken_for to movies, albums and books');
+      }
     }
   ];
 

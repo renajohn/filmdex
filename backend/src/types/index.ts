@@ -94,6 +94,7 @@ export interface MovieRow {
   recommended_age: number | null;
   age_processed: boolean | null;
   title_status: string | null;
+  spoken_for?: number;
   last_watched: string | null;
   watch_count: number | null;
   // Joined fields
@@ -140,6 +141,7 @@ export interface MovieData {
   recommended_age: number | null;
   age_processed?: boolean;
   title_status?: string;
+  spoken_for?: number;
   last_watched?: string | null;
   watch_count?: number;
   // Computed fields from findAll/search
@@ -215,6 +217,7 @@ export interface AlbumRow {
   isrc_codes: string | null;
   annotation: string | null;
   title_status: string | null;
+  spoken_for?: number;
   /** The owner's stars, 1 to 5, or null when not rated. */
   user_rating?: number | null;
   /** The stars DexVault and Navidrome last agreed on: tells which side changed since. */
@@ -279,6 +282,7 @@ export interface AlbumFormatted {
   isrcCodes: string[];
   annotation: string | null;
   titleStatus: string | null;
+  spokenFor: boolean;
   userRating?: number | null;
   navidromeId?: string | null;
   navidromeGoneAt?: string | null;
@@ -437,6 +441,7 @@ export interface BookRow {
   annotation: string | null;
   ebook_file: string | null;
   title_status: string | null;
+  spoken_for?: number;
   book_type: string | null;
   created_at: string;
   updated_at: string;
@@ -472,6 +477,7 @@ export interface BookFormatted {
   annotation: string | null;
   ebookFile: string | null;
   titleStatus: string | null;
+  spokenFor: boolean;
   bookType: string;
   createdAt: string;
   updatedAt: string;

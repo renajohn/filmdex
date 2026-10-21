@@ -25,6 +25,8 @@ interface WishlistRow extends Record<string, unknown> {
   creator: string | null;
   year: number | null;
   format: string | null;
+  /** Ordered, a bid made, a gift to come: nothing more to do. */
+  spoken_for: boolean;
 }
 
 const WISHLIST_COLUMNS: ReadonlyArray<keyof WishlistRow & string> = [
@@ -34,6 +36,7 @@ const WISHLIST_COLUMNS: ReadonlyArray<keyof WishlistRow & string> = [
   'creator',
   'year',
   'format',
+  'spoken_for',
 ];
 
 const extractMovieYear = (releaseDate: unknown): number | null => {
@@ -79,6 +82,7 @@ export const handleListWishlist = async (input: ListWishlistInput) => {
         creator: (m.director as string | null | undefined) ?? null,
         year: extractMovieYear(m.release_date),
         format: (m.format as string | null | undefined) ?? null,
+        spoken_for: m.spoken_for === 1,
       });
     }
   }
@@ -95,6 +99,7 @@ export const handleListWishlist = async (input: ListWishlistInput) => {
         creator: artist,
         year: a.releaseYear ?? null,
         format: a.format ?? null,
+        spoken_for: a.spokenFor,
       });
     }
   }
@@ -111,6 +116,7 @@ export const handleListWishlist = async (input: ListWishlistInput) => {
         creator: authors,
         year: b.publishedYear ?? null,
         format: b.format ?? null,
+        spoken_for: b.spokenFor,
       });
     }
   }
@@ -143,6 +149,7 @@ export const registerListWishlist = (server: McpServer): void => {
       title: 'List wishlist',
       description:
         'List items in the wishlist (title_status=wish) across movies, albums and books. ' +
+        '`spoken_for` marks a wish already taken care of (ordered, a bid made, a gift to come): nothing more to buy. ' +
         'Optional `type` parameter to restrict to one media type. Default limit 20, max 100.',
       inputSchema: listWishlistInputShape,
     },

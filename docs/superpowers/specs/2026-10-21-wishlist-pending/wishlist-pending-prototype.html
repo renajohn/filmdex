@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Wishlist en cours</title>
+<style>
+  :root {
+    --dv-gold: #fbbf24; --dv-gold-hover: #fcd34d; --dv-gold-ink: #111;
+    --dv-gold-tint: rgba(251,191,36,.10); --dv-gold-tint-edge: rgba(251,191,36,.45);
+    --dv-danger: #f87171;
+    --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+    --dv-page: #1a1a1a;
+    --dv-glass: rgba(255,255,255,.06); --dv-edge: rgba(255,255,255,.12);
+    --dv-veil: rgba(255,255,255,.08);
+    --dv-surface: rgba(24,24,24,.92); --dv-surface-edge: rgba(255,255,255,.1);
+    --dv-ring: 0 0 0 3px rgba(251,191,36,.3);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--dv-page); color: var(--dv-text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+  /* Barre du prototype */
+  .proto { position: sticky; top: 0; z-index: 60; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+    padding: 10px 16px; background: #0e0e0e; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .proto b { color: #ddd; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid #444; border-radius: 8px; overflow: hidden; }
+  .seg button { background: #222; color: #ddd; border: 0; padding: 6px 12px; font: inherit; cursor: pointer; }
+  .seg button + button { border-left: 1px solid #444; }
+  .seg button.on { background: var(--dv-gold); color: #111; }
+  .how { max-width: 1000px; margin: 14px auto 0; padding: 0 16px; color: #8a8a8a; font-size: 12.5px; }
+  .how strong { color: #ccc; }
+
+  /* La page, comme WishListPage.css */
+  .page { max-width: 1000px; margin: 0 auto; padding: 16px 16px 120px; }
+  h1 { margin: 8px 0 2px; font-size: 1.7rem; font-weight: 600; }
+  .count { color: var(--dv-text-muted); font-size: .95rem; margin-bottom: 18px; }
+  .count .pend { color: var(--dv-text-faint); }
+  h2 { font-size: 1.15rem; font-weight: 600; margin: 26px 0 8px; display: flex; align-items: center; gap: 8px; }
+  h3 { font-size: .78rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--dv-text-faint);
+    margin: 14px 0 4px; display: flex; align-items: center; gap: 6px; }
+  h3 svg { width: 13px; height: 13px; }
+  .wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-weight: 600; font-size: 12.5px; color: var(--dv-text-muted); padding: 8px 10px; border-bottom: 1px solid #333; }
+  td { padding: 8px 10px; border-bottom: 1px solid #2a2a2a; vertical-align: middle; }
+  tbody tr { cursor: pointer; transition: background .15s, opacity .2s; }
+  tbody tr:nth-child(odd) { background: rgba(255,255,255,.02); }
+  tbody tr:hover { background: rgba(255,255,255,.05); }
+  .cover { width: 46px; height: 46px; border-radius: 3px; display: block; transition: filter .2s; }
+  .movie .cover { width: 40px; height: 58px; }
+  .title strong { font-weight: 600; }
+  .muted { color: var(--dv-text-muted); }
+  .actions { display: flex; gap: 2px; justify-content: flex-end; white-space: nowrap; }
+
+  /* IconButton sm */
+  .ib { display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 1px solid transparent;
+    border-radius: 7px; background: none; color: var(--dv-text-muted); cursor: pointer; }
+  .ib svg { width: 14px; height: 14px; }
+  .ib:hover { color: #fff; background: var(--dv-veil); }
+  .ib.danger:hover { color: var(--dv-danger); }
+  .ib.active { color: var(--dv-gold); }
+  .ib.active:hover { color: var(--dv-gold-hover); }
+  .ib:focus-visible { outline: none; box-shadow: var(--dv-ring); }
+  svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* L'étiquette (CoverTag hors couverture) */
+  .tag { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; padding: 1px 6px; vertical-align: 2px;
+    font-size: 10.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; white-space: nowrap;
+    border: 1px solid var(--dv-edge); background: var(--dv-glass); color: var(--dv-text-muted); }
+  .tag svg { width: 11px; height: 11px; }
+  .tag[hidden] { display: none; }
+
+  /* A — en retrait : la ligne s'efface, le bouton seul reste vif */
+  .look-a tr.pending td:not(.act) { opacity: .45; }
+  .look-a tr.pending .cover { filter: grayscale(1); }
+  .look-a tr.pending .ricardo { visibility: hidden; }
+  .look-a tr.pending:hover td:not(.act) { opacity: .8; }
+
+  /* B — liseré doré : la ligne reste pleine, un trait et une teinte d'or */
+  .look-b tr.pending { background: var(--dv-gold-tint) !important; }
+  .look-b tr.pending td:first-child { box-shadow: inset 3px 0 0 var(--dv-gold); }
+  .look-b tr.pending .tag { color: var(--dv-gold); border-color: var(--dv-gold-tint-edge); }
+  .look-b tr.pending .ricardo { visibility: hidden; }
+
+  /* C — à part : rangées sous leur propre titre, en retrait */
+  .look-c tr.pending td:not(.act) { opacity: .55; }
+  .look-c tr.pending .ricardo { visibility: hidden; }
+  .look-c tr.pending .tag { display: none; }
+
+  /* Infobulle (TooltipHost) */
+  #tip { position: fixed; z-index: 99; pointer-events: none; padding: 4px 8px; font-size: 12px; border-radius: 7px;
+    background: var(--dv-surface); border: 1px solid var(--dv-surface-edge); color: var(--dv-text); display: none; }
+  /* Toast */
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 9px 14px; border-radius: 9px;
+    background: var(--dv-surface); border: 1px solid var(--dv-surface-edge); font-size: 13px; display: none; }
+  #toast b { color: var(--dv-gold); font-weight: 600; margin-left: 10px; cursor: pointer; }
+
+  @media (max-width: 700px) { .hide-sm { display: none; } }
+</style>
+</head>
+<body>
+
+<div class="proto">
+  <span><b>Terme</b></span>
+  <div class="seg" id="terms"></div>
+  <span><b>Ligne en cours</b></span>
+  <div class="seg" id="looks">
+    <button data-look="a" class="on">A · en retrait</button>
+    <button data-look="b">B · liseré doré</button>
+    <button data-look="c">C · groupée à part</button>
+  </div>
+</div>
+<p class="how"><strong>Essayer :</strong> le nouveau bouton est juste à gauche du <strong>$</strong>. Un clic le met en marche (or), un second l'éteint.
+  Une ligne en cours perd sa loupe Ricardo (plus rien à chercher) et garde son <strong>$</strong> pour le jour où l'objet arrive.
+  <span id="termnote"></span></p>
+
+<div class="page" id="page">
+  <h1>Wish List</h1>
+  <div class="count" id="count"></div>
+  <div id="sections"></div>
+</div>
+
+<div id="tip"></div>
+<div id="toast"></div>
+
+<script>
+const I = {
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  trash: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  dollar: '<line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  hourglass: '<path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>',
+  truck: '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  bookmark: '<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"/><path d="m9 10 2 2 4-4"/>',
+  box: '<path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  music: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+  film: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18M3 7.5h4M3 12h18M3 16.5h4M17 3v18M17 7.5h4M17 16.5h4"/>',
+};
+const svg = k => `<svg viewBox="0 0 24 24">${I[k]}</svg>`;
+
+const TERMS = [
+  { key: 'spoken', label: 'Spoken for', icon: 'bookmark', on: 'Mark as spoken for', off: 'No longer spoken for',
+    note: '« Spoken for » : réservé, quelqu\'un s\'en occupe (moi, un vendeur, celui qui l\'offre). Couvre les quatre cas.' },
+  { key: 'pending', label: 'Pending', icon: 'hourglass', on: 'Mark as pending', off: 'No longer pending',
+    note: '« Pending » : en attente. Le plus clair, le plus neutre ; dit qu\'on attend, pas pourquoi.' },
+  { key: 'way', label: 'On its way', icon: 'truck', on: 'Mark as on its way', off: 'No longer on its way',
+    note: '« On its way » : chaleureux pour une commande ou un cadeau, faux pour une enchère pas encore gagnée.' },
+  { key: 'works', label: 'In the works', icon: 'box', on: 'Mark as in the works', off: 'No longer in the works',
+    note: '« In the works » : en cours, sans dire par qui ; un peu vague sur une étiquette.' },
+  { key: 'under', label: 'Underway', icon: 'clock', on: 'Mark as underway', off: 'No longer underway',
+    note: '« Underway » : en route au sens large ; court, mais sonne « chantier ».' },
+];
+
+const hues = [12, 210, 340, 45, 160, 270, 25, 190];
+const DATA = {
+  album: [
+    { id: 407, title: 'Back in Black', by: 'AC/DC', year: 2003, format: 'CD', added: '02.10.2026', pending: true },
+    { id: 249, title: 'This Is the Life', by: 'Amy MacDonald', year: 'Unknown', format: 'CD', added: '28.09.2026' },
+    { id: 190, title: "L'Homme fleur", by: 'Blankass', year: 2003, format: 'CD', added: '11.09.2026', pending: true },
+    { id: 251, title: 'Crush', by: 'Bon Jovi', year: 2000, format: 'CD', added: '04.09.2026' },
+  ],
+  movie: [
+    { id: 259, title: 'Another Round', by: 'Thomas Vinterberg', year: 2020, format: 'Blu-ray 4K', added: '15.10.2026' },
+    { id: 258, title: 'Cinema Paradiso', by: 'Giuseppe Tornatore', year: 1988, format: 'Blu-ray 4K', added: '15.10.2026', pending: true },
+    { id: 224, title: 'Little Miss Sunshine', by: 'Valerie Faris', year: 2006, format: 'Blu-ray', added: '01.09.2026' },
+  ],
+};
+let term = TERMS[0], look = 'a';
+
+function cover(item, i) {
+  const h = hues[(item.id + i) % hues.length];
+  return `<span class="cover" style="background:linear-gradient(135deg,hsl(${h} 45% 38%),hsl(${(h + 40) % 360} 35% 18%))"></span>`;
+}
+
+function row(item, type, i) {
+  return `<tr class="${item.pending ? 'pending' : ''}" data-type="${type}" data-id="${item.id}">
+    <td>${cover(item, i)}</td>
+    <td class="title"><strong>${item.title}</strong><span class="tag" ${item.pending ? '' : 'hidden'}>${svg(term.icon)}${term.label}</span></td>
+    <td class="muted">${item.by}</td>
+    <td class="muted">${item.year}</td>
+    <td class="muted hide-sm">${item.format}</td>
+    <td class="muted hide-sm">${item.added}</td>
+    <td class="act"><div class="actions">
+      <button class="ib ricardo" title="Search on Ricardo">${svg('search')}</button>
+      <button class="ib danger" title="Delete">${svg('trash')}</button>
+      <button class="ib pend ${item.pending ? 'active' : ''}" aria-pressed="${!!item.pending}" title="${item.pending ? term.off : term.on}">${svg(term.icon)}</button>
+      <button class="ib" title="Mark as owned">${svg('dollar')}</button>
+    </div></td></tr>`;
+}
+
+function table(items, type, offset = 0) {
+  const by = type === 'album' ? 'Artist' : 'Director';
+  return `<div class="wrap"><table class="${type}"><thead><tr><th>Cover</th><th>Title</th><th>${by}</th><th>Year</th>
+    <th class="hide-sm">Format</th><th class="hide-sm">Added Date</th><th></th></tr></thead>
+    <tbody>${items.map((it, i) => row(it, type, i + offset)).join('')}</tbody></table></div>`;
+}
+
+function render() {
+  const page = document.getElementById('page');
+  page.className = 'page look-' + look;
+  const all = [...DATA.album, ...DATA.movie];
+  const n = all.filter(x => x.pending).length;
+  document.getElementById('count').innerHTML = `(${all.length} items<span class="pend">${n ? ` · ${n} ${term.label.toLowerCase()}` : ''}</span>)`;
+  document.getElementById('sections').innerHTML = [['album', 'Music', 'music'], ['movie', 'Movies', 'film']].map(([type, name, ic]) => {
+    const items = DATA[type];
+    let body;
+    if (look === 'c') {
+      const todo = items.filter(x => !x.pending), done = items.filter(x => x.pending);
+      body = table(todo, type) + (done.length ? `<h3>${svg(term.icon)}${term.label} · ${done.length}</h3>` + table(done, type, todo.length) : '');
+    } else body = table(items, type);
+    return `<h2>${svg(ic)} ${name} (${items.length})</h2>${body}`;
+  }).join('');
+  document.getElementById('termnote').textContent = term.note;
+}
+
+function buildTerms() {
+  const el = document.getElementById('terms');
+  el.innerHTML = TERMS.map(t => `<button data-term="${t.key}" class="${t === term ? 'on' : ''}">${t.label}</button>`).join('');
+}
+
+document.getElementById('terms').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  term = TERMS.find(t => t.key === b.dataset.term); buildTerms(); render();
+});
+document.getElementById('looks').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  look = b.dataset.look;
+  document.querySelectorAll('#looks button').forEach(x => x.classList.toggle('on', x === b)); render();
+});
+
+let toastTimer;
+function toast(html) {
+  const t = document.getElementById('toast'); t.innerHTML = html; t.style.display = 'block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.style.display = 'none', 6000);
+}
+
+document.getElementById('sections').addEventListener('click', e => {
+  const b = e.target.closest('.ib.pend'); if (!b) return;
+  e.stopPropagation();
+  const tr = b.closest('tr');
+  const item = DATA[tr.dataset.type].find(x => x.id == tr.dataset.id);
+  item.pending = !item.pending;
+  hideTip(); render();
+  toast(item.pending ? `« ${item.title} » ${term.label.toLowerCase()}` : `« ${item.title} » back on the list`);
+});
+
+/* TooltipHost */
+const tip = document.getElementById('tip'); let tipEl = null, tipTimer;
+function hideTip() { tip.style.display = 'none'; if (tipEl) { tipEl.title = tipEl.dataset.t; tipEl = null; } }
+document.addEventListener('mouseover', e => {
+  const el = e.target.closest('[title]'); if (!el || el === tipEl) return;
+  hideTip(); tipEl = el; el.dataset.t = el.title; el.title = '';
+  clearTimeout(tipTimer);
+  tipTimer = setTimeout(() => { if (tipEl !== el) return; const r = el.getBoundingClientRect();
+    tip.textContent = el.dataset.t; tip.style.display = 'block';
+    tip.style.left = Math.min(r.left, innerWidth - tip.offsetWidth - 8) + 'px'; tip.style.top = (r.bottom + 6) + 'px'; }, 250);
+});
+document.addEventListener('mouseout', e => { if (tipEl && !tipEl.contains(e.relatedTarget)) hideTip(); });
+
+buildTerms(); render();
+</script>
+</body>
+</html>

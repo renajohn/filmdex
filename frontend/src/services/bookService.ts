@@ -66,6 +66,20 @@ class BookService {
     }
   }
 
+  // A wish already taken care of (ordered, a bid made, a gift to come)
+  async setBookSpokenFor(id: number | string, spokenFor: boolean): Promise<unknown> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/books/${id}/spoken-for`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ spokenFor }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to mark the book as spoken for: ${response.status}`);
+    }
+    return await response.json();
+  }
+
   async getBookById(id: number | string): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();

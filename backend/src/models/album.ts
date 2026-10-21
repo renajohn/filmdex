@@ -1129,6 +1129,7 @@ const Album = {
       annotation: row.annotation,
       discogsReleaseId: row.discogs_release_id ?? null,
       titleStatus: row.title_status,
+      spokenFor: row.spoken_for === 1,
       userRating: row.user_rating ?? null,
       navidromeId: row.navidrome_id ?? null,
       navidromeGoneAt: row.navidrome_gone_at ?? null,

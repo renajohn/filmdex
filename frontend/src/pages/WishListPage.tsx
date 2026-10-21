@@ -1,6 +1,6 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BsTrash, BsCurrencyDollar, BsClipboard, BsDisc, BsFilm, BsBook, BsFileEarmark, BsPlus, BsSearch } from 'react-icons/bs';
+import { BsTrash, BsCurrencyDollar, BsBookmarkCheck, BsClipboard, BsDisc, BsFilm, BsBook, BsFileEarmark, BsPlus, BsSearch } from 'react-icons/bs';
 import apiService from '../services/api';
 import musicService from '../services/musicService';
 import { base64ToFile } from '../utils/downscaleImage';
@@ -24,6 +24,7 @@ import Dialog from '../components/shared/Dialog';
 import { ConfirmDialog } from '../components/shared/ConfirmDialog';
 import { TextArea, TextField } from '../components/shared/TextField';
 import Notice from '../components/shared/Notice';
+import CoverTag from '../components/shared/CoverTag';
 import Spinner, { Loading } from '../components/shared/Spinner';
 import { thumbProps } from '../utils/thumb';
 import { openRicardo, ricardoSearchUrl } from '../utils/digitalLibrary';
@@ -612,6 +613,40 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
     setShowDeleteModal({ show: true, itemId, itemType });
   };
 
+  // A wish already taken care of (ordered, a bid made, a gift to come) is
+  // "spoken for": it stays on the list, set back, with nothing more to do.
+  // Movies come as their rows (spoken_for 0/1), albums and books formatted.
+  const isSpokenFor = (item: any): boolean => item.spokenFor ?? item.spoken_for === 1;
+
+  const handleSpokenForClick = async (item: any, itemType: 'movie' | 'album' | 'book', e: React.MouseEvent) => {
+    e.stopPropagation();
+    const spokenFor = !isSpokenFor(item);
+    const mark = (on: boolean) => (list: any[]) => list.map(x => x.id !== item.id ? x
+      : itemType === 'movie' ? { ...x, spoken_for: on ? 1 : 0 } : { ...x, spokenFor: on });
+    const setters = itemType === 'movie' ? [setAllMovies, setMovies]
+      : itemType === 'album' ? [setAllAlbums, setAlbums] : [setAllBooks, setBooks];
+    setters.forEach(set => set(mark(spokenFor)));
+    try {
+      if (itemType === 'movie') await apiService.setMovieSpokenFor(item.id, spokenFor);
+      else if (itemType === 'album') await musicService.setAlbumSpokenFor(item.id, spokenFor);
+      else await bookService.setBookSpokenFor(item.id, spokenFor);
+    } catch (err) {
+      setters.forEach(set => set(mark(!spokenFor)));
+      setError(`Failed to mark ${itemType} as spoken for: ` + (err as Error).message);
+    }
+  };
+
+  const spokenForButton = (item: any, itemType: 'movie' | 'album' | 'book') => (
+    <IconButton label={isSpokenFor(item) ? 'No longer spoken for' : 'Mark as spoken for'} size="sm" className="action-button spoken-for"
+      active={isSpokenFor(item)}
+      onClick={(e) => handleSpokenForClick(item, itemType, e)}
+    ><BsBookmarkCheck /></IconButton>
+  );
+
+  const spokenForTag = (item: any) => isSpokenFor(item) && (
+    <CoverTag variant="muted" className="wl-spoken-for-tag">Spoken for</CoverTag>
+  );
+
   const handleMarkOwnedClick = (item: any, itemType: string, e: React.MouseEvent | { stopPropagation: () => void }) => {
     e.stopPropagation();
     let defaultFormat = 'CD';
@@ -1020,7 +1055,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                     {movies.map((movie) => (
                       <tr
                         key={`movie-${movie.id}`}
-                        className="clickable-row"
+                        className={`clickable-row${isSpokenFor(movie) ? ' spoken-for' : ''}`}
                         onClick={() => handleItemClick(movie.id, 'movie')}
                         style={{ cursor: 'pointer' }}
                       >
@@ -1039,7 +1074,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         </td>
                         <td className="wl-title">
                           <div className="movie-title-cell">
-                            <strong>{movie.title}</strong>
+                            <strong>{movie.title}</strong>{spokenForTag(movie)}
                             {movie.original_title && movie.original_title !== movie.title && (
                               <div className="original-title">{movie.original_title}</div>
                             )}
@@ -1099,6 +1134,14 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                                 openRicardo(ricardoSearchUrl(`${movie.title} ${movie.format || 'Blu-ray'}`));
                               }}
                             ><BsSearch /></IconButton>
+                            {spokenForButton(movie, 'movie')}
+                            <IconButton label="Mark as owned" size="sm" className="action-button mark-owned"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkOwnedClick(movie, 'movie', e);
+                              }}
+                              title="Mark as owned"
+                            ><BsCurrencyDollar /></IconButton>
                             <IconButton label="Delete movie" tone="danger" size="sm" className="action-button delete"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1107,13 +1150,6 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                               disabled={deletingId === movie.id}
                               title="Delete movie"
                             ><BsTrash /></IconButton>
-                            <IconButton label="Mark as owned" size="sm" className="action-button mark-owned"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleMarkOwnedClick(movie, 'movie', e);
-                              }}
-                              title="Mark as owned"
-                            ><BsCurrencyDollar /></IconButton>
                           </div>
                         </td>
                       </tr>
@@ -1148,7 +1184,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                     {albums.map((album) => (
                       <tr
                         key={`album-${album.id}`}
-                        className="clickable-row"
+                        className={`clickable-row${isSpokenFor(album) ? ' spoken-for' : ''}`}
                         onClick={() => handleItemClick(album.id, 'album')}
                         style={{ cursor: 'pointer' }}
                       >
@@ -1168,7 +1204,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         </td>
                         <td className="wl-title">
                           <div className="album-title-cell">
-                            <strong>{album.title}</strong>
+                            <strong>{album.title}</strong>{spokenForTag(album)}
                           </div>
                         </td>
                         <td className="wl-by">
@@ -1187,6 +1223,14 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                                 openRicardo(ricardoSearchUrl(`${Array.isArray(album.artist) ? album.artist.join(' ') : album.artist} ${album.title} ${album.format || 'CD'}`));
                               }}
                             ><BsSearch /></IconButton>
+                            {spokenForButton(album, 'album')}
+                            <IconButton label="Mark as owned" size="sm" className="action-button mark-owned"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkOwnedClick(album, 'album', e);
+                              }}
+                              title="Mark as owned"
+                            ><BsCurrencyDollar /></IconButton>
                             <IconButton label="Delete album" tone="danger" size="sm" className="action-button delete"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1195,13 +1239,6 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                               disabled={deletingId === album.id}
                               title="Delete album"
                             ><BsTrash /></IconButton>
-                            <IconButton label="Mark as owned" size="sm" className="action-button mark-owned"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleMarkOwnedClick(album, 'album', e);
-                              }}
-                              title="Mark as owned"
-                            ><BsCurrencyDollar /></IconButton>
                           </div>
                         </td>
                       </tr>
@@ -1236,7 +1273,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                     {books.map((book) => (
                       <tr
                         key={`book-${book.id}`}
-                        className="clickable-row"
+                        className={`clickable-row${isSpokenFor(book) ? ' spoken-for' : ''}`}
                         onClick={() => handleItemClick(book.id, 'book')}
                         style={{ cursor: 'pointer' }}
                       >
@@ -1275,7 +1312,7 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         </td>
                         <td className="wl-title">
                           <div className="book-title-cell">
-                            <strong>{book.title}</strong>
+                            <strong>{book.title}</strong>{spokenForTag(book)}
                             {book.series && (
                               <div className="book-series">{book.series}{book.seriesNumber ? ` #${book.seriesNumber}` : ''}</div>
                             )}
@@ -1291,6 +1328,14 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         <td className="wl-added">{formatDate(book.createdAt)}</td>
                         <td className="wl-actions">
                           <div className="actions-cell">
+                            {spokenForButton(book, 'book')}
+                            <IconButton label="Mark as owned" size="sm" className="action-button mark-owned"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkOwnedClick(book, 'book', e);
+                              }}
+                              title="Mark as owned"
+                            ><BsCurrencyDollar /></IconButton>
                             <IconButton label="Delete book" tone="danger" size="sm" className="action-button delete"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1299,13 +1344,6 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                               disabled={deletingId === book.id}
                               title="Delete book"
                             ><BsTrash /></IconButton>
-                            <IconButton label="Mark as owned" size="sm" className="action-button mark-owned"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleMarkOwnedClick(book, 'book', e);
-                              }}
-                              title="Mark as owned"
-                            ><BsCurrencyDollar /></IconButton>
                           </div>
                         </td>
                       </tr>

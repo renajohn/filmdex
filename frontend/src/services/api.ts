@@ -277,6 +277,16 @@ class ApiService {
     return await response.json();
   }
 
+  // A wish already taken care of (ordered, a bid made, a gift to come)
+  async setMovieSpokenFor(movieId: number | string, spokenFor: boolean): Promise<unknown> {
+    const response = await this.makeRequest(`/movies/${movieId}/spoken-for`, {
+      method: 'PUT',
+      body: JSON.stringify({ spokenFor }),
+    });
+
+    return await response.json();
+  }
+
   async checkMovieStatus(tmdbId: string | null, title: string | null): Promise<unknown> {
     const params = new URLSearchParams();
     if (tmdbId) params.append('tmdb_id', tmdbId);

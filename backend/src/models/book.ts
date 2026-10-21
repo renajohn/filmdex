@@ -1115,6 +1115,7 @@ const Book = {
       annotation: row.annotation,
       ebookFile: row.ebook_file,
       titleStatus: row.title_status,
+      spokenFor: row.spoken_for === 1,
       bookType: row.book_type || 'book',
       createdAt: row.created_at,
       updatedAt: row.updated_at

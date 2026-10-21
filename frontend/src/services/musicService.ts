@@ -390,6 +390,20 @@ class MusicService {
     }
   }
 
+  // A wish already taken care of (ordered, a bid made, a gift to come)
+  async setAlbumSpokenFor(id: number | string, spokenFor: boolean): Promise<unknown> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/music/albums/${id}/spoken-for`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ spokenFor }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to mark the album as spoken for: ${response.status}`);
+    }
+    return await response.json();
+  }
+
   async getAlbumById(id: number | string): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();
