@@ -21,6 +21,9 @@ services:
       # DoesTheDogDie key for the spider and snake warnings. Without it every
       # movie stays "unknown" and the daily refresh does nothing.
       - DOES_DOG_DIE=${DOES_DOG_DIE:-}
+      # Google Books key for finding books as one types. Without it every
+      # search shares Google's anonymous daily quota, spent most days.
+      - GOOGLE_BOOKS_API_KEY=${GOOGLE_BOOKS_API_KEY:-}
       # Reach the vision model over the shared docker network rather than back
       # out through Traefik: its mkcert certificate is not verifiable by the
       # CA store Node ships with, which made every cover scan fail as

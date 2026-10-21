@@ -324,6 +324,22 @@ const runAutoMigrations = async (): Promise<void> => {
         }
         console.log('  ✓ Added spoken_for to movies, albums and books');
       }
+    },
+    {
+      name: '018_book_purchase',
+      up: async () => {
+        // A book bought, as a CD or a movie: what it cost, and when.
+        const columns = await new Promise<Array<{ name: string }>>((resolve, reject) => {
+          currentDb.all('PRAGMA table_info(books)', (err: Error | null, rows: Array<{ name: string }>) => (err ? reject(err) : resolve(rows || [])));
+        });
+        for (const [name, type] of [['price_chf', 'REAL'], ['purchased_at', 'TEXT']]) {
+          if (columns.some(c => c.name === name)) continue;
+          await new Promise<void>((resolve, reject) => {
+            currentDb.run(`ALTER TABLE books ADD COLUMN ${name} ${type}`, (err: Error | null) => (err ? reject(err) : resolve()));
+          });
+        }
+        console.log('  ✓ Added price_chf and purchased_at to books');
+      }
     }
   ];
 

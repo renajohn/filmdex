@@ -35,6 +35,8 @@ export interface DataConfig {
   discogs_token?: string;
   /** DoesTheDogDie API key; the DOES_DOG_DIE env var wins. */
   doesthedogdie_api_key?: string;
+  /** Google Books API key; the GOOGLE_BOOKS_API_KEY env var wins. */
+  google_books_api_key?: string;
   /** Base url of the vision model used by the cover scan; LLM_BASE_URL wins. */
   llm_base_url?: string;
   /** Model name sent to that endpoint; LLM_MODEL wins. */
@@ -50,6 +52,8 @@ export interface ApiKeys {
   discogs?: string;
   /** DoesTheDogDie API key; optional, enables spider and snake warnings. */
   doesthedogdie?: string;
+  /** Google Books API key; optional, without it Google's shared anonymous quota runs out. */
+  googleBooks?: string;
 }
 
 // ============================================================
@@ -441,6 +445,8 @@ export interface BookRow {
   annotation: string | null;
   ebook_file: string | null;
   title_status: string | null;
+  price_chf?: number | null;
+  purchased_at?: string | null;
   spoken_for?: number;
   book_type: string | null;
   created_at: string;
@@ -477,6 +483,9 @@ export interface BookFormatted {
   annotation: string | null;
   ebookFile: string | null;
   titleStatus: string | null;
+  /** What it cost, CHF, and when it was bought. */
+  priceChf: number | null;
+  purchasedAt: string | null;
   spokenFor: boolean;
   bookType: string;
   createdAt: string;
@@ -512,6 +521,9 @@ export interface BookCreateData {
   annotation?: string | null;
   ebookFile?: string | null;
   titleStatus?: string;
+  /** Undefined keeps what the book had (an update); null clears it. */
+  priceChf?: number | null;
+  purchasedAt?: string | null;
   bookType?: string;
 }
 

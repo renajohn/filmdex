@@ -109,6 +109,8 @@ const Book = {
             ebook_file TEXT,
             title_status TEXT DEFAULT 'owned' CHECK(title_status IN ('owned', 'wish', 'borrowed')),
             read_date DATE,
+            price_chf REAL,
+            purchased_at TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
           )
@@ -224,6 +226,8 @@ const Book = {
                   ebook_file TEXT,
                   title_status TEXT DEFAULT 'owned' CHECK(title_status IN ('owned', 'wish', 'borrowed')),
                   read_date DATE,
+                  price_chf REAL,
+                  purchased_at TEXT,
                   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
@@ -406,6 +410,8 @@ const Book = {
         annotation: bookData.annotation || null,
         title_status: bookData.titleStatus || 'owned',
         book_type: bookData.bookType || 'book',
+        price_chf: bookData.priceChf ?? null,
+        purchased_at: bookData.purchasedAt || null,
         created_at: now,
         updated_at: now
       };
@@ -415,8 +421,8 @@ const Book = {
           isbn, isbn13, title, subtitle, authors, artists, publisher, published_year,
           language, format, filetype, drm, narrator, runtime, series, series_number,
           genres, tags, rating, cover, owner, read_date, page_count, description, urls, annotation, ebook_file, title_status, book_type,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          price_chf, purchased_at, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const params = [
@@ -424,7 +430,8 @@ const Book = {
         book.published_year, book.language, book.format, book.filetype, book.drm,
         book.narrator, book.runtime, book.series, book.series_number, book.genres,
         book.tags, book.rating, book.cover, book.owner, book.read_date, book.page_count, book.description,
-        book.urls, book.annotation, bookData.ebookFile || null, book.title_status, book.book_type, book.created_at, book.updated_at
+        book.urls, book.annotation, bookData.ebookFile || null, book.title_status, book.book_type,
+        book.price_chf, book.purchased_at, book.created_at, book.updated_at
       ];
 
       db.run(sql, params, async function(this: sqlite3.RunResult, err: Error | null) {
@@ -923,7 +930,7 @@ const Book = {
           published_year = ?, language = ?, format = ?, filetype = ?, drm = ?,
           narrator = ?, runtime = ?, series = ?, series_number = ?, genres = ?,
           tags = ?, rating = ?, cover = ?, owner = ?, read_date = ?, page_count = ?, description = ?,
-          urls = ?, annotation = ?, ebook_file = ?, title_status = ?, book_type = ?, updated_at = ?
+          urls = ?, annotation = ?, ebook_file = ?, title_status = ?, book_type = ?, price_chf = ?, purchased_at = ?, updated_at = ?
         WHERE id = ?
       `;
 
@@ -964,6 +971,9 @@ const Book = {
         ebookFile,
         bookData.titleStatus || 'owned',
         bookData.bookType || 'book',
+        // The form does not show them: undefined keeps the price and the date of purchase.
+        bookData.priceChf !== undefined ? bookData.priceChf : existingBook?.priceChf ?? null,
+        bookData.purchasedAt !== undefined ? bookData.purchasedAt : existingBook?.purchasedAt ?? null,
         now,
         id
       ];
@@ -1117,6 +1127,8 @@ const Book = {
       titleStatus: row.title_status,
       spokenFor: row.spoken_for === 1,
       bookType: row.book_type || 'book',
+      priceChf: row.price_chf ?? null,
+      purchasedAt: row.purchased_at ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };

@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Trouver un livre</title>
+<style>
+  :root {
+    --dv-gold: #fbbf24; --dv-gold-hover: #fcd34d; --dv-gold-ink: #111;
+    --dv-gold-tint: rgba(251,191,36,.12); --dv-gold-tint-edge: rgba(251,191,36,.45);
+    --dv-danger: #f87171; --dv-orange: #fb923c;
+    --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+    --dv-page: #1a1a1a;
+    --dv-glass: rgba(255,255,255,.06); --dv-glass-hover: rgba(255,255,255,.11);
+    --dv-edge: rgba(255,255,255,.12); --dv-edge-hover: rgba(255,255,255,.24);
+    --dv-veil: rgba(255,255,255,.08);
+    --dv-surface: rgba(24,24,24,.92); --dv-surface-edge: rgba(255,255,255,.1);
+    --dv-surface-shadow: 0 16px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
+    --dv-ring: 0 0 0 3px rgba(251,191,36,.3);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--dv-page); color: var(--dv-text); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  button, input { font: inherit; }
+
+  .proto { position: sticky; top: 0; z-index: 200; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+    padding: 10px 16px; background: #0e0e0e; border-bottom: 1px solid #333; font-size: 13px; color: #aaa; }
+  .proto b { color: #ddd; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid #444; border-radius: 8px; overflow: hidden; }
+  .seg button { background: #222; color: #ddd; border: 0; padding: 6px 12px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid #444; }
+  .seg button.on { background: var(--dv-gold); color: #111; }
+  .how { max-width: 1000px; margin: 14px auto 0; padding: 0 16px; color: #8a8a8a; font-size: 12.5px; }
+  .how strong { color: #ccc; }
+
+  .page { max-width: 1000px; margin: 0 auto; padding: 16px 16px 140px; }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid #333; padding-bottom: 14px; margin-bottom: 16px; }
+  h1 { margin: 0; font-size: 1.8rem; font-weight: 600; }
+  h1 small { font-size: .95rem; color: var(--dv-text-muted); font-weight: 400; margin-left: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--dv-text-muted); padding: 8px; border-bottom: 1px solid #333; }
+  td { padding: 8px; border-bottom: 1px solid #2a2a2a; vertical-align: middle; }
+  td.muted { color: var(--dv-text-muted); }
+  .poster-sm { width: 40px; height: 60px; border-radius: 3px; object-fit: cover; display: block; background: #333; }
+  tr.fresh { animation: fresh 2.4s ease-out; }
+  @keyframes fresh { 0%, 30% { background: var(--dv-gold-tint); } 100% { background: transparent; } }
+
+  .btn { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--dv-edge);
+    background: var(--dv-glass); color: var(--dv-text); cursor: pointer; white-space: nowrap; }
+  .btn:hover { background: var(--dv-glass-hover); border-color: var(--dv-edge-hover); }
+  .btn svg { width: 16px; height: 16px; }
+  .btn.primary { background: var(--dv-gold); border-color: var(--dv-gold); color: var(--dv-gold-ink); font-weight: 600; }
+  .btn.primary:hover { background: var(--dv-gold-hover); }
+  .btn.primary:disabled { opacity: .4; cursor: default; }
+  .btn.quiet { background: none; border-color: transparent; color: var(--dv-text-muted); }
+  .btn.quiet:hover { color: #fff; }
+  .ib { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; border: 1px solid transparent; background: none;
+    color: var(--dv-text-muted); cursor: pointer; flex: none; }
+  .ib:hover { color: #fff; background: var(--dv-veil); }
+  .ib svg { width: 16px; height: 16px; }
+  .ib.on { color: var(--dv-gold); }
+
+  .field { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--dv-edge); background: #1f1f1f; }
+  .field:focus-within { border-color: var(--dv-gold-tint-edge); box-shadow: var(--dv-ring); }
+  .field svg { width: 16px; height: 16px; color: var(--dv-text-faint); flex: none; }
+  .field input { flex: 1; min-width: 0; border: 0; background: none; color: var(--dv-text); font-size: 15px; outline: none; }
+  .field .hint { color: var(--dv-text-faint); font-size: 12px; white-space: nowrap; }
+  .field.sm { height: 34px; } .field.sm input { font-size: 14px; }
+
+  /* Segmented */
+  .segm { display: inline-flex; padding: 2px; gap: 2px; border-radius: 9px; border: 1px solid var(--dv-edge); background: var(--dv-glass); }
+  .segm button { border: 0; background: none; color: var(--dv-text-muted); padding: 5px 12px; border-radius: 7px; cursor: pointer; font-size: 13px; }
+  .segm button.on { background: var(--dv-gold-tint); color: var(--dv-gold); }
+  .segm.big button { padding: 8px 16px; font-size: 14px; }
+
+  .scrim { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.6); display: none; align-items: flex-start; justify-content: center; padding: 6vh 16px 16px; }
+  .scrim.open { display: flex; }
+  .dialog { width: 780px; max-width: 100%; height: 82vh; display: flex; flex-direction: column; border-radius: 14px; background: #262626; border: 1px solid #3a3a3a;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6); overflow: hidden; }
+  .dlg-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px; border-bottom: 1px solid #333; }
+  .dlg-head h3 { margin: 0; font-size: 1.1rem; font-weight: 600; flex: 1; min-width: 0; }
+  .dlg-top { padding: 12px 16px 6px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .dlg-top .field { flex: 1; min-width: 240px; }
+  .dlg-body { padding: 4px 16px 12px; overflow: auto; flex: 1; }
+  .dlg-foot { display: flex; align-items: center; gap: 8px; justify-content: flex-end; padding: 12px 16px; border-top: 1px solid #333; flex-wrap: wrap; }
+  .dlg-foot .note { flex: 1; color: var(--dv-text-faint); font-size: 12.5px; min-width: 160px; }
+  .label { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--dv-text-faint); margin: 10px 2px 6px; }
+  .empty, .loading { color: var(--dv-text-faint); padding: 22px 8px; text-align: center; }
+  .loading::before { content: ''; display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -1px; border: 2px solid #555;
+    border-top-color: var(--dv-text-muted); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(1turn); } }
+
+  .res { display: flex; align-items: center; gap: 12px; padding: 6px 8px; border-radius: 9px; cursor: pointer; }
+  .res.active { background: var(--dv-veil); }
+  .res img { width: 44px; height: 66px; border-radius: 4px; object-fit: cover; background: #333; flex: none; }
+  .res .txt { flex: 1; min-width: 0; }
+  .res .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .res .s { color: var(--dv-text-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .res .key { color: var(--dv-text-faint); font-size: 11px; border: 1px solid var(--dv-edge); border-radius: 5px; padding: 1px 5px; visibility: hidden; }
+  .res.active .key { visibility: visible; }
+  .res .go { color: var(--dv-text-faint); }
+  .tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 6px; border-radius: 4px; background: rgba(0,0,0,.72);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); color: #bbb; font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; white-space: nowrap; }
+  .tag.on { background: var(--dv-gold); color: var(--dv-gold-ink); box-shadow: none; }
+  .tag.gold { color: var(--dv-gold); }
+
+  .people { display: flex; flex-wrap: wrap; gap: 8px; }
+  .person { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 4px; border-radius: 18px; cursor: pointer;
+    border: 1px solid var(--dv-edge); background: var(--dv-glass); color: var(--dv-text); font-size: 13px; }
+  .person:hover { border-color: var(--dv-edge-hover); background: var(--dv-glass-hover); }
+  .person .face { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: #333; }
+  .person .faces { display: inline-flex; }
+  .person .faces img { width: 20px; height: 30px; border-radius: 3px; object-fit: cover; box-shadow: 0 0 0 2px #2b2b2b; }
+  .person .faces img + img { margin-left: -8px; }
+  .person b { font-weight: 600; } .person small { color: var(--dv-text-faint); }
+
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 14px; cursor: pointer; border: 1px solid var(--dv-edge);
+    background: var(--dv-glass); color: var(--dv-text); font-size: 12.5px; }
+  .chip small { color: var(--dv-text-faint); }
+  .chip.on { border-color: var(--dv-gold-tint-edge); background: var(--dv-gold-tint); color: var(--dv-gold); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 14px; }
+  .card { cursor: pointer; }
+  .cover { position: relative; aspect-ratio: 2/3; border-radius: 6px; overflow: hidden; background: #333; }
+  .cover img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .2s; }
+  .card:hover .cover img { transform: scale(1.03); }
+  .cover .tl { position: absolute; top: 6px; left: 6px; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+  .cbtn { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; border: 0; cursor: pointer;
+    background: rgba(0,0,0,.6); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); opacity: 0; transition: opacity .15s; }
+  .cbtn svg { width: 15px; height: 15px; stroke-width: 2.5; }
+  .card:hover .cbtn, .cbtn.on { opacity: 1; }
+  .cbtn.on { background: var(--dv-gold); color: var(--dv-gold-ink); box-shadow: none; }
+  .card .t { margin-top: 6px; font-weight: 600; font-size: 13px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card .s { color: var(--dv-text-muted); font-size: 12px; }
+
+  /* L'édition */
+  .movie-head { display: flex; gap: 16px; align-items: flex-start; margin: 4px 0 16px; }
+  .movie-head img { width: 92px; aspect-ratio: 2/3; border-radius: 6px; object-fit: cover; background: #333; }
+  .movie-head .t { font-weight: 600; font-size: 1.15rem; }
+  .movie-head .s { color: var(--dv-text-muted); font-size: 13px; margin-top: 2px; }
+  .movie-head .already { margin-top: 10px; font-size: 13px; color: var(--dv-text-muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+  .form .row { display: flex; flex-direction: column; gap: 6px; }
+  .form .row.wide { grid-column: 1 / -1; }
+  .form label { font-size: 12.5px; color: var(--dv-text-muted); }
+  .form .help { font-size: 12px; color: var(--dv-text-faint); }
+  .warn { color: var(--dv-orange); font-size: 12.5px; }
+  input[type=date] { color-scheme: dark; }
+
+  .card.picked .cover { box-shadow: 0 0 0 3px var(--dv-gold); }
+  .card.unpicked .cover img { opacity: .35; filter: grayscale(.6); }
+  .person.saga .faces img { width: 20px; height: 30px; }
+  .boxlist { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+  .boxlist .it { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .boxlist .it img { width: 28px; height: 42px; border-radius: 3px; object-fit: cover; background: #333; }
+  .boxlist .it .n { color: var(--dv-text-faint); width: 18px; text-align: right; }
+  .boxtag { display: inline-block; margin-top: 3px; }
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 300; display: none; align-items: center; gap: 12px; padding: 9px 10px 9px 14px;
+    border-radius: 10px; background: var(--dv-surface); border: 1px solid var(--dv-surface-edge); box-shadow: var(--dv-surface-shadow); font-size: 13px; }
+  #toast .ok { color: var(--dv-gold); }
+  #toast button { background: none; border: 0; color: var(--dv-gold); font-weight: 600; cursor: pointer; padding: 4px 6px; }
+
+  @media (max-width: 640px) {
+    .scrim { padding: 0; align-items: stretch; } .dialog { height: 100vh; border-radius: 0; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+    .form { grid-template-columns: 1fr; } .hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+<style>
+  .cover.book { aspect-ratio: 2/3; }
+  .num { position: absolute; bottom: 6px; left: 6px; }
+  .missing .cover { display: grid; place-items: center; border: 1.5px dashed #555; background: none; color: var(--dv-text-faint); font-size: 12px; text-align: center; padding: 8px; }
+  .missing .cover b { display: block; font-size: 1.4rem; color: #777; }
+  .card.next .cover { box-shadow: 0 0 0 2px var(--dv-gold-tint-edge); }
+  .series-head { display: flex; align-items: center; gap: 12px; margin: 2px 0 12px; flex-wrap: wrap; }
+  .series-head .n { color: var(--dv-text-muted); font-size: 13px; flex: 1; }
+  .group-title { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--dv-text-faint); margin: 16px 2px 8px; }
+  .res img { width: 44px; height: 66px; }
+</style>
+
+<div class="proto">
+  <span><b>Ajouter</b></span>
+  <div class="seg" id="modes">
+    <button data-m="wish" class="on">À la wish list</button>
+    <button data-m="owned">À la bibliothèque</button>
+  </div>
+  <span style="color:#777">Puis sur la wish list : le <b>$</b> d'un livre = l'acheter.</span>
+</div>
+<p class="how" id="how"></p>
+
+<div class="page">
+  <div class="head">
+    <h1 id="pageTitle">My Wish List <small id="count"></small></h1>
+    <button class="btn" id="openBtn"><svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg><span>Add Book</span></button>
+  </div>
+  <table><thead><tr><th>Cover</th><th>Title</th><th class="hide-sm">Author</th><th class="hide-sm">Year</th><th></th></tr></thead><tbody id="body"></tbody></table>
+</div>
+
+<div class="scrim" id="scrim"><div class="dialog" id="dialog"></div></div>
+<div id="toast"></div>
+
+<script>
+/* ---------- Outils ---------- */
+const API = 'http://localhost:3021/api/books/finder';
+const PROD = 'https://dexvault.lab.crog.org/api';
+const I = {
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>', plus: '<path d="M12 5v14M5 12h14"/>', check: '<path d="M20 6 9 17l-5-5"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>', back: '<path d="M19 12H5M12 19l-7-7 7-7"/>', next: '<path d="m9 18 6-6-6-6"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/>',
+  filter: '<path d="M3 6h18M7 12h10M10 18h4"/>', dollar: '<line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  stack: '<path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/><path d="M8 3v18M4 19h16"/>', user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  pen: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>', barcode: '<path d="M3 5v14M7 5v14M11 5v14M14 5v14M18 5v14M21 5v14"/>',
+};
+const svg = k => `<svg viewBox="0 0 24 24">${I[k]}</svg>`;
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const plain = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const img = c => !c ? '' : /^\/(api\/)?images\//.test(c) ? `https://dexvault.lab.crog.org${c.startsWith('/api/') ? c : '/api' + c}` : c;
+const LANGS = [['fr', 'FR'], ['en', 'EN'], ['de', 'DE'], ['any', 'Any']];
+const KINDS = [['all', 'All'], ['graphic-novel', 'BD'], ['book', 'Book'], ['score', 'Score']];
+const kindLabel = k => ({ 'graphic-novel': 'BD', book: 'Book', score: 'Score' }[k] || '');
+// One volume a comic (or a score), the whole series is (Google files Sorceline 3 as a novel, 6 as a comic).
+const oneKind = list => { const k = new Map(); list.forEach(b => { if (b.series && b.bookType !== 'book') k.set(plain(b.series), b.bookType); });
+  return list.map(b => b.series && k.has(plain(b.series)) ? { ...b, bookType: k.get(plain(b.series)) } : b); };
+const FORMATS = [['physical', 'Paper'], ['ebook', 'Ebook'], ['audiobook', 'Audiobook']];
+const cache = new Map();
+const get = url => { if (!cache.has(url)) cache.set(url, fetch(url).then(async r => { const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j; }).catch(e => { cache.delete(url); throw e; })); return cache.get(url); };
+
+/* ---------- Ta bibliothèque, ta wish list (prod, en lecture) ---------- */
+let owned = [], wished = [];
+const seriesKey = (s, n) => `${plain(s)}#${n}`;
+async function loadLists() {
+  [owned, wished] = await Promise.all([get(`${PROD}/books/status/owned`), get(`${PROD}/books/status/wish`)]);
+  owned = owned.slice(); wished = wished.slice(); renderList();
+}
+function haveOf(b) {
+  const match = x => (b.isbn13 && (x.isbn13 === b.isbn13 || x.isbn === b.isbn13)) || (b.isbn10 && (x.isbn === b.isbn10 || x.isbn13 === b.isbn10))
+    || (b.series && b.seriesNumber && x.series && x.seriesNumber && seriesKey(x.series, x.seriesNumber) === seriesKey(b.series, b.seriesNumber));
+  if (owned.some(match)) return 'owned';
+  if (wished.some(match)) return 'wish';
+  return null;
+}
+function haveTag(b) {
+  const h = haveOf(b);
+  return h === 'owned' ? `<span class="tag ${mode === 'owned' ? 'on' : 'gold'}">Owned</span>` : h === 'wish' ? `<span class="tag ${mode === 'wish' ? 'on' : 'gold'}">Wished</span>` : '';
+}
+
+/* ---------- La page en fond ---------- */
+let fresh = null;
+function renderList() {
+  const list = mode === 'wish' ? wished : owned.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 12);
+  document.getElementById('body').innerHTML = list.map(b => `<tr class="${fresh && fresh === (b.isbn13 || b.title) ? 'fresh' : ''}">
+    <td><img class="poster-sm" src="${img(b.cover)}"></td><td><strong>${esc(b.title)}</strong>${b.series ? `<div style="color:var(--dv-text-faint);font-size:12px">${esc(b.series)}${b.seriesNumber ? ' #' + b.seriesNumber : ''}</div>` : ''}</td>
+    <td class="muted hide-sm">${esc((b.authors || []).join(', '))}</td><td class="muted hide-sm">${b.publishedYear || ''}</td>
+    <td>${mode === 'wish' ? `<button class="ib" data-buy="${esc(b.isbn13 || b.title)}" title="I bought it">${svg('dollar')}</button>` : ''}</td></tr>`).join('');
+  document.getElementById('count').textContent = mode === 'wish' ? `(${wished.length} books)` : `(${owned.length} books, the last added first)`;
+  document.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => F.buy(wished.find(x => (x.isbn13 || x.title) === b.dataset.buy)));
+  fresh = null;
+}
+let toastTimer;
+function toast(html, undo) { const t = document.getElementById('toast'); t.innerHTML = `<span>${html}</span>` + (undo ? '<button>Undo</button>' : '');
+  t.style.display = 'flex'; if (undo) t.querySelector('button').onclick = () => { undo(); t.style.display = 'none'; };
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.style.display = 'none', 6000); }
+const asRow = b => ({ bookType: kind !== 'all' ? kind : b.bookType, title: b.title, authors: b.authors, publishedYear: b.year, cover: b.cover, isbn13: b.isbn13, isbn: b.isbn10, series: b.series, seriesNumber: b.seriesNumber, titleStatus: 'wish' });
+
+/* ---------- Le chercheur ---------- */
+let mode = 'wish';
+let lang = localStorage.getItem('dv.bookLang') || 'fr';
+let kind = localStorage.getItem('dv.bookKind') || 'all';
+const ofKind = b => kind === 'all' || b.bookType === kind;
+const F = {
+  view: 'search', q: '', books: [], series: [], authors: [], active: 0, loading: false, error: '',
+  serie: null, volumes: null, missing: [], picked: new Set(), author: null, authorBooks: null, filter: '', book: null, batch: null, buying: null, form: {},
+
+  open() {
+    document.getElementById('dialog').innerHTML = `<div class="dlg-head"><span id="fBack"></span><h3 id="fTitle"></h3><button class="ib" data-close>${svg('x')}</button></div>
+      <div class="dlg-top" id="fTop"></div><div class="dlg-body" id="fBody"></div><div class="dlg-foot" id="fFoot"></div>`;
+    document.getElementById('scrim').classList.add('open');
+    document.querySelector('[data-close]').onclick = close;
+    this.buying = null; this.view = 'search'; this.render(true);
+  },
+  m() { return this.buying ? 'owned' : mode; },
+  buy(w) { this.open(); this.buying = w; this.book = { title: w.title, authors: w.authors, year: w.publishedYear, cover: img(w.cover), series: w.series, seriesNumber: w.seriesNumber };
+    this.form = { format: 'physical', kind: w.bookType || 'book', language: w.language || 'fr', price: '', date: new Date().toISOString().slice(0, 10), owner: '' }; this.view = 'edition'; this.render(true); },
+
+  run: debounce(async function (q) {
+    const self = F;
+    if (q.trim().length < 2) { Object.assign(self, { books: [], series: [], authors: [], loading: false }); self.render(); return; }
+    try {
+      const r = await get(`${API}/search?q=${encodeURIComponent(q)}&language=${lang}&kind=${kind}`);
+      if (self.q !== q) return;
+      Object.assign(self, { books: oneKind(r.books), series: r.series, authors: r.authors, active: 0, loading: false, error: '' });
+    } catch (e) { self.loading = false; self.error = 'The search does not answer: ' + e.message; }
+    self.render();
+  }, 300),
+
+  async openSeries(s) {
+    this.view = 'series'; this.serie = s; this.volumes = null; this.missing = []; this.render(true);
+    try {
+      const r = await get(`${API}/series?name=${encodeURIComponent(s.name)}&author=${encodeURIComponent(s.authors?.[0] || '')}&language=${lang}`);
+      if (this.serie !== s) return;
+      this.volumes = oneKind(r.volumes); this.missing = r.missingNumbers;
+      // The volumes one has not: to wish, or the ones one has just got.
+      this.picked = new Set(r.volumes.filter(v => !haveOf(v)).map(v => v.googleId));
+    } catch (e) { this.volumes = []; this.error = e.message; }
+    this.render();
+  },
+  async openAuthor(a) {
+    this.view = 'author'; this.author = a; this.authorBooks = null; this.filter = ''; this.render(true);
+    try { const r = await get(`${API}/authors?name=${encodeURIComponent(a.name)}&language=${lang}`); if (this.author === a) this.authorBooks = r.books; }
+    catch (e) { this.authorBooks = []; }
+    this.render();
+  },
+
+  toggleWish(b) {
+    const h = haveOf(b);
+    if (h === 'owned') return;
+    if (h === 'wish') { const i = wished.findIndex(x => x.isbn13 === b.isbn13); if (i >= 0) wished.splice(i, 1); renderList(); this.render(); return; }
+    const row = asRow(b); wished.unshift(row); fresh = row.isbn13 || row.title; renderList(); this.render();
+    toast(`<span class="ok">✓</span> ${esc(b.title)} on the wish list`, () => { wished.splice(wished.indexOf(row), 1); renderList(); this.render(); });
+  },
+  choose(b, from) {
+    if (this.m() === 'wish') { this.toggleWish(b); return; }
+    this.cameFrom = from; this.book = b; this.batch = null; this.view = 'edition';
+    this.form = { format: 'physical', kind: kind !== 'all' ? kind : b.bookType, language: b.language || lang, price: '', date: new Date().toISOString().slice(0, 10), owner: '' };
+    this.render(true);
+  },
+  back() {
+    if (this.buying) { close(); return; }
+    if (this.view === 'edition') this.view = this.batch ? 'series' : this.cameFrom || 'search';
+    else this.view = 'search';
+    this.render(true);
+  },
+
+  render(focus) {
+    const title = document.getElementById('fTitle'); if (!title) return;
+    const top = document.getElementById('fTop'), body = document.getElementById('fBody'), foot = document.getElementById('fFoot');
+    document.getElementById('fBack').innerHTML = this.view !== 'search' ? `<button class="ib" id="fBackBtn" title="Back">${svg('back')}</button>` : '';
+    document.getElementById('fBackBtn')?.addEventListener('click', () => this.back());
+
+    if (this.view === 'search') {
+      title.textContent = this.m() === 'wish' ? 'Add a book to the wish list' : 'Add a book';
+      if (focus || !document.getElementById('fq')) {
+        top.innerHTML = `<label class="field">${svg('search')}<input id="fq" placeholder="A title, an author, a series: sorceline, arleston, royaumes de feu…" autocomplete="off"><span class="hint" id="fcount"></span></label>
+          <div class="segm" id="kinds" title="What kind of book">${KINDS.map(([v, l]) => `<button data-k="${v}" class="${v === kind ? 'on' : ''}">${l}</button>`).join('')}</div>
+          <div class="segm" id="langs" title="Books in this language">${LANGS.map(([v, l]) => `<button data-l="${v}" class="${v === lang ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+        const input = document.getElementById('fq'); input.value = this.q; input.focus();
+        input.oninput = () => { this.q = input.value; this.loading = input.value.trim().length >= 2; this.run(input.value); this.renderResults(); };
+        input.onkeydown = e => { const n = this.books.filter(ofKind).length;
+          if (e.key === 'ArrowDown') { this.active = Math.min(this.active + 1, n - 1); this.renderResults(); e.preventDefault(); }
+          if (e.key === 'ArrowUp') { this.active = Math.max(this.active - 1, 0); this.renderResults(); e.preventDefault(); }
+          if (e.key === 'Enter' && this.books.filter(ofKind)[this.active]) this.choose(this.books.filter(ofKind)[this.active], 'search'); };
+        document.querySelectorAll('#kinds button').forEach(b => b.onclick = () => { kind = b.dataset.k; localStorage.setItem('dv.bookKind', kind);
+          document.querySelectorAll('#kinds button').forEach(x => x.classList.toggle('on', x === b)); this.active = 0; this.loading = this.q.trim().length >= 2; this.run(this.q); this.renderResults(); input.focus(); });
+        document.querySelectorAll('#langs button').forEach(b => b.onclick = () => { lang = b.dataset.l; localStorage.setItem('dv.bookLang', lang);
+          document.querySelectorAll('#langs button').forEach(x => x.classList.toggle('on', x === b)); this.loading = true; this.run(this.q); this.renderResults(); input.focus(); });
+      }
+      this.renderResults();
+      foot.innerHTML = this.m() === 'wish'
+        ? `<span class="note">One click wishes the book. A series' pill wishes the volumes missing.</span><button class="btn" title="Type it all by hand">${svg('pen')}Manual</button><button class="btn quiet" data-done>Done</button>`
+        : `<span class="note">Choose the book, then its edition.</span><button class="btn" title="Photograph the cover, as before">${svg('camera')}Photo</button><button class="btn" title="The ISBN on its back">${svg('barcode')}ISBN</button><button class="btn" title="Type it all by hand">${svg('pen')}Manual</button><button class="btn quiet" data-done>Cancel</button>`;
+    }
+
+    if (this.view === 'series') {
+      const s = this.serie; title.textContent = s.name; top.innerHTML = '';
+      if (!this.volumes) body.innerHTML = '<div class="loading">Finding its volumes…</div>';
+      else {
+        const all = [...this.volumes.map(v => ({ n: v.seriesNumber, v })), ...this.missing.map(n => ({ n, v: null }))].sort((a, b) => a.n - b.n);
+        const ownedNs = [...this.volumes.filter(v => haveOf(v) === 'owned').map(v => v.seriesNumber),
+          ...owned.filter(x => x.series && plain(x.series) === plain(this.serie.name)).map(x => x.seriesNumber)].filter(Boolean);
+        const notFound = this.missing.filter(n => !ownedNs.includes(n) && !wished.some(x => x.series && x.seriesNumber === n && plain(x.series) === plain(this.serie.name)));
+        const next = all.find(x => x.v && !haveOf(x.v) && x.n > Math.max(0, ...ownedNs));
+        body.innerHTML = `<div class="series-head"><span class="n">${this.volumes.length} volumes found${notFound.length ? `, ${notFound.map(n => 'T' + n).join(', ')} not found` : ''} · ${new Set(ownedNs).size} owned${next ? ` · next: T${next.n}` : ''}</span></div>
+          <div class="grid">${all.map(({ n, v }) => v ? (() => { const on = this.picked.has(v.googleId), h = haveOf(v);
+            return `<div class="card ${on ? 'picked' : h ? '' : 'unpicked'} ${next && next.v === v ? 'next' : ''}" data-id="${v.googleId}"><div class="cover book">${v.cover ? `<img src="${esc(v.cover)}" loading="lazy">` : ''}
+              <div class="tl">${haveTag(v)}</div><span class="num"><span class="tag">T${n}</span></span>
+              ${h ? '' : `<button class="cbtn ${on ? 'on' : ''}">${svg(on ? 'check' : 'plus')}</button>`}</div>
+              <div class="t">${esc(v.subtitle || v.title.replace(/^.*?(tome|vol\.?|volume|t)\s*0*\d+\s*[-:)]*\s*/i, '') || v.title)}</div><div class="s">${v.year || ''}</div></div>`; })()
+            : (() => { const mine = [...owned, ...wished].find(x => x.series && x.seriesNumber === n && plain(x.series) === plain(this.serie.name));
+                return mine ? `<div class="card"><div class="cover book">${mine.cover ? `<img src="${img(mine.cover)}">` : ''}<div class="tl"><span class="tag gold">${mine.titleStatus === 'wish' ? 'Wished' : 'Owned'}</span></div><span class="num"><span class="tag">T${n}</span></span></div>
+                  <div class="t">${esc(mine.title)}</div><div class="s">from your library</div></div>`
+                  : `<div class="card missing"><div class="cover book"><div><b>T${n}</b>not found</div></div><div class="t">&nbsp;</div></div>`; })()).join('')}</div>`;
+        body.querySelectorAll('.card[data-id]').forEach(c => c.onclick = () => { const v = this.volumes.find(x => x.googleId === c.dataset.id); if (haveOf(v)) return;
+          this.picked.has(v.googleId) ? this.picked.delete(v.googleId) : this.picked.add(v.googleId); this.render(); });
+      }
+      const n = this.picked.size;
+      foot.innerHTML = `<span class="note">${this.m() === 'wish' ? 'The volumes you have not are chosen: click one to leave it.' : 'The volumes you have just got: click to choose them.'}</span>
+        <button class="btn quiet" data-done>Cancel</button><button class="btn primary" id="seriesGo" ${n ? '' : 'disabled'}>${this.m() === 'wish' ? `Wish ${n} volume${n > 1 ? 's' : ''}` : `I have these ${n}`}</button>`;
+      document.getElementById('seriesGo').onclick = () => {
+        const chosen = this.volumes.filter(v => this.picked.has(v.googleId));
+        if (this.m() === 'wish') {
+          const rows = chosen.map(asRow); wished.unshift(...rows); fresh = rows[0]?.isbn13; renderList(); close();
+          toast(`<span class="ok">✓</span> ${rows.length} volumes of ${esc(this.serie.name)} on the wish list`, () => { rows.forEach(r => wished.splice(wished.indexOf(r), 1)); renderList(); });
+        } else { this.batch = chosen; this.book = chosen[0]; this.form = { format: 'physical', kind: kind !== 'all' ? kind : chosen[0].bookType, language: lang, price: '', date: new Date().toISOString().slice(0, 10), owner: '' }; this.view = 'edition'; this.render(true); }
+      };
+    }
+
+    if (this.view === 'author') {
+      const a = this.author; title.textContent = a.name;
+      if (focus || !document.getElementById('aq')) {
+        top.innerHTML = `<label class="field">${svg('filter')}<input id="aq" placeholder="Filter the books of ${esc(a.name)}: a title, a series, a year…" autocomplete="off"></label>`;
+        const input = document.getElementById('aq'); input.value = this.filter; input.focus(); input.oninput = () => { this.filter = input.value; this.render(); };
+      }
+      if (!this.authorBooks) body.innerHTML = '<div class="loading">Finding their books…</div>';
+      else {
+        const f = plain(this.filter), shown = this.authorBooks.filter(b => !f || plain(`${b.title} ${b.series || ''}`).includes(f) || (b.year || '').startsWith(f));
+        const groups = new Map(); shown.forEach(b => { const k = b.series || 'Other books'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(b); });
+        body.innerHTML = shown.length ? [...groups].map(([g, list]) => `<div class="group-title">${esc(g)} · ${list.length}</div><div class="grid">${list.map(b => {
+            const on = this.m() === 'wish' && haveOf(b) === 'wish';
+            return `<div class="card" data-id="${b.googleId}"><div class="cover book">${b.cover ? `<img src="${esc(b.cover)}" loading="lazy">` : ''}<div class="tl">${haveTag(b)}</div>
+              ${b.seriesNumber ? `<span class="num"><span class="tag">T${b.seriesNumber}</span></span>` : ''}<button class="cbtn ${on ? 'on' : ''}">${svg(this.m() === 'wish' ? (on ? 'check' : 'plus') : 'next')}</button></div>
+              <div class="t">${esc(b.title)}</div><div class="s">${b.year || ''}</div></div>`; }).join('')}</div>`).join('') : '<div class="empty">No book.</div>';
+        body.querySelectorAll('.card').forEach(c => c.onclick = () => this.choose(this.authorBooks.find(b => b.googleId === c.dataset.id), 'author'));
+      }
+      foot.innerHTML = `<span class="note">Their series first, volume by volume.</span><button class="btn quiet" data-done>${this.m() === 'wish' ? 'Done' : 'Cancel'}</button>`;
+    }
+
+    if (this.view === 'edition') {
+      const b = this.book, f = this.form, many = this.batch ? this.batch.length : 1;
+      title.textContent = this.buying ? 'Which edition did you buy?' : many > 1 ? `${many} volumes of ${this.serie.name}` : 'Which edition do you have?'; top.innerHTML = '';
+      const each = f.price && many ? (parseFloat(f.price) / many).toFixed(2) : null;
+      body.innerHTML = `<div class="movie-head">${b.cover ? `<img src="${esc(b.cover)}">` : ''}<div>
+          <div class="t">${esc(many > 1 ? this.serie.name : b.title)}</div>
+          <div class="s">${many > 1 ? this.batch.map(v => 'T' + v.seriesNumber).join(', ') : [(b.authors || []).join(', '), b.year, b.publisher, b.isbn13].filter(Boolean).map(esc).join(' · ')}</div>
+          ${b.series && many === 1 ? `<div class="already">${esc(b.series)}${b.seriesNumber ? ` · volume ${b.seriesNumber}` : ''}</div>` : ''}</div></div>
+        <div class="form">
+          <div class="row"><label>Format</label><div class="segm big" id="fmt">${FORMATS.map(([v, l]) => `<button data-f="${v}" class="${v === f.format ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+          <div class="row"><label>Kind</label><div class="segm big" id="knd">${KINDS.slice(1).map(([v, l]) => `<button data-k="${v}" class="${v === f.kind ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+          <div class="row"><label>Language</label><div class="segm big" id="lng">${LANGS.slice(0, 3).map(([v, l]) => `<button data-l="${v}" class="${v === f.language ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+          <div class="row"><label>${many > 1 ? 'Price of them all CHF' : 'Price CHF'}</label><span class="field sm"><input id="price" inputmode="decimal" value="${esc(f.price)}" placeholder="—"></span>
+            ${many > 1 ? `<span class="help" id="each">${each ? each + ' CHF a volume' : 'Shared out among the volumes'}</span>` : ''}</div>
+          <div class="row"><label>${this.buying ? 'Bought' : 'Acquired'}</label><span class="field sm"><input id="date" type="date" value="${f.date}"></span></div>
+          <div class="row wide"><label>Belongs to <span class="help">— if not you</span></label><span class="field sm"><input id="owner" value="${esc(f.owner)}" placeholder="Violaine, the children…"></span></div>
+        </div>`;
+      body.querySelectorAll('#fmt button').forEach(x => x.onclick = () => { f.format = x.dataset.f; this.render(); });
+      body.querySelectorAll('#lng button').forEach(x => x.onclick = () => { f.language = x.dataset.l; this.render(); });
+      body.querySelectorAll('#knd button').forEach(x => x.onclick = () => { f.kind = x.dataset.k; this.render(); });
+      ['price', 'date', 'owner'].forEach(id => document.getElementById(id).oninput = e => { f[id] = e.target.value; if (id === 'price' && many > 1) { const v = parseFloat(f.price); document.getElementById('each').textContent = v ? `${(v / many).toFixed(2)} CHF a volume` : 'Shared out among the volumes'; } });
+      foot.innerHTML = `<span class="note">${haveOf(b) === 'owned' && !this.buying && many === 1 ? 'You already have this book: it is added as a second copy.' : ''}</span>
+        <button class="btn quiet" data-cancel>Cancel</button><button class="btn primary" id="addEd">${this.buying ? 'I bought it' : many > 1 ? `Add the ${many} volumes` : 'Add this book'}</button>`;
+      foot.querySelector('[data-cancel]').onclick = () => this.back();
+      document.getElementById('addEd').onclick = () => {
+        const rows = (this.batch || [b]).map(x => ({ ...asRow(x), titleStatus: 'owned', createdAt: new Date().toISOString() }));
+        if (this.buying) { const i = wished.indexOf(this.buying); if (i >= 0) wished.splice(i, 1); }
+        owned.unshift(...rows); fresh = rows[0].isbn13 || rows[0].title; const bought = !!this.buying; this.buying = null; close(); renderList();
+        toast(`<span class="ok">✓</span> ${rows.length > 1 ? `${rows.length} volumes` : esc(rows[0].title)} ${bought ? 'bought: now in the library' : 'in the library'}`);
+      };
+    }
+    foot.querySelectorAll('[data-done]').forEach(x => x.onclick = close);
+  },
+
+  renderResults() {
+    const body = document.getElementById('fBody'); if (!body || this.view !== 'search') return;
+    const c = document.getElementById('fcount'); if (c) c.textContent = this.loading ? '…' : this.books.length ? `${this.books.length} found` : '';
+    if (this.q.trim().length < 2) { body.innerHTML = '<div class="empty">Books appear as you type: a title, an author, a series.</div>'; return; }
+    if (this.error) { body.innerHTML = `<div class="empty">${esc(this.error)}</div>`; return; }
+    const series = this.series.length ? `<div class="label">Series</div><div class="people">${this.series.map((s, i) =>
+      `<span class="person" data-s="${i}"><span class="faces">${s.covers.map(x => `<img src="${esc(x)}">`).join('')}</span><b>${esc(s.name)}</b><small>${s.volumes}+ volumes · ${esc(s.authors[0] || '')}</small>${svg('next')}</span>`).join('')}</div>` : '';
+    const authors = this.authors.length ? `<div class="label">Authors</div><div class="people">${this.authors.map((a, i) =>
+      `<span class="person" data-a="${i}"><span class="faces">${a.covers.map(x => `<img src="${esc(x)}">`).join('')}</span><b>${esc(a.name)}</b><small>all their books</small>${svg('next')}</span>`).join('')}</div>` : '';
+    const shown = this.books.filter(ofKind);
+    const hidden = this.books.length - shown.length;
+    const list = shown.length ? `<div class="label">Books${hidden ? ` <span style="text-transform:none;letter-spacing:0;font-weight:400">· ${hidden} of another kind hidden</span>` : ''}</div>` + shown.map((b, i) => {
+      const h = haveOf(b), on = this.m() === 'wish' && h === 'wish';
+      return `<div class="res ${i === this.active ? 'active' : ''}" data-i="${i}">${b.cover ? `<img src="${esc(b.cover)}" loading="lazy">` : '<img>'}
+        <div class="txt"><div class="t">${esc(b.title)}</div><div class="s">${[(b.authors || []).join(', '), b.year, b.publisher, kindLabel(b.bookType)].filter(Boolean).map(esc).join(' · ')}</div></div>
+        <span class="tags">${haveTag(b)}</span><span class="key">↵</span>
+        ${this.m() === 'wish' ? (h === 'owned' ? '' : `<button class="ib ${on ? 'on' : ''}" title="${on ? 'Take it off the wish list' : 'Wish it'}">${svg(on ? 'check' : 'plus')}</button>`) : `<span class="ib go">${svg('next')}</span>`}</div>`; }).join('')
+      : this.loading ? '<div class="loading">Searching…</div>' : `<div class="empty">No ${kind === 'all' ? 'book' : kindLabel(kind)} found${hidden ? `: ${hidden} of another kind, shown with All` : ''}.</div>`;
+    body.innerHTML = series + authors + list;
+    body.querySelectorAll('.person[data-s]').forEach(el => el.onclick = () => this.openSeries(this.series[+el.dataset.s]));
+    body.querySelectorAll('.person[data-a]').forEach(el => el.onclick = () => this.openAuthor(this.authors[+el.dataset.a]));
+    body.querySelectorAll('.res').forEach(el => { el.onmouseenter = () => { this.active = +el.dataset.i; body.querySelectorAll('.res').forEach(x => x.classList.toggle('active', x === el)); };
+      el.onclick = () => this.choose(shown[+el.dataset.i], 'search'); });
+  },
+};
+function close() { document.getElementById('scrim').classList.remove('open'); }
+document.getElementById('scrim').onmousedown = e => { if (e.target.id === 'scrim') close(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('scrim').classList.contains('open')) { if (F.view !== 'search') F.back(); else close(); } });
+document.getElementById('openBtn').onclick = () => F.open();
+
+const HOW = {
+  wish: '<strong>À la wish list.</strong> Tape un titre, un auteur ou une série, dans la langue choisie à côté du champ : les livres arrivent pendant la frappe, ce que tu as marqué Owned ou Wished. Un clic souhaite le livre. Une série a sa pastille : ses tomes numérotés, ceux que tu as, ceux qui manquent (« not found » quand Google n\'en connaît pas), les autres cochés d\'office : « Wish 2 volumes » les souhaite en un clic. Un auteur aussi : ses livres, série par série.',
+  owned: '<strong>À la bibliothèque.</strong> Le même chercheur, puis l\'édition : format (papier, ebook, audio), langue, prix et date (nouveaux pour les livres), et « Belongs to » si le livre est à quelqu\'un d\'autre. D\'une série, coche les tomes que tu viens d\'avoir : « I have these 3 », un prix pour tous, partagé. Photo, ISBN et saisie manuelle restent comme avant.',
+};
+function setMode(m) {
+  mode = m; close();
+  document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  document.getElementById('how').innerHTML = HOW[m] + ' <em>Données réelles : Google Books par le serveur local (ta clé), tes listes de prod en lecture ; rien n\'est enregistré.</em>';
+  document.getElementById('pageTitle').firstChild.textContent = m === 'wish' ? 'My Wish List ' : 'BookDex ';
+  renderList(); F.open();
+}
+document.getElementById('modes').onclick = e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.m); };
+loadLists().catch(() => {}); setMode('wish');
+</script>
+</body>
+</html>

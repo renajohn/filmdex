@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import BookFinder, { BookFinderHead } from './BookFinder';
 import { Form, Table, Badge } from 'react-bootstrap';
 import Dialog from './shared/Dialog';
 import { BsX, BsSearch, BsPlus, BsChevronDown, BsChevronRight, BsBook, BsCamera, BsUpload } from 'react-icons/bs';
@@ -106,6 +107,9 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   const [scanError, setScanError] = useState<string | null>(null);
   const [coverScanAvailable, setCoverScanAvailable] = useState<boolean | null>(null); // null = unknown, true/false
   const [showCoverScanStep, setShowCoverScanStep] = useState(true);
+  // The finder is the way in; the cover scan, the ISBN search and the form as before, from its buttons.
+  const [finder, setFinder] = useState(true);
+  const [finderHead, setFinderHead] = useState<BookFinderHead>({ title: 'Add a book' });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropzoneRef = useRef<HTMLDivElement>(null);
 
@@ -235,6 +239,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
       setScanResult(null);
       setScanError(null);
       setSearchTab('isbn');
+      setFinder(true);
       // Reset cover scan step visibility based on availability
       setShowCoverScanStep(coverScanAvailable !== false);
     }
@@ -1261,8 +1266,25 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   }
 
 
+  if (finder) {
+    return (
+      <Dialog show={show} onClose={() => handleClose(true)} size="lg" zIndex={10100} className="add-book-dialog" title={finderHead.title} onBack={finderHead.onBack}>
+        <BookFinder
+          mode={defaultTitleStatus === 'wish' ? 'wish' : 'owned'}
+          onHead={setFinderHead}
+          onChanged={book => onBookAdded?.(book)}
+          onClose={() => handleClose(true)}
+          onPhoto={() => { setFinder(false); setShowCoverScanStep(true); }}
+          onIsbn={() => { setFinder(false); setShowCoverScanStep(false); setSearchTab('isbn'); }}
+          onManual={() => { setFinder(false); handleManualEntry(); }}
+        />
+      </Dialog>
+    );
+  }
+
   return (
-    <Dialog show={show} onClose={handleClose} size="lg" zIndex={10100} className="add-book-dialog" icon={<BsPlus />} title="Add New Book">
+    <Dialog show={show} onClose={handleClose} size="lg" zIndex={10100} className="add-book-dialog" icon={<BsPlus />} title="Add New Book"
+      onBack={() => setFinder(true)}>
 
       <Dialog.Body className="add-book-dialog-body">
         {/* Cover Scan Step */}

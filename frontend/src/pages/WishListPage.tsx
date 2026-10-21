@@ -15,6 +15,7 @@ import BookDetailCard from '../components/BookDetailCard';
 import AddMusicDialog from '../components/AddMusicDialog';
 import BoughtCdDialog from '../components/BoughtCdDialog';
 import MovieFinder, { MovieBuying, MovieFinderHead } from '../components/MovieFinder';
+import BookFinder, { BookBuying, BookFinderHead } from '../components/BookFinder';
 import AddBookDialog from '../components/AddBookDialog';
 import MusicForm from '../components/MusicForm';
 import CircularProgressBar from '../components/CircularProgressBar';
@@ -56,21 +57,6 @@ interface DeleteModalState {
   itemType: string | null;
 }
 
-interface MarkOwnedModalState {
-  show: boolean;
-  item: any;
-  itemType: string | null;
-}
-
-interface MarkOwnedFormState {
-  title: string;
-  format: string;
-  price: string;
-  condition: string;
-  purchasedAt: string;
-  notes: string;
-}
-
 const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCriteria, onAddMovie, onAddAlbum, onAddBook, onMovieMovedToCollection, onAlbumMovedToCollection, onBookMovedToCollection, onShowAlert, onMovieAdded, onAlbumAdded, onBookAdded, onSearch }, ref) => {
   const navigate = useNavigate();
   const [allMovies, setAllMovies] = useState<any[]>([]);
@@ -83,6 +69,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
   // A wished movie bought, or its wished box set: which edition, then it is of the collection.
   const [buyingMovies, setBuyingMovies] = useState<MovieBuying | null>(null);
   const [buyingHead, setBuyingHead] = useState<MovieFinderHead>({ title: 'Which edition did you buy?' });
+  const [buyingBooks, setBuyingBooks] = useState<BookBuying | null>(null);
+  const [buyingBookHead, setBuyingBookHead] = useState<BookFinderHead>({ title: 'Which edition did you buy?' });
   const [books, setBooks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -92,7 +80,6 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
   const [selectedBookDetails, setSelectedBookDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState<DeleteModalState>({ show: false, itemId: null, itemType: null });
-  const [showMarkOwnedModal, setShowMarkOwnedModal] = useState<MarkOwnedModalState>({ show: false, item: null, itemType: null });
   const [showAddMusicDialog, setShowAddMusicDialog] = useState(false);
   const [showMusicForm, setShowMusicForm] = useState(false);
   // A form pre-filled from a photographed sleeve; null means a blank form.
@@ -105,14 +92,6 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
   const [showAddBookDialog, setShowAddBookDialog] = useState(false);
   const [addingBook, setAddingBook] = useState(false);
   const [addBookError, setAddBookError] = useState('');
-  const [markOwnedForm, setMarkOwnedForm] = useState<MarkOwnedFormState>({
-    title: '',
-    format: 'Blu-ray 4K',
-    price: '',
-    condition: '',
-    purchasedAt: '',
-    notes: ''
-  });
 
   useEffect(() => {
     loadWishListItems();
@@ -663,117 +642,10 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
     setBuyingMovies({ movies: box.map(asBuying), boxName: movie.box_set_name || null });
   };
 
-  const handleMarkOwnedClick = (item: any, itemType: string, e: React.MouseEvent | { stopPropagation: () => void }) => {
-    e.stopPropagation();
-    let defaultFormat = 'CD';
-    if (itemType === 'movie') {
-      defaultFormat = item.format || 'Blu-ray 4K';
-    } else if (itemType === 'book') {
-      defaultFormat = item.format || 'Hardcover';
-    }
-    setMarkOwnedForm({
-      title: item.title,
-      format: defaultFormat,
-      price: '',
-      condition: '',
-      purchasedAt: '',
-      notes: ''
-    });
-    setShowMarkOwnedModal({ show: true, item, itemType });
-  };
-
   const handleDeleteConfirm = async () => {
     if (showDeleteModal.itemId && showDeleteModal.itemType) {
       await handleDeleteItem(showDeleteModal.itemId, showDeleteModal.itemType);
       setShowDeleteModal({ show: false, itemId: null, itemType: null });
-    }
-  };
-
-  const handleMarkOwnedConfirm = async () => {
-    if (showMarkOwnedModal.item && showMarkOwnedModal.itemType) {
-      try {
-        const itemType = showMarkOwnedModal.itemType;
-        const item = showMarkOwnedModal.item;
-
-        if (itemType === 'movie') {
-          const movieData = {
-            title: markOwnedForm.title,
-            format: markOwnedForm.format || 'Blu-ray 4K',
-            price: markOwnedForm.price ? parseFloat(markOwnedForm.price) : null,
-            acquired_date: new Date().toISOString().split('T')[0],
-            title_status: 'owned'
-          };
-
-          await apiService.updateMovie(item.id, movieData);
-
-          // Remove from wish list
-          setAllMovies(allMovies.filter(m => m.id !== item.id));
-          setMovies(movies.filter(m => m.id !== item.id));
-
-          // Notify parent component to refresh collection
-          if (onMovieMovedToCollection) {
-            onMovieMovedToCollection();
-          }
-        } else if (itemType === 'album') {
-          const albumData = {
-            ...item,
-            titleStatus: 'owned',
-            ownership: {
-              ...item.ownership,
-              condition: markOwnedForm.condition || item.ownership?.condition,
-              purchasedAt: markOwnedForm.purchasedAt || item.ownership?.purchasedAt,
-              priceChf: parseFloat(markOwnedForm.price) || item.ownership?.priceChf,
-              notes: markOwnedForm.notes || item.ownership?.notes
-            }
-          };
-
-          await musicService.updateAlbum(item.id, albumData);
-
-          // Remove from wish list
-          setAllAlbums(allAlbums.filter(a => a.id !== item.id));
-          setAlbums(albums.filter(a => a.id !== item.id));
-
-          // Notify parent component to refresh collection
-          if (onAlbumMovedToCollection) {
-            onAlbumMovedToCollection(item);
-          }
-        } else if (itemType === 'book') {
-          const bookData = {
-            ...item,
-            titleStatus: 'owned',
-            format: markOwnedForm.format || item.format || 'Hardcover',
-            price: markOwnedForm.price ? parseFloat(markOwnedForm.price) : item.price
-          };
-
-          await bookService.updateBook(item.id, bookData);
-
-          // Remove from wish list
-          setAllBooks(allBooks.filter(b => b.id !== item.id));
-          setBooks(books.filter(b => b.id !== item.id));
-
-          // Notify parent component to refresh collection
-          if (onBookMovedToCollection) {
-            onBookMovedToCollection(item);
-          }
-        }
-
-        // Show success message
-        setError(''); // Clear any previous errors
-        const itemTypeName = itemType === 'movie' ? 'Movie' : itemType === 'album' ? 'Album' : 'Book';
-        console.log(`${itemTypeName} "${markOwnedForm.title}" successfully moved to collection!`);
-
-        setShowMarkOwnedModal({ show: false, item: null, itemType: null });
-        setMarkOwnedForm({
-          title: '',
-          format: 'Blu-ray 4K',
-          price: '',
-          condition: '',
-          purchasedAt: '',
-          notes: ''
-        });
-      } catch (err) {
-        setError(`Failed to mark ${showMarkOwnedModal.itemType} as owned: ` + (err as Error).message);
-      }
     }
   };
 
@@ -1344,12 +1216,16 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                         <td className="wl-actions">
                           <div className="actions-cell">
                             {spokenForButton(book, 'book')}
-                            <IconButton label="Mark as owned" size="sm" className="action-button mark-owned"
+                            <IconButton label="I bought it" size="sm" className="action-button mark-owned"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleMarkOwnedClick(book, 'book', e);
+                                setBuyingBooks({ books: [{
+                                  id: book.id, title: book.title, cover: book.cover || null, authors: book.authors || [],
+                                  year: book.publishedYear ? String(book.publishedYear) : null, series: book.series || null,
+                                  seriesNumber: book.seriesNumber || null, bookType: book.bookType || null, language: book.language || null,
+                                  format: book.format || null, owner: book.owner || null,
+                                }] });
                               }}
-                              title="Mark as owned"
                             ><BsCurrencyDollar /></IconButton>
                             <IconButton label="Delete book" tone="danger" size="sm" className="action-button delete"
                               onClick={(e) => {
@@ -1452,118 +1328,6 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
         />
       )}
 
-      {/* Mark as Owned Modal */}
-      {showMarkOwnedModal.show && (
-        <Dialog onClose={() => setShowMarkOwnedModal({ show: false, item: null, itemType: null })} icon={<BsPlus />} title="Add to Collection">
-              <Dialog.Body>
-                <div className="form-group mb-3">
-                  <label htmlFor="title">Title</label>
-                  <TextField
-                    type="text"
-                    id="title"
-                    value={markOwnedForm.title}
-                    onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, title: e.target.value }))}
-                  />
-                </div>
-                <div className="form-group mb-3">
-                  <label htmlFor="format">Format</label>
-                  <Select
-                    id="format"
-                    value={markOwnedForm.format}
-                    onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, format: e.target.value }))}
-                  >
-                    {showMarkOwnedModal.itemType === 'movie' ? (
-                      <>
-                        <option value="Unspecified">Unspecified</option>
-                        <option value="Blu-ray 4K">Blu-ray 4K</option>
-                        <option value="Blu-ray">Blu-ray</option>
-                        <option value="DVD">DVD</option>
-                        <option value="Digital">Digital</option>
-                      </>
-                    ) : showMarkOwnedModal.itemType === 'album' ? (
-                      <>
-                        <option value="CD">CD</option>
-                        <option value="Vinyl">Vinyl</option>
-                        <option value="Digital">Digital</option>
-                        <option value="Cassette">Cassette</option>
-                        <option value="Other">Other</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="Hardcover">Hardcover</option>
-                        <option value="Paperback">Paperback</option>
-                        <option value="Ebook">Ebook</option>
-                        <option value="Audiobook">Audiobook</option>
-                        <option value="Other">Other</option>
-                      </>
-                    )}
-                  </Select>
-                </div>
-                <div className="form-group mb-3">
-                  <label htmlFor="price">Price</label>
-                  <TextField
-                    type="number"
-                    id="price"
-                    step="0.01"
-                    value={markOwnedForm.price}
-                    onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, price: e.target.value }))}
-                    placeholder="Price paid"
-                  />
-                </div>
-                {showMarkOwnedModal.itemType === 'album' && (
-                  <>
-                    <div className="form-group mb-3">
-                      <label htmlFor="condition">Condition</label>
-                      <Select
-                        id="condition"
-                        value={markOwnedForm.condition}
-                        onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, condition: e.target.value }))}
-                      >
-                        <option value="">-</option>
-                        <option value="M">Mint (M)</option>
-                        <option value="NM">Near Mint (NM)</option>
-                        <option value="VG+">Very Good Plus (VG+)</option>
-                        <option value="VG">Very Good (VG)</option>
-                      </Select>
-                    </div>
-                    <div className="form-group mb-3">
-                      <label htmlFor="purchasedAt">Purchased At</label>
-                      <TextField
-                        type="date"
-                        id="purchasedAt"
-                        value={markOwnedForm.purchasedAt}
-                        onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, purchasedAt: e.target.value }))}
-                      />
-                    </div>
-                    <div className="form-group mb-3">
-                      <label htmlFor="notes">Notes</label>
-                      <TextArea
-                        id="notes"
-                        rows={3}
-                        value={markOwnedForm.notes}
-                        onChange={(e) => setMarkOwnedForm(prev => ({ ...prev, notes: e.target.value }))}
-                      />
-                    </div>
-                  </>
-                )}
-              </Dialog.Body>
-              <Dialog.Footer>
-                <span style={{ flex: 1 }} />
-                <Button variant="quiet"
-                  onClick={() => setShowMarkOwnedModal({ show: false, item: null, itemType: null })}
-                >
-                  Cancel
-                </Button>
-                <Button variant="primary"
-                  onClick={handleMarkOwnedConfirm}
-                  disabled={!markOwnedForm.title.trim()}
-                >
-                  Add to Collection
-                </Button>
-              </Dialog.Footer>
-        </Dialog>
-      )}
-
       {/* Add Music Dialog */}
       {showAddMusicDialog && (
         <AddMusicDialog
@@ -1599,6 +1363,23 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
             if (onShowAlert) onShowAlert('Failed to add album: ' + (err?.message || ''), 'danger');
           }}
         />
+      )}
+
+      {buyingBooks && (
+        <Dialog show onClose={() => setBuyingBooks(null)} size="lg" zIndex={10200} title={buyingBookHead.title} onBack={buyingBookHead.onBack}>
+          <BookFinder
+            mode="owned"
+            buying={buyingBooks}
+            onHead={setBuyingBookHead}
+            onClose={() => setBuyingBooks(null)}
+            onChanged={() => {
+              const ids = new Set(buyingBooks.books.map(b => b.id));
+              setAllBooks(prev => prev.filter(b => !ids.has(b.id)));
+              setBooks(prev => prev.filter(b => !ids.has(b.id)));
+              if (onBookMovedToCollection) onBookMovedToCollection(buyingBooks.books[0]);
+            }}
+          />
+        </Dialog>
       )}
 
       {buyingMovies && (
@@ -1643,8 +1424,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
           onAddBooksBatch={undefined}
           onShowAlert={onShowAlert || undefined}
           onBookAdded={() => {
-            // Immediately refresh wishlist when book is added
-            loadWishListItems();
+            // Immediately refresh wishlist when book is added, the finder staying open
+            loadWishListItems({ quiet: true });
             setAddingBook(false);
             setAddBookError('');
             if (onBookAdded) onBookAdded();

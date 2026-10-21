@@ -143,7 +143,7 @@ export function extractSeriesFromTitle(title: string | null | undefined): Extrac
     },
     // T01, T1, T02, etc. (most common for French comics)
     {
-      regex: /\s+T0*(\d+)(?:\s*-|$)/i,
+      regex: /\s+T0*(\d+)(?:\s*[-:,]|$)/i,
       extractSeries: (title: string, match: RegExpMatchArray): ExtractedSeries | null => {
         const seriesName = title.substring(0, match.index!).trim();
         const volumeNum = parseInt(match[1], 10);
@@ -155,7 +155,7 @@ export function extractSeriesFromTitle(title: string | null | undefined): Extrac
     },
     // Vol. 1, Vol 1, Volume 1, etc.
     {
-      regex: /\s+Vol(?:ume)?\.?\s*0*(\d+)(?:\s*-|$)/i,
+      regex: /\s+Vol(?:ume)?\.?\s*0*(\d+)(?:\s*[-:,]|$)/i,
       extractSeries: (title: string, match: RegExpMatchArray): ExtractedSeries | null => {
         const seriesName = title.substring(0, match.index!).trim();
         const volumeNum = parseInt(match[1], 10);
@@ -196,6 +196,8 @@ export function extractSeriesFromTitle(title: string | null | undefined): Extrac
     const match = trimmedTitle.match(pattern.regex);
     if (match) {
       const result = pattern.extractSeries(trimmedTitle, match);
+      // "Le Grimoire d'Elfie - Volume 02": the dash belongs to the volume, not the series.
+      if (result) result.series = result.series.replace(/[\s\-–—,:.]+$/, '');
       if (result && result.series && result.series.length > 0) {
         return result;
       }

@@ -5,6 +5,20 @@
  */
 
 import axios, { AxiosResponse } from 'axios';
+import configManager from '../config';
+
+/**
+ * Google Books, with DexVault's own key when it has one (GOOGLE_BOOKS_API_KEY):
+ * without it, every caller shares Google's daily anonymous quota, spent by
+ * noon on most days.
+ */
+export const googleBooks = axios.create();
+googleBooks.interceptors.request.use(config => {
+  let key: string | undefined;
+  try { key = configManager.getApiKeys().googleBooks; } catch { key = process.env.GOOGLE_BOOKS_API_KEY; }
+  if (key) config.params = { ...(config.params || {}), key };
+  return config;
+});
 import logger from '../logger';
 import bookCoverService from './bookCoverService';
 import type { CoverOption } from './bookCoverService';
@@ -172,7 +186,7 @@ class BookApiService {
         projection: 'full'
       };
 
-      const response: AxiosResponse<GoogleBooksSearchResponse> = await axios.get(this.googleBooksBaseUrl, { params, timeout: this.timeout });
+      const response: AxiosResponse<GoogleBooksSearchResponse> = await googleBooks.get(this.googleBooksBaseUrl, { params, timeout: this.timeout });
       const data = response.data;
 
       if (!data.items || data.items.length === 0) {
@@ -184,7 +198,7 @@ class BookApiService {
       const itemsWithFullDetails = await Promise.allSettled(
         topItems.map(async (item) => {
           try {
-            const volumeResponse: AxiosResponse<GoogleBooksItem> = await axios.get(
+            const volumeResponse: AxiosResponse<GoogleBooksItem> = await googleBooks.get(
               `${this.googleBooksBaseUrl}/${item.id}`,
               {
                 params: { projection: 'full' },
@@ -265,13 +279,13 @@ class BookApiService {
         if (!isbnVariant) continue;
         try {
           const params = { q: `isbn:${isbnVariant}`, maxResults: 1, projection: 'full' };
-          const response: AxiosResponse<GoogleBooksSearchResponse> = await axios.get(this.googleBooksBaseUrl, { params, timeout: 10000 });
+          const response: AxiosResponse<GoogleBooksSearchResponse> = await googleBooks.get(this.googleBooksBaseUrl, { params, timeout: 10000 });
 
           if (!response.data.items || response.data.items.length === 0) continue;
 
           try {
             const volumeId = response.data.items[0].id;
-            const volumeResponse: AxiosResponse<GoogleBooksItem> = await axios.get(
+            const volumeResponse: AxiosResponse<GoogleBooksItem> = await googleBooks.get(
               `${this.googleBooksBaseUrl}/${volumeId}`,
               { params: { projection: 'full' }, timeout: 10000, validateStatus: (status: number) => status < 500 }
             );
@@ -298,8 +312,8 @@ class BookApiService {
    */
   async getGoogleBookVolume(volumeId: string): Promise<FormattedBook> {
     try {
-      const response: AxiosResponse<GoogleBooksItem> = await axios.get(
-        `${this.googleBooksBaseUrl}/${volumeId}`,
+      const response: AxiosResponse<GoogleBooksItem> = await googleBooks.get(
+              `${this.googleBooksBaseUrl}/${volumeId}`,
         { params: { projection: 'full' }, timeout: 10000 }
       );
       return this.formatGoogleBook(response.data);

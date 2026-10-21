@@ -143,7 +143,8 @@ class ConfigManager {
       omdb: process.env.OMDB_API_KEY || dataConfig.omdb_api_key,
       tmdb: process.env.TMDB_API_KEY || dataConfig.tmdb_api_key,
       discogs: process.env.DISCOGS_TOKEN || dataConfig.discogs_token,
-      doesthedogdie: process.env.DOES_DOG_DIE || dataConfig.doesthedogdie_api_key
+      doesthedogdie: process.env.DOES_DOG_DIE || dataConfig.doesthedogdie_api_key,
+      googleBooks: process.env.GOOGLE_BOOKS_API_KEY || dataConfig.google_books_api_key
     };
   }
 

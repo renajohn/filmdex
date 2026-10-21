@@ -419,3 +419,36 @@
     grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   }
 }
+
+/* A book: its number on its cover, the next to get, a volume not found. */
+.finder__card-number {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+}
+
+.finder__card--next .finder__cover {
+  box-shadow: 0 0 0 2px var(--dv-gold-tint-edge);
+}
+
+.finder__card--missing .finder__cover {
+  display: grid;
+  place-items: center;
+  border: 1.5px dashed var(--dv-edge-hover);
+  background: none;
+  color: var(--dv-text-faint);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.finder__card--missing b {
+  display: block;
+  font-size: 1.4rem;
+  color: var(--dv-text-muted);
+}
+
+.finder__label-note {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
