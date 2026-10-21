@@ -32,7 +32,6 @@ import { ConfirmHost } from './components/shared/ConfirmDialog';
 import { IconButton } from './components/shared/Button';
 import { toast, toneOf, ToastHost } from './components/shared/Toast';
 import { TooltipHost } from './components/shared/Tooltip';
-import { followKeyboard } from './utils/keyboardViewport';
 
 interface AutocompleteOption {
   keyword: string;
@@ -990,9 +989,6 @@ function AppContent() {
       }
     }, 100);
   };
-
-  // The dialogs keep their foot above an iPhone's keyboard.
-  useEffect(() => followKeyboard(), []);
 
   // Close the autocomplete on a click outside
   useEffect(() => {

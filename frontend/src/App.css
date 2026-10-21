@@ -353,16 +353,6 @@ body {
   height: calc(100dvh - var(--player-h));
 }
 
-/* On a touch screen, a dialog takes the part of the screen the keyboard leaves: its foot stays above
-   the keys (keyboardViewport.ts sets --vv-h and --vv-top), where the keyboard used to cover it. */
-@media (hover: none) and (pointer: coarse) {
-  .modal,
-  .modal.side-panel-modal {
-    top: var(--vv-top, 0px);
-    height: calc(var(--vv-h, 100dvh) - var(--player-h));
-  }
-}
-
 .modal.fade:not(.side-panel-modal) {
   transition: opacity 0.15s linear, height 0.25s ease-out;
 }
