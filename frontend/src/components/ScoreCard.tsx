@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Form } from 'react-bootstrap';
-import { BsBoxArrowUpRight, BsCamera, BsFileEarmarkPdf, BsFileMusic, BsPaperclip, BsPencil, BsPlayFill, BsSearch, BsThreeDots, BsUpcScan, BsYoutube } from 'react-icons/bs';
+import { BsBoxArrowUpRight, BsCamera, BsFileEarmarkPdf, BsFileMusic, BsPaperclip, BsPencil, BsPlayFill, BsSearch, BsThreeDots, BsUpcScan, BsVolumeUpFill, BsYoutube } from 'react-icons/bs';
 import scorePiecesService, { imslpPieceUrl, PieceRecording, PieceSuggestion, ScoreLookup, ScorePiece, youtubeUrl } from '../services/scorePiecesService';
 import bookCommentService from '../services/bookCommentService';
 import { decodeBarcode } from '../utils/decodeBarcode';
@@ -138,6 +138,8 @@ const ScoreView: React.FC<ScoreCardProps & { score: Score }> = ({ score, onClose
   // Its page on IMSLP, where its free editions are: the one its pieces or its title find.
   const [imslpPage, setImslpPage] = useState<string | null>(null);
   const playing = usePlaying();
+  // The row last played from: several pieces one track holds (waltzes 1, 2 and 5 in one) light that one alone.
+  const [playedFrom, setPlayedFrom] = useState<{ row: string; track: string } | null>(null);
 
   const loadBook = () => bookService.getBookById(score.id).then(found => setBook(found as Record<string, any>)).catch(() => undefined);
   const loadNotes = () => bookCommentService.getCommentsByBookId(score.id).then(list => setNotes(Array.isArray(list) ? list as typeof notes : [])).catch(() => undefined);
@@ -284,6 +286,7 @@ const ScoreView: React.FC<ScoreCardProps & { score: Score }> = ({ score, onClose
             <>
               {pieces.map(piece => (
                 <PieceBlock key={piece.id} piece={piece} composer={score.composer} playing={playing}
+                  heard={playedFrom?.track === playing ? playedFrom.row : null} onHeard={(row, track) => setPlayedFrom({ row, track })}
                   onChoose={albumId => choose(piece, albumId)} onRemove={() => removePiece(piece)} />
               ))}
               {finding && <FindPieces score={score} first={!pieces.length} onAdded={changed} onCancel={pieces.length ? () => setFinding(false) : undefined} />}
@@ -491,12 +494,15 @@ interface PieceBlockProps {
   piece: ScorePiece;
   composer: string | null;
   playing: string | null;
+  /** The row last played from, while its track plays. */
+  heard: string | null;
+  onHeard: (row: string, track: string) => void;
   onChoose: (albumId: number) => void;
   onRemove: () => void;
 }
 
 /** A piece: its parts, each with the chosen recording, the others behind +N. */
-const PieceBlock: React.FC<PieceBlockProps> = ({ piece, composer, playing, onChoose, onRemove }) => {
+const PieceBlock: React.FC<PieceBlockProps> = ({ piece, composer, playing, heard, onHeard, onChoose, onRemove }) => {
   const chosen = piece.albums.find(album => album.albumId === piece.preferredAlbumId) || piece.albums[0];
   const rows = piece.single
     ? [{ workId: piece.workId || String(piece.id), title: piece.title, name: '', sub: null as string | null, imslp: piece.imslp, recordings: piece.albums.length ? recordingsOfSingle(piece) : [] }]
@@ -507,6 +513,12 @@ const PieceBlock: React.FC<PieceBlockProps> = ({ piece, composer, playing, onCho
   // Its parts in the chosen recording; an album playing it whole in one track plays that track.
   const partsOfChosen = chosen ? rows.flatMap(row => row.recordings.filter(r => r.albumId === chosen.albumId).slice(0, 1)) : [];
   const ofChosen = partsOfChosen.length || !chosen ? partsOfChosen : piece.whole.filter(r => r.albumId === chosen.albumId).slice(0, 1);
+  // The row playing: the one played from, else the first whose recording the player is on.
+  const mains = rows.map(row => mainOf(row.recordings, chosen?.albumId ?? null));
+  const rowId = (index: number) => `${piece.id}:${index}`;
+  const playingAt = !playing ? -1
+    : heard?.startsWith(`${piece.id}:`) ? Number(heard.split(':')[1])
+    : heard ? -1 : mains.findIndex(main => main && keyOf(main) === playing);
 
   return (
     <div className="score-piece">
@@ -549,11 +561,12 @@ const PieceBlock: React.FC<PieceBlockProps> = ({ piece, composer, playing, onCho
       </div>
 
       {(allShown ? rows : rows.slice(0, 5)).map((row, index) => (
-        <div key={row.workId + index} className={`score-piece__row${row.recordings.length ? '' : ' score-piece__row--none'}`}>
-          <span className="score-piece__n">{piece.single ? '' : index + 1}</span>
+        <div key={row.workId + index} className={`score-piece__row${row.recordings.length ? '' : ' score-piece__row--none'}${index === playingAt ? ' score-piece__row--playing' : ''}`}>
+          <span className="score-piece__n">{index === playingAt ? <BsVolumeUpFill aria-label="Playing" /> : piece.single ? '' : index + 1}</span>
           <span className="score-piece__name">{row.name}{row.sub && <small>{row.sub}</small>}</span>
           <span className="score-piece__recs">
-            <Recordings recordings={row.recordings} piece={piece} chosenAlbumId={chosen?.albumId ?? null} playing={playing}
+            <Recordings recordings={row.recordings} piece={piece} chosenAlbumId={chosen?.albumId ?? null}
+              onPlay={recording => onHeard(rowId(index), keyOf(recording))}
               youtube={youtubeUrl(composer, piece.single ? piece.title : `${piece.title} ${row.name}`)} single={piece.single} />
             {row.imslp && (
               <IconButton size="sm" label="Its score on IMSLP" onClick={() => window.open(imslpPieceUrl(row.imslp), '_blank', 'noopener')}>
@@ -574,15 +587,19 @@ const PieceBlock: React.FC<PieceBlockProps> = ({ piece, composer, playing, onCho
 const recordingsOfSingle = (piece: ScorePiece): PieceRecording[] =>
   piece.albums.flatMap(album => piece.whole.filter(r => r.albumId === album.albumId).slice(0, 1));
 
-const RecordingButton: React.FC<{ recording: PieceRecording; label: string; playing: string | null; recordings?: PieceRecording[]; start?: number }> = ({ recording, label, playing, recordings, start = 0 }) => (
-  <Button size="sm" className="score-piece__play" active={playing === keyOf(recording)} icon={<BsPlayFill />}
-    onClick={() => play(recordings || [recording], start)} title={recording.title}>
+const RecordingButton: React.FC<{ recording: PieceRecording; label: string; onPlay: (recording: PieceRecording) => void }> = ({ recording, label, onPlay }) => (
+  <Button size="sm" className="score-piece__play" icon={<BsPlayFill />}
+    onClick={() => { onPlay(recording); play([recording]); }} title={recording.title}>
     {label} <span className="score-piece__time">{fmt(recording.durationSec)}</span>
   </Button>
 );
 
-const Recordings: React.FC<{ recordings: PieceRecording[]; piece: ScorePiece; chosenAlbumId: number | null; playing: string | null; youtube: string; single: boolean }> = ({
-  recordings, piece, chosenAlbumId, playing, youtube, single,
+/** The recording a row plays: the chosen album's, else its first. */
+const mainOf = (recordings: PieceRecording[], chosenAlbumId: number | null) =>
+  recordings.find(r => r.albumId === chosenAlbumId) || recordings[0] || null;
+
+const Recordings: React.FC<{ recordings: PieceRecording[]; piece: ScorePiece; chosenAlbumId: number | null; onPlay: (recording: PieceRecording) => void; youtube: string; single: boolean }> = ({
+  recordings, piece, chosenAlbumId, onPlay, youtube, single,
 }) => {
   if (!recordings.length) {
     return (
@@ -592,12 +609,12 @@ const Recordings: React.FC<{ recordings: PieceRecording[]; piece: ScorePiece; ch
       </>
     );
   }
-  const main = recordings.find(r => r.albumId === chosenAlbumId) || recordings[0];
+  const main = mainOf(recordings, chosenAlbumId)!;
   const rest = recordings.filter(r => r !== main);
   const by = (r: PieceRecording) => surnameOf(piece.albums.find(a => a.albumId === r.albumId)?.performers || []);
   return (
     <>
-      <RecordingButton recording={main} label={by(main)} playing={playing} />
+      <RecordingButton recording={main} label={by(main)} onPlay={onPlay} />
       {rest.length > 0 && (
         <Menu align="end" label="Its other recordings" trigger={props => (
           <Button {...props} size="sm" variant="quiet" title="Its other recordings">+{rest.length}</Button>
@@ -605,7 +622,7 @@ const Recordings: React.FC<{ recordings: PieceRecording[]; piece: ScorePiece; ch
           {rest.map(r => {
             const album = piece.albums.find(a => a.albumId === r.albumId);
             return (
-              <Menu.Item key={keyOf(r)} icon={<BsPlayFill />} hint={`${album?.year ?? ''} · ${fmt(r.durationSec)}`} onSelect={() => play([r])}>
+              <Menu.Item key={keyOf(r)} icon={<BsPlayFill />} hint={`${album?.year ?? ''} · ${fmt(r.durationSec)}`} onSelect={() => { onPlay(r); play([r]); }}>
                 {album?.performers.join(', ') || album?.title}
               </Menu.Item>
             );

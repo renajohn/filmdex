@@ -76,33 +76,14 @@ describe('player', () => {
     expect(calls).toEqual([['/api/music/navidrome/scrobble/s1', false], ['/api/music/navidrome/scrobble/s1', true]]);
   });
 
-  it('waits for an album’s card to close before bringing the bar out, and keeps it out after', async () => {
+  it('brings the bar out at once, an album’s card open or not', () => {
     const card = document.createElement('div');
     card.className = 'modal show';
     document.body.append(card);
     document.body.classList.add('modal-open');
     player.playAlbum(album, tracks, 1);
-    expect(player.getState().barShown).toBe(false);
-
+    expect(player.getState().barShown).toBe(true);
     card.remove();
-    document.body.classList.remove('modal-open');
-    await Promise.resolve();
-    expect(player.getState().barShown).toBe(true);
-
-    document.body.classList.add('modal-open');
-    await Promise.resolve();
-    expect(player.getState().barShown).toBe(true);
-    document.body.classList.remove('modal-open');
-  });
-
-  it('brings the bar out under a dialog that ends above it, a mixtape’s card', () => {
-    const mixtape = document.createElement('div');
-    mixtape.className = 'modal show above-player';
-    document.body.append(mixtape);
-    document.body.classList.add('modal-open');
-    player.playAlbum(album, tracks, 0);
-    expect(player.getState().barShown).toBe(true);
-    mixtape.remove();
     document.body.classList.remove('modal-open');
   });
 
@@ -124,6 +105,7 @@ describe('player', () => {
     player.previous();
     expect(player.getState().index).toBe(0);
   });
+
   it('goes on with its list once the album is over, or once ⏭ skips its last track', async () => {
     const onAlbumEnd = vi.fn(() => Promise.resolve(true));
     player.playAlbum(album, tracks, 1, 0, { queue: 'listenNext', onAlbumEnd });

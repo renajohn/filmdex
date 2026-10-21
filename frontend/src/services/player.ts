@@ -176,7 +176,6 @@ let active = 0;
 let scrobbled = false;
 let announced = false;
 let lastSaved = 0;
-let waitingForBar: MutationObserver | null = null;
 let options: PlayOptions = {};
 
 /** An album of Listen Next that left it once played, as the server answered a scrobble. */
@@ -288,27 +287,11 @@ const start = (index: number, at = 0) => {
 };
 
 /**
- * The bar comes out as soon as something plays, unless an album's card is
- * open: its foot would jump under the pointer, so the bar waits for the card
- * to close. A dialog that ends above the bar (a mixtape's card, `above-player`)
- * does not hold it back. Once out, it stays, cards or not.
+ * The bar comes out as soon as something plays, cards open or not: every
+ * dialog ends above it (--player-h), its foot in sight.
  */
 const revealBar = () => {
-  if (state.barShown) return;
-  const blocked = () => document.body.classList.contains('modal-open')
-    && Array.from(document.querySelectorAll('.modal.show')).some(modal => !modal.classList.contains('above-player'));
-  if (!blocked()) {
-    set({ barShown: true });
-    return;
-  }
-  if (waitingForBar) return;
-  waitingForBar = new MutationObserver(() => {
-    if (blocked() || !state.album) return;
-    waitingForBar?.disconnect();
-    waitingForBar = null;
-    set({ barShown: true });
-  });
-  waitingForBar.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  if (!state.barShown) set({ barShown: true });
 };
 
 const setUp = () => {
@@ -430,8 +413,6 @@ export const player = {
     if (!state.album) return;
     saveResume(false);
     audios.forEach(audio => { audio.pause(); audio.removeAttribute('src'); audio.load(); });
-    waitingForBar?.disconnect();
-    waitingForBar = null;
     options = {};
     set({ album: null, queue: null, tracks: [], index: 0, playing: false, position: 0, duration: 0, barShown: false, resume: readResume() });
     if ('mediaSession' in navigator) navigator.mediaSession.metadata = null;
@@ -521,8 +502,6 @@ export function usePlayer<T>(select: (state: PlayerState) => T): T {
 export const resetPlayer = () => {
   audios = [];
   active = 0;
-  waitingForBar?.disconnect();
-  waitingForBar = null;
   options = {};
   waitingQueue = null;
   keepAwakeContext?.close().catch(() => undefined);

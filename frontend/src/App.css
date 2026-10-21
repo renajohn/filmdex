@@ -343,20 +343,21 @@ body {
   height: calc(100vh - var(--player-h)) !important;
 }
 
-/* A centred dialog one plays from (a mixtape's card): it ends above the bar too, which comes out under it. */
-.modal.above-player {
+/* A centred dialog ends above the bar too: the bar stays out while something plays. */
+.modal {
   height: calc(100% - var(--player-h));
   transition: height 0.25s ease-out;
 }
 
-.modal-backdrop.above-player-backdrop.show,
-.modal-backdrop.above-player-backdrop {
+/* Three classes: the book card's styles hold .modal-backdrop.show to 100vh, important too. */
+.modal-backdrop.fade.show,
+.modal-backdrop.fade {
   height: calc(100vh - var(--player-h)) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
   body,
-  .modal.above-player,
+  .modal,
   .modal.side-panel-modal,
   .modal.side-panel-modal .modal-dialog {
     transition: none;

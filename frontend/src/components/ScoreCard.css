@@ -90,6 +90,18 @@
   color: var(--dv-text-muted);
 }
 
+/* The piece playing: a gold speaker for its number, its row a shade lighter; its button unchanged. */
+.score-piece__row--playing {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.score-piece__row--playing .score-piece__n {
+  color: var(--dv-gold);
+  font-size: 0.85rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .score-piece__n {
   color: var(--dv-text-faint);
   font-size: 0.75rem;

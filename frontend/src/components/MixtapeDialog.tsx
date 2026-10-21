@@ -192,7 +192,7 @@ const MixtapeDialog: React.FC<MixtapeDialogProps> = ({ albumId, onClose, onOpenA
   );
 
   return (
-    <Dialog onClose={onClose} size="lg" className="mixtape-dialog above-player" backdropClassName="above-player-backdrop" icon={<BsCassetteFill />} title={title} aside={more}>
+    <Dialog onClose={onClose} size="lg" className="mixtape-dialog" icon={<BsCassetteFill />} title={title} aside={more}>
       {error ? (
         <Dialog.Body><Notice tone="warning">{error}</Notice></Dialog.Body>
       ) : !mixtape ? (
