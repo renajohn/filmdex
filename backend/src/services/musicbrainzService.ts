@@ -503,6 +503,77 @@ const musicbrainzService = {
   },
 
   /**
+   * The release groups (albums, as works) of that title by that artist, best
+   * first: what a search on a store's catalogue (iTunes, Deezer) is matched to.
+   */
+  searchReleaseGroups: async function(artist: string, title: string, limit = 5): Promise<Array<{
+    id: string; title: string; artist: string; firstReleaseDate: string | null; primaryType: string | null; score: number;
+  }>> {
+    const quote = (value: string) => `"${value.replace(/["\\]/g, ' ')}"`;
+    type Found = { id: string; title: string; score?: number; 'first-release-date'?: string; 'primary-type'?: string; 'artist-credit'?: Array<{ name: string }> };
+    const response: AxiosResponse<{ 'release-groups'?: Found[] }> = await withRetry(
+      'MusicBrainz release group search',
+      () => axios.get(`${this.baseUrl}/release-group`, {
+        params: { query: `releasegroup:${quote(title)} AND artist:${quote(artist)}`, limit, fmt: 'json' },
+        headers: { 'User-Agent': this.userAgent },
+        timeout: 10000
+      })
+    );
+    return (response.data['release-groups'] || []).map(group => ({
+      id: group.id,
+      title: group.title,
+      artist: (group['artist-credit'] || []).map(credit => credit.name).join(', '),
+      firstReleaseDate: group['first-release-date'] || null,
+      primaryType: group['primary-type'] || null,
+      score: group.score ?? 0,
+    }));
+  },
+
+  /**
+   * Every edition of a release group as one tells a CD apart in the hand: its
+   * labels, catalog numbers, barcode, country, date, packaging (Digipak, Jewel
+   * Case), the comment MusicBrainz gives it (2003 remaster, club edition), its
+   * status and its media.
+   */
+  getEditionsOfGroup: async function(releaseGroupId: string): Promise<Array<{
+    id: string; title: string; date: string | null; country: string | null; barcode: string | null;
+    labels: string[]; catalogNumbers: string[]; packaging: string | null; disambiguation: string | null;
+    status: string | null; formats: string[]; discs: number; front: boolean;
+  }>> {
+    type Browsed = {
+      id: string; title: string; date?: string; country?: string; barcode?: string; packaging?: string;
+      disambiguation?: string; status?: string;
+      'cover-art-archive'?: { front?: boolean };
+      'label-info'?: Array<{ 'catalog-number'?: string; label?: { name?: string } }>;
+      media?: Array<{ format?: string }>;
+    };
+    const response: AxiosResponse<{ releases?: Browsed[] }> = await withRetry(
+      'MusicBrainz release group editions',
+      () => axios.get(`${this.baseUrl}/release`, {
+        params: { 'release-group': releaseGroupId, inc: 'labels+media', limit: 100, fmt: 'json' },
+        headers: { 'User-Agent': this.userAgent },
+        timeout: 10000
+      })
+    );
+    const unique = (values: Array<string | undefined>) => [...new Set(values.filter((value): value is string => Boolean(value)))];
+    return (response.data.releases || []).map(release => ({
+      id: release.id,
+      title: release.title,
+      date: release.date || null,
+      country: release.country || null,
+      barcode: release.barcode || null,
+      labels: unique((release['label-info'] || []).map(info => info.label?.name)),
+      catalogNumbers: unique((release['label-info'] || []).map(info => info['catalog-number'])),
+      packaging: release.packaging && release.packaging !== 'None' ? release.packaging : null,
+      disambiguation: release.disambiguation || null,
+      status: release.status || null,
+      formats: unique((release.media || []).map(medium => medium.format)),
+      discs: (release.media || []).length,
+      front: release['cover-art-archive']?.front === true,
+    }));
+  },
+
+  /**
    * The works each track performs, with the works they are part of when
    * MusicBrainz says so: an aria is part of an act, a movement of a suite.
    */

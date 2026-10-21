@@ -42,7 +42,7 @@ describe('WishListPage, spoken for', () => {
     render(<MemoryRouter><WishListPage /></MemoryRouter>);
     const row = await rowOf('Back in Black');
     expect(within(row).getAllByRole('button').map(b => b.getAttribute('aria-label')))
-      .toEqual(['Search on Ricardo', 'Mark as spoken for', 'Mark as owned', 'Delete album']);
+      .toEqual(['Search on Ricardo', 'Mark as spoken for', 'I bought the CD', 'Delete album']);
   });
 
   it('bascule d’un clic, sans ouvrir la fiche', async () => {

@@ -13,6 +13,7 @@ import { albumImages, bookImages, movieImages } from '../utils/detailImages';
 import BookThumbnail from '../components/BookThumbnail';
 import BookDetailCard from '../components/BookDetailCard';
 import AddMusicDialog from '../components/AddMusicDialog';
+import BoughtCdDialog from '../components/BoughtCdDialog';
 import AddBookDialog from '../components/AddBookDialog';
 import MusicForm from '../components/MusicForm';
 import CircularProgressBar from '../components/CircularProgressBar';
@@ -76,6 +77,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
   const [allAlbums, setAllAlbums] = useState<any[]>([]);
   const [albums, setAlbums] = useState<any[]>([]);
   const [allBooks, setAllBooks] = useState<any[]>([]);
+  // A wished album bought: which CD, then how it was bought.
+  const [buyingAlbum, setBuyingAlbum] = useState<any>(null);
   const [books, setBooks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -112,12 +115,14 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
   }, []);
 
   useImperativeHandle(ref, () => ({
-    refreshItems: loadWishListItems
+    refreshItems: () => loadWishListItems()
   }));
 
-  const loadWishListItems = async () => {
+  // quiet: the list refreshed under an open window (the album finder), which a
+  // loading screen would unmount, and its search with it.
+  const loadWishListItems = async ({ quiet = false }: { quiet?: boolean } = {}) => {
     try {
-      setLoading(true);
+      if (!quiet) setLoading(true);
       setError('');
 
       // Load movies, albums, and books in parallel
@@ -1224,12 +1229,11 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
                               }}
                             ><BsSearch /></IconButton>
                             {spokenForButton(album, 'album')}
-                            <IconButton label="Mark as owned" size="sm" className="action-button mark-owned"
+                            <IconButton label="I bought the CD" size="sm" className="action-button mark-owned"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleMarkOwnedClick(album, 'album', e);
+                                setBuyingAlbum(album);
                               }}
-                              title="Mark as owned"
                             ><BsCurrencyDollar /></IconButton>
                             <IconButton label="Delete album" tone="danger" size="sm" className="action-button delete"
                               onClick={(e) => {
@@ -1567,8 +1571,8 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
           }}
           defaultTitleStatus="wish"
           onAlbumAdded={() => {
-            // Immediately refresh wishlist when album is added
-            loadWishListItems();
+            // Immediately refresh wishlist when album is added, the finder staying open
+            loadWishListItems({ quiet: true });
             setAddingAlbum(false);
             setAddError('');
             if (onAlbumAdded) onAlbumAdded();
@@ -1582,6 +1586,20 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
             setAddingAlbum(false);
             setAddError(err?.message || 'Failed to add album');
             if (onShowAlert) onShowAlert('Failed to add album: ' + (err?.message || ''), 'danger');
+          }}
+        />
+      )}
+
+      {buyingAlbum && (
+        <BoughtCdDialog
+          album={{ ...buyingAlbum, cover: musicService.getImageUrl(buyingAlbum.cover) }}
+          onClose={() => setBuyingAlbum(null)}
+          onBought={(album: any) => {
+            setBuyingAlbum(null);
+            setAllAlbums(prev => prev.filter(a => a.id !== album.id));
+            setAlbums(prev => prev.filter(a => a.id !== album.id));
+            if (onShowAlert) onShowAlert(`"${album.title}" is now a CD of your collection`, 'success');
+            if (onAlbumMovedToCollection) onAlbumMovedToCollection(album);
           }}
         />
       )}

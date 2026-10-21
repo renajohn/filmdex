@@ -31,7 +31,7 @@ const COVER_GRACE_MS = 2000;
  * any address it was handed -- including the local network or a cloud metadata
  * endpoint.
  */
-const TRUSTED_COVER_HOSTS = ['coverartarchive.org', 'archive.org', 'discogs.com', 'dzcdn.net'];
+const TRUSTED_COVER_HOSTS = ['coverartarchive.org', 'archive.org', 'discogs.com', 'dzcdn.net', 'mzstatic.com'];
 
 export const isTrustedCoverUrl = (value: string): boolean => {
   let url: URL;

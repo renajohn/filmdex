@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Tabs, Tab, Form, Table, Badge } from 'react-bootstrap';
 import { BsX, BsSearch, BsUpcScan, BsPlus, BsPencil, BsChevronDown, BsChevronRight, BsCamera } from 'react-icons/bs';
 import musicService from '../services/musicService';
+import AlbumFinder, { AlbumFinderHead } from './AlbumFinder';
 import LazyGroupCover from './LazyGroupCover';
 import { downscaleImage } from '../utils/downscaleImage';
 import { decodeBarcode } from '../utils/decodeBarcode';
@@ -85,7 +86,9 @@ interface AddMusicDialogProps {
 const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, onAddCdFromMusicBrainz, onAddCdByBarcode, onReviewMetadata, onDraftEntry, defaultTitleStatus, onAlbumAdded: onAlbumAddedFromParent, onAddStart, onAddError }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchArtist, setSearchArtist] = useState('');
-  const [searchBy, setSearchBy] = useState('photo'); // 'photo', 'title', 'catalog', 'barcode'
+  // 'finder' (as one types, the way in), or as before: 'photo', 'title', 'catalog', 'barcode'
+  const [searchBy, setSearchBy] = useState('finder');
+  const [finderHead, setFinderHead] = useState<AlbumFinderHead>({ title: 'Add an album' });
   const [scanning, setScanning] = useState(false);
   const [addingReleaseId, setAddingReleaseId] = useState<string | null>(null);
   const [decodingBarcode, setDecodingBarcode] = useState(false);
@@ -280,6 +283,8 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // What it finds shows in the photo's own view, wherever the photo was asked from.
+    setSearchBy('photo');
     setScanning(true);
     setError('');
     setScanSummary(null);
@@ -443,7 +448,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
   const handleClose = () => {
     setSearchQuery('');
     setSearchArtist('');
-    setSearchBy('photo');
+    setSearchBy('finder');
     setSearchValue('');
     setSearchResults([]);
     setGroupedResults([]);
@@ -485,7 +490,36 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
 
   return (
     <>
-      <Dialog show={show} onClose={handleClose} size="lg" zIndex={10100} className="add-music-dialog" title={capturingSleeve ? 'Read the sleeve' : 'Add New Album'}>
+      <Dialog show={show} onClose={handleClose} size="lg" zIndex={10100} className="add-music-dialog"
+        title={capturingSleeve ? 'Read the sleeve' : searchBy === 'finder' ? finderHead.title : 'Add New Album'}
+        onBack={capturingSleeve ? undefined : searchBy === 'finder' ? finderHead.onBack : () => setSearchBy('finder')}>
+      {/* Always mounted: openCamera() clicks it from within the user's tap,
+          which would be impossible if it appeared only after a state change. */}
+      <input
+        ref={photoInputRef}
+        data-testid="album-photo-input"
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+        capture="environment"
+        onChange={handlePhotoSelected}
+        className="photo-scan-input"
+      />
+      {searchBy === 'finder' && !capturingSleeve ? (
+        <AlbumFinder
+          mode={defaultTitleStatus === 'wish' ? 'wish' : 'cd'}
+          onHead={setFinderHead}
+          onChanged={album => onAlbumAddedFromParent?.(album)}
+          onAddRelease={async releaseId => {
+            const album = await musicService.addAlbumFromSource('musicbrainz', releaseId, { titleStatus: defaultTitleStatus || undefined });
+            onAlbumAddedFromParent?.(album);
+            handleClose();
+          }}
+          onClose={handleClose}
+          onPhoto={openCamera}
+          onManual={handleManualEntry}
+          onSearchBy={kind => setSearchBy(kind)}
+        />
+      ) : (
       <Dialog.Body className="add-music-dialog-body">
         {capturingSleeve ? (
           <SleeveCapture
@@ -502,18 +536,6 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
             }}
           />
         ) : (<>
-        {/* Always mounted: openCamera() clicks it from within the user's tap,
-            which would be impossible if it appeared only after a state change. */}
-        <input
-          ref={photoInputRef}
-          data-testid="album-photo-input"
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-          capture="environment"
-          onChange={handlePhotoSelected}
-          className="photo-scan-input"
-        />
-
         <input
           ref={barcodeInputRef}
           data-testid="barcode-photo-input"
@@ -876,6 +898,7 @@ const AddMusicDialog: React.FC<AddMusicDialogProps> = ({ show, onHide, onAddCd, 
         </div>
         </>)}
       </Dialog.Body>
+      )}
     </Dialog>
 
     {/* Album Metadata Form */}

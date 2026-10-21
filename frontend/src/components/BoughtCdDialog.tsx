@@ -7,17 +7,26 @@ import Button from './shared/Button';
 import Dialog from './shared/Dialog';
 import { TextArea, TextField } from './shared/TextField';
 import Spinner from './shared/Spinner';
+import CdEditionPicker from './CdEditionPicker';
+import type { CdEdition } from '../services/albumFinderService';
 
 type Edition = 'keep' | 'barcode' | 'musicbrainz';
 
 interface BoughtCdDialogProps {
-  album: { id: number | string; title: string; musicbrainzReleaseId?: string | null };
+  /** With its artist, the edition is chosen among MusicBrainz's CDs of the album, before the rest. */
+  album: { id: number | string; title: string; artist?: string[] | string | null; cover?: string | null; musicbrainzReleaseId?: string | null };
   onClose: () => void;
   /** The album as it is now, a CD of the collection. */
   onBought: (album: any) => void;
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+const RELEASE_ID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+const editionLine = (edition: CdEdition) => [
+  edition.labels[0], edition.country, edition.date?.slice(0, 4), edition.catalogNumbers[0], edition.packaging, edition.disambiguation,
+].filter(Boolean).join(' · ');
 
 /**
  * "I bought the CD": an album one had as files, or wished, becomes a CD of
@@ -26,6 +35,11 @@ const today = () => new Date().toISOString().slice(0, 10);
  * already has, or the one its barcode or MusicBrainz says.
  */
 const BoughtCdDialog: React.FC<BoughtCdDialogProps> = ({ album, onClose, onBought }) => {
+  const artist = Array.isArray(album.artist) ? album.artist.join(', ') : album.artist || '';
+  // Its CD first, among MusicBrainz's editions of the album, when there is an artist to find them by.
+  const [step, setStep] = useState<'edition' | 'details'>(artist ? 'edition' : 'details');
+  const [chosen, setChosen] = useState<CdEdition | null>(null);
+  const [typed, setTyped] = useState('');
   const [condition, setCondition] = useState('');
   const [purchasedAt, setPurchasedAt] = useState(today());
   const [price, setPrice] = useState('');
@@ -46,7 +60,7 @@ const BoughtCdDialog: React.FC<BoughtCdDialogProps> = ({ album, onClose, onBough
         purchasedAt: purchasedAt || null,
         priceChf: price || null,
         notes: notes || null,
-        ...(edition === 'barcode' ? { barcode } : edition === 'musicbrainz' ? { releaseId } : {}),
+        ...(artist ? pickedEdition() : edition === 'barcode' ? { barcode } : edition === 'musicbrainz' ? { releaseId } : {}),
       }));
     } catch (e) {
       setError((e as Error).message);
@@ -54,13 +68,51 @@ const BoughtCdDialog: React.FC<BoughtCdDialogProps> = ({ album, onClose, onBough
     }
   };
 
+  /** The edition chosen; or what was typed, a MusicBrainz link or a barcode no edition listed matched; or the album's own. */
+  function pickedEdition(): { releaseId?: string; barcode?: string } {
+    if (chosen) return { releaseId: chosen.id };
+    const link = typed.match(RELEASE_ID)?.[0];
+    if (link) return { releaseId: link };
+    const digits = typed.replace(/\D/g, '');
+    if (digits.length >= 8 && digits.length === typed.replace(/[\s-]/g, '').length) return { barcode: digits };
+    return {};
+  }
+
+  if (step === 'edition') {
+    return (
+      <Dialog show onClose={onClose} zIndex={10200} backdropClassName="bought-cd-backdrop" title="Which CD did you buy?" icon={<BsDisc />} size="lg">
+        <Dialog.Body className="bought-cd-editions">
+          <CdEditionPicker artist={artist} title={album.title} cover={album.cover} selected={chosen?.id ?? null}
+            onSelect={setChosen} onFilterChange={setTyped} autoFocus />
+        </Dialog.Body>
+        <Dialog.Footer>
+          <Button variant="quiet" onClick={() => { setChosen(null); setTyped(''); setStep('details'); }}>
+            {album.musicbrainzReleaseId ? 'Keep its edition' : 'Not sure'}
+          </Button>
+          <Button variant="primary" onClick={() => setStep('details')} disabled={!chosen && !pickedEdition().releaseId && !pickedEdition().barcode}>
+            Next
+          </Button>
+        </Dialog.Footer>
+      </Dialog>
+    );
+  }
+
+  const picked = artist ? pickedEdition() : {};
+
   return (
-    <Dialog show onClose={onClose} zIndex={10200} backdropClassName="bought-cd-backdrop" title="I bought the CD" icon={<BsDisc />}>
+    <Dialog show onClose={onClose} zIndex={10200} backdropClassName="bought-cd-backdrop" title="I bought the CD" icon={<BsDisc />}
+      onBack={artist ? () => setStep('edition') : undefined}>
       <Form onSubmit={save}>
         <Dialog.Body>
           <p className="small mb-3" style={{ color: '#a3a3a3' }}>
             <strong>{album.title}</strong> becomes a CD of your collection: its words, notes, plays and place in Listen Next stay with it.
           </p>
+          {artist ? (
+            <p className="small mb-3">
+              <span style={{ color: '#a3a3a3' }}>Edition: </span>
+              {chosen ? editionLine(chosen) : picked.releaseId ? `MusicBrainz ${picked.releaseId}` : picked.barcode ? `the one of barcode ${picked.barcode}` : 'as it is'}
+            </p>
+          ) : (
           <Form.Group className="mb-3">
             <Form.Label>Edition</Form.Label>
             <Form.Check type="radio" id="edition-keep" name="edition" checked={edition === 'keep'} onChange={() => setEdition('keep')}
@@ -77,6 +129,7 @@ const BoughtCdDialog: React.FC<BoughtCdDialogProps> = ({ album, onClose, onBough
             )}
             {edition !== 'keep' && <Form.Text muted>Its tracks are then taken from MusicBrainz; the words follow.</Form.Text>}
           </Form.Group>
+          )}
           <div className="d-flex gap-2">
             <Form.Group className="mb-3 flex-fill" controlId="bought-condition">
               <Form.Label>Condition</Form.Label>

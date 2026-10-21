@@ -44,6 +44,12 @@ const release = (over: Record<string, unknown> = {}) => ({
 const renderDialog = (props: Record<string, unknown> = {}) =>
   render(<AddMusicDialog show={true} onHide={vi.fn()} {...props} />);
 
+/** The searches of before, from the finder's ⋯: by title, catalog number or barcode. */
+const otherSearch = async (name: RegExp) => {
+  userEvent.click(screen.getByRole('button', { name: /other searches/i }));
+  userEvent.click(await screen.findByRole('menuitem', { name }));
+};
+
 const photoFile = () =>
   new File([new Uint8Array([1, 2, 3])], 'sleeve.jpg', { type: 'image/jpeg' });
 
@@ -57,10 +63,10 @@ beforeEach(() => {
 });
 
 describe('AddMusicDialog — photo mode', () => {
-  it('offers a photo option next to the text searches', () => {
+  it('offers a photo beside the search, as before', () => {
     renderDialog();
 
-    expect(screen.getByRole('radio', { name: /^photo$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^photo$/i })).toBeInTheDocument();
   });
 
   it('uses the rear camera for the capture input', async () => {
@@ -132,7 +138,7 @@ describe('AddMusicDialog — empty text search', () => {
     (musicService.searchMusicBrainz as any).mockResolvedValue([]);
     renderDialog();
 
-    userEvent.click(screen.getByRole('radio', { name: /album title/i }));
+    await otherSearch(/by title/i);
     userEvent.type(screen.getByPlaceholderText(/album title/i), 'zzzz');
     userEvent.click(screen.getByRole('button', { name: /^search$/i }));
 
@@ -140,20 +146,20 @@ describe('AddMusicDialog — empty text search', () => {
   });
 });
 
-describe('AddMusicDialog — photo is the default path', () => {
-  it('opens straight on the photo option', () => {
+describe('AddMusicDialog — the finder is the way in', () => {
+  it('opens on a search as one types', () => {
     renderDialog();
 
-    expect(screen.getByRole('button', { name: /take a photo/i })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /search for an album/i })).toBeInTheDocument();
   });
 
-  it('opens the camera on the very first tap, with no mode tap in between', async () => {
+  it('opens the camera on the very first tap of Photo, with no mode tap in between', async () => {
     renderDialog();
 
     const input = screen.getByTestId('album-photo-input');
     const clickSpy = vi.spyOn(input, 'click');
 
-    userEvent.click(screen.getByRole('button', { name: /take a photo/i }));
+    userEvent.click(screen.getByRole('button', { name: /^photo$/i }));
 
     await waitFor(() => expect(clickSpy).toHaveBeenCalled());
   });
@@ -164,27 +170,35 @@ describe('AddMusicDialog — photo is the default path', () => {
     const input = screen.getByTestId('album-photo-input');
     const clickSpy = vi.spyOn(input, 'click');
 
-    userEvent.click(screen.getByRole('radio', { name: /album title/i }));
+    await otherSearch(/by title/i);
     userEvent.click(screen.getByRole('radio', { name: /^photo$/i }));
 
     await waitFor(() => expect(clickSpy).toHaveBeenCalled());
   });
 
-  it('still lets the user fall back to typing a title', async () => {
+  it('still lets the user search MusicBrainz by title, and come back to the finder', async () => {
     renderDialog();
 
-    userEvent.click(screen.getByRole('radio', { name: /album title/i }));
+    await otherSearch(/by title/i);
+    await waitFor(() => expect(screen.getByPlaceholderText(/album title/i)).toBeInTheDocument());
 
-    await waitFor(() =>
-      expect(screen.getByPlaceholderText(/album title/i)).toBeInTheDocument()
-    );
+    userEvent.click(screen.getByRole('button', { name: /^back$/i }));
+    expect(screen.getByRole('textbox', { name: /search for an album/i })).toBeInTheDocument();
+  });
+
+  it('a wish list opens on wishing an album, a collection on adding a CD', () => {
+    const { unmount } = renderDialog({ defaultTitleStatus: 'wish' });
+    expect(screen.getByRole('heading', { name: /add an album to the wish list/i })).toBeInTheDocument();
+    unmount();
+    renderDialog();
+    expect(screen.getByRole('heading', { name: /add a cd/i })).toBeInTheDocument();
   });
 });
 
 describe('AddMusicDialog — text search query building', () => {
-  const searchFor = (title: string, artist?: string) => {
+  const searchFor = async (title: string, artist?: string) => {
     renderDialog();
-    userEvent.click(screen.getByRole('radio', { name: /album title/i }));
+    await otherSearch(/by title/i);
     userEvent.type(screen.getByPlaceholderText(/album title/i), title);
     if (artist) userEvent.type(screen.getByPlaceholderText(/artist/i), artist);
     userEvent.click(screen.getByRole('button', { name: /^search$/i }));
@@ -194,21 +208,21 @@ describe('AddMusicDialog — text search query building', () => {
     (musicService.searchMusicBrainz as any).mock.calls.at(-1)[0] as string;
 
   it('quotes a title containing a slash, so "AC/DC" does not break the query', async () => {
-    searchFor('Back in Black', 'AC/DC');
+    await searchFor('Back in Black', 'AC/DC');
 
     await waitFor(() => expect(musicService.searchMusicBrainz).toHaveBeenCalled());
     expect(lastQuery()).toContain('artist:"AC/DC"');
   });
 
   it('quotes a title containing a colon', async () => {
-    searchFor('Live: 1975');
+    await searchFor('Live: 1975');
 
     await waitFor(() => expect(musicService.searchMusicBrainz).toHaveBeenCalled());
     expect(lastQuery()).toContain('"Live: 1975"');
   });
 
   it('escapes a double quote instead of producing an unbalanced query', async () => {
-    searchFor('The "Chirping" Crickets');
+    await searchFor('The "Chirping" Crickets');
 
     await waitFor(() => expect(musicService.searchMusicBrainz).toHaveBeenCalled());
     expect(lastQuery()).toContain('\\"Chirping\\"');
@@ -219,7 +233,7 @@ describe('AddMusicDialog — barcode entry', () => {
   it('asks for a numeric keypad on the barcode field', async () => {
     renderDialog();
 
-    userEvent.click(screen.getByRole('radio', { name: /^barcode$/i }));
+    await otherSearch(/by barcode/i);
 
     const input = await screen.findByPlaceholderText(/barcode/i);
     expect(input).toHaveAttribute('inputmode', 'numeric');
@@ -299,20 +313,20 @@ describe('AddMusicDialog — one-tap add alongside review', () => {
 });
 
 describe('AddMusicDialog — barcode by photo', () => {
-  const goToBarcode = () => {
+  const goToBarcode = async () => {
     renderDialog();
-    userEvent.click(screen.getByRole('radio', { name: /^barcode$/i }));
+    await otherSearch(/by barcode/i);
   };
 
   it('offers to photograph the barcode', async () => {
-    goToBarcode();
+    await goToBarcode();
 
     expect(await screen.findByRole('button', { name: /scan/i })).toBeInTheDocument();
   });
 
   it('searches with the decoded barcode without any typing', async () => {
     (decodeBarcode as any).mockResolvedValue('5099750442227');
-    goToBarcode();
+    await goToBarcode();
 
     const input = await screen.findByTestId('barcode-photo-input');
     fireEvent.change(input, { target: { files: [photoFile()] } });
@@ -324,7 +338,7 @@ describe('AddMusicDialog — barcode by photo', () => {
 
   it('fills the field with what it read, so it can be corrected', async () => {
     (decodeBarcode as any).mockResolvedValue('5099750442227');
-    goToBarcode();
+    await goToBarcode();
 
     fireEvent.change(screen.getByTestId('barcode-photo-input'), {
       target: { files: [photoFile()] }
@@ -339,7 +353,7 @@ describe('AddMusicDialog — barcode by photo', () => {
 
   it('says so when no barcode could be read', async () => {
     (decodeBarcode as any).mockResolvedValue(null);
-    goToBarcode();
+    await goToBarcode();
 
     fireEvent.change(screen.getByTestId('barcode-photo-input'), {
       target: { files: [photoFile()] }
@@ -526,7 +540,7 @@ describe('AddMusicDialog — reading the sleeve when nothing matched', () => {
     const onReviewMetadata = vi.fn();
     renderDialog({ onDraftEntry, onReviewMetadata });
 
-    fireEvent.click(screen.getByRole('button', { name: /manual entry/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^manual( entry)?$/i }));
 
     await waitFor(() => expect(screen.getByTestId('sleeve-back-input')).toBeInTheDocument());
     expect(onReviewMetadata).not.toHaveBeenCalled();
@@ -536,7 +550,7 @@ describe('AddMusicDialog — reading the sleeve when nothing matched', () => {
     const onReviewMetadata = vi.fn();
     renderDialog({ onDraftEntry: vi.fn(), onReviewMetadata });
 
-    fireEvent.click(screen.getByRole('button', { name: /manual entry/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^manual( entry)?$/i }));
     await waitFor(() => expect(screen.getByTestId('sleeve-back-input')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /by hand/i }));
 

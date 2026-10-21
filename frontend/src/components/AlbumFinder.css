@@ -1,0 +1,268 @@
+/* The album finder (AlbumFinder): a field, then what it finds, scrolling under it. */
+.album-finder.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: min(68vh, 640px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.album-finder__top {
+  flex: none;
+}
+
+.album-finder__results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 -6px;
+  padding: 0 6px 6px;
+}
+
+.album-finder__label {
+  margin: 8px 2px 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dv-text-faint);
+}
+
+.album-finder__empty,
+.album-finder__hint {
+  margin: 0;
+  color: var(--dv-text-faint);
+}
+
+.album-finder__empty {
+  padding: 22px 8px;
+  text-align: center;
+}
+
+.album-finder__hint {
+  margin: 2px 2px 10px;
+  font-size: 0.85rem;
+}
+
+/* An artist the words name: their covers, their name. */
+.album-finder__artists {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.album-finder__artist {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px 0 5px;
+  border: 1px solid var(--dv-edge);
+  border-radius: 18px;
+  background: var(--dv-glass);
+  color: var(--dv-text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.album-finder__artist:hover {
+  border-color: var(--dv-edge-hover);
+  background: var(--dv-glass-hover);
+}
+
+.album-finder__artist:focus-visible {
+  outline: none;
+  box-shadow: var(--dv-ring);
+}
+
+.album-finder__faces {
+  display: inline-flex;
+}
+
+.album-finder__faces img {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  object-fit: cover;
+  box-shadow: 0 0 0 2px var(--dv-page);
+}
+
+.album-finder__faces img + img {
+  margin-left: -10px;
+}
+
+.album-finder__artist-name {
+  font-weight: 600;
+}
+
+.album-finder__artist-note {
+  color: var(--dv-text-faint);
+  font-size: 0.8rem;
+}
+
+.album-finder__artist svg {
+  color: var(--dv-text-faint);
+}
+
+/* An album found: under the pointer or the keys, the menus' veil. */
+.album-finder__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 8px;
+  border-radius: var(--dv-radius-md);
+  cursor: pointer;
+}
+
+.album-finder__row--active {
+  background: var(--dv-veil);
+}
+
+.album-finder__thumb {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--dv-glass);
+}
+
+.album-finder__text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.album-finder__title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.album-finder__meta {
+  color: var(--dv-text-muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.album-finder__key {
+  visibility: hidden;
+  padding: 1px 5px;
+  border: 1px solid var(--dv-edge);
+  border-radius: 5px;
+  background: none;
+  color: var(--dv-text-faint);
+  font-size: 0.7rem;
+}
+
+.album-finder__row--active .album-finder__key {
+  visibility: visible;
+}
+
+.album-finder__go {
+  flex: none;
+  margin: 0 8px;
+  color: var(--dv-text-faint);
+}
+
+/* An artist's albums, as covers. */
+.album-finder__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 14px;
+}
+
+.album-finder__card {
+  cursor: pointer;
+}
+
+.album-finder__cover {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--dv-glass);
+}
+
+.album-finder__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.album-finder__card-tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+}
+
+.album-finder__card-button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+.album-finder__card-title {
+  margin-top: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.album-finder__card-meta {
+  color: var(--dv-text-muted);
+  font-size: 0.78rem;
+}
+
+/* The album whose CD is chosen. */
+.album-finder__album {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.album-finder__album img {
+  width: 64px;
+  height: 64px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.album-finder__footer {
+  gap: 8px;
+}
+
+.album-finder__note {
+  flex: 1;
+  color: var(--dv-text-faint);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 575px) {
+  .album-finder.dialog-body {
+    height: calc(100dvh - 140px);
+  }
+
+  .album-finder__grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+  }
+
+  .album-finder__key,
+  .album-finder__note,
+  .album-finder__artist-note {
+    display: none;
+  }
+}
