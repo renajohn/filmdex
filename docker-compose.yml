@@ -10,6 +10,13 @@ services:
       - /home/rjl/Music:/music
     networks:
       - web
+    # Google's resolvers, which the router forwards to, answer SERVFAIL for
+    # bnf.fr: the BnF's catalogue, which completes the French books, was out of
+    # reach. Docker's own DNS still answers for the containers (next-mtp,
+    # navidrome) and sends the rest to these.
+    dns:
+      - 1.1.1.1
+      - 9.9.9.9
     environment:
       - NODE_ENV=production
       - TMDB_API_KEY=${TMDB_API_KEY:-}
