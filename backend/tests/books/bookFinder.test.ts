@@ -145,3 +145,34 @@ describe('le chercheur de livres', () => {
     expect(borrowed.body).toMatchObject({ id: wished.body.id, titleStatus: 'borrowed', owner: 'Léa' });
   });
 });
+
+describe('un ISBN dans le chercheur', () => {
+  it('trouve l’édition qu’il nomme, quelle que soit la langue, chez Google d’abord', async () => {
+    const code = isbn();
+    google({ [`isbn:${code}`]: [volume('ap', 'American Psycho', { isbn13: code, authors: ['Bret Easton Ellis'], language: 'en' }), volume('other', 'Autre', { isbn13: isbn() })] });
+    const found = (await request(app).get('/api/books/finder/search').query({ q: `978-${code.slice(3)}`.replace(/^978-978/, '978-'), language: 'fr' }).expect(200)).body;
+    expect(found.books.map((b: { title: string }) => b.title)).toEqual(['American Psycho']);
+    expect(found.series).toEqual([]);
+  });
+
+  it('prend l’édition d’Open Library par son ISBN quand Google ne la connaît pas', async () => {
+    const code = isbn();
+    google([]);
+    jest.spyOn(axios, 'get').mockImplementation(async (url: string) => (String(url).endsWith(`/isbn/${code}.json`)
+      ? { data: { title: 'American Psycho', publishers: ['10/18'], number_of_pages: 526, covers: [12552916], authors: [{ key: '/authors/OL217475A' }], languages: [{ key: '/languages/fre' }], publish_date: '1998' } }
+      : String(url).includes('/authors/') ? { data: { name: 'Bret Easton Ellis' } } : { data: {} }) as never);
+    const found = (await request(app).get('/api/books/finder/search').query({ q: code }).expect(200)).body;
+    expect(found.books).toEqual([expect.objectContaining({ title: 'American Psycho', authors: ['Bret Easton Ellis'], publisher: '10/18', year: '1998', language: 'fr',
+      pageCount: 526, isbn13: code, cover: 'https://covers.openlibrary.org/b/id/12552916-L.jpg' })]);
+  });
+
+  it('demande à la BnF une édition que Google et Open Library ne connaissent pas', async () => {
+    const code = isbn();
+    google([]);
+    jest.spyOn(axios, 'get').mockImplementation(async (url: string) => (String(url).includes('catalogue.bnf.fr')
+      ? { data: `<srw:record><mxc:record id="ark:/12148/cb1"><mxc:datafield tag="200"><mxc:subfield code="a">American psycho</mxc:subfield></mxc:datafield><mxc:datafield tag="700"><mxc:subfield code="a">Ellis</mxc:subfield><mxc:subfield code="b">Bret Easton</mxc:subfield><mxc:subfield code="4">070</mxc:subfield></mxc:datafield><mxc:datafield tag="214"><mxc:subfield code="c">10-18</mxc:subfield><mxc:subfield code="d">DL 2005</mxc:subfield></mxc:datafield></mxc:record></srw:record>` }
+      : { data: { docs: [] } }) as never);
+    const found = (await request(app).get('/api/books/finder/search').query({ q: code }).expect(200)).body;
+    expect(found.books).toEqual([expect.objectContaining({ title: 'American psycho', authors: ['Bret Easton Ellis'], publisher: '10-18', year: '2005', isbn13: code, cover: null })]);
+  });
+});

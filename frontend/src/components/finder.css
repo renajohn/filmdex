@@ -471,7 +471,24 @@
   object-fit: cover;
 }
 
-.finder__photo span {
+.finder__photo > span:not(.finder__photo-actions) {
   flex: 1;
   min-width: 0;
+}
+
+.finder__photo-actions {
+  display: flex;
+  flex: none;
+  gap: 6px;
+}
+
+/* A phone: its actions under the photo and the words. */
+@media (max-width: 575px) {
+  .finder__photo {
+    flex-wrap: wrap;
+  }
+
+  .finder__photo-actions {
+    flex-basis: 100%;
+  }
 }

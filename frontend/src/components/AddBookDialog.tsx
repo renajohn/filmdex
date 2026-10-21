@@ -111,6 +111,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   const [photosFront, setPhotosFront] = useState<Photo | null | undefined>(undefined);
   // The photographs read, to become the new book's cover and back once it is saved.
   const photosRef = useRef<{ front?: Photo; back?: Photo }>({});
+  const [photosBack, setPhotosBack] = useState<Photo | null>(null);
   const [selectedBook, setSelectedBook] = useState<BookData | null>(null);
   const [selectedBookGroup, setSelectedBookGroup] = useState<BookData[] | null>(null);
   // Load language preference from localStorage, default to 'any'
@@ -1316,6 +1317,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
         <Dialog.Body>
           <SleeveCapture
             initialFront={photosFront}
+            initialBack={photosBack}
             words={BOOK_PHOTO_WORDS}
             transcribe={photos => bookService.readPhotos(photos) as never}
             onDraft={result => {
@@ -1349,7 +1351,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
           onHead={setFinderHead}
           onChanged={book => onBookAdded?.(book)}
           onClose={() => handleClose(true)}
-          onPhotos={front => setPhotosFront(front)}
+          onPhotos={taken => { setPhotosBack(taken.back || null); setPhotosFront(taken.front || null); }}
           onIsbn={() => { setFinder(false); setShowCoverScanStep(false); setSearchTab('isbn'); }}
           onManual={() => { setFinder(false); handleManualEntry(); }}
         />

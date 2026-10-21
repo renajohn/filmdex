@@ -51,6 +51,8 @@ const SLEEVE_WORDS: SleeveCaptureWords = {
 interface SleeveCaptureProps {
   /** A front photo already taken by the scan, so it need not be shot twice. */
   initialFront?: Photo | null;
+  /** A back already taken (a book's, photographed first for its barcode). */
+  initialBack?: Photo | null;
   onDraft: (result: SleeveDraftResult) => void;
   onSkip: () => void;
   /** How the photographs are read: a CD's sleeve unless given (a book's covers). */
@@ -66,11 +68,11 @@ interface SleeveCaptureProps {
  * camera. The front comes first, since it is the one that becomes the artwork
  * and the one whose absence used to mean no cover at all.
  */
-const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, onDraft, onSkip, transcribe, words: given }) => {
+const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, initialBack, onDraft, onSkip, transcribe, words: given }) => {
   const words = { ...SLEEVE_WORDS, ...given };
   const [photos, setPhotos] = useState<Record<Side, Photo | null>>({
     front: initialFront || null,
-    back: null
+    back: initialBack || null
   });
   // Which sides the user straightened, for the caption only: the photo itself
   // already carries the result.

@@ -10,6 +10,7 @@ import { extractSeriesFromTitle, normalizeSeriesName, detectBookType } from './u
 import { plain } from './trackPopularityService';
 import { namesSomeone, namesSomething } from '../utils/searchNames';
 import { suggestComposer } from '../utils/scoreComposer';
+import bnfService from './bnfService';
 
 /**
  * Finding a book as one finds an album or a movie: as one types, a title, an
@@ -154,6 +155,58 @@ const askOpenLibrary = async (params: Record<string, string | number>): Promise<
       },
     };
   });
+};
+
+/** An ISBN alone, as typed or as a barcode reads it: 978-2-264-03937-8, 9782264039378, 2264039377. */
+export const isbnIn = (query: string): string | null => {
+  const digits = query.replace(/[\s-]/g, '');
+  return /^(?:97[89]\d{10}|\d{9}[\dX])$/i.test(digits) ? digits.toUpperCase() : null;
+};
+
+/**
+ * The edition of an ISBN: Google's, else Open Library's, else the BnF's notice
+ * (a French book the others do not know, without a cover).
+ */
+const byIsbn = async (isbn: string): Promise<Array<Omit<FinderBook, 'have'>>> => {
+  const same = (book: Omit<FinderBook, 'have'>) => book.isbn13 === isbn || book.isbn10 === isbn;
+  const asked = async (ask: () => Promise<GoogleVolume[]>) => {
+    try { return (await ask()).map(toBook).filter((book): book is Omit<FinderBook, 'have'> => Boolean(book)); } catch { return []; }
+  };
+  const fromGoogle = await asked(() => google({ q: `isbn:${isbn}`, maxResults: 5 }));
+  if (fromGoogle.some(same)) return fromGoogle.filter(same).slice(0, 1);
+  const edition = await openLibraryEdition(isbn).catch(() => null);
+  if (edition) return [edition];
+  const notice = await bnfService.byIsbn(isbn).catch(() => null);
+  if (!notice) return fromGoogle.slice(0, 1);
+  const seriesNumber = Number(notice.seriesNumber?.match(/\d+/)?.[0]) || null;
+  return [{
+    googleId: `bnf:${isbn}`, title: notice.title, subtitle: notice.subtitle, authors: notice.authors, year: notice.year ? String(notice.year) : null,
+    publisher: notice.publisher, language: 'fr', isbn13: isbn.length === 13 ? isbn : null, isbn10: isbn.length === 10 ? isbn : null, cover: null,
+    pageCount: notice.pageCount, series: notice.series, seriesNumber, bookType: notice.drawn ? 'graphic-novel' : 'book',
+    description: notice.summary, categories: [],
+  }];
+};
+
+/**
+ * An edition of Open Library by its ISBN: its own title, publisher, pages,
+ * language and cover, where its search answers with the work and all its ISBNs.
+ */
+const openLibraryEdition = async (isbn: string): Promise<Omit<FinderBook, 'have'> | null> => {
+  const { data } = await axios.get(`https://openlibrary.org/isbn/${isbn}.json`, { timeout: 10000 });
+  if (!data?.title) return null;
+  const authors = (await Promise.all(((data.authors || []) as Array<{ key: string }>).slice(0, 3).map(author =>
+    axios.get(`https://openlibrary.org${author.key}.json`, { timeout: 10000 }).then(r => String(r.data?.name || '')).catch(() => '')))).filter(Boolean);
+  const language = ((data.languages || []) as Array<{ key: string }>).map(l => FROM_OL_LANGUAGE[l.key.split('/').pop() || '']).find(Boolean) || null;
+  const title = String(data.title);
+  const named = extractSeriesFromTitle(title);
+  const series = named?.series ?? null;
+  const seriesNumber = named?.seriesNumber ?? null;
+  return {
+    googleId: `ol:${isbn}`, title, subtitle: data.subtitle || null, authors, year: String(data.publish_date || '').match(/\d{4}/)?.[0] || null,
+    publisher: data.publishers?.[0] || null, language, isbn13: isbn.length === 13 ? isbn : null, isbn10: isbn.length === 10 ? isbn : null,
+    cover: data.covers?.[0] ? `https://covers.openlibrary.org/b/id/${data.covers[0]}-L.jpg` : null, pageCount: data.number_of_pages || null,
+    series, seriesNumber, bookType: detectBookType(isbn, []) as FinderBook['bookType'], description: null, categories: [],
+  };
 };
 
 /** Google Books first; Open Library when Google fails (it answers "backendFailed" for hours some days). */
@@ -406,6 +459,9 @@ const bookFinderService = {
   search: async (query: string, language: BookLanguage = 'fr', kind: BookKind = 'all'): Promise<{ books: FinderBook[]; series: FinderSeries[]; authors: FinderAuthor[] }> => {
     const q = query.trim();
     if (q.length < 2) return { books: [], series: [], authors: [] };
+    // An ISBN, typed or read off a back's barcode: that edition, whatever its language.
+    const isbn = isbnIn(q);
+    if (isbn) return { books: await withHave(await byIsbn(isbn)), series: [], authors: [] };
     // A common word ("Elle") drowns a comic among novels: asked for a comic, Google is asked for comics too, those first.
     const subject = KIND_SUBJECT[kind];
     const [narrowed, wide] = await Promise.all([

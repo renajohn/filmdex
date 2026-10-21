@@ -5,13 +5,15 @@ import BookFinder, { BookBuying } from './BookFinder';
 import Dialog from './shared/Dialog';
 import bookFinderService, { FinderBook } from '../services/bookFinderService';
 import bookService from '../services/bookService';
+import { decodeBarcode } from '../utils/decodeBarcode';
 
 vi.mock('../services/bookFinderService', async importOriginal => ({
   ...(await importOriginal<typeof import('../services/bookFinderService')>()),
   default: { search: vi.fn(), series: vi.fn(), author: vi.fn(), add: vi.fn(), addMany: vi.fn(), buy: vi.fn() },
 }));
 vi.mock('../services/bookService', () => ({ default: { deleteBook: vi.fn(), readPhotos: vi.fn(), getImageUrl: (p: string | null) => p } }));
-vi.mock('../utils/downscaleImage', () => ({ downscaleImage: vi.fn(async () => ({ base64: 'AAAA', mimeType: 'image/jpeg' })) }));
+vi.mock('../utils/downscaleImage', () => ({ downscaleImage: vi.fn(async () => ({ base64: 'AAAA', mimeType: 'image/jpeg' })), base64ToFile: vi.fn() }));
+vi.mock('../utils/decodeBarcode', () => ({ decodeBarcode: vi.fn(async () => '9782264039378') }));
 
 const book = (n: number, fields: Partial<FinderBook> = {}): FinderBook => ({
   googleId: `g${n}`, title: `Sorceline - Tome 0${n}`, subtitle: null, authors: ['Sylvia Douyé'], year: String(2017 + n), publisher: "Vents d'Ouest",
@@ -150,14 +152,16 @@ describe('BookFinder', () => {
       expect.objectContaining({ owner: 'Léa', priceChf: undefined, purchasedAt: undefined })));
   });
 
-  it('cherche ce que dit la couverture photographiée, et offre de remplir la fiche depuis les photos', async () => {
-    vi.mocked(bookService.readPhotos).mockResolvedValue({ draft: { title: 'American Psycho', subtitle: null, authors: ['Bret Easton Ellis'], artists: [], translators: [],
-      series: null, seriesNumber: null, publisher: '10/18', isbn13: null, description: null, language: 'fr', bookType: 'book' }, sources: { front: true, back: false }, truncated: false });
+  it('photographie le dos : son code-barres est l’ISBN cherché, sa quatrième lue pendant ce temps', async () => {
+    vi.mocked(bookService.readPhotos).mockResolvedValue({ draft: { title: 'American Psycho', subtitle: null, authors: ['Bret Easton Ellis'], artists: [], translators: ['Alain Defossé'],
+      series: null, seriesNumber: null, publisher: '10/18', isbn13: '9782264039378', description: 'Avec son sourire carnassier…', language: 'fr', bookType: 'book' }, sources: { front: false, back: true }, truncated: false });
     const onPhotos = vi.fn();
     open('owned', { onPhotos });
-    fireEvent.change(screen.getByTestId('finder-photo'), { target: { files: [new File(['x'], 'cover.jpg', { type: 'image/jpeg' })] } });
-    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Search for a book' })).toHaveValue('American Psycho Bret Easton Ellis'));
+    fireEvent.change(screen.getByTestId('finder-photo'), { target: { files: [new File(['x'], 'back.jpg', { type: 'image/jpeg' })] } });
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Search for a book' })).toHaveValue('9782264039378'));
+    expect(decodeBarcode).toHaveBeenCalled();
+    expect(await screen.findByText(/ISBN off its barcode, its blurb kept/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /From the photos/ }));
-    expect(onPhotos).toHaveBeenCalledWith({ base64: 'AAAA', mimeType: 'image/jpeg' });
+    expect(onPhotos).toHaveBeenCalledWith({ back: { base64: 'AAAA', mimeType: 'image/jpeg' } });
   });
 });

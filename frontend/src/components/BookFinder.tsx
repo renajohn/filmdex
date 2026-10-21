@@ -12,10 +12,12 @@ import Segmented from './shared/Segmented';
 import { Loading } from './shared/Spinner';
 import { TextField } from './shared/TextField';
 import toast from './shared/Toast';
-import { downscaleImage } from '../utils/downscaleImage';
+import { downscaleImage, base64ToFile } from '../utils/downscaleImage';
+import { decodeBarcode } from '../utils/decodeBarcode';
 import './finder.css';
 
 export type BookFinderMode = 'wish' | 'owned';
+type Photo = { base64: string; mimeType: string };
 
 export interface BookFinderHead {
   title: string;
@@ -34,8 +36,8 @@ interface BookFinderProps {
   /** A book added, wished, bought or taken off the wish list. */
   onChanged: (book: unknown) => void;
   onClose: () => void;
-  /** Fill the form from the book's photographs, its front already taken when there is one. */
-  onPhotos?: (front: { base64: string; mimeType: string } | null) => void;
+  /** Fill the form from the book's photographs, those already taken handed over. */
+  onPhotos?: (taken: { front?: Photo; back?: Photo }) => void;
   onIsbn?: () => void;
   onManual?: () => void;
   buying?: BookBuying | null;
@@ -110,31 +112,60 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
   // Mine, or borrowed (a friend's, the library's): then no price, and whose it is.
   const [borrowed, setBorrowed] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
-  // A photographed cover, read by the model into the words searched; kept for the form when nothing is found.
-  const photoRef = useRef<HTMLInputElement>(null);
-  const [photo, setPhoto] = useState<{ base64: string; mimeType: string } | null>(null);
-  const [readingPhoto, setReadingPhoto] = useState(false);
+  // The book photographed, its back first: its barcode is its ISBN, the edition itself, read here at once; the model
+  // reads its blurb meanwhile, or its ISBN, title and author when the barcode will not read. Its front, if taken, is its cover.
+  const backRef = useRef<HTMLInputElement>(null);
+  const frontRef = useRef<HTMLInputElement>(null);
+  const [photos, setPhotos] = useState<{ front?: Photo; back?: Photo }>({});
+  const [readingPhoto, setReadingPhoto] = useState<'back' | 'blurb' | null>(null);
+  const [blurb, setBlurb] = useState<string | null>(null);
+  const [isbnRead, setIsbnRead] = useState<'barcode' | 'model' | null>(null);
 
-  /** The cover photographed and read: its title and author become the search, its kind the filter. */
-  const photographed = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const photographedBack = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    setReadingPhoto(true);
+    setReadingPhoto('back');
+    setBlurb(null);
+    setIsbnRead(null);
     try {
-      const front = await downscaleImage(file);
-      setPhoto(front);
-      const { draft } = await bookService.readPhotos({ front });
-      if (!draft.title) { toast('Nothing could be read on this cover: try another photo, or fill the form from the photos.', { tone: 'warning' }); return; }
-      setQuery([draft.series && draft.seriesNumber ? `${draft.series} ${draft.seriesNumber}` : draft.title, draft.authors[0]].filter(Boolean).join(' '));
-      // Its kind, not its language: a French edition keeps its title in English (American Psycho).
-      if (draft.bookType && draft.bookType !== 'score') { setKind(draft.bookType); }
+      const [back, code] = await Promise.all([downscaleImage(file), decodeBarcode(file).catch(() => null)]);
+      setPhotos({ back });
+      const isbn = code && /^97[89]\d{10}$/.test(code) ? code : null;
+      if (isbn) { setQuery(isbn); setIsbnRead('barcode'); setReadingPhoto('blurb'); }
+      const { draft } = await bookService.readPhotos({ back });
+      setBlurb(draft.description);
+      if (!isbn) {
+        if (draft.isbn13) { setQuery(draft.isbn13); setIsbnRead('model'); }
+        else if (draft.title) setQuery([draft.title, draft.authors[0]].filter(Boolean).join(' '));
+        else toast('Nothing could be read on this back: try another photo, or its front.', { tone: 'warning' });
+      }
     } catch (e) {
       toast((e as Error).message, { tone: 'danger' });
     } finally {
-      setReadingPhoto(false);
+      setReadingPhoto(null);
     }
   };
+
+  const photographedFront = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file) {
+      try { const front = await downscaleImage(file); setPhotos(prev => ({ ...prev, front })); } catch (e) { toast((e as Error).message, { tone: 'danger' }); }
+    }
+  };
+
+  /** A book added from the photos: its blurb as printed, its back kept, its front as its cover when taken. */
+  const keepPhotos = async (added: { id?: number } | null) => {
+    if (!added?.id || (!photos.back && !photos.front)) return;
+    try {
+      if (photos.back) await bookService.uploadBackCover(added.id, base64ToFile(photos.back.base64, photos.back.mimeType, 'back.jpg'));
+      if (photos.front) await bookService.uploadCover(added.id, base64ToFile(photos.front.base64, photos.front.mimeType, 'front.jpg'));
+    } catch (e) {
+      toast(`Added, its photos not: ${(e as Error).message}`, { tone: 'warning' });
+    }
+  };
+
   const listRef = useRef<HTMLDivElement>(null);
 
   const wishMode = mode === 'wish' && !buying;
@@ -273,7 +304,9 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
         onChanged(result.added);
         toast(`${result.added.length} volumes in the library${borrowed ? ', borrowed' : ''}${result.errors.length ? `; ${result.errors.map(e => e.error).join(', ')}` : ''}`, { tone: result.errors.length ? 'warning' : 'success' });
       } else {
-        const added = await bookFinderService.add(chosen[0], borrowed ? 'borrowed' : 'owned', borrowed ? { ...form, priceChf: undefined, purchasedAt: undefined } : form);
+        const book = blurb && (photos.back || photos.front) ? { ...chosen[0], description: blurb } : chosen[0];
+        const added = await bookFinderService.add(book, borrowed ? 'borrowed' : 'owned', borrowed ? { ...form, priceChf: undefined, purchasedAt: undefined } : form);
+        await keepPhotos(added as { id?: number });
         onChanged(added);
         toast(`${added.title} is in the library${borrowed ? ', borrowed' : ''}`, { tone: 'success' });
       }
@@ -331,11 +364,23 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
         <Segmented label="Kind" value={kind} onChange={value => { setKind(value); remember('dv.bookKind', value); setActive(0); }} options={KINDS} />
         <Segmented label="Language" value={language} onChange={value => { setLanguage(value); remember('dv.bookLanguage', value); }} options={LANGUAGES} />
       </div>
-      {(photo || readingPhoto) && (
+      {(photos.back || readingPhoto) && (
         <div className="finder__photo">
-          {photo && <img src={`data:${photo.mimeType};base64,${photo.base64}`} alt="Your photo" />}
-          <span>{readingPhoto ? 'Reading the cover…' : 'Searched with what your photo says.'}</span>
-          {onPhotos && !readingPhoto && <Button size="sm" icon={<BsCamera />} onClick={() => onPhotos(photo)} title="Photograph its back too: its blurb, its ISBN, read into the form">From the photos</Button>}
+          {photos.back && <img src={`data:${photos.back.mimeType};base64,${photos.back.base64}`} alt="Its back" />}
+          {photos.front && <img src={`data:${photos.front.mimeType};base64,${photos.front.base64}`} alt="Its cover" />}
+          <span>
+            {readingPhoto === 'back' ? 'Reading its back…'
+              : isbnRead === 'barcode' ? `ISBN off its barcode${readingPhoto === 'blurb' ? ', reading its blurb…' : blurb ? ', its blurb kept' : ''}`
+              : isbnRead === 'model' ? `ISBN read on its back${blurb ? ', its blurb kept' : ''}`
+              : 'Searched with what its back says.'}
+            {photos.front && ' · its cover taken'}
+          </span>
+          {!readingPhoto && (
+            <span className="finder__photo-actions">
+              {!photos.front && <Button size="sm" icon={<BsCamera />} onClick={() => frontRef.current?.click()} title="Photograph its front: it becomes its cover, rather than the one found">Its cover</Button>}
+              {onPhotos && <Button size="sm" variant="quiet" onClick={() => onPhotos(photos)} title="Not found: fill the form from the photos">From the photos</Button>}
+            </span>
+          )}
         </div>
       )}
       <div className="finder__results" ref={listRef}>
@@ -599,7 +644,7 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
         <span className="finder__note">
           {view === 'search' && (wishMode ? 'One click wishes the book; a series wishes its missing volumes.' : 'Choose the book, then its edition.')}
         </span>
-        {!wishMode && <Button icon={<BsCamera />} onClick={() => photoRef.current?.click()} loading={readingPhoto} title="Photograph its cover: what it says is searched">Photo</Button>}
+        {!wishMode && <Button icon={<BsCamera />} onClick={() => backRef.current?.click()} loading={readingPhoto === 'back'} title="Photograph its back: its barcode is its ISBN, its edition">Photo</Button>}
         {!wishMode && onIsbn && <Button icon={<BsUpcScan />} onClick={onIsbn} title="Search by its ISBN, as before">ISBN</Button>}
         {onManual && <Button icon={<BsPencil />} onClick={onManual} title="Type it all by hand">Manual</Button>}
         <Button variant="quiet" onClick={onClose}>{wishMode ? 'Done' : 'Cancel'}</Button>
@@ -610,7 +655,8 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
   return (
     <>
       {/* Always there: iOS opens the camera only from inside the tap. */}
-      <input ref={photoRef} type="file" accept="image/*,.heic,.heif" capture="environment" style={{ display: 'none' }} onChange={photographed} data-testid="finder-photo" />
+      <input ref={backRef} type="file" accept="image/*,.heic,.heif" capture="environment" style={{ display: 'none' }} onChange={photographedBack} data-testid="finder-photo" />
+      <input ref={frontRef} type="file" accept="image/*,.heic,.heif" capture="environment" style={{ display: 'none' }} onChange={photographedFront} data-testid="finder-photo-front" />
       <Dialog.Body className="finder">
         {view === 'search' && searchView}
         {view === 'series' && seriesView}
