@@ -7,7 +7,7 @@ import wikidataWorksService from '../../src/services/wikidataWorksService';
 import imslpWorksService from '../../src/services/imslpWorksService';
 import sharp from 'sharp';
 import henleService, { henleNumberOf } from '../../src/services/henleService';
-import { henleNumberOfBook, isShopNoise } from '../../src/services/scoreAddService';
+import { henleNumberOfBook, isUnwanted } from '../../src/services/scoreAddService';
 
 const run = (sql: string, params: unknown[] = []) => new Promise<number>((resolve, reject) =>
   getDatabase().run(sql, params, function (this: { lastID: number }, err: Error | null) { if (err) reject(err); else resolve(this.lastID); }));
@@ -54,10 +54,13 @@ describe('Henle', () => {
     expect(henleNumberOfBook({ isbn13: null, title: 'Deux Arabesques (HN 380)' })).toBe(380);
     expect(henleNumberOfBook({ title: 'Berceuse', urls: { henle: 'https://www.henle.de/Berceuse/HN-1258' } })).toBe(1258);
     expect(henleNumberOfBook({ isbn13: '9790230954983', title: 'Kinderszenen' })).toBeNull();
-    expect(isShopNoise('Support - PartitionInstrumentation - KlavierGenre - Classique')).toBe(true);
-    expect(isShopNoise('Search\n   opt')).toBe(true);
-    expect(isShopNoise('')).toBe(true);
-    expect(isShopNoise('L’été 1844 fut déjà le cinquième que Chopin passa à Nohant.')).toBe(false);
+    expect(isUnwanted('Support - PartitionInstrumentation - KlavierGenre - Classique')).toBe(true);
+    expect(isUnwanted('Search\n   opt')).toBe(true);
+    expect(isUnwanted('')).toBe(true);
+    expect(isUnwanted('L’été 1844 fut déjà le cinquième que Chopin passa à Nohant.')).toBe(false);
+    expect(isUnwanted('Bachs Inventionen und Sinfonien gelten zu Recht als unverzichtbar im Leben eines Pianisten. Der Komponist selbst schrieb sie für seinen Sohn.')).toBe(true);
+    expect(isUnwanted("Nach dem Erscheinen der 16 Walzer für Klavier zu vier Händen gelang es Brahms' Verleger")).toBe(true);
+    expect(isUnwanted('Along with the beautiful facsimile edition of the autograph score to be published on the occasion of the 200th birthday')).toBe(false);
   });
 });
 

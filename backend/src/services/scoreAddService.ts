@@ -169,9 +169,19 @@ export const henleNumberOfBook = (book: { isbn13?: string | null; title?: string
   henleNumberOf(book.isbn13)
   ?? (Number(String(book.title || '').match(/\bHN\s*(\d{1,4})\b/)?.[1] || book.urls?.henle?.match(/\/HN-(\d+)$/)?.[1] || 0) || null);
 
-/** A shop's listing taken for a description ("Support - Partition Instrumentation - Klavier…"), or a page's menu. */
-export const isShopNoise = (text: string | null | undefined): boolean =>
-  !String(text || '').trim() || /^\s*(?:Support\s*-\s*Partition|Search\b)/.test(String(text));
+const GERMAN = new Set(['der', 'die', 'das', 'und', 'ist', 'nicht', 'mit', 'für', 'sich', 'auch', 'eine', 'einen', 'dem', 'den', 'des', 'zu', 'von', 'wurde', 'werden', 'gelten', 'bei', 'nach', 'aus']);
+const OTHERS = new Set(['the', 'and', 'of', 'is', 'with', 'for', 'to', 'was', 'le', 'la', 'les', 'et', 'est', 'des', 'du', 'une', 'pour', 'dans', 'que', 'qui']);
+
+/** Words in German: the scores' words are wanted in French or English. */
+export const isGerman = (text: string): boolean => {
+  const words = text.toLowerCase().split(/[^a-zäöüßàâçéèêëîïôûù]+/);
+  const german = words.filter(word => GERMAN.has(word)).length;
+  return german >= 3 && german > words.filter(word => OTHERS.has(word)).length;
+};
+
+/** Words not worth keeping: none, a shop's listing ("Support - Partition Instrumentation - Klavier…"), a page's menu, or German. */
+export const isUnwanted = (text: string | null | undefined): boolean =>
+  !String(text || '').trim() || /^\s*(?:Support\s*-\s*Partition|Search\b)/.test(String(text)) || isGerman(String(text));
 
 /** An image's size in pixels, local or on the web; 0 when unread. */
 const pixelsOf = async (source: string | Buffer): Promise<number> => {
@@ -186,7 +196,7 @@ export interface HenleRead { url: string | null; level: number | null; cover: bo
 
 /**
  * What henle.de says of a score, kept: its page, its level, its words when it
- * has none or only a shop's listing, its cover when larger than the one it has.
+ * has none, only a shop's listing or German ones, its cover when larger than the one it has.
  */
 const readHenle = async (bookId: number): Promise<HenleRead> => {
   const book = await Book.findById(bookId);
@@ -196,7 +206,7 @@ const readHenle = async (bookId: number): Promise<HenleRead> => {
   if (!number) return none;
   const henle = await henleService.edition(number).catch(() => null);
   if (!henle) return none;
-  const description = henle.description && isShopNoise(book.description) ? henle.description : null;
+  const description = henle.description && isUnwanted(book.description) ? henle.description : null;
   let coverUrl: string | null = null;
   if (henle.cover) {
     const theirs = await axios.get(henle.cover, { responseType: 'arraybuffer', timeout: 15000 }).then(r => pixelsOf(Buffer.from(r.data))).catch(() => 0);

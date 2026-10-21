@@ -51,6 +51,16 @@ const usePlaying = () => usePlayer(state => (state.album?.id && state.tracks[sta
   ? `${state.album.id}:${state.tracks[state.index].disc}:${state.tracks[state.index].no}` : null));
 const keyOf = (r: PieceRecording) => `${r.albumId}:${r.disc}:${r.no}`;
 
+const GERMAN = new Set(['der', 'die', 'das', 'und', 'ist', 'nicht', 'mit', 'für', 'sich', 'auch', 'eine', 'einen', 'dem', 'den', 'des', 'zu', 'von', 'wurde', 'werden', 'gelten', 'bei', 'nach', 'aus']);
+const OTHERS = new Set(['the', 'and', 'of', 'is', 'with', 'for', 'to', 'was', 'le', 'la', 'les', 'et', 'est', 'des', 'du', 'une', 'pour', 'dans', 'que', 'qui']);
+/** Words not shown, as the server does not keep them: a shop's listing, a page's menu, or German. */
+const isUnwanted = (text: string): boolean => {
+  if (/^\s*(?:Support\s*-\s*Partition|Search\b)/.test(text)) return true;
+  const words = text.toLowerCase().split(/[^a-zäöüßàâçéèêëîïôûù]+/);
+  const german = words.filter(word => GERMAN.has(word)).length;
+  return german >= 3 && german > words.filter(word => OTHERS.has(word)).length;
+};
+
 interface ScoreCardProps {
   /** The score; none to add one. */
   score: Score | null;
@@ -239,8 +249,8 @@ const ScoreView: React.FC<ScoreCardProps & { score: Score }> = ({ score, onClose
   };
 
   const cover = book?.cover ?? score.cover;
-  // What its publisher writes of it; a shop's listing taken for words ("Support - Partition…") is not shown.
-  const about = typeof book?.description === 'string' && !/^\s*(?:Support\s*-\s*Partition|Search\b)/.test(book.description) ? book.description.trim() : '';
+  // What its publisher writes of it, in French or English; a shop's listing taken for words ("Support - Partition…") is not shown.
+  const about = typeof book?.description === 'string' && !isUnwanted(book.description) ? book.description.trim() : '';
   return (
     <Dialog show onClose={onClose} variant="panel" size="lg" icon={<BsFileMusic />} title={pieceOf(String(book?.title ?? score.title))} className="score-card">
       <Dialog.Body>

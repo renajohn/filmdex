@@ -104,6 +104,15 @@ describe('ScoreCard', () => {
     expect(screen.queryByText(/Support - Partition/)).not.toBeInTheDocument();
   });
 
+  it('ne montre pas des mots en allemand', async () => {
+    vi.mocked(bookService.getBookById).mockResolvedValue({ id: 219, title: 'Inventionen', composer: 'J. S. Bach', bookType: 'score', authors: [],
+      description: 'Bachs Inventionen und Sinfonien gelten zu Recht als unverzichtbar im Leben eines Pianisten. Der Komponist schrieb sie für seinen Sohn.' });
+    card();
+    await waitFor(() => expect(bookService.getBookById).toHaveBeenCalled());
+    await screen.findByText('J. S. Bach');
+    expect(screen.queryByText(/Bachs Inventionen/)).not.toBeInTheDocument();
+  });
+
   it('ne garde que les mouvements que tient la partition', async () => {
     vi.mocked(scorePiecesService.keepParts).mockReset().mockResolvedValue([{ ...livre, parts: [livre.parts[1]], choices: livre.choices.map(c => ({ ...c, kept: c.workId === 'w2' })) }, clair]);
     card();
