@@ -274,19 +274,33 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
 
   // Displayable books (same as filtered books, type filtering done via search syntax)
   // Whose books: one of the family's, at a click, written into the search as owner:Alice,
-  // so the pill and the search box say the same thing whichever one changes.
-  const OWNER_TOKEN = /(^|\s)owner:("[^"]*"|\S+)/i;
+  // so the pill and the search box say the same thing whichever one changes. An Alt-click
+  // adds a name or takes it away: owner:Alice,Oriane is either's.
+  const OWNER_VALUE = '(?:"[^"]*"|[^\\s,"]+)';
+  const OWNER_TOKEN = new RegExp(`(^|\\s)owner:(${OWNER_VALUE}(?:,${OWNER_VALUE})*)`, 'i');
   const ownerMatch = (searchCriteria?.searchText || '').match(OWNER_TOKEN);
-  const ownerFilter = ownerMatch ? ownerMatch[2].replace(/"/g, '') : null;
-  const chooseOwner = (owner: string | null) => {
+  const ownerFilter = ownerMatch ? ownerMatch[2].split(',').map(name => name.replace(/"/g, '')) : [];
+  const isOwnerChosen = (owner: string) => ownerFilter.some(name => name.toLowerCase() === owner.toLowerCase());
+  const chooseOwners = (chosen: string[]) => {
     const rest = (searchCriteria?.searchText || '').replace(OWNER_TOKEN, ' ').replace(/\s+/g, ' ').trim();
-    const token = owner ? `owner:${/\s/.test(owner) ? `"${owner}"` : owner}` : '';
+    const token = chosen.length ? `owner:${chosen.map(name => /\s/.test(name) ? `"${name}"` : name).join(',')}` : '';
     updateSearchViaUrl([token, rest].filter(Boolean).join(' '));
   };
+  const clickOwner = (owner: string, toggle: boolean) => {
+    const chosen = isOwnerChosen(owner);
+    if (toggle) chooseOwners(chosen ? ownerFilter.filter(name => name.toLowerCase() !== owner.toLowerCase()) : [...ownerFilter, owner]);
+    else chooseOwners(chosen && ownerFilter.length === 1 ? [] : [owner]);
+  };
+  // The books of no one come last, as owner:none, when there are any.
   const owners = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const book of allBooks) if (book.owner) counts.set(book.owner, (counts.get(book.owner) || 0) + 1);
-    return [...counts].sort((a, b) => b[1] - a[1]);
+    let noOne = 0;
+    for (const book of allBooks) {
+      if (book.owner?.trim()) counts.set(book.owner, (counts.get(book.owner) || 0) + 1);
+      else noOne++;
+    }
+    const pills: Array<[string, number, string]> = [...counts].sort((a, b) => b[1] - a[1]).map(([owner, count]) => [owner, count, owner]);
+    return noOne ? [...pills, ['none', noOne, 'No owner'] as [string, number, string]] : pills;
   }, [allBooks]);
   const displayBooks = filteredBooks;
 
@@ -1461,8 +1475,8 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
           leading={viewSwitch}
           extraControls={owners.length > 1 && (
             <span className="book-owner-chips" role="group" aria-label="Whose books">
-              {owners.map(([owner, count]) => (
-                <Chip key={owner} active={ownerFilter?.toLowerCase() === owner.toLowerCase()} count={count} onClick={() => chooseOwner(ownerFilter?.toLowerCase() === owner.toLowerCase() ? null : owner)}>{owner}</Chip>
+              {owners.map(([owner, count, label]) => (
+                <Chip key={owner} active={isOwnerChosen(owner)} count={count} title="Alt-click to add or remove" onClick={event => clickOwner(owner, event.altKey)}>{label}</Chip>
               ))}
             </span>
           )}

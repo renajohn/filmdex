@@ -736,7 +736,11 @@ const Book = {
         if (vals.length === 1) { whereClauses.push(`${col} LIKE ?`); params.push(`%${vals[0]}%`); }
         else { const clauses = vals.map(v => { params.push(`%${v}%`); return `${col} LIKE ?`; }); whereClauses.push(`(${clauses.join(' OR ')})`); }
       } else if (col === 'owner') {
-        whereClauses.push(`LOWER(${col}) = LOWER(?)`); params.push(vals[0]);
+        // Exact names, one or several: owner:Alice,Oriane is either's; none is no one's.
+        const names = vals.filter(v => v.toLowerCase() !== 'none');
+        const either = names.length ? [`LOWER(${col}) IN (${names.map(() => 'LOWER(?)').join(',')})`] : [];
+        if (names.length < vals.length) either.push(`(${col} IS NULL OR ${col} = '')`);
+        whereClauses.push(`(${either.join(' OR ')})`); params.push(...names);
       } else {
         if (vals.length === 1) { whereClauses.push(`${col} LIKE ?`); params.push(`%${vals[0]}%`); }
         else { const clauses = vals.map(v => { params.push(`%${v}%`); return `${col} LIKE ?`; }); whereClauses.push(`(${clauses.join(' OR ')})`); }
