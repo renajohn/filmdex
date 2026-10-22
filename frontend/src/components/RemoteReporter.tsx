@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { player, usePlayer } from '../services/player';
 import { listenNextQueue } from '../services/listenNextQueue';
 import { playAlbumById } from '../utils/playAlbum';
@@ -7,6 +7,60 @@ import toast from './shared/Toast';
 
 /** How often the place in a track is told, while it plays: the remote's bar moves between. */
 const POSITION_EVERY_MS = 10_000;
+/** How often a page playing nothing says it is still there: a computer asleep goes silent. */
+const ALIVE_EVERY_MS = 30_000;
+const LOCK = 'dv.remote.speaker';
+
+/** What a browser's refusal to play unasked says to the remote. */
+const errorOf = (error: string | null): string | null =>
+  !error ? null : /NotAllowed|interact|gesture|user agent|denied/i.test(error) ? 'needs a click to play' : error;
+
+/**
+ * Whether this tab speaks for its computer to the remote: one tab alone,
+ * the others would each do every command. The first open is it, until a
+ * tab starts playing, which takes its place; when it closes, the next.
+ * A browser without locks: each tab is.
+ */
+const useSpeaker = (playing: boolean): boolean => {
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+  const [speaker, setSpeaker] = useState(!locks);
+  const release = useRef<(() => void) | null>(null);
+  const ask = useRef<(steal: boolean) => void>(() => undefined);
+
+  useEffect(() => {
+    if (!locks) return undefined;
+    let live = true;
+    // A request for its turn already waiting: one is enough.
+    let queued = false;
+    ask.current = (steal: boolean) => {
+      if (!steal) {
+        if (queued) return;
+        queued = true;
+      }
+      locks.request(LOCK, steal ? { steal: true } : {}, () => new Promise<void>(resolve => {
+        if (!steal) queued = false;
+        if (!live) { resolve(); return; }
+        release.current = resolve;
+        setSpeaker(true);
+      })).catch(() => {
+        // Its place taken by a tab that started playing: it waits for its turn again.
+        if (!steal) queued = false;
+        release.current = null;
+        if (!live) return;
+        setSpeaker(false);
+        ask.current(false);
+      });
+    };
+    ask.current(false);
+    return () => { live = false; release.current?.(); };
+  }, [locks]);
+
+  useEffect(() => {
+    if (locks && playing && !speaker) ask.current(true);
+  }, [locks, playing, speaker]);
+
+  return speaker;
+};
 
 /** A command from the remote, done here as a click on the bar would. */
 const run = async (command: RemoteCommand): Promise<void> => {
@@ -36,7 +90,9 @@ const RemoteReporter: React.FC = () => {
   const tracks = usePlayer(state => state.tracks);
   const index = usePlayer(state => state.index);
   const playing = usePlayer(state => state.playing);
+  const error = usePlayer(state => state.error);
   const name = useRef(deviceName());
+  const speaker = useSpeaker(playing);
 
   const tell = () => {
     const state = player.getState();
@@ -50,21 +106,25 @@ const RemoteReporter: React.FC = () => {
       count: state.tracks.length,
       position: Math.round(player.currentTime()),
       duration: Math.round(state.duration || track?.durationSec || 0),
+      error: errorOf(state.error),
     }).catch(() => undefined);
   };
 
-  // Its commands, from the remote, for as long as the page is open.
-  useEffect(() => remote.listen(command => { void run(command).catch(e => toast((e as Error).message, { tone: 'danger' })); }), []);
+  // Its commands, from the remote, while this tab speaks for its computer; what it plays told each time its connection opens.
+  useEffect(() => {
+    if (!speaker) return undefined;
+    return remote.listen(command => { void run(command).catch(e => toast((e as Error).message, { tone: 'danger' })); }, tell);
+  }, [speaker]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // What it plays, at once when it changes.
-  useEffect(() => { tell(); }, [album, tracks, index, playing]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (speaker) tell(); }, [speaker, album, tracks, index, playing, error]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Its place in the track, now and then while it plays.
+  // Its place in the track now and then while it plays; that it is there, less often, while it does not.
   useEffect(() => {
-    if (!playing) return undefined;
-    const timer = window.setInterval(tell, POSITION_EVERY_MS);
+    if (!speaker) return undefined;
+    const timer = window.setInterval(tell, playing ? POSITION_EVERY_MS : ALIVE_EVERY_MS);
     return () => window.clearInterval(timer);
-  }, [playing]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [speaker, playing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return null;
 };

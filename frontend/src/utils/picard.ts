@@ -1,3 +1,5 @@
+import { isComputer } from './isComputer';
+
 /**
  * MusicBrainz Picard listens on the Mac it runs on, like it does for the
  * "Tagger" button of musicbrainz.org: asking it to open a release loads that
@@ -16,5 +18,4 @@ export const openInPicard = (releaseId: string): void => {
 };
 
 /** Picard runs on a computer: no button on a phone or a tablet. */
-export const canUsePicard = (): boolean =>
-  typeof window.matchMedia === 'function' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+export const canUsePicard = (): boolean => isComputer();

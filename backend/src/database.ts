@@ -517,6 +517,15 @@ const runAutoMigrations = async (): Promise<void> => {
         }
         console.log('  ✓ book_readings may have no date');
       }
+    },
+    {
+      name: '026_remote_players',
+      up: async () => {
+        // The names given from the remote to the computers playing music: MacBook du salon.
+        await new Promise<void>((resolve, reject) => currentDb.run(
+          'CREATE TABLE IF NOT EXISTS remote_players (id TEXT PRIMARY KEY, name TEXT NOT NULL)', (err: Error | null) => (err ? reject(err) : resolve())));
+        console.log('  ✓ Added remote_players');
+      }
     }
   ];
 

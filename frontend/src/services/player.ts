@@ -379,7 +379,7 @@ export const player = {
     const want = playing ?? audio.paused;
     if (want) {
       holdAwake();
-      audio.play().catch(error => set({ error: (error as Error).message }));
+      audio.play().then(() => { if (state.error) set({ error: null }); }).catch(error => set({ error: (error as Error).message }));
     } else audio.pause();
   },
 

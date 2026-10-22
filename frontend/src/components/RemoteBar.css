@@ -79,3 +79,8 @@
   color: inherit;
   font: inherit;
 }
+
+/* What went wrong on the computer: it needs a click to play. */
+.remote-bar-error {
+  color: var(--dv-orange);
+}

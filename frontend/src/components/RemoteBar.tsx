@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BsPauseFill, BsPlayFill, BsSkipBackwardFill, BsSkipForwardFill, BsLaptop } from 'react-icons/bs';
-import remote, { chooseTarget, chosenTarget, targetOf, useRemotePlayers, type RemoteCommand, type RemotePlayer } from '../services/remote';
+import { useLocation } from 'react-router-dom';
+import remote, { chooseTarget, chosenTarget, refreshPlayers, targetOf, useRemotePlayers, type RemoteCommand, type RemotePlayer } from '../services/remote';
 import Menu, { MenuChevron } from './shared/Menu';
 import Dialog from './shared/Dialog';
 import { TextField } from './shared/TextField';
@@ -12,6 +13,8 @@ import './PlayerBar.css';
 import './RemoteBar.css';
 
 const BAR_HEIGHT = 54;
+/** A toggle sent shows at once; with no word of it by then, the bar shows what it knows again. */
+const PENDING_MS = 4_000;
 const time = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 
 /**
@@ -19,12 +22,14 @@ const time = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.flo
  * where the player's own bar would be: what plays there and on which, its
  * place in the track, and ⏮ ⏯ ⏭ sent to it; Listen Next started there when
  * nothing plays. Out while this phone plays nothing itself, over its own bar
- * paused (a play kept from before) when the computer plays.
+ * paused (a play kept from before) when the computer plays; for a computer
+ * with no album, in MusicDex alone, not over the films and the books.
  */
 const RemoteBar: React.FC = () => {
   const players = useRemotePlayers();
   const localShown = usePlayer(state => state.barShown);
   const localPlaying = usePlayer(state => state.playing);
+  const inMusic = useLocation().pathname.startsWith('/musicdex');
   // The computer chosen in its menu, kept while it is there; else the last one started playing.
   const [chosen, setChosen] = useState<string | null>(() => chosenTarget());
   const target = targetOf(players, chosen);
@@ -33,7 +38,12 @@ const RemoteBar: React.FC = () => {
   const [pending, setPending] = useState<boolean | null>(null);
   const [now, setNow] = useState(Date.now());
 
-  useEffect(() => { setPending(null); }, [target?.playing, target?.seenAt]);
+  useEffect(() => { setPending(null); }, [target?.playing, target?.reportedAt]);
+  useEffect(() => {
+    if (pending === null) return undefined;
+    const timer = window.setTimeout(() => setPending(null), PENDING_MS);
+    return () => window.clearTimeout(timer);
+  }, [pending]);
   // The place in the track moves between reports.
   useEffect(() => {
     if (!target?.playing) return undefined;
@@ -43,7 +53,7 @@ const RemoteBar: React.FC = () => {
 
   // This phone's own bar comes first while it plays, or while it is out (a play kept from before, paused) and
   // the computer plays nothing; a computer playing covers this phone's bar paused.
-  const out = Boolean(target) && !localPlaying && !(localShown && !target?.playing);
+  const out = Boolean(target) && (Boolean(target?.album) || inMusic) && !localPlaying && !(localShown && !target?.playing);
   useEffect(() => {
     if (localShown) return;
     document.documentElement.style.setProperty('--player-h', out ? `${BAR_HEIGHT}px` : '0px');
@@ -51,9 +61,12 @@ const RemoteBar: React.FC = () => {
 
   if (!target || !out) return null;
 
-  const send = (command: RemoteCommand) => remote.send(target.id, command).catch(e => toast((e as Error).message, { tone: 'danger' }));
+  // A command sent, then what it did asked at once; refused, the toggle shown as it was.
+  const send = (command: RemoteCommand) => remote.send(target.id, command)
+    .then(() => window.setTimeout(refreshPlayers, 500))
+    .catch(e => { setPending(null); toast((e as Error).message, { tone: 'danger' }); });
   const playing = pending ?? target.playing;
-  const position = Math.min(target.duration || Infinity, target.position + (target.playing ? Math.max(0, now - target.seenAt) / 1000 : 0));
+  const position = Math.min(target.duration || Infinity, target.position + (target.playing ? Math.max(0, now - target.reportedAt) / 1000 : 0));
   const cover = target.album?.cover ? musicService.getImageUrl(target.album.cover) : null;
 
   const pick = (id: string) => { setChosen(id); chooseTarget(id); };
@@ -75,15 +88,18 @@ const RemoteBar: React.FC = () => {
       <Menu.Item onSelect={() => setNaming(target.name)}>Rename {target.name}…</Menu.Item>
     </Menu>
   );
+  const keepName = () => {
+    void remote.rename(target.id, naming || '').then(() => { setNaming(null); refreshPlayers(); }).catch(e => toast((e as Error).message, { tone: 'danger' }));
+  };
   const naming_ = naming !== null && (
     <Dialog show onClose={() => setNaming(null)} title={`Name ${target.name}`} size="sm">
       <Dialog.Body>
         <TextField value={naming} autoFocus placeholder="MacBook du salon" aria-label="Its name" onChange={event => setNaming(event.target.value)}
-          onKeyDown={event => { if (event.key === 'Enter') { void remote.rename(target.id, naming).then(() => setNaming(null)).catch(e => toast((e as Error).message, { tone: 'danger' })); } }} />
+          onKeyDown={event => { if (event.key === 'Enter') keepName(); }} />
       </Dialog.Body>
       <Dialog.Footer>
         <Button variant="quiet" onClick={() => setNaming(null)}>Cancel</Button>
-        <Button variant="primary" onClick={() => { void remote.rename(target.id, naming).then(() => setNaming(null)).catch(e => toast((e as Error).message, { tone: 'danger' })); }}>Keep it</Button>
+        <Button variant="primary" onClick={keepName}>Keep it</Button>
       </Dialog.Footer>
     </Dialog>
   );
@@ -105,7 +121,9 @@ const RemoteBar: React.FC = () => {
               <span className="remote-bar-track">{target.track?.title || target.album.title}</span>
               <span className="remote-bar-from">
                 {which}
-                {target.duration > 0 && ` · ${time(position)} / ${time(target.duration)}`}
+                {target.error
+                  ? <span className="remote-bar-error"> · {target.error}</span>
+                  : target.duration > 0 && ` · ${time(position)} / ${time(target.duration)}`}
               </span>
             </div>
             <div className="remote-bar-transport">

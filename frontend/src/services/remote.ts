@@ -20,13 +20,22 @@ export interface RemotePlayer {
   seenAt: number;
   /** When it started what it plays. */
   startedAt: number;
+  /** What went wrong there: needs a click (the browser would not play unasked). */
+  error: string | null;
+  /** When it told what it plays, by this device's clock: its place in the track counts from then. */
+  reportedAt: number;
 }
+
+/** What a computer tells of itself; the server adds the rest. */
+export type RemoteReport = Omit<RemotePlayer, 'id' | 'online' | 'seenAt' | 'startedAt' | 'reportedAt'>;
 
 export type RemoteCommand =
   | { action: 'toggle' | 'next' | 'previous' | 'listenNext' }
   | { action: 'playAlbum'; albumId: number; index?: number; disc?: number };
 
 const ID_KEY = 'dv.remote.device';
+/** The server says its connection is alive every 20 s; with no word of it this long, it is dead. */
+const SILENT_AFTER_MS = 45_000;
 
 /** This browser, the same from one visit to the next. */
 export const deviceId = (): string => {
@@ -46,13 +55,17 @@ export const deviceName = (agent = typeof navigator === 'undefined' ? '' : navig
   return browser ? `${system} · ${browser}` : system;
 };
 
-/** A computer, with a pointer: the one that plays and is told what to; a phone is the remote. */
-export const isComputer = (): boolean =>
-  typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+export { isComputer } from '../utils/isComputer';
 
 const remote = {
-  players: (): Promise<RemotePlayer[]> => fetch('/api/remote/players').then(r => (r.ok ? r.json() : [])),
-  report: (state: Omit<RemotePlayer, 'id' | 'online' | 'seenAt' | 'startedAt'>): Promise<unknown> =>
+  /** The players, their place in a track dated by this device's clock (the server says how long ago). */
+  players: async (): Promise<RemotePlayer[]> => {
+    const response = await fetch('/api/remote/players');
+    if (!response.ok) return [];
+    const now = Date.now();
+    return ((await response.json()) as Array<RemotePlayer & { age?: number }>).map(({ age, ...p }) => ({ ...p, reportedAt: now - (age || 0) }));
+  },
+  report: (state: RemoteReport): Promise<unknown> =>
     fetch(`/api/remote/players/${deviceId()}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state) }),
   send: async (playerId: string, command: RemoteCommand): Promise<void> => {
     const response = await fetch(`/api/remote/players/${playerId}/commands`, {
@@ -65,12 +78,45 @@ const remote = {
     const response = await fetch(`/api/remote/players/${playerId}/name`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
     if (!response.ok) throw new Error('The name was not kept');
   },
-  /** A computer's commands, as they come, until stopped. */
-  listen: (onCommand: (command: RemoteCommand) => void): (() => void) => {
+  /**
+   * A computer's commands, as they come, each said received at once, until
+   * stopped; `onOpen` each time its connection opens, to tell what it plays
+   * to a server that may have restarted. A browser opens a connection lost
+   * again by itself, but not one refused (the server restarting, a proxy's
+   * 502): that one is opened again here, a little later each time. Nor one
+   * a proxy keeps open with nothing behind: the server says it is there
+   * every 20 s, and with no word of it for 45 s the connection is opened again.
+   */
+  listen: (onCommand: (command: RemoteCommand) => void, onOpen: () => void = () => undefined): (() => void) => {
     if (typeof EventSource === 'undefined') return () => undefined;
-    const source = new EventSource(`/api/remote/players/${deviceId()}/commands`);
-    source.onmessage = event => { try { onCommand(JSON.parse(event.data) as RemoteCommand); } catch { /* not a command */ } };
-    return () => source.close();
+    let source: EventSource | null = null;
+    let retry = 0;
+    let timer: number | undefined;
+    let stopped = false;
+    let heard = Date.now();
+    const open = () => {
+      heard = Date.now();
+      source = new EventSource(`/api/remote/players/${deviceId()}/commands`);
+      source.onopen = () => { retry = 0; heard = Date.now(); onOpen(); };
+      source.addEventListener('alive', () => { heard = Date.now(); });
+      source.onmessage = event => {
+        heard = Date.now();
+        let command: RemoteCommand & { id?: string };
+        try { command = JSON.parse(event.data); } catch { return; }
+        if (command.id) void fetch(`/api/remote/acks/${command.id}`, { method: 'POST' }).catch(() => undefined);
+        const { id: _id, ...rest } = command;
+        onCommand(rest as RemoteCommand);
+      };
+      source.onerror = () => {
+        if (stopped || source?.readyState !== 2) return;
+        timer = window.setTimeout(open, Math.min(30_000, 1000 * 2 ** retry++));
+      };
+    };
+    open();
+    const watch = window.setInterval(() => {
+      if (source?.readyState === 1 && Date.now() - heard > SILENT_AFTER_MS) { source.close(); open(); }
+    }, 5_000);
+    return () => { stopped = true; window.clearTimeout(timer); window.clearInterval(watch); source?.close(); };
   },
 };
 
@@ -90,24 +136,52 @@ export const targetOf = (players: RemotePlayer[], chosen: string | null = null):
   || players.find(p => p.online)
   || null;
 
+/** Asked every few seconds while a computer plays; now and then otherwise, the phone's battery kept. */
+const EVERY_PLAYING_MS = 3_000;
+const EVERY_QUIET_MS = 20_000;
+
+// One asking for all who want the players (the remote's bar, an album's card), while any does.
+let known: RemotePlayer[] = [];
+const watchers = new Set<(players: RemotePlayer[]) => void>();
+let timer: number | undefined;
+
+const schedule = () => {
+  window.clearTimeout(timer);
+  if (watchers.size === 0) return;
+  timer = window.setTimeout(refreshPlayers, known.some(p => p.online && p.playing) ? EVERY_PLAYING_MS : EVERY_QUIET_MS);
+};
+
+/** For the tests: no player known. */
+export const forgetRemotePlayers = (): void => { known = []; };
+
+/** The players asked again now, and soon after a command: what it did shows at once. */
+export const refreshPlayers = (): void => {
+  window.clearTimeout(timer);
+  if (watchers.size === 0) return;
+  if (typeof document !== 'undefined' && document.hidden) { schedule(); return; }
+  const me = deviceId();
+  remote.players()
+    .then(list => { known = list.filter(p => p.id !== me); watchers.forEach(watcher => watcher(known)); })
+    .catch(() => undefined)
+    .finally(schedule);
+};
+
+const onVisible = () => { if (!document.hidden) refreshPlayers(); };
+
 /**
- * The other players, the computers above all, asked again every few seconds
- * while the page is in sight: what plays where, and where an album can be sent.
+ * The other players, the computers above all, asked again while the page is
+ * in sight: what plays where, and where an album can be sent.
  */
-export const useRemotePlayers = (every = 3000): RemotePlayer[] => {
-  const [players, setPlayers] = useState<RemotePlayer[]>([]);
+export const useRemotePlayers = (): RemotePlayer[] => {
+  const [players, setPlayers] = useState<RemotePlayer[]>(known);
   useEffect(() => {
-    let live = true;
-    const me = deviceId();
-    const ask = () => {
-      if (typeof document !== 'undefined' && document.hidden) return;
-      remote.players().then(list => { if (live) setPlayers(list.filter(p => p.id !== me)); }).catch(() => undefined);
+    watchers.add(setPlayers);
+    if (watchers.size === 1) { document.addEventListener('visibilitychange', onVisible); refreshPlayers(); }
+    return () => {
+      watchers.delete(setPlayers);
+      if (watchers.size === 0) { window.clearTimeout(timer); document.removeEventListener('visibilitychange', onVisible); }
     };
-    ask();
-    const timer = window.setInterval(ask, every);
-    document.addEventListener('visibilitychange', ask);
-    return () => { live = false; window.clearInterval(timer); document.removeEventListener('visibilitychange', ask); };
-  }, [every]);
+  }, []);
   return players;
 };
 

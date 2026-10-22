@@ -283,6 +283,7 @@ app.put('/api/remote/players/:id', remoteController.report);
 app.get('/api/remote/players/:id/commands', remoteController.commands);
 app.put('/api/remote/players/:id/name', remoteController.rename);
 app.post('/api/remote/players/:id/commands', remoteController.command);
+app.post('/api/remote/acks/:commandId', remoteController.acknowledge);
 app.post('/api/music/navidrome/scrobble/:id', playerController.scrobble);
 app.put('/api/music/navidrome/star/:id', playerController.star);
 app.delete('/api/music/navidrome/star/:id', playerController.star);
