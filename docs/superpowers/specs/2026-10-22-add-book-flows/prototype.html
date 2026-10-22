@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Add a book — flows</title>
+<style>
+  :root {
+    --bg: #141414; --panel: #1f1f1f; --dialog: #262626; --edge: #3a3a3a; --field: #1b1b1b;
+    --text: #f2f2f2; --muted: #a1a1a1; --faint: #6f6f6f; --gold: #fbbf24; --gold-soft: rgba(251,191,36,.12);
+    --ok: #fbbf24; --red: #ef4444;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; }
+  header.top { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+    padding: 14px 20px; background: rgba(20,20,20,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--edge); }
+  header.top h1 { margin: 0; font-size: 17px; }
+  header.top p { margin: 2px 0 0; color: var(--muted); font-size: 12.5px; }
+  .seg { display: inline-flex; background: #101010; border: 1px solid var(--edge); border-radius: 10px; padding: 3px; }
+  .seg button { border: 0; background: none; color: var(--muted); padding: 6px 14px; border-radius: 7px; font: inherit; cursor: pointer; }
+  .seg button.on { background: #333; color: var(--text); }
+  main { padding: 20px 16px 60px; }
+  .flow { margin: 0 auto 44px; max-width: 1500px; }
+  .flow h2 { margin: 0 0 4px; font-size: 16px; }
+  .flow h2 b { color: var(--gold); font-weight: 600; }
+  .flow > p { margin: 0 0 14px; color: var(--muted); max-width: 820px; }
+  .row { display: flex; gap: 14px; align-items: flex-start; overflow-x: auto; padding-bottom: 10px; }
+  .step { flex: none; }
+  .step .cap { margin: 8px 2px 0; color: var(--muted); font-size: 12px; max-width: 280px; }
+  .step .cap b { color: var(--text); font-weight: 600; }
+  .arrow { flex: none; align-self: center; color: var(--faint); font-size: 22px; margin-top: -30px; }
+  .new { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 4px; background: var(--gold); color: #1a1a1a; font-size: 10px; font-weight: 700; letter-spacing: .04em; vertical-align: 1px; }
+
+  /* Phone frame */
+  .phone { width: 280px; height: 590px; border-radius: 34px; border: 8px solid #050505; background: var(--dialog); overflow: hidden; position: relative; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+  .phone .notch { height: 22px; background: var(--dialog); }
+  /* Laptop frame */
+  .laptop { width: 560px; height: 370px; border-radius: 10px; border: 6px solid #050505; background: #0f0f0f; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+  .laptop .page { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, #1c1c1c 0 70px, #161616 70px 84px); opacity: .5; }
+  .laptop .dlg { position: absolute; left: 50%; top: 18px; bottom: 18px; transform: translateX(-50%); width: 430px; background: var(--dialog); border-radius: 10px; border: 1px solid var(--edge); display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Dialog anatomy */
+  .head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--edge); font-weight: 600; font-size: 14px; }
+  .head .x { margin-left: auto; color: var(--muted); }
+  .head .back { color: var(--muted); }
+  .body { flex: 1; padding: 10px 12px; overflow: hidden; display: flex; flex-direction: column; gap: 9px; }
+  .foot { display: flex; gap: 6px; justify-content: flex-end; align-items: center; padding: 9px 12px; border-top: 1px solid var(--edge); }
+  .field { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid var(--edge); border-radius: 8px; background: var(--field); color: var(--muted); font-size: 12.5px; }
+  .field.on { border-color: var(--gold); color: var(--text); }
+  .pills { display: flex; gap: 6px; }
+  .pill { padding: 4px 9px; border: 1px solid var(--edge); border-radius: 7px; font-size: 11px; color: var(--muted); }
+  .btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border-radius: 8px; border: 1px solid var(--edge); background: #2f2f2f; color: var(--text); font-size: 12px; }
+  .btn.quiet { border-color: transparent; background: none; color: var(--muted); }
+  .btn.gold { background: var(--gold); border-color: var(--gold); color: #1a1a1a; font-weight: 600; }
+  .btn.big { width: 100%; justify-content: center; padding: 11px; font-size: 13px; }
+  .label { color: var(--faint); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+  .item { display: flex; gap: 9px; align-items: center; padding: 6px; border-radius: 8px; background: #2c2c2c; }
+  .item.dim { background: none; }
+  .cover { flex: none; width: 34px; height: 48px; border-radius: 3px; background: linear-gradient(160deg, #6d4bd6, #e35a8b); }
+  .cover.b { background: linear-gradient(160deg, #2a7a8a, #9fd6c2); }
+  .cover.c { background: linear-gradient(160deg, #e2462f, #f0a07f); }
+  .cover.lg { width: 64px; height: 92px; }
+  .t { font-weight: 600; font-size: 12.5px; }
+  .m { color: var(--muted); font-size: 11px; }
+  .shoot { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 22px 10px; border: 1px dashed var(--gold); border-radius: 12px; background: var(--gold-soft); text-align: center; }
+  .shoot .ic { font-size: 26px; }
+  .shoot .t { font-size: 13px; }
+  .drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 1px dashed var(--edge); border-radius: 10px; color: var(--muted); font-size: 11.5px; text-align: center; }
+  .spin { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #555; border-top-color: var(--gold); }
+  .center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; color: var(--muted); }
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 5px; background: var(--gold-soft); color: var(--gold); font-size: 10.5px; font-weight: 600; }
+  .form { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; }
+  .form .f { display: flex; flex-direction: column; gap: 2px; }
+  .form .f span { color: var(--faint); font-size: 10px; }
+  .form .f div { height: 24px; border: 1px solid var(--edge); border-radius: 6px; background: var(--field); padding: 3px 7px; font-size: 11px; color: var(--text); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .form .wide { grid-column: span 2; }
+  .read { color: var(--gold); }
+  .toast { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); padding: 8px 12px; border-radius: 10px; background: #2f2f2f; border: 1px solid var(--edge); font-size: 12px; white-space: nowrap; }
+  .lib { position: absolute; inset: 22px 0 0; padding: 12px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-content: start; background: var(--bg); }
+  .lib .cover { width: 100%; height: 110px; }
+
+  /* The stepper of a book not found */
+  .steps { display: flex; flex-direction: column; gap: 8px; }
+  .s { display: flex; gap: 9px; align-items: center; padding: 8px; border-radius: 10px; border: 1px solid var(--edge); }
+  .s.done { border-color: transparent; background: #2c2c2c; }
+  .s.now { border-color: var(--gold); background: var(--gold-soft); }
+  .s .n { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; background: #3a3a3a; color: var(--muted); }
+  .s.done .n { background: var(--gold); color: #1a1a1a; }
+  .s.now .n { background: var(--gold); color: #1a1a1a; }
+  .s .thumb { flex: none; width: 26px; height: 36px; border-radius: 2px; background: linear-gradient(160deg, #ddd, #e2462f); }
+  .s .grow { flex: 1; min-width: 0; }
+  .hero { padding: 10px; border-radius: 12px; background: linear-gradient(180deg, #2b2b2b, #242424); }
+  .hero .t { font-size: 14px; }
+  .two { display: flex; gap: 10px; flex: 1; min-height: 0; }
+  .two > * { flex: 1; min-width: 0; }
+  .notes { max-width: 1100px; margin: 0 auto 30px; padding: 14px 16px; border: 1px solid var(--edge); border-radius: 12px; background: var(--panel); color: var(--muted); }
+  .notes b { color: var(--text); }
+  .notes ul { margin: 6px 0 0 18px; padding: 0; }
+  [data-device="laptop"] .phone-only, [data-device="phone"] .laptop-only { display: none; }
+</style>
+</head>
+<body data-device="phone">
+<header class="top">
+  <div>
+    <h1>Add a book — four flows</h1>
+    <p>Search or photo, found or not. What is new is marked <span class="new">NEW</span>.</p>
+  </div>
+  <div class="seg" role="radiogroup" aria-label="Device">
+    <button class="on" data-d="phone">iPhone</button>
+    <button data-d="laptop">Laptop</button>
+  </div>
+</header>
+
+<main>
+  <div class="notes">
+    <b>What changes</b>
+    <ul>
+      <li>A photo of the back that finds <b>one edition opens it at once</b>, marked found by its barcode: no list to pick from.</li>
+      <li>Not found is <b>a step of a flow, not a dead end</b>: a page with steps (back ✓, cover, read, review), its next step a big gold button. After a photo, the next step is the cover, asked at once.</li>
+      <li>After a typed search not found, the same steps start from the cover; typing it all by hand stays, smaller.</li>
+      <li>On a laptop the camera is a drop zone (or a file), the same steps beside each other.</li>
+    </ul>
+  </div>
+
+  <!-- ============ 1. Search → found ============ -->
+  <section class="flow">
+    <h2>1. Search → <b>found</b></h2>
+    <p>As today: typed words, the list as one types, the edition, added. Nothing to change but the empty finder's big photo button.</p>
+    <div class="row phone-only">
+      <div class="step"><div class="phone"><div class="notch"></div>
+        <div class="head">Add a book<span class="x">✕</span></div>
+        <div class="body">
+          <div class="field on">⌕ sorceline 4<span style="margin-left:auto">3 found</span></div>
+          <div class="pills"><span class="pill">Kind: All ▾</span><span class="pill">Language: FR ▾</span></div>
+          <div class="label">Books</div>
+          <div class="item"><div class="cover"></div><div><div class="t">Sorceline — Tome 04</div><div class="m">Sylvia Douyé · 2021 · Vents d'Ouest</div></div></div>
+          <div class="item dim"><div class="cover b"></div><div><div class="t">Sorceline — Tome 05</div><div class="m">Sylvia Douyé · 2022</div></div></div>
+        </div>
+        <div class="foot"><span class="btn">📷 Photo</span><span class="btn">✎ Manual</span><span class="btn quiet">Cancel</span></div>
+      </div><div class="cap"><b>Type</b>: the books as one types.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="phone"><div class="notch"></div>
+        <div class="head"><span class="back">←</span>Which edition do you have?<span class="x">✕</span></div>
+        <div class="body">
+          <div class="item dim"><div class="cover lg"></div><div><div class="t">Sorceline — Tome 04</div><div class="m">Sylvia Douyé · 2021</div></div></div>
+          <div class="form"><div class="f"><span>Kind</span><div>BD</div></div><div class="f"><span>Format</span><div>Paper</div></div>
+            <div class="f wide"><span>Belongs to</span><div>Oriane</div></div><div class="f"><span>Price CHF</span><div>14.90</div></div><div class="f"><span>Acquired</span><div>22.10.2026</div></div></div>
+        </div>
+        <div class="foot"><span class="btn quiet">Cancel</span><span class="btn gold">Add this book</span></div>
+      </div><div class="cap"><b>Its edition</b>: whose, price, date.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="phone"><div class="notch"></div>
+        <div class="lib"><div class="cover"></div><div class="cover b"></div><div class="cover c"></div><div class="cover b"></div><div class="cover"></div></div>
+        <div class="toast">✓ Sorceline — Tome 04 is in the library</div>
+      </div><div class="cap"><b>Added</b>.</div></div>
+    </div>
+    <div class="row laptop-only">
+      <div class="step"><div class="laptop"><div class="page"></div><div class="dlg">
+        <div class="head">Add a book<span class="x">✕</span></div>
+        <div class="body">
+          <div style="display:flex;gap:6px"><div class="field on" style="flex:1">⌕ sorceline 4</div><span class="pill">All</span><span class="pill">FR</span></div>
+          <div class="item"><div class="cover"></div><div><div class="t">Sorceline — Tome 04</div><div class="m">Sylvia Douyé · 2021 · Vents d'Ouest</div></div></div>
+          <div class="item dim"><div class="cover b"></div><div><div class="t">Sorceline — Tome 05</div><div class="m">Sylvia Douyé · 2022</div></div></div>
+        </div>
+        <div class="foot"><span class="btn">📷 Photo</span><span class="btn">✎ Manual</span><span class="btn quiet">Cancel</span></div>
+      </div></div><div class="cap"><b>Type</b>: the books as one types.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="laptop"><div class="page"></div><div class="dlg">
+        <div class="head"><span class="back">←</span>Which edition do you have?<span class="x">✕</span></div>
+        <div class="body"><div class="two"><div class="cover lg" style="flex:none"></div>
+          <div class="form" style="align-content:start"><div class="f"><span>Kind</span><div>BD</div></div><div class="f"><span>Format</span><div>Paper</div></div>
+          <div class="f wide"><span>Belongs to</span><div>Oriane</div></div><div class="f"><span>Price</span><div>14.90</div></div><div class="f"><span>Acquired</span><div>22.10.2026</div></div></div></div></div>
+        <div class="foot"><span class="btn quiet">Cancel</span><span class="btn gold">Add this book</span></div>
+      </div></div><div class="cap"><b>Its edition</b>, then added.</div></div>
+    </div>
+  </section>
+
+  <!-- ============ 2. Search → not found ============ -->
+  <section class="flow">
+    <h2>2. Search → <b>not found</b> → its photos → its form</h2>
+    <p>Not found becomes the start of its page: the steps in sight, the next one a gold button. A typed search has no photo yet: the first step is its cover.</p>
+    <div class="row phone-only">
+      <div class="step"><div class="phone"><div class="notch"></div>
+        <div class="head">Add a book<span class="x">✕</span></div>
+        <div class="body">
+          <div class="field on">⌕ le grimoire perdu</div>
+          <div class="hero"><div class="t">Not in the catalogues <span class="new">NEW</span></div><div class="m">Google, Open Library and the BnF do not know it. Make its page from its photos: two steps.</div></div>
+          <div class="steps">
+            <div class="s now"><span class="n">1</span><div class="grow"><div class="t">Its cover</div><div class="m">its title, its author</div></div></div>
+            <div class="s"><span class="n">2</span><div class="grow"><div class="t">Its back</div><div class="m">its blurb, its ISBN · optional</div></div></div>
+            <div class="s"><span class="n">3</span><div class="grow"><div class="t">Check its page</div><div class="m">read for you, the BnF completes it</div></div></div>
+          </div>
+          <span class="btn gold big">📷 Photograph its cover</span>
+          <span class="btn quiet" style="align-self:center">or type it all by hand</span>
+        </div>
+      </div><div class="cap"><b>Not found</b>: its page in three steps, the first a gold button.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="phone"><div class="notch"></div>
+        <div class="head"><span class="back">←</span>Its page<span class="x">✕</span></div>
+        <div class="body">
+          <div class="steps">
+            <div class="s done"><span class="n">✓</span><span class="thumb" style="background:linear-gradient(160deg,#6d4bd6,#e35a8b)"></span><div class="grow"><div class="t">Its cover</div><div class="m">squared · <u>crop</u></div></div></div>
+            <div class="s now"><span class="n">2</span><div class="grow"><div class="t">Its back</div><div class="m">its blurb, its ISBN</div></div></div>
+            <div class="s"><span class="n">3</span><div class="grow"><div class="t">Check its page</div></div></div>
+          </div>
+          <span class="btn gold big">📷 Photograph its back</span>
+          <span class="btn quiet" style="align-self:center">Skip: its cover is enough</span>
+        </div>
+      </div><div class="cap"><b>Its cover ✓</b>, squared at once; its back next, or skipped.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="phone"><div class="notch"></div>
+        <div class="head"><span class="back">←</span>Its page<span class="x">✕</span></div>
+        <div class="body">
+          <div class="steps">
+            <div class="s done"><span class="n">✓</span><span class="thumb" style="background:linear-gradient(160deg,#6d4bd6,#e35a8b)"></span><div class="grow"><div class="t">Its cover</div></div></div>
+            <div class="s done"><span class="n">✓</span><span class="thumb"></span><div class="grow"><div class="t">Its back</div></div></div>
+            <div class="s now"><span class="n">3</span><div class="grow"><div class="t">Reading its photos…</div><div class="m">then the BnF</div></div><div class="spin"></div></div>
+          </div>
+          <div class="center"><div class="spin"></div><div>Reading the title, the author, the blurb, the ISBN…</div></div>
+        </div>
+      </div><div class="cap"><b>Read</b> at once once both are in: no Read button to press.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="phone"><div class="notch"></div>
+        <div class="head"><span class="back">←</span>Check its page<span class="x">✕</span></div>
+        <div class="body">
+          <div style="display:flex;gap:8px"><div class="cover lg" style="background:linear-gradient(160deg,#6d4bd6,#e35a8b)"></div><div class="cover lg c"></div><div class="m" style="align-self:end">Cover · Back<br><span class="read">✨ read from its photos</span></div></div>
+          <div class="form"><div class="f wide"><span>Title</span><div>Le grimoire perdu</div></div><div class="f"><span>Author</span><div>Anne Martin</div></div><div class="f"><span>Kind</span><div>Book</div></div>
+            <div class="f"><span>Publisher</span><div>Bayard</div></div><div class="f"><span>ISBN</span><div>978-2-7470…</div></div><div class="f wide"><span>Blurb</span><div>Dans la bibliothèque du château…</div></div>
+            <div class="f wide"><span>Belongs to</span><div>Oriane</div></div></div>
+        </div>
+        <div class="foot"><span class="btn quiet">Back</span><span class="btn gold">Add this book</span></div>
+      </div><div class="cap"><b>Its page</b>, filled, the photos beside it, the read fields marked.</div></div>
+    </div>
+    <div class="row laptop-only">
+      <div class="step"><div class="laptop"><div class="page"></div><div class="dlg">
+        <div class="head">Add a book<span class="x">✕</span></div>
+        <div class="body">
+          <div class="field on">⌕ le grimoire perdu</div>
+          <div class="hero"><div class="t">Not in the catalogues <span class="new">NEW</span></div><div class="m">Make its page from images of it: drop its cover and its back, or choose them.</div></div>
+          <div class="two"><div class="drop" style="border-color:var(--gold);background:var(--gold-soft)">⬇︎ Its cover<br><span class="m">drop or choose</span></div><div class="drop">⬇︎ Its back<br><span class="m">optional</span></div></div>
+        </div>
+        <div class="foot"><span class="btn quiet">Type it by hand</span><span class="btn gold">Read them</span></div>
+      </div></div><div class="cap"><b>Not found</b>: two drop zones side by side, Read them when one is in.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="laptop"><div class="page"></div><div class="dlg">
+        <div class="head"><span class="back">←</span>Check its page<span class="x">✕</span></div>
+        <div class="body"><div class="two">
+          <div style="flex:none;display:flex;flex-direction:column;gap:6px"><div class="cover lg" style="background:linear-gradient(160deg,#6d4bd6,#e35a8b)"></div><div class="cover lg c"></div></div>
+          <div class="form" style="align-content:start"><div class="f wide"><span>Title</span><div>Le grimoire perdu</div></div><div class="f"><span>Author</span><div>Anne Martin</div></div><div class="f"><span>Publisher</span><div>Bayard</div></div>
+            <div class="f wide"><span>Blurb</span><div>Dans la bibliothèque du château…</div></div><div class="f wide"><span>Belongs to</span><div>Oriane</div></div></div></div></div>
+        <div class="foot"><span class="btn quiet">Back</span><span class="btn gold">Add this book</span></div>
+      </div></div><div class="cap"><b>Its page</b>, filled from them.</div></div>
+    </div>
+  </section>
+
+  <!-- ============ 3. Photo → found ============ -->
+  <section class="flow">
+    <h2>3. Photo → <b>found</b></h2>
+    <p>The back photographed from the empty finder; its barcode finds one edition, which opens at once, marked found by it: no list, no tap.</p>
+    <div class="row phone-only">
+      <div class="step"><div class="phone"><div class="notch"></div>
+        <div class="head">Add a book<span class="x">✕</span></div>
+        <div class="body">
+          <div class="field">⌕ A title, an author, a series…</div>
+          <div class="pills"><span class="pill">Kind: All ▾</span><span class="pill">Language: FR ▾</span></div>
+          <div class="shoot"><div class="ic">📷</div><div class="t">Photograph its back</div><div class="m">Its barcode finds its edition at once</div></div>
+          <div class="m" style="text-align:center">Or type a title, an author, a series, an ISBN.</div>
+        </div>
+        <div class="foot"><span class="btn">📷 Photo</span><span class="btn">✎ Manual</span><span class="btn quiet">Cancel</span></div>
+      </div><div class="cap"><b>Empty finder</b>: the big button.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="phone"><div class="notch"></div>
+        <div class="head">Add a book<span class="x">✕</span></div>
+        <div class="body"><div class="center"><span class="thumb" style="width:70px;height:100px;border-radius:4px;background:linear-gradient(160deg,#ddd,#e2462f)"></span><div class="spin"></div><div>Reading its barcode…</div></div></div>
+      </div><div class="cap"><b>The back</b>, squared by itself (or its corners to check), the barcode read.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="phone"><div class="notch"></div>
+        <div class="head"><span class="back">←</span>Your edition<span class="x">✕</span></div>
+        <div class="body">
+          <span class="badge">✓ Found by its barcode · 978-2-264-03937-8 <span class="new">NEW</span></span>
+          <div class="item dim"><div class="cover lg c"></div><div><div class="t">American Psycho</div><div class="m">Bret Easton Ellis · 1998 · 10/18</div><div class="m">its back kept · <u>add its cover photo</u></div></div></div>
+          <div class="form"><div class="f"><span>Kind</span><div>Book</div></div><div class="f"><span>Format</span><div>Paper</div></div>
+            <div class="f wide"><span>Belongs to</span><div>Renault</div></div><div class="f"><span>Price CHF</span><div>—</div></div><div class="f"><span>Acquired</span><div>22.10.2026</div></div></div>
+        </div>
+        <div class="foot"><span class="btn quiet">Not this one</span><span class="btn gold">Add this book</span></div>
+      </div><div class="cap"><b>One edition: it opens</b>. Not this one goes back to the list.</div></div>
+    </div>
+    <div class="row laptop-only">
+      <div class="step"><div class="laptop"><div class="page"></div><div class="dlg">
+        <div class="head">Add a book<span class="x">✕</span></div>
+        <div class="body">
+          <div class="field">⌕ A title, an author, a series, an ISBN…</div>
+          <div class="shoot" style="flex:1"><div class="ic">⬇︎</div><div class="t">Drop a photo of its back</div><div class="m">or choose one · its barcode finds its edition</div></div>
+        </div>
+        <div class="foot"><span class="btn">✎ Manual</span><span class="btn quiet">Cancel</span></div>
+      </div></div><div class="cap"><b>Empty finder</b>: the camera is a drop zone.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="laptop"><div class="page"></div><div class="dlg">
+        <div class="head"><span class="back">←</span>Your edition<span class="x">✕</span></div>
+        <div class="body"><span class="badge">✓ Found by its barcode · 978-2-264-03937-8</span><div class="two"><div class="cover lg c" style="flex:none"></div>
+          <div class="form" style="align-content:start"><div class="f wide"><span>Title</span><div>American Psycho · 10/18</div></div><div class="f"><span>Kind</span><div>Book</div></div><div class="f"><span>Format</span><div>Paper</div></div>
+          <div class="f wide"><span>Belongs to</span><div>Renault</div></div></div></div></div>
+        <div class="foot"><span class="btn quiet">Not this one</span><span class="btn gold">Add this book</span></div>
+      </div></div><div class="cap"><b>One edition: it opens</b>.</div></div>
+    </div>
+  </section>
+
+  <!-- ============ 4. Photo → not found ============ -->
+  <section class="flow">
+    <h2>4. Photo → <b>not found</b> → its cover → its form</h2>
+    <p>The back is in already: the steps show it done, and ask for its cover at once. Both in, they are read without a button, its page then to check.</p>
+    <div class="row phone-only">
+      <div class="step"><div class="phone"><div class="notch"></div>
+        <div class="head">Add a book<span class="x">✕</span></div>
+        <div class="body"><div class="center"><span class="thumb" style="width:70px;height:100px;border-radius:4px;background:linear-gradient(160deg,#ddd,#3d6a9a)"></span><div class="spin"></div><div>Reading its barcode…</div></div></div>
+      </div><div class="cap"><b>The back</b> photographed.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="phone"><div class="notch"></div>
+        <div class="head">Its page<span class="x">✕</span></div>
+        <div class="body">
+          <div class="hero"><div class="t">Not in the catalogues yet <span class="new">NEW</span></div><div class="m">ISBN 979-10-3476-… is unknown to Google, Open Library and the BnF. One more photo, and its page is made.</div></div>
+          <div class="steps">
+            <div class="s done"><span class="n">✓</span><span class="thumb" style="background:linear-gradient(160deg,#ddd,#3d6a9a)"></span><div class="grow"><div class="t">Its back</div><div class="m">ISBN and blurb read · <u>crop</u></div></div></div>
+            <div class="s now"><span class="n">2</span><div class="grow"><div class="t">Its cover</div><div class="m">its title, its author, its picture</div></div></div>
+            <div class="s"><span class="n">3</span><div class="grow"><div class="t">Check its page</div></div></div>
+          </div>
+          <span class="btn gold big">📷 Photograph its cover</span>
+          <span class="btn quiet" style="align-self:center">No cover: fill in the rest by hand</span>
+        </div>
+      </div><div class="cap"><b>Not found</b>: the back done, its cover asked at once.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="phone"><div class="notch"></div>
+        <div class="head">Its page<span class="x">✕</span></div>
+        <div class="body">
+          <div class="steps">
+            <div class="s done"><span class="n">✓</span><span class="thumb" style="background:linear-gradient(160deg,#ddd,#3d6a9a)"></span><div class="grow"><div class="t">Its back</div></div></div>
+            <div class="s done"><span class="n">✓</span><span class="thumb" style="background:linear-gradient(160deg,#2a7a8a,#9fd6c2)"></span><div class="grow"><div class="t">Its cover</div></div></div>
+            <div class="s now"><span class="n">3</span><div class="grow"><div class="t">Reading its photos…</div><div class="m">then the BnF</div></div><div class="spin"></div></div>
+          </div>
+          <div class="center"><div class="spin"></div><div>Reading the title, the author, the blurb…</div></div>
+        </div>
+      </div><div class="cap"><b>Read</b> at once.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="phone"><div class="notch"></div>
+        <div class="head"><span class="back">←</span>Check its page<span class="x">✕</span></div>
+        <div class="body">
+          <div style="display:flex;gap:8px"><div class="cover lg b"></div><div class="cover lg" style="background:linear-gradient(160deg,#ddd,#3d6a9a)"></div><div class="m" style="align-self:end">Cover · Back<br><span class="read">✨ read from its photos</span></div></div>
+          <div class="form"><div class="f wide"><span>Title</span><div>Les étoiles de Noa</div></div><div class="f"><span>Author</span><div>C. Durand</div></div><div class="f"><span>Kind</span><div>BD</div></div>
+            <div class="f"><span>Series</span><div>Noa · 2</div></div><div class="f"><span>ISBN</span><div>979-10-3476…</div></div><div class="f wide"><span>Blurb</span><div>Noa repart vers…</div></div>
+            <div class="f wide"><span>Belongs to</span><div>Alice</div></div></div>
+        </div>
+        <div class="foot"><span class="btn quiet">Back</span><span class="btn gold">Add this book</span></div>
+      </div><div class="cap"><b>Its page</b>, filled; added from there.</div></div>
+    </div>
+    <div class="row laptop-only">
+      <div class="step"><div class="laptop"><div class="page"></div><div class="dlg">
+        <div class="head">Its page<span class="x">✕</span></div>
+        <div class="body">
+          <div class="hero"><div class="t">Not in the catalogues yet <span class="new">NEW</span></div><div class="m">Its back is in. Drop its cover too, and its page is made.</div></div>
+          <div class="two"><div class="drop" style="background:#2c2c2c;border-style:solid;border-color:transparent">✓ Its back<br><span class="m">ISBN and blurb read</span></div><div class="drop" style="border-color:var(--gold);background:var(--gold-soft)">⬇︎ Its cover<br><span class="m">drop or choose</span></div></div>
+        </div>
+        <div class="foot"><span class="btn quiet">No cover: by hand</span><span class="btn gold">Read them</span></div>
+      </div></div><div class="cap"><b>Not found</b>: its back done, its cover's zone lit.</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="laptop"><div class="page"></div><div class="dlg">
+        <div class="head"><span class="back">←</span>Check its page<span class="x">✕</span></div>
+        <div class="body"><div class="two">
+          <div style="flex:none;display:flex;flex-direction:column;gap:6px"><div class="cover lg b"></div><div class="cover lg" style="background:linear-gradient(160deg,#ddd,#3d6a9a)"></div></div>
+          <div class="form" style="align-content:start"><div class="f wide"><span>Title</span><div>Les étoiles de Noa</div></div><div class="f"><span>Series</span><div>Noa · 2</div></div><div class="f"><span>Kind</span><div>BD</div></div>
+            <div class="f wide"><span>Blurb</span><div>Noa repart vers…</div></div><div class="f wide"><span>Belongs to</span><div>Alice</div></div></div></div></div>
+        <div class="foot"><span class="btn quiet">Back</span><span class="btn gold">Add this book</span></div>
+      </div></div><div class="cap"><b>Its page</b>, filled from them.</div></div>
+    </div>
+  </section>
+</main>
+<script>
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === b));
+    document.body.dataset.device = b.dataset.d;
+  }));
+</script>
+</body>
+</html>

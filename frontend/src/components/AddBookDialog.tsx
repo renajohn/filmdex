@@ -3,9 +3,9 @@ import { BsCamera } from 'react-icons/bs';
 import BookFinder, { BookFinderHead } from './BookFinder';
 import BookForm from './BookForm';
 import Dialog from './shared/Dialog';
-import SleeveCapture from './SleeveCapture';
+import BookPhotoSteps from './BookPhotoSteps';
 import bookService from '../services/bookService';
-import type { BookPhotosDraft } from '../services/bookService';
+import { useNarrow } from '../utils/useNarrow';
 import { base64ToFile } from '../utils/downscaleImage';
 import { readStored } from '../utils/safeStorage';
 import './AddBookDialog.css';
@@ -13,16 +13,8 @@ import './AddBookDialog.css';
 type Photo = { base64: string; mimeType: string };
 type View = 'finder' | 'photos' | 'form';
 
-/** The covers screen of a CD, said of a book. */
-const BOOK_PHOTO_WORDS = {
-  title: 'Fill its form from its photos',
-  lead: 'Photograph what is missing: its front becomes its cover and names it, its back gives its blurb and its ISBN. The BnF completes the rest. Nothing is saved until you review it.',
-  frontHint: 'Its cover',
-  backHint: 'Its blurb and its ISBN',
-  read: 'Read the photos',
-  reading: 'Reading the photos…',
-  failed: 'Could not read the photos',
-};
+/** How its page from photos starts: after a photo that found nothing, or words; the ISBN read, files to square, the words. */
+export interface StepsStart { reason: 'photo' | 'search'; isbn?: string | null; files?: { front?: File; back?: File }; title?: string }
 
 interface AddBookDialogProps {
   show: boolean;
@@ -51,6 +43,9 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
   const [view, setView] = useState<View>('finder');
   const [finderHead, setFinderHead] = useState<BookFinderHead>({ title: 'Add a book' });
   const [taken, setTaken] = useState<{ front?: Photo; back?: Photo }>({});
+  // Why its page is made from photos, and what the finder handed over to square.
+  const [steps, setSteps] = useState<StepsStart>({ reason: 'search' });
+  const narrow = useNarrow();
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   // The photographs read for the form: its cover and its back once it is saved.
   const photosRef = useRef<{ front?: Photo; back?: Photo }>({});
@@ -118,32 +113,31 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
 
   if (view === 'photos') {
     return (
-      <Dialog show={show} onClose={close} size="lg" zIndex={10100} className="add-book-dialog" icon={<BsCamera />} title="Its photos"
+      <Dialog show={show} onClose={close} size="lg" zIndex={10100} className="add-book-dialog" icon={<BsCamera />} title="Its page"
         onBack={() => setView('finder')}>
-        <Dialog.Body>
-          <SleeveCapture
-            initialFront={taken.front || null}
-            initialBack={taken.back || null}
-            squared
-            subject="book"
-            words={BOOK_PHOTO_WORDS}
-            transcribe={photos => bookService.readPhotos(photos, { complete: true }) as never}
-            onDraft={result => {
-              const read = result.draft as unknown as BookPhotosDraft;
-              photosRef.current = { front: result.coverPhoto, back: result.backPhoto };
-              toForm({
-                title: read.title || '', subtitle: read.subtitle || undefined, authors: read.authors, artists: read.artists,
-                series: read.series || undefined, seriesNumber: read.seriesNumber ?? undefined, publisher: read.publisher || undefined,
-                isbn13: read.isbn13 || undefined, description: read.description || undefined, language: read.language || undefined,
-                bookType: read.bookType || undefined, publishedYear: read.publishedYear ?? undefined, pageCount: read.pageCount ?? undefined,
-                // Whose it is: the owner last given in the finder, as there.
-                owner: readStored('dv.bookOwner') || undefined,
-                ...(read.bnf ? { urls: { bnf: read.bnf } } : {}),
-              });
-            }}
-            onSkip={() => toForm({})}
-          />
-        </Dialog.Body>
+        <BookPhotoSteps
+          photos={taken}
+          files={steps.files}
+          reason={steps.reason}
+          isbn={steps.isbn}
+          wide={!narrow}
+          onDraft={(read, photos) => {
+            photosRef.current = photos;
+            toForm({
+              title: read.title || steps.title || '', subtitle: read.subtitle || undefined, authors: read.authors, artists: read.artists,
+              series: read.series || undefined, seriesNumber: read.seriesNumber ?? undefined, publisher: read.publisher || undefined,
+              isbn13: read.isbn13 || steps.isbn || undefined, description: read.description || undefined, language: read.language || undefined,
+              bookType: read.bookType || undefined, publishedYear: read.publishedYear ?? undefined, pageCount: read.pageCount ?? undefined,
+              // Whose it is: the owner last given in the finder, as there.
+              owner: readStored('dv.bookOwner') || undefined,
+              ...(read.bnf ? { urls: { bnf: read.bnf } } : {}),
+            });
+          }}
+          onManual={photos => {
+            photosRef.current = photos;
+            toForm({ ...(steps.title ? { title: steps.title } : {}), ...(steps.isbn ? { isbn13: steps.isbn } : {}), owner: readStored('dv.bookOwner') || undefined });
+          }}
+        />
       </Dialog>
     );
   }
@@ -158,7 +152,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
         onHead={setFinderHead}
         onChanged={book => onBookAdded?.(book)}
         onClose={close}
-        onPhotos={photos => { setTaken(photos); setView('photos'); }}
+        onPhotos={(photos, start) => { setTaken(photos); setSteps(start || { reason: 'photo' }); setView('photos'); }}
         onManual={title => toForm(title ? { title } : {})}
       />
     </Dialog>

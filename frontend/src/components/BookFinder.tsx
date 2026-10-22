@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BsCamera, BsCheckLg, BsChevronRight, BsFilter, BsPencil, BsPersonFill, BsPlusLg, BsSearch } from 'react-icons/bs';
+import { BsCamera, BsUpload, BsCheckLg, BsChevronRight, BsFilter, BsPencil, BsPersonFill, BsPlusLg, BsSearch } from 'react-icons/bs';
 import bookFinderService, {
   BookEdition, BookFormat, BookKind, BookLanguage, FinderAuthor, FinderBook, FinderSeries,
 } from '../services/bookFinderService';
@@ -16,6 +16,7 @@ import { downscaleImage, base64ToFile } from '../utils/downscaleImage';
 import { decodeBarcode } from '../utils/decodeBarcode';
 import { straightenIfSure } from '../utils/straightenPhoto';
 import CoverCropDialog from './CoverCropDialog';
+import type { StepsStart } from './AddBookDialog';
 import OwnerField from './OwnerField';
 import Menu, { MenuChevron } from './shared/Menu';
 import { useNarrow } from '../utils/useNarrow';
@@ -41,8 +42,8 @@ interface BookFinderProps {
   /** A book added, wished, bought or taken off the wish list. */
   onChanged: (book: unknown) => void;
   onClose: () => void;
-  /** Fill the form from the book's photographs, those already taken handed over. */
-  onPhotos?: (taken: { front?: Photo; back?: Photo }) => void;
+  /** Its page made from its photos: those taken handed over, and why (a photo that found nothing, or words). */
+  onPhotos?: (taken: { front?: Photo; back?: Photo }, start?: StepsStart) => void;
   /** A series to open on, its volumes to add those one has: from a series' stack. */
   initialSeries?: { name: string; author: string | null };
   /** Type it by hand: the words searched, when nothing was found, as its title. */
@@ -128,6 +129,13 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
   const [readingPhoto, setReadingPhoto] = useState<'back' | 'blurb' | null>(null);
   const [blurb, setBlurb] = useState<string | null>(null);
   const [isbnRead, setIsbnRead] = useState<'barcode' | 'model' | null>(null);
+  // The words searched as its photo gave them: what it finds, it found; nothing, and its page is made from photos.
+  const [photoQuery, setPhotoQuery] = useState<string | null>(null);
+  // Found by its barcode: its one edition opened at once, once.
+  const [byBarcode, setByBarcode] = useState(false);
+  const openedFor = useRef<string | null>(null);
+  // The cover photographed from a search that found nothing: its page from photos, its cover first.
+  const coverForPageRef = useRef<HTMLInputElement>(null);
   // The photos as taken, for the straightening dialog; each kept side is squared, by itself when the
   // detector is sure, else in the dialog opened at once on its best guess, and again on a tap of its thumbnail.
   const originals = useRef<{ front?: File; back?: File }>({});
@@ -145,10 +153,16 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
     return kept;
   };
 
-  const photographedBack = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const photographedBack = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
+    void takeBack(file);
+  };
+
+  /** Its back, photographed or dropped: squared, its barcode read and searched, its blurb read meanwhile. */
+  const takeBack = async (file: File | undefined) => {
     if (!file) return;
+    setByBarcode(false);
     setReadingPhoto('back');
     setBlurb(null);
     setIsbnRead(null);
@@ -157,12 +171,12 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
       // The barcode read off the photo as taken, while the back is squared: the search does not wait for it.
       const [back, code] = await Promise.all([keepSide('back', file), decodeBarcode(file).catch(() => null)]);
       const isbn = code && /^97[89]\d{10}$/.test(code) ? code : null;
-      if (isbn) { setQuery(isbn); setIsbnRead('barcode'); setReadingPhoto('blurb'); }
+      if (isbn) { setQuery(isbn); setPhotoQuery(isbn); setIsbnRead('barcode'); setReadingPhoto('blurb'); }
       const { draft } = await bookService.readPhotos({ back });
       setBlurb(draft.description);
       if (!isbn) {
-        if (draft.isbn13) { setQuery(draft.isbn13); setIsbnRead('model'); }
-        else if (draft.title) setQuery([draft.title, draft.authors[0]].filter(Boolean).join(' '));
+        if (draft.isbn13) { setQuery(draft.isbn13); setPhotoQuery(draft.isbn13); setIsbnRead('model'); }
+        else if (draft.title) { const words = [draft.title, draft.authors[0]].filter(Boolean).join(' '); setQuery(words); setPhotoQuery(words); }
         else toast('Nothing could be read on this back: try another photo, or its front.', { tone: 'warning' });
       }
     } catch (e) {
@@ -212,6 +226,25 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
     return () => { clearTimeout(timer); controller.abort(); };
   }, [query, language, kind]);
 
+  // A photo's ISBN that finds one edition: it opens at once, marked found by it.
+  useEffect(() => {
+    if (view !== 'search' || searching || !isbnRead || !photoQuery || query !== photoQuery || openedFor.current === query) return;
+    if (books.length === 1 && (books[0].isbn13 === query || books[0].isbn10 === query)) {
+      openedFor.current = query;
+      setByBarcode(true);
+      choose(books[0], 'search');
+    }
+  }, [books, searching, isbnRead, photoQuery, query, view]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A photo that finds nothing: its page is made from photos, its back done.
+  useEffect(() => {
+    if (!onPhotos || wishMode || view !== 'search' || searching || readingPhoto || error || !photos.back || !photoQuery || query !== photoQuery) return;
+    if (books.length === 0 && openedFor.current !== `none:${query}`) {
+      openedFor.current = `none:${query}`;
+      onPhotos(photos, { reason: 'photo', isbn: isbnRead ? query : null });
+    }
+  }, [books, searching, readingPhoto, error, photos, photoQuery, query, view]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const back = () => {
     if (buying) { onClose(); return; }
     setView(view === 'edition' ? cameFrom : 'search');
@@ -222,12 +255,12 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
       search: mode === 'wish' ? 'Add a book to the wish list' : reading ? 'Add a reading' : initialKind === 'score' ? 'Add a score' : 'Add a book',
       series: serie?.name || '',
       author: author?.name || '',
-      edition: buying ? 'Which edition did you buy?' : chosen.length > 1 ? `${chosen.length} volumes of ${serie?.name || ''}` : 'Which edition do you have?',
+      edition: buying ? 'Which edition did you buy?' : chosen.length > 1 ? `${chosen.length} volumes of ${serie?.name || ''}` : byBarcode ? 'Your edition' : 'Which edition do you have?',
     };
     onHead({ title: titles[view], onBack: view === 'search' || buying ? undefined : back });
     if (view === 'search') setTimeout(() => searchRef.current?.focus(), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, serie, author, chosen, mode]);
+  }, [view, serie, author, chosen, mode, byBarcode]);
 
   useEffect(() => {
     (listRef.current?.querySelector('.finder__row--active') as HTMLElement | null)?.scrollIntoView?.({ block: 'nearest' });
@@ -442,7 +475,7 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
           {!readingPhoto && (
             <span className="finder__photo-actions">
               {!photos.front && <Button size="sm" icon={<BsCamera />} onClick={() => frontRef.current?.click()} title="Photograph its front: it becomes its cover, rather than the one found">Its cover</Button>}
-              {onPhotos && <Button size="sm" variant="quiet" onClick={() => onPhotos(photos)} title="Not found: fill the form from the photos">From the photos</Button>}
+              {onPhotos && <Button size="sm" variant="quiet" onClick={() => onPhotos(photos, { reason: 'photo', isbn: isbnRead ? photoQuery : null })} title="Not the right one: make its page from its photos">From the photos</Button>}
             </span>
           )}
         </div>
@@ -452,10 +485,12 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
           <div className="finder__empty">
             {/* The quickest way in: its back's barcode is its edition. */}
             {!wishMode && (
-              <button type="button" className="finder__shoot" onClick={() => backRef.current?.click()} disabled={readingPhoto === 'back'}>
-                {readingPhoto === 'back' ? <Spinner size="lg" /> : <BsCamera size={34} />}
-                <span>{readingPhoto === 'back' ? 'Reading its back…' : 'Photograph its back'}</span>
-                <small>Its barcode finds its edition at once</small>
+              <button type="button" className="finder__shoot" onClick={() => backRef.current?.click()} disabled={readingPhoto === 'back'}
+                onDragOver={event => event.preventDefault()}
+                onDrop={event => { event.preventDefault(); void takeBack(event.dataTransfer.files?.[0]); }}>
+                {readingPhoto === 'back' ? <Spinner size="lg" /> : narrow ? <BsCamera size={34} /> : <BsUpload size={30} />}
+                <span>{readingPhoto === 'back' ? 'Reading its back…' : narrow ? 'Photograph its back' : 'Drop a photo of its back'}</span>
+                <small>{narrow ? 'Its barcode finds its edition at once' : 'or choose one · its barcode finds its edition'}</small>
               </button>
             )}
             <p>{wishMode ? 'Books appear as you type: a title, an author, a series.' : 'Or type a title, an author, a series, an ISBN.'}</p>
@@ -520,13 +555,26 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
               <Loading>Searching…</Loading>
             ) : (
               <div className="finder__empty">
-                <p>{kind === 'all' ? 'No book found.' : `No ${kindLabel(kind)} found${hidden ? `: ${hidden} of another kind, shown with All` : ''}.`}</p>
-                {/* Not found: its form, filled from its photos (those missing asked, the BnF completing), or by hand. */}
-                {!wishMode && (photos.back || photos.front) && onPhotos && (
-                  <Button icon={<BsCamera />} onClick={() => onPhotos(photos)}>Fill its form from its photos</Button>
-                )}
-                {!wishMode && !(photos.back || photos.front) && onManual && (
-                  <Button icon={<BsPencil />} onClick={() => onManual(/^[\d\s-]+$/.test(query) ? undefined : query.trim())}>Fill it by hand</Button>
+                {!wishMode && onPhotos ? (
+                  // Not found: the start of its page, made from photos, its steps in sight.
+                  <div className="finder__notfound">
+                    <div className="finder__notfound-title">Not in the catalogues</div>
+                    <p>{kind === 'all' ? '' : `No ${kindLabel(kind)} found${hidden ? ` (${hidden} of another kind, shown with All)` : ''}. `}Google, Open Library and the BnF do not know it. Make its page from {narrow ? 'its photos' : 'images of it'}.</p>
+                    {narrow && (
+                      <ol className="finder__notfound-steps">
+                        <li className="finder__notfound-step--now"><b>1</b><span>Its cover<small>its title, its author</small></span></li>
+                        <li><b>2</b><span>Its back<small>its blurb, its ISBN · optional</small></span></li>
+                        <li><b>3</b><span>Check its page<small>read for you, the BnF completes it</small></span></li>
+                      </ol>
+                    )}
+                    <Button variant="primary" block icon={<BsCamera />}
+                      onClick={() => (narrow ? coverForPageRef.current?.click() : onPhotos({}, { reason: 'search', title: query.trim() }))}>
+                      {narrow ? 'Photograph its cover' : 'Make its page from its images'}
+                    </Button>
+                    {onManual && <Button variant="quiet" onClick={() => onManual(/^[\d\s-]+$/.test(query) ? undefined : query.trim())}>or type it all by hand</Button>}
+                  </div>
+                ) : (
+                  <p>{kind === 'all' ? 'No book found.' : `No ${kindLabel(kind)} found${hidden ? `: ${hidden} of another kind, shown with All` : ''}.`}</p>
                 )}
               </div>
             )}
@@ -641,6 +689,9 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
   const total = parseFloat(String(form.priceChf || '').replace(',', '.'));
   const editionView = first && (
     <div className="finder__results">
+      {byBarcode && many === 1 && !buying && (chosen[0]?.isbn13 === photoQuery || chosen[0]?.isbn10 === photoQuery) && (
+        <div className="finder__found">✓ Found by its barcode · {photoQuery}</div>
+      )}
       <div className="finder__album">
         {first.cover ? <img className="finder__poster" src={cover(first.cover)} alt="" /> : null}
         <div>
@@ -715,7 +766,9 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
       return (
         <>
           <span className="finder__note" />
-          <Button variant="quiet" onClick={back}>Cancel</Button>
+          {byBarcode && many === 1
+            ? <Button variant="quiet" onClick={() => { setByBarcode(false); back(); }}>Not this one</Button>
+            : <Button variant="quiet" onClick={back}>Cancel</Button>}
           <Button variant="primary" onClick={save} loading={saving}>
             {buying ? 'I bought it' : borrowed ? (many > 1 ? `Add the ${many} volumes, borrowed` : 'Add it, borrowed') : many > 1 ? `Add the ${many} volumes` : 'Add this book'}
           </Button>
@@ -767,6 +820,8 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
         }}
       />
       <input ref={backRef} type="file" accept="image/*,.heic,.heif" capture="environment" style={{ display: 'none' }} onChange={photographedBack} data-testid="finder-photo" />
+      <input ref={coverForPageRef} type="file" accept="image/*,.heic,.heif" capture="environment" style={{ display: 'none' }} data-testid="finder-cover-for-page"
+        onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file && onPhotos) onPhotos({}, { reason: 'search', files: { front: file }, title: query.trim() }); }} />
       <input ref={frontRef} type="file" accept="image/*,.heic,.heif" capture="environment" style={{ display: 'none' }} onChange={photographedFront} data-testid="finder-photo-front" />
       <Dialog.Body className="finder">
         {view === 'search' && searchView}

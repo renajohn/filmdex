@@ -1,0 +1,166 @@
+/* A book made from its photos (BookPhotoSteps): its steps on a phone, its drop zones on a laptop. */
+.photo-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.photo-steps__hero {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+}
+
+.photo-steps__title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.photo-steps__lead {
+  margin-top: 2px;
+  color: var(--dv-text-muted);
+  font-size: 0.85rem;
+}
+
+/* A phone: its steps, the one to do lit in gold. */
+.photo-steps__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.photo-steps__step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--dv-edge);
+  border-radius: 12px;
+}
+
+.photo-steps__step--done {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.photo-steps__step--now {
+  border-color: var(--dv-gold);
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.photo-steps__n {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--dv-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.photo-steps__step--done .photo-steps__n,
+.photo-steps__step--now .photo-steps__n {
+  background: var(--dv-gold);
+  color: #1a1a1a;
+}
+
+.photo-steps__thumb {
+  flex: none;
+  width: 30px;
+  height: 42px;
+  border-radius: 2px;
+  object-fit: cover;
+}
+
+.photo-steps__thumb--busy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.photo-steps__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.photo-steps__name {
+  font-weight: 600;
+}
+
+.photo-steps__text small,
+.photo-steps__zone small {
+  color: var(--dv-text-muted);
+  font-size: 0.78rem;
+}
+
+/* A laptop: its two zones side by side, to drop an image on or choose one. */
+.photo-steps__zones {
+  display: flex;
+  gap: 12px;
+}
+
+.photo-steps__zone-box {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.photo-steps__zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 190px;
+  padding: 12px;
+  border: 1px dashed var(--dv-edge);
+  border-radius: 12px;
+  background: none;
+  color: var(--dv-text-muted);
+  cursor: pointer;
+}
+
+.photo-steps__zone--now {
+  border-color: var(--dv-gold);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.photo-steps__zone--done {
+  border-style: solid;
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.photo-steps__zone--over {
+  border-color: var(--dv-gold);
+}
+
+.photo-steps__zone .photo-steps__thumb {
+  width: 84px;
+  height: 118px;
+}
+
+.photo-steps__zone .photo-steps__name {
+  color: var(--dv-text);
+}
+
+.photo-steps__reading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--dv-text-muted);
+}

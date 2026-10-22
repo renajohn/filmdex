@@ -577,3 +577,83 @@ div.finder__empty p {
 .finder__shoot:hover:not(:disabled) {
   background: rgba(251, 191, 36, 0.12);
 }
+
+/* Not found: the start of its page made from photos, its steps in sight, its next one a gold button. */
+.finder__notfound {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(100%, 420px);
+  text-align: left;
+}
+
+.finder__notfound-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--dv-text);
+}
+
+.finder__notfound p {
+  margin: 0;
+  color: var(--dv-text-muted);
+  font-size: 0.88rem;
+}
+
+.finder__notfound-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.finder__notfound-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--dv-edge);
+  border-radius: 10px;
+  color: var(--dv-text);
+  font-weight: 600;
+}
+
+.finder__notfound-steps li b {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 0.72rem;
+}
+
+.finder__notfound-steps li small {
+  display: block;
+  color: var(--dv-text-muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+li.finder__notfound-step--now {
+  border-color: var(--dv-gold);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+li.finder__notfound-step--now b {
+  background: var(--dv-gold);
+  color: #1a1a1a;
+}
+
+/* A photo's barcode found its one edition: said above it. */
+.finder__found {
+  align-self: flex-start;
+  margin-bottom: 8px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: rgba(251, 191, 36, 0.12);
+  color: var(--dv-gold);
+  font-size: 0.8rem;
+  font-weight: 600;
+}

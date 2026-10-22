@@ -184,7 +184,7 @@ describe('BookFinder', () => {
     expect(decodeBarcode).toHaveBeenCalled();
     expect(await screen.findByText(/ISBN off its barcode, its blurb kept/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /From the photos/ }));
-    expect(onPhotos).toHaveBeenCalledWith({ back: { base64: 'AAAA', mimeType: 'image/jpeg' } });
+    expect(onPhotos).toHaveBeenCalledWith({ back: { base64: 'AAAA', mimeType: 'image/jpeg' } }, { reason: 'photo', isbn: '9782264039378' });
   });
 
   it('ouvre le redressement du dos quand ses coins ne sont pas sûrs, et le rouvre sur sa vignette', async () => {
@@ -203,26 +203,38 @@ describe('BookFinder', () => {
     expect(await screen.findByText('Straighten the back cover')).toBeInTheDocument();
   });
 
-  it('rien trouvé : propose de le remplir à la main, les mots cherchés pour titre', async () => {
+  it('rien trouvé : propose sa page faite de ses images, ou de la remplir à la main, les mots cherchés pour titre', async () => {
     vi.mocked(bookFinderService.search).mockResolvedValue({ books: [], series: [], authors: [] });
     const onManual = vi.fn();
-    open('owned', { onManual });
+    const onPhotos = vi.fn();
+    open('owned', { onManual, onPhotos });
     type('un livre introuvable');
-    fireEvent.click(await screen.findByRole('button', { name: /Fill it by hand/ }));
+    expect(await screen.findByText('Not in the catalogues')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Make its page from its images/ }));
+    expect(onPhotos).toHaveBeenCalledWith({}, { reason: 'search', title: 'un livre introuvable' });
+    fireEvent.click(screen.getByRole('button', { name: /or type it all by hand/ }));
     expect(onManual).toHaveBeenCalledWith('un livre introuvable');
   });
 
-  it('rien trouvé d’après ses photos : propose de remplir sa fiche depuis elles', async () => {
+  it('rien trouvé d’après ses photos : passe d’elle-même à sa page faite de photos, son dos fait', async () => {
     vi.mocked(bookFinderService.search).mockResolvedValue({ books: [], series: [], authors: [] });
     vi.mocked(bookService.readPhotos).mockResolvedValue({ draft: { title: null, subtitle: null, authors: [], artists: [], translators: [], series: null, seriesNumber: null,
       publisher: null, isbn13: null, description: null, language: null, bookType: null }, sources: { front: false, back: true }, truncated: false });
     const onPhotos = vi.fn();
     open('owned', { onPhotos });
     fireEvent.change(screen.getByTestId('finder-photo'), { target: { files: [new File(['x'], 'back.jpg', { type: 'image/jpeg' })] } });
-    await waitFor(() => expect(bookFinderService.search).toHaveBeenCalledWith('9782264039378', expect.anything(), expect.anything(), expect.anything()));
-    await waitFor(() => expect(screen.queryByText(/Reading its back/)).not.toBeInTheDocument());
-    fireEvent.click(await screen.findByRole('button', { name: /Fill its form from its photos/ }));
-    await waitFor(() => expect(onPhotos).toHaveBeenCalled());
-    expect(onPhotos).toHaveBeenCalledWith(expect.objectContaining({ back: expect.anything() }));
+    await waitFor(() => expect(onPhotos).toHaveBeenCalledWith(expect.objectContaining({ back: expect.anything() }), { reason: 'photo', isbn: '9782264039378' }));
+  });
+
+  it('ouvre d’elle-même l’édition unique que son code-barres trouve, et Not this one revient à la liste', async () => {
+    vi.mocked(bookFinderService.search).mockResolvedValue({ books: [book(9, { isbn13: '9782264039378', title: 'American Psycho' })], series: [], authors: [] });
+    vi.mocked(bookService.readPhotos).mockResolvedValue({ draft: { title: null, subtitle: null, authors: [], artists: [], translators: [], series: null, seriesNumber: null,
+      publisher: null, isbn13: null, description: null, language: null, bookType: null }, sources: { front: false, back: true }, truncated: false });
+    open('owned');
+    fireEvent.change(screen.getByTestId('finder-photo'), { target: { files: [new File(['x'], 'back.jpg', { type: 'image/jpeg' })] } });
+    expect(await screen.findByText(/Found by its barcode · 9782264039378/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Not this one' }));
+    expect(await screen.findByText('American Psycho')).toBeInTheDocument();
+    expect(screen.queryByText(/Found by its barcode/)).not.toBeInTheDocument();
   });
 });

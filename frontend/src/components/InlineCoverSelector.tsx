@@ -76,7 +76,7 @@ const InlineCoverSelector = ({ book, isOpen, onCoverSelected, onBackSelected, cu
   };
 
   /** A photo or a file: a photograph squared first, the camera rarely square to a book held in the hand. */
-  const processFile = (file: File, slot: 'front' | 'back' = 'front'): void => {
+  const processFile = (file: File, slot: 'front' | 'back' = 'front', fromCamera = false): void => {
     if (!file) return;
     if (!file.type.startsWith('image/') && !/\.(heic|heif)$/i.test(file.name)) {
       toast('Please select an image file', { tone: 'warning' });
@@ -86,12 +86,13 @@ const InlineCoverSelector = ({ book, isOpen, onCoverSelected, onBackSelected, cu
       toast('Image size must be less than 20MB', { tone: 'warning' });
       return;
     }
-    void squareOrKeep(file, slot);
+    void squareOrKeep(file, slot, fromCamera);
   };
 
   /** A photograph squared, by itself when the detector is sure, else in the dialog; a picture from the web as it is. */
-  const squareOrKeep = async (file: File, slot: 'front' | 'back') => {
-    if (!(await isCameraPhoto(file).catch(() => false))) { await upload(file, slot); return; }
+  const squareOrKeep = async (file: File, slot: 'front' | 'back', fromCamera = false) => {
+    // From the camera it is a photograph, whatever its EXIF: Safari strips it from a photo sent by a camera field.
+    if (!fromCamera && !(await isCameraPhoto(file).catch(() => false))) { await upload(file, slot); return; }
     const squared = await straightenIfSure(file, 'book').catch(() => null);
     if (squared) await upload(squared, slot);
     else setCropping({ file, slot });
@@ -117,9 +118,9 @@ const InlineCoverSelector = ({ book, isOpen, onCoverSelected, onBackSelected, cu
     }
   };
 
-  const handleFileSelect = (slot: 'front' | 'back') => (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (slot: 'front' | 'back', fromCamera = false) => (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) processFile(file, slot);
+    if (file) processFile(file, slot, fromCamera);
   };
 
   const handleUrlSubmit = async () => {
@@ -176,8 +177,8 @@ const InlineCoverSelector = ({ book, isOpen, onCoverSelected, onBackSelected, cu
         </div>
 
         <div className="cover-selector-options">
-          <input ref={frontPhotoRef} type="file" accept="image/*,.heic,.heif" capture="environment" onChange={handleFileSelect('front')} style={{ display: 'none' }} />
-          <input ref={backPhotoRef} type="file" accept="image/*,.heic,.heif" capture="environment" onChange={handleFileSelect('back')} style={{ display: 'none' }} />
+          <input ref={frontPhotoRef} type="file" accept="image/*,.heic,.heif" capture="environment" onChange={handleFileSelect('front', true)} style={{ display: 'none' }} />
+          <input ref={backPhotoRef} type="file" accept="image/*,.heic,.heif" capture="environment" onChange={handleFileSelect('back', true)} style={{ display: 'none' }} />
           {/* Photographed: its front, as the cover; its back, kept beside it */}
           <div className="cover-option upload-card" onClick={() => frontPhotoRef.current?.click()} title="Photograph its cover">
             <div className="upload-card-content">
