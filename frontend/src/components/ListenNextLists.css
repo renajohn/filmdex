@@ -48,8 +48,9 @@
 .listen-next-strip__name span {
   font-weight: 500;
 }
-.listen-next-strip__name--cd { color: var(--dv-silver); }
-.listen-next-strip__name--digital { color: var(--dv-gold); }
+/* In the colour of the banner it lies in, as its small covers: gold under the streamed list, silver under the CDs. */
+.listen-next-strip__name--cd { color: var(--dv-gold); }
+.listen-next-strip__name--digital { color: var(--dv-silver); }
 .next-banner-other__hint {
   display: none;
   color: var(--dv-text);
@@ -85,7 +86,7 @@
   opacity: 0.6;
   cursor: pointer;
   touch-action: pan-x;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.45s ease, transform 0.2s ease;
 }
 .next-banner-other__cover:hover,
 .next-banner-other__cover:focus-visible {
@@ -98,7 +99,8 @@
   object-fit: cover;
   display: block;
   filter: grayscale(1) brightness(0.9);
-  transition: filter 0.2s ease;
+  /* The colour comes back, and goes, slowly enough to be seen. */
+  transition: filter 0.45s ease;
 }
 .next-banner-other__more {
   /* In the last cover's place, as wide. */
@@ -210,6 +212,13 @@
   }
 }
 
+/* Tinted in the colour of the banner they lie in: gold under the streamed list, silver under the CDs. */
+.next-banner-other--cd .next-banner-other__cover img {
+  filter: grayscale(1) sepia(1) saturate(2.4) hue-rotate(-10deg) brightness(0.8);
+}
+.next-banner-other--digital .next-banner-other__cover img {
+  filter: grayscale(1) sepia(0.2) brightness(1.05) contrast(0.9);
+}
 .next-banner-other__cover:hover img,
 .next-banner-other__cover:focus-visible img,
 /* A cover dragged over the strip: in colour, all of it, as the place it can go. */

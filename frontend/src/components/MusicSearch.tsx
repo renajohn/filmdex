@@ -1303,6 +1303,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           other={{
             items: listenNextAlbums.filter(album => mediumOf(album) !== nextMedium),
             dropId: otherMedium(nextMedium),
+            // Its small covers tinted in its colour: gold the streamed list, silver the CDs.
+            className: `next-banner-other--${otherMedium(nextMedium)}`,
             head: <OtherListName medium={otherMedium(nextMedium)} count={nextCounts[otherMedium(nextMedium)]} onOpen={() => chooseNextMedium(otherMedium(nextMedium))} />,
             dropHint: `Drop here: ${INSTEAD[otherMedium(nextMedium)].toLowerCase()}`,
             onShow: showNext,
