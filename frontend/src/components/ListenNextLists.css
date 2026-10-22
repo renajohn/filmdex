@@ -68,7 +68,7 @@
   overflow: hidden;
 }
 /* The small cover dragged follows the pointer: in the strip, only the room it will take shows. */
-.next-banner-other__cover--dragging {
+.next-banner-other__covers .next-banner-other__cover.next-banner-other__cover--dragging {
   opacity: 0;
 }
 .next-banner-other__cover {
@@ -81,12 +81,14 @@
   overflow: hidden;
   background: #2a2a2a;
   color: var(--dv-text-muted);
-  opacity: 0.75;
+  /* A glimpse of the other list, not a second row of colours: grey and faded, in colour under the pointer. */
+  opacity: 0.6;
   cursor: pointer;
   touch-action: pan-x;
-  transition: opacity 0.15s, transform 0.15s;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
-.next-banner-other__cover:hover {
+.next-banner-other__cover:hover,
+.next-banner-other__cover:focus-visible {
   opacity: 1;
   transform: translateY(-2px);
 }
@@ -95,6 +97,8 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  filter: grayscale(1) brightness(0.9);
+  transition: filter 0.2s ease;
 }
 .next-banner-other__more {
   /* In the last cover's place, as wide. */
@@ -204,4 +208,14 @@
   .next-banner-other__drop {
     flex-basis: 100%;
   }
+}
+
+.next-banner-other__cover:hover img,
+.next-banner-other__cover:focus-visible img,
+/* A cover dragged over the strip: in colour, all of it, as the place it can go. */
+.next-banner-drop--over .next-banner-other__cover img {
+  filter: none;
+}
+.next-banner-drop--over .next-banner-other__cover {
+  opacity: 1;
 }
