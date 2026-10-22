@@ -352,6 +352,8 @@ export interface AddBookInput {
   composer?: string | null;
   /** When it was read: a book added from the reading journal. */
   readDate?: string | null;
+  /** Added from the reading journal: a reading, of readDate or of none when it is empty. */
+  read?: boolean;
 }
 
 const FORMATS = ['physical', 'ebook', 'audiobook'];
@@ -384,10 +386,11 @@ const addFound = async (input: AddBookInput, priceChf: number | null): Promise<B
     if ((have.have.status === 'wish' || have.have.status === 'borrowed') && titleStatus === 'owned') {
       return (await buyBooks([have.have.id], { priceChf, purchasedAt: input.purchasedAt, format }))[0];
     }
-    if (input.readDate && (have.have.status === 'owned' || have.have.status === 'borrowed')) {
-      // A book of the library read (again): a reading of its date, not a second copy nor the first reading lost.
+    if ((input.readDate || input.read) && (have.have.status === 'owned' || have.have.status === 'borrowed')) {
+      // A book of the library read (again): a reading of its date, or of none, not a second copy nor the first reading lost.
       const known = await BookReading.list(have.have.id);
-      if (!known.some(r => r.readDate === BookReading.day(input.readDate))) await BookReading.add(have.have.id, input.readDate);
+      const when = BookReading.day(input.readDate);
+      if (!known.some(r => r.readDate === when)) await BookReading.add(have.have.id, when, true);
       return (await Book.findById(have.have.id))!;
     }
     if (have.have.status === 'wish' && titleStatus === 'borrowed') {
@@ -402,7 +405,7 @@ const addFound = async (input: AddBookInput, priceChf: number | null): Promise<B
     }
   }
 
-  return bookService.addBook({
+  const added = await bookService.addBook({
     title: book.title,
     subtitle: book.subtitle || null,
     authors: book.authors || [],
@@ -426,6 +429,9 @@ const addFound = async (input: AddBookInput, priceChf: number | null): Promise<B
     priceChf: titleStatus === 'owned' ? priceChf : null,
     purchasedAt: titleStatus === 'owned' ? input.purchasedAt || new Date().toISOString().slice(0, 10) : null,
   } as never);
+  // Read, one does not know when: a reading of no date, for the journal to hold it.
+  if (input.read && !BookReading.day(input.readDate) && added?.id) await BookReading.add(added.id, null, true);
+  return added;
 };
 
 

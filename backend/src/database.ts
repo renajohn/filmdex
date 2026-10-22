@@ -496,6 +496,27 @@ const runAutoMigrations = async (): Promise<void> => {
         }
         console.log('  ✓ Added books.back_cover');
       }
+    },
+    {
+      name: '025_undated_readings',
+      up: async () => {
+        // A book read, one does not know when: a reading of no date. SQLite changes a column's constraint by copying the table.
+        const exists = await new Promise<unknown>((resolve, reject) => {
+          currentDb.get("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'book_readings'", (err: Error | null, row: unknown) => (err ? reject(err) : resolve(row)));
+        });
+        if (exists) {
+          for (const sql of [
+            'CREATE TABLE book_readings_new (id INTEGER PRIMARY KEY AUTOINCREMENT, book_id INTEGER NOT NULL, read_date TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)',
+            'INSERT INTO book_readings_new (id, book_id, read_date, created_at) SELECT id, book_id, read_date, created_at FROM book_readings',
+            'DROP TABLE book_readings',
+            'ALTER TABLE book_readings_new RENAME TO book_readings',
+            'CREATE INDEX IF NOT EXISTS idx_book_readings_book ON book_readings(book_id)',
+          ]) {
+            await new Promise<void>((resolve, reject) => currentDb.run(sql, (err: Error | null) => (err ? reject(err) : resolve())));
+          }
+        }
+        console.log('  ✓ book_readings may have no date');
+      }
     }
   ];
 

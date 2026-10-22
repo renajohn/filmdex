@@ -4,8 +4,8 @@ import { BsCamera, BsCheckCircleFill, BsArrowRepeat } from 'react-icons/bs';
 import musicService from '../services/musicService';
 import CoverCropDialog from './CoverCropDialog';
 import { downscaleImage, base64ToFile } from '../utils/downscaleImage';
-import { detectSleeveQuad, CONFIDENT, imagePixels, type Subject } from '../utils/detectSleeveQuad';
-import { warpQuad } from '../utils/warpQuad';
+import type { Subject } from '../utils/detectSleeveQuad';
+import { straightenIfSure } from '../utils/straightenPhoto';
 import './SleeveCapture.css';
 import Button from './shared/Button';
 import Notice from './shared/Notice';
@@ -53,6 +53,8 @@ interface SleeveCaptureProps {
   initialFront?: Photo | null;
   /** A back already taken (a book's, photographed first for its barcode). */
   initialBack?: Photo | null;
+  /** The photos handed over are squared already (the book finder's): not straightened again. */
+  squared?: boolean;
   onDraft: (result: SleeveDraftResult) => void;
   onSkip: () => void;
   /** How the photographs are read: a CD's sleeve unless given (a book's covers). */
@@ -70,7 +72,7 @@ interface SleeveCaptureProps {
  * camera. The front comes first, since it is the one that becomes the artwork
  * and the one whose absence used to mean no cover at all.
  */
-const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, initialBack, onDraft, onSkip, transcribe, words: given, subject = 'sleeve' }) => {
+const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, initialBack, onDraft, onSkip, transcribe, words: given, subject = 'sleeve', squared = false }) => {
   const words = { ...SLEEVE_WORDS, ...given };
   const [photos, setPhotos] = useState<Record<Side, Photo | null>>({
     front: initialFront || null,
@@ -123,7 +125,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, initialBack
     // and the first run both keeps a file and is cancelled, so the second
     // found the file and gave up -- the scanned photo was never straightened.
     // Only a photo taken here should stop it.
-    if (!initialFront?.base64 || takenHere.current.front) return;
+    if (!initialFront?.base64 || takenHere.current.front || squared) return;
 
     const file = base64ToFile(initialFront.base64, initialFront.mimeType, 'scanned-front.jpg');
     keepFile('front', file);
@@ -179,31 +181,8 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, initialBack
     }
   };
 
-  /** The sleeve cut out of a photograph, or null if it could not be found. */
-  const autoStraighten = async (file: File): Promise<File | null> => {
-    const url = URL.createObjectURL(file);
-    try {
-      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error('decode failed'));
-        img.src = url;
-      });
-
-      const pixels = imagePixels(image);
-      if (!pixels) return null;
-
-      // Only a sure answer is applied unasked; a guess waits for the crop
-      // button, where it is shown for checking.
-      const found = detectSleeveQuad(pixels, { subject });
-      if (!found || found.confidence < CONFIDENT) return null;
-
-      const cropped = await warpQuad(image, found.quad);
-      return new File([cropped], 'sleeve.jpg', { type: 'image/jpeg' });
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  };
+  /** The sleeve cut out of a photograph, or null if it could not be found surely. */
+  const autoStraighten = (file: File): Promise<File | null> => straightenIfSure(file, subject);
 
   const onPick = (side: Side) => (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

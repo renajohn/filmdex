@@ -14,6 +14,11 @@ import { TextField } from './shared/TextField';
 import toast from './shared/Toast';
 import { downscaleImage, base64ToFile } from '../utils/downscaleImage';
 import { decodeBarcode } from '../utils/decodeBarcode';
+import { straightenIfSure } from '../utils/straightenPhoto';
+import CoverCropDialog from './CoverCropDialog';
+import OwnerField from './OwnerField';
+import Menu, { MenuChevron } from './shared/Menu';
+import { useNarrow } from '../utils/useNarrow';
 import './finder.css';
 
 export type BookFinderMode = 'wish' | 'owned';
@@ -112,6 +117,7 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
   // Mine, or borrowed (a friend's, the library's): then no price, and whose it is.
   const [borrowed, setBorrowed] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const narrow = useNarrow();
   // The book photographed, its back first: its barcode is its ISBN, the edition itself, read here at once; the model
   // reads its blurb meanwhile, or its ISBN, title and author when the barcode will not read. Its front, if taken, is its cover.
   const backRef = useRef<HTMLInputElement>(null);
@@ -120,6 +126,20 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
   const [readingPhoto, setReadingPhoto] = useState<'back' | 'blurb' | null>(null);
   const [blurb, setBlurb] = useState<string | null>(null);
   const [isbnRead, setIsbnRead] = useState<'barcode' | 'model' | null>(null);
+  // The photos as taken, for the straightening dialog; each kept side is squared, by itself when the
+  // detector is sure, else in the dialog opened at once on its best guess, and again on a tap of its thumbnail.
+  const originals = useRef<{ front?: File; back?: File }>({});
+  const [straightening, setStraightening] = useState<'front' | 'back' | null>(null);
+
+  /** A side taken: squared when the detector is sure, else the dialog to check its corners. */
+  const keepSide = async (side: 'front' | 'back', file: File) => {
+    originals.current[side] = file;
+    const squared = await straightenIfSure(file, 'book').catch(() => null);
+    const kept = await downscaleImage(squared || file);
+    setPhotos(prev => ({ ...prev, [side]: kept }));
+    if (!squared) setStraightening(side);
+    return kept;
+  };
 
   const photographedBack = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -129,8 +149,9 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
     setBlurb(null);
     setIsbnRead(null);
     try {
-      const [back, code] = await Promise.all([downscaleImage(file), decodeBarcode(file).catch(() => null)]);
-      setPhotos({ back });
+      setPhotos({});
+      // The barcode read off the photo as taken, while the back is squared: the search does not wait for it.
+      const [back, code] = await Promise.all([keepSide('back', file), decodeBarcode(file).catch(() => null)]);
       const isbn = code && /^97[89]\d{10}$/.test(code) ? code : null;
       if (isbn) { setQuery(isbn); setIsbnRead('barcode'); setReadingPhoto('blurb'); }
       const { draft } = await bookService.readPhotos({ back });
@@ -151,7 +172,7 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
     const file = event.target.files?.[0];
     event.target.value = '';
     if (file) {
-      try { const front = await downscaleImage(file); setPhotos(prev => ({ ...prev, front })); } catch (e) { toast((e as Error).message, { tone: 'danger' }); }
+      try { await keepSide('front', file); } catch (e) { toast((e as Error).message, { tone: 'danger' }); }
     }
   };
 
@@ -214,8 +235,9 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
     bookType: kind !== 'all' ? kind : book.bookType,
     format: 'physical',
     language: book.language || (language !== 'any' ? language : 'fr'),
-    owner: '', priceChf: '', purchasedAt: today(),
-    ...(reading ? { readDate: today() } : {}),
+    // Whose it is: the owner last given here, rather than none (none is no one's, not one's own).
+    owner: remembered('dv.bookOwner', ''), priceChf: '', purchasedAt: today(),
+    ...(reading ? { readDate: today(), read: true } : {}),
   });
 
   const toggleWish = async (book: FinderBook) => {
@@ -295,6 +317,7 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
     setSaving(true);
     try {
       remember('dv.bookFormat', form.format);
+      if (!borrowed) remember('dv.bookOwner', (form.owner || '').trim());
       if (buying) {
         const bought = await bookFinderService.buy(buying.books.map(b => b.id), form);
         onChanged(bought);
@@ -343,6 +366,9 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
   /* ---------- Views ---------- */
 
   const hidden = books.length - shown.length;
+  const chooseKind = (value: BookKind) => { setKind(value); remember('dv.bookKind', value); setActive(0); };
+  const chooseLanguage = (value: BookLanguage) => { setLanguage(value); remember('dv.bookLanguage', value); };
+
   const searchView = (
     <>
       <div className="finder__top finder__top--row">
@@ -361,13 +387,39 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
             if (event.key === 'Enter' && shown[active]) { event.preventDefault(); choose(shown[active], 'search'); }
           }}
         />
-        <Segmented label="Kind" value={kind} onChange={value => { setKind(value); remember('dv.bookKind', value); setActive(0); }} options={KINDS} />
-        <Segmented label="Language" value={language} onChange={value => { setLanguage(value); remember('dv.bookLanguage', value); }} options={LANGUAGES} />
+        {narrow ? (
+          // A phone: the kind and the language as two menus in one row, rather than two rows of buttons.
+          <div className="finder__pills">
+            <Menu label="Kind" trigger={(props, open) => (
+              <button type="button" {...props} className="menu-pill"><span className="menu-pill__muted">Kind:</span> {kindLabel(kind)}<MenuChevron open={open} /></button>
+            )}>
+              {KINDS.map(option => (
+                <Menu.Choice key={option.value} selected={option.value === kind} onSelect={() => chooseKind(option.value)}>{option.label}</Menu.Choice>
+              ))}
+            </Menu>
+            <Menu label="Language" trigger={(props, open) => (
+              <button type="button" {...props} className="menu-pill"><span className="menu-pill__muted">Language:</span> {LANGUAGES.find(l => l.value === language)?.label}<MenuChevron open={open} /></button>
+            )}>
+              {LANGUAGES.map(option => (
+                <Menu.Choice key={option.value} selected={option.value === language} onSelect={() => chooseLanguage(option.value)}>{option.label}</Menu.Choice>
+              ))}
+            </Menu>
+          </div>
+        ) : (
+          <>
+            <Segmented label="Kind" value={kind} onChange={chooseKind} options={KINDS} />
+            <Segmented label="Language" value={language} onChange={chooseLanguage} options={LANGUAGES} />
+          </>
+        )}
       </div>
       {(photos.back || readingPhoto) && (
         <div className="finder__photo">
-          {photos.back && <img src={`data:${photos.back.mimeType};base64,${photos.back.base64}`} alt="Its back" />}
-          {photos.front && <img src={`data:${photos.front.mimeType};base64,${photos.front.base64}`} alt="Its cover" />}
+          {(['back', 'front'] as const).map(side => photos[side] && (
+            <button key={side} type="button" className="finder__photo-thumb" title={`Straighten ${side === 'back' ? 'its back' : 'its cover'}`}
+              onClick={() => originals.current[side] && setStraightening(side)}>
+              <img src={`data:${photos[side]!.mimeType};base64,${photos[side]!.base64}`} alt={side === 'back' ? 'Its back' : 'Its cover'} />
+            </button>
+          ))}
           <span>
             {readingPhoto === 'back' ? 'Reading its back…'
               : isbnRead === 'barcode' ? `ISBN off its barcode${readingPhoto === 'blurb' ? ', reading its blurb…' : blurb ? ', its blurb kept' : ''}`
@@ -572,7 +624,12 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
       <div className="finder__form">
         {!buying && (
           <div className="finder__field finder__field--wide"><span>Whose</span>
-            <Segmented label="Whose" value={borrowed ? 'borrowed' : 'mine'} onChange={value => setBorrowed(value === 'borrowed')}
+            <Segmented label="Whose" value={borrowed ? 'borrowed' : 'mine'} onChange={value => {
+              // Borrowed from someone is not whose it would be: the field starts empty, and the owner comes back with Mine.
+              const lent = value === 'borrowed';
+              setBorrowed(lent);
+              setForm(prev => ({ ...prev, owner: lent ? '' : remembered('dv.bookOwner', '') }));
+            }}
               options={[{ value: 'mine', label: 'Mine' }, { value: 'borrowed', label: 'Borrowed' }]} />
           </div>
         )}
@@ -586,13 +643,21 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
           <Segmented label="Language" value={form.language} onChange={value => setForm(prev => ({ ...prev, language: value }))} options={LANGUAGES.slice(0, 3)} />
         </div>
         <label className="finder__field">
-          <span>{borrowed ? 'Borrowed from' : <>Belongs to <small>if not you</small></>}</span>
-          <TextField value={form.owner} onChange={set('owner')} placeholder={borrowed ? 'A friend, the library…' : 'Violaine, the children…'} />
+          <span>{borrowed ? 'Borrowed from' : 'Belongs to'}</span>
+          {borrowed
+            ? <TextField value={form.owner} onChange={set('owner')} placeholder="A friend, the library…" />
+            : <OwnerField value={form.owner || ''} onChange={owner => setForm(prev => ({ ...prev, owner }))} placeholder="Whose it is: no one if empty" />}
         </label>
         {reading && (
           <label className="finder__field">
-            <span>Read</span>
-            <TextField type="date" value={form.readDate || ''} onChange={set('readDate')} />
+            <span>Read <small>{form.readDate ? '' : 'not dated'}</small></span>
+            <span className="finder__read">
+              <TextField type="date" value={form.readDate || ''} onChange={set('readDate')} />
+              {/* A date field cannot be emptied on an iPhone: read, one does not know when. */}
+              {form.readDate
+                ? <Button size="sm" variant="quiet" onClick={() => setForm(prev => ({ ...prev, readDate: '' }))}>No date</Button>
+                : <Button size="sm" variant="quiet" onClick={() => setForm(prev => ({ ...prev, readDate: today() }))}>Today</Button>}
+            </span>
           </label>
         )}
         {!borrowed && (
@@ -655,6 +720,18 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
   return (
     <>
       {/* Always there: iOS opens the camera only from inside the tap. */}
+      <CoverCropDialog
+        show={Boolean(straightening)}
+        file={straightening ? originals.current[straightening] || null : null}
+        slot={straightening || 'back'}
+        subject="book"
+        onCancel={() => setStraightening(null)}
+        onConfirm={async photo => {
+          const side = straightening;
+          setStraightening(null);
+          if (side) { try { const kept = await downscaleImage(photo); setPhotos(prev => ({ ...prev, [side]: kept })); } catch { /* the photo as it was */ } }
+        }}
+      />
       <input ref={backRef} type="file" accept="image/*,.heic,.heif" capture="environment" style={{ display: 'none' }} onChange={photographedBack} data-testid="finder-photo" />
       <input ref={frontRef} type="file" accept="image/*,.heic,.heif" capture="environment" style={{ display: 'none' }} onChange={photographedFront} data-testid="finder-photo-front" />
       <Dialog.Body className="finder">

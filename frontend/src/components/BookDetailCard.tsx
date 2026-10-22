@@ -142,7 +142,7 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
     let live = true;
     setReadDates([]);
     if (book?.id && book.readDate) {
-      bookSectionsService.readingsOf(book.id).then(list => { if (live) setReadDates(list.map(r => r.readDate)); }).catch(() => { /* the one date then */ });
+      bookSectionsService.readingsOf(book.id).then(list => { if (live) setReadDates(list.map(r => r.readDate).filter((d): d is string => Boolean(d))); }).catch(() => { /* the one date then */ });
     }
     return () => { live = false; };
   }, [book?.id, book?.readDate]);

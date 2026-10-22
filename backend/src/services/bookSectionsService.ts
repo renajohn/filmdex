@@ -32,7 +32,8 @@ export type ReadingEntry = BookFormatted & {
   readNumber: number;
   readCount: number;
   /** Every reading of the book, the first first. */
-  readDates: string[];
+  /** Each reading's date, the first first; null for one of no date. */
+  readDates: Array<string | null>;
   comments: Array<{ id: number; name: string; comment: string; date: string }>;
 };
 
@@ -92,7 +93,7 @@ const bookSectionsService = {
         if (kept >= 0) return kept;
         const when = String(comment.date).slice(0, 10);
         let found = 0;
-        its.forEach((r, i) => { if (r.readDate <= when) found = i; });
+        its.forEach((r, i) => { if ((r.readDate || '') <= when) found = i; });
         return found;
       };
       its.forEach((reading, i) => entries.push({
@@ -106,7 +107,7 @@ const bookSectionsService = {
   },
 
   /** Read again, or read for the first time: a reading of its date. */
-  addReading: async (bookId: number, date?: string | null): Promise<{ id: number; bookId: number; readDate: string }> => {
+  addReading: async (bookId: number, date?: string | null): Promise<{ id: number; bookId: number; readDate: string | null }> => {
     if (!(await Book.findById(bookId))) throw new BookSectionsError('No such book', 404);
     const when = BookReading.day(date || new Date().toISOString());
     if (!when) throw new BookSectionsError('A reading needs its date (YYYY-MM-DD)', 400);

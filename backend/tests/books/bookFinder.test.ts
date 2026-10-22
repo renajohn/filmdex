@@ -176,3 +176,15 @@ describe('un ISBN dans le chercheur', () => {
     expect(found.books).toEqual([expect.objectContaining({ title: 'American psycho', authors: ['Bret Easton Ellis'], publisher: '10-18', year: '2005', isbn13: code, cover: null })]);
   });
 });
+
+describe('une lecture sans date', () => {
+  it('ajoute du journal un livre lu sans savoir quand, et le journal le tient', async () => {
+    const code = isbn();
+    google([volume('nd', `Lu un jour ${tag()}`, { isbn13: code })]);
+    const added = (await request(app).post('/api/books/finder/books').send({
+      book: { googleId: 'nd', title: 'Lu un jour', isbn13: code, authors: ['A'] }, titleStatus: 'owned', format: 'physical', language: 'fr', read: true, readDate: '',
+    }).expect(201)).body;
+    const journal = (await request(app).get('/api/books/reading').expect(200)).body as Array<{ id: number; readDate: string | null; readingId: number | null }>;
+    expect(journal.find(e => e.id === added.id)).toMatchObject({ readDate: null, readingId: expect.any(Number) });
+  });
+});

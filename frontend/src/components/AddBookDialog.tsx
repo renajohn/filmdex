@@ -1318,6 +1318,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
           <SleeveCapture
             initialFront={photosFront}
             initialBack={photosBack}
+            squared
             words={BOOK_PHOTO_WORDS}
             subject="book"
             transcribe={photos => bookService.readPhotos(photos) as never}

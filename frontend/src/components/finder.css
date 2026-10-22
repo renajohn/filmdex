@@ -467,6 +467,14 @@
   font-size: 0.85rem;
 }
 
+.finder__photo-thumb {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
 .finder__photo img {
   flex: none;
   width: 34px;
@@ -495,4 +503,23 @@
   .finder__photo-actions {
     flex-basis: 100%;
   }
+}
+
+/* The date read and its No date beside it. */
+.finder__read {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.finder__read > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+/* A phone: the kind and the language, two menus side by side. */
+.finder__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }

@@ -38,12 +38,14 @@ export interface ReadingEntry {
   readNumber: number;
   readCount: number;
   /** Every reading of the book, the first first. */
-  readDates: string[];
+  /** Each reading's date, the first first; null for one of no date. */
+  readDates: Array<string | null>;
   comments: Array<{ id: number; name: string; comment: string; date: string }>;
   [key: string]: unknown;
 }
 
-export interface BookReading { id: number; bookId: number; readDate: string }
+/** A reading; readDate null when one does not know when. */
+export interface BookReading { id: number; bookId: number; readDate: string | null }
 
 export interface SeriesNote { id: number; series: string; name: string | null; note: string; createdAt: string }
 

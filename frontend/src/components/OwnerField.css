@@ -1,0 +1,19 @@
+/* The owners under the field (OwnerField), in the menus' glass. */
+.owner-field {
+  position: relative;
+}
+
+.owner-field__list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.owner-field__list .menu-item {
+  width: 100%;
+  text-align: left;
+}

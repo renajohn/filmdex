@@ -13,6 +13,7 @@ import { Loading } from '../components/shared/Spinner';
 import { TextField } from '../components/shared/TextField';
 import toast from '../components/shared/Toast';
 import { pieceOf, referenceOf } from '../utils/scoreTitle';
+import { useNarrow } from '../utils/useNarrow';
 import './ScoresPage.css';
 
 const OTHERS = 'Anthologies & methods';
@@ -45,20 +46,6 @@ const editorsOf = (score: Score) => (score.authors || []).filter(a => !score.com
  * The books do not keep a composer, Google's "author" of a score being most
  * often its editor: the ones the titles suggest are offered to confirm.
  */
-const NARROW = '(max-width: 575px)';
-/** A phone's width: a row keeps its title, its PDF and its ⋯, the rest in the ⋯. */
-const useNarrow = () => {
-  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(NARROW).matches);
-  useEffect(() => {
-    const query = window.matchMedia?.(NARROW);
-    if (!query) return undefined;
-    const changed = () => setNarrow(query.matches);
-    query.addEventListener('change', changed);
-    return () => query.removeEventListener('change', changed);
-  }, []);
-  return narrow;
-};
-
 const ScoresPage: React.FC<{ searchCriteria?: { searchText?: string } }> = ({ searchCriteria }) => {
   const [scores, setScores] = useState<Score[] | null>(null);
   const narrow = useNarrow();

@@ -171,7 +171,7 @@ const ReadingJournal: React.FC<ReadingJournalProps> = ({ viewSwitch, searchCrite
                         : <span>read {new Date(entry.readDate).toLocaleDateString('fr-CH', { day: 'numeric', month: 'long' })}</span>)}
                       {entry.readNumber > 1 && <CoverTag variant="plain">{nth(entry.readNumber)} reading</CoverTag>}
                       {entry.readCount > entry.readNumber && (
-                        <span className="reading-journal__again">read again in {[...new Set(entry.readDates.slice(entry.readNumber).map(d => d.slice(0, 4)))].join(', ')}</span>
+                        <span className="reading-journal__again">read again in {[...new Set(entry.readDates.slice(entry.readNumber).filter((d): d is string => Boolean(d)).map(d => d.slice(0, 4)))].join(', ')}</span>
                       )}
                       {entry.titleStatus === 'borrowed'
                         ? <CoverTag variant="alert">{entry.owner && entry.owner !== 'Renault' ? `Borrowed · ${entry.owner}` : 'Borrowed'}</CoverTag>

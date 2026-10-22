@@ -6,7 +6,8 @@ import { getDatabase } from '../database';
  * the sorts and the forms that know one date only.
  */
 
-export interface BookReading { id: number; bookId: number; readDate: string }
+/** A reading of no date (readDate null): read, one does not know when. */
+export interface BookReading { id: number; bookId: number; readDate: string | null }
 
 const all = <T>(sql: string, params: unknown[] = []): Promise<T[]> => new Promise((resolve, reject) => {
   getDatabase().all(sql, params, (err: Error | null, rows: T[]) => (err ? reject(err) : resolve(rows || [])));
@@ -25,7 +26,7 @@ const BookReading = {
     await run(`CREATE TABLE IF NOT EXISTS book_readings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       book_id INTEGER NOT NULL,
-      read_date TEXT NOT NULL,
+      read_date TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
     await run('CREATE INDEX IF NOT EXISTS idx_book_readings_book ON book_readings(book_id)');
@@ -53,9 +54,10 @@ const BookReading = {
     await run(`UPDATE books SET read_date = (SELECT MAX(read_date) FROM book_readings WHERE book_id = ?) WHERE id = ?`, [bookId, bookId]);
   },
 
-  add: async (bookId: number, date: string): Promise<BookReading> => {
+  /** A reading of its date, or of none when undated is asked: read, one does not know when. */
+  add: async (bookId: number, date: string | null, undated = false): Promise<BookReading> => {
     const readDate = day(date);
-    if (!readDate) throw new Error('A reading needs its date');
+    if (!readDate && !undated) throw new Error('A reading needs its date');
     await BookReading.createTable();
     const { lastID } = await run('INSERT INTO book_readings (book_id, read_date) VALUES (?, ?)', [bookId, readDate]);
     await BookReading.follow(bookId);

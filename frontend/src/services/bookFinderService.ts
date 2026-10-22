@@ -39,6 +39,8 @@ export interface BookEdition {
   purchasedAt?: string;
   /** When it was read: a book added from the reading journal. */
   readDate?: string;
+  /** Added from the reading journal: a reading, of readDate, or of no date when it is empty. */
+  read?: boolean;
 }
 
 const json = async <T>(response: Response): Promise<T> => {

@@ -6,14 +6,16 @@ import Dialog from './shared/Dialog';
 import bookFinderService, { FinderBook } from '../services/bookFinderService';
 import bookService from '../services/bookService';
 import { decodeBarcode } from '../utils/decodeBarcode';
+import { straightenIfSure } from '../utils/straightenPhoto';
 
 vi.mock('../services/bookFinderService', async importOriginal => ({
   ...(await importOriginal<typeof import('../services/bookFinderService')>()),
   default: { search: vi.fn(), series: vi.fn(), author: vi.fn(), add: vi.fn(), addMany: vi.fn(), buy: vi.fn() },
 }));
-vi.mock('../services/bookService', () => ({ default: { deleteBook: vi.fn(), readPhotos: vi.fn(), getImageUrl: (p: string | null) => p } }));
+vi.mock('../services/bookService', () => ({ default: { deleteBook: vi.fn(), readPhotos: vi.fn(), getAutocompleteSuggestions: vi.fn(async () => [{ owner: 'Oriane' }, { owner: 'Renault' }]), getImageUrl: (p: string | null) => p } }));
 vi.mock('../utils/downscaleImage', () => ({ downscaleImage: vi.fn(async () => ({ base64: 'AAAA', mimeType: 'image/jpeg' })), base64ToFile: vi.fn() }));
 vi.mock('../utils/decodeBarcode', () => ({ decodeBarcode: vi.fn(async () => '9782264039378') }));
+vi.mock('../utils/straightenPhoto', () => ({ straightenIfSure: vi.fn(async () => new File(['squared'], 'book.jpg', { type: 'image/jpeg' })) }));
 
 const book = (n: number, fields: Partial<FinderBook> = {}): FinderBook => ({
   googleId: `g${n}`, title: `Sorceline - Tome 0${n}`, subtitle: null, authors: ['Sylvia Douyé'], year: String(2017 + n), publisher: "Vents d'Ouest",
@@ -114,6 +116,26 @@ describe('BookFinder', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('propose les propriétaires que la bibliothèque connaît', async () => {
+    open('owned');
+    type('sorceline');
+    fireEvent.click(await screen.findByText('Sorceline - Tome 09'));
+    fireEvent.focus(screen.getByLabelText(/belongs to/i));
+    fireEvent.click(await screen.findByRole('option', { name: 'Renault' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add this book' }));
+    await waitFor(() => expect(bookFinderService.add).toHaveBeenCalledWith(expect.anything(), 'owned', expect.objectContaining({ owner: 'Renault' })));
+  });
+
+  it('ajoute une lecture sans date, du journal', async () => {
+    open('owned', { reading: true });
+    type('sorceline');
+    fireEvent.click(await screen.findByText('Sorceline - Tome 09'));
+    fireEvent.click(screen.getByRole('button', { name: 'No date' }));
+    expect(screen.getByText('not dated')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Add this book' }));
+    await waitFor(() => expect(bookFinderService.add).toHaveBeenCalledWith(expect.anything(), 'owned', expect.objectContaining({ read: true, readDate: '' })));
+  });
+
   it('d’une série, ajoute les tomes qu’on vient d’avoir, le prix partagé', async () => {
     open('owned');
     type('sorceline');
@@ -163,5 +185,21 @@ describe('BookFinder', () => {
     expect(await screen.findByText(/ISBN off its barcode, its blurb kept/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /From the photos/ }));
     expect(onPhotos).toHaveBeenCalledWith({ back: { base64: 'AAAA', mimeType: 'image/jpeg' } });
+  });
+
+  it('ouvre le redressement du dos quand ses coins ne sont pas sûrs, et le rouvre sur sa vignette', async () => {
+    vi.mocked(straightenIfSure).mockResolvedValueOnce(null);
+    // jsdom has no object URLs; the dialog shows the photo by one.
+    Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:back'), revokeObjectURL: vi.fn() });
+    vi.mocked(bookService.readPhotos).mockResolvedValue({ draft: { title: null, subtitle: null, authors: [], artists: [], translators: [], series: null, seriesNumber: null,
+      publisher: null, isbn13: null, description: null, language: null, bookType: null }, sources: { front: false, back: true }, truncated: false });
+    open('owned');
+    fireEvent.change(screen.getByTestId('finder-photo'), { target: { files: [new File(['x'], 'back.jpg', { type: 'image/jpeg' })] } });
+    expect(await screen.findByText('Straighten the back cover')).toBeInTheDocument();
+    const dialog = screen.getByText('Straighten the back cover').closest('.modal') as HTMLElement;
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByText('Straighten the back cover')).not.toBeInTheDocument());
+    fireEvent.click(screen.getByTitle('Straighten its back'));
+    expect(await screen.findByText('Straighten the back cover')).toBeInTheDocument();
   });
 });
