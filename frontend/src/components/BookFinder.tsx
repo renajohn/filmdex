@@ -44,7 +44,8 @@ interface BookFinderProps {
   /** Fill the form from the book's photographs, those already taken handed over. */
   onPhotos?: (taken: { front?: Photo; back?: Photo }) => void;
   onIsbn?: () => void;
-  onManual?: () => void;
+  /** Type it by hand: the words searched, when nothing was found, as its title. */
+  onManual?: (title?: string) => void;
   buying?: BookBuying | null;
   /** The kind it opens on, rather than the last chosen: Score from the scores' section. */
   initialKind?: BookKind;
@@ -497,7 +498,16 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
             ) : searching ? (
               <Loading>Searching…</Loading>
             ) : (
-              <p className="finder__empty">{kind === 'all' ? 'No book found.' : `No ${kindLabel(kind)} found${hidden ? `: ${hidden} of another kind, shown with All` : ''}.`}</p>
+              <div className="finder__empty">
+                <p>{kind === 'all' ? 'No book found.' : `No ${kindLabel(kind)} found${hidden ? `: ${hidden} of another kind, shown with All` : ''}.`}</p>
+                {/* Not found: its form, filled from its photos (those missing asked, the BnF completing), or by hand. */}
+                {!wishMode && (photos.back || photos.front) && onPhotos && (
+                  <Button icon={<BsCamera />} onClick={() => onPhotos(photos)}>Fill its form from its photos</Button>
+                )}
+                {!wishMode && !(photos.back || photos.front) && onManual && (
+                  <Button icon={<BsPencil />} onClick={() => onManual(/^[\d\s-]+$/.test(query) ? undefined : query.trim())}>Fill it by hand</Button>
+                )}
+              </div>
             )}
           </>
         )}
@@ -711,7 +721,7 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
         </span>
         {!wishMode && <Button icon={<BsCamera />} onClick={() => backRef.current?.click()} loading={readingPhoto === 'back'} title="Photograph its back: its barcode is its ISBN, its edition">Photo</Button>}
         {!wishMode && onIsbn && <Button icon={<BsUpcScan />} onClick={onIsbn} title="Search by its ISBN, as before">ISBN</Button>}
-        {onManual && <Button icon={<BsPencil />} onClick={onManual} title="Type it all by hand">Manual</Button>}
+        {onManual && <Button icon={<BsPencil />} onClick={() => onManual()} title="Type it all by hand">Manual</Button>}
         <Button variant="quiet" onClick={onClose}>{wishMode ? 'Done' : 'Cancel'}</Button>
       </>
     );

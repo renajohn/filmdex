@@ -9,7 +9,7 @@ import Book from '../models/book';
 import logger from '../logger';
 import coverScanService from '../services/coverScanService';
 import bookLanguageService from '../services/bookLanguageService';
-import bookBnfService from '../services/bookBnfService';
+import bookBnfService, { completeDraft } from '../services/bookBnfService';
 import { searchAmazonProducts } from '../services/amazonSearchService';
 
 // Helper function to format file size
@@ -118,7 +118,9 @@ const bookController = {
         res.status(400).json({ error: 'At least one photograph is required (front or back)' });
         return;
       }
-      res.json(await coverScanService.readBookPhotos({ front, back }));
+      const read = await coverScanService.readBookPhotos({ front, back });
+      // A form to fill from them: the BnF completes what the photos did not give.
+      res.json(req.body?.complete ? { ...read, draft: await completeDraft(read.draft) } : read);
     } catch (error) {
       const message = (error as Error).message || '';
       const unreachable = /network error|no response received|econnrefused|enotfound|timed? ?out|HTTP 5\d\d/i.test(message);

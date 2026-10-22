@@ -27,6 +27,10 @@ export interface BookPhotosDraft {
   description: string | null;
   language: string | null;
   bookType: 'book' | 'graphic-novel' | 'score' | null;
+  /** From the BnF, when the draft was completed there. */
+  publishedYear?: number | null;
+  pageCount?: number | null;
+  bnf?: string | null;
 }
 
 class BookService {
@@ -397,11 +401,13 @@ class BookService {
   }
 
   /** A book's photographs read: its front names it, its back holds its blurb, its ISBN, its publisher. */
-  async readPhotos(photos: { front?: { base64: string; mimeType: string }; back?: { base64: string; mimeType: string } }): Promise<{ draft: BookPhotosDraft; sources: { front: boolean; back: boolean }; truncated: boolean }> {
+  async readPhotos(photos: { front?: { base64: string; mimeType: string }; back?: { base64: string; mimeType: string } }, options: { complete?: boolean } = {}): Promise<{ draft: BookPhotosDraft; sources: { front: boolean; back: boolean }; truncated: boolean }> {
     const baseUrl = await this.getBaseUrl();
     const body: Record<string, unknown> = {};
     if (photos.front) body.front = { image: photos.front.base64, mimeType: photos.front.mimeType };
     if (photos.back) body.back = { image: photos.back.base64, mimeType: photos.back.mimeType };
+    // For a form to fill: what the photos do not give, the BnF completes.
+    if (options.complete) body.complete = true;
     const response = await fetch(`${baseUrl}/books/read-photos`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const data = await response.json().catch(() => ({})) as { error?: string };
     if (!response.ok) throw new Error(data.error || `HTTP error! status: ${response.status}`);

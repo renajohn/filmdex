@@ -168,3 +168,31 @@
   }
 }
 
+
+/* The photos a form was filled from: its cover and its back, side by side. */
+.book-form-photos {
+  display: flex;
+  gap: 10px;
+}
+
+.book-form-photos figure {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.book-form-photos img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 3px;
+  object-fit: cover;
+  background: var(--dv-glass);
+}
+
+.book-form-photos figcaption {
+  margin-top: 4px;
+  color: var(--dv-text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+}

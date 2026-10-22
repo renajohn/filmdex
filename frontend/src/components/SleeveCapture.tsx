@@ -154,7 +154,7 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, initialBack
    * Done here rather than waiting for the crop dialog to be opened: a detector
    * nothing triggers is a detector that never runs, and the whole point is that
    * the common case should need no taps at all. Anything less than convincing
-   * is left alone for the user to frame by hand.
+   * opens the crop dialog at once, on the detector's best guess, to be checked.
    */
   const capture = async (side: Side, file: File) => {
     setError('');
@@ -174,6 +174,9 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, initialBack
         keepFile(side, straightenedFile);
         setStraightened(current => ({ ...current, [side]: true }));
         setPhoto(side, await downscaleImage(straightenedFile));
+      } else {
+        // Not sure of its corners: they are shown to check rather than left for later, when it is forgotten.
+        setCropping(side);
       }
     } catch (_) {
       // The untouched photo is already shown; failing to improve it is not

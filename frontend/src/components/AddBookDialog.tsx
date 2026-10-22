@@ -24,8 +24,8 @@ type Photo = { base64: string; mimeType: string };
 
 /** The covers screen of a CD, said of a book. */
 const BOOK_PHOTO_WORDS = {
-  title: 'Fill the form from its photos',
-  lead: 'The front becomes its cover and names it; its back gives its blurb, its ISBN, its publisher. Both photographs are kept. Nothing is saved until you review it.',
+  title: 'Fill its form from its photos',
+  lead: 'Photograph what is missing: its front becomes its cover and names it, its back gives its blurb and its ISBN. The BnF completes the rest. Nothing is saved until you review it.',
   frontHint: 'Its cover',
   backHint: 'Its blurb and its ISBN',
   read: 'Read the photos',
@@ -662,8 +662,9 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     }
   };
 
-  const handleManualEntry = () => {
-    setSelectedBook({} as BookData);
+  /** The form to fill by hand, its title the words searched when nothing was found. */
+  const handleManualEntry = (title?: string) => {
+    setSelectedBook((title ? { title } : {}) as BookData);
     setSelectedBookGroup([]);
     setShowMetadataForm(true);
   };
@@ -1259,6 +1260,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
     return (
       <BookForm
         book={selectedBook}
+        photos={photosRef.current.front || photosRef.current.back ? photosRef.current : null}
         availableBooks={selectedBookGroup}
         defaultTitleStatus={defaultTitleStatus}
         onShowAlert={onShowAlert}
@@ -1321,7 +1323,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
             squared
             words={BOOK_PHOTO_WORDS}
             subject="book"
-            transcribe={photos => bookService.readPhotos(photos) as never}
+            transcribe={photos => bookService.readPhotos(photos, { complete: true }) as never}
             onDraft={result => {
               const draft = result.draft as unknown as BookPhotosDraft;
               photosRef.current = { front: result.coverPhoto, back: result.backPhoto };
@@ -1331,7 +1333,10 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
                 title: draft.title || '', subtitle: draft.subtitle || undefined, authors: draft.authors, artists: draft.artists,
                 series: draft.series || undefined, seriesNumber: draft.seriesNumber ?? undefined, publisher: draft.publisher || undefined,
                 isbn13: draft.isbn13 || undefined, description: draft.description || undefined, language: draft.language || undefined,
-                bookType: draft.bookType || undefined,
+                bookType: draft.bookType || undefined, publishedYear: draft.publishedYear ?? undefined, pageCount: draft.pageCount ?? undefined,
+                // Whose it is: the owner last given in the finder, as there.
+                owner: readStored('dv.bookOwner') || undefined,
+                ...(draft.bnf ? { urls: { bnf: draft.bnf } } : {}),
               } as unknown as BookData);
               setSelectedBookGroup([]);
               setShowMetadataForm(true);
@@ -1355,7 +1360,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
           onClose={() => handleClose(true)}
           onPhotos={taken => { setPhotosBack(taken.back || null); setPhotosFront(taken.front || null); }}
           onIsbn={() => { setFinder(false); setShowCoverScanStep(false); setSearchTab('isbn'); }}
-          onManual={() => { setFinder(false); handleManualEntry(); }}
+          onManual={title => { setFinder(false); handleManualEntry(title); }}
         />
       </Dialog>
     );
@@ -1856,7 +1861,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
               <div className="manual-entry-section">
                 <p className="text-muted">Can't find what you're looking for?</p>
                 <Button icon={<BsPlus />}
-                  onClick={handleManualEntry} className="manual-entry-btn"
+                  onClick={() => handleManualEntry()} className="manual-entry-btn"
                 >
                   Enter Book Manually
                 </Button>
@@ -1879,7 +1884,7 @@ const AddBookDialog = ({ show, onHide, onAddBook, onAddStart, onBookAdded, onAdd
             Close
           </Button>
           <Button icon={<BsPlus />}
-            onClick={handleManualEntry} className="manual-entry-btn"
+            onClick={() => handleManualEntry()} className="manual-entry-btn"
           >
             Enter Manually
           </Button>

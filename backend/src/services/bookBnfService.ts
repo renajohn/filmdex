@@ -66,6 +66,38 @@ const enrichBook = async (bookId: number): Promise<{ found: boolean; gained: Gai
   return { found: true, gained };
 };
 
+/**
+ * A book read off its photographs, completed from the BnF before its form is
+ * shown: by the ISBN its back prints, else by its title, series and author;
+ * only what the photos did not give, the photos' own words kept.
+ */
+export const completeDraft = async <T extends {
+  title: string | null; authors: string[]; artists: string[]; series: string | null; seriesNumber: number | null;
+  publisher: string | null; isbn13: string | null; description: string | null; language: string | null; bookType: string | null;
+}>(draft: T): Promise<T & { publishedYear: number | null; pageCount: number | null; bnf: string | null }> => {
+  const done = { ...draft, publishedYear: null as number | null, pageCount: null as number | null, bnf: null as string | null };
+  if (!draft.isbn13 && !draft.title) return done;
+  if (draft.language && draft.language !== 'fr') return done;
+  const notice = await bnfService.find({
+    isbn13: draft.isbn13, title: draft.title || '', series: draft.series, seriesNumber: draft.seriesNumber, authors: draft.authors,
+    bookType: draft.bookType,
+  }).catch(error => { logger.warn(`[BnF] A draft not completed: ${(error as Error).message}`); return null; });
+  if (!notice) return done;
+  return {
+    ...done,
+    title: draft.title || notice.title,
+    authors: draft.authors.length ? draft.authors : notice.authors,
+    artists: draft.artists.length ? draft.artists : notice.artists,
+    series: draft.series || notice.series,
+    seriesNumber: draft.seriesNumber ?? (Number(notice.seriesNumber?.match(/\d+/)?.[0]) || null),
+    publisher: draft.publisher || notice.publisher,
+    description: draft.description || notice.summary,
+    publishedYear: notice.year,
+    pageCount: notice.pageCount,
+    bnf: notice.url,
+  };
+};
+
 /** One question at a time: the catalogue is a public service. */
 let queue: Promise<unknown> = Promise.resolve();
 const later = <T>(task: () => Promise<T>): Promise<T> => {

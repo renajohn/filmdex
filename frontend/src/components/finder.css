@@ -523,3 +523,15 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* Nothing found: what to do instead, under the words. */
+div.finder__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+div.finder__empty p {
+  margin: 0;
+}

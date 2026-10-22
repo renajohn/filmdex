@@ -202,4 +202,27 @@ describe('BookFinder', () => {
     fireEvent.click(screen.getByTitle('Straighten its back'));
     expect(await screen.findByText('Straighten the back cover')).toBeInTheDocument();
   });
+
+  it('rien trouvé : propose de le remplir à la main, les mots cherchés pour titre', async () => {
+    vi.mocked(bookFinderService.search).mockResolvedValue({ books: [], series: [], authors: [] });
+    const onManual = vi.fn();
+    open('owned', { onManual });
+    type('un livre introuvable');
+    fireEvent.click(await screen.findByRole('button', { name: /Fill it by hand/ }));
+    expect(onManual).toHaveBeenCalledWith('un livre introuvable');
+  });
+
+  it('rien trouvé d’après ses photos : propose de remplir sa fiche depuis elles', async () => {
+    vi.mocked(bookFinderService.search).mockResolvedValue({ books: [], series: [], authors: [] });
+    vi.mocked(bookService.readPhotos).mockResolvedValue({ draft: { title: null, subtitle: null, authors: [], artists: [], translators: [], series: null, seriesNumber: null,
+      publisher: null, isbn13: null, description: null, language: null, bookType: null }, sources: { front: false, back: true }, truncated: false });
+    const onPhotos = vi.fn();
+    open('owned', { onPhotos });
+    fireEvent.change(screen.getByTestId('finder-photo'), { target: { files: [new File(['x'], 'back.jpg', { type: 'image/jpeg' })] } });
+    await waitFor(() => expect(bookFinderService.search).toHaveBeenCalledWith('9782264039378', expect.anything(), expect.anything(), expect.anything()));
+    await waitFor(() => expect(screen.queryByText(/Reading its back/)).not.toBeInTheDocument());
+    fireEvent.click(await screen.findByRole('button', { name: /Fill its form from its photos/ }));
+    await waitFor(() => expect(onPhotos).toHaveBeenCalled());
+    expect(onPhotos).toHaveBeenCalledWith(expect.objectContaining({ back: expect.anything() }));
+  });
 });
