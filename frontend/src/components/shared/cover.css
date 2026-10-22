@@ -53,6 +53,22 @@
   flex: none;
 }
 
+/* A tag that leads somewhere (a shelf, to the Shelves page): the buttons' white ring under the pointer. */
+.cover-tag[role="link"] {
+  cursor: pointer;
+}
+
+.cover-tag[role="link"]:hover,
+.cover-tag[role="link"]:focus-visible {
+  box-shadow: var(--cover-ring);
+  outline: none;
+}
+
+.cover-tag--gold[role="link"]:hover,
+.cover-tag--gold[role="link"]:focus-visible {
+  color: var(--cover-on-hover);
+}
+
 /* A format, a shelf: gold words. */
 .cover-tag--gold { color: var(--cover-on); }
 /* A copy to do again. */

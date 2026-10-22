@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Form } from 'react-bootstrap';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { BsArrowBarDown, BsArrowBarUp, BsPencil, BsTrash, BsX } from 'react-icons/bs';
 import shelvingService, {
   type ShelfLevel, type ShelfSection, type ShelvedItem, type ShelvingPlan, type ShelfSettings,
@@ -41,6 +42,21 @@ const letterOf = (sortName: string): string => {
 const NO_SHELF = 'No shelf yet';
 const anchorOf = (heading: string) => `shelf-group-${heading === NO_SHELF ? 'none' : heading}`;
 const rowIdOf = (item: ShelvedItem) => `shelf-row-${item.kind}-${item.id}`;
+
+/** The object a shelf code was clicked on, ?album=12 or ?movie=34: a film in a box set stands as the set. */
+const arrivalOf = (search: string): { kind: 'album' | 'movie'; id: number } | null => {
+  const params = new URLSearchParams(search);
+  for (const kind of ['album', 'movie'] as const) {
+    const id = Number(params.get(kind));
+    if (params.has(kind) && Number.isInteger(id)) return { kind, id };
+  }
+  return null;
+};
+
+const isArrival = (item: ShelvedItem, { kind, id }: { kind: 'album' | 'movie'; id: number }) =>
+  kind === 'album'
+    ? item.kind === 'album' && item.id === id
+    : (item.kind === 'movie' && item.id === id) || (item.kind === 'box_set' && !!item.movieIds?.includes(id));
 
 interface EditorProps {
   item: ShelvedItem;
@@ -271,7 +287,11 @@ const ShelvesPage: React.FC = () => {
   // The search's result the list was taken to, and each time it is taken there, to scroll even to the same one.
   const [current, setCurrent] = useState(-1);
   const [landing, setLanding] = useState(0);
+  // The object a shelf code elsewhere was clicked on, shown as a search's result is, until the list is searched or changed.
+  const [arrived, setArrived] = useState<string | null>(null);
   const list = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const load = useCallback(async () => {
     try {
@@ -309,12 +329,35 @@ const ShelvesPage: React.FC = () => {
   const hitKeys = useMemo(() => new Set(hits.map(keyOf)), [hits]);
   const places = useMemo(() => placesOf(section?.items ?? []), [section]);
   const placeOf = useCallback((item: ShelvedItem) => places.get(keyOf(item)), [places]);
-  const currentItem = hits[current] ?? null;
+  const arrivedItem = useMemo(() => !arrived ? null
+    : [...(section?.items ?? []), ...(plan?.places.flatMap(place => place.items) ?? [])].find(item => keyOf(item) === arrived) ?? null,
+  [arrived, section, plan]);
+  const currentItem = hits[current] ?? arrivedItem;
 
   const changeQuery = (value: string) => {
     setQuery(value);
     setCurrent(-1);
+    setArrived(null);
   };
+
+  // From a shelf code: its section, or the places off the shelves, the list taken to it and the object lit.
+  useEffect(() => {
+    const wanted = arrivalOf(location.search);
+    if (!plan || !wanted) return;
+    const inSection = plan.sections.find(entry => entry.items.some(item => isArrival(item, wanted)));
+    const inPlace = plan.places.flatMap(place => place.items).find(item => isArrival(item, wanted));
+    const found = inSection?.items.find(item => isArrival(item, wanted)) ?? inPlace;
+    if (found) {
+      setTab(inSection ? inSection.key : 'places');
+      setQuery('');
+      setCurrent(-1);
+      setEditing(null);
+      setArrived(keyOf(found));
+      setLanding(count => count + 1);
+    }
+    // Once there, the address forgets it: the plan reloading does not take the list back, a click on another code does.
+    navigate({ pathname: location.pathname, search: '' }, { replace: true });
+  }, [plan, location.search, location.pathname, navigate]);
 
   const goTo = (index: number) => {
     setCurrent(index);
@@ -446,7 +489,7 @@ const ShelvesPage: React.FC = () => {
           kind="tabs"
           className="shelves-tabs"
           value={tab}
-          onChange={next => { setTab(next); setCurrent(-1); }}
+          onChange={next => { setTab(next); setCurrent(-1); setArrived(null); }}
           options={[
             ...(plan?.sections.map(entry => ({ value: entry.key as Tab, label: SECTION_LABELS[entry.key], count: entry.items.length })) ?? []),
             plan && { value: 'furniture' as Tab, label: 'Furniture', count: plan.units.length },

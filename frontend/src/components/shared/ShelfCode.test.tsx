@@ -1,6 +1,7 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import ShelfCode from './ShelfCode';
+import ShelfCode, { shelvesHref } from './ShelfCode';
 import { resetShelfLocations } from '../../utils/shelfLocations';
 
 beforeEach(() => {
@@ -22,5 +23,41 @@ describe('ShelfCode', () => {
     expect(screen.getByText('Wardrobe, top')).toHaveClass('shelf-code-inline');
     expect(document.querySelectorAll('.shelf-code-badge')).toHaveLength(2);
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('mène à la page Shelves au clic, sans ouvrir la fiche sous la pochette', async () => {
+    const Shelves = () => { const location = useLocation(); return <p>Shelves {location.search}</p>; };
+    const openCard = vi.fn();
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/musicdex']}>
+          <Routes>
+            <Route path="/musicdex" element={<div onClick={openCard}><ShelfCode kind="album" id={9} /></div>} />
+            <Route path="/shelves" element={<Shelves />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+    const tag = screen.getByRole('link', { name: 'On the shelves: Wardrobe, top' });
+    expect(tag).toHaveAttribute('title', 'Show it on the shelves');
+    fireEvent.click(tag);
+    expect(openCard).not.toHaveBeenCalled();
+    expect(screen.getByText('Shelves ?album=9')).toBeInTheDocument();
+  });
+
+  it('se rejoint aussi au clavier', async () => {
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/filmdex']}>
+          <Routes>
+            <Route path="/filmdex" element={<ShelfCode kind="movie" id={7} variant="inline" />} />
+            <Route path="/shelves" element={<p>Shelves</p>} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    });
+    fireEvent.keyDown(screen.getByRole('link', { name: 'On the shelves: B-3' }), { key: 'Enter' });
+    expect(screen.getByText('Shelves')).toBeInTheDocument();
+    expect(shelvesHref('movie', 7)).toBe('/shelves?movie=7');
   });
 });

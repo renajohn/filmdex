@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import ShelvesPage from './ShelvesPage';
 import shelvingService, { type ShelvingPlan, type ShelvedItem } from '../services/shelvingService';
 import { chooseValue, selectedValue } from '../test/select';
@@ -30,7 +31,7 @@ const PLAN: ShelvingPlan = {
   sections: [
     { key: 'films', shelves: 0, unshelved: 2, items: [
       item({ kind: 'movie', id: 10, title: 'The Matrix', sortName: 'Matrix', section: 'films', subtitle: '1999 · Blu-ray' }),
-      item({ kind: 'box_set', id: 3, title: 'Coffret trilogie, Jason Bourne', sortName: 'Jason Bourne', section: 'films', units: 2 }),
+      item({ kind: 'box_set', id: 3, title: 'Coffret trilogie, Jason Bourne', sortName: 'Jason Bourne', section: 'films', units: 2, movieIds: [11, 12] }),
     ] },
     { key: 'music', shelves: 0, unshelved: 2, items: [
       item({ id: 1, title: 'Abbey Road', sortName: 'Beatles', sortSource: 'musicbrainz', subtitle: 'The Beatles' }),
@@ -44,6 +45,14 @@ const PLAN: ShelvingPlan = {
   places: [{ id: 9, name: 'Wardrobe, top', items: [item({ id: 6, title: 'Die 32 Klaviersonaten', sortName: 'Kempff, Wilhelm', section: 'classical', placeId: 9 })] }],
 };
 
+/** The address the page stands at, read in the tests. */
+let address = '';
+const Address = () => { const location = useLocation(); address = `${location.pathname}${location.search}`; return null; };
+
+const renderPage = (at = '/shelves') => render(
+  <MemoryRouter initialEntries={[at]}><ShelvesPage /><Address /></MemoryRouter>,
+);
+
 beforeEach(() => {
   vi.mocked(shelvingService.getPlan).mockReset().mockResolvedValue(PLAN);
   vi.mocked(shelvingService.saveItem).mockReset().mockResolvedValue();
@@ -52,7 +61,7 @@ beforeEach(() => {
 
 describe('ShelvesPage', () => {
   it('montre les films dans leur ordre, sous leur lettre, sans répéter le titre qui sert de nom', async () => {
-    render(<ShelvesPage />);
+    renderPage();
     expect(await screen.findByText('Matrix')).toBeInTheDocument();
     expect(screen.queryByText('The Matrix')).not.toBeInTheDocument();
     expect(screen.getByText('Coffret trilogie, Jason Bourne')).toBeInTheDocument();
@@ -61,7 +70,7 @@ describe('ShelvesPage', () => {
   });
 
   it('marque le nom deviné d’un CD classique, et cherche dans la section sans rien cacher', async () => {
-    render(<ShelvesPage />);
+    renderPage();
     fireEvent.click(await screen.findByRole('tab', { name: /Classical/ }));
     expect(screen.getByText('guessed')).toBeInTheDocument();
 
@@ -96,7 +105,7 @@ describe('ShelvesPage', () => {
   });
 
   it('va au disque choisi parmi les suggestions avec les flèches', async () => {
-    render(<ShelvesPage />);
+    renderPage();
     fireEvent.click(await screen.findByRole('tab', { name: /Music/ }));
     const field = screen.getByRole('combobox', { name: 'Find on the shelves' });
     fireEvent.change(field, { target: { value: 'e' } });
@@ -114,7 +123,7 @@ describe('ShelvesPage', () => {
   });
 
   it('range un CD sous un autre nom et ailleurs que sur les étagères', async () => {
-    render(<ShelvesPage />);
+    renderPage();
     fireEvent.click(await screen.findByRole('tab', { name: /Classical/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Edit shelving of Water Music' }));
 
@@ -135,7 +144,7 @@ describe('ShelvesPage', () => {
     });
     vi.mocked(shelvingService.getPlan).mockResolvedValue({ ...PLAN, sections: [{ key: 'films', shelves: 0, unshelved: 1, items: [lost] }, ...PLAN.sections.slice(1)] });
     vi.mocked(shelvingService.setTogether).mockReset().mockResolvedValue();
-    render(<ShelvesPage />);
+    renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Edit shelving of The Lost World' }));
 
     vi.mocked(shelvingService.getPlan).mockResolvedValue({ ...PLAN, sections: [{ key: 'films', shelves: 0, unshelved: 1, items: [{
@@ -148,7 +157,7 @@ describe('ShelvesPage', () => {
   });
 
   it('ne propose pas de section pour un film', async () => {
-    render(<ShelvesPage />);
+    renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Edit shelving of The Matrix' }));
     expect(screen.queryByLabelText('Section')).not.toBeInTheDocument();
     fireEvent.keyDown(screen.getByLabelText('Sort as'), { key: 'Escape' });
@@ -156,7 +165,7 @@ describe('ShelvesPage', () => {
   });
 
   it('liste ce qui est rangé ailleurs, et ajoute un lieu', async () => {
-    render(<ShelvesPage />);
+    renderPage();
     fireEvent.click(await screen.findByRole('tab', { name: /Elsewhere/ }));
     const place = screen.getByRole('heading', { name: /Wardrobe, top/ }).closest('section')!;
     expect(within(place).getByText('Kempff, Wilhelm')).toBeInTheDocument();
@@ -186,7 +195,7 @@ describe('ShelvesPage', () => {
     vi.mocked(shelvingService.getPlan).mockResolvedValue(shelved);
     vi.mocked(shelvingService.noRoom).mockReset().mockResolvedValue();
     vi.mocked(shelvingService.moveBack).mockReset().mockResolvedValue();
-    render(<ShelvesPage />);
+    renderPage();
 
     expect(await screen.findByRole('heading', { name: 'A-2' })).toBeInTheDocument();
     expect(screen.getByText('2 · 2 of 12 cases')).toBeInTheDocument();
@@ -234,7 +243,7 @@ describe('ShelvesPage', () => {
     vi.mocked(shelvingService.getPlan).mockResolvedValue(furnished);
     vi.mocked(shelvingService.createUnit).mockReset().mockResolvedValue();
     vi.mocked(shelvingService.updateLevel).mockReset().mockResolvedValue();
-    render(<ShelvesPage />);
+    renderPage();
 
     // From a shelf's heading in the list to its board in the furniture, already open.
     fireEvent.click(await screen.findByRole('button', { name: 'Set up A-1 ›' }));
@@ -281,7 +290,7 @@ describe('ShelvesPage', () => {
       }),
     };
     vi.mocked(shelvingService.getPlan).mockResolvedValue(furnished);
-    render(<ShelvesPage />);
+    renderPage();
 
     expect(await screen.findByTitle('Put on this shelf by hand')).toHaveTextContent('A-5');
     // The free shelf holds a film, so the strip of Films offers it.
@@ -295,5 +304,31 @@ describe('ShelvesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(shelvingService.saveItem).toHaveBeenCalledWith('box_set', 3,
       { section: null, shelveUnder: null, placeId: null, levelId: null, units: null }));
+  });
+
+  it('arrive d’un code d’étagère sur le CD, dans sa section, éclairé, et l’adresse l’oublie', async () => {
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    renderPage('/shelves?album=2');
+    await waitFor(() => expect(document.querySelector('[aria-current="true"]')).toHaveTextContent('Older'));
+    expect(screen.getByRole('tab', { name: /Music/ })).toHaveAttribute('aria-selected', 'true');
+    expect(document.getElementById('shelf-row-album-2')).toHaveClass('landed');
+    expect(scrolled).toHaveBeenCalled();
+    await waitFor(() => expect(address).toBe('/shelves'));
+    // A search takes the light from it.
+    fireEvent.change(screen.getByRole('combobox', { name: 'Find on the shelves' }), { target: { value: 'abbey' } });
+    expect(document.querySelector('[aria-current="true"]')).toBeNull();
+  });
+
+  it('arrive sur le coffret d’un film, et sur un CD rangé hors des étagères', async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    const { unmount } = renderPage('/shelves?movie=12');
+    await waitFor(() => expect(document.querySelector('[aria-current="true"]')).toHaveTextContent('Coffret trilogie, Jason Bourne'));
+    expect(screen.getByRole('tab', { name: /Films/ })).toHaveAttribute('aria-selected', 'true');
+    unmount();
+
+    renderPage('/shelves?album=6');
+    await waitFor(() => expect(document.querySelector('[aria-current="true"]')).toHaveTextContent('Die 32 Klaviersonaten'));
+    expect(screen.getByRole('tab', { name: /Elsewhere/ })).toHaveAttribute('aria-selected', 'true');
   });
 });

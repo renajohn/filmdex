@@ -19,9 +19,10 @@
   max-width: calc(100% - 12px);
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Out of sight, it lets the pointer through to the cover; in sight, a click takes it to the shelves. */
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, box-shadow 0.12s ease, color 0.12s ease;
 }
 
 /*
@@ -35,12 +36,14 @@
 .next-banner__card:hover .shelf-code-overlay,
 .shelf-code-overlay:focus-visible {
   opacity: 1;
+  pointer-events: auto;
 }
 
 /* Without a pointer to hover with, a phone shows it always. */
 @media (hover: none) {
   .shelf-code-overlay {
     opacity: 1;
+    pointer-events: auto;
   }
 }
 
@@ -50,6 +53,16 @@
   background: rgba(251, 191, 36, 0.12);
   border: 1px solid rgba(251, 191, 36, 0.35);
   font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+/* A link to the shelves: brighter under the pointer. */
+.shelf-code-inline:hover,
+.shelf-code-inline:focus-visible {
+  background: rgba(251, 191, 36, 0.2);
+  border-color: rgba(251, 191, 36, 0.6);
+  outline: none;
 }
 
 .movie-detail-shelf {
