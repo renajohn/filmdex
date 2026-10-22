@@ -7,6 +7,8 @@ import { TextField } from './shared/TextField';
 import Spinner from './shared/Spinner';
 import toast from './shared/Toast';
 import CoverCropDialog from './CoverCropDialog';
+import { isCameraPhoto } from '../utils/isCameraPhoto';
+import { straightenIfSure } from '../utils/straightenPhoto';
 
 interface Book {
   id: number;
@@ -73,8 +75,8 @@ const InlineCoverSelector = ({ book, isOpen, onCoverSelected, onBackSelected, cu
     if (file) processFile(file);
   };
 
-  /** A photo or a file: straightened first, the camera rarely square to a book held in the hand. */
-  const processFile = (file: File, slot: 'front' | 'back' = 'front') => {
+  /** A photo or a file: a photograph squared first, the camera rarely square to a book held in the hand. */
+  const processFile = (file: File, slot: 'front' | 'back' = 'front'): void => {
     if (!file) return;
     if (!file.type.startsWith('image/') && !/\.(heic|heif)$/i.test(file.name)) {
       toast('Please select an image file', { tone: 'warning' });
@@ -84,7 +86,15 @@ const InlineCoverSelector = ({ book, isOpen, onCoverSelected, onBackSelected, cu
       toast('Image size must be less than 20MB', { tone: 'warning' });
       return;
     }
-    setCropping({ file, slot });
+    void squareOrKeep(file, slot);
+  };
+
+  /** A photograph squared, by itself when the detector is sure, else in the dialog; a picture from the web as it is. */
+  const squareOrKeep = async (file: File, slot: 'front' | 'back') => {
+    if (!(await isCameraPhoto(file).catch(() => false))) { await upload(file, slot); return; }
+    const squared = await straightenIfSure(file, 'book').catch(() => null);
+    if (squared) await upload(squared, slot);
+    else setCropping({ file, slot });
   };
 
   const upload = async (photo: File, slot: 'front' | 'back') => {

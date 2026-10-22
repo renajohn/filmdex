@@ -59,3 +59,11 @@
   border-radius: 4px;
   background: #111;
 }
+
+/* A side being read or squared: a spinner in its place. */
+.sleeve-capture-busy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import CoverCropDialog from './CoverCropDialog';
 
@@ -89,11 +89,12 @@ describe('CoverCropDialog', () => {
     }
   });
 
-  it('uses the corners it found, and says so', async () => {
+  it('uses the corners it found, the frame saying so without words', async () => {
     (detectSleeveQuad as any).mockReturnValue({ quad: DETECTED, confidence: 0.9 });
     const { onConfirm } = renderDialog();
 
-    await waitFor(() => expect(screen.getByText(/found the sleeve/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('crop-corner-topLeft').style.left).toBe('20%'));
+    expect(screen.queryByText(/found/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
 
     // Pixels, not corners: what was shown is what gets stored.
@@ -102,12 +103,10 @@ describe('CoverCropDialog', () => {
 
   it('shows its guess for checking when it is not sure', async () => {
     // A guess a little off is a short drag; a square in the middle is four.
-    // Low confidence changes the words, not the corners.
     (detectSleeveQuad as any).mockReturnValue({ quad: DETECTED, confidence: 0.3 });
     const { onConfirm } = renderDialog();
 
-    await waitFor(() => expect(screen.getByText(/probably the sleeve/i)).toBeInTheDocument());
-    expect(screen.getByTestId('crop-corner-topLeft').style.left).toBe('20%');
+    await waitFor(() => expect(screen.getByTestId('crop-corner-topLeft').style.left).toBe('20%'));
     fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
 
     await waitFor(() => expect(onConfirm).toHaveBeenCalledWith(expect.any(File)));
@@ -117,16 +116,16 @@ describe('CoverCropDialog', () => {
     (detectSleeveQuad as any).mockReturnValue(null);
     renderDialog();
 
-    await waitFor(() => expect(screen.getByText(/could not pick out the sleeve/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/no sleeve found: drag the corners onto it/i)).toBeInTheDocument());
     // A square the size of the 800x600 photo's shorter side, centred.
     expect(screen.getByTestId('crop-corner-topLeft').style.left).toBe(`${defaultQuad(800 / 600).topLeft[0] * 100}%`);
   });
 
   it('speaks of a cover, not a sleeve, when it is a book', async () => {
-    (detectSleeveQuad as any).mockReturnValue({ quad: DETECTED, confidence: 0.9 });
+    (detectSleeveQuad as any).mockReturnValue(null);
     renderDialog({ subject: 'book' });
 
-    await waitFor(() => expect(screen.getByText(/found the cover/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/no cover found/i)).toBeInTheDocument());
     expect(detectSleeveQuad).toHaveBeenCalledWith(expect.anything(), { subject: 'book' });
   });
 
@@ -258,10 +257,33 @@ describe('CoverCropDialog — corners are fractions of the photo, not of the box
     fireEvent.pointerUp(window);
 
     fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
+    await waitFor(() => expect(warpQuad).toHaveBeenCalled());
 
     const corners = (warpQuad as any).mock.calls[0][1];
     expect(corners.topLeft[0]).toBeCloseTo(0.5, 3);
     expect(corners.topLeft[1]).toBeCloseTo(0.5, 3);
+  });
+
+  it('moves a side whole by its bar, its two corners together, the others where they were', async () => {
+    renderDialog();
+    await waitFor(() => expect(screen.getByTestId('crop-edge-top')).toBeInTheDocument());
+    stageAt();
+    const at = (corner: string) => {
+      const style = screen.getByTestId(`crop-corner-${corner}`).style;
+      return [parseFloat(style.left), parseFloat(style.top)];
+    };
+    const before = Object.fromEntries(['topLeft', 'topRight', 'bottomLeft', 'bottomRight'].map(c => [c, at(c)]));
+
+    // Grabbed at the photo's centre, let go 30px lower: a tenth of its 300px.
+    act(() => { screen.getByTestId('crop-edge-top').dispatchEvent(new MouseEvent('pointerdown', { clientX: 300, clientY: 200, bubbles: true })); });
+    act(() => { dragTo(300, 230); });
+    fireEvent.pointerUp(window);
+
+    await waitFor(() => expect(at('topLeft')[1]).toBeCloseTo(before.topLeft[1] + 10, 3));
+    expect(at('topRight')[1]).toBeCloseTo(before.topRight[1] + 10, 3);
+    expect(at('topLeft')[0]).toBeCloseTo(before.topLeft[0], 3);
+    expect(at('bottomLeft')).toEqual(before.bottomLeft);
+    expect(at('bottomRight')).toEqual(before.bottomRight);
   });
 
   it('clamps a drag that leaves the photo', async () => {
@@ -275,6 +297,7 @@ describe('CoverCropDialog — corners are fractions of the photo, not of the box
     fireEvent.pointerUp(window);
 
     fireEvent.click(screen.getByRole('button', { name: /straighten and use/i }));
+    await waitFor(() => expect(warpQuad).toHaveBeenCalled());
 
     const corners = (warpQuad as any).mock.calls[0][1];
     expect(corners.topLeft).toEqual([0, 0]);

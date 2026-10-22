@@ -535,3 +535,45 @@ div.finder__empty {
 div.finder__empty p {
   margin: 0;
 }
+
+/* Its back being read and squared: a spinner where its thumbnail will be. */
+.finder__photo-thumb--busy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 46px;
+  border-radius: 2px;
+  background: var(--dv-glass);
+}
+
+/* The finder empty: a large button to photograph a book's back, the quickest way in. */
+.finder__shoot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(100%, 320px);
+  padding: 26px 16px;
+  border: 1px dashed var(--dv-gold);
+  border-radius: 14px;
+  background: rgba(251, 191, 36, 0.06);
+  color: var(--dv-text);
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.finder__shoot svg {
+  color: var(--dv-gold);
+}
+
+.finder__shoot small {
+  color: var(--dv-text-muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.finder__shoot:hover:not(:disabled) {
+  background: rgba(251, 191, 36, 0.12);
+}

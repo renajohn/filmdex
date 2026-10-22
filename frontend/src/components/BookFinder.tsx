@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BsCamera, BsCheckLg, BsChevronRight, BsFilter, BsPencil, BsPersonFill, BsPlusLg, BsSearch, BsUpcScan } from 'react-icons/bs';
+import { BsCamera, BsCheckLg, BsChevronRight, BsFilter, BsPencil, BsPersonFill, BsPlusLg, BsSearch } from 'react-icons/bs';
 import bookFinderService, {
   BookEdition, BookFormat, BookKind, BookLanguage, FinderAuthor, FinderBook, FinderSeries,
 } from '../services/bookFinderService';
@@ -9,7 +9,7 @@ import CoverButton from './shared/CoverButton';
 import CoverTag from './shared/CoverTag';
 import Dialog from './shared/Dialog';
 import Segmented from './shared/Segmented';
-import { Loading } from './shared/Spinner';
+import Spinner, { Loading } from './shared/Spinner';
 import { TextField } from './shared/TextField';
 import toast from './shared/Toast';
 import { downscaleImage, base64ToFile } from '../utils/downscaleImage';
@@ -43,7 +43,8 @@ interface BookFinderProps {
   onClose: () => void;
   /** Fill the form from the book's photographs, those already taken handed over. */
   onPhotos?: (taken: { front?: Photo; back?: Photo }) => void;
-  onIsbn?: () => void;
+  /** A series to open on, its volumes to add those one has: from a series' stack. */
+  initialSeries?: { name: string; author: string | null };
   /** Type it by hand: the words searched, when nothing was found, as its title. */
   onManual?: (title?: string) => void;
   buying?: BookBuying | null;
@@ -82,7 +83,7 @@ const volumeTitle = (book: FinderBook) => book.subtitle
  * books. On the wish list a click wishes the book; for the library it asks its
  * edition: kind, format, language, price, date, whose it is.
  */
-const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClose, onPhotos, onIsbn, onManual, buying, initialKind, reading }) => {
+const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClose, onPhotos, onManual, buying, initialKind, initialSeries, reading }) => {
   const [view, setView] = useState<View>(buying ? 'edition' : 'search');
   const [query, setQuery] = useState('');
   const [language, setLanguage] = useState<BookLanguage>(() => remembered('dv.bookLanguage', 'fr'));
@@ -131,6 +132,8 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
   // detector is sure, else in the dialog opened at once on its best guess, and again on a tap of its thumbnail.
   const originals = useRef<{ front?: File; back?: File }>({});
   const [straightening, setStraightening] = useState<'front' | 'back' | null>(null);
+  // A side straightened in the dialog, being made ready: a spinner where its thumbnail is.
+  const [squaring, setSquaring] = useState<'front' | 'back' | null>(null);
 
   /** A side taken: squared when the detector is sure, else the dialog to check its corners. */
   const keepSide = async (side: 'front' | 'back', file: File) => {
@@ -276,6 +279,11 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
     setView('edition');
   };
 
+  // From a series' stack: its volumes at once.
+  useEffect(() => {
+    if (initialSeries?.name) openSeries({ name: initialSeries.name, authors: initialSeries.author ? [initialSeries.author] : [], covers: [], volumes: 0 });
+  }, [initialSeries?.name]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const openSeries = (s: FinderSeries) => {
     setSerie(s);
     setVolumes(null);
@@ -415,7 +423,10 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
       </div>
       {(photos.back || readingPhoto) && (
         <div className="finder__photo">
-          {(['back', 'front'] as const).map(side => photos[side] && (
+          {readingPhoto === 'back' && !photos.back && <span className="finder__photo-thumb finder__photo-thumb--busy"><Spinner size="sm" /></span>}
+          {(['back', 'front'] as const).map(side => squaring === side
+            ? <span key={side} className="finder__photo-thumb finder__photo-thumb--busy"><Spinner size="sm" /></span>
+            : photos[side] && (
             <button key={side} type="button" className="finder__photo-thumb" title={`Straighten ${side === 'back' ? 'its back' : 'its cover'}`}
               onClick={() => originals.current[side] && setStraightening(side)}>
               <img src={`data:${photos[side]!.mimeType};base64,${photos[side]!.base64}`} alt={side === 'back' ? 'Its back' : 'Its cover'} />
@@ -438,7 +449,17 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
       )}
       <div className="finder__results" ref={listRef}>
         {query.trim().length < 2 ? (
-          <p className="finder__empty">Books appear as you type: a title, an author, a series.</p>
+          <div className="finder__empty">
+            {/* The quickest way in: its back's barcode is its edition. */}
+            {!wishMode && (
+              <button type="button" className="finder__shoot" onClick={() => backRef.current?.click()} disabled={readingPhoto === 'back'}>
+                {readingPhoto === 'back' ? <Spinner size="lg" /> : <BsCamera size={34} />}
+                <span>{readingPhoto === 'back' ? 'Reading its back…' : 'Photograph its back'}</span>
+                <small>Its barcode finds its edition at once</small>
+              </button>
+            )}
+            <p>{wishMode ? 'Books appear as you type: a title, an author, a series.' : 'Or type a title, an author, a series, an ISBN.'}</p>
+          </div>
         ) : error ? (
           <p className="finder__empty">{error}</p>
         ) : (
@@ -720,7 +741,6 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
           {view === 'search' && (wishMode ? 'One click wishes the book; a series wishes its missing volumes.' : 'Choose the book, then its edition.')}
         </span>
         {!wishMode && <Button icon={<BsCamera />} onClick={() => backRef.current?.click()} loading={readingPhoto === 'back'} title="Photograph its back: its barcode is its ISBN, its edition">Photo</Button>}
-        {!wishMode && onIsbn && <Button icon={<BsUpcScan />} onClick={onIsbn} title="Search by its ISBN, as before">ISBN</Button>}
         {onManual && <Button icon={<BsPencil />} onClick={() => onManual()} title="Type it all by hand">Manual</Button>}
         <Button variant="quiet" onClick={onClose}>{wishMode ? 'Done' : 'Cancel'}</Button>
       </>
@@ -739,7 +759,11 @@ const BookFinder: React.FC<BookFinderProps> = ({ mode, onHead, onChanged, onClos
         onConfirm={async photo => {
           const side = straightening;
           setStraightening(null);
-          if (side) { try { const kept = await downscaleImage(photo); setPhotos(prev => ({ ...prev, [side]: kept })); } catch { /* the photo as it was */ } }
+          if (side) {
+            setSquaring(side);
+            try { const kept = await downscaleImage(photo); setPhotos(prev => ({ ...prev, [side]: kept })); } catch { /* the photo as it was */ }
+            setSquaring(null);
+          }
         }}
       />
       <input ref={backRef} type="file" accept="image/*,.heic,.heif" capture="environment" style={{ display: 'none' }} onChange={photographedBack} data-testid="finder-photo" />

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import Spinner from './shared/Spinner';
+import Spinner, { Loading } from './shared/Spinner';
 import { BsArrowCounterclockwise, BsArrowClockwise } from 'react-icons/bs';
 import { detectSleeveQuad, defaultQuad, DEFAULT_QUAD, CONFIDENT, imagePixels, type Quad, type Point, type Subject } from '../utils/detectSleeveQuad';
 import { warpQuad } from '../utils/warpQuad';
@@ -8,6 +8,11 @@ import Button from './shared/Button';
 import Dialog from './shared/Dialog';
 
 const CORNERS: Array<keyof Quad> = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
+/** Each side by its two corners, in turn round the frame. */
+type Edge = 'top' | 'right' | 'bottom' | 'left';
+const EDGES: Record<Edge, [keyof Quad, keyof Quad]> = {
+  top: ['topLeft', 'topRight'], right: ['topRight', 'bottomRight'], bottom: ['bottomRight', 'bottomLeft'], left: ['bottomLeft', 'topLeft'],
+};
 
 /** The magnified view shown while a corner is held under a finger. */
 const LOUPE_SIZE = 128;
@@ -20,6 +25,8 @@ interface CoverCropDialogProps {
   slot?: 'front' | 'back';
   /** What is in the photo: a CD's sleeve unless told otherwise. A book is not square. */
   subject?: Subject;
+  /** A picture already framed (from the web): its frame starts on the whole of it, to be drawn in, not looked for. */
+  whole?: boolean;
   onCancel: () => void;
   /**
    * The finished photograph: straightened if a frame was set, or as it stands
@@ -38,7 +45,7 @@ interface CoverCropDialogProps {
  * where a square in the middle needs four drags. Dragging is the fallback
  * that never fails, and the reason an imperfect detector is safe to ship.
  */
-const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'front', subject = 'sleeve', onCancel, onConfirm }) => {
+const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'front', subject = 'sleeve', whole = false, onCancel, onConfirm }) => {
   // The photo as it currently stands: the one picked, or the one a rotation
   // produced from it. Everything downstream -- detection, corners, upload --
   // refers to this and not to the original.
@@ -46,10 +53,14 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
   const [src, setSrc] = useState<string | null>(null);
   const [quad, setQuad] = useState<Quad>(DEFAULT_QUAD);
   const [detecting, setDetecting] = useState(false);
+  // The photo drawn on the page: until then, and while its corners are looked for, a spinner in its place.
+  const [drawn, setDrawn] = useState(false);
   // Sure of the corners, offering them as a guess, or nothing found at all.
   const [autoFound, setAutoFound] = useState<'found' | 'guess' | 'none' | null>(null);
   const what = subject === 'book' ? 'the cover' : 'the sleeve';
   const [dragging, setDragging] = useState<keyof Quad | null>(null);
+  // A side dragged whole, its two corners together, from where the pointer last was.
+  const [draggingEdge, setDraggingEdge] = useState<{ edge: Edge; from: Point } | null>(null);
   const [rotating, setRotating] = useState(false);
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState('');
@@ -69,6 +80,7 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
     if (!show || !working) return;
     let cancelled = false;
     const url = URL.createObjectURL(working);
+    setDrawn(false);
     setSrc(url);
     setDetecting(true);
     setAutoFound(null);
@@ -76,6 +88,14 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
     const image = new Image();
     image.onload = () => {
       if (cancelled) return;
+      // Decoded here, it is drawn on the page as well: the same file.
+      setDrawn(true);
+      if (whole) {
+        setQuad({ topLeft: [0, 0], topRight: [1, 0], bottomRight: [1, 1], bottomLeft: [0, 1] });
+        setAutoFound(null);
+        setDetecting(false);
+        return;
+      }
       try {
         const pixels = imagePixels(image);
         const found = pixels ? detectSleeveQuad(pixels, { subject }) : null;
@@ -99,6 +119,7 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
     };
     image.onerror = () => {
       if (cancelled) return;
+      setDrawn(true);
       setAutoFound('none');
       setDetecting(false);
     };
@@ -164,6 +185,41 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
     }
   }, [rotating]);
 
+  /** Where a pointer is, as a fraction of the photo. */
+  const pointAt = useCallback((clientX: number, clientY: number): Point | null => {
+    const box = stageRef.current?.getBoundingClientRect();
+    return box ? [(clientX - box.left) / box.width, (clientY - box.top) / box.height] : null;
+  }, []);
+
+  useEffect(() => {
+    if (!draggingEdge) return;
+    let from = draggingEdge.from;
+    const move = (e: PointerEvent) => {
+      e.preventDefault();
+      const at = pointAt(e.clientX, e.clientY);
+      if (!at) return;
+      // Measured now: the update below runs later, once from has moved on.
+      const [moveX, moveY] = [at[0] - from[0], at[1] - from[1]];
+      from = at;
+      setQuad(current => {
+        const [a, b] = EDGES[draggingEdge.edge];
+        // The side moves as far as its corners can both go, the frame staying on the photo.
+        const dx = Math.min(1 - Math.max(current[a][0], current[b][0]), Math.max(-Math.min(current[a][0], current[b][0]), moveX));
+        const dy = Math.min(1 - Math.max(current[a][1], current[b][1]), Math.max(-Math.min(current[a][1], current[b][1]), moveY));
+        return { ...current, [a]: [current[a][0] + dx, current[a][1] + dy] as Point, [b]: [current[b][0] + dx, current[b][1] + dy] as Point };
+      });
+    };
+    const up = () => setDraggingEdge(null);
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+  }, [draggingEdge, pointAt]);
+
   const moveCorner = useCallback((corner: keyof Quad, clientX: number, clientY: number) => {
     const stage = stageRef.current;
     if (!stage) return;
@@ -202,6 +258,8 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
     if (!image || !working) return;
     setApplying(true);
     try {
+      // The warp holds the page while it runs: its spinner is drawn first.
+      await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
       const cropped = await warpQuad(image, quad);
       onConfirm(new File([cropped], 'cover.jpg', { type: 'image/jpeg' }));
     } catch (err) {
@@ -216,7 +274,12 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
   return (
     <Dialog show={show} onClose={onCancel} size="lg" className="cover-crop-dialog" zIndex={10200} title={slot === 'back' ? 'Straighten the back cover' : 'Straighten the cover'}>
       <Dialog.Body>
-        <div className="cover-crop-frame">
+        <div className={`cover-crop-frame${!src || !drawn || detecting ? ' cover-crop-frame--waiting' : ''}`}>
+          {/* Outside the stage, which hugs a photo not drawn yet: a spinner and its words with room to be read. */}
+          {(!src || !drawn || detecting) && (
+            <div className="cover-crop-waiting"><Loading>{detecting ? `Looking for ${what}…` : 'Opening the photo…'}</Loading></div>
+          )}
+          {applying && <div className="cover-crop-waiting cover-crop-waiting--over"><Loading>Straightening…</Loading></div>}
           <div className="cover-crop-stage" ref={stageRef}>
           {src && (
             <img
@@ -224,11 +287,13 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
               src={src}
               alt="Cover to straighten"
               className="cover-crop-image"
+              style={drawn && !detecting ? undefined : { visibility: 'hidden' }}
+              onLoad={() => setDrawn(true)}
               draggable={false}
             />
           )}
 
-          {src && (
+          {src && drawn && !detecting && (
             <>
               <div className="cover-crop-shade" style={{ clipPath: `polygon(${polygon})` }} />
               <svg className="cover-crop-outline" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -237,6 +302,27 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
                   vectorEffect="non-scaling-stroke"
                 />
               </svg>
+              {(Object.keys(EDGES) as Edge[]).map(edge => {
+                // A bar in the middle of each side, along it: dragged, the side moves whole.
+                const [a, b] = EDGES[edge];
+                const box = stageRef.current?.getBoundingClientRect();
+                const angle = box ? Math.atan2((quad[b][1] - quad[a][1]) * box.height, (quad[b][0] - quad[a][0]) * box.width) : 0;
+                return (
+                  <button
+                    key={edge}
+                    type="button"
+                    aria-label={`Side ${edge}`}
+                    data-testid={`crop-edge-${edge}`}
+                    className={`cover-crop-edge ${draggingEdge?.edge === edge ? 'dragging' : ''}`}
+                    style={{ left: `${(quad[a][0] + quad[b][0]) * 50}%`, top: `${(quad[a][1] + quad[b][1]) * 50}%`, transform: `translate(-50%, -50%) rotate(${angle}rad)` }}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      const at = pointAt(e.clientX, e.clientY);
+                      if (at) setDraggingEdge({ edge, from: at });
+                    }}
+                  />
+                );
+              })}
               {CORNERS.map(corner => (
                 <button
                   key={corner}
@@ -281,12 +367,6 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
             );
           })()}
 
-          {detecting && (
-            <div className="cover-crop-detecting">
-              <Spinner size="sm" className="me-2" />
-              Looking for {what}…
-            </div>
-          )}
           </div>
         </div>
 
@@ -311,15 +391,10 @@ const CoverCropDialog: React.FC<CoverCropDialogProps> = ({ show, file, slot = 'f
 
         {error && <div className="cover-crop-error">{error}</div>}
 
-        <div className="cover-crop-status">
-          {detecting || !autoFound
-            ? null
-            : autoFound === 'found'
-              ? `Found ${what} — drag a corner if it sits wrong.`
-              : autoFound === 'guess'
-                ? `Probably ${what} — check the corners and drag any that sit wrong.`
-                : `Could not pick out ${what}; drag the corners onto it.`}
-        </div>
+        {/* The frame on the photo says what was found; words only when nothing was, the frame then a guess of none. */}
+        {!detecting && autoFound === 'none' && (
+          <div className="cover-crop-status">No {what.replace('the ', '')} found: drag the corners onto it.</div>
+        )}
       </Dialog.Body>
 
       <Dialog.Footer>

@@ -1420,8 +1420,6 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
           onHide={handleAddBookDialogClose}
           onAddBook={handleAddBookToWishlist}
           defaultTitleStatus="wish"
-          templateBook={undefined}
-          onAddBooksBatch={undefined}
           onShowAlert={onShowAlert || undefined}
           onBookAdded={() => {
             // Immediately refresh wishlist when book is added, the finder staying open

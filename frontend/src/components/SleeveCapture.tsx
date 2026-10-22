@@ -82,6 +82,8 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, initialBack
   // already carries the result.
   const [straightened, setStraightened] = useState<Record<Side, boolean>>({ front: false, back: false });
   const [cropping, setCropping] = useState<Side | null>(null);
+  // The sides being read or squared: a spinner in their slot meanwhile.
+  const [busy, setBusy] = useState<Record<Side, boolean>>({ front: false, back: false });
   const [reading, setReading] = useState(false);
   const [error, setError] = useState('');
 
@@ -160,7 +162,11 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, initialBack
     setError('');
     takenHere.current[side] = true;
     keepFile(side, file);
+    setBusy(current => ({ ...current, [side]: true }));
+    try { await captureNow(side, file); } finally { setBusy(current => ({ ...current, [side]: false })); }
+  };
 
+  const captureNow = async (side: Side, file: File) => {
     try {
       setPhoto(side, await downscaleImage(file));
     } catch (err) {
@@ -239,7 +245,11 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, initialBack
           {photo && <BsArrowRepeat className="ms-2" title="Take another" />}
         </Button>
 
-        {photo && (
+        {busy[side] && (
+          <div className="sleeve-capture-busy" data-testid={`sleeve-busy-${side}`}><Spinner size="md" /></div>
+        )}
+
+        {photo && !busy[side] && (
           <img
             className="sleeve-capture-thumb"
             data-testid={`sleeve-thumb-${side}`}
@@ -314,9 +324,11 @@ const SleeveCapture: React.FC<SleeveCaptureProps> = ({ initialFront, initialBack
           setStraightened(current => ({ ...current, [side]: true }));
           // The straightened photo replaces the original everywhere: it is the
           // thumbnail shown, what the model reads, and what gets stored.
+          setBusy(current => ({ ...current, [side]: true }));
           try {
             setPhoto(side, await downscaleImage(photo));
           } catch (_) { /* keep what we had */ }
+          setBusy(current => ({ ...current, [side]: false }));
         }}
       />
 

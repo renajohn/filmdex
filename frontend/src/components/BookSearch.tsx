@@ -1510,22 +1510,6 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
         onAddBook={onAddBook}
         defaultTitleStatus={defaultTitleStatus}
         onShowAlert={onShowAlert}
-        onAddBooksBatch={async (books: any[]): Promise<void> => {
-          try {
-            // Ensure titleStatus is set for batch additions if defaultTitleStatus is provided
-            const booksWithStatus = defaultTitleStatus
-              ? books.map((book: any) => ({ ...book, titleStatus: defaultTitleStatus }))
-              : books;
-            const result = await bookService.addBooksBatch(booksWithStatus) as BatchResult;
-            if (result.errors && result.errors.length > 0) {
-              const errorMsg = result.errors.map((e: { book: string; error: string }) => `${e.book}: ${e.error}`).join(', ');
-              throw new Error(errorMsg);
-            }
-          } catch (error) {
-            console.error('Error adding books batch:', error);
-            throw error;
-          }
-        }}
         onAddStart={() => {
           setShowAddDialog(false);
           setAddingBook(true);

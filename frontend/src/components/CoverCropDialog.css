@@ -141,3 +141,58 @@
   color: #f0a0a0;
   text-align: center;
 }
+
+/* Until the photo is drawn and its corners found: a spinner in the frame, which keeps its room. */
+.cover-crop-frame--waiting {
+  position: relative;
+  min-height: 260px;
+}
+
+.cover-crop-waiting {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: normal;
+}
+
+/* A side's bar, in its middle and along it: dragged, the side moves whole, its two corners together. */
+.cover-crop-edge {
+  position: absolute;
+  -webkit-tap-highlight-color: transparent;
+  width: 44px;
+  height: 12px;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 6px;
+  background: rgba(77, 163, 255, 0.85);
+  cursor: grab;
+  touch-action: none;
+}
+
+/* A larger target for a finger than the bar it shows. */
+.cover-crop-edge::before {
+  content: '';
+  position: absolute;
+  inset: -14px -6px;
+}
+
+.cover-crop-edge.dragging {
+  cursor: grabbing;
+  background: rgba(77, 163, 255, 1);
+}
+
+/* Straightening: over the photo, which stays in sight. */
+.cover-crop-frame:has(.cover-crop-waiting--over) {
+  position: relative;
+}
+
+.cover-crop-waiting--over {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.cover-crop-waiting--over .ui-loading {
+  color: #fff;
+}

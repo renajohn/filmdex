@@ -191,8 +191,46 @@
 }
 
 .book-form-photos figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   margin-top: 4px;
   color: var(--dv-text-muted);
   font-size: 0.8rem;
   text-align: center;
+}
+
+/* A slot of a new book's cover or back: an image to choose, or the one chosen to replace. */
+.book-form-photos__slot {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px dashed var(--dv-edge);
+  border-radius: 3px;
+  background: none;
+  cursor: pointer;
+}
+
+.book-form-photos__slot:has(img) {
+  border-style: none;
+}
+
+.book-form-photos__slot--over {
+  border-color: var(--dv-gold);
+}
+
+.book-form-photos__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  aspect-ratio: 2 / 3;
+  color: var(--dv-text-muted);
+  font-size: 0.8rem;
+}
+
+.book-form-photos__empty small {
+  color: var(--dv-text-faint);
 }

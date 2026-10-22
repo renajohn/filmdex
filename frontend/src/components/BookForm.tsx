@@ -5,6 +5,7 @@ import Dialog, { DialogHeader } from './shared/Dialog';
 import { BsX, BsUpload, BsBook, BsCloudDownload, BsFileEarmark, BsTrash, BsChevronDown, BsChevronRight } from 'react-icons/bs';
 import bookService from '../services/bookService';
 import CoverModal from './CoverModal';
+import BookCoverSlots, { type BookCoverPhotos } from './BookCoverSlots';
 import './BookForm.css';
 import { readStored, writeStored } from '../utils/safeStorage';
 import Select from './shared/Select';
@@ -142,21 +143,12 @@ interface BookFormProps {
   defaultTitleStatus?: string;
   onShowAlert?: ((message: string, variant: string) => void) | null;
   onShowOtherResults?: (() => void) | null;
-  /** The book's photographs the form was filled from: shown in place of the upload, its cover and its back once saved. */
-  photos?: { front?: { base64: string; mimeType: string }; back?: { base64: string; mimeType: string } } | null;
+  /** A new book's photographs, those it was filled from: its cover and its back once saved, others chosen in the form. */
+  photos?: BookCoverPhotos | null;
+  /** The cover and back chosen in the form, to keep once the book is saved. */
+  onPhotosChange?: (photos: BookCoverPhotos) => void;
 }
 
-/** The photos a form was filled from, its front and its back side by side. */
-const BookFormPhotos: React.FC<{ photos: NonNullable<BookFormProps['photos']> }> = ({ photos }) => (
-  <div className="book-form-photos">
-    {(['front', 'back'] as const).map(side => photos[side] && (
-      <figure key={side}>
-        <img src={`data:${photos[side]!.mimeType};base64,${photos[side]!.base64}`} alt={side === 'front' ? 'Its cover' : 'Its back'} />
-        <figcaption>{side === 'front' ? 'Cover' : 'Back'}</figcaption>
-      </figure>
-    ))}
-  </div>
-);
 
 // Detect book type from ISBN and genres
 const detectBookType = (isbn: string | undefined | null, genres: string[] = []): string => {
@@ -194,7 +186,9 @@ const detectBookType = (isbn: string | undefined | null, genres: string[] = []):
   return 'book';
 };
 
-const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null, onSave, onCancel, inline = false, onBookUpdated = null, defaultTitleStatus, onShowAlert, onShowOtherResults = null, photos = null }) => {
+const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null, onSave, onCancel, inline = false, onBookUpdated = null, defaultTitleStatus, onShowAlert, onShowOtherResults = null, photos = null, onPhotosChange }) => {
+  // A new book's cover and back: those it was read from, or chosen here; uploaded once it is saved.
+  const [pendingPhotos, setPendingPhotos] = useState<BookCoverPhotos>(photos || {});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ebookInputRef = useRef<HTMLInputElement>(null);
   const ownerInputRef = useRef<HTMLInputElement>(null);
@@ -2435,8 +2429,8 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                   </div>
                 )}
                 
-                {/* Its photographs, read for this form: its front and its back, kept once it is saved. */}
-                {photos ? <BookFormPhotos photos={photos} /> : (book?.id || coverPreview) ? (<>
+                {/* A new book: its cover and its back, read from its photos or chosen here, kept once it is saved. */}
+                {!book?.id ? <BookCoverSlots photos={pendingPhotos} onChange={next => { setPendingPhotos(next); onPhotosChange?.(next); }} /> : (<>
                 <div
                   className={`cover-upload-area ${isDragging ? 'dragging' : ''}`}
                   onDragOver={handleDragOver}
@@ -2495,7 +2489,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                   style={{ display: 'none' }}
                   disabled={!book?.id || uploadingCover}
                 />
-                </>) : null}
+                </>)}
                 {uploadingCover && (
                   <div className="upload-progress">
                     <Spinner size="sm" />
@@ -3245,8 +3239,8 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                   </div>
                 )}
                 
-                {/* Its photographs, read for this form: its front and its back, kept once it is saved. */}
-                {photos ? <BookFormPhotos photos={photos} /> : (book?.id || coverPreview) ? (<>
+                {/* A new book: its cover and its back, read from its photos or chosen here, kept once it is saved. */}
+                {!book?.id ? <BookCoverSlots photos={pendingPhotos} onChange={next => { setPendingPhotos(next); onPhotosChange?.(next); }} /> : (<>
                 <div
                   className={`cover-upload-area ${isDragging ? 'dragging' : ''}`}
                   onDragOver={handleDragOver}
@@ -3305,7 +3299,7 @@ const BookForm: React.FC<BookFormProps> = ({ book = null, availableBooks = null,
                   style={{ display: 'none' }}
                   disabled={!book?.id || uploadingCover}
                 />
-                </>) : null}
+                </>)}
                 {uploadingCover && (
                   <div className="upload-progress">
                     <Spinner size="sm" />
