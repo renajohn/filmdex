@@ -159,7 +159,8 @@ const SortableCard: React.FC<SortableCardProps> = ({ id, disabled, className, st
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled });
   const style: React.CSSProperties = { transform: still && isDragging ? undefined : CSS.Translate.toString(transform), transition: transition || undefined };
   // Faded in when it appears, once: a card moved in the row is taken out and put back, which would play it again.
-  const [entering, setEntering] = useState(true);
+  // One that appears as it is dragged in (a small cover over the row) stays hidden: no fading in of it.
+  const [entering, setEntering] = useState(!isDragging);
   return (
     <div
       ref={setNodeRef}
@@ -422,6 +423,8 @@ const NextBanner: React.FC<NextBannerProps> = ({
       return;
     }
     if (other) land(activeId);
+    // Let go away from the row and the strip: nothing moves, the cover goes back to its place.
+    if (other && !over) return;
     // Into the other row or strip: where it now stands there, moved on to the one under the pointer.
     if (state && began) {
       const side = sideOf(activeId, state);
