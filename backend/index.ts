@@ -13,6 +13,7 @@ import musicController from './src/controllers/musicController';
 import mixtapeController from './src/controllers/mixtapeController';
 import musicService from './src/services/musicService';
 import bookController from './src/controllers/bookController';
+import remoteController from './src/controllers/remoteController';
 import bookService from './src/services/bookService';
 import backupController from './src/controllers/backupController';
 import dropboxBackupController from './src/controllers/dropboxBackupController';
@@ -276,6 +277,12 @@ app.delete('/api/music/digital/:navidromeId/dismiss', musicController.setDigital
 app.get('/api/music/digital/:navidromeId/tracks', musicController.getDigitalTracks);
 app.get('/api/music/navidrome-cover/:navidromeId', musicController.getNavidromeCover);
 app.get('/api/music/navidrome/stream/:id', playerController.stream);
+// The remote: what plays in which browser, and commands to it from another device
+app.get('/api/remote/players', remoteController.players);
+app.put('/api/remote/players/:id', remoteController.report);
+app.get('/api/remote/players/:id/commands', remoteController.commands);
+app.put('/api/remote/players/:id/name', remoteController.rename);
+app.post('/api/remote/players/:id/commands', remoteController.command);
 app.post('/api/music/navidrome/scrobble/:id', playerController.scrobble);
 app.put('/api/music/navidrome/star/:id', playerController.star);
 app.delete('/api/music/navidrome/star/:id', playerController.star);
