@@ -19,6 +19,7 @@ import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
 import musicService from './services/musicService';
 import bookService from './services/bookService';
+import bookSectionsService from './services/bookSectionsService';
 import { BsX, BsCollectionFill, BsBookmark, BsChevronDown, BsDisc, BsArrowLeft, BsBarChart, BsFilm, BsBook, BsFileMusic } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 // After Bootstrap, so that its radios and checkboxes wear DexVault's look.
@@ -96,6 +97,8 @@ function AppContent() {
   const [collections, setCollections] = useState<string[]>([]);
   const [boxSets, setBoxSets] = useState<string[]>([]);
   const [owners, setOwners] = useState<string[]>([]);
+  const [scoreComposers, setScoreComposers] = useState<string[]>([]);
+  const [scorePublishers, setScorePublishers] = useState<string[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
 
   // Check if we're on the thumbnail view (filmdex path)
@@ -435,6 +438,15 @@ function AppContent() {
       if (location.pathname === '/musicdex') {
         // MusicDex's filters are fixed
         return;
+      } else if (location.pathname === '/scores') {
+        // The scores' composers and publishers, each once
+        const scores = await bookSectionsService.scores();
+        const names = (values: Array<string | null>) => [...new Set(values.filter((v): v is string => !!v && !!v.trim()))]
+          .sort((a, b) => a.localeCompare(b));
+        // By their surname, as the page files them: Bach before Debussy
+        const surname = (name: string) => name.split(' ').slice(-1)[0];
+        setScoreComposers(names(scores.map(s => s.composer)).sort((a, b) => surname(a).localeCompare(surname(b))));
+        setScorePublishers(names(scores.map(s => s.publisher)));
       } else if (location.pathname === '/bookdex') {
         // Fetch owners for BookDex
         try {
@@ -555,6 +567,7 @@ function AppContent() {
         predicate = 'has_ebook:true';
         break;
       case 'music':
+      case 'score':
         predicate = filterValue;
         break;
       default:
@@ -563,11 +576,11 @@ function AppContent() {
 
     if (predicate) {
       let currentText = searchCriteria.searchText.trim();
-      if (filterType === 'music') {
-        // A MusicDex filter takes the place of one of its family already there: stars and rated are one
+      if (filterType === 'music' || filterType === 'score') {
+        // A MusicDex or Scores filter takes the place of one of its family already there: stars and rated are one
         const key = predicate.split(':')[0];
-        const family = key === 'stars' || key === 'rated' ? 'stars|rated' : key;
-        currentText = currentText.replace(new RegExp(`(^|\\s)-?(${family}):\\S+`, 'gi'), '').replace(/\s+/g, ' ').trim();
+        const family = key === 'stars' || key === 'rated' ? 'stars|rated' : key === 'heard' || key === 'contents' ? 'heard|contents' : key;
+        currentText = currentText.replace(new RegExp(`(^|\\s)-?(${family}):(?:"[^"]*"|\\S+)`, 'gi'), '').replace(/\s+/g, ' ').trim();
       }
       const newText = currentText ? `${currentText} ${predicate}` : predicate;
 
@@ -602,6 +615,14 @@ function AppContent() {
       { title: 'Title Status', options: plain('title_status', [['owned', 'Owned'], ['borrowed', 'Borrowed']]) },
       { title: 'Special', options: [{ label: 'Has E-book File', type: 'has_ebook', value: '' }] },
       { title: 'Owners', options: of('owner', owners) },
+    ] : location.pathname === '/scores' ? [
+      { title: 'PDF', options: plain('score', [['pdf:yes', 'With a PDF'], ['pdf:no', 'Without a PDF']]) },
+      { title: 'Your Music', options: plain('score', [['heard:yes', 'Played in your music'], ['heard:no', 'Not in your music'], ['contents:no', 'Contents unknown']]) },
+      { title: 'Composers', options: [
+        ...scoreComposers.map(name => ({ label: name, type: 'score', value: `composer:"${name}"` })),
+        { label: 'Anthologies & methods', type: 'score', value: 'composer:none' },
+      ] },
+      { title: 'Publishers', options: scorePublishers.map(name => ({ label: name, type: 'score', value: `publisher:"${name}"` })) },
     ] : [
       { title: 'Age Groups', options: of('age_group', ['All Ages (0-3)', 'Children (4-9)', 'Pre-teens (10-14)', 'Teens & Adults (15+)']) },
       { title: 'Formats', options: of('format', ['Blu-ray 4K', 'Blu-ray', 'DVD']) },

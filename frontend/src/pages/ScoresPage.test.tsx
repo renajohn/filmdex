@@ -85,6 +85,30 @@ describe('ScoresPage', () => {
     expect(screen.queryByText('Improve your sight-reading !')).not.toBeInTheDocument();
   });
 
+  it('filtre par les filtres du menu : pdf:, heard:, contents:, composer:none', async () => {
+    vi.mocked(bookSectionsService.scores).mockResolvedValue([
+      score(1, 'Préludes Vol. 1 - piano - (HN 383)', { composer: 'Claude Debussy', ebookFile: 'book_1_x_preludes.pdf', pieceCount: 12, heardCount: 3 }),
+      score(2, 'Suites françaises', { composer: 'Johann Sebastian Bach', pieceCount: 6 }),
+      score(3, 'Improve your sight-reading !', { publisher: 'Faber' }),
+    ]);
+    const { rerender } = render(page({ searchCriteria: { searchText: 'pdf:yes' } }));
+    expect(await screen.findByText('Préludes Vol. 1')).toBeInTheDocument();
+    expect(screen.queryByText('Suites françaises')).not.toBeInTheDocument();
+
+    rerender(page({ searchCriteria: { searchText: 'heard:no contents:yes' } }));
+    expect(screen.getByText('Suites françaises')).toBeInTheDocument();
+    expect(screen.queryByText('Préludes Vol. 1')).not.toBeInTheDocument();
+    expect(screen.queryByText('Improve your sight-reading !')).not.toBeInTheDocument();
+
+    rerender(page({ searchCriteria: { searchText: 'composer:none' } }));
+    expect(screen.getByText('Improve your sight-reading !')).toBeInTheDocument();
+    expect(screen.queryByText('Suites françaises')).not.toBeInTheDocument();
+
+    rerender(page({ searchCriteria: { searchText: 'composer:"Johann Sebastian Bach"' } }));
+    expect(screen.getByText('Suites françaises')).toBeInTheDocument();
+    expect(screen.queryByText('Préludes Vol. 1')).not.toBeInTheDocument();
+  });
+
   it('pose la lettre de chaque compositeur pour l’index sur le côté', async () => {
     render(page());
     const debussy = (await screen.findByRole('heading', { name: /Claude Debussy/ })).closest('section') as HTMLElement;
