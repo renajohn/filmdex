@@ -254,6 +254,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   }, [searchCriteria?.searchText]);
 
   // Load Listen Next albums
+  // The banner shows once its lists are read: not first empty, then grown.
+  const [listenNextRead, setListenNextRead] = useState(false);
   const refreshListenNextAlbums = useCallback(async () => {
     try {
       const albums = await musicService.getListenNextAlbums() as Album[];
@@ -261,6 +263,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     } catch (error) {
       console.warn('Failed to load Listen Next albums:', error);
       setListenNextAlbums([]);
+    } finally {
+      setListenNextRead(true);
     }
   }, []);
 
@@ -285,7 +289,13 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const [foundNext, setFoundNext] = useState<string | null>(null);
   useEffect(() => {
     if (!foundNext) return undefined;
-    document.querySelector(`.next-banner [data-key="${CSS.escape(foundNext)}"]`)?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    // The row alone scrolls to it, sideways: the page stays where it is.
+    const card = document.querySelector<HTMLElement>(`.next-banner [data-key="${CSS.escape(foundNext)}"]`);
+    const row = card?.closest<HTMLElement>('.next-banner__carousel');
+    if (card && row) {
+      const left = card.getBoundingClientRect().left - row.getBoundingClientRect().left + row.scrollLeft;
+      row.scrollTo({ left: left - (row.clientWidth - card.offsetWidth) / 2, behavior: 'smooth' });
+    }
     const timer = window.setTimeout(() => setFoundNext(null), 1600);
     return () => window.clearTimeout(timer);
   }, [foundNext]);
@@ -1268,20 +1278,23 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
       />
 
       {/* Listen Next Banner - show when there are albums OR when we have albums in collection to suggest */}
-      {!searchCriteria?.searchText && (listenNextAlbums.length > 0 || allCds.length > 0) && (
+      {!searchCriteria?.searchText && listenNextRead && (listenNextAlbums.length > 0 || allCds.length > 0) && (
         <NextBanner
           // Two lists: Digital, streamed, in gold; CD, the CDs to put on the player, in silver, with no ▶.
           items={listenNext.items.filter(album => mediumOf(album) === nextMedium)}
           type="music"
           title="Listen Next"
-          className={`listen-next-banner${nextMedium === 'cd' ? ' next-banner--silver' : ''}`}
+          className={`listen-next-lists${nextMedium === 'cd' ? ' next-banner--silver' : ''}`}
           alwaysShow
           icon={<MediumIcon medium={nextMedium} className="next-banner__icon" />}
           headerControls={(
             // What one looks at on the left (the list, its length), what one does on the right (▶, Repeat): nothing to play on CD.
             <span className="listen-next-head">
               <ListenNextSwitch medium={nextMedium} counts={nextCounts} onChange={chooseNextMedium} />
-              <ListenNextSummary albums={listenNext.items.filter(album => mediumOf(album) === nextMedium && !listenNext.leavingState(keyOf(album)))} play={listenNext.play} />
+              {/* Its place held while the lengths are read: the header does not grow once they come. */}
+              <span className="listen-next-head__summary">
+                <ListenNextSummary albums={listenNext.items.filter(album => mediumOf(album) === nextMedium && !listenNext.leavingState(keyOf(album)))} play={listenNext.play} />
+              </span>
               <span className="listen-next-head__end">
                 {nextMedium === 'digital' && <ListenNextControls count={nextCounts.digital} play={listenNext.play} onRepeat={listenNext.setRepeat} />}
               </span>
@@ -1292,7 +1305,6 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
             dropId: otherMedium(nextMedium),
             head: <OtherListName medium={otherMedium(nextMedium)} count={nextCounts[otherMedium(nextMedium)]} onOpen={() => chooseNextMedium(otherMedium(nextMedium))} />,
             dropHint: `Drop here: ${INSTEAD[otherMedium(nextMedium)].toLowerCase()}`,
-            most: window.matchMedia?.('(max-width: 600px)').matches ? 6 : 16,
             onShow: showNext,
             onOpen: () => chooseNextMedium(otherMedium(nextMedium)),
             onReorder: handleListenNextReorder,

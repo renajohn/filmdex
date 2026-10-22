@@ -1352,3 +1352,8 @@
     font-size: 0.7rem;
   }
 }
+
+/* Watch Next runs from edge to edge under the app's bar, past the page's margin, as Listen Next does in MusicDex. */
+.movie-search > .next-banner {
+  margin: -20px -20px 20px;
+}

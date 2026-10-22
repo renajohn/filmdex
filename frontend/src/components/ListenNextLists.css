@@ -18,7 +18,7 @@
   align-items: center;
   gap: 16px;
   margin-top: 4px;
-  padding: 10px 0 8px;
+  padding-top: 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 .next-banner-other__drop {
@@ -56,6 +56,8 @@
   font-size: 0.8rem;
 }
 .next-banner-other__covers {
+  /* As wide as the strip has room: it says how many covers it holds. */
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -95,8 +97,11 @@
   display: block;
 }
 .next-banner-other__more {
+  /* In the last cover's place, as wide. */
   flex: none;
-  padding: 0 2px;
+  min-width: 30px;
+  padding: 0;
+  text-align: center;
   border: 0;
   background: none;
   color: var(--dv-text-muted);
@@ -125,14 +130,23 @@
  * left, ▶ and Repeat at the right end. The title quiet, no glow: the switch
  * says which list.
  */
-.listen-next-banner .next-banner__title-section {
+.listen-next-lists .next-banner__title-section {
   width: 100%;
 }
-.listen-next-banner .next-banner__title {
+/* The strip at the foot needs less room under it than a row of covers. */
+.listen-next-lists.next-banner {
+  padding-bottom: 12px;
+}
+/* The header above the covers: the switch's tooltips show over them, not under. */
+.listen-next-lists .next-banner__header {
+  position: relative;
+  z-index: 40;
+}
+.listen-next-lists .next-banner__title {
   font-size: 1.5rem;
   text-shadow: none;
 }
-.listen-next-banner .next-banner__icon {
+.listen-next-lists .next-banner__icon {
   width: 22px;
   height: 22px;
   filter: none;
@@ -144,11 +158,17 @@
   align-items: center;
   gap: 14px;
   min-width: 0;
+  /* As high with ▶ and Repeat (Digital) as without (CD): switching lists moves nothing below. */
+  min-height: 36px;
 }
 .listen-next-head .listen-next-summary {
   margin: 0;
   text-align: left;
   white-space: nowrap;
+}
+.listen-next-head__summary {
+  min-height: 1.2em;
+  min-width: 0;
 }
 .listen-next-head__end {
   margin-left: auto;
@@ -173,7 +193,7 @@
     flex-wrap: wrap;
     row-gap: 6px;
   }
-  .listen-next-head .listen-next-summary {
+  .listen-next-head__summary {
     order: -1;
     flex-basis: 100%;
   }

@@ -67,16 +67,18 @@ describe('Listen Next’s two lists', () => {
   it('shows the other list small at the foot: its name opens it, a cover shows it there', () => {
     const onOpen = vi.fn();
     const onShow = vi.fn();
-    const albums = [1, 2, 3].map(id => ({ id, title: `Album ${id}`, artist: 'Someone', cover: null }));
+    const albums = [1, 2, 3, 4].map(id => ({ id, title: `Album ${id}`, artist: 'Someone', cover: null }));
     render(<NextBanner items={[]} alwaysShow getKey={album => `${album.id}:0`} other={{
-      items: albums, dropId: 'cd', most: 2, onShow, onOpen, dropHint: 'Drop here',
-      head: <OtherListName medium="cd" count={3} onOpen={onOpen} />,
+      items: albums, dropId: 'cd', most: 3, onShow, onOpen, dropHint: 'Drop here',
+      head: <OtherListName medium="cd" count={4} onOpen={onOpen} />,
       titleOf: album => `Someone – ${album.title}`,
     }} />);
     fireEvent.click(screen.getByTitle('Someone – Album 2'));
     expect(onShow).toHaveBeenCalledWith('2:0');
-    fireEvent.click(screen.getByRole('button', { name: '+1' }));
-    fireEvent.click(screen.getByRole('button', { name: /CD · 3/ }));
+    // Three fit: two covers, and +2 in the third one's place.
+    expect(screen.queryByTitle('Someone – Album 3')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '+2' }));
+    fireEvent.click(screen.getByRole('button', { name: /CD · 4/ }));
     expect(onOpen).toHaveBeenCalledTimes(2);
   });
 

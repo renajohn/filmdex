@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   DndContext, PointerSensor, TouchSensor, closestCenter, pointerWithin, useDroppable, useSensor, useSensors,
@@ -87,8 +87,8 @@ interface OtherList {
   head: React.ReactNode;
   /** Said on the strip while a cover is dragged: where it goes. */
   dropHint: string;
-  /** How many small covers before "+N". */
-  most: number;
+  /** How many small covers at most, "+N" after; as many as the strip holds when not given. */
+  most?: number;
   /** A small cover clicked: that list in sight, at it. */
   onShow: (key: string) => void;
   /** "+N": that list in sight. */
@@ -109,6 +109,11 @@ const ROW = `${DROP}here`;
 const STRIP = `${DROP}other`;
 /** A small cover's side while dragged; a card's is the image's own width. */
 const SMALL_PX = 56;
+/** A small cover's side at the foot, and the room between two: how many the strip holds. */
+const STRIP_COVER_PX = 30;
+const STRIP_GAP_PX = 6;
+/** The strip's own room at its two ends (its padding). */
+const STRIP_PAD_PX = 4;
 
 /** Somewhere a card or a small cover can be dropped, inside a NextBanner: lit while one is over it. */
 export const NextBannerDrop: React.FC<{ id: string; className?: string; inline?: boolean; children: React.ReactNode }> = ({ id, className = '', inline = false, children }) => {
@@ -212,6 +217,21 @@ const NextBanner: React.FC<NextBannerProps> = ({
   /** Where the pointer is while a cover is dragged: what follows it is centred on it. */
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
   const startedAt = useRef<{ x: number; y: number } | null>(null);
+  // How many small covers the strip holds, as wide as it is now.
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [holds, setHolds] = useState(16);
+  useLayoutEffect(() => {
+    const strip = stripRef.current;
+    if (!strip || typeof ResizeObserver === 'undefined') return undefined;
+    // Not laid out yet (or hidden): as many as before.
+    const measure = () => {
+      if (strip.clientWidth > 0) setHolds(Math.max(1, Math.floor((strip.clientWidth - STRIP_PAD_PX + STRIP_GAP_PX) / (STRIP_COVER_PX + STRIP_GAP_PX))));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(strip);
+    return () => observer.disconnect();
+  }, [Boolean(other)]);
   /** Set from a drag's end to the click that follows it, which must not open the card. */
   const justDragged = useRef(false);
 
@@ -422,6 +442,9 @@ const NextBanner: React.FC<NextBannerProps> = ({
   // The row as it stands, with a cover from the strip in it while it is dragged there.
   const rowItems = hereKeys.flatMap(key => { const item = byKey.get(key); return item ? [item] : []; });
   const smallItems = otherKeys.flatMap(key => { const item = byKey.get(key); return item ? [item] : []; });
+  // All of them when they fit; else one fewer than the strip holds, "+N" in the last one's place.
+  const room = Math.min(holds, other?.most ?? Infinity);
+  const shownSmall = smallItems.length <= room ? smallItems.length : Math.max(1, room - 1);
 
   return (
     <DndContext sensors={sensors} collisionDetection={collide} onDragStart={handleDragStart}
@@ -591,14 +614,14 @@ const NextBanner: React.FC<NextBannerProps> = ({
             {other.head}
             <span className="next-banner-other__hint">{other.dropHint}</span>
             <SortableContext items={otherKeys} strategy={horizontalListSortingStrategy}>
-              <div className="next-banner-other__covers">
-                {smallItems.slice(0, other.most + (live ? 1 : 0)).map(item => (
+              <div className="next-banner-other__covers" ref={stripRef}>
+                {smallItems.slice(0, live ? shownSmall + 1 : shownSmall).map(item => (
                   <SortableSmall key={keyOf(item)} id={keyOf(item)} title={other.titleOf?.(item) ?? (getTitle ? getTitle(item) : item.title || '')}
                     image={getImageUrl ? getImageUrl(item) : null} fallback={<PlaceholderIcon size={14} />}
                     onClick={() => { if (!justDragged.current) other.onShow(keyOf(item)); }} />
                 ))}
-                {!live && smallItems.length > other.most && (
-                  <button type="button" className="next-banner-other__more" onClick={other.onOpen}>+{smallItems.length - other.most}</button>
+                {!live && smallItems.length > shownSmall && (
+                  <button type="button" className="next-banner-other__more" onClick={other.onOpen}>+{smallItems.length - shownSmall}</button>
                 )}
               </div>
             </SortableContext>
