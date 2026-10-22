@@ -114,6 +114,8 @@ const STRIP_COVER_PX = 30;
 const STRIP_GAP_PX = 6;
 /** The strip's own room at its two ends (its padding). */
 const STRIP_PAD_PX = 4;
+/** How long what was dragged takes to land on its place. */
+const LAND_MS = 180;
 
 /** Somewhere a card or a small cover can be dropped, inside a NextBanner: lit while one is over it. */
 export const NextBannerDrop: React.FC<{ id: string; className?: string; inline?: boolean; children: React.ReactNode }> = ({ id, className = '', inline = false, children }) => {
@@ -127,11 +129,11 @@ export const NextBannerDrop: React.FC<{ id: string; className?: string; inline?:
 };
 
 /** A small cover of the other list, at the foot: dragged into the row and back like a card; a click stays a click. */
-const SortableSmall: React.FC<{ id: string; title: string; image: string | null; onClick: () => void; fallback: React.ReactNode }> = ({ id, title, image, onClick, fallback }) => {
+const SortableSmall: React.FC<{ id: string; title: string; image: string | null; onClick: () => void; fallback: React.ReactNode; landing?: boolean }> = ({ id, title, image, onClick, fallback, landing = false }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   return (
-    <button ref={setNodeRef} type="button" {...attributes} {...listeners} role={undefined} title={title} onClick={onClick}
-      className={`next-banner-other__cover${isDragging ? ' next-banner-other__cover--dragging' : ''}`}
+    <button ref={setNodeRef} type="button" {...attributes} {...listeners} role={undefined} title={title} onClick={onClick} data-key={id}
+      className={`next-banner-other__cover${isDragging || landing ? ' next-banner-other__cover--dragging' : ''}`}
       style={{ transform: isDragging ? undefined : CSS.Translate.toString(transform), transition: transition || undefined }}>
       {image ? <img src={image} alt="" loading="lazy" /> : fallback}
     </button>
@@ -144,19 +146,28 @@ interface SortableCardProps {
   className: string;
   /** What is dragged follows the pointer on its own: the card waits, faded, at the place it would take. */
   still?: boolean;
+  /** What was dragged is landing on it: hidden until it is there. */
+  landing?: boolean;
+  /** Just dropped, the pointer still on it: it does not lift as under the pointer until the pointer has left it. */
+  calm?: boolean;
+  onLeave?: () => void;
   children: React.ReactNode;
 }
 
 /** A card of the banner, which a drag moves along the others. */
-const SortableCard: React.FC<SortableCardProps> = ({ id, disabled, className, still = false, children }) => {
+const SortableCard: React.FC<SortableCardProps> = ({ id, disabled, className, still = false, landing = false, calm = false, onLeave, children }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled });
   const style: React.CSSProperties = { transform: still && isDragging ? undefined : CSS.Translate.toString(transform), transition: transition || undefined };
+  // Faded in when it appears, once: a card moved in the row is taken out and put back, which would play it again.
+  const [entering, setEntering] = useState(true);
   return (
     <div
       ref={setNodeRef}
       style={style}
       data-key={id}
-      className={`${className}${isDragging ? ` next-banner__card--dragging${still ? ' next-banner__card--waiting' : ''}` : ''}${disabled ? '' : ' next-banner__card--sortable'}`}
+      onAnimationEnd={event => { if (event.target === event.currentTarget) setEntering(false); }}
+      onMouseLeave={calm ? onLeave : undefined}
+      className={`${className}${entering ? ' next-banner__card--entering' : ''}${isDragging ? ` next-banner__card--dragging${still ? ' next-banner__card--waiting' : ''}` : ''}${landing ? ' next-banner__card--landing' : ''}${calm ? ' next-banner__card--calm' : ''}${disabled ? '' : ' next-banner__card--sortable'}`}
       {...attributes}
       {...listeners}
       // The card is not a control of its own: its image and its buttons are.
@@ -216,6 +227,13 @@ const NextBanner: React.FC<NextBannerProps> = ({
   const cardPx = useRef(180);
   /** Where the pointer is while a cover is dragged: what follows it is centred on it. */
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
+  /**
+   * A cover dropped: what followed the pointer flies to its place, at its
+   * size, the cover hidden there until it lands. `at` once its place is known.
+   */
+  /** The cover just dropped, the pointer still on it: kept still under it. */
+  const [calmKey, setCalmKey] = useState<string | null>(null);
+  const [landing, setLanding] = useState<{ key: string; image: string | null; from: { x: number; y: number; px: number }; at?: { x: number; y: number; px: number } } | null>(null);
   const startedAt = useRef<{ x: number; y: number } | null>(null);
   // How many small covers the strip holds, as wide as it is now.
   const stripRef = useRef<HTMLDivElement>(null);
@@ -359,6 +377,29 @@ const NextBanner: React.FC<NextBannerProps> = ({
     };
   }, [dragged, other]);
 
+  // Where the cover dropped now stands, once drawn there: what followed the pointer goes to it, then gives way.
+  useLayoutEffect(() => {
+    if (!landing || landing.at) return undefined;
+    const target = bannerRef.current?.querySelector(`[data-key="${window.CSS.escape(landing.key)}"]`);
+    const box = (target?.querySelector('.next-banner__image') ?? target)?.getBoundingClientRect();
+    if (!box || box.width === 0) { setLanding(null); return undefined; }
+    const frame = requestAnimationFrame(() => setLanding(now => now && { ...now, at: { x: box.left + box.width / 2, y: box.top + box.height / 2, px: box.width } }));
+    return () => cancelAnimationFrame(frame);
+  }, [landing]);
+  useEffect(() => {
+    if (!landing?.at) return undefined;
+    const timer = window.setTimeout(() => setLanding(null), LAND_MS);
+    return () => window.clearTimeout(timer);
+  }, [landing]);
+
+  /** The cover dropped, where it now stands: what followed the pointer lands on it. */
+  const land = (key: string) => {
+    if (!pointer) return;
+    const item = byKey.get(key);
+    setLanding({ key, image: item && getImageUrl ? getImageUrl(item) : null, from: { x: pointer.x, y: pointer.y, px: previewPx } });
+    setCalmKey(key);
+  };
+
   const endDrag = () => {
     setDragged(null);
     setLive(null);
@@ -380,6 +421,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
       onDropOn?.(activeId, overId.slice(DROP.length));
       return;
     }
+    if (other) land(activeId);
     // Into the other row or strip: where it now stands there, moved on to the one under the pointer.
     if (state && began) {
       const side = sideOf(activeId, state);
@@ -472,6 +514,9 @@ const NextBanner: React.FC<NextBannerProps> = ({
               id={getKey(item)}
               disabled={!onReorder || (canReorder ? !canReorder(item) : false)}
               still={Boolean(other)}
+              landing={landing?.key === keyOf(item)}
+              calm={calmKey === keyOf(item)}
+              onLeave={() => setCalmKey(null)}
               className={`next-banner__card cover-host ${shufflingItemId === item.id ? 'shuffling' : ''} ${getCardClassName ? getCardClassName(item) : ''}`}
             >
               <CoverButton className="next-banner__remove-btn" onClick={(e) => handleRemove(e, item)} label={`Remove from ${title}`}>
@@ -618,7 +663,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
                 {smallItems.slice(0, live ? shownSmall + 1 : shownSmall).map(item => (
                   <SortableSmall key={keyOf(item)} id={keyOf(item)} title={other.titleOf?.(item) ?? (getTitle ? getTitle(item) : item.title || '')}
                     image={getImageUrl ? getImageUrl(item) : null} fallback={<PlaceholderIcon size={14} />}
-                    onClick={() => { if (!justDragged.current) other.onShow(keyOf(item)); }} />
+                    onClick={() => { if (!justDragged.current) other.onShow(keyOf(item)); }} landing={landing?.key === keyOf(item)} />
                 ))}
                 {!live && smallItems.length > shownSmall && (
                   <button type="button" className="next-banner-other__more" onClick={other.onOpen}>+{smallItems.length - shownSmall}</button>
@@ -637,6 +682,19 @@ const NextBanner: React.FC<NextBannerProps> = ({
         style={{ width: previewPx, height: previewPx, left: pointer.x - previewPx / 2, top: pointer.y - previewPx / 2 }}>
         {preview ? <img src={preview} alt="" /> : <PlaceholderIcon size={28} />}
       </div>,
+      document.body,
+    )}
+    {/* Dropped: it flies from the pointer to its place, straightening, at the size of the place. */}
+    {landing && typeof document !== 'undefined' && createPortal(
+      (() => {
+        const to = landing.at ?? landing.from;
+        return (
+          <div className={`next-banner__drag-preview next-banner__drag-preview--landing${landing.at ? ' next-banner__drag-preview--landed' : ''}`} aria-hidden="true"
+            style={{ width: to.px, height: to.px, left: to.x - to.px / 2, top: to.y - to.px / 2, transitionDuration: `${LAND_MS}ms`, borderRadius: landing.at ? (to.px > SMALL_PX ? 12 : 4) : undefined }}>
+            {landing.image ? <img src={landing.image} alt="" /> : <PlaceholderIcon size={28} />}
+          </div>
+        );
+      })(),
       document.body,
     )}
     </DndContext>

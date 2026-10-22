@@ -624,9 +624,12 @@
   flex-shrink: 0;
   width: 180px;
   position: relative;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform;
-  /* A card comes in faded, from a few pixels lower: no spring, no growing. */
+}
+
+/* A card comes in faded, from a few pixels lower, once: no spring, no growing. */
+.next-banner__card--entering {
   animation: cardFadeIn 0.25s ease-out;
 }
 
@@ -637,7 +640,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .next-banner,
-  .next-banner__card {
+  .next-banner__card--entering {
     animation: none;
   }
 }
@@ -673,6 +676,16 @@
   z-index: 10;
 }
 
+/* Just dropped under the pointer: it stays where it landed, until the pointer leaves it. */
+.next-banner__card--calm:hover {
+  transform: none;
+}
+.next-banner__card--calm:hover .next-banner__image {
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
 /* A card dragged into a new order: it follows the pointer at once, above the others, which make room for it. */
 .next-banner__card--sortable {
   touch-action: pan-x;
@@ -681,7 +694,6 @@
 .next-banner__card--dragging {
   z-index: 30;
   transition: none;
-  animation: none;
   cursor: grabbing;
 }
 
@@ -1061,6 +1073,22 @@
 }
 .next-banner--dragging .next-banner__card--dragging {
   opacity: 0.35;
+}
+/* Dropped: hidden at its place until what followed the pointer lands there. */
+.next-banner__card--landing {
+  opacity: 0;
+}
+/* Landing: it goes from the pointer to the place, straightening; then it gives way to the card. */
+.next-banner__drag-preview--landing {
+  transition-property: left, top, width, height, transform, border-radius;
+  transition-timing-function: ease-out;
+}
+.next-banner__drag-preview--landed {
+  transform: none;
+  /* As the card at rest, so that it gives way to it unseen. */
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 /* Between two lists the card dragged is the one following the pointer: in the row, only the room it will take shows. */
 .next-banner--dragging .next-banner__card--waiting {
