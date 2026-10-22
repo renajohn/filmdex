@@ -139,9 +139,10 @@
 .listen-next-lists .next-banner__title-section {
   width: 100%;
 }
-/* The strip at the foot needs less room under it than a row of covers. */
+/* The strip at the foot needs less room under it than a row of covers; the page's controls follow close. */
 .listen-next-lists.next-banner {
   padding-bottom: 12px;
+  margin-bottom: 4px;
 }
 /* The header above the covers: the switch's tooltips show over them, not under. */
 .listen-next-lists .next-banner__header {
@@ -193,15 +194,41 @@
   white-space: nowrap;
 }
 @media (max-width: 600px) {
-  /* On a phone: the length under the title, then the switch with ▶ and Repeat at its right. */
+  /*
+   * On a small screen, two lines: the title with ▶ and Repeat at its right,
+   * then the switch and the list's length. The header's pieces are laid
+   * out by the title's line itself (display: contents), a break between.
+   */
+  .listen-next-lists .next-banner__title-section {
+    row-gap: 10px;
+    column-gap: 10px;
+  }
   .listen-next-head {
+    display: contents;
+  }
+  .listen-next-head__end {
+    order: 1;
+    /* As high empty (CD) as with ▶ and Repeat: switching lists moves nothing. */
+    min-height: 36px;
+  }
+  .listen-next-lists .next-banner__title-section::after {
+    content: '';
+    order: 2;
     flex-basis: 100%;
-    flex-wrap: wrap;
-    row-gap: 6px;
+  }
+  .listen-next-switch {
+    order: 3;
   }
   .listen-next-head__summary {
-    order: -1;
-    flex-basis: 100%;
+    order: 4;
+    flex: 1;
+    overflow: hidden;
+  }
+  .listen-next-head__summary .listen-next-summary {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* A little smaller, to keep the length whole beside the switch. */
+    font-size: 0.72rem;
   }
   .next-banner-other {
     flex-wrap: wrap;

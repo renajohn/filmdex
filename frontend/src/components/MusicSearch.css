@@ -264,8 +264,9 @@
     padding: 10px;
   }
 
-  /* Listen Next runs to the edges of the screen, past the page's margin, as its covers leave by them. */
+  /* Listen Next runs to the edges of the screen and up to the app's bar, past the page's margin, as its covers leave by them. */
   .music-search > .next-banner {
+    margin-top: -10px;
     margin-left: -10px;
     margin-right: -10px;
   }
