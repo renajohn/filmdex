@@ -7,8 +7,8 @@ import { entryKey, keyOf, type EntryKey } from '../utils/listenNextEntry';
 import { amperfyUrl, isAppleMobile } from '../utils/navidrome';
 import { readStored, writeStored } from '../utils/safeStorage';
 import CoverButton from './shared/CoverButton';
+import Button from './shared/Button';
 import './ListenNextPlay.css';
-import Spinner from './shared/Spinner';
 
 /** How long an album played to its end stays on the page, greyed, to be kept. */
 export const GRACE_MS = 10_000;
@@ -223,16 +223,15 @@ export const ListenNextControls: React.FC<ControlsProps> = ({ count, play, onRep
   const title = nothing ? 'Nothing ripped yet' : pause ? 'Pause Listen Next' : `Play Listen Next · ${albums}${appleMobile ? ' in Amperfy' : ''}`;
   return (
     <span className="listen-next-controls">
-      <CoverButton className="listen-next-controls__play" reveal="always" active={here || undefined}
-        onClick={click} disabled={nothing || starting} title={title} label={title}>
-        {starting ? <Spinner size="sm" /> : pause ? <BsPauseFill /> : <BsPlayFill />}
-      </CoverButton>
-      <button type="button" className={`listen-next-controls__repeat${repeat ? ' listen-next-controls__repeat--on' : ''}`}
-        onClick={() => onRepeat(!repeat)} aria-pressed={repeat}
-        title={repeat ? 'Repeat: keep albums once played' : 'Albums leave the list once played'}
-        aria-label="Repeat">
-        <BsRepeat />
-      </button>
+      {/* ▶ and Repeat side by side as one, the switch's height: gold while it plays, gold when Repeat is on. */}
+      <span className="ui-button-group">
+        <Button className="listen-next-controls__button" active={here || undefined} loading={starting}
+          onClick={click} disabled={nothing} title={title} aria-label={title}
+          icon={pause ? <BsPauseFill /> : <BsPlayFill />} />
+        <Button className="listen-next-controls__button" active={repeat} onClick={() => onRepeat(!repeat)} aria-pressed={repeat}
+          title={repeat ? 'Repeat: keep albums once played' : 'Albums leave the list once played'}
+          aria-label="Repeat" icon={<BsRepeat />} />
+      </span>
       {/* Navidrome's own player, in a tab of its own: on an iPhone ▶ opens Amperfy already. */}
       {!appleMobile && play?.playlistUrl && (
         <a className="listen-next-controls__navidrome" href={play.playlistUrl} target="_blank" rel="noopener noreferrer"

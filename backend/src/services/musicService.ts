@@ -12,6 +12,7 @@ import type { FormattedRelease } from './musicbrainzService';
 import imageService from './imageService';
 import axios, { AxiosResponse } from 'axios';
 import logger from '../logger';
+import musicCollectionService from './musicCollectionService';
 import path from 'path';
 import type { AlbumFormatted, AlbumCreateData, TrackFormatted, TrackPerformer } from '../types';
 import coverScanService from './coverScanService';
@@ -212,7 +213,10 @@ class MusicService {
 
   async updateAlbumStatus(id: number, status: string): Promise<{ id: number; title_status: string }> {
     try {
-      return await Album.updateStatus(id, status);
+      const result = await Album.updateStatus(id, status);
+      // A wish come true: the CD to be put on the player.
+      if (status === 'owned') await musicCollectionService.addNewCd(id).catch(() => false);
+      return result;
     } catch (error) {
       console.error('Error updating album status:', error);
       throw error;
@@ -337,6 +341,11 @@ class MusicService {
       }
 
       await runStatement('COMMIT');
+      // A CD come in: to be put on the player, in Listen Next's CD list.
+      if ((album.titleStatus ?? 'owned') === 'owned') {
+        await musicCollectionService.addNewCd(album.id).catch(error =>
+          logger.warn(`Album ${album.id} added but not put in Listen Next's CD list: ${(error as Error).message}`));
+      }
       return album;
     } catch (error) {
       await runStatement('ROLLBACK').catch((rollbackError) => {

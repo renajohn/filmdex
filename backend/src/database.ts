@@ -526,6 +526,22 @@ const runAutoMigrations = async (): Promise<void> => {
           'CREATE TABLE IF NOT EXISTS remote_players (id TEXT PRIMARY KEY, name TEXT NOT NULL)', (err: Error | null) => (err ? reject(err) : resolve())));
         console.log('  ✓ Added remote_players');
       }
+    },
+    {
+      name: '027_listen_next_cd',
+      up: async () => {
+        // Listen Next in two lists: streamed (digital), as it was, and CDs to put on the player (cd).
+        const columns = await new Promise<PragmaColumnInfo[]>((resolve, reject) =>
+          currentDb.all('PRAGMA table_info(album_collections)', (err: Error | null, rows: PragmaColumnInfo[]) => (err ? reject(err) : resolve(rows || []))));
+        if (!columns.some(column => column.name === 'medium')) {
+          await new Promise<void>((resolve, reject) => currentDb.run(
+            "ALTER TABLE album_collections ADD COLUMN medium TEXT NOT NULL DEFAULT 'digital'", (err: Error | null) => (err ? reject(err) : resolve())));
+        }
+        // The CDs come in since September, the classical ones left out, those already in Listen Next where they are.
+        const { default: musicCollectionService } = await import('./services/musicCollectionService');
+        const added = await musicCollectionService.seedCdList('2026-09-01');
+        console.log(`  ✓ Listen Next has a CD list (${added} CDs come in lately)`);
+      }
     }
   ];
 

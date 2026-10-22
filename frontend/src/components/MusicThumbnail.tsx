@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { BsDisc, BsBookmark, BsBookmarkFill, BsCassetteFill, BsHeadphones, BsXLg } from 'react-icons/bs';
+import type { ListenNextMedium } from '../services/musicService';
 import musicService from '../services/musicService';
 import { isAppleMobile } from '../utils/navidrome';
 import './MusicThumbnail.css';
@@ -30,8 +31,10 @@ interface MusicThumbnailProps {
   onClick: () => void;
   onListenNextChange?: () => void;
   isInListenNext?: boolean;
-  /** The headphones' tooltip: what of the album Listen Next holds ("In Listen Next: Disc 1 & 2 · take it out"). */
+  /** The headphones' tooltip: what of the album Listen Next holds ("Next, on CD: Disc 1 & 2 · click: off the list"). */
   listenNextTitle?: string;
+  /** The list of Listen Next the album is in: its button wears its icon, the headphones (streamed) or the disc. */
+  listenNextMedium?: ListenNextMedium | null;
   dataItemId?: number | string;
   dataFirstLetter?: string;
   /** How the album stands in Navidrome, with Digital on; undefined with it off, and no mark is shown. */
@@ -40,8 +43,13 @@ interface MusicThumbnailProps {
   buy?: { reason: string | null; wished: boolean; onWish: () => void; onDismiss?: () => void };
 }
 
-const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onListenNextChange, isInListenNext: isInListenNextProp, listenNextTitle, dataItemId, dataFirstLetter, digital, buy }) => {
+/** Held this long on an iPhone, the button puts the album in the CD list. */
+const HOLD_MS = 450;
+
+const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onListenNextChange, isInListenNext: isInListenNextProp, listenNextTitle, listenNextMedium, dataItemId, dataFirstLetter, digital, buy }) => {
   const [togglingListenNext, setTogglingListenNext] = useState<boolean>(false);
+  const [holding, setHolding] = useState(false);
+  const hold = useRef<{ timer: number; done: boolean } | null>(null);
 
   // Use prop if provided, otherwise local state (for backwards compatibility)
   const isInListenNext = isInListenNextProp !== undefined ? isInListenNextProp : false;
@@ -58,13 +66,23 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onListenNe
     return musicService.getImageUrl(cd.cover);
   };
 
-  const handleListenNextToggle = async (e?: React.MouseEvent) => {
+  // A CD of the collection can go on the player; one not ripped can only: a plain click puts it in the CD list.
+  const canBeCd = !mixtape && ((cd.titleStatus as string | undefined) ?? 'owned') === 'owned';
+  const plainMedium: ListenNextMedium = canBeCd && cd.fileQuality === 'none' ? 'cd' : 'digital';
+  const nextTitle = listenNextTitle
+    ?? (canBeCd && plainMedium === 'digital' ? 'Stream it next · Alt-click: play the CD next' : plainMedium === 'cd' ? 'Play the CD next' : 'Stream it next');
+
+  /** In a list: out of it. Out: into the list asked, the CD list for Alt-click or a hold, else the plain one. */
+  const handleListenNextToggle = async (e?: React.MouseEvent, onCd = false) => {
     if (e) e.stopPropagation();
     if (togglingListenNext) return;
 
     setTogglingListenNext(true);
     try {
-      await musicService.toggleListenNext(cd.id);
+      const into: ListenNextMedium = onCd && canBeCd ? 'cd' : plainMedium;
+      // Alt-click on an album in the streamed list: to the CD list rather than out.
+      if (isInListenNext && !(onCd && canBeCd && listenNextMedium !== 'cd')) await musicService.toggleListenNext(cd.id);
+      else await musicService.toggleListenNext(cd.id, undefined, into);
       // Refresh the listen next banner immediately (parent will update isInListenNext prop)
       if (onListenNextChange) {
         onListenNextChange();
@@ -133,12 +151,30 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onListenNe
             </CoverButton>
           </div>
         )}
-        <CoverButton className="thumbnail-listen-next" active={isInListenNext}
-          onClick={handleListenNextToggle} disabled={togglingListenNext}
+        <CoverButton className={`thumbnail-listen-next${holding ? ' thumbnail-listen-next--holding' : ''}`} active={isInListenNext}
           // The whole album in or out, whatever of it is there; the discs one by one are its card's.
-          title={listenNextTitle ?? (isInListenNext ? 'In Listen Next: take it out' : 'Listen Next')}
+          onClick={event => {
+            if (hold.current?.done) { hold.current = null; event.stopPropagation(); return; }
+            void handleListenNextToggle(event, event.altKey);
+          }}
+          // Held on an iPhone: into the CD list, a ring growing meanwhile.
+          onPointerDown={event => {
+            if (event.pointerType === 'mouse' || !canBeCd) return;
+            setHolding(true);
+            hold.current = { done: false, timer: window.setTimeout(() => {
+              hold.current = { timer: 0, done: true };
+              setHolding(false);
+              navigator.vibrate?.(12);
+              void handleListenNextToggle(undefined, true);
+            }, HOLD_MS) };
+          }}
+          onPointerUp={() => { if (hold.current && !hold.current.done) { window.clearTimeout(hold.current.timer); hold.current = null; } setHolding(false); }}
+          onPointerCancel={() => { if (hold.current && !hold.current.done) window.clearTimeout(hold.current.timer); hold.current = null; setHolding(false); }}
+          onContextMenu={event => event.preventDefault()}
+          disabled={togglingListenNext}
+          title={nextTitle}
           label={isInListenNext ? `Take ${cd.title} out of Listen Next` : `Add ${cd.title} to Listen Next`}>
-          <BsHeadphones aria-hidden="true" />
+          {listenNextMedium === 'cd' || (!isInListenNext && plainMedium === 'cd') ? <BsDisc aria-hidden="true" /> : <BsHeadphones aria-hidden="true" />}
         </CoverButton>
       </div>
 

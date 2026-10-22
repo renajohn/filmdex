@@ -37,7 +37,8 @@ interface AlbumStatusResult {
 
 interface AlbumToggleResult {
   id: number;
-  action: 'added' | 'removed' | 'kept';
+  action: 'added' | 'removed' | 'kept' | 'moved';
+  medium?: 'digital' | 'cd';
 }
 
 interface AlbumAutocompleteRow {
@@ -1256,9 +1257,9 @@ const Album = {
    * Listen Next from an album's button: with no disc, the whole album in, or
    * whatever of it is there out; 'all' or a disc as musicCollectionService.setListenNext.
    */
-  toggleListenNext: async (id: number, choice?: 'all' | number): Promise<AlbumToggleResult> => {
+  toggleListenNext: async (id: number, choice?: 'all' | number, medium?: 'digital' | 'cd'): Promise<AlbumToggleResult> => {
     const musicCollectionService = (await import('../services/musicCollectionService')).default;
-    return musicCollectionService.setListenNext(id, choice);
+    return musicCollectionService.setListenNext(id, choice, medium);
   }
 };
 

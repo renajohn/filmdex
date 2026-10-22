@@ -1,3 +1,6 @@
+/** Listen Next's two lists: streamed (digital), and CDs to put on the player. */
+export type ListenNextMedium = 'digital' | 'cd';
+
 /** A cover an album missing one can take, as the server found it. */
 export interface CoverCandidate {
   url: string;
@@ -1013,13 +1016,17 @@ class MusicService {
    * whatever of it is there out; a disc, that disc in or out (in place of the
    * whole album if that is there); 'all', the whole album in place of the discs chosen.
    */
-  async toggleListenNext(albumId: number | string, disc?: number | 'all'): Promise<unknown> {
+  /**
+   * Listen Next from an album's button: in or out, a disc, or 'all'; `medium`
+   * names the list, and an album in the other one moves to it rather than leaving.
+   */
+  async toggleListenNext(albumId: number | string, disc?: number | 'all', medium?: ListenNextMedium): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();
-      const response = await fetch(`${baseUrl}/music/albums/${albumId}/listen-next`, disc === undefined ? { method: 'PUT' } : {
+      const response = await fetch(`${baseUrl}/music/albums/${albumId}/listen-next`, disc === undefined && medium === undefined ? { method: 'PUT' } : {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ disc }),
+        body: JSON.stringify({ disc, medium }),
       });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -1181,6 +1188,18 @@ class MusicService {
   }
 
   /** Listen Next in the order given, dragged on its banner; the list as the server now has it. */
+  /** An entry of Listen Next dragged to a list, before the one named, else at its start or its end: the lists as they now are. */
+  async moveListenNext(key: string, medium: ListenNextMedium, at: 'start' | 'end', before?: string | null): Promise<{ albums: unknown[] }> {
+    const baseUrl = await this.getBaseUrl();
+    const response = await fetch(`${baseUrl}/collections/listen-next/move`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, medium, at, ...(before ? { before } : {}) }),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return response.json();
+  }
+
   async reorderListenNext(keys: string[]): Promise<{ albums: unknown[] }> {
     const baseUrl = await this.getBaseUrl();
     const response = await fetch(`${baseUrl}/collections/listen-next/order`, {

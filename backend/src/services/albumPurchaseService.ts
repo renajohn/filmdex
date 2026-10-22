@@ -5,6 +5,7 @@ import musicbrainzRefreshService from './musicbrainzRefreshService';
 import { matchesOf } from './ripStatusService';
 import { normalizeAlbumOwnership } from './utils/albumOwnership';
 import logger from '../logger';
+import musicCollectionService from './musicCollectionService';
 
 /**
  * The CD of an album one had only as files, or wished, bought: the same
@@ -73,6 +74,9 @@ const albumPurchaseService = {
     await Album.setOwnership(albumId, normalizeAlbumOwnership(purchase));
     await Album.setFormat(albumId, 'CD');
     await Album.updateStatus(albumId, 'owned');
+    // The CD bought, to be put on the player: in Listen Next's CD list, unless it is in Listen Next already.
+    await musicCollectionService.addNewCd(albumId).catch(error =>
+      logger.warn(`Album ${albumId} bought but not put in Listen Next's CD list: ${(error as Error).message}`));
     logger.info(`Album ${albumId} "${album.title}" bought on CD${newEdition ? `, edition ${releaseId}` : ''} (was ${album.titleStatus})`);
     if (newEdition) {
       await musicbrainzRefreshService.refreshAlbum(albumId).catch(error =>

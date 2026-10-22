@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Listen Next header</title>
+<style>
+:root {
+  --dv-gold: #fbbf24; --dv-gold-hover: #fcd34d; --dv-gold-light: #fde68a; --dv-gold-ink: #111;
+  --dv-gold-tint: rgba(251,191,36,.12); --dv-gold-tint-edge: rgba(251,191,36,.45);
+  --dv-silver: #d9d6cf; --dv-silver-tint: rgba(217,214,207,.12);
+  --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+  --dv-page: #1a1a1a;
+  --dv-glass: rgba(255,255,255,.06); --dv-glass-hover: rgba(255,255,255,.11);
+  --dv-edge: rgba(255,255,255,.12); --dv-edge-hover: rgba(255,255,255,.24);
+  --dv-veil: rgba(255,255,255,.08);
+  --dv-glass-image: rgba(0,0,0,.68); --dv-glass-image-hover: rgba(0,0,0,.85);
+  --dv-edge-image: inset 0 0 0 1px rgba(255,255,255,.16);
+  --dv-lift-image: 0 2px 8px rgba(0,0,0,.35);
+  --dv-ring-image: 0 0 0 1.5px #fff;
+  --dv-ring: 0 0 0 3px rgba(251,191,36,.3);
+  --dv-radius-sm: 7px; --dv-radius-md: 9px; --dv-radius-lg: 12px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--dv-page); color: var(--dv-text);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+button { font-family: inherit; }
+
+/* ------------------------------------------------ the page around */
+.top {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 12px 24px; background: rgba(20,20,20,.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.top h1 { margin: 0; font-size: 16px; font-weight: 700; }
+.top p { margin: 0; color: var(--dv-text-muted); font-size: 13px; flex: 1; min-width: 200px; }
+main { max-width: 1420px; margin: 0 auto; padding: 8px 24px 80px; }
+.variant { padding: 28px 0 8px; border-bottom: 1px solid rgba(255,255,255,.07); }
+.variant h2 { margin: 0 0 4px; font-size: 18px; font-weight: 700; }
+.variant h2 .letter { color: var(--dv-gold); margin-right: 6px; }
+.variant .why { margin: 0 0 16px; color: var(--dv-text-muted); max-width: 900px; }
+.variant .why b { color: var(--dv-text); font-weight: 600; }
+.row { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 18px; }
+.row-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--dv-text-faint); margin: 0 0 6px; }
+.frame-wrap { min-width: 0; }
+.frame-wrap--desk { flex: 0 1 960px; overflow-x: auto; }
+.frame-wrap--phone { flex: 0 0 390px; }
+.frame { border-radius: 10px; overflow: hidden; background: var(--dv-page); border: 1px solid rgba(255,255,255,.06); }
+.frame--desk { width: 960px; }
+.frame--phone { width: 390px; border-radius: 22px; border: 1px solid rgba(255,255,255,.14); }
+.frame--phone .banner { padding: 16px 16px 18px; }
+@media (max-width: 1400px) { .row { flex-wrap: wrap; } }
+@media (max-width: 700px) {
+  main { padding: 8px 12px 60px; }
+  .top { padding: 10px 12px; }
+  .frame-wrap--phone { flex: 1 1 auto; }
+  .frame--phone { width: 100%; max-width: 390px; }
+}
+
+/* ------------------------------------------------ the banner, as in shared.css */
+.banner {
+  position: relative; overflow: hidden;
+  padding: 20px 24px 24px;
+  background: linear-gradient(135deg, #9e76114d 0%, #e8991324 50%, #000 100%);
+  border-bottom: 1px solid rgba(251,191,36,.1);
+}
+.banner.cd {
+  background: linear-gradient(135deg, rgba(217,214,207,.2) 0%, rgba(217,214,207,.07) 50%, #000 100%);
+  border-bottom-color: rgba(217,214,207,.1);
+}
+.hdr { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; row-gap: 12px; }
+.hdr .spacer { flex: 1; }
+.covers { display: flex; gap: 14px; overflow: hidden; }
+.cover { flex: none; width: 118px; }
+.cover .art { width: 118px; height: 118px; border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,.45); position: relative; overflow: hidden; }
+.cover .art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(160deg, rgba(255,255,255,.14), transparent 40%); }
+.cover .art span { position: absolute; left: 8px; bottom: 7px; right: 8px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.75); line-height: 1.1; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+.cover .t { margin-top: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cover .a { font-size: 11px; color: var(--dv-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.frame--phone .cover, .frame--phone .cover .art { width: 104px; }
+.frame--phone .cover .art { height: 104px; }
+
+/* ------------------------------------------------ shared pieces, after the app's CSS */
+.icon { display: inline-flex; flex: none; }
+.icon svg { display: block; }
+
+/* Segmented (segmented.css) */
+.seg { display: inline-flex; align-items: stretch; gap: 2px; padding: 3px; border-radius: 10px; background: rgba(0,0,0,.35); border: 1px solid var(--dv-edge); flex-shrink: 0; }
+.seg button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 12px; border: 0; border-radius: var(--dv-radius-sm); background: none; color: var(--dv-text-muted); font-size: 13px; font-weight: 500; line-height: 1; white-space: nowrap; cursor: pointer; transition: background-color .15s, color .15s; }
+.seg button:hover:not(.on) { color: #fff; background: rgba(255,255,255,.05); }
+.seg button.on { background: rgba(255,255,255,.12); color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.35); cursor: default; }
+.seg .count { font-size: 11px; opacity: .65; font-variant-numeric: tabular-nums; }
+.seg svg { width: 14px; height: 14px; }
+/* Tinted by list: the chosen one plain gold or plain silver, dark ink. */
+.seg--tint button.on.digital { background: var(--dv-gold); color: var(--dv-gold-ink); font-weight: 600; }
+.seg--tint button.on.cd { background: var(--dv-silver); color: #151515; font-weight: 600; }
+.seg--tint button.on .count { opacity: .7; }
+
+/* CoverButton (cover.css) */
+.cover-button { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 50%; background: var(--dv-glass-image); backdrop-filter: blur(6px); box-shadow: var(--dv-edge-image), var(--dv-lift-image); color: #fff; cursor: pointer; }
+.cover-button:hover { background: var(--dv-glass-image-hover); box-shadow: var(--dv-ring-image), var(--dv-lift-image); }
+.cover-button.on { background: var(--dv-gold); color: var(--dv-gold-ink); box-shadow: var(--dv-lift-image); }
+.bare-repeat { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 0; padding: 0; border-radius: 50%; background: transparent; color: rgba(255,255,255,.4); cursor: pointer; }
+.bare-repeat:hover { color: rgba(255,255,255,.75); background: rgba(255,255,255,.06); }
+.bare-repeat.on { color: var(--dv-gold); }
+
+/* A group of glass buttons (button.css, ui-button-group) at 32px */
+.bgroup { display: inline-flex; flex: none; }
+.bgroup button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; min-width: 36px; padding: 0 10px; border: 1px solid var(--dv-edge); background: var(--dv-glass); color: var(--dv-text); cursor: pointer; font-size: 13px; font-weight: 500; transition: background-color .12s, border-color .12s, color .12s; }
+.bgroup button + button { margin-left: -1px; }
+.bgroup button:first-child { border-radius: 8px 0 0 8px; }
+.bgroup button:last-child { border-radius: 0 8px 8px 0; }
+.bgroup button:only-child { border-radius: 8px; }
+.bgroup button:hover { background: var(--dv-glass-hover); border-color: var(--dv-edge-hover); color: #fff; z-index: 1; }
+.bgroup button.on { color: var(--dv-gold); background: var(--dv-gold-tint); border-color: var(--dv-gold-tint-edge); z-index: 2; }
+.bgroup button.off-muted { color: var(--dv-text-muted); }
+.bgroup--36 button { height: 36px; min-width: 40px; }
+
+/* ------------------------------------------------ titles */
+.title-a { display: flex; align-items: center; gap: 16px; }
+.title-a .big-icon { color: var(--dv-gold); filter: drop-shadow(0 2px 4px rgba(251,191,36,.4)); }
+.cd .title-a .big-icon { color: var(--dv-silver); filter: drop-shadow(0 2px 4px rgba(217,214,207,.3)); }
+.title-a h3 { margin: 0; font-size: 1.75rem; font-weight: 700; line-height: 1.2; color: var(--dv-gold); text-shadow: 0 2px 8px rgba(251,191,36,.3); }
+.cd .title-a h3 { color: var(--dv-silver); text-shadow: 0 2px 8px rgba(217,214,207,.2); }
+/* Toned down: no glow, a smaller icon at the title's cap height. */
+.title-b { display: flex; align-items: center; gap: 10px; }
+.title-b .icon { color: var(--dv-gold); }
+.cd .title-b .icon { color: var(--dv-silver); }
+.title-b h3 { margin: 0; font-size: 1.5rem; font-weight: 700; line-height: 1.2; color: var(--dv-gold); letter-spacing: -.01em; }
+.cd .title-b h3 { color: var(--dv-silver); }
+.title-plain h3 { margin: 0; font-size: 1.5rem; font-weight: 700; line-height: 1.2; color: var(--dv-text); letter-spacing: -.01em; }
+
+/* D: the switch is the title */
+.tabs-title { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; row-gap: 4px; }
+.tabs-title h3 { margin: 0; font-size: 1.5rem; font-weight: 700; line-height: 1.2; color: var(--dv-text); letter-spacing: -.01em; }
+.tabs-title .dot { color: var(--dv-text-faint); font-size: 1.2rem; }
+.tabs-title .tabs { display: inline-flex; align-items: baseline; gap: 14px; }
+.tabs-title .tab { position: relative; padding: 2px 0 6px; border: 0; background: none; color: var(--dv-text-faint); font-size: 1.5rem; font-weight: 600; line-height: 1.2; cursor: pointer; letter-spacing: -.01em; }
+.tabs-title .tab sup { font-size: .55em; font-weight: 600; margin-left: 3px; opacity: .8; vertical-align: .8em; font-variant-numeric: tabular-nums; }
+.tabs-title .tab:hover:not(.on) { color: var(--dv-text); }
+.tabs-title .tab.on { cursor: default; }
+.tabs-title .tab.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px; background: currentColor; }
+.tabs-title .tab.on.digital { color: var(--dv-gold); }
+.tabs-title .tab.on.cd { color: var(--dv-silver); }
+.tabs-title .bar { color: rgba(255,255,255,.18); font-size: 1.3rem; }
+
+/* E: icon-led segments, one 36px height for the whole row */
+.seg--e button { height: 30px; padding: 0 13px; font-size: 14px; }
+.seg--e svg { width: 16px; height: 16px; }
+.seg--e button.on.digital { color: var(--dv-gold); background: var(--dv-gold-tint); box-shadow: inset 0 0 0 1px var(--dv-gold-tint-edge); }
+.seg--e button.on.cd { color: var(--dv-silver); background: var(--dv-silver-tint); box-shadow: inset 0 0 0 1px rgba(217,214,207,.4); }
+
+/* F: one toolbar capsule */
+.title-f { display: flex; align-items: center; gap: 10px; }
+.title-f .icon { color: var(--dv-gold); }
+.cd .title-f .icon { color: var(--dv-silver); }
+.title-f h3 { margin: 0; font-size: 1.375rem; font-weight: 700; line-height: 1; color: var(--dv-text); letter-spacing: -.01em; }
+.toolbar { display: inline-flex; align-items: center; gap: 2px; padding: 3px; height: 36px; border-radius: 10px; background: rgba(0,0,0,.35); border: 1px solid var(--dv-edge); flex: none; }
+.toolbar .opt, .toolbar .tool { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 11px; border: 0; border-radius: var(--dv-radius-sm); background: none; color: var(--dv-text-muted); font-size: 13px; font-weight: 500; line-height: 1; white-space: nowrap; cursor: pointer; transition: background-color .15s, color .15s; }
+.toolbar .tool { width: 32px; padding: 0; color: var(--dv-text); }
+.toolbar .opt:hover:not(.on), .toolbar .tool:hover { color: #fff; background: rgba(255,255,255,.07); }
+.toolbar .opt svg { width: 14px; height: 14px; }
+.toolbar .opt .count { font-size: 11px; opacity: .65; font-variant-numeric: tabular-nums; }
+.toolbar .opt.on.digital { background: var(--dv-gold); color: var(--dv-gold-ink); font-weight: 600; cursor: default; }
+.toolbar .opt.on.cd { background: var(--dv-silver); color: #151515; font-weight: 600; cursor: default; }
+.toolbar .opt.on .count { opacity: .7; }
+.toolbar .sep { width: 1px; height: 18px; margin: 0 4px; background: rgba(255,255,255,.14); }
+.toolbar .tool.on { color: var(--dv-gold); background: var(--dv-gold-tint); }
+.toolbar .tool.playing { color: var(--dv-gold); }
+.toolbar .tool svg { width: 16px; height: 16px; }
+.toolbar .meta { padding: 0 8px 0 4px; color: var(--dv-text-faint); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Phone adjustments */
+.frame--phone .title-a h3 { font-size: 1.5rem; }
+.frame--phone .hdr { gap: 12px; }
+.frame--phone .tabs-title h3, .frame--phone .tabs-title .tab { font-size: 1.25rem; }
+.frame--phone .tabs-title { gap: 10px; }
+.frame--phone .tabs-title .tabs { gap: 10px; }
+.frame--phone .tabs-title .dot { display: none; }
+.frame--phone .tabs-title h3 { flex-basis: 100%; }
+.frame--phone .hdr--wrapfull > .tail { flex-basis: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.frame--phone .toolbar .meta { display: none; }
+.frame--phone .seg--e button { padding: 0 10px; }
+
+/* The list's summary */
+.sum { color: var(--dv-text-muted); font-size: .85rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sum--line { flex-basis: 100%; margin-top: -6px; }
+.frame--phone .title-stack { display: flex; flex-direction: column; gap: 2px; }
+.frame--phone .title-stack .sum { margin-left: 0; }
+.title-stack .sum--under { margin-left: 32px; }
+
+/* Global toggle */
+.mode-toggle button { min-width: 72px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Listen Next · header</h1>
+  <p>Six headers for the same banner. Click a list name to switch that row, ▶ to play or pause, Repeat to turn it on.</p>
+  <div class="seg mode-toggle" id="mode-toggle" role="group" aria-label="Show">
+    <button data-show="both" class="on">Both</button>
+    <button data-show="digital">Digital</button>
+    <button data-show="cd">CD</button>
+  </div>
+</div>
+<main id="variants"></main>
+
+<script>
+const I = {
+  headphones: s => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>`,
+  disc: s => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="2.5"/><path d="M12 5.5a6.5 6.5 0 0 1 6.5 6.5" opacity=".6"/></svg>`,
+  play: s => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.52.85l12-7.5a1 1 0 0 0 0-1.7l-12-7.5A1 1 0 0 0 7 4.5z"/></svg>`,
+  pause: s => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/></svg>`,
+  repeat: s => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg>`,
+};
+const COUNT = { digital: 14, cd: 16 };
+const ALBUMS = {
+  digital: [
+    ['St. Elsewhere', 'Gnarls Barkley', '#7c2d12', '#f59e0b'],
+    ['In Rainbows', 'Radiohead', '#1e293b', '#e11d48'],
+    ['Kind of Blue', 'Miles Davis', '#0c4a6e', '#38bdf8'],
+    ['Random Access Memories', 'Daft Punk', '#18181b', '#a8a29e'],
+    ['Blonde', 'Frank Ocean', '#365314', '#d9f99d'],
+    ['Discovery', 'Daft Punk', '#4c1d95', '#f472b6'],
+    ['Currents', 'Tame Impala', '#701a75', '#fb923c'],
+    ['Vespertine', 'Björk', '#e7e5e4', '#78716c'],
+  ],
+  cd: [
+    ['Goldberg Variations', 'Glenn Gould', '#3f3f46', '#e4e4e7'],
+    ['Nocturnes', 'Maria João Pires', '#292524', '#d6d3d1'],
+    ['The Nutcracker', 'Gergiev', '#7f1d1d', '#fbbf24'],
+    ['Protection', 'Massive Attack', '#0f172a', '#64748b'],
+    ['This Is War', '30 Seconds to Mars', '#450a0a', '#f87171'],
+    ['Abbey Road', 'The Beatles', '#1e3a8a', '#fde68a'],
+    ['Mezzanine', 'Massive Attack', '#111827', '#9ca3af'],
+    ['Cello Suites', 'Yo-Yo Ma', '#422006', '#ca8a04'],
+  ],
+};
+
+// Per row state: mode; per variant: repeat, playing.
+const state = {};
+const LIST_ICON = m => m === 'digital' ? I.headphones : I.disc;
+const NAME = { digital: 'Digital', cd: 'CD' };
+const SUMMARY = { digital: '15 discs · 239 tracks · 15 h 52', cd: '16 CDs · 11 h 40' };
+const sum = (mode, cls = '') => `<span class="sum ${cls}">${SUMMARY[mode]}</span>`;
+
+function segOpts(mode, cls = '', withIcons = false, iconSize = 14) {
+  return ['digital', 'cd'].map(m => `<button class="${m} ${m === mode ? 'on' : ''}" data-act="mode" data-mode="${m}" aria-pressed="${m === mode}">${withIcons ? `<span class="icon">${LIST_ICON(m)(iconSize)}</span>` : ''}${NAME[m]} <span class="count">${COUNT[m]}</span></button>`).join('');
+}
+function playGroup(v, extra = '') {
+  const st = state[v];
+  return `<span class="bgroup ${extra}">
+    <button class="${st.playing ? 'on' : ''}" data-act="play" title="${st.playing ? 'Pause Listen Next' : 'Play Listen Next · 14 albums'}" aria-label="Play">${(st.playing ? I.pause : I.play)(15)}</button>
+    <button class="${st.repeat ? 'on' : 'off-muted'}" data-act="repeat" aria-pressed="${st.repeat}" title="${st.repeat ? 'Repeat: keep albums once played' : 'Albums leave the list once played'}" aria-label="Repeat">${I.repeat(15)}</button>
+  </span>`;
+}
+
+const VARIANTS = [
+  {
+    id: 'A', name: 'Current',
+    why: 'For reference. Four shapes at four heights: a 32px glowing icon, a 1.75rem glowing title, a 36px grey groove, a 40px round black cover button meant for pictures, and a bare 28px icon with no frame. Each speaks its own material, which is what reads as untidy. The summary, today at the foot on the other list\'s strip line, is put here at the header\'s right end (its own line on the phone) only so the variants compare like for like.',
+    hdr: (v, mode, phone) => {
+      const st = state[v];
+      return `<div class="title-a">
+          <span class="icon big-icon">${LIST_ICON(mode)(32)}</span>
+          <h3>Listen Next</h3>
+        </div>
+        <div class="seg">${segOpts(mode)}</div>
+        ${mode === 'digital' ? `<span style="display:inline-flex;align-items:center;gap:6px">
+          <button class="cover-button ${st.playing ? 'on' : ''}" data-act="play" aria-label="Play">${(st.playing ? I.pause : I.play)(18)}</button>
+          <button class="bare-repeat ${st.repeat ? 'on' : ''}" data-act="repeat" aria-label="Repeat">${I.repeat(17)}</button>
+        </span>` : ''}
+        ${phone ? sum(mode, 'sum--line') : `<span class="spacer"></span>${sum(mode)}`}`;
+    },
+  },
+  {
+    id: 'B', name: 'Tinted switch, one playback group beside it',
+    why: 'The chosen list wears its own colour: <b>plain gold</b> for Digital, <b>plain silver</b> for CD, dark ink on both, so the switch says which list is shown as the banner\'s tint does. ▶ and Repeat become <b>one 32px glass group</b> (the app\'s <code>ui-button-group</code>), Repeat gold words when on, ▶ gold while playing. The title loses its glow and shrinks to 1.5rem with a 22px icon, so nothing competes with the switch. The <b>summary sits at the header\'s right end</b>, alone, where the eye ends the line; on the phone it takes a line of its own under the controls.',
+    hdr: (v, mode, phone) => `<div class="title-b"><span class="icon">${LIST_ICON(mode)(22)}</span><h3>Listen Next</h3></div>
+      <div class="seg seg--tint">${segOpts(mode)}</div>
+      ${mode === 'digital' ? playGroup(v) : ''}
+      ${phone ? sum(mode, 'sum--line') : `<span class="spacer"></span>${sum(mode)}`}`,
+  },
+  {
+    id: 'C', name: 'As B, playback at the right end',
+    why: 'Same pieces as B, set as two sides: <b>what you look at</b> (title and list) on the left, <b>what you do</b> (play, repeat) on the right, as a toolbar would. In CD mode the right side is simply empty, so switching lists does not shift anything on the left. On the phone the group stays on the switch\'s row, at its right. The <b>summary follows the switch</b>, so it reads as the switch\'s caption (Digital 14 → 15 discs · 239 tracks · 15 h 52), and keeps the right side for playback alone; on the phone it goes under the title.',
+    wrapfull: true,
+    hdr: (v, mode, phone) => phone
+      ? `<div class="title-stack"><div class="title-b"><span class="icon">${LIST_ICON(mode)(22)}</span><h3>Listen Next</h3></div>${sum(mode)}</div>
+         <div class="tail"><div class="seg seg--tint">${segOpts(mode)}</div>${mode === 'digital' ? playGroup(v) : ''}</div>`
+      : `<div class="title-b"><span class="icon">${LIST_ICON(mode)(22)}</span><h3>Listen Next</h3></div>
+         <div class="seg seg--tint">${segOpts(mode)}</div>
+         ${sum(mode)}
+         <span class="spacer"></span>
+         ${mode === 'digital' ? playGroup(v) : ''}`,
+  },
+  {
+    id: 'D', name: 'The switch is the title',
+    why: '"Listen Next · <b>Digital</b> | CD": the two list names are the title\'s own words, the chosen one in its list colour and underlined, the other faint; counts as small figures. No pill, no icon, no glow: one line of type, then the playback group at the right. Quietest of all, but a tab of words is less obviously a switch on a phone. The <b>summary stands right-aligned, just before the playback group</b> (alone at the end in CD); on the phone, a line under the tabs.',
+    wrapfull: true,
+    hdr: (v, mode, phone) => {
+      const tabs = ['digital', 'cd'].map(m => `<button class="tab ${m} ${m === mode ? 'on' : ''}" data-act="mode" data-mode="${m}" aria-pressed="${m === mode}">${NAME[m]}<sup>${COUNT[m]}</sup></button>`).join('<span class="bar">|</span>');
+      return phone
+        ? `<div class="tabs-title"><h3>Listen Next</h3></div>
+           <div class="tail"><div class="tabs-title"><span class="tabs">${tabs}</span></div>${mode === 'digital' ? playGroup(v) : ''}</div>
+           ${sum(mode, 'sum--line')}`
+        : `<div class="tabs-title"><h3>Listen Next</h3><span class="dot">·</span><span class="tabs">${tabs}</span></div>
+           <span class="spacer"></span>${sum(mode)}${mode === 'digital' ? playGroup(v) : ''}`;
+    },
+  },
+  {
+    id: 'E', name: 'Icon-led segments',
+    why: 'The big standalone icon goes; each segment carries <b>its own line icon</b> (headphones for Digital, a disc for CD), so the icon says the list instead of decorating the title. The chosen segment is a tint of its colour with an edge of it (gold or silver words), lighter than B\'s plain fill. Title plain white, no glow. Playback at <b>36px</b>, the same height as the switch\'s groove, so the row has one height. The <b>summary at the right end</b>; on the phone under the title, as a subtitle.',
+    wrapfull: true,
+    hdr: (v, mode, phone) => phone
+      ? `<div class="title-stack"><div class="title-plain"><h3>Listen Next</h3></div>${sum(mode)}</div>
+         <div class="tail"><div class="seg seg--e">${segOpts(mode, '', true, 16)}</div>${mode === 'digital' ? playGroup(v, 'bgroup--36') : ''}</div>`
+      : `<div class="title-plain"><h3>Listen Next</h3></div>
+         <div class="seg seg--e">${segOpts(mode, '', true, 16)}</div>
+         ${mode === 'digital' ? playGroup(v, 'bgroup--36') : ''}
+         <span class="spacer"></span>${sum(mode)}`,
+  },
+  {
+    id: 'F', name: 'One toolbar capsule',
+    why: 'Everything you can press lives in <b>one groove</b> (the Segmented\'s own dark groove, 36px): the two lists with their icons, a hairline, then ▶ and Repeat as 28px options of the same groove. One material, one height, one radius; the title beside it is plain words with a small icon in the list colour. In CD mode the capsule just ends after CD. The capsule sits at the right on a computer, under the title on a phone. The <b>summary follows the title</b> on the same line, as its subtitle (the title says what, the summary how much), leaving the capsule alone at the right; on the phone it sits under the title.',
+    wrapfull: true,
+    hdr: (v, mode, phone) => {
+      const st = state[v];
+      const opts = ['digital', 'cd'].map(m => `<button class="opt ${m} ${m === mode ? 'on' : ''}" data-act="mode" data-mode="${m}" aria-pressed="${m === mode}"><span class="icon">${LIST_ICON(m)(14)}</span>${NAME[m]} <span class="count">${COUNT[m]}</span></button>`).join('');
+      const tools = mode === 'digital' ? `<span class="sep"></span>
+        <button class="tool ${st.playing ? 'playing' : ''}" data-act="play" title="${st.playing ? 'Pause' : 'Play Listen Next · 14 albums'}" aria-label="Play">${(st.playing ? I.pause : I.play)(16)}</button>
+        <button class="tool ${st.repeat ? 'on' : ''}" data-act="repeat" aria-pressed="${st.repeat}" aria-label="Repeat" style="${st.repeat ? '' : 'color:var(--dv-text-muted)'}">${I.repeat(16)}</button>
+        ` : '';
+      const title = `<div class="title-f"><span class="icon">${LIST_ICON(mode)(20)}</span><h3>Listen Next</h3></div>`;
+      return phone
+        ? `<div class="title-stack">${title}${sum(mode)}</div><div class="tail"><div class="toolbar">${opts}${tools}</div></div>`
+        : `<div class="title-stack" style="display:flex;align-items:baseline;gap:14px">${title}${sum(mode)}</div><span class="spacer"></span><div class="toolbar">${opts}${tools}</div>`;
+    },
+  },
+];
+
+function coversHtml(mode, n) {
+  return `<div class="covers">${ALBUMS[mode].slice(0, n).map(([t, a, c1, c2]) => `
+    <div class="cover"><div class="art" style="background:linear-gradient(135deg, ${c1}, ${c2})"><span>${a}</span></div>
+    <div class="t">${t}</div><div class="a">${a}</div></div>`).join('')}</div>`;
+}
+function frameHtml(v, mode, phone) {
+  const def = VARIANTS.find(x => x.id === v);
+  return `<div class="banner ${mode === 'cd' ? 'cd' : ''}">
+    <div class="hdr ${def.wrapfull ? 'hdr--wrapfull' : ''}">${def.hdr(v, mode, phone)}</div>
+    ${coversHtml(mode, phone ? 4 : 8)}
+  </div>`;
+}
+
+let show = 'both';
+function renderRow(rowEl) {
+  const v = rowEl.dataset.v, mode = rowEl.dataset.mode;
+  rowEl.querySelector('.frame--desk').innerHTML = frameHtml(v, mode, false);
+  rowEl.querySelector('.frame--phone').innerHTML = frameHtml(v, mode, true);
+  rowEl.querySelector('.row-label').textContent = `${NAME[mode]} list · computer (960px)`;
+  rowEl.querySelector('.row-label--phone').textContent = 'iPhone (390px)';
+}
+function renderAll() {
+  const root = document.getElementById('variants');
+  root.innerHTML = VARIANTS.map(d => {
+    state[d.id] = state[d.id] || { repeat: false, playing: false };
+    const modes = show === 'both' ? ['digital', 'cd'] : [show];
+    return `<section class="variant" id="v-${d.id}">
+      <h2><span class="letter">${d.id}</span>${d.name}</h2>
+      <p class="why">${d.why}</p>
+      ${modes.map(m => `<div class="row" data-v="${d.id}" data-mode="${m}">
+        <div class="frame-wrap frame-wrap--desk"><p class="row-label"></p><div class="frame frame--desk"></div></div>
+        <div class="frame-wrap frame-wrap--phone"><p class="row-label row-label--phone"></p><div class="frame frame--phone"></div></div>
+      </div>`).join('')}
+    </section>`;
+  }).join('');
+  root.querySelectorAll('.row').forEach(renderRow);
+}
+
+document.getElementById('variants').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const row = b.closest('.row');
+  const v = row.dataset.v;
+  if (b.dataset.act === 'mode') { row.dataset.mode = b.dataset.mode; renderRow(row); return; }
+  if (b.dataset.act === 'repeat') state[v].repeat = !state[v].repeat;
+  if (b.dataset.act === 'play') state[v].playing = !state[v].playing;
+  document.querySelectorAll(`.row[data-v="${v}"]`).forEach(renderRow);
+});
+document.getElementById('mode-toggle').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  show = b.dataset.show;
+  document.querySelectorAll('#mode-toggle button').forEach(x => x.classList.toggle('on', x === b));
+  renderAll();
+});
+renderAll();
+</script>
+</body>
+</html>

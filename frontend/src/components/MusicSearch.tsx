@@ -19,6 +19,9 @@ import { isAppleMobile } from '../utils/navidrome';
 import AlbumPlayButton from './shared/AlbumPlayButton';
 import CoverButton from './shared/CoverButton';
 import { LeavingOverlay, ListenNextControls, ListenNextSummary, useListenNextPlay } from './ListenNextPlay';
+import { INSTEAD, ListenNextSwitch, MediumIcon, MoveButton, OtherListName, askStars, mediumOf, otherMedium } from './ListenNextLists';
+import { toast } from './shared/Toast';
+import type { ListenNextMedium } from '../services/musicService';
 import { listenNextQueue } from '../services/listenNextQueue';
 import { heldOf, keyOf, listenNextTitle } from '../utils/listenNextEntry';
 import CoverTag, { CoverTagStack } from './shared/CoverTag';
@@ -66,6 +69,9 @@ interface Album {
   recordingQuality?: string;
   [key: string]: any;
 }
+
+/** Listen Next's list in sight, Digital or CD. */
+const NEXT_MEDIUM_KEY = 'dv.listenNext.medium';
 
 interface SmartFillResult {
   albums: Album[];
@@ -264,6 +270,71 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
 
   // Playing Listen Next from its banner: ▶, Repeat, the albums leaving it once played.
   const listenNext = useListenNextPlay(listenNextAlbums, refreshListenNextAlbums, albums => setListenNextAlbums(albums as Album[]));
+
+  // Listen Next's list in sight, Digital or CD, kept from one visit to the next; the other at the foot, small.
+  const [nextMedium, setNextMedium] = useState<ListenNextMedium>(() => (readStored(NEXT_MEDIUM_KEY) === 'cd' ? 'cd' : 'digital'));
+  const chooseNextMedium = useCallback((medium: ListenNextMedium) => {
+    setNextMedium(medium);
+    writeStored(NEXT_MEDIUM_KEY, medium);
+  }, []);
+  const nextCounts = useMemo(() => ({
+    digital: listenNextAlbums.filter(album => mediumOf(album) === 'digital').length,
+    cd: listenNextAlbums.filter(album => mediumOf(album) === 'cd').length,
+  }), [listenNextAlbums]);
+  // A card shown from its small cover: scrolled to, lit a moment.
+  const [foundNext, setFoundNext] = useState<string | null>(null);
+  useEffect(() => {
+    if (!foundNext) return undefined;
+    document.querySelector(`.next-banner [data-key="${CSS.escape(foundNext)}"]`)?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    const timer = window.setTimeout(() => setFoundNext(null), 1600);
+    return () => window.clearTimeout(timer);
+  }, [foundNext]);
+  const showNext = useCallback((key: string) => {
+    chooseNextMedium(otherMedium(nextMedium));
+    setFoundNext(key);
+  }, [chooseNextMedium, nextMedium]);
+
+  /**
+   * An entry of Listen Next to a list, with its other discs: before the one
+   * named, else at its start or its end. Shown at once, then as the server has it.
+   */
+  const moveNext = useCallback(async (key: string, medium: ListenNextMedium, at: 'start' | 'end', before?: string | null) => {
+    const albumId = Number(key.split(':')[0]);
+    setListenNextAlbums(previous => {
+      const moving = previous.filter(album => album.id === albumId).map(album => ({ ...album, medium }));
+      const rest = previous.filter(album => album.id !== albumId);
+      const place = before ? rest.findIndex(album => keyOf(album) === before) : -1;
+      if (place >= 0) return [...rest.slice(0, place), ...moving, ...rest.slice(place)];
+      return at === 'start' ? [...moving, ...rest] : [...rest, ...moving];
+    });
+    try {
+      const result = await musicService.moveListenNext(key, medium, at, before);
+      setListenNextAlbums(result.albums as Album[]);
+    } catch (error) {
+      console.error('Error moving a Listen Next entry:', error);
+      refreshListenNextAlbums();
+      toast('Listen Next was not changed', { tone: 'danger' });
+    }
+  }, [refreshListenNextAlbums]);
+
+  /** A CD of the collection can go on the player; a digital album, a wish or a mixtape cannot. */
+  const canBeCd = (album: Album) => (album.titleStatus ?? 'owned') === 'owned';
+  /**
+   * A cover dropped in a list (the row, 'here'; the strip or a list's name):
+   * into it, before the one it was dropped at; on a name, at the end of the
+   * list in sight, else at the start of the other.
+   */
+  const dropNext = (key: string, target: string, before?: string | null) => {
+    const album = listenNextAlbums.find(one => keyOf(one) === key);
+    if (!album) return;
+    const to: ListenNextMedium = target === 'here' ? nextMedium : target === 'cd' ? 'cd' : 'digital';
+    if (mediumOf(album) === to) return;
+    if (to === 'cd' && !canBeCd(album)) {
+      toast(`${album.title} is not a CD of the collection: it stays in Digital`, { tone: 'warning' });
+      return;
+    }
+    void moveNext(key, to, before === null ? 'end' : to === nextMedium ? 'end' : 'start', before);
+  };
 
   // Listen Next dragged into a new order: shown at once, then as the server has it; the player goes by it at the next album.
   const handleListenNextReorder = useCallback(async (keys: Array<string | number>) => {
@@ -913,8 +984,19 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   };
 
   /** The tooltip of an album's Listen Next button on its cover: what of it the list holds. */
-  const listenNextTitleOf = (albumId: number) =>
-    listenNextTitle(heldOf(listenNextAlbums, albumId), listenNextAlbums.find(album => album.id === albumId)?.discCount);
+  const listenNextTitleOf = (albumId: number): string | undefined => {
+    const entry = listenNextAlbums.find(album => album.id === albumId);
+    if (!entry) return undefined;
+    // Said as listening: "Next, on CD: Disc 2 · click: off the list".
+    return listenNextTitle(heldOf(listenNextAlbums, albumId), entry.discCount)
+      .replace('In Listen Next', mediumOf(entry) === 'cd' ? 'Next, on CD' : 'Next, streamed')
+      .replace('take it out', 'click: off the list');
+  };
+  /** The list of Listen Next an album is in, if any. */
+  const listenNextMediumOf = (albumId: number): ListenNextMedium | null => {
+    const entry = listenNextAlbums.find(album => album.id === albumId);
+    return entry ? mediumOf(entry) : null;
+  };
 
   /** ✕ on a card of the banner: that entry out, the album whole or the disc alone. */
   const handleListenNextToggle = async (e: React.MouseEvent, album: Album) => {
@@ -968,6 +1050,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
         onListenNextChange={refreshListenNextAlbums}
         isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
         listenNextTitle={listenNextTitleOf(cd.id)}
+        listenNextMedium={listenNextMediumOf(cd.id)}
         dataItemId={cd.id}
         digital={digitalOf(cd)}
         buy={{
@@ -1074,6 +1157,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
                 onListenNextChange={refreshListenNextAlbums}
                 isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
                 listenNextTitle={listenNextTitleOf(cd.id)}
+        listenNextMedium={listenNextMediumOf(cd.id)}
                 dataItemId={cd.id}
                 dataFirstLetter={letter}
                 digital={digitalOn ? digitalOf(cd) : undefined}
@@ -1121,6 +1205,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
                         onListenNextChange={refreshListenNextAlbums}
                         isInListenNext={listenNextAlbums.some(album => album.id === cd.id)}
                         listenNextTitle={listenNextTitleOf(cd.id)}
+        listenNextMedium={listenNextMediumOf(cd.id)}
                         dataFirstLetter={letter}
                         digital={digitalOn ? digitalOf(cd) : undefined}
                       />
@@ -1185,17 +1270,46 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
       {/* Listen Next Banner - show when there are albums OR when we have albums in collection to suggest */}
       {!searchCriteria?.searchText && (listenNextAlbums.length > 0 || allCds.length > 0) && (
         <NextBanner
-          items={listenNext.items}
+          // Two lists: Digital, streamed, in gold; CD, the CDs to put on the player, in silver, with no ▶.
+          items={listenNext.items.filter(album => mediumOf(album) === nextMedium)}
           type="music"
           title="Listen Next"
-          icon={<BsHeadphones className="next-banner__icon" aria-hidden="true" />}
-          headerControls={<ListenNextControls count={listenNextAlbums.length} play={listenNext.play} onRepeat={listenNext.setRepeat} />}
-          footer={<ListenNextSummary albums={listenNext.items.filter(album => !listenNext.leavingState(keyOf(album)))} play={listenNext.play} />}
+          className={`listen-next-banner${nextMedium === 'cd' ? ' next-banner--silver' : ''}`}
+          alwaysShow
+          icon={<MediumIcon medium={nextMedium} className="next-banner__icon" />}
+          headerControls={(
+            // What one looks at on the left (the list, its length), what one does on the right (▶, Repeat): nothing to play on CD.
+            <span className="listen-next-head">
+              <ListenNextSwitch medium={nextMedium} counts={nextCounts} onChange={chooseNextMedium} />
+              <ListenNextSummary albums={listenNext.items.filter(album => mediumOf(album) === nextMedium && !listenNext.leavingState(keyOf(album)))} play={listenNext.play} />
+              <span className="listen-next-head__end">
+                {nextMedium === 'digital' && <ListenNextControls count={nextCounts.digital} play={listenNext.play} onRepeat={listenNext.setRepeat} />}
+              </span>
+            </span>
+          )}
+          other={{
+            items: listenNextAlbums.filter(album => mediumOf(album) !== nextMedium),
+            dropId: otherMedium(nextMedium),
+            head: <OtherListName medium={otherMedium(nextMedium)} count={nextCounts[otherMedium(nextMedium)]} onOpen={() => chooseNextMedium(otherMedium(nextMedium))} />,
+            dropHint: `Drop here: ${INSTEAD[otherMedium(nextMedium)].toLowerCase()}`,
+            most: window.matchMedia?.('(max-width: 600px)').matches ? 6 : 16,
+            onShow: showNext,
+            onOpen: () => chooseNextMedium(otherMedium(nextMedium)),
+            onReorder: handleListenNextReorder,
+            titleOf: album => `${Array.isArray(album.artist) ? album.artist.join(', ') : album.artist || ''} – ${album.title || ''}${album.disc ? ` · disc ${album.disc}` : ''}`,
+          }}
+          onDropOn={dropNext}
+          renderCornerButton={(album) => {
+            const to = otherMedium(nextMedium);
+            if (listenNext.departureOf(keyOf(album)) || (to === 'cd' && !canBeCd(album as Album))) return null;
+            return <MoveButton title={album.title || ''} to={to} onMove={() => moveNext(keyOf(album), to, 'start')} />;
+          }}
           // Two discs of an album are two cards: each its own key ("12:1", "12:2").
           getKey={(album) => keyOf(album)}
           getCardClassName={(album) => {
             const leaving = listenNext.leavingState(keyOf(album));
             if (leaving) return `next-banner__card--leaving${leaving.collapsing ? ' next-banner__card--collapsing' : ''}`;
+            if (foundNext === keyOf(album)) return 'next-banner__card--found';
             return listenNext.departureOf(keyOf(album)) ? 'next-banner__card--departed' : '';
           }}
           renderOverlay={(album) => {
@@ -1209,12 +1323,22 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
             // Gone from the list already, played to its end: only off the banner.
             const departure = listenNext.departureOf(keyOf(item));
             if (departure) listenNext.dismiss(departure.id);
-            else handleListenNextToggle(e, item as Album);
+            else {
+              handleListenNextToggle(e, item as Album);
+              // A CD heard, of no stars: its stars asked a moment; Undo puts it back on the CD list.
+              if (mediumOf(item) === 'cd' && !item.userRating) {
+                askStars(item as Album, () => {
+                  musicService.toggleListenNext(item.id, item.disc || undefined, 'cd')
+                    .then(() => refreshListenNextAlbums())
+                    .catch(() => toast('Listen Next was not changed', { tone: 'danger' }));
+                });
+              }
+            }
           }}
           getImageUrl={(album) => getCoverUrl(album.cover) || ''}
           getTitle={(album) => album.title || ''}
           getSubtitle={(album) => Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}
-          onSmartFill={() => handleSmartFill('cds')}
+          onSmartFill={nextMedium === 'digital' ? () => handleSmartFill('cds') : undefined}
           smartFillLabel={{ label: 'From CDs', hint: 'your shelves' }}
           smartFillAlso={digitalOn ? {
             label: 'From anything', hint: 'CDs + digital', onClick: () => handleSmartFill('any'),
@@ -1226,14 +1350,14 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
             if (digitalOn) return <DigitalMarks digital={digitalOf(album as Album)} titleStatus={album.titleStatus} lead={disc} />;
             return disc && <CoverTagStack direction="row" className="digital-marks">{disc}</CoverTagStack>;
           }}
-          onShuffle={(item) => handleShuffleAlbum(item as Album)}
+          onShuffle={nextMedium === 'digital' ? (item) => handleShuffleAlbum(item as Album) : undefined}
           // The die only on a disc a draw put there: one put by hand was chosen.
           canShuffle={(album) => Boolean(album.suggested)}
           shufflingItemId={shufflingAlbumId}
           // An album leaving the list, played to its end, keeps its place: only those in it move.
           onReorder={handleListenNextReorder}
           canReorder={(album) => !listenNext.departureOf(keyOf(album))}
-          renderPlay={(album) => (
+          renderPlay={nextMedium === 'cd' ? undefined : (album) => (
             // ▶ plays Listen Next in DexVault from this album; one with no rip opens its card instead. An iPhone plays in Amperfy.
             <AlbumPlayButton albumId={album.id} title={album.title || ''} offerPlay={!isAppleMobile()}
               onPlay={() => listenNextQueue.start(keyOf(album))}

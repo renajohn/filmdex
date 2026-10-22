@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Listen Next — Digital | CD</title>
+<style>
+  :root {
+    --bg: #141414; --panel: #1c1c1c; --edge: #3a3a3a; --text: #f2f2f2; --muted: #a1a1a1; --faint: #6f6f6f;
+    --gold: #fbbf24; --silver: #d9d6cf;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; }
+  header.top { padding: 16px 20px 12px; border-bottom: 1px solid var(--edge); }
+  header.top h1 { margin: 0; font-size: 17px; }
+  header.top p { margin: 4px 0 0; color: var(--muted); font-size: 13px; max-width: 900px; }
+  header.top .tools { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .tool { border: 1px solid var(--edge); background: #222; color: var(--text); border-radius: 8px; padding: 6px 11px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  main { display: flex; gap: 28px; padding: 22px 20px 80px; flex-wrap: wrap; align-items: flex-start; }
+  .frame-cap { color: var(--muted); font-size: 12px; margin: 0 0 8px; }
+  .laptop { width: 940px; max-width: 100%; border: 6px solid #050505; border-radius: 10px; background: var(--panel); overflow: hidden; }
+  .phone { width: 390px; border: 9px solid #050505; border-radius: 40px; background: var(--panel); overflow: hidden; }
+  .phone .notch { height: 30px; }
+  .grid-hint { padding: 14px 18px 22px; color: var(--faint); font-size: 12px; }
+  .grid-hint .cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; margin-top: 10px; }
+  .grid-hint .cells span { aspect-ratio: 1; border-radius: 8px; background: #262626; }
+
+  /* The band */
+  .band { position: relative; padding: 16px 18px 12px; border-bottom: 1px solid #2a2a2a; transition: background .35s; }
+  .band.digital { background: linear-gradient(180deg, rgba(251,191,36,.16), rgba(251,191,36,.05)); }
+  .band.cd { background: linear-gradient(180deg, rgba(217,214,207,.13), rgba(217,214,207,.035)); }
+  .band-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .band-head .ico { font-size: 24px; line-height: 1; transition: color .35s; }
+  .band-head h2 { margin: 0; font-size: 24px; font-weight: 700; transition: color .35s; }
+  .digital .ico, .digital h2 { color: var(--gold); }
+  .cd .ico, .cd h2 { color: var(--silver); }
+  .seg { display: inline-flex; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.12); border-radius: 9px; padding: 3px; }
+  .seg button { border: 0; background: none; color: var(--muted); padding: 5px 12px; border-radius: 6px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  .seg button .n { font-weight: 500; opacity: .7; margin-left: 4px; }
+  .digital .seg button.on { background: var(--gold); color: #1a1a1a; }
+  .cd .seg button.on { background: var(--silver); color: #1a1a1a; }
+  .round { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,.18); background: rgba(10,10,10,.75); color: #fff; display: inline-grid; place-items: center; font-size: 15px; }
+  .quiet-ico { color: var(--muted); font-size: 18px; }
+  .band-note { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+
+  .row { display: flex; gap: 16px; overflow-x: auto; padding: 14px 2px 6px; scrollbar-width: thin; }
+  .card { flex: none; width: 150px; transition: transform .25s, opacity .25s; }
+  .phone .card { width: 128px; }
+  .card.found .sleeve { outline: 3px solid var(--gold); outline-offset: 3px; transition: outline-color 1.4s; }
+  .card.leaving { transform: translateY(-14px) scale(.9); opacity: 0; }
+  .card.arriving { animation: arrive .45s ease-out; }
+  @keyframes arrive { from { transform: translateY(16px) scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
+  .sleeve { position: relative; aspect-ratio: 1; border-radius: 9px; overflow: visible; background: #2a2a2a; box-shadow: 0 6px 16px rgba(0,0,0,.35); }
+  .sleeve img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 9px; }
+  .cbtn { position: absolute; width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255,255,255,.22); background: rgba(12,12,12,.7); backdrop-filter: blur(6px);
+    color: #fff; display: grid; place-items: center; font-size: 15px; cursor: pointer; }
+  .cbtn:hover { border-color: #fff; }
+  .cbtn.x { top: 8px; right: 8px; }
+  .cbtn.play { bottom: 8px; left: 8px; }
+  .cbtn.swap { top: 8px; left: 8px; font-size: 13px; }
+  .laptop .card .cbtn { opacity: 0; transition: opacity .15s; }
+  .laptop .card:hover .cbtn { opacity: 1; }
+  .card .t { margin-top: 7px; font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .a { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .new { display: inline-block; margin-left: 5px; padding: 0 5px; border: 1px solid rgba(255,255,255,.3); font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; vertical-align: 1px; }
+
+  /* The other list, small, at the foot */
+  .other { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.07); }
+  .other .lab { flex: none; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .other .lab b { font-weight: 700; }
+  .digital .other .lab b { color: var(--silver); }
+  .cd .other .lab b { color: var(--gold); }
+  .minis { display: flex; gap: 6px; overflow: hidden; flex: 1; min-width: 0; }
+  .mini { flex: none; width: 30px; height: 30px; border-radius: 4px; overflow: hidden; cursor: pointer; opacity: .75; transition: opacity .15s, transform .15s; border: 0; padding: 0; background: #2a2a2a; }
+  .mini:hover { opacity: 1; transform: translateY(-2px); }
+  .mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .more { flex: none; font-size: 12px; color: var(--muted); cursor: pointer; }
+
+  /* The rating callout */
+  .callout { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+    display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.14);
+    background: rgba(28,28,28,.92); backdrop-filter: blur(12px); box-shadow: 0 12px 30px rgba(0,0,0,.45); z-index: 20; max-width: calc(100vw - 32px); }
+  .callout.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  .callout img { width: 40px; height: 40px; border-radius: 5px; object-fit: cover; }
+  .callout .w { font-size: 13px; }
+  .callout .w b { display: block; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stars { display: flex; gap: 2px; font-size: 22px; color: #5a5a5a; cursor: pointer; }
+  .stars span:hover, .stars span.hot { color: #fff; }
+  .stars span.on { color: var(--gold); }
+  .callout .undo { color: var(--gold); font-weight: 600; font-size: 12.5px; cursor: pointer; margin-left: 4px; }
+  .callout .bar { position: absolute; left: 10px; right: 10px; bottom: 4px; height: 2px; background: rgba(255,255,255,.1); border-radius: 2px; overflow: hidden; }
+  .callout .bar i { display: block; height: 100%; background: rgba(255,255,255,.4); }
+
+  .vlab { color: var(--muted); font-size: 12.5px; align-self: center; margin-left: 8px; }
+  .variants button.on { background: #e8e8e8; color: #1a1a1a; }
+  .ico svg { width: 26px; height: 26px; display: block; }
+  .cbtn svg { width: 17px; height: 17px; }
+  .move-words { position: absolute; left: 8px; bottom: 8px; padding: 4px 8px; border-radius: 0; border: 1px solid rgba(255,255,255,.28); background: rgba(12,12,12,.72);
+    backdrop-filter: blur(6px); color: #fff; font: 600 10.5px/1.2 inherit; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+  .digital .move-words { left: auto; right: 8px; top: 48px; bottom: auto; }
+  .laptop .card .move-words { opacity: 0; transition: opacity .15s; }
+  .laptop .card:hover .move-words { opacity: 1; }
+  .menu { position: absolute; top: 46px; left: 8px; z-index: 5; min-width: 150px; padding: 4px; border-radius: 10px; border: 1px solid rgba(255,255,255,.14);
+    background: rgba(28,28,28,.95); backdrop-filter: blur(12px); box-shadow: 0 10px 24px rgba(0,0,0,.5); }
+  .menu button { display: flex; width: 100%; gap: 8px; align-items: center; padding: 7px 9px; border: 0; border-radius: 6px; background: none; color: var(--text); font: inherit; font-size: 13px; cursor: pointer; text-align: left; }
+  .menu button:hover { background: rgba(255,255,255,.08); }
+  .menu svg { width: 15px; height: 15px; }
+  .laptop .card.menu-open .cbtn { opacity: 1; }
+  [data-drag] { touch-action: pan-x; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .card.dragged { opacity: .3; }
+  .ghost { position: fixed; z-index: 30; width: 84px; height: 84px; border-radius: 8px; overflow: hidden; pointer-events: none; box-shadow: 0 14px 30px rgba(0,0,0,.6);
+    transform: translate(-50%, -60%) rotate(-4deg); }
+  .ghost img { width: 100%; height: 100%; object-fit: cover; }
+  .dragging [data-drop] { outline: 2px dashed rgba(255,255,255,.25); outline-offset: 3px; border-radius: 8px; }
+  .dragging [data-drop].over { outline: 2px solid #fff; background: rgba(255,255,255,.08); }
+  .other .drop-hint { display: none; color: var(--text); font-size: 12px; }
+  .dragging .other .drop-hint { display: inline; }
+  .dragging .other .minis { opacity: .4; }
+  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; padding: 16px 18px 22px; }
+  .phone .grid { grid-template-columns: repeat(2, 1fr); padding: 14px; }
+  .phone .grid .gcell:nth-child(n+7) { display: none; }
+  .gcell .sleeve { box-shadow: none; overflow: hidden; }
+  .gcell { min-width: 0; }
+  .gcell .t { margin-top: 6px; font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gcell .a { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gbtn { position: absolute; right: 8px; bottom: 8px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255,255,255,.22); background: rgba(12,12,12,.7);
+    backdrop-filter: blur(6px); color: #fff; display: grid; place-items: center; cursor: pointer; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .gbtn svg { width: 17px; height: 17px; }
+  .gbtn:hover { border-color: #fff; }
+  .gbtn.in-digital { background: var(--gold); border-color: var(--gold); color: #1a1a1a; }
+  .gbtn.in-cd { background: var(--gold); border-color: var(--gold); color: #1a1a1a; }
+  .gbtn.pressing { animation: hold .45s linear; }
+  @keyframes hold { from { box-shadow: 0 0 0 0 rgba(217,214,207,.0); } to { box-shadow: 0 0 0 7px rgba(217,214,207,.55); } }
+  .laptop .gcell .gbtn:not(.in-digital):not(.in-cd) { opacity: 0; transition: opacity .15s; }
+  .laptop .gcell:hover .gbtn { opacity: 1; }
+  aside.notes { width: 940px; max-width: 100%; color: var(--muted); font-size: 13px; }
+  aside.notes h3 { color: var(--text); font-size: 14px; margin: 18px 0 6px; }
+  aside.notes li { margin: 3px 0; }
+  @media (max-width: 700px) { main { padding: 14px 8px; } .laptop { display: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Listen Next — Digital | CD</h1>
+  <p>Prototype with the real covers from prod. Digital: the current 10 albums of Listen Next. CD: the 23 CDs come in since September, the classical ones left out. Everything here is pretend: nothing is saved.</p>
+  <div class="tools">
+    <button class="tool" id="addNew">Simulate: a new CD is added</button>
+    <button class="tool" id="reset">Start again</button>
+    <span class="vlab">To move a cover to the other list:</span>
+    <div class="seg variants" role="group" aria-label="How to move">
+      <button data-variant="icon">A · Its icon</button>
+      <button data-variant="words">B · Words</button>
+      <button data-variant="menu">C · Menu ⋯</button>
+      <button data-variant="drag">D · Drag only</button>
+    </div>
+  </div>
+</header>
+<main>
+  <div>
+    <p class="frame-cap">Laptop: the buttons show under the pointer</p>
+    <div class="laptop"><div data-frame="laptop"></div><div class="grid" data-grid="laptop"></div></div>
+  </div>
+  <div>
+    <p class="frame-cap">iPhone: always shown</p>
+    <div class="phone"><div class="notch"></div><div data-frame="phone"></div><div class="grid" data-grid="phone"></div></div>
+  </div>
+  <aside class="notes">
+    <h3>What to try</h3>
+    <ul>
+      <li><b>Digital | CD</b> next to the title switches lists; the band turns silver for CD, gold for Digital.</li>
+      <li>At the foot, the other list in small: a click on a cover shows it in its list (the band switches, scrolls to it and lights it a moment); to move it, drag it up. The label (“Digital · 10”) switches lists.</li>
+      <li><b>To move a cover to the other list</b>, four ways to compare (top of the page): A, a round button with the other list's icon (the headphones in CD, the disc in Digital); B, in words, “→ Stream” or “→ CD”; C, a ⋯ menu with Move to and Take it off; D, no button at all.</li>
+      <li><b>Drag and drop, both ways</b>: drag a cover onto the strip at the foot, or onto the other list's name in Digital | CD; drag a small cover of the foot up onto the row, or onto its list's name. With a mouse it drags at once; on the iPhone, hold the cover a moment (a quick swipe still scrolls the row).</li>
+      <li>In CD: no ▶ anywhere. <b>✕</b> takes a CD off once played; when it has no stars, a bubble asks for them for 7 s (Undo there too).</li>
+      <li>In Digital: ▶ plays (here, it only says so), Repeat as today.</li>
+      <li>“Simulate: a new CD is added”: it arrives first in CD, with a NEW tag.</li>
+      <li><b>The grid</b> (twelve older CDs): its round button wears the list the album is in: gold headphones in Digital, a gold disc in CD. A click puts it in Digital, or takes it off its list; <b>Alt-click</b> on the Mac, or <b>holding it</b> on the iPhone (a ring grows), puts it in CD.</li>
+    </ul>
+    <h3>Not decided by this prototype</h3>
+    <ul>
+      <li>Which list a CD bought from the wish list lands in: CD, like any CD come in.</li>
+      <li>The ones already in Digital today (Franz Ferdinand, Moby, Queen…) stay there: moved like any other.</li>
+    </ul>
+  </aside>
+</main>
+<div class="callout" id="callout"></div>
+<script>
+const DIGITAL = [{"id": 155, "title": "A Live One", "artist": "Phish", "cover": "/api/images/cd/album_a599702d-6810-440a-936e-5bdc4d6fec68_front_1769881245498.jpg", "disc": 0}, {"id": 282, "title": "Franz Ferdinand", "artist": "Franz Ferdinand", "cover": "/api/images/cd/album_fe44f756-6566-4bd9-be62-3601ea3a11c1_front_1791733691039.jpg", "disc": 0}, {"id": 189, "title": "Play", "artist": "Moby", "cover": "/api/images/cd/album_025d4f1a-2e0a-3e0e-9808-f91f77340cf4_front_1791017938011.jpg", "disc": 0}, {"id": 280, "title": "Greatest Hits I, II & III: The Platinum Collection", "artist": "Queen", "cover": "/api/images/cd/album_a9c51dd8-b55a-3aea-ba6f-11e62447e6fb_front_1791640538768.jpg", "disc": 0}, {"id": 307, "title": "Communiqué", "artist": "Dire Straits", "cover": "/api/images/cd/custom/navidrome_307_1792241376578.jpg", "disc": 0}, {"id": 289, "title": "Tales of Mystery and Imagination: Edgar Allan Poe", "artist": "The Alan Parsons Project", "cover": "/api/images/cd/album_8481b8e0-1075-4bc2-bded-9adae4f7cbe2_front_1791986922944.jpg", "disc": 0}, {"id": 51, "title": "Cosmo’s Factory", "artist": "Creedence Clearwater Revival", "cover": "/api/images/cd/album_51_1760719613897.jpg", "disc": 0}, {"id": 266, "title": "Definitely Maybe", "artist": "Oasis", "cover": "/api/images/cd/album_f589d114-b9ee-441b-95b8-f4acb4b9411e_front_1791481954282.jpg", "disc": 0}, {"id": 270, "title": "Appetite for Destruction", "artist": "Guns N’ Roses", "cover": "/api/images/cd/album_59705b63-3e53-4ecc-b71a-eb2289bbdf91_front_1791584619415.jpg", "disc": 0}, {"id": 245, "title": "New Beginning", "artist": "Tracy Chapman", "cover": "/api/images/cd/album_ec96fee1-48af-4c11-b528-ce89ee67f2e1_front_1791094810817.jpg", "disc": 0}] ;
+const CD = [{"id": 408, "title": "This Is War", "artist": "Thirty Seconds to Mars", "cover": "/api/images/cd/album_0790973d-6ff7-3ee8-95e4-7ea79b2c3d5a_front_1792689455245.jpg", "rated": false}, {"id": 384, "title": "St. Elsewhere", "artist": "Gnarls Barkley", "cover": "/api/images/cd/custom/navidrome_384_1792241377888.jpg", "rated": false}, {"id": 288, "title": "Let’s Dance", "artist": "David Bowie", "cover": "/api/images/cd/album_e9f1653b-2082-3407-8d3c-9e00f3bf2ba8_front_1791986913341.jpg", "rated": false}, {"id": 287, "title": "A Kind of Magic", "artist": "Queen", "cover": "/api/images/cd/album_6a959ed9-178a-479f-a04f-45d7399c83d7_front_1791986908600.jpg", "rated": false}, {"id": 286, "title": "Come Away With Me", "artist": "Norah Jones", "cover": "/api/images/cd/album_506fe9cf-29c6-4318-9070-da9463f51617_front_1791986901819.jpg", "rated": false}, {"id": 285, "title": "“Heroes”", "artist": "David Bowie", "cover": "/api/images/cd/custom/navidrome_285_1791987441394.jpg", "rated": true}, {"id": 284, "title": "Deep Purple in Rock", "artist": "Deep Purple", "cover": "/api/images/cd/custom/cd_284_1791816629429.jpg", "rated": false}, {"id": 283, "title": "Fireball", "artist": "Deep Purple", "cover": "/api/images/cd/custom/cd_283_1791816629305.jpg", "rated": true}, {"id": 279, "title": "Back to Bedlam", "artist": "James Blunt", "cover": "/api/images/cd/custom/cd_279_1791640752239.jpg", "rated": false}, {"id": 278, "title": "Infréquentable", "artist": "Bénabar", "cover": "/api/images/cd/album_accf2a5c-2058-4d09-8c61-5031d27e7f0e_front_1791639255093.jpg", "rated": false}, {"id": 277, "title": "Cheese", "artist": "Stromae", "cover": "/api/images/cd/album_d5e6bdee-fe20-4b4b-afcd-69447020726e_front_1791638507159.jpg", "rated": false}, {"id": 231, "title": "Protection", "artist": "Massive Attack", "cover": "/api/images/cd/album_3eb8f17b-fbae-4ba6-a31b-f032d3c64072_front_1791092612397.jpg", "rated": false}, {"id": 223, "title": "Zen", "artist": "Zazie", "cover": "/api/images/cd/album_378dd8bb-b536-464c-80a5-9ac01cffd658_front_1791065321930.jpg", "rated": false}, {"id": 219, "title": "We Can’t Dance", "artist": "Genesis", "cover": "/api/images/cd/album_acb5c8a6-3444-3f03-a1f6-f58d983750d0_front_1791064045179.jpg", "rated": false}, {"id": 218, "title": "On Every Street", "artist": "Dire Straits", "cover": "/api/images/cd/album_232239a4-0201-43ea-820c-b0d51db3e324_front_1791064040194.jpg", "rated": false}, {"id": 216, "title": "Matters of the Heart", "artist": "Tracy Chapman", "cover": "/api/images/cd/album_dcf9f228-3f17-4ce7-8ef1-6b47ae44462b_front_1791063473534.jpg", "rated": false}, {"id": 205, "title": "No Angel", "artist": "Dido", "cover": "/api/images/cd/album_753f2720-0482-4035-b33e-dcbaa0950763_front_1791063448698.jpg", "rated": false}, {"id": 199, "title": "Forever Young", "artist": "Alphaville", "cover": "/api/images/cd/album_13da5b21-7167-4a8d-bcd8-9a2114c66282_front_1791062423794.jpg", "rated": false}, {"id": 188, "title": "Hobo", "artist": "Charlie Winston", "cover": "/api/images/cd/album_4351e12c-0569-473e-8d20-5323490eb964_front_1790973406540.jpg", "rated": false}, {"id": 186, "title": "Mezzanine", "artist": "Massive Attack", "cover": "/api/images/cd/custom/navidrome_186_1791273506647.jpg", "rated": false}, {"id": 164, "title": "Invisible Touch", "artist": "Genesis", "cover": "/api/images/cd/custom/navidrome_164_1791273561346.jpg", "rated": false}, {"id": 160, "title": "The Nightfly", "artist": "Donald Fagen", "cover": "/api/images/cd/album_c6f89a13-29aa-3468-abf7-ccfc485447a1_front_1788864088125.jpg", "rated": false}, {"id": 159, "title": "Aja", "artist": "Steely Dan", "cover": "/api/images/cd/album_afed544b-74da-4fc2-a268-cc99f0d21f80_front_1788241362542.jpg", "rated": false}] ;
+const GRID = [{"id": 107, "title": "L’Astronaute", "artist": "Marc Aymon", "cover": "/api/images/cd/album_107_1760719688295.jpg", "rated": false, "ripped": true}, {"id": 67, "title": "The Fall", "artist": "Norah Jones", "cover": "/api/images/cd/album_67_1760719718954.jpg", "rated": false, "ripped": true}, {"id": 26, "title": "Hotel California", "artist": "Eagles", "cover": "/api/images/cd/album_26_1760719635280.jpg", "rated": false, "ripped": true}, {"id": 126, "title": "OK Computer", "artist": "Radiohead", "cover": "/api/images/cd/album_425d8db9-88a3-31e2-bd23-b1a967626dd5_front_1761162302986.jpg", "rated": false, "ripped": true}, {"id": 44, "title": "The Best of Vaya Con Dios", "artist": "Vaya Con Dios", "cover": "/api/images/cd/album_44_1760719798096.jpg", "rated": false, "ripped": true}, {"id": 77, "title": "Hozier", "artist": "Hozier", "cover": "/api/images/cd/album_77_1760719656922.jpg", "rated": false, "ripped": true}, {"id": 2, "title": "Brothers in Arms", "artist": "Dire Straits", "cover": "/api/images/cd/album_2_1760719633868.jpg", "rated": false, "ripped": true}, {"id": 7, "title": "L’Essentiel", "artist": "Daniel Balavoine", "cover": "/api/images/cd/album_7_1760719624499.jpg", "rated": false, "ripped": true}, {"id": 138, "title": "Back to Black", "artist": "Amy Winehouse", "cover": "/api/images/cd/album_1a6ecd02-a613-4239-abbe-21da23149fa6_front_1764265302094.jpg", "rated": false, "ripped": true}, {"id": 146, "title": "Blood Sugar Sex Magik", "artist": "Red Hot Chili Peppers", "cover": "/api/images/cd/album_6d416ac9-4efb-4a2c-851d-0b3d117fda61_front_1769880411075.jpg", "rated": false, "ripped": true}, {"id": 73, "title": "Showbiz", "artist": "Muse", "cover": "/api/images/cd/album_73_1760719711733.png", "rated": false, "ripped": true}, {"id": 65, "title": "Sans attendre", "artist": "Céline Dion", "cover": "/api/images/cd/album_65_1760719622312.jpg", "rated": false, "ripped": true}] ;
+
+const BASE = 'https://dexvault.lab.crog.org';
+const ICON = {
+  disc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9.2"/><circle cx="12" cy="12" r="2.6"/><path d="M12 5.2a6.8 6.8 0 0 1 6.8 6.8" stroke-linecap="round"/></svg>',
+  phones: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3.5" y="14" width="4" height="6.5" rx="1.6"/><rect x="16.5" y="14" width="4" height="6.5" rx="1.6"/></svg>',
+};
+let variant = 'icon';
+let menuFor = null;
+const moveControl = a => {
+  const to = other(mode);
+  if (variant === 'icon') return `<button class="cbtn swap" data-act="swap" data-id="${a.id}" title="${INSTEAD[to]}">${to === 'cd' ? ICON.disc : ICON.phones}</button>`;
+  if (variant === 'words') return `<button class="move-words" data-act="swap" data-id="${a.id}" title="${INSTEAD[to]}">→ ${to === 'cd' ? 'CD' : 'Stream'}</button>`;
+  if (variant === 'menu') return `<button class="cbtn swap" data-act="menu" data-id="${a.id}" title="More">⋯</button>${menuFor === a.id ? `
+    <div class="menu"><button data-act="swap" data-id="${a.id}">${to === 'cd' ? ICON.disc : ICON.phones} ${INSTEAD[to]}</button>
+    <button data-act="remove" data-id="${a.id}">✕ Take it off</button></div>` : ''}`;
+  return '';
+};
+const NEW_ONE = { id: 9001, title: 'Rumours', artist: 'Fleetwood Mac', cover: null, rated: false, fresh: true };
+const img = a => a.cover ? `<img src="${BASE}${a.cover}" alt="" loading="lazy">` : '';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+let lists, mode, arriving;
+const start = () => {
+  lists = { digital: DIGITAL.map(a => ({ ...a, rated: true })), cd: CD.map(a => ({ ...a })) };
+  mode = 'cd';
+  arriving = null;
+  render();
+};
+
+const other = m => (m === 'cd' ? 'digital' : 'cd');
+const NAMES = { cd: 'CD', digital: 'Digital' };
+// What a click does, said as listening: streamed, or the CD put on.
+const INSTEAD = { cd: 'Play the CD instead', digital: 'Stream it instead' };
+const NEXT = { cd: 'Next, on CD', digital: 'Next, streamed' };
+
+const band = frame => {
+  const list = lists[mode];
+  const rest = lists[other(mode)];
+  const shown = frame === 'phone' ? 7 : 20;
+  const cards = list.map(a => `
+    <div class="card${arriving === a.id ? ' arriving' : ''}" data-id="${a.id}" data-drag="${a.id}" data-from="${mode}">
+      <div class="sleeve">${img(a)}
+        <button class="cbtn x" data-act="remove" data-id="${a.id}" title="${mode === 'cd' ? 'Heard: off the list' : 'Off Listen Next'}">✕</button>
+        ${moveControl(a)}
+        ${mode === 'digital' ? `<button class="cbtn play" data-act="play" data-id="${a.id}" title="Play">▶</button>` : ''}
+      </div>
+      <div class="t">${esc(a.title)}${a.fresh ? '<span class="new">new</span>' : ''}</div>
+      <div class="a">${esc(a.artist)}</div>
+    </div>`).join('');
+  const minis = rest.slice(0, shown).map(a =>
+ `<button class="mini" data-act="bring" data-id="${a.id}" data-drag="${a.id}" data-from="${other(mode)}" title="${esc(a.artist)} – ${esc(a.title)}">${img(a)}</button>`).join('');
+  return `
+    <section class="band ${mode}">
+      <div class="band-head">
+        <span class="ico">${mode === 'cd' ? ICON.disc : ICON.phones}</span>
+        <h2>Listen Next</h2>
+        <div class="seg" role="group" aria-label="Which list">
+          <button class="${mode === 'digital' ? 'on' : ''}" data-act="mode" data-mode="digital" data-drop="digital" title="Listen Next, streamed">Digital<span class="n">${lists.digital.length}</span></button>
+          <button class="${mode === 'cd' ? 'on' : ''}" data-act="mode" data-mode="cd" data-drop="cd" title="Listen Next, on CD">CD<span class="n">${lists.cd.length}</span></button>
+        </div>
+        ${mode === 'digital' ? '<span class="round" title="Play Listen Next">▶</span><span class="quiet-ico" title="Repeat">⟳</span>' : ''}
+      </div>
+      <div class="row" data-drop="${mode}">${cards || `<p style="color:var(--muted)">Nothing left to put on: all played.</p>`}</div>
+      <div class="other" data-drop="${other(mode)}">
+        <span class="lab" data-act="mode" data-mode="${other(mode)}"><b>${NAMES[other(mode)]}</b> · ${rest.length}</span>
+        <span class="drop-hint">Drop here for ${NAMES[other(mode)]}</span>
+        <div class="minis">${minis}</div>
+        ${rest.length > shown ? `<span class="more" data-act="mode" data-mode="${other(mode)}">+${rest.length - shown}</span>` : ''}
+      </div>
+    </section>`;
+};
+
+// In which list an album stands, if any.
+const where = id => (lists.digital.some(a => a.id === id) ? 'digital' : lists.cd.some(a => a.id === id) ? 'cd' : null);
+const gridOf = () => GRID.map(a => {
+  const w = where(a.id);
+  const title = w === 'digital' ? 'Next, streamed · click: off the list'
+    : w === 'cd' ? 'Next, on CD · click: off the list'
+    : 'Stream it next · Alt-click: play the CD next';
+  return `<div class="gcell"><div class="sleeve">${img(a)}
+    <button class="gbtn${w ? ` in-${w}` : ''}" data-grid-btn="${a.id}" title="${title}">${w === 'cd' ? ICON.disc : ICON.phones}</button></div>
+    <div class="t">${esc(a.title)}</div><div class="a">${esc(a.artist)}</div></div>`;
+}).join('');
+
+// The grid's button: a click puts it in Digital, or takes it off its list; Alt-click, or holding it on the iPhone, puts it in CD.
+const putIn = (id, list) => {
+  const w = where(id);
+  if (w) lists[w].splice(lists[w].findIndex(a => a.id === id), 1);
+  if (list) lists[list].push({ ...GRID.find(a => a.id === id) });
+  render();
+  const el = document.getElementById('callout');
+  const album = GRID.find(a => a.id === id);
+  el.innerHTML = `${img(album)}<div class="w">${list ? NEXT[list] : 'Off Listen Next'}<b>${esc(album.title)}</b></div>`;
+  el.classList.add('on'); clearTimeout(calloutTimer); calloutTimer = setTimeout(() => el.classList.remove('on'), 1800);
+};
+let held = null;
+document.addEventListener('pointerdown', event => {
+  const btn = event.target.closest('[data-grid-btn]');
+  if (!btn || event.pointerType === 'mouse') return;
+  btn.classList.add('pressing');
+  held = { id: +btn.dataset.gridBtn, done: false, timer: setTimeout(() => { held.done = true; btn.classList.remove('pressing'); if (navigator.vibrate) navigator.vibrate(12); putIn(held.id, 'cd'); }, 450) };
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach(type => document.addEventListener(type, () => {
+  if (held && !held.done) clearTimeout(held.timer);
+  document.querySelectorAll('.gbtn.pressing').forEach(b => b.classList.remove('pressing'));
+}, true));
+document.addEventListener('contextmenu', event => { if (event.target.closest('[data-grid-btn]')) event.preventDefault(); });
+document.addEventListener('click', event => {
+  const btn = event.target.closest('[data-grid-btn]');
+  if (!btn) return;
+  const id = +btn.dataset.gridBtn;
+  if (held?.done) { held = null; return; }
+  held = null;
+  if (event.altKey) putIn(id, 'cd');
+  else putIn(id, where(id) ? null : 'digital');
+});
+
+const render = () => {
+  document.querySelectorAll('[data-frame]').forEach(el => { el.innerHTML = band(el.dataset.frame); });
+  document.querySelectorAll('[data-grid]').forEach(el => { el.innerHTML = gridOf(); });
+  arriving = null;
+};
+
+// The bubble at the foot: stars for a CD played with none, Undo for all.
+let calloutTimer;
+const callout = (album, from, index) => {
+  const el = document.getElementById('callout');
+  clearTimeout(calloutTimer);
+  const ask = mode === 'cd' && !album.rated;
+  el.innerHTML = `${img(album)}
+    <div class="w">${ask ? 'Rate it' : 'Off Listen Next'}<b>${esc(album.title)}</b></div>
+    ${ask ? `<div class="stars">${[1, 2, 3, 4, 5].map(n => `<span data-star="${n}">★</span>`).join('')}</div>` : ''}
+    <span class="undo">Undo</span>
+    <div class="bar"><i></i></div>`;
+  el.classList.add('on');
+  const bar = el.querySelector('.bar i');
+  bar.style.transition = 'none'; bar.style.width = '100%';
+  requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.transition = 'width 7s linear'; bar.style.width = '0%'; }));
+  const close = () => el.classList.remove('on');
+  calloutTimer = setTimeout(close, 7000);
+  el.querySelector('.undo').onclick = () => { lists[from].splice(index, 0, album); arriving = album.id; render(); close(); };
+  el.querySelectorAll('[data-star]').forEach(star => {
+    star.onmouseenter = () => el.querySelectorAll('[data-star]').forEach(s => s.classList.toggle('hot', +s.dataset.star <= +star.dataset.star));
+    star.onclick = () => {
+      album.rated = true;
+      el.querySelectorAll('[data-star]').forEach(s => { s.classList.remove('hot'); s.classList.toggle('on', +s.dataset.star <= +star.dataset.star); });
+      el.querySelector('.w').firstChild.textContent = `${star.dataset.star} ★ kept`;
+      clearTimeout(calloutTimer);
+      calloutTimer = setTimeout(close, 1400);
+    };
+  });
+  el.querySelector('.stars')?.addEventListener('mouseleave', () => el.querySelectorAll('[data-star]').forEach(s => s.classList.remove('hot')));
+};
+
+document.addEventListener('click', event => {
+  const t = event.target.closest('[data-act]');
+  if (!t) return;
+  const id = +t.dataset.id;
+  switch (t.dataset.act) {
+    case 'mode': mode = t.dataset.mode; menuFor = null; render(); break;
+    case 'menu': menuFor = menuFor === id ? null : id; render(); document.querySelectorAll(`.card[data-id="${id}"]`).forEach(c => c.classList.add('menu-open')); break;
+    case 'remove': {
+      const index = lists[mode].findIndex(a => a.id === id);
+      const [album] = lists[mode].splice(index, 1);
+      const from = mode;
+      document.querySelectorAll(`.card[data-id="${id}"]`).forEach(c => c.classList.add('leaving'));
+      setTimeout(() => { render(); callout(album, from, index); }, 220);
+      break;
+    }
+    case 'swap': {
+      menuFor = null;
+      const index = lists[mode].findIndex(a => a.id === id);
+      const [album] = lists[mode].splice(index, 1);
+      lists[other(mode)].unshift(album);
+      document.querySelectorAll(`.card[data-id="${id}"]`).forEach(c => c.classList.add('leaving'));
+      setTimeout(render, 220);
+      break;
+    }
+    case 'bring': {
+      // Its own list in sight, scrolled to it, lit a moment; it moves only when dragged.
+      mode = other(mode);
+      render();
+      document.querySelectorAll(`.card[data-id="${id}"]`).forEach(c => {
+        c.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        c.classList.add('found');
+        setTimeout(() => c.classList.remove('found'), 1600);
+      });
+      break;
+    }
+    case 'play': {
+      const el = document.getElementById('callout');
+      el.innerHTML = '<div class="w">▶ Would play here, or on the computer chosen</div>';
+      el.classList.add('on'); clearTimeout(calloutTimer); calloutTimer = setTimeout(() => el.classList.remove('on'), 1800);
+      break;
+    }
+  }
+});
+
+document.getElementById('addNew').onclick = () => {
+  const one = { ...NEW_ONE, id: NEW_ONE.id + Math.floor(Math.random() * 1000) };
+  lists.cd.unshift(one);
+  arriving = one.id;
+  mode = 'cd';
+  render();
+};
+document.getElementById('reset').onclick = start;
+
+const showVariant = () => document.querySelectorAll('[data-variant]').forEach(b => b.classList.toggle('on', b.dataset.variant === variant));
+document.querySelectorAll('[data-variant]').forEach(b => { b.onclick = () => { variant = b.dataset.variant; menuFor = null; showVariant(); render(); }; });
+showVariant();
+
+// Drag a cover onto the other list: the strip at the foot, or its name in CD | Digital. A mouse drags at once;
+// a finger after holding the cover a moment, so that a swipe still scrolls the row.
+let press = null;
+let dragging = null;
+const HOLD_MS = 350;
+const dropAt = (x, y) => document.elementFromPoint(x, y)?.closest('[data-drop]') || null;
+const end = () => {
+  clearTimeout(press?.timer);
+  press = null;
+  if (!dragging) return;
+  dragging.ghost.remove();
+  document.body.classList.remove('dragging');
+  document.querySelectorAll('.card.dragged, [data-drop].over').forEach(el => el.classList.remove('dragged', 'over'));
+  dragging = null;
+};
+const begin = () => {
+  const { id, from, x, y } = press;
+  const album = lists[from].find(a => a.id === id);
+  const ghost = document.createElement('div');
+  ghost.className = 'ghost';
+  ghost.innerHTML = img(album);
+  ghost.style.left = `${x}px`; ghost.style.top = `${y}px`;
+  document.body.appendChild(ghost);
+  document.body.classList.add('dragging');
+  document.querySelectorAll(`.card[data-id="${id}"]`).forEach(c => c.classList.add('dragged'));
+  dragging = { id, from, ghost };
+  if (navigator.vibrate) navigator.vibrate(10);
+};
+document.addEventListener('pointerdown', event => {
+  const card = event.target.closest('[data-drag]');
+  if (!card) return;
+  const button = event.target.closest('button');
+  if (button && button !== card) return;
+  press = { id: +card.dataset.drag, from: card.dataset.from, x: event.clientX, y: event.clientY, touch: event.pointerType !== 'mouse' };
+  if (press.touch) press.timer = setTimeout(begin, HOLD_MS);
+});
+document.addEventListener('pointermove', event => {
+  if (!press) return;
+  if (!dragging) {
+    const far = Math.hypot(event.clientX - press.x, event.clientY - press.y) > (press.touch ? 10 : 6);
+    if (!far) return;
+    if (press.touch) { end(); return; } // a swipe: the row scrolls
+    press.x = event.clientX; press.y = event.clientY;
+    begin();
+  }
+  dragging.ghost.style.left = `${event.clientX}px`;
+  dragging.ghost.style.top = `${event.clientY}px`;
+  const target = dropAt(event.clientX, event.clientY);
+  document.querySelectorAll('[data-drop].over').forEach(el => { if (el !== target) el.classList.remove('over'); });
+  if (target && target.dataset.drop !== dragging.from) target.classList.add('over');
+});
+document.addEventListener('touchmove', event => { if (dragging) event.preventDefault(); }, { passive: false });
+document.addEventListener('pointerup', event => {
+  if (dragging) {
+    const target = dropAt(event.clientX, event.clientY);
+    const { id, from } = dragging;
+    end();
+    if (target && target.dataset.drop !== from) {
+      const index = lists[from].findIndex(a => a.id === id);
+      const [album] = lists[from].splice(index, 1);
+      // Into the list in sight: where it ends, as a click on a small cover puts it; into the other: first.
+      if (target.dataset.drop === mode) { lists[mode].push(album); arriving = album.id; } else lists[target.dataset.drop].unshift(album);
+      render();
+    }
+    // The click that follows a drop is not a click.
+    const swallow = e => { e.stopPropagation(); e.preventDefault(); };
+    window.addEventListener('click', swallow, { capture: true, once: true });
+    setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 60);
+    return;
+  }
+  end();
+});
+document.addEventListener('pointercancel', end);
+start();
+</script>
+</body>
+</html>

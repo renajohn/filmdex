@@ -13,6 +13,10 @@
   --dv-gold-tint: rgba(251, 191, 36, 0.12);
   --dv-gold-tint-edge: rgba(251, 191, 36, 0.45);
 
+  /* Silver: a CD to put on the player, Listen Next's CD list beside the gold of the streamed one. */
+  --dv-silver: #d9d6cf;
+  --dv-silver-tint: rgba(217, 214, 207, 0.12);
+
   /* Danger, an alert: red words, a red veil. Never on gold. */
   --dv-danger: #f87171;
   --dv-danger-tint: rgba(248, 113, 113, 0.12);

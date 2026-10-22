@@ -20,12 +20,17 @@ interface CollectionRecord {
   type: string;
 }
 
-/** A row of Listen Next: an album, whole (disc 0) or one of its discs. */
+/** Listen Next's two lists: streamed, played here or in Amperfy, and CDs to put on the player. */
+export type ListenNextMedium = 'digital' | 'cd';
+export const MEDIUMS: ListenNextMedium[] = ['digital', 'cd'];
+
+/** A row of Listen Next: an album, whole (disc 0) or one of its discs, in one of its two lists. */
 export interface ListenNextEntry {
   albumId: number;
   disc: number;
   order: number | null;
   suggested: boolean;
+  medium: ListenNextMedium;
 }
 
 /** What a click on Listen Next asks: the whole album in or out (none), the whole album ('all'), or one disc in or out. */
@@ -33,7 +38,9 @@ export type ListenNextChoice = undefined | 'all' | number;
 
 export interface ListenNextToggleResult {
   id: number;
-  action: 'added' | 'removed' | 'kept';
+  action: 'added' | 'removed' | 'kept' | 'moved';
+  /** The list it is in now, when it is in one. */
+  medium?: ListenNextMedium;
 }
 
 /**
@@ -59,19 +66,22 @@ const all = <T>(sql: string, params: unknown[] = []): Promise<T[]> =>
 const listenNextCollectionId = async (): Promise<number | null> =>
   ((await Collection.findByType('listen_next')) as CollectionRecord | null)?.id ?? null;
 
-/** Listen Next's rows in their order, one album's alone when `albumId` is given. */
+/** Listen Next's rows in their order, both lists, one album's alone when `albumId` is given. */
 const entriesOf = async (collectionId: number, albumId?: number): Promise<ListenNextEntry[]> =>
-  (await all<{ album_id: number; disc: number; collection_order: number | null; suggested: number }>(
-    `SELECT album_id, disc, collection_order, suggested FROM album_collections
+  (await all<{ album_id: number; disc: number; collection_order: number | null; suggested: number; medium: string | null }>(
+    `SELECT album_id, disc, collection_order, suggested, medium FROM album_collections
      WHERE collection_id = ?${albumId == null ? '' : ' AND album_id = ?'}
      ORDER BY CASE WHEN collection_order IS NOT NULL THEN collection_order ELSE 999999 END, id`,
     albumId == null ? [collectionId] : [collectionId, albumId]))
-    .map(row => ({ albumId: row.album_id, disc: row.disc, order: row.collection_order, suggested: Boolean(row.suggested) }));
+    .map(row => ({
+      albumId: row.album_id, disc: row.disc, order: row.collection_order, suggested: Boolean(row.suggested),
+      medium: row.medium === 'cd' ? 'cd' : 'digital',
+    }));
 
-/** Put at the end of Listen Next, and noted so that a draw does not offer it again for a while. */
-const addAtEnd = async (collectionId: number, albumId: number, disc: number): Promise<void> => {
+/** Put at the end of Listen Next, in one of its lists, and noted so that a draw does not offer it again for a while. */
+const addAtEnd = async (collectionId: number, albumId: number, disc: number, medium: ListenNextMedium = 'digital'): Promise<void> => {
   const position = await AlbumCollection.getNextOrder(collectionId);
-  await AlbumCollection.create({ album_id: albumId, collection_id: collectionId, collection_order: position, disc });
+  await AlbumCollection.create({ album_id: albumId, collection_id: collectionId, collection_order: position, disc, medium });
   try {
     await PlaylistHistory.recordSuggestion(albumId);
   } catch (historyError) {
@@ -81,19 +91,22 @@ const addAtEnd = async (collectionId: number, albumId: number, disc: number): Pr
 };
 
 const musicCollectionService = {
-  /** Listen Next's rows in their order: an album whole, or one disc of it. */
-  getListenNextEntries: async (): Promise<ListenNextEntry[]> => {
+  /** Listen Next's rows in their order: an album whole, or one disc of it; one list's alone when `medium` is given. */
+  getListenNextEntries: async (medium?: ListenNextMedium): Promise<ListenNextEntry[]> => {
     const collectionId = await listenNextCollectionId();
-    return collectionId == null ? [] : entriesOf(collectionId);
+    if (collectionId == null) return [];
+    const entries = await entriesOf(collectionId);
+    return medium ? entries.filter(entry => entry.medium === medium) : entries;
   },
 
   /**
    * Listen Next in its order, oldest additions first: each album with the
    * disc it is there for (null for the whole album), an album with two discs
    * chosen twice, and how many discs it has; `suggested` on those a draw put
-   * there (Help me choose, the die), which offer the die, not on those put by hand.
+   * there (Help me choose, the die), which offer the die, not on those put by hand;
+   * `medium`, the list it is in. One list's alone when `medium` is given.
    */
-  getListenNextAlbums: async (): Promise<CollectionAlbum[]> => {
+  getListenNextAlbums: async (medium?: ListenNextMedium): Promise<CollectionAlbum[]> => {
     try {
       const collectionId = await listenNextCollectionId();
       if (collectionId == null) return [];
@@ -102,9 +115,9 @@ const musicCollectionService = {
         `SELECT t.album_id, COUNT(DISTINCT t.disc_number) AS discs FROM tracks t
          JOIN album_collections ac ON ac.album_id = t.album_id WHERE ac.collection_id = ? GROUP BY t.album_id`, [collectionId]))
         .map(row => [row.album_id, row.discs]));
-      return (await entriesOf(collectionId)).flatMap(entry => {
+      return (await entriesOf(collectionId)).filter(entry => !medium || entry.medium === medium).flatMap(entry => {
         const album = albums.get(entry.albumId);
-        return album ? [{ ...album, disc: entry.disc || null, discCount: discCounts.get(entry.albumId) ?? 0, suggested: entry.suggested }] : [];
+        return album ? [{ ...album, disc: entry.disc || null, discCount: discCounts.get(entry.albumId) ?? 0, suggested: entry.suggested, medium: entry.medium }] : [];
       });
     } catch (error) {
       logger.error('Error getting Listen Next albums:', error);
@@ -116,28 +129,37 @@ const musicCollectionService = {
    * A click on Listen Next. With no disc, the whole album in, or the album out
    * whatever of it is there. 'all': the whole album, in place of the discs
    * chosen. A disc: in at the end, out if it is there, in place of the whole
-   * album if that is there.
+   * album if that is there. `medium` names the list: with no disc, an album in
+   * the other list moves to this one rather than leaving; new rows go to it,
+   * else to the list the album is already in, else to the streamed one.
    */
-  setListenNext: async (albumId: number, choice: ListenNextChoice = undefined): Promise<ListenNextToggleResult> => {
+  setListenNext: async (albumId: number, choice: ListenNextChoice = undefined, medium?: ListenNextMedium): Promise<ListenNextToggleResult> => {
     const collectionId = await listenNextCollectionId();
     if (collectionId == null) throw new Error('Listen Next collection not found');
     const rows = await entriesOf(collectionId, albumId);
     const whole = rows.some(row => row.disc === 0);
+    const into: ListenNextMedium = medium ?? rows[0]?.medium ?? 'digital';
 
     if (choice === undefined) {
+      if (rows.length > 0 && medium && rows.some(row => row.medium !== medium)) {
+        // From the other list: at the end of this one.
+        const position = await AlbumCollection.getNextOrder(collectionId);
+        await run('UPDATE album_collections SET medium = ?, collection_order = ? WHERE collection_id = ? AND album_id = ?', [medium, position, collectionId, albumId]);
+        return { id: albumId, action: 'moved', medium };
+      }
       if (rows.length > 0) {
         await run('DELETE FROM album_collections WHERE collection_id = ? AND album_id = ?', [collectionId, albumId]);
         return { id: albumId, action: 'removed' };
       }
-      await addAtEnd(collectionId, albumId, 0);
-      return { id: albumId, action: 'added' };
+      await addAtEnd(collectionId, albumId, 0, into);
+      return { id: albumId, action: 'added', medium: into };
     }
 
     if (choice === 'all') {
       if (whole) return { id: albumId, action: 'kept' };
       if (rows.length === 0) {
-        await addAtEnd(collectionId, albumId, 0);
-        return { id: albumId, action: 'added' };
+        await addAtEnd(collectionId, albumId, 0, into);
+        return { id: albumId, action: 'added', medium: into };
       }
       // At the place of the first disc chosen.
       await run('DELETE FROM album_collections WHERE collection_id = ? AND album_id = ? AND disc <> ?', [collectionId, albumId, rows[0].disc]);
@@ -154,8 +176,60 @@ const musicCollectionService = {
       await run('UPDATE album_collections SET disc = ?, suggested = 0 WHERE collection_id = ? AND album_id = ? AND disc = 0', [choice, collectionId, albumId]);
       return { id: albumId, action: 'added' };
     }
-    await addAtEnd(collectionId, albumId, choice);
-    return { id: albumId, action: 'added' };
+    await addAtEnd(collectionId, albumId, choice, into);
+    return { id: albumId, action: 'added', medium: into };
+  },
+
+  /**
+   * An entry dragged to the other list, or within it: before the entry
+   * `before` (where it was dropped), else at the 'start' or the 'end' of the
+   * list it goes to. Every row of the album goes with it, an album standing
+   * in one list. False when it is not in Listen Next.
+   */
+  moveListenNext: async (key: string, medium: ListenNextMedium, at: 'start' | 'end' = 'end', before?: string): Promise<boolean> => {
+    const collectionId = await listenNextCollectionId();
+    const entry = parseEntryKey(key);
+    if (collectionId == null || !entry) return false;
+    const entries = await entriesOf(collectionId);
+    if (!entries.some(one => one.albumId === entry.albumId)) return false;
+    await run('UPDATE album_collections SET medium = ? WHERE collection_id = ? AND album_id = ?', [medium, collectionId, entry.albumId]);
+    const moving = entries.filter(one => one.albumId === entry.albumId);
+    const rest = entries.filter(one => one.albumId !== entry.albumId);
+    const next = before ? parseEntryKey(before) : null;
+    const place = next ? rest.findIndex(one => one.albumId === next.albumId && one.disc === next.disc) : -1;
+    const order = place >= 0 ? [...rest.slice(0, place), ...moving, ...rest.slice(place)]
+      : at === 'start' ? [...moving, ...rest] : [...rest, ...moving];
+    for (const [index, one] of order.entries()) await AlbumCollection.updateOrder(one.albumId, collectionId, index + 1, one.disc);
+    return true;
+  },
+
+  /** A CD come into the collection: at the end of the CD list, to be put on the player, unless Listen Next has it already. */
+  addNewCd: async (albumId: number): Promise<boolean> => {
+    const collectionId = await listenNextCollectionId();
+    if (collectionId == null || (await entriesOf(collectionId, albumId)).length > 0) return false;
+    await addAtEnd(collectionId, albumId, 0, 'cd');
+    return true;
+  },
+
+  /**
+   * The CDs come in since `since` (bought or added), the classical ones left
+   * out, put in the CD list: how Listen Next's CD list starts. Those already
+   * in Listen Next stay where they are. How many were put.
+   */
+  seedCdList: async (since: string): Promise<number> => {
+    const collectionId = await listenNextCollectionId();
+    if (collectionId == null) return 0;
+    const { default: Album } = await import('../models/album');
+    const listed = new Set((await entriesOf(collectionId)).map(entry => entry.albumId));
+    const lately = (await Album.search('classical:no'))
+      .filter(album => !listed.has(album.id))
+      .filter(album => [album.ownership?.purchasedAt || '', String(album.createdAt || '').slice(0, 10)].some(day => day >= since))
+      .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+    for (const album of lately) {
+      const position = await AlbumCollection.getNextOrder(collectionId);
+      await AlbumCollection.create({ album_id: album.id, collection_id: collectionId, collection_order: position, disc: 0, medium: 'cd' });
+    }
+    return lately.length;
   },
 
   /**

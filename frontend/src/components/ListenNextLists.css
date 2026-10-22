@@ -1,0 +1,187 @@
+/* Digital | CD by Listen Next's title: each name also a place to drop a cover. */
+.listen-next-switch__drop {
+  display: inline-block;
+  padding: 0 2px;
+}
+
+/* Its round button on a card, left of ✕: the other list's icon. */
+.listen-next-move {
+  position: absolute;
+  top: 8px;
+  right: 48px;
+  z-index: 20;
+}
+
+/* The other list at the foot, small, on one row; its length and time on the right in Digital. */
+.next-banner-other {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 4px;
+  padding: 10px 0 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.next-banner-other__drop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+}
+.listen-next-strip__name {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dv-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.listen-next-strip__name span {
+  font-weight: 500;
+}
+.listen-next-strip__name--cd { color: var(--dv-silver); }
+.listen-next-strip__name--digital { color: var(--dv-gold); }
+.next-banner-other__hint {
+  display: none;
+  color: var(--dv-text);
+  font-size: 0.8rem;
+}
+.next-banner-other__covers {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  /* Room above and below: a cover lifts under the pointer, and the row clips what overflows. */
+  padding: 4px 2px;
+  margin: -4px 0;
+  overflow: hidden;
+}
+/* The small cover dragged follows the pointer: in the strip, only the room it will take shows. */
+.next-banner-other__cover--dragging {
+  opacity: 0;
+}
+.next-banner-other__cover {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #2a2a2a;
+  color: var(--dv-text-muted);
+  opacity: 0.75;
+  cursor: pointer;
+  touch-action: pan-x;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.next-banner-other__cover:hover {
+  opacity: 1;
+  transform: translateY(-2px);
+}
+.next-banner-other__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.next-banner-other__more {
+  flex: none;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--dv-text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+/* The stars asked of a CD played, in a toast. */
+.listen-next-rate {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.listen-next-rate__words b {
+  display: inline-block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/*
+ * Listen Next's header: the title, the list chosen and its length on the
+ * left, ▶ and Repeat at the right end. The title quiet, no glow: the switch
+ * says which list.
+ */
+.listen-next-banner .next-banner__title-section {
+  width: 100%;
+}
+.listen-next-banner .next-banner__title {
+  font-size: 1.5rem;
+  text-shadow: none;
+}
+.listen-next-banner .next-banner__icon {
+  width: 22px;
+  height: 22px;
+  filter: none;
+  animation: none;
+}
+.listen-next-head {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.listen-next-head .listen-next-summary {
+  margin: 0;
+  text-align: left;
+  white-space: nowrap;
+}
+.listen-next-head__end {
+  margin-left: auto;
+}
+.listen-next-controls__button.ui-button {
+  min-width: 40px;
+  padding: 0 11px;
+}
+
+/* On a phone: the title on one line, Digital | CD and ▶ under it when there is no room; the time under the small covers. */
+.next-banner__title-section:has(.listen-next-head) {
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+.next-banner__title-section:has(.listen-next-head) .next-banner__title {
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  /* On a phone: the length under the title, then the switch with ▶ and Repeat at its right. */
+  .listen-next-head {
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .listen-next-head .listen-next-summary {
+    order: -1;
+    flex-basis: 100%;
+  }
+  .next-banner-other {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .next-banner-other__drop {
+    flex-basis: 100%;
+  }
+}

@@ -346,6 +346,7 @@ app.get('/api/music/albums/:id/discs/:disc/tracks/:track/lyrics', lyricsControll
 app.post('/api/music/albums/:id/discs/:disc/tracks/:track/lyrics', lyricsController.get);
 app.get('/api/collections/listen-next/albums', musicController.getListenNextAlbums);
 app.put('/api/collections/listen-next/order', musicController.reorderListenNext);
+app.put('/api/collections/listen-next/move', musicController.moveListenNext);
 app.post('/api/collections/listen-next/smart-fill', musicController.smartFillListenNext);
 app.post('/api/collections/listen-next/shuffle/:albumId', musicController.shuffleListenNextAlbum);
 app.get('/api/collections/listen-next/stats', musicController.getSmartPlaylistStats);

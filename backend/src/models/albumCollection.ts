@@ -60,6 +60,7 @@ const AlbumCollection = {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         suggested INTEGER NOT NULL DEFAULT 0,
         disc INTEGER NOT NULL DEFAULT 0,
+        medium TEXT NOT NULL DEFAULT 'digital',
         FOREIGN KEY (album_id) REFERENCES albums (id) ON DELETE CASCADE,
         FOREIGN KEY (collection_id) REFERENCES collections (id) ON DELETE CASCADE,
         UNIQUE(album_id, collection_id, disc)
@@ -91,14 +92,14 @@ const AlbumCollection = {
   create: (albumCollectionData: AlbumCollectionData): Promise<AlbumCollectionCreateResult> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
-      const { album_id, collection_id, collection_order, suggested = false, disc = 0 } = albumCollectionData;
+      const { album_id, collection_id, collection_order, suggested = false, disc = 0, medium = 'digital' } = albumCollectionData;
 
       const sql = `
-        INSERT INTO album_collections (album_id, collection_id, collection_order, suggested, disc, created_at)
-        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO album_collections (album_id, collection_id, collection_order, suggested, disc, medium, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `;
 
-      db.run(sql, [album_id, collection_id, collection_order, suggested ? 1 : 0, disc], function(this: sqlite3.RunResult, err: Error | null) {
+      db.run(sql, [album_id, collection_id, collection_order, suggested ? 1 : 0, disc, medium], function(this: sqlite3.RunResult, err: Error | null) {
         if (err) {
           reject(err);
         } else {
