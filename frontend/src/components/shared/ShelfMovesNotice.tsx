@@ -5,6 +5,7 @@ import { markMovesDone, markMovesUndone, refreshShelfLocations, shelvesChanged, 
 import shelvingService, { type LevelState, type ShelfLine } from '../../services/shelvingService';
 import './ShelfMovesNotice.css';
 import Button from './Button';
+import { confirm } from './ConfirmDialog';
 
 /** Asked again this often while the page is in view, for a film added from elsewhere. */
 const POLL_MS = 60 * 1000;
@@ -168,11 +169,21 @@ const ShelfMovesNotice: React.FC = () => {
     });
   };
 
-  const doneWithAll = () => act(async () => {
-    await markMovesDone(moves);
-    setTaken(steps => [...steps, { levels: null, done: moves, off: 0 }]);
-    setOff(0);
-  });
+  // Every move left taken for made: asked first, naming them, as it reads like "done with this one" and is not.
+  const doneWithAll = async () => {
+    const titles = moves.map(move => move.title);
+    const shown = titles.length > 4 ? [...titles.slice(0, 3), `${titles.length - 3} more`] : titles;
+    if (!(await confirm({
+      title: moves.length === 1 ? 'Already on its shelf?' : `All ${moves.length} already on their shelves?`,
+      message: <>DexVault takes {names(shown)} for put away, and stops asking where to put {moves.length === 1 ? 'it' : 'them'}.</>,
+      confirmLabel: 'Yes, all put away',
+    }))) return;
+    await act(async () => {
+      await markMovesDone(moves);
+      setTaken(steps => [...steps, { levels: null, done: moves, off: 0 }]);
+      setOff(0);
+    });
+  };
 
   // All done: the last answer can still be taken back until closed.
   if (!step) {
@@ -261,8 +272,8 @@ const ShelfMovesNotice: React.FC = () => {
           <BsArrowCounterclockwise aria-hidden="true" /> Back
         </button>
         <button type="button" className="shelf-moves-link" onClick={doneWithAll} disabled={saving}
-          title="The shelves already stand as DexVault has them">
-          All done already
+          title="Every one left is already where DexVault puts it">
+          {moves.length === 1 ? 'Already put away' : `All ${moves.length} already put away`}
         </button>
         <button type="button" className="shelf-moves-link" onClick={() => putOff(moves.length)}
           title="Put it away until you have time to tidy the shelves">

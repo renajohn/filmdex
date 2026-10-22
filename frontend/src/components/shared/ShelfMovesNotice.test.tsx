@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ShelfMovesNotice from './ShelfMovesNotice';
 import { refreshShelfLocations, resetShelfLocations } from '../../utils/shelfLocations';
+import { ConfirmHost } from './ConfirmDialog';
 
 // A new film on A-4; the last one there, King Kong, goes on to A-5.
 const MOVES = [
@@ -117,5 +118,20 @@ describe('ShelfMovesNotice', () => {
     moves = [...MOVES, { kind: 'movie', id: 4, title: 'Up', from: null, to: 'B-1', after: 'Unforgiven', before: null, toLevelId: 11 }];
     await act(async () => { await refreshShelfLocations(); });
     expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it('asks before taking every move left for made, naming them', async () => {
+    await act(async () => { render(<MemoryRouter><ShelfMovesNotice /><ConfirmHost /></MemoryRouter>); });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'All 2 already put away' }));
+    expect(await screen.findByText('All 2 already on their shelves?')).toBeInTheDocument();
+    expect(screen.getByText(/Jurassic World and King Kong/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByText('All 2 already on their shelves?')).not.toBeInTheDocument());
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => url === '/api/shelving/moves/done')).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'All 2 already put away' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Yes, all put away' }));
+    await waitFor(() => expect(body('/api/shelving/moves/done').moves).toHaveLength(2));
   });
 });
