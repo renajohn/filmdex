@@ -707,8 +707,22 @@ const SearchPills: React.FC<SearchPillsProps> = ({
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const d = draftRef.current;
-    if (d.open) { pillKeys(e, d, d.open); return; }
     const input = e.currentTarget;
+    // ⌘⌫ empties the whole field, pills too, as the ✕ does.
+    if (e.key === 'Backspace' && e.metaKey && (d.items.length || d.open || d.text)) {
+      e.preventDefault();
+      setNav(null);
+      apply({ items: [], text: '', open: null }, { emit: true, focus: 'end', menu: true });
+      return;
+    }
+    // ⌥⌫ with nothing typed: the last pill or word goes whole, where ⌫ opens it to mend.
+    if (e.key === 'Backspace' && e.altKey && !d.open && d.text === '' && input.selectionStart === 0 && input.selectionEnd === 0 && d.items.length) {
+      e.preventDefault();
+      setNav(null);
+      apply({ ...d, items: d.items.slice(0, -1) }, { emit: true, focus: 'end', menu: true });
+      return;
+    }
+    if (d.open) { pillKeys(e, d, d.open); return; }
     const { ghost: g, suggestions: list, menuIndex: index, menuVisible: shown, chosen } = view.current;
     const atEnd = input.selectionStart === input.value.length && input.selectionEnd === input.value.length;
     // A guess written grey: Enter takes it (a movie opens, an artist becomes a pill),

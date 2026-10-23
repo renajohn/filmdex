@@ -394,6 +394,20 @@ describe('SearchPills', () => {
   });
 });
 
+describe('emptying the field from the keyboard', () => {
+  it('empties it all with ⌘⌫, and takes the last pill whole with ⌥⌫', () => {
+    const onChange = vi.fn();
+    render(<Harness initial="composer:Bach cd:yes blue" onChange={onChange} />);
+    fireEvent.focus(input());
+    fireEvent.keyDown(input(), { key: 'Backspace', altKey: true });
+    expect(onChange).toHaveBeenLastCalledWith('composer:Bach cd:yes');
+    expect(input()).toHaveValue('');
+    fireEvent.keyDown(input(), { key: 'Backspace', metaKey: true });
+    expect(onChange).toHaveBeenLastCalledWith('');
+    expect(pills()).toEqual([]);
+  });
+});
+
 describe('guessing what a few letters name', () => {
   const albums = [
     { id: 1, label: 'Abbey Road', sub: 'The Beatles · 1969' },
