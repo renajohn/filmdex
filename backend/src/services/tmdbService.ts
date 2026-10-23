@@ -97,8 +97,8 @@ interface FormattedMovieDetails {
   imdb_id: string | null;
   media_type: string;
   credits: {
-    cast: Array<{ name: string; profile_path: string | null }>;
-    crew: Array<{ name: string; job: string; profile_path: string | null }>;
+    cast: Array<{ id: number; name: string; character: string; profile_path: string | null }>;
+    crew: Array<{ id: number; name: string; job: string; department: string; profile_path: string | null }>;
   };
   videos: {
     results: Array<{ key: string; site: string; type: string }>;
@@ -199,6 +199,10 @@ const tmdbService = {
   /** A saga and its movies. */
   getCollection: (collectionId: number): Promise<TMDBCollectionDetails> =>
     tmdbGet<TMDBCollectionDetails>(`/collection/${collectionId}`).then(data => ({ ...data, parts: data.parts || [] })),
+
+  /** A movie's or a series' actors and the parts they play. */
+  getCredits: async (tmdbId: number, mediaType: string = 'movie'): Promise<TMDBCreditsResponse['cast']> =>
+    (await tmdbGet<Partial<TMDBCreditsResponse>>(`/${mediaType === 'tv' ? 'tv' : 'movie'}/${tmdbId}/credits`)).cast || [],
 
   /** Who made a movie: its directors, for a search's results. */
   getMovieDirectors: async (tmdbId: number, mediaType: string = 'movie'): Promise<string[]> => {
@@ -421,12 +425,16 @@ const tmdbService = {
         media_type: 'movie',
         credits: {
           cast: credits.cast.slice(0, 10).map(actor => ({
+            id: actor.id,
             name: actor.name,
+            character: actor.character,
             profile_path: actor.profile_path
           })),
           crew: credits.crew.map(person => ({
+            id: person.id,
             name: person.name,
             job: person.job,
+            department: person.department,
             profile_path: person.profile_path
           }))
         },
@@ -531,12 +539,16 @@ const tmdbService = {
         origin_country: tv.origin_country,
         credits: {
           cast: credits.cast.slice(0, 10).map(actor => ({
+            id: actor.id,
             name: actor.name,
+            character: actor.character,
             profile_path: actor.profile_path
           })),
           crew: credits.crew.map(person => ({
+            id: person.id,
             name: person.name,
             job: person.job,
+            department: person.department,
             profile_path: person.profile_path
           }))
         },

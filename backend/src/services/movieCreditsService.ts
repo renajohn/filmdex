@@ -1,6 +1,7 @@
 import MovieCast from '../models/movieCast';
 import MovieCrew from '../models/movieCrew';
 import imageService from './imageService';
+import tmdbService from './tmdbService';
 import logger from '../logger';
 import type { MovieCastData, MovieCrewData } from '../types';
 
@@ -83,6 +84,34 @@ const movieCreditsService = {
     } catch (error) {
       console.error(`Error processing cast and crew for movie ${movieId}:`, error);
     }
-  },};
+  },
+
+  /**
+   * The parts the actors play, for the movies added before they were kept: each actor
+   * is found again in TMDB's credits by name. One movie at a time, gently.
+   */
+  fillCharacters: async (): Promise<{ movies: number; filled: number }> => {
+    const rows = await MovieCast.findWithoutCharacters();
+    const byMovie = new Map<number, typeof rows>();
+    for (const row of rows) byMovie.set(row.movie_id, [...(byMovie.get(row.movie_id) || []), row]);
+    let filled = 0;
+    for (const actors of byMovie.values()) {
+      const { tmdb_id, media_type } = actors[0];
+      try {
+        const credits = await tmdbService.getCredits(tmdb_id, media_type || 'movie');
+        for (const actor of actors) {
+          const credit = credits.find(c => c.name === actor.name);
+          if (!credit) continue;
+          await MovieCast.setCharacter(actor.id, credit.id, credit.character || '');
+          filled++;
+        }
+      } catch (error) {
+        logger.warn(`Could not read the parts of TMDB ${tmdb_id}: ${(error as Error).message}`);
+      }
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    return { movies: byMovie.size, filled };
+  },
+};
 
 export default movieCreditsService;

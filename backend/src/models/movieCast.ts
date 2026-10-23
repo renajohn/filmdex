@@ -107,6 +107,31 @@ const MovieCast = {
     });
   },
 
+  /** The cast of the movies whose parts were never kept (TMDB's id is missing with them). */
+  findWithoutCharacters: (): Promise<Array<MovieCastRow & { tmdb_id: number; media_type: string | null }>> => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      const sql = `
+        SELECT movie_cast.*, movies.tmdb_id, movies.media_type FROM movie_cast
+        JOIN movies ON movies.id = movie_cast.movie_id
+        WHERE movie_cast.tmdb_cast_id IS NULL AND movies.tmdb_id IS NOT NULL
+        ORDER BY movie_cast.movie_id, movie_cast.order_index
+      `;
+      db.all(sql, [], (err: Error | null, rows: Array<MovieCastRow & { tmdb_id: number; media_type: string | null }>) => {
+        if (err) reject(err); else resolve(rows);
+      });
+    });
+  },
+
+  setCharacter: (id: number, tmdbCastId: number, character: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const db = getDatabase();
+      db.run('UPDATE movie_cast SET tmdb_cast_id = ?, character = ? WHERE id = ?', [tmdbCastId, character, id], (err: Error | null) => {
+        if (err) reject(err); else resolve();
+      });
+    });
+  },
+
   createMultiple: (castMembers: MovieCastData[]): Promise<MovieCastCreateResult[]> => {
     return new Promise(async (resolve, reject) => {
       try {

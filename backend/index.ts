@@ -40,6 +40,7 @@ import shelvingController from './src/controllers/shelvingController';
 import shelvingService from './src/services/shelvingService';
 import warningsService from './src/services/warningsService';
 import movieFilmagesService from './src/services/movieFilmagesService';
+import movieCreditsService from './src/services/movieCreditsService';
 import { startNightlyBackup } from './src/services/nightlyBackupService';
 import albumRatingService from './src/services/albumRatingService';
 import listenHistoryService from './src/services/listenHistoryService';
@@ -616,6 +617,9 @@ const serverReady = startServer().then(() => {
     lyricsService.startAutoFetch();
     shelvingService.startSortNameSync();
     trackPopularityService.startAutoRefresh();
+    movieCreditsService.fillCharacters()
+      .then(r => { if (r.movies) logger.info(`Actors' parts: ${r.filled} filled in ${r.movies} movies`); })
+      .catch((error: Error) => logger.warn('Could not fill the actors\' parts:', error.message));
     movieService.localizeRemotePosters().catch((error: Error) => logger.warn('Could not bring the posters from TMDB:', error.message));
   }
 }).catch((error: Error) => {
