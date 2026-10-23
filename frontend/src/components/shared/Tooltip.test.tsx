@@ -37,6 +37,28 @@ describe('TooltipHost', () => {
     expect(screen.getByRole('tooltip')).toHaveStyle({ left: '124px', top: '70px' });
   });
 
+  it('shows none inside a part that turned its tooltips off, nor the system tooltip', () => {
+    render(<><TooltipHost /><div data-tooltip-off><button title="Remove">✕</button></div></>);
+    const button = screen.getByRole('button');
+
+    point(button, 'pointerover');
+    act(() => { vi.advanceTimersByTime(600); });
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(button).not.toHaveAttribute('title');
+  });
+
+  it('puts it away when a key is typed, but not for Tab or a modifier', () => {
+    render(<><TooltipHost /><button title="Sort">↕</button></>);
+    const button = screen.getByRole('button');
+    point(button, 'pointerover');
+    act(() => { vi.advanceTimersByTime(250); });
+
+    fireEvent.keyDown(document, { key: 'Shift' });
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'c' });
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
   it('shows the next one at once after one has just gone', () => {
     render(<><TooltipHost /><button title="One">1</button><button title="Two">2</button></>);
     const [one, two] = screen.getAllByRole('button');

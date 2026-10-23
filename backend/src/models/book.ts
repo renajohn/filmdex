@@ -999,6 +999,8 @@ const Book = {
       // query, so an unmapped name cannot become `SELECT DISTINCT undefined`.
       const columnMap: Record<string, string> = {
         'title': 'title',
+        'subtitle': 'subtitle',
+        'isbn': 'isbn',
         'author': 'authors',
         'artist': 'artists',
         'series': 'series',

@@ -13,6 +13,10 @@ import './tooltip.css';
  * so the system's own tooltip never shows as well, and put back as the pointer
  * leaves. A focus by the keys shows it too, the title left in place for screen
  * readers. On a touch screen, nothing: there is no pointing there.
+ *
+ * Inside an element marked `data-tooltip-off` (a field being written, its menu
+ * open) no tooltip shows: the title is still lifted, so the system's does not
+ * show either.
  */
 
 /** Before the first one shows; after one has just gone, the next shows at once. */
@@ -65,6 +69,7 @@ export const TooltipHost: React.FC = () => {
     };
     const schedule = (anchor: Element, text: string) => {
       window.clearTimeout(timer);
+      if (anchor.closest('[data-tooltip-off]')) return;
       if (Date.now() - lastHidden < WARM_MS) show(anchor, text);
       else timer = window.setTimeout(() => show(anchor, text), DELAY_MS);
     };
@@ -111,7 +116,10 @@ export const TooltipHost: React.FC = () => {
       if (text?.trim()) schedule(target, text);
     };
     const onBlur = () => { if (!lifted) hide(); };
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') hide(); };
+    // A key typed puts it away (one writes, a menu may open under it); Tab and the modifiers leave it, Tab to show the next.
+    const onKey = (event: KeyboardEvent) => {
+      if (!['Shift', 'Control', 'Alt', 'Meta', 'Tab'].includes(event.key)) hide();
+    };
 
     document.addEventListener('pointerover', onOver, true);
     document.addEventListener('pointermove', onMove, { capture: true, passive: true });

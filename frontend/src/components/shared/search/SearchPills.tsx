@@ -727,6 +727,8 @@ const SearchPills: React.FC<SearchPillsProps> = ({
   /* ------------------------------------------------------- after a render */
 
   const expanded = focused || keyMenus > 0;
+  // While a pill is written or a menu is open, the pills' tooltips would lie over the words being read: none then.
+  const quiet = !!open || menuVisible || keyMenus > 0;
 
   // The caret back in the field, after a click that changed the pills.
   useLayoutEffect(() => {
@@ -951,7 +953,7 @@ const SearchPills: React.FC<SearchPillsProps> = ({
 
   return (
     <div ref={rootRef} className={`search-pills${focused ? ' is-focused' : ''}${expanded ? ' is-expanded' : ''} ${className}`}
-      onFocus={handleFocus} onBlur={handleBlur}>
+      onFocus={handleFocus} onBlur={handleBlur} data-tooltip-off={quiet || undefined}>
       <div ref={anchorRef} className="search-pills__anchor">
         <div ref={floatRef} className="search-pills__float">
           <div className="search-pills__field" onMouseDown={focusField}>
