@@ -267,7 +267,8 @@ const Album = {
         release_group_secondary_types: JSON.stringify(cdData.releaseGroupSecondaryTypes || []),
         condition: ownership.condition,
         ownership_notes: ownership.notes,
-        purchased_at: ownership.purchasedAt,
+        // A CD added to the collection with no date of purchase was bought today.
+        purchased_at: ownership.purchasedAt ?? ((cdData.titleStatus || 'owned') === 'owned' ? now.slice(0, 10) : null),
         price_chf: ownership.priceChf,
         producer: JSON.stringify(cdData.producer || []),
         engineer: JSON.stringify(cdData.engineer || []),
@@ -423,10 +424,16 @@ const Album = {
   updateStatus: (id: number, status: string): Promise<AlbumStatusResult> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
-      const sql = 'UPDATE albums SET title_status = ?, updated_at = ? WHERE id = ?';
+      // A CD that joins the collection, wished or digital until now, is added today, "last added" sorts by it,
+      // and bought today unless it says otherwise.
+      const joins = `? = 'owned' AND COALESCE(title_status, 'owned') != 'owned'`;
+      const sql = `UPDATE albums SET title_status = ?, updated_at = ?,
+        created_at = CASE WHEN ${joins} THEN ? ELSE created_at END,
+        purchased_at = CASE WHEN ${joins} THEN COALESCE(purchased_at, ?) ELSE purchased_at END
+        WHERE id = ?`;
       const now = new Date().toISOString();
 
-      db.run(sql, [status, now, id], function(this: sqlite3.RunResult, err: Error | null) {
+      db.run(sql, [status, now, status, now, status, now.slice(0, 10), id], function(this: sqlite3.RunResult, err: Error | null) {
         if (err) {
           reject(err);
         } else {

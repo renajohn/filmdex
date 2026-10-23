@@ -578,10 +578,13 @@ const Book = {
   updateStatus: (id: number, status: string): Promise<BookStatusResult> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
-      const sql = 'UPDATE books SET title_status = ?, updated_at = ? WHERE id = ?';
+      // A wish that joins the shelves is added today: "last added" sorts by it.
+      const sql = `UPDATE books SET title_status = ?, updated_at = ?,
+        created_at = CASE WHEN ? != 'wish' AND title_status = 'wish' THEN ? ELSE created_at END
+        WHERE id = ?`;
       const now = new Date().toISOString();
 
-      db.run(sql, [status, now, id], function(this: sqlite3.RunResult, err: Error | null) {
+      db.run(sql, [status, now, status, now, id], function(this: sqlite3.RunResult, err: Error | null) {
         if (err) {
           reject(err);
         } else {

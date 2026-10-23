@@ -53,6 +53,35 @@ describe('I bought the CD', () => {
     expect((await Album.findById(id))!.musicbrainzReleaseId).toBe(releaseId);
   });
 
+  it('compte le CD comme ajouté le jour de l’achat, pas le jour du souhait', async () => {
+    const id = await insertAlbum({ title: `Mezzanine ${tag()}`, status: 'wish' });
+    await new Promise<void>((resolve, reject) => getDatabase().run(`UPDATE albums SET created_at = '2024-01-01 10:00:00' WHERE id = ?`, [id], err => err ? reject(err) : resolve()));
+    const before = Date.now();
+    await request(app).post(`/api/music/albums/${id}/bought`).send({}).expect(200);
+    expect(new Date((await Album.findById(id))!.createdAt!).getTime()).toBeGreaterThanOrEqual(before - 1000);
+    // Owned already, a change of status leaves its date alone.
+    const owned = await insertAlbum({ title: `Kept ${tag()}`, status: 'owned' });
+    await new Promise<void>((resolve, reject) => getDatabase().run(`UPDATE albums SET created_at = '2024-01-01 10:00:00' WHERE id = ?`, [owned], err => err ? reject(err) : resolve()));
+    await Album.updateStatus(owned, 'owned');
+    expect((await Album.findById(owned))!.createdAt).toBe('2024-01-01 10:00:00');
+  });
+
+  it('date l’achat du jour quand rien ne le dit, et garde une date donnée', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const wished = await insertAlbum({ title: `Teardrop ${tag()}`, status: 'wish' });
+    expect((await Album.findById(wished))!.ownership?.purchasedAt ?? null).toBeNull();
+    await Album.updateStatus(wished, 'owned');
+    expect((await Album.findById(wished))!.ownership?.purchasedAt).toBe(today);
+    const dated = await insertAlbum({ title: `Angel ${tag()}`, status: 'wish' });
+    await new Promise<void>((resolve, reject) => getDatabase().run(`UPDATE albums SET purchased_at = '2026-10-01' WHERE id = ?`, [dated], err => err ? reject(err) : resolve()));
+    await Album.updateStatus(dated, 'owned');
+    expect((await Album.findById(dated))!.ownership?.purchasedAt).toBe('2026-10-01');
+    const added = await Album.create({ title: `Inertia ${tag()}`, artist: ['Massive Attack'] } as never);
+    expect(added.ownership?.purchasedAt).toBe(today);
+    const wish = await Album.create({ title: `Group Four ${tag()}`, artist: ['Massive Attack'], titleStatus: 'wish' } as never);
+    expect(wish.ownership?.purchasedAt ?? null).toBeNull();
+  });
+
   it('refuse un CD déjà dans la collection, et une édition qu’un autre CD porte', async () => {
     const owned = await insertAlbum({ title: `Owned ${tag()}`, status: 'owned', releaseId: uuid() });
     await request(app).post(`/api/music/albums/${owned}/bought`).send({}).expect(409);

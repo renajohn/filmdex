@@ -851,7 +851,7 @@ class MusicService {
     const ownership = {
       condition: incoming.condition ?? existing.ownership?.condition ?? null,
       notes: incoming.notes ?? existing.ownership?.notes ?? null,
-      purchasedAt: incoming.purchasedAt ?? existing.ownership?.purchasedAt ?? null,
+      purchasedAt: incoming.purchasedAt ?? existing.ownership?.purchasedAt ?? new Date().toISOString().slice(0, 10),
       priceChf: incoming.priceChf ?? existing.ownership?.priceChf ?? null
     };
 

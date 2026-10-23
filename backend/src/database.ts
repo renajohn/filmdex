@@ -542,6 +542,24 @@ const runAutoMigrations = async (): Promise<void> => {
         const added = await musicCollectionService.seedCdList('2026-09-01');
         console.log(`  ✓ Listen Next has a CD list (${added} CDs come in lately)`);
       }
+    },
+    {
+      name: '028_added_when_bought',
+      up: async () => {
+        // A CD or a book wished long before it was bought was added the day it was bought: "last added" sorts by it.
+        for (const table of ['albums', 'books']) {
+          const exists = await new Promise<unknown>((resolve, reject) =>
+            currentDb.get("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", [table], (err: Error | null, row: unknown) => (err ? reject(err) : resolve(row))));
+          if (!exists) continue;
+          const changed = await new Promise<number>((resolve, reject) => currentDb.run(
+            `UPDATE ${table} SET created_at = purchased_at || 'T12:00:00.000Z'
+             WHERE COALESCE(title_status, 'owned') = 'owned'
+               AND purchased_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+               AND purchased_at > date(created_at)`,
+            function (this: { changes: number }, err: Error | null) { if (err) reject(err); else resolve(this.changes); }));
+          console.log(`  ✓ ${changed} ${table} added the day they were bought`);
+        }
+      }
     }
   ];
 
