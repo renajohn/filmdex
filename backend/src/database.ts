@@ -560,6 +560,19 @@ const runAutoMigrations = async (): Promise<void> => {
           console.log(`  ✓ ${changed} ${table} added the day they were bought`);
         }
       }
+    },
+    {
+      name: '029_age_source',
+      up: async () => {
+        // Where a movie's age comes from: 'filmages' (filmages.ch), or nothing for the TMDB/OMDB median.
+        await new Promise<void>((resolve, reject) => {
+          currentDb.run(`ALTER TABLE movies ADD COLUMN age_source TEXT`, (err: Error | null) => {
+            if (err && !err.message.includes('duplicate column')) reject(err);
+            else resolve();
+          });
+        });
+        console.log('  ✓ Added age_source column');
+      }
     }
   ];
 
@@ -628,6 +641,7 @@ const initDatabase = async (): Promise<sqlite3.Database> => {
           const BookComment = (await import('./models/bookComment')).default;
           const PlaylistHistory = (await import('./models/playlistHistory')).default;
           const MovieWarning = (await import('./models/movieWarning')).default;
+          const MovieFilmages = (await import('./models/movieFilmages')).default;
           const AlbumStory = (await import('./models/albumStory')).default;
           const ReleaseGroupLookup = (await import('./models/releaseGroupLookup')).default;
           const AlbumNote = (await import('./models/albumNote')).default;
@@ -654,6 +668,7 @@ const initDatabase = async (): Promise<sqlite3.Database> => {
           await BookComment.createTable();
           await PlaylistHistory.createTable();
           await MovieWarning.createTable();
+          await MovieFilmages.createTable();
           await AlbumStory.createTable();
           await ReleaseGroupLookup.createTable();
           await AlbumNote.createTable();

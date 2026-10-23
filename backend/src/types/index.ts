@@ -97,6 +97,7 @@ export interface MovieRow {
   media_type: string | null;
   recommended_age: number | null;
   age_processed: boolean | null;
+  age_source?: string | null;
   title_status: string | null;
   spoken_for?: number;
   last_watched: string | null;
@@ -144,6 +145,7 @@ export interface MovieData {
   media_type?: string;
   recommended_age: number | null;
   age_processed?: boolean;
+  age_source?: string | null;
   title_status?: string;
   spoken_for?: number;
   last_watched?: string | null;

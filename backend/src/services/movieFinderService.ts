@@ -8,6 +8,7 @@ import movieCreditsService, { type TMDBCredits } from './movieCreditsService';
 import ageRecommendationService from './ageRecommendationService';
 import collectionService from './collectionService';
 import warningsService from './warningsService';
+import movieFilmagesService from './movieFilmagesService';
 import { namesSomeone, namesSomething } from '../utils/searchNames';
 import type { MovieData } from '../types';
 import logger from '../logger';
@@ -156,6 +157,7 @@ const enrichLater = (movieId: number, details: NonNullable<Awaited<ReturnType<ty
       await movieCreditsService.processCastAndCrew(movieId, details.credits as unknown as TMDBCredits, details.id);
     } catch (error) { logger.warn(`Cast and crew of movie ${movieId}: ${(error as Error).message}`); }
     warningsService.scheduleRefresh(movieId);
+    movieFilmagesService.scheduleRefresh(movieId);
   })();
 };
 

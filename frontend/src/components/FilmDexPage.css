@@ -1247,6 +1247,12 @@
   transition: none;
 }
 
+/* The overlay lets the pointer through to the card; its tags take it back for their
+   tooltips (age and its source, spiders, snakes). A click still reaches the card. */
+.poster-badges-left > .cover-tag {
+  pointer-events: auto;
+}
+
 .movie-card-large:hover .poster-badges-left {
   opacity: 1;
   transform: translateX(0) translateZ(0);

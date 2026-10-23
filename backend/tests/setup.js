@@ -3,6 +3,8 @@ process.env.NODE_ENV = 'test';
 
 // The developer's shell may export the real key; tests must never reach the API.
 delete process.env.DOES_DOG_DIE;
+// Nor filmages.ch: a movie created in a test would be looked up there.
+process.env.FILMAGES_OFFLINE = '1';
 delete process.env.DROPBOX_APP_KEY;
 delete process.env.DROPBOX_APP_SECRET;
 delete process.env.DROPBOX_REFRESH_TOKEN;

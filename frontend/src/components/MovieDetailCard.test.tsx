@@ -17,6 +17,11 @@ vi.mock('../services/api', () => ({
     getMovieWarnings: vi.fn(() => Promise.resolve({
       movieId: 1, dddId: null, dddUrl: null, matchedBy: null, checkedAt: null, topics: []
     })),
+    getMovieFilmages: vi.fn(() => Promise.resolve({
+      movieId: 1, filmagesId: null, filmagesUrl: null, ageLegal: null, ageSuggested: null,
+      indications: [], counterIndications: [], synthesis: null, matchedBy: null, checkedAt: null,
+      movieAge: null, ageSource: null,
+    })),
   }
 }));
 

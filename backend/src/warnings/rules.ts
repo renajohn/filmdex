@@ -47,5 +47,14 @@ export const statusSql = (topic: Topic, movieIdExpr = 'm.id'): string => {
   ), 'unknown')`;
 };
 
+const voteSql = (topic: Topic, column: 'yes_votes' | 'no_votes' | 'override'): string =>
+  `(SELECT w.${column} FROM movie_warnings w WHERE w.movie_id = m.id AND w.topic = '${topic}')`;
+
+/** Each topic's status, and its votes and manual call for a cover tag's tooltip. */
 export const warningStatusColumnsSql = (): string =>
-  (Object.keys(TOPICS) as Topic[]).map(topic => `${statusSql(topic)} AS ${topic}_status`).join(',\n');
+  (Object.keys(TOPICS) as Topic[]).map(topic => [
+    `${statusSql(topic)} AS ${topic}_status`,
+    `${voteSql(topic, 'yes_votes')} AS ${topic}_yes`,
+    `${voteSql(topic, 'no_votes')} AS ${topic}_no`,
+    `${voteSql(topic, 'override')} AS ${topic}_override`,
+  ].join(',\n')).join(',\n');

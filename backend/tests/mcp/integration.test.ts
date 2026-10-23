@@ -14,6 +14,7 @@ import AlbumCollection from '../../src/models/albumCollection';
 import Book from '../../src/models/book';
 import BookComment from '../../src/models/bookComment';
 import MovieWarning from '../../src/models/movieWarning';
+import MovieFilmages from '../../src/models/movieFilmages';
 import { createMcpServer } from '../../src/mcp/server';
 
 // We bypass the standard initDatabase() (which uses dynamic await import() and
@@ -53,6 +54,7 @@ const setupDatabase = async (): Promise<void> => {
   await Book.createTable();
   await BookComment.createTable();
   await MovieWarning.createTable();
+  await MovieFilmages.createTable();
 
   // Apply the migrations our fixtures rely on (last_watched, watch_count,
   // book_type already created by Book.createTable). The book table already
@@ -62,6 +64,9 @@ const setupDatabase = async (): Promise<void> => {
   });
   await new Promise<void>((resolve) => {
     db.run(`ALTER TABLE movies ADD COLUMN watch_count INTEGER DEFAULT 0`, () => resolve());
+  });
+  await new Promise<void>((resolve) => {
+    db.run(`ALTER TABLE movies ADD COLUMN age_source TEXT`, () => resolve());
   });
   await new Promise<void>((resolve) => {
     db.run(`ALTER TABLE books ADD COLUMN book_type TEXT DEFAULT 'book'`, () => resolve());

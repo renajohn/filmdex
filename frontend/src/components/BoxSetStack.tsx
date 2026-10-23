@@ -7,6 +7,7 @@ import WarningBadges from './WarningBadges';
 import './BoxSetStack.css';
 import ShelfCode from './shared/ShelfCode';
 import CoverTag, { CoverTagStack } from './shared/CoverTag';
+import { ageTooltip, scoreTooltip } from './movieTagTooltips';
 
 interface Movie {
   id: number;
@@ -15,6 +16,11 @@ interface Movie {
   release_date?: string;
   poster_path?: string;
   recommended_age?: number | null;
+  age_source?: string | null;
+  filmages_age_legal?: number | null;
+  filmages_age_suggested?: number | null;
+  filmages_for?: string | null;
+  filmages_against?: string | null;
   tmdb_rating?: string | number;
   imdb_rating?: string | number;
   rotten_tomato_rating?: string | number;
@@ -307,16 +313,16 @@ const BoxSetStack: React.FC<BoxSetStackProps> = ({ boxSetName, movies, onMovieCl
                           {/* Left side badges - vertical stack */}
                           <CoverTagStack className="poster-badges-left">
                             {movie.recommended_age != null && (
-                              <CoverTag className="age-badge-large">{movie.recommended_age}+</CoverTag>
+                              <CoverTag className="age-badge-large" title={ageTooltip(movie)}>{movie.recommended_age}+</CoverTag>
                             )}
                             <WarningBadges movie={movie} />
                             {combinedScore && (
-                              <CoverTag className="score-badge-large" style={{ color: getRatingColor(combinedScore, 10) }}>
+                              <CoverTag className="score-badge-large" title={scoreTooltip(movie)} style={{ color: getRatingColor(combinedScore, 10) }}>
                                 {combinedScore.toFixed(1)}
                               </CoverTag>
                             )}
                             {movie.format && (
-                              <CoverTag variant="gold" className="format-badge-large">
+                              <CoverTag variant="gold" className="format-badge-large" title={movie.format}>
                                 {movie.format === 'Blu-ray 4K' ? '4K' :
                                  movie.format === 'Blu-ray' ? 'BR' :
                                  movie.format === 'DVD' ? 'DVD' :

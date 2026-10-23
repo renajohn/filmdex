@@ -12,6 +12,7 @@ import cacheService from '../services/cacheService';
 import coverScanService from '../services/coverScanService';
 import ageRecommendationService from '../services/ageRecommendationService';
 import warningsService from '../services/warningsService';
+import movieFilmagesService from '../services/movieFilmagesService';
 import Movie from '../models/movie';
 import MovieCast from '../models/movieCast';
 import MovieCrew from '../models/movieCrew';
@@ -439,6 +440,7 @@ const movieController = {
       // Create movie in database
       const createdMovie = await Movie.create(movieData as unknown as MovieData);
       warningsService.scheduleRefresh(createdMovie.id);
+      movieFilmagesService.scheduleRefresh(createdMovie.id);
 
       // Process cast and crew
       await movieCreditsService.processCastAndCrew(createdMovie.id, tmdbDetails.credits as unknown as TMDBCredits, tmdbDetails.id);
@@ -586,6 +588,7 @@ const movieController = {
         logger.debug('Exact edition already exists:', exactMatch.id);
         const createdMovie = await Movie.create(movieData as unknown as MovieData);
         warningsService.scheduleRefresh(createdMovie.id);
+        movieFilmagesService.scheduleRefresh(createdMovie.id);
         await movieCreditsService.processCastAndCrew(createdMovie.id, tmdbDetails.credits as unknown as TMDBCredits, tmdbDetails.id);
         result = createdMovie as unknown as Record<string, unknown>;
       } else {
@@ -614,6 +617,7 @@ const movieController = {
         // Create new movie in database
         const createdMovie = await Movie.create(movieData as unknown as MovieData);
         warningsService.scheduleRefresh(createdMovie.id);
+        movieFilmagesService.scheduleRefresh(createdMovie.id);
 
         // Process cast and crew
         await movieCreditsService.processCastAndCrew(createdMovie.id, tmdbDetails.credits as unknown as TMDBCredits, tmdbDetails.id);

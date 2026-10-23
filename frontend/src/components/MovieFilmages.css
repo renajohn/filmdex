@@ -1,0 +1,109 @@
+.movie-filmages {
+  margin: 6px 0 10px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--dv-text-muted);
+}
+
+.movie-filmages-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.movie-filmages-head {
+  align-items: center;
+}
+
+.movie-filmages-key {
+  flex: 0 0 5.5em;
+  color: var(--dv-text-faint);
+  font-variant: all-small-caps;
+  letter-spacing: 0.04em;
+}
+
+a.movie-filmages-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+}
+
+a.movie-filmages-key:hover {
+  color: var(--dv-text);
+}
+
+.movie-filmages-ages {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.movie-filmages-ages strong {
+  color: var(--dv-text);
+  font-weight: 600;
+}
+
+.movie-filmages-missing {
+  color: var(--dv-text-faint);
+}
+
+.movie-filmages-elements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 0;
+}
+
+/* A dot between two elements; each one's definition is its tooltip. */
+.movie-filmages-element {
+  color: var(--dv-text);
+  cursor: help;
+  text-decoration: underline dotted var(--dv-text-faint);
+  text-underline-offset: 3px;
+}
+
+.movie-filmages-element + .movie-filmages-element::before {
+  content: '·';
+  display: inline-block;
+  padding: 0 7px;
+  color: var(--dv-text-faint);
+  text-decoration: none;
+}
+
+.movie-filmages-synthesis {
+  all: unset;
+  cursor: pointer;
+  margin-top: 2px;
+  line-height: 1.45;
+  font-style: italic;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.movie-filmages-synthesis.is-open {
+  display: block;
+}
+
+.movie-filmages-edit {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.movie-filmages-edit-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.movie-filmages-edit-line > :first-child:not(button) {
+  flex: 1 1 18em;
+}
+
+.movie-filmages-meta {
+  color: var(--dv-text-faint);
+}

@@ -92,7 +92,7 @@ export const movieKeys = (from: From = (field, describe) => ({ suggest: fromMovi
   // Warnings
   { key: 'spiders', group: 'Warnings', type: 'enum', desc: 'Spiders on screen, as DoesTheDogDie reports', example: 'spiders:no', values: warning('spiders') },
   { key: 'snakes', group: 'Warnings', type: 'enum', desc: 'Snakes on screen, as DoesTheDogDie reports', example: 'snakes:no', values: warning('snakes') },
-  { key: 'recommended_age', group: 'Warnings', type: 'number', desc: 'The age it is recommended from', example: 'recommended_age:<=9', shortcuts: [
+  { key: 'recommended_age', group: 'Warnings', type: 'number', desc: 'The age it is recommended from: FilmAges first, else TMDB/OMDB', example: 'recommended_age:<=9', shortcuts: [
     ...AGE_GROUPS.map(g => ({ value: g.value, desc: g.label })),
   ] },
 ];

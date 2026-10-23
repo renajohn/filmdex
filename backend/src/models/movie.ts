@@ -3,6 +3,7 @@ import cacheService from '../services/cacheService';
 import type { RunResult } from 'sqlite3';
 import type { MovieRow, MovieData, MovieSearchCriteria, MovieUpdateResult, MovieWatchResult } from '../types';
 import { warningStatusColumnsSql } from '../warnings/rules';
+import { filmagesColumnsSql } from './movieFilmages';
 import { movieSearchSql, parseMovieSearch } from './movieSearch';
 
 const Movie = {
@@ -214,6 +215,7 @@ const Movie = {
       let sql = `
         SELECT m.*,
           ${warningStatusColumnsSql()},
+          ${filmagesColumnsSql()},
           MAX(CASE WHEN c.type = 'box_set' THEN mc.collection_order END) as collection_order,
           GROUP_CONCAT(
             CASE WHEN c.type = 'box_set'
@@ -373,6 +375,7 @@ const Movie = {
             media_type: row.media_type || undefined,
             recommended_age: row.recommended_age,
             age_processed: row.age_processed || undefined,
+            age_source: row.age_source ?? null,
             title_status: row.title_status || 'owned',
             last_watched: row.last_watched,
             watch_count: row.watch_count || 0
@@ -725,6 +728,7 @@ const Movie = {
       const sql = `
         SELECT m.*,
           ${warningStatusColumnsSql()},
+          ${filmagesColumnsSql()},
           MAX(CASE WHEN c.type = 'box_set' THEN mc.collection_order END) as collection_order,
           GROUP_CONCAT(
             CASE WHEN c.type = 'box_set'

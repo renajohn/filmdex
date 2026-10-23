@@ -117,6 +117,26 @@ class ApiService {
     return await response.json();
   }
 
+  async getMovieFilmages(id: number | string): Promise<unknown> {
+    const response = await this.makeRequest(`/movies/${id}/filmages`);
+    return await response.json();
+  }
+
+  /** A FilmAges film id or page address; null says FilmAges does not have the movie. */
+  async setFilmagesLink(id: number | string, filmagesId: number | string | null): Promise<unknown> {
+    const response = await this.makeRequest(`/movies/${id}/filmages-link`, {
+      method: 'PUT',
+      body: JSON.stringify({ filmagesId }),
+    });
+    return await response.json();
+  }
+
+  /** Forget the film chosen by hand and search FilmAges again. */
+  async clearFilmagesLink(id: number | string): Promise<unknown> {
+    const response = await this.makeRequest(`/movies/${id}/filmages-link`, { method: 'DELETE' });
+    return await response.json();
+  }
+
   async deleteMovie(id: number | string): Promise<unknown> {
     const response = await this.makeRequest(`/movies/${id}`, {
       method: 'DELETE',

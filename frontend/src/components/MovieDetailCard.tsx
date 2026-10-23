@@ -6,6 +6,7 @@ import InlinePosterSelector from './InlinePosterSelector';
 import CollectionTagsInput from './CollectionTagsInput';
 import CollectionRenameDialog from './CollectionRenameDialog';
 import MovieWarnings from './MovieWarnings';
+import MovieFilmages, { MovieFilmagesData } from './MovieFilmages';
 import DetailSteps, { useScrollKeys, useStepKeys } from './shared/DetailSteps';
 import apiService from '../services/api';
 import { getLanguageName } from '../services/languageCountryUtils';
@@ -54,6 +55,7 @@ interface MovieData {
   trailer_key?: string;
   trailer_site?: string;
   recommended_age?: number | null;
+  age_source?: string | null;
   title_status?: string;
   last_watched?: string | null;
   watch_count?: number;
@@ -213,6 +215,8 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   const [refreshingRatings, setRefreshingRatings] = useState(false);
   // Bumped after a ratings refresh, which also refreshes the spider/snake votes server-side.
   const [warningsVersion, setWarningsVersion] = useState(0);
+  // FilmAges' age once the film was chosen by hand here, before the movie is read again.
+  const [filmagesOverride, setFilmagesOverride] = useState<{ movieId: number; age: number | null; source: string | null } | null>(null);
   const [localMovieData, setLocalMovieData] = useState<MovieData | null>(movieDetails);
   const [showCopyIcon, setShowCopyIcon] = useState(false);
   const [showPosterSelector, setShowPosterSelector] = useState(false);
@@ -302,7 +306,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
   };
 
   // Helper function to render clickable age
-  const renderClickableAge = (age: number | null | undefined) => {
+  const renderClickableAge = (age: number | null | undefined, source: string | null | undefined) => {
     if (age === null || age === undefined) {
       return <span className="fact-item">NR</span>;
     }
@@ -310,6 +314,7 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     return (
       <span 
         className="clickable-name" 
+        title={source === 'filmages' ? 'FilmAges' : 'TMDB/OMDB'}
         onClick={() => handleAgeClick(age)}
       >
         {age}+
@@ -586,9 +591,13 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
     comments,
     trailer_key,
     trailer_site,
-    recommended_age,
+    recommended_age: storedAge,
+    age_source: storedAgeSource,
     title_status
   } = (currentData || {}) as MovieData;
+  const overridden = filmagesOverride !== null && filmagesOverride.movieId === Number(id);
+  const recommended_age = overridden ? filmagesOverride!.age : storedAge;
+  const ageSource = overridden ? filmagesOverride!.source : storedAgeSource;
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return '-';
@@ -1777,9 +1786,16 @@ const MovieDetailCard = ({ movieDetails, onClose, onEdit, onDelete, onShowAlert,
                   )}
                 <div className="movie-detail-facts">
                   <span className="fact-item">
-                    {renderGenres(genres)} | {formatRuntime(runtime)} | {renderClickableAge(recommended_age)}
+                    {renderGenres(genres)} | {formatRuntime(runtime)} | {renderClickableAge(recommended_age, ageSource)}
                   </span>
                 </div>
+
+                {movieDetails?.id != null && (
+                  <MovieFilmages
+                    movieId={Number(movieDetails.id)}
+                    onChange={(data: MovieFilmagesData) => setFilmagesOverride({ movieId: data.movieId, age: data.movieAge, source: data.ageSource })}
+                  />
+                )}
 
                 {movieDetails?.id != null && (
                   <MovieWarnings

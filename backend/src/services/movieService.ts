@@ -11,6 +11,7 @@ import logger from '../logger';
 import collectionService from './collectionService';
 import ageRecommendationService from './ageRecommendationService';
 import warningsService from './warningsService';
+import movieFilmagesService from './movieFilmagesService';
 import type { MovieRow, MovieData, MovieSearchCriteria } from '../types';
 
 interface ThumbnailResult {
@@ -60,6 +61,7 @@ interface MovieDetails {
   revenue: number | null;
   status: string | null;
   recommended_age: number | null;
+  age_source?: string | null;
   age_processed: boolean;
   title_status: string;
   media_type: string;
@@ -227,6 +229,7 @@ const movieService = {
 
       const created = await Movie.create(movieData as unknown as MovieData);
       warningsService.scheduleRefresh(created.id);
+      movieFilmagesService.scheduleRefresh(created.id);
       return created;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -332,7 +335,8 @@ const movieService = {
         budget: (tmdbData?.budget as number) || localMovie.budget || null,
         revenue: (tmdbData?.revenue as number) || localMovie.revenue || null,
         status: (tmdbData?.status as string) || localMovie.status || null,
-        recommended_age: localMovie.recommended_age || null,
+        recommended_age: localMovie.recommended_age ?? null,
+        age_source: localMovie.age_source ?? null,
         age_processed: localMovie.age_processed || false,
         title_status: localMovie.title_status || 'owned',
         media_type: localMovie.media_type || 'movie',
@@ -641,6 +645,14 @@ const movieService = {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         logger.warn(`Spider/snake warnings not refreshed for movie ${movieId}: ${message}`);
+      }
+
+      // So do FilmAges' ages, which become the movie's age when FilmAges has one.
+      try {
+        await movieFilmagesService.refreshMovie(movieId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.warn(`FilmAges not refreshed for movie ${movieId}: ${message}`);
       }
 
       // Return updated movie data

@@ -1,0 +1,470 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="fr" lang="fr">
+<!--
+
+	This website is powered by TYPOlight Open Source CMS :: Licensed under GNU/LGPL
+	Copyright ©2005-2026 by Leo Feyer :: Extensions are copyright of their respective owners
+	Visit the project website at http://www.typolight.org for more information
+
+//-->
+<head>
+<base href="https://www.filmages.ch/"></base>
+<title>FilmAges - Recherche de films</title>
+
+<!-- META - Start -->
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="Content-Style-Type" content="text/css" />
+<meta http-equiv="Content-Script-Type" content="text/javascript" />
+<meta name="description" content="" />
+<meta name="keywords" content="" />
+<meta name="robots" content="index,follow" />
+<meta name="resource-type" content="document" />
+<meta name="distribution" content="global" />
+<meta name="rating" content="General" />
+<meta name="classification" content="film,video,image,base,banque,donnee,recherche,age,legal,suggere,loi,accompagnement,adulte,indication,critere,interet,culturel,aspect,educatif,humour,violence,violent,angoisse,terreur,sexualite,sexe,vulgarite,vulgaire,mauvais,gout,outrage,mepris,denigrement,identification,effet,psychologique,physiologique" />
+<meta name="author" content="Commissions du cinéma de Vaud et Genève" />
+<meta name="copyright" content="FilmAges" />
+<meta http-equiv="reply-to" content="info@filmages.ch" />
+<meta name="robots" content="index, follow" />
+<meta name="revisit-after" content="7 days" />
+<!-- META - End -->
+
+<!-- SCRIPT - Start -->
+<script type="text/javascript" src="layout/js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="layout/js/jquery-ui-1.8.2.custom.min.js"></script>
+<script type="text/javascript" src="layout/js/css_browser_selector.js"></script>
+<!-- SCRIPT - End -->
+
+<!-- STYLES - Start -->
+<link rel="stylesheet" href="system/typolight.css" type="text/css" media="screen" />
+<link rel="stylesheet" href="layout/css/type.css" type="text/css" media="print, screen" />
+<link rel="stylesheet" href="layout/css/grid.css" type="text/css" media="screen" />
+<link rel="stylesheet" href="layout/css/widgets.css" type="text/css" media="screen" />
+<link rel="stylesheet" href="layout/css/jquery.multiselect.css" type="text/css" media="screen" />
+<link rel="stylesheet" href="layout/css/black-tie/jquery-ui-1.8.2.custom.css" type="text/css" media="screen" />
+<link rel="stylesheet" href="layout/css/print.css" type="text/css" media="print" />
+<!--[if lte IE 7]><link rel="stylesheet" href="layout/css/ie.css" type="text/css" media="screen" /><![endif]-->
+<!--[if lte IE 6]><link rel="stylesheet" href="layout/css/ie6.css" type="text/css" media="screen" /><![endif]-->
+<!-- STYLES - End -->
+
+<link rel="shortcut icon" href="favicon.ico" type="image/ico" />
+<link rel="alternate" href="https://filmages.dyndns.org/films-feed.xml" type="application/rss+xml" title="" />
+<script type="text/javascript"><!--
+function gaTrackEvent(c,a){try{_gat._getTracker("UA-44452093-1")._trackEvent(c,a);} catch(e) {}}function gaTrackLink(link, category, action, newwindow) {gaTrackEvent(category, action);if(newwindow){setTimeout('window.open("' + link.href + '");', 100);}else{setTimeout('document.location="' + link.href + '"',100);}}var _gaq = _gaq || [];_gaq.push(['_setAccount', 'UA-44452093-1']);_gaq.push(['_gat._anonymizeIp']);_gaq.push(['_trackPageLoadTime']);_gaq.push(['_setDomainName', 'www.filmages.ch']);_gaq.push(['_trackPageview']);(function() {var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);})();
+// -->
+</script>
+<script type="text/javascript" src="layout/js/jquery-ui.lists.group.js"></script>
+<!--[if lte IE 6]><script type="text/javascript" src="layout/js/jquery.bgiframe.js"></script><![endif]--> <!-- for multiselect -->
+</head>
+
+<body id="top" class="list">
+
+<div id="header_1">
+  <div class="inside">
+    <div id="logo" class="g10">
+      <a href="index.html">
+        <img src="layout/img/logo_full.png" alt="Logo Filmages" />
+      </a>
+    </div>
+    <div id="commission" class="g2">&nbsp;</div>
+  </div>
+</div>
+<div id="header_2">
+  <div class="inside">
+    <div class="resize">
+      
+<!-- indexer::stop -->
+<div class="mod_navigation g9 block" id="navig_main">
+
+<a href="films/recherche/search/Truman.html#skipNavigation1" class="invisible">Sauter la navigation</a>
+
+<ul class="level_1">
+<li class="active first"><span class="active first">Catalogue des films</span></li>
+<li><a href="pratique/introduction.html" title="Informations pratiques">Informations pratiques</a></li>
+<li class="last"><a href="informations/commission.html" title="Informations supplémentaires" class="last">Informations supplémentaires</a></li>
+</ul>
+ 
+<a name="skipNavigation1" id="skipNavigation1" class="invisible">&nbsp;</a>
+
+</div>
+<!-- indexer::continue -->
+      
+<div id="custom">
+
+<!-- indexer::stop -->
+<div class="mod_customnav g3 block" id="navig_custom">
+
+<a href="films/recherche/search/Truman.html#skipNavigation17" class="invisible">Sauter la navigation</a>
+
+<ul class="level_1">
+<li class="home trail first"><a href="accueil.html" title="Bienvenue sur le site FilmAges" class="home trail first">Accueil</a></li>
+<li><a href="plan-site.html" title="Plan du site">Plan du site</a></li>
+<li class="last"><a href="contacts.html" title="Contacts" class="last">Contacts</a></li>
+</ul>
+ 
+<a name="skipNavigation17" id="skipNavigation17" class="invisible">&nbsp;</a>
+
+</div>
+<!-- indexer::continue -->
+
+</div>
+    </div>
+  </div>
+</div>
+<div id="header_3">
+  <div class="inside">
+    
+<div id="sub">
+
+<!-- indexer::stop -->
+<div class="mod_navigation g9 block" id="navig_sub">
+
+<h2>Catalogue des films</h2>
+
+<a href="films/recherche/search/Truman.html#skipNavigation14" class="invisible">Sauter la navigation</a>
+
+<ul class="level_1">
+<li class="active first"><span class="active first">Recherche de films</span></li>
+<li><a href="films/ages.html" title="Liste des âges">Liste des âges</a></li>
+<li class="last"><a href="films/derniers-ajouts.html" title="Derniers films classés" class="last">Derniers films classés</a></li>
+</ul>
+ 
+<a name="skipNavigation14" id="skipNavigation14" class="invisible">&nbsp;</a>
+
+</div>
+<!-- indexer::continue -->
+
+</div>
+    <div id="image" class="g3">&nbsp;</div>
+  </div>
+</div>
+<div id="header_4">
+  <div class="inside">
+    <div class="resize">
+      <h1 class="g12">Recherche de films</h1>
+    </div>
+  </div>
+</div>
+<noscript>
+<div id="header_5">
+  <div class="inside">
+    <div class="resize">
+      <p class="g12">ATTENTION: certaines fonctionnalités de ce site nécessitent d'activer Javascript dans votre navigateur (<a href="http://www.maboite.qc.ca/activation_js.php">voir la démarche sur cette page</a>)</p>
+    </div>
+  </div>
+</div>
+</noscript>
+
+<div id="container">
+
+
+<div id="right">
+<div class="inside">
+
+<div class="mod_article block" id="films-filtre">
+
+<div class="mod_catalogfilter block">
+
+
+<div class="search_group">
+
+<h2>Titre, acteur, réalisateur</h2>
+
+<form method="post" id="films_search" action="films/recherche/search/Truman.html"> 
+<div class="search">
+<input type="hidden" name="FORM_SUBMIT" value="films" />
+<input type="hidden" name="FORM_DATA" value="search" />
+<div class="widget filter_search">
+<input type="text" name="search" id="ctrl_filter_search" class="text" value="Truman" /> <input type="submit" id="ctrl_filter_search_submit" class="submit" value="Valider" />
+</div>
+<div class="clear"></div>
+</div>
+</form> 
+
+</div>
+
+
+<div class="range_group">
+
+<h2>Plage de valeurs</h2>
+
+<form method="post" id="films_range" action="films/recherche/search/Truman.html">	
+<div class="range">
+<input type="hidden" name="FORM_SUBMIT" value="films" />
+<input type="hidden" name="FORM_DATA" value="range" />
+<div class="widget filter_range_age_legal">
+<h3><label for="ctrl_filter_range_age_legal">Âge légal</label></h3>
+<div id="ctrl_filter_range_age_legal">
+<input type="text" name="age_legal[]" id="ctrl_filter_range_age_legal_0" class="text" value="" /><span class="space">&nbsp;-&nbsp;</span><input type="text" name="age_legal[]" id="ctrl_filter_range_age_legal_1" class="text" value="" /><input type="submit" id="ctrl_filter_range_age_legal_submit" class="submit" value="Valider" />
+<div class="clear"></div>
+</div>
+</div>
+<div class="widget filter_range_age_suggested">
+<h3><label for="ctrl_filter_range_age_suggested">Âge suggéré</label></h3>
+<div id="ctrl_filter_range_age_suggested">
+<input type="text" name="age_suggested[]" id="ctrl_filter_range_age_suggested_0" class="text" value="" /><span class="space">&nbsp;-&nbsp;</span><input type="text" name="age_suggested[]" id="ctrl_filter_range_age_suggested_1" class="text" value="" /><input type="submit" id="ctrl_filter_range_age_suggested_submit" class="submit" value="Valider" />
+<div class="clear"></div>
+</div>
+</div>
+</div>
+</form>
+
+</div>
+
+
+<div class="filter_group">
+
+<h2>Filtrage par</h2>
+
+<div class="widget filter_field_indication">
+<h3><label for="ctrl_filter_field_indication">Indications</label></h3>
+<select name="indication[]" id="ctrl_filter_field_indication" class="multiselect" multiple="multiple" onclick="window.location=this.options[this.selectedIndex].value"><option value="https://www.filmages.ch/films/recherche/search/Truman.html" selected="selected">Effacer Indications</option><option value="https://www.filmages.ch/films/recherche/search/Truman/indication/1.html" id="indication_1">Aspects didactiques</option><option value="https://www.filmages.ch/films/recherche/search/Truman/indication/2.html" id="indication_2">Délassement, divertissement</option><option value="https://www.filmages.ch/films/recherche/search/Truman/indication/3.html" id="indication_3">Humour</option><option value="https://www.filmages.ch/films/recherche/search/Truman/indication/4.html" id="indication_4">Intérêt culturel ou thématique</option><option value="https://www.filmages.ch/films/recherche/search/Truman/indication/5.html" id="indication_5">Suscite réflexion ou discussion</option><option value="https://www.filmages.ch/films/recherche/search/Truman/indication/6.html" id="indication_6">Vérité, authenticite</option></select>
+</div>
+<div class="widget filter_field_archive">
+<h3><label for="ctrl_filter_field_archive">Archive</label></h3>
+<select name="archive" id="ctrl_filter_field_archive" class="select" onchange="window.location=this.options[this.selectedIndex].value"><option value="https://www.filmages.ch/films/recherche/search/Truman.html" selected="selected">Sélectionner Archive</option><option value="https://www.filmages.ch/films/recherche/search/Truman/archive/true.html" id="archive_true">Oui</option><option value="https://www.filmages.ch/films/recherche/search/Truman/archive/false.html" id="archive_false">Non</option></select>
+</div>
+<div class="widget filter_field_e_media">
+<h3><label for="ctrl_filter_field_e_media">Sur e-media.ch</label></h3>
+<select name="e_media" id="ctrl_filter_field_e_media" class="select" onchange="window.location=this.options[this.selectedIndex].value"><option value="https://www.filmages.ch/films/recherche/search/Truman.html" selected="selected">Sélectionner Sur e-media.ch</option><option value="https://www.filmages.ch/films/recherche/search/Truman/e_media/true.html" id="e_media_true">Oui</option><option value="https://www.filmages.ch/films/recherche/search/Truman/e_media/false.html" id="e_media_false">Non</option></select>
+</div>
+
+</div>
+
+
+
+
+<div class="sort_group">
+
+<h2>Tri par</h2>
+
+<div class="sort">
+<div class="widget filter_sort">
+<select name="sort" id="ctrl_filter_sort" class="select" onchange="window.location=this.options[this.selectedIndex].value"><option value="https://www.filmages.ch/films/recherche/search/Truman.html" selected="selected">Sélectionner l'ordre</option><option value="https://www.filmages.ch/films/recherche/search/Truman/orderby/title_french/sort/asc.html" id="sort_title_french__asc">Titre français (A-Z)</option><option value="https://www.filmages.ch/films/recherche/search/Truman/orderby/title_french/sort/desc.html" id="sort_title_french__desc">Titre français (Z-A)</option><option value="https://www.filmages.ch/films/recherche/search/Truman/orderby/title_original/sort/asc.html" id="sort_title_original__asc">Titre original (A-Z)</option><option value="https://www.filmages.ch/films/recherche/search/Truman/orderby/title_original/sort/desc.html" id="sort_title_original__desc">Titre original (Z-A)</option><option value="https://www.filmages.ch/films/recherche/search/Truman/orderby/director/sort/asc.html" id="sort_director__asc">Réalisateur&#40;s&#41; (A-Z)</option><option value="https://www.filmages.ch/films/recherche/search/Truman/orderby/director/sort/desc.html" id="sort_director__desc">Réalisateur&#40;s&#41; (Z-A)</option><option value="https://www.filmages.ch/films/recherche/search/Truman/orderby/year/sort/asc.html" id="sort_year__asc">Année (de Bas en Haut)</option><option value="https://www.filmages.ch/films/recherche/search/Truman/orderby/year/sort/desc.html" id="sort_year__desc">Année (de Haut en Bas)</option></select>
+</div>
+</div>
+
+</div>
+
+<div class="clearall">
+<a href="films/recherche.html" title="Réinitialiser tous les filtres">Réinitialiser tous les filtres</a>
+</div>
+
+</div>
+
+</div>
+ 
+</div>
+</div>
+
+<div id="main">
+<div class="inside">
+
+<div class="mod_article block" id="films-liste">
+
+<!-- indexer::stop -->
+<div class="mod_cataloglist block">
+
+<h2>Films trouvés<span class="total"> : 3</span></h2>
+
+
+
+<table class="layout_simpletable" summary="Catalog Items" cellspacing="0" cellpadding="0">
+<thead class="header">
+<tr>
+<th class="field title_french">Titre français</th>
+<th class="field title_original">Titre original</th>
+<th class="field director">Réalisateur&#40;s&#41;</th>
+<th class="field age_legal">Âge légal</th>
+<th class="field age_suggested">Âge suggéré</th>
+<th class="field archive">Archive</th>
+</tr>
+</thead>
+<tbody class="body">
+<tr class="item  first even">
+  <td class="field title_french"><a href="films/detail/items/9762.html" title="Voir les détails de l'élément">Truman</a></td>
+  <td class="field title_original">Truman</td>
+  <td class="field director">Cesc Gay</td>
+  <td class="field age_legal">12 ans</td>
+  <td class="field age_suggested">14 ans</td>
+  <td class="field archive"></td>
+</tr>
+<tr class="item  odd">
+  <td class="field title_french"><a href="films/detail/items/6628.html" title="Voir les détails de l'élément">Truman Capote</a></td>
+  <td class="field title_original">Capote</td>
+  <td class="field director">Bennett Miller</td>
+  <td class="field age_legal">14 ans</td>
+  <td class="field age_suggested">16 ans</td>
+  <td class="field archive"></td>
+</tr>
+<tr class="item  last even">
+  <td class="field title_french"><a href="films/detail/items/3259.html" title="Voir les détails de l'élément">Truman show (Le)</a></td>
+  <td class="field title_original">Truman show (The)</td>
+  <td class="field director">Peter Weir</td>
+  <td class="field age_legal">7 ans</td>
+  <td class="field age_suggested">14 ans</td>
+  <td class="field archive"><img src="/layout/img/check.png" alt="Oui" /></td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+<!-- indexer::continue -->
+
+</div>
+ 
+</div>
+<div class="clear"></div>
+
+<div id="print">
+&nbsp;
+</div>
+ 
+</div>
+</div>
+
+
+<div id="footer">
+<div class="inside">
+<div class="resize">
+
+<!-- indexer::stop -->
+<div class="mod_catalogfeatured g3 block">
+
+<h4>Derniers films modifiés</h4>
+
+
+  <p class="field title_french value"><a href="films/detail/items/14653.html" title="Voir les détails de l'élément">Clayface</a></p>
+
+
+  <p class="field title_french value"><a href="films/detail/items/14652.html" title="Voir les détails de l'élément">Shana</a></p>
+
+
+  <p class="field title_french value"><a href="films/detail/items/14621.html" title="Voir les détails de l'élément">L'aventure rêvée</a></p>
+
+
+ 
+
+</div>
+<!-- indexer::continue -->
+<div id="recent" class="g3 block">
+<h4 class="mod_recent_changes">Dernières pages modifiées</h4>
+
+  <p><span class="g1 alpha">02.01.2013</span> <span class="g2 omega"><a href="films/derniers-ajouts.html" title="Derniers films classés">Derniers films classés</a></span></p>
+  <p><span class="g1 alpha">31.08.2010</span> <span class="g2 omega"><a href="informations/autres-sites/index.html" title="Autres sites utiles">Autres sites utiles</a></span></p>
+  <p><span class="g1 alpha">31.08.2010</span> <span class="g2 omega"><a href="informations/autres-sites/index.html" title="Organismes analogues">Organismes analogues</a></span></p>
+</div>
+<div class="ce_text g3 block">
+
+<h4>Crédits</h4>
+
+<p><span class="g1 alpha">Webdesign</span> <span class="g2 omega"><a onclick="window.open(this.href); return false;" href="http://www.macrogram.ch">Macrogram SA</a></span></p>
+
+<p><span class="g1 alpha">CMS</span> <span class="g2 omega"><a onclick="window.open(this.href); return false;" href="http://www.contao.org">Contao (TYPOlight)</a></span></p>
+
+<p><span class="g1 alpha">Validation</span> <span class="g2 omega"><a onclick="window.open(this.href); return false;" href="http://validator.w3.org/check/referer">XHTML</a> et <a onclick="window.open(this.href); return false;" href="http://jigsaw.w3.org/css-validator/check/referer">CSS2</a></span></p>
+
+</div>
+ 
+</div>
+</div>
+</div>
+
+
+<script type="text/javascript">
+<!--//--><![CDATA[//><!--
+function submit_indications(url,ids) {
+  if (ids.length>0)
+    new_url = url.substr(0,url.length-5) + '/indication/' + ids.sort().toString() + '.html'; // WARNING: only works with URL rewriting and .html extension
+  else
+    new_url = url;
+  window.location = new_url;
+}
+
+$(document).ready(function() {
+  var widget_indication = $('.filter_field_indication');
+  var widget_indication_select = widget_indication.find('select.multiselect');
+  base_url = widget_indication_select.find(':first-child').val(); // Find base URL without indication tag
+  widget_indication_select.find(':first-child').remove(); // Remove first option
+  var widget_indication_options = widget_indication_select.find('option');
+  var widget_indication_options_selected = widget_indication_select.find('option:selected');
+  widget_indication.append('<input type="submit" id="ctrl_filter_indication_submit" class="submit" onclick="submit_indications(base_url,ids_selected);" value="Valider" />'); // Add submit button
+  
+  /* Theming buttons */
+  $("input.submit").button();
+  
+  $(".pagination li span").button({ disabled:true });
+  $(".pagination li a").button();
+  $(".pagination li a.previous").button({ text:false, icons:{primary:'ui-icon-circle-arrow-w',secondary:null} });
+  $(".pagination li a.next").button({ text:false, icons:{primary:null,secondary:'ui-icon-circle-arrow-e'} });
+  
+  /* Theming text field */
+  $("input").addClass('ui-widget-content')
+  .bind({
+    focusin: function() {
+      $(this).toggleClass('ui-state-highlight');
+    },
+    focusout: function() {
+      $(this).toggleClass('ui-state-highlight');
+    }
+  });
+  
+  /* Theming select lists */
+  $("select.select").each(function() {
+    $(this).selectmenu({width: 236});
+  });
+  
+  /* Determine which indications were initially selected */
+  ids = new Array();
+  widget_indication_options.each(function() {
+    id = parseInt($(this).attr('id').split('_')[1]);
+    ids.push(id);
+  });
+  ids_selected = new Array();
+  widget_indication_options_selected.each(function() {
+    id = parseInt($(this).attr('id').split('_')[1]);
+    ids_selected.push(id);
+  });
+
+  /* Theming multi-select lists */
+  $.fn.multiSelect.defaults.minWidth = 236;
+  $("select.multiselect").multiSelect({
+    shadow:true,
+    checkAllText:'Toutes',
+    unCheckAllText:'Aucune',
+    noneSelectedText:'Choix des options',
+    selectedText:function(numChecked, numTotal, checkedInputs){
+      return (numChecked <= 3) // Emulating the selectedList:3 option for displaying options in comma-separated list
+        ? checkedInputs.map(function(element){ return element.title; }).join(', ')
+        : numChecked + " sélectionnées";
+    },
+    onCheck: function(){
+      id = parseInt(this.id.split('_')[1]);
+      if (this.checked)
+        ids_selected.push(id);
+      else
+        ids_selected.splice(ids_selected.indexOf(id), 1);
+    },
+    onCheckAll: function(){
+      ids_selected = ids;
+    },
+    onUncheckAll: function(){
+      ids_selected = [];
+    }
+  });
+
+  /* Hover effect for IE6 */
+  $(function() {
+    $('.mod_cataloglist tr').hover(function() {
+      $(this).addClass('over');
+    }, function() {
+      $(this).removeClass('over');
+    });
+  });
+});
+//--><!]]>
+</script>
+
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a4ee646b9b1858a8',t:'MTc5MjczMzg3MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

@@ -25,6 +25,7 @@ import bookFinderController from './src/controllers/bookFinderController';
 import bookSectionsController from './src/controllers/bookSectionsController';
 import scorePiecesController from './src/controllers/scorePiecesController';
 import warningsController from './src/controllers/warningsController';
+import filmagesController from './src/controllers/filmagesController';
 import albumStoryController from './src/controllers/albumStoryController';
 import albumGuideController from './src/controllers/albumGuideController';
 import lyricsController from './src/controllers/lyricsController';
@@ -38,6 +39,7 @@ import mixtapeService from './src/services/mixtapeService';
 import shelvingController from './src/controllers/shelvingController';
 import shelvingService from './src/services/shelvingService';
 import warningsService from './src/services/warningsService';
+import movieFilmagesService from './src/services/movieFilmagesService';
 import { startNightlyBackup } from './src/services/nightlyBackupService';
 import albumRatingService from './src/services/albumRatingService';
 import listenHistoryService from './src/services/listenHistoryService';
@@ -185,6 +187,13 @@ app.put('/api/movies/:id/warnings/:topic/override', warningsController.setOverri
 app.put('/api/movies/:id/ddd-link', warningsController.setLink);
 app.post('/api/movies/:id/warnings/refresh', warningsController.refresh);
 app.post('/api/warnings/import', warningsController.importSnapshot);
+
+// Legal and suggested ages (FilmAges, filmages.ch)
+app.get('/api/movies/:id/filmages', filmagesController.get);
+app.put('/api/movies/:id/filmages-link', filmagesController.setLink);
+app.delete('/api/movies/:id/filmages-link', filmagesController.clearLink);
+app.post('/api/movies/:id/filmages/refresh', filmagesController.refresh);
+app.post('/api/filmages/sweep', filmagesController.sweep);
 app.get('/api/movies/:id', movieController.getMovieById);
 app.get('/api/movies/:id/details', movieController.getMovieDetails);
 app.get('/api/movies/:id/cast', movieController.getMovieCast);
@@ -596,6 +605,7 @@ const serverReady = startServer().then(() => {
     server.headersTimeout = 31 * 60 * 1000;
 
     warningsService.startDailyRefresh();
+    movieFilmagesService.startDailySweep();
     startNightlyBackup();
     albumRatingService.startSync();
     if (navidromeService.isConfigured()) listenHistoryService.startRecording(ripStatusService.refreshLibrary);
