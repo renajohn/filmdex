@@ -24,27 +24,30 @@ interface ThumbnailResult {
   error?: string;
 }
 
+/** A poster's address: ours as it is, TMDB's at its small size. */
+const getPosterUrl = (posterPath: string | null | undefined): string | null => {
+  if (!posterPath) return null;
+  // If it's already a local path, return as is
+  if (posterPath.startsWith('/images/') || posterPath.startsWith('/api/images/')) {
+    return posterPath;
+  }
+  // If it's a TMDB path, use TMDB URL
+  if (posterPath.startsWith('/')) {
+    return `https://image.tmdb.org/t/p/w200${posterPath}`;
+  }
+  // If it's already a full URL, return as is
+  return posterPath;
+};
 const MovieThumbnail: React.FC<MovieThumbnailProps> = ({ imdbLink, title, year, className = '', disableZoom = false, posterPath = null, recommendedAge = null, boxSetCount = null }) => {
-  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+  // A poster known shows from the first paint: a grid drawn again (a search) does not blink.
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(() => getPosterUrl(posterPath));
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [posterSource, setPosterSource] = useState<string | null>(null);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [retryCount, setRetryCount] = useState<number>(0);
 
-  const getPosterUrl = (posterPath: string | null | undefined): string | null => {
-    if (!posterPath) return null;
-    // If it's already a local path, return as is
-    if (posterPath.startsWith('/images/') || posterPath.startsWith('/api/images/')) {
-      return posterPath;
-    }
-    // If it's a TMDB path, use TMDB URL
-    if (posterPath.startsWith('/')) {
-      return `https://image.tmdb.org/t/p/w200${posterPath}`;
-    }
-    // If it's already a full URL, return as is
-    return posterPath;
-  };
+
 
   const fetchThumbnail = async () => {
     try {

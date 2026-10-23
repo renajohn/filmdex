@@ -47,6 +47,8 @@ interface GroupOption {
 const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigger, searchCriteria, loading, setLoading, onShowAlert, onAddMovie, onSearch }, ref) => {
   const [movies, setMovies] = useState<any[]>([]);
   const [allMovies, setAllMovies] = useState<any[]>([]); // Store all movies from backend
+  const allMoviesRef = useRef<any[]>([]);
+  allMoviesRef.current = allMovies;
   const [filteredMovies, setFilteredMovies] = useState<any[]>([]); // Store filtered movies
   // Load sort preference from localStorage, default to 'title'
   const [sortBy, setSortBy] = useState(() => {
@@ -241,17 +243,22 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
     await refreshAllMovieData(true);
   }, [refreshAllMovieData]);
 
-  const handleSearch = useCallback(async (criteria: any) => {
+  // While letters are typed (`typing`), the grid stays as it is until the answer, and the
+  // collection already loaded serves: no "Loading", no posters drawn again at each letter.
+  const handleSearch = useCallback(async (criteria: any, { typing = false }: { typing?: boolean } = {}) => {
     try {
-      setLoading(true);
+      if (!typing) setLoading(true);
 
       // If no search text, load all movies, otherwise search
       if (criteria.searchText && criteria.searchText.trim()) {
         // When searching, we need both: all movies for count AND search results for display
+        const known = typing ? allMoviesRef.current : [];
         const [allData, searchData] = await Promise.all([
-          apiService.getAllMovies() as Promise<any[]>,
+          known.length ? known : apiService.getAllMovies() as Promise<any[]>,
           apiService.searchMovies({ searchText: criteria.searchText }) as Promise<any[]>
         ]);
+        // An answer to letters since changed comes too late: the newer search shows.
+        if (typing && criteria.searchText !== previousSearchTextRef.current) return;
 
         setAllMovies(allData); // Keep full collection for count
         setFilteredMovies(searchData);
@@ -270,7 +277,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
         onShowAlert('Failed to search movies: ' + (err as Error).message, 'danger');
       }
     } finally {
-      setLoading(false);
+      if (!typing) setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortBy]);
@@ -308,7 +315,11 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
         fired = true;
         // Only run search if searchText has a value, otherwise load all
         if (currentSearchText.trim()) {
-          handleSearch(searchCriteria);
+          handleSearch(searchCriteria, { typing: true });
+        } else if (allMoviesRef.current.length) {
+          // The letters gone: the whole collection again, as loaded, without drawing the grid anew.
+          setFilteredMovies(allMoviesRef.current);
+          setMovies(sortMovies(allMoviesRef.current, sortBy));
         } else {
           loadAllMovies();
         }
