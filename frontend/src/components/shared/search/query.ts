@@ -193,7 +193,9 @@ export const parseToken = (text: string, keys: SearchKey[]): ParsedToken => {
     else t.canon = vs as string[];
   } else if (def.type === 'enum') {
     const names = (def.values || []).map(v => v.value);
-    const canon = t.values.map(v => names.find(n => norm(n) === norm(v)));
+    // An old spelling of yes/no (spiders:without) is the yes/no the enum lists.
+    const asListed = (v: string) => names.find(n => norm(n) === norm(v)) || names.find(n => n === boolOf(v));
+    const canon = t.values.map(asListed);
     const bad = t.values.find((_, i) => !canon[i]);
     if (bad !== undefined) {
       // A value a letter or two off: offer the one meant.
@@ -211,9 +213,14 @@ export const parseToken = (text: string, keys: SearchKey[]): ParsedToken => {
   } else if (def.type === 'number') {
     const listed = (def.values || []).map(v => v.value);
     const nums = t.values.map(parseNumber);
-    const bad = t.values.find((v, i) => !nums[i] && !listed.some(n => norm(n) === norm(v)));
+    // A word the key lists, in any of its spellings (watched:true is watched:yes).
+    const word = (v: string) => listed.find(n => norm(n) === norm(v)) || listed.find(n => n === boolOf(v));
+    const bad = t.values.find((v, i) => !nums[i] && !word(v));
     if (bad !== undefined) t.error = { msg: `\`${key}\` takes a number, a range (2-4) or a comparison (>=4).` };
-    else t.nums = nums.filter((n): n is NumberValue => !!n);
+    else {
+      t.nums = nums.filter((n): n is NumberValue => !!n);
+      t.canon = t.values.map((v, i) => nums[i] ? v : word(v) as string);
+    }
   }
   // text, list and date: whatever is typed is a value.
   return t;

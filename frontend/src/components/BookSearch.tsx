@@ -14,6 +14,7 @@ import './BookSearch.css';
 import { readStored, writeStored } from '../utils/safeStorage';
 import { findById, shownIds, useDetailSteps } from '../utils/detailSteps';
 import { bookImages } from '../utils/detailImages';
+import { chosenOwners, clickOwner as clickOwnerIn, isOwnerIn } from '../utils/bookOwners';
 import Button from './shared/Button';
 import Chip from './shared/Chip';
 import Dialog from './shared/Dialog';
@@ -75,13 +76,6 @@ interface MergeSeriesData {
   targetSeries: string;
   targetBooks: Book[];
   selectedName: string;
-}
-
-interface ActiveFilter {
-  type: string;
-  value: string | boolean;
-  label: string;
-  raw: string;
 }
 
 interface CombinedItem {
@@ -272,25 +266,13 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
     }
   };
 
-  // Displayable books (same as filtered books, type filtering done via search syntax)
   // Whose books: one of the family's, at a click, written into the search as owner:Alice,
-  // so the pill and the search box say the same thing whichever one changes. An Alt-click
-  // adds a name or takes it away: owner:Alice,Oriane is either's.
-  const OWNER_VALUE = '(?:"[^"]*"|[^\\s,"]+)';
-  const OWNER_TOKEN = new RegExp(`(^|\\s)owner:(${OWNER_VALUE}(?:,${OWNER_VALUE})*)`, 'i');
-  const ownerMatch = (searchCriteria?.searchText || '').match(OWNER_TOKEN);
-  const ownerFilter = ownerMatch ? ownerMatch[2].split(',').map(name => name.replace(/"/g, '')) : [];
-  const isOwnerChosen = (owner: string) => ownerFilter.some(name => name.toLowerCase() === owner.toLowerCase());
-  const chooseOwners = (chosen: string[]) => {
-    const rest = (searchCriteria?.searchText || '').replace(OWNER_TOKEN, ' ').replace(/\s+/g, ' ').trim();
-    const token = chosen.length ? `owner:${chosen.map(name => /\s/.test(name) ? `"${name}"` : name).join(',')}` : '';
-    updateSearchViaUrl([token, rest].filter(Boolean).join(' '));
-  };
-  const clickOwner = (owner: string, toggle: boolean) => {
-    const chosen = isOwnerChosen(owner);
-    if (toggle) chooseOwners(chosen ? ownerFilter.filter(name => name.toLowerCase() !== owner.toLowerCase()) : [...ownerFilter, owner]);
-    else chooseOwners(chosen && ownerFilter.length === 1 ? [] : [owner]);
-  };
+  // so the buttons and the owner pill say the same thing whichever one changes. An Alt-click
+  // adds a name or takes it away: owner:Alice,Oriane is either's (utils/bookOwners).
+  const ownerFilter = chosenOwners(searchCriteria?.searchText || '');
+  const isOwnerChosen = (owner: string) => isOwnerIn(ownerFilter, owner);
+  const clickOwner = (owner: string, toggle: boolean) =>
+    updateSearchViaUrl(clickOwnerIn(searchCriteria?.searchText || '', owner, toggle));
   // The books of no one come last, as owner:none, when there are any.
   const owners = useMemo(() => {
     const counts = new Map<string, number>();
@@ -303,66 +285,6 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
     return noOne ? [...pills, ['none', noOne, 'No owner'] as [string, number, string]] : pills;
   }, [allBooks]);
   const displayBooks = filteredBooks;
-
-  // Helper to parse active filters from search text
-  const parseActiveFilters = useCallback((searchText: string): ActiveFilter[] => {
-    const filters: ActiveFilter[] = [];
-    if (!searchText) return filters;
-
-    // Match type filters: type:value or type:val1,val2 or -type:value
-    const typeMatch = searchText.match(/(-?)(type|book_type):([^\s]+)/i);
-    if (typeMatch) {
-      const negated = typeMatch[1] === '-';
-      const values = typeMatch[3].replace(/"/g, '').split(',');
-      values.forEach((v: string) => {
-        const label = v === 'graphic-novel' ? 'Graphic Novels' : v === 'score' ? 'Scores' : 'Books';
-        filters.push({ type: 'type', value: v, label: `${negated ? 'Not ' : ''}${label}`, raw: typeMatch[0] });
-      });
-    }
-
-    // Match format filters
-    const formatMatch = searchText.match(/(-?)(format):([^\s]+)/i);
-    if (formatMatch) {
-      const negated = formatMatch[1] === '-';
-      const values = formatMatch[3].replace(/"/g, '').split(',');
-      values.forEach((v: string) => {
-        filters.push({ type: 'format', value: v, label: `${negated ? 'Not ' : ''}${v}`, raw: formatMatch[0] });
-      });
-    }
-
-    // Match year filters
-    const yearMatch = searchText.match(/year:(>=|<=|>|<)?(\d+(?:-\d+)?)/i);
-    if (yearMatch) {
-      const op = yearMatch[1] || '';
-      const val = yearMatch[2];
-      filters.push({ type: 'year', value: val, label: `Year ${op}${val}`, raw: yearMatch[0] });
-    }
-
-    // Match language filters
-    const langMatch = searchText.match(/language:([^\s]+)/i);
-    if (langMatch) {
-      filters.push({ type: 'language', value: langMatch[1], label: `Language: ${langMatch[1]}`, raw: langMatch[0] });
-    }
-
-    // Match has_ebook filter
-    const ebookMatch = searchText.match(/has_ebook:(true|false)/i);
-    if (ebookMatch) {
-      const hasEbook = ebookMatch[1].toLowerCase() === 'true';
-      filters.push({ type: 'has_ebook', value: hasEbook, label: hasEbook ? 'Has E-book' : 'No E-book', raw: ebookMatch[0] });
-    }
-
-    return filters;
-  }, []);
-
-  // Get active filters from current search
-  const activeFilters = parseActiveFilters(searchCriteria?.searchText || '');
-
-  // Remove a filter from search
-  const removeFilter = useCallback((filter: ActiveFilter) => {
-    const currentSearch = searchCriteria?.searchText || '';
-    const newSearch = currentSearch.replace(filter.raw, '').trim();
-    updateSearchViaUrl(newSearch);
-  }, [searchCriteria?.searchText, updateSearchViaUrl]);
 
   // Helper function to remove articles (determinants) for sorting
   const removeArticlesForSorting = useCallback((text: string) => {
@@ -1481,22 +1403,6 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
             </span>
           )}
         />
-
-        {/* Active Filter Chips */}
-        {activeFilters.length > 0 && (
-          <div className="active-filters">
-            {activeFilters.map((filter, idx) => (
-              <Chip key={idx} onRemove={() => removeFilter(filter)} removeLabel={`Remove the filter ${filter.label}`}>
-                {filter.label}
-              </Chip>
-            ))}
-            <Button variant="quiet" size="sm" className="clear-all-filters"
-              onClick={() => updateSearchViaUrl('')}
-            >
-              Clear all
-            </Button>
-          </div>
-        )}
 
         {renderBookGrid()}
       </div>

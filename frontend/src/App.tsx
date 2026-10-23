@@ -211,9 +211,9 @@ function AppContent() {
         break;
       case 'age_group':
         const ageRanges: Record<string, string> = {
-          'All Ages (0-3)': 'recommended_age:>=0 recommended_age:<=3',
-          'Children (4-9)': 'recommended_age:>=4 recommended_age:<=9',
-          'Pre-teens (10-14)': 'recommended_age:>=10 recommended_age:<=14',
+          'All Ages (0-3)': 'recommended_age:0-3',
+          'Children (4-9)': 'recommended_age:4-9',
+          'Pre-teens (10-14)': 'recommended_age:10-14',
           'Teens & Adults (15+)': 'recommended_age:>=15'
         };
         predicate = ageRanges[filterValue] || '';
@@ -231,16 +231,16 @@ function AppContent() {
         predicate = `year:${filterValue}`;
         break;
       case 'comments':
-        predicate = 'has_comments:true';
+        predicate = 'has_comments:yes';
         break;
       case 'no_spiders':
-        predicate = 'spiders:without';
+        predicate = 'spiders:no';
         break;
       case 'no_snakes':
-        predicate = 'snakes:without';
+        predicate = 'snakes:no';
         break;
       case 'no_spiders_snakes':
-        predicate = 'spiders:without snakes:without';
+        predicate = 'spiders:no snakes:no';
         break;
       case 'owner':
         predicate = `owner:"${filterValue}"`;
@@ -249,10 +249,11 @@ function AppContent() {
         predicate = `title_status:${filterValue}`;
         break;
       case 'has_ebook':
-        predicate = 'has_ebook:true';
+        predicate = 'has_ebook:yes';
         break;
       case 'music':
       case 'score':
+      case 'book':
         predicate = filterValue;
         break;
       default:
@@ -261,11 +262,12 @@ function AppContent() {
 
     if (predicate) {
       let currentText = searchCriteria.searchText.trim();
-      if (filterType === 'music' || filterType === 'score') {
-        // A MusicDex or Scores filter takes the place of one of its family already there: stars and rated are one
+      if (filterType === 'music' || filterType === 'score' || filterType === 'book') {
+        // A MusicDex, BookDex or Scores filter takes the place of one of its family already there: stars and rated are one
         const key = predicate.split(':')[0];
-        const family = key === 'stars' || key === 'rated' ? 'stars|rated' : key === 'heard' || key === 'contents' ? 'heard|contents' : key;
-        currentText = currentText.replace(new RegExp(`(^|\\s)-?(${family}):(?:"[^"]*"|\\S+)`, 'gi'), '').replace(/\s+/g, ' ').trim();
+        const family = key === 'stars' || key === 'rated' ? 'stars|rated' : key === 'heard' || key === 'contents' ? 'heard|contents'
+          : key === 'favourites' ? 'favourites|favorites|fav' : key;
+        currentText = currentText.replace(new RegExp(`(^|\\s)[-!]?(${family}):(?:"[^"]*"|[^\\s"])+`, 'gi'), '').replace(/\s+/g, ' ').trim();
       }
       const newText = currentText ? `${currentText} ${predicate}` : predicate;
 
@@ -283,14 +285,17 @@ function AppContent() {
       { title: 'Medium', options: plain('music', [['cd:yes', 'CDs only'], ['cd:no', 'Digital only'], ['mixtape:yes', 'Mixtapes only'], ['mixtape:no', 'No mixtapes']]) },
       { title: 'Files', options: plain('music', [['file:lossless', 'Lossless'], ['file:lossy', 'Lossy'], ['ripped:no', 'Not ripped']]) },
       { title: 'Music', options: plain('music', [['classical:yes', 'Classical only'], ['classical:no', 'Everything but classical']]) },
-      { title: 'Your Stars', options: plain('music', [['stars:5', '★★★★★'], ['stars:>=4', '4 stars or more'], ['rated:no', 'Not rated yet'], ['favourites:yes', 'Favourites']]) },
+      { title: 'Your stars', options: plain('music', [['stars:5', '★★★★★'], ['stars:>=4', '4 stars or more'], ['rated:no', 'Not rated yet'], ['favourites:yes', 'Favourites']]) },
       { title: 'Decades', options: [...decades, { label: 'Before 1960', type: 'music', value: 'year:<1960' }] },
     ] : location.pathname === '/bookdex' ? [
-      { title: 'Book Type', options: plain('type', [['book', 'Book'], ['graphic-novel', 'Graphic Novel'], ['score', 'Score']]) },
-      { title: 'Formats', options: plain('format', [['physical', 'Physical'], ['ebook', 'E-book'], ['audiobook', 'Audiobook']]) },
-      { title: 'Title Status', options: plain('title_status', [['owned', 'Owned'], ['borrowed', 'Borrowed']]) },
-      { title: 'Special', options: [{ label: 'Has E-book File', type: 'has_ebook', value: '' }] },
-      { title: 'Owners', options: of('owner', owners) },
+      { title: 'Book Type', options: plain('book', [['type:book', 'Book'], ['type:graphic-novel', 'Graphic Novel'], ['type:score', 'Score']]) },
+      { title: 'Formats', options: plain('book', [['format:physical', 'Physical'], ['format:ebook', 'E-book'], ['format:audiobook', 'Audiobook']]) },
+      { title: 'Title Status', options: plain('book', [['title_status:owned', 'Owned'], ['title_status:borrowed', 'Borrowed']]) },
+      { title: 'E-book File', options: plain('book', [['has_ebook:yes', 'With an e-book file'], ['has_ebook:no', 'Without an e-book file']]) },
+      { title: 'Owners', options: [
+        ...owners.map(name => ({ label: name, type: 'book', value: `owner:${/[\s,:]/.test(name) ? `"${name}"` : name}` })),
+        ...(owners.length ? [{ label: 'No owner', type: 'book', value: 'owner:none' }] : []),
+      ] },
     ] : location.pathname === '/scores' ? [
       { title: 'PDF', options: plain('score', [['pdf:yes', 'With a PDF'], ['pdf:no', 'Without a PDF']]) },
       { title: 'Your Music', options: plain('score', [['heard:yes', 'Played in your music'], ['heard:no', 'Not in your music'], ['contents:no', 'Contents unknown']]) },

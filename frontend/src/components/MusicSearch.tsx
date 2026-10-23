@@ -38,6 +38,7 @@ import {
 import Button from './shared/Button';
 import Notice from './shared/Notice';
 import Spinner, { Loading } from './shared/Spinner';
+import { asksMixtapes, asksNavidrome } from '../utils/musicSearchWords';
 
 interface MusicSearchProps {
   cds: any;
@@ -88,8 +89,6 @@ interface ShuffleResult {
 }
 
 const FILTERS: DigitalFilter[] = ['all', 'buy'];
-/** Words of the search Navidrome answers: they turn Digital on. */
-const DIGITAL_WORDS = /(^|\s)-?(cd|file|ripped|favourites):/i;
 const NOTHING_KNOWN: AlbumDigital = { album: null, notRipped: false };
 
 /** An album of the collection, as opposed to a wish or a digital album: there is a CD. */
@@ -247,7 +246,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
 
   // cd:, file:, ripped: and favourites: ask what Navidrome has: they turn Digital on.
   useEffect(() => {
-    if (digitalOn || !DIGITAL_WORDS.test(searchCriteria?.searchText || '')) return;
+    if (digitalOn || !asksNavidrome(searchCriteria?.searchText || '')) return;
     setDigitalOn(true);
     writeStored(DIGITAL_ON_KEY, '1');
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -563,9 +562,9 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   // Read again with the albums: a playlist made or changed in Amperfy shows as the page is opened again.
   useEffect(() => { reloadMixtapes(); }, [refreshTrigger]);
 
-  // mixtape:yes asks for the mixtapes: it turns Mixtapes on.
+  // mixtape:yes (or -mixtape:no) asks for the mixtapes: it turns Mixtapes on.
   useEffect(() => {
-    if (mixtapesOn || !/(^|\s)mixtape:yes\b/i.test(searchCriteria?.searchText || '')) return;
+    if (mixtapesOn || !asksMixtapes(searchCriteria?.searchText || '')) return;
     setMixtapesOn(true);
     writeStored(MIXTAPES_ON_KEY, '1');
   // eslint-disable-next-line react-hooks/exhaustive-deps

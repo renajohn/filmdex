@@ -13,6 +13,7 @@ import { Loading } from '../components/shared/Spinner';
 import { TextField } from '../components/shared/TextField';
 import toast from '../components/shared/Toast';
 import { pieceOf, referenceOf } from '../utils/scoreTitle';
+import { scoreMatcher } from '../utils/scoreSearch';
 import { useNarrow } from '../utils/useNarrow';
 import './ScoresPage.css';
 
@@ -23,28 +24,6 @@ const surname = (name: string) => (name === OTHERS ? '~' : plain(name.split(' ')
 /** The letter of a composer in the side index: their surname's, without its accent (Dvořák under D). */
 const letterOf = (name: string) => (name === OTHERS ? '' : surname(name).charAt(0).toUpperCase());
 
-/**
- * What the header's search asks: composer:… (none: the anthologies), publisher:…,
- * pdf:yes|no, heard:yes|no (its pieces in the music), contents:yes|no (its pieces known),
- * and any words of the piece.
- */
-const matcher = (text: string) => {
-  const fields: Record<string, string[]> = { composer: [], publisher: [], pdf: [], heard: [], contents: [], words: [] };
-  for (const [, key, quoted, bare] of text.matchAll(/(?:(composer|publisher|pdf|heard|contents):)?(?:"([^"]*)"|(\S+))/gi)) {
-    const value = plain(quoted ?? bare ?? '');
-    if (value) fields[key ? key.toLowerCase() : 'words'].push(value);
-  }
-  const yesNo = (values: string[], has: boolean) => values.every(v => (v === 'no' ? !has : has));
-  return (score: Score) => {
-    const composer = plain(score.composer || '');
-    const publisher = plain(score.publisher || '');
-    const all = plain(`${score.title} ${score.composer || ''} ${(score.authors || []).join(' ')} ${score.publisher || ''}`);
-    return fields.composer.every(v => (v === 'none' ? !composer : composer.includes(v)))
-      && fields.publisher.every(v => publisher.includes(v))
-      && yesNo(fields.pdf, !!score.ebookFile) && yesNo(fields.heard, !!score.heardCount) && yesNo(fields.contents, !!score.pieceCount)
-      && fields.words.every(v => all.includes(v));
-  };
-};
 /** The authors who are not the composer: its editors. */
 const editorsOf = (score: Score) => (score.authors || []).filter(a => !score.composer || !plain(score.composer).includes(plain(a.split(' ').slice(-1)[0])));
 
@@ -88,7 +67,7 @@ const ScoresPage: React.FC<{ searchCriteria?: { searchText?: string } }> = ({ se
   }, [location.search, scores]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const suggested = (scores || []).filter(s => !s.composer && s.composerSuggestion);
-  const shown = useMemo(() => (scores || []).filter(matcher(filter.trim())), [scores, filter]);
+  const shown = useMemo(() => (scores || []).filter(scoreMatcher(filter.trim())), [scores, filter]);
   const groups = useMemo(() => {
     const byComposer = new Map<string, Score[]>();
     for (const score of shown) {

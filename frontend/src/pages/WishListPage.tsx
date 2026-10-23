@@ -31,6 +31,7 @@ import CoverTag from '../components/shared/CoverTag';
 import Spinner, { Loading } from '../components/shared/Spinner';
 import { thumbProps } from '../utils/thumb';
 import { openRicardo, ricardoSearchUrl } from '../utils/digitalLibrary';
+import { parseWishlistSearch } from '../utils/wishlistSearch';
 
 export interface WishListPageRef {
   refreshItems: () => Promise<void>;
@@ -142,102 +143,27 @@ const WishListPage = forwardRef<WishListPageRef, WishListPageProps>(({ searchCri
     }
   }, [searchCriteria, allMovies, allAlbums, allBooks]);
 
+  // The search read (utils/wishlistSearch.ts): the movies by the backend, as FilmDex's, the albums and books here.
   const performAdvancedSearch = async (searchText: string) => {
+    const search = parseWishlistSearch(searchText);
+    setAlbums(allAlbums.filter(album => album.titleStatus === 'wish' && search.matchAlbum(album)));
+    setBooks(allBooks.filter(book => book.titleStatus === 'wish' && search.matchBook(book)));
+    if (search.movieQuery === null) {
+      setMovies([]);
+      return;
+    }
+    if (!search.movieQuery.trim()) {
+      setMovies(allMovies);
+      return;
+    }
     try {
-      // Search movies, albums, and books in parallel
-      const [movieResults, albumResults, bookResults] = await Promise.all([
-        (apiService.searchMovies({
-          searchText,
-          title_status: 'wish'
-        }) as Promise<any[]>).catch(() => {
-          // Fallback to simple search if advanced search fails
-          const searchLower = searchText.toLowerCase().trim();
-          return allMovies.filter(movie => {
-            return (
-              (movie.title && movie.title.toLowerCase().includes(searchLower)) ||
-              (movie.original_title && movie.original_title.toLowerCase().includes(searchLower)) ||
-              (movie.director && movie.director.toLowerCase().includes(searchLower)) ||
-              (movie.comments && movie.comments.toLowerCase().includes(searchLower))
-            );
-          });
-        }),
-        // For albums, we need to search only within wish list albums
-        Promise.resolve().then(() => {
-          const searchLower = searchText.toLowerCase().trim();
-          return allAlbums.filter(album => {
-            // Only include wish list albums
-            if (album.titleStatus !== 'wish') return false;
-
-            const artistString = Array.isArray(album.artist) ? album.artist.join(', ') : album.artist;
-            const genresString = Array.isArray(album.genres) ? album.genres.join(', ') : album.genres;
-            return (
-              (album.title && album.title.toLowerCase().includes(searchLower)) ||
-              (artistString && artistString.toLowerCase().includes(searchLower)) ||
-              (genresString && genresString.toLowerCase().includes(searchLower)) ||
-              (album.catalogNumber && album.catalogNumber.toLowerCase().includes(searchLower)) ||
-              (album.barcode && album.barcode.toLowerCase().includes(searchLower))
-            );
-          });
-        }),
-        // For books, search within wish list books
-        Promise.resolve().then(() => {
-          const searchLower = searchText.toLowerCase().trim();
-          return allBooks.filter(book => {
-            // Only include wish list books
-            if (book.titleStatus !== 'wish') return false;
-
-            const authorsString = Array.isArray(book.authors) ? book.authors.join(', ') : book.authors;
-            const genresString = Array.isArray(book.genres) ? book.genres.join(', ') : book.genres;
-            return (
-              (book.title && book.title.toLowerCase().includes(searchLower)) ||
-              (authorsString && authorsString.toLowerCase().includes(searchLower)) ||
-              (genresString && genresString.toLowerCase().includes(searchLower)) ||
-              (book.isbn && book.isbn.toLowerCase().includes(searchLower)) ||
-              (book.isbn13 && book.isbn13.toLowerCase().includes(searchLower)) ||
-              (book.series && book.series.toLowerCase().includes(searchLower))
-            );
-          });
-        })
-      ]);
-
-      setMovies(movieResults);
-      setAlbums(albumResults);
-      setBooks(bookResults);
+      setMovies(await apiService.searchMovies({ searchText: search.movieQuery, title_status: 'wish' }) as any[]);
     } catch (error) {
-      console.error('Advanced search failed:', error);
-      // Fallback to simple search
+      console.error('Wish list search failed:', error);
+      // The backend out of reach: its plain words in the movies loaded.
       const searchLower = searchText.toLowerCase().trim();
-      setMovies(allMovies.filter(movie => {
-        return (
-          (movie.title && movie.title.toLowerCase().includes(searchLower)) ||
-          (movie.original_title && movie.original_title.toLowerCase().includes(searchLower)) ||
-          (movie.director && movie.director.toLowerCase().includes(searchLower)) ||
-          (movie.comments && movie.comments.toLowerCase().includes(searchLower))
-        );
-      }));
-      setAlbums(allAlbums.filter(album => {
-        const artistString = Array.isArray(album.artist) ? album.artist.join(', ') : album.artist;
-        const genresString = Array.isArray(album.genres) ? album.genres.join(', ') : album.genres;
-        return (
-          (album.title && album.title.toLowerCase().includes(searchLower)) ||
-          (artistString && artistString.toLowerCase().includes(searchLower)) ||
-          (genresString && genresString.toLowerCase().includes(searchLower)) ||
-          (album.catalogNumber && album.catalogNumber.toLowerCase().includes(searchLower)) ||
-          (album.barcode && album.barcode.toLowerCase().includes(searchLower))
-        );
-      }));
-      setBooks(allBooks.filter(book => {
-        const authorsString = Array.isArray(book.authors) ? book.authors.join(', ') : book.authors;
-        const genresString = Array.isArray(book.genres) ? book.genres.join(', ') : book.genres;
-        return (
-          (book.title && book.title.toLowerCase().includes(searchLower)) ||
-          (authorsString && authorsString.toLowerCase().includes(searchLower)) ||
-          (genresString && genresString.toLowerCase().includes(searchLower)) ||
-          (book.isbn && book.isbn.toLowerCase().includes(searchLower)) ||
-          (book.isbn13 && book.isbn13.toLowerCase().includes(searchLower)) ||
-          (book.series && book.series.toLowerCase().includes(searchLower))
-        );
-      }));
+      setMovies(allMovies.filter(movie => [movie.title, movie.original_title, movie.director, movie.comments]
+        .some(field => field && String(field).toLowerCase().includes(searchLower))));
     }
   };
 

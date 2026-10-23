@@ -426,21 +426,6 @@
   background: rgba(251, 191, 36, 0.25);
 }
 
-/* Active Filter Chips */
-.active-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
-  align-items: center;
-}
-
-.filter-chip-remove svg {
-  width: 12px;
-  height: 12px;
-}
-
-
 /* Whose books, in the bar: the family's names. */
 .book-owner-chips {
   display: inline-flex;

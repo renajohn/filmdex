@@ -2,9 +2,7 @@ import Album from '../models/album';
 import type { AlbumFormatted } from '../types';
 import navidromeService from './navidromeService';
 import ripStatusService from './ripStatusService';
-
-/** favourites:yes, the albums with a track hearted in Navidrome; favourites:no, the others. */
-const FAVOURITES = /(^|\s)favou?rites:(yes|no)\b/i;
+import { normaliseAlbumQuery, takeBoolFilter } from '../utils/albumSearchFilters';
 
 const favouriteAlbumService = {
   /** The albums of DexVault with at least one track hearted in Navidrome, by album id. */
@@ -16,14 +14,14 @@ const favouriteAlbumService = {
 
   /** The albums a query finds, `favourites:` asking Navidrome which have a hearted track. */
   search: async (query: string, options: { withNoCd?: boolean; mixtapes?: boolean } = {}): Promise<AlbumFormatted[]> => {
-    const favourites = query.match(FAVOURITES);
-    if (!favourites) return Album.search(query, options);
-    const [albums, ids] = await Promise.all([
-      Album.search(query.replace(favourites[0], ' ').replace(/\s+/g, ' ').trim(), options),
-      favouriteAlbumService.albumIds(),
-    ]);
-    const want = favourites[2].toLowerCase() === 'yes';
-    return albums.filter(album => ids.has(album.id) === want);
+    // favourites:yes, the albums with a track hearted in Navidrome; favourites:no (or -favourites:yes), the others.
+    // favorites: and fav: too, and true/false, with/without… (albumSearchFilters).
+    const { allowed, rest } = takeBoolFilter(normaliseAlbumQuery(query), 'favourites');
+    if (!allowed) return Album.search(query, options);
+    if (allowed.length === 0) return [];
+    if (allowed.length === 2) return Album.search(rest, options);
+    const [albums, ids] = await Promise.all([Album.search(rest, options), favouriteAlbumService.albumIds()]);
+    return albums.filter(album => ids.has(album.id) === allowed[0]);
   },
 };
 

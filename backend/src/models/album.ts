@@ -4,6 +4,7 @@ import cacheService from '../services/cacheService';
 import { normalizeAlbumOwnership } from '../services/utils/albumOwnership';
 import { combineRatings } from '../services/utils/communityRating';
 import { isClassicalAlbum, type Performer } from '../services/shelfOrder';
+import { normaliseAlbumQuery, takeBoolFilter, takeNumberFilter, findFilters, withoutWords } from '../utils/albumSearchFilters';
 import type { AlbumRow, AlbumFormatted, AlbumCreateData, AlbumSearchParsed } from '../types';
 
 interface AlbumUpdateResult {
@@ -474,7 +475,8 @@ const Album = {
     const whereClauses: string[] = [];
     let hasFilters = false;
     let hasTrackFilter = false;
-    let cleanedQuery = query;
+    // !key: is -key:, by: is artist: (the search pills write them so, a link may not).
+    let cleanedQuery = normaliseAlbumQuery(query);
 
     const columnMap: Record<string, string> = {
       'artist': 'artist', 'title': 'title', 'genre': 'genres', 'mood': 'moods',
@@ -515,11 +517,13 @@ const Album = {
         const combined = clauses.length === 1 ? clauses[0] : `(${clauses.join(' OR ')})`;
         return negate ? `NOT ${combined}` : combined;
       }
+      // An album with no label or genre at all is not one with that label: -label:ECM keeps it.
+      const col = negate ? `COALESCE(${column}, '')` : column;
       if (values.length === 1) {
         params.push(`%${values[0]}%`);
-        return negate ? `${column} NOT LIKE ?` : `${column} LIKE ?`;
+        return negate ? `${col} NOT LIKE ?` : `${col} LIKE ?`;
       }
-      const clauses = values.map(v => { params.push(`%${v}%`); return `${column} LIKE ?`; });
+      const clauses = values.map(v => { params.push(`%${v}%`); return `${col} LIKE ?`; });
       const orClause = `(${clauses.join(' OR ')})`;
       return negate ? `NOT ${orClause}` : orClause;
     };
@@ -571,8 +575,8 @@ const Album = {
     // Process filters with smart value extraction
     const fields = 'artist|title|genre|mood|track|label|country|composer|performer|conductor|instrument|work';
 
-    // Pattern for negated filters: -field:...
-    const negFilterRe = new RegExp(`-(${fields}):`, 'g');
+    // Pattern for negated filters: -field:... (!field: is written -field: by now), any case
+    const negFilterRe = new RegExp(`(?<=^|\\s)-(${fields}):`, 'gi');
     let match: RegExpExecArray | null;
     const negMatches: Array<{ field: string; value: string; fullMatch: string }> = [];
     while ((match = negFilterRe.exec(cleanedQuery)) !== null) {
@@ -587,7 +591,7 @@ const Album = {
     // Process negated matches (in reverse to preserve indices when removing)
     for (const m of negMatches.reverse()) {
       hasFilters = true;
-      const col = columnMap[m.field];
+      const col = columnMap[m.field.toLowerCase()];
       if (col) {
         const vals = parseCommaSeparatedValues(m.value);
         whereClauses.push(buildClause(col, vals, true));
@@ -595,9 +599,8 @@ const Album = {
       }
     }
 
-    // Pattern for regular filters: field:... (not preceded by -)
-    // We need to find field: that's not preceded by -
-    const posFilterRe = new RegExp(`(?<!-)(${fields}):`, 'g');
+    // Pattern for regular filters: field:... standing as a word of its own (the negated ones are gone)
+    const posFilterRe = new RegExp(`(?<=^|\\s)(${fields}):`, 'gi');
     const posMatches: Array<{ field: string; value: string; fullMatch: string }> = [];
     while ((match = posFilterRe.exec(cleanedQuery)) !== null) {
       const field = match[1];
@@ -611,7 +614,7 @@ const Album = {
     // Process positive matches (in reverse to preserve indices when removing)
     for (const m of posMatches.reverse()) {
       hasFilters = true;
-      const col = columnMap[m.field];
+      const col = columnMap[m.field.toLowerCase()];
       if (col) {
         const vals = parseCommaSeparatedValues(m.value);
         whereClauses.push(buildClause(col, vals, false));
@@ -619,129 +622,56 @@ const Album = {
       }
     }
 
-    // Helper to process regex patterns
-    const processPattern = (pattern: RegExp, text: string, handler: (m: RegExpExecArray) => void): string => {
-      let m: RegExpExecArray | null;
-      let remaining = text;
-      const originalText = text;
-      while ((m = pattern.exec(originalText)) !== null) {
-        handler(m);
-        remaining = remaining.replace(m[0], ' ').trim();
-      }
-      return remaining;
-    };
+    // Numbers: year:1960-1969, year:>=2020, -year:1990, stars:>=3.5, stars:5,0; values ORed, `-` excludes.
+    // stars:0 is not rated; a mixtape has no stars of its own, so stars: leaves the mixtapes out.
+    for (const [key, column] of [['year', 'release_year'], ['stars', 'COALESCE(user_rating, 0)']] as const) {
+      const taken = takeNumberFilter(cleanedQuery, key, column);
+      if (!taken.clauses.length) continue;
+      hasFilters = true;
+      whereClauses.push(...taken.clauses);
+      params.push(...taken.params);
+      if (key === 'stars') whereClauses.push(NOT_MIXTAPE);
+      cleanedQuery = taken.rest;
+    }
 
-    // Pattern 5: Year with range or operators: year:2020-2024, year:>=2020, -year:2020
-    cleanedQuery = processPattern(
-      /-year:(>=|<=|>|<)?(\d+)(?:-(\d+))?/g,
-      cleanedQuery,
-      (m) => {
-        hasFilters = true;
-        if (m[3]) { // Range: -year:2020-2024 -> NOT BETWEEN
-          whereClauses.push(`release_year NOT BETWEEN ? AND ?`);
-          params.push(parseInt(m[2]), parseInt(m[3]));
-        } else {
-          const op = m[1] || '=';
-          const val = parseInt(m[2]);
-          const opMap: Record<string, string> = { '>=': '<', '<=': '>', '>': '<=', '<': '>=', '=': '!=' };
-          whereClauses.push(`release_year ${opMap[op]} ?`);
-          params.push(val);
-        }
-      }
-    );
-
-    cleanedQuery = processPattern(
-      /year:(>=|<=|>|<)?(\d+)(?:-(\d+))?/g,
-      cleanedQuery,
-      (m) => {
-        hasFilters = true;
-        if (m[3]) { // Range: year:2020-2024
-          whereClauses.push(`release_year BETWEEN ? AND ?`);
-          params.push(parseInt(m[2]), parseInt(m[3]));
-        } else {
-          const op = m[1] || '=';
-          const val = parseInt(m[2]);
-          const opSql: Record<string, string> = { '>=': '>=', '<=': '<=', '>': '>', '<': '<', '=': '=' };
-          whereClauses.push(`release_year ${opSql[op]} ?`);
-          params.push(val);
-        }
-      }
-    );
-
-    // The owner's stars, like year: stars:5, stars:>=3.5, stars:2-4; stars:0 is not rated.
-    cleanedQuery = processPattern(
-      /stars:(>=|<=|>|<)?(\d(?:\.5)?)(?:-(\d(?:\.5)?))?/g,
-      cleanedQuery,
-      (m) => {
-        hasFilters = true;
-        const stars = `COALESCE(user_rating, 0)`;
-        if (m[3]) {
-          whereClauses.push(`${stars} BETWEEN ? AND ?`);
-          params.push(parseFloat(m[2]), parseFloat(m[3]));
-        } else {
-          const opSql: Record<string, string> = { '>=': '>=', '<=': '<=', '>': '>', '<': '<', '=': '=' };
-          whereClauses.push(`${stars} ${opSql[m[1] || '=']} ?`);
-          params.push(parseFloat(m[2]));
-        }
-        // A mixtape has no stars of its own: stars:0 is no mixtape.
-        whereClauses.push(NOT_MIXTAPE);
-      }
-    );
-
-    // Whether the album is a CD of the collection: cd:no is what one has only as files, or wishes.
-    cleanedQuery = processPattern(
-      /(?:^|\s)cd:(yes|no)\b/gi,
-      cleanedQuery,
-      (m) => {
-        hasFilters = true;
-        whereClauses.push(m[1].toLowerCase() === 'yes'
-          ? `COALESCE(title_status, 'owned') = 'owned'`
-          : `title_status IN ('digital', 'wish')`);
-      }
-    );
+    // yes/no filters, each with what yes and what no keep (true/false, with/without, y/n, 1/0 too; -cd:yes is cd:no).
+    const bools: Array<[string, string, string, boolean?]> = [
+      // Whether the album is a CD of the collection: cd:no is what one has only as files, or wishes.
+      ['cd', `COALESCE(title_status, 'owned') = 'owned'`, `title_status IN ('digital', 'wish')`],
+      // Whether a CD of the collection is in Navidrome: ripped:no is what is left to rip.
+      ['ripped', `COALESCE(title_status, 'owned') = 'owned' AND file_quality IN ('lossless', 'near', 'lossy')`,
+        `COALESCE(title_status, 'owned') = 'owned' AND file_quality = 'none'`],
+      // Whether the owner has given the album stars: rated:no is what is left to listen to. No mixtape.
+      ['rated', `user_rating > 0`, `(user_rating IS NULL OR user_rating = 0)`, true],
+      // mixtape:yes, the mixtapes alone; mixtape:no, the albums.
+      ['mixtape', `title_status = 'playlist'`, NOT_MIXTAPE],
+    ];
+    for (const [key, yes, no, noMixtape] of bools) {
+      const { allowed, rest } = takeBoolFilter(cleanedQuery, key);
+      if (!allowed) continue;
+      hasFilters = true;
+      cleanedQuery = rest;
+      if (allowed.length === 0) whereClauses.push('0');
+      else if (allowed.length === 1) whereClauses.push(`(${allowed[0] ? yes : no})`);
+      if (noMixtape) whereClauses.push(NOT_MIXTAPE);
+    }
 
     // How good its files are, as the last reading of Navidrome found them: near-lossless counts as lossless.
-    cleanedQuery = processPattern(
-      /(?:^|\s)file:(lossy|lossless)\b/gi,
-      cleanedQuery,
-      (m) => {
-        hasFilters = true;
-        whereClauses.push(m[1].toLowerCase() === 'lossy' ? `file_quality = 'lossy'` : `file_quality IN ('lossless', 'near')`);
-      }
-    );
-
-    // Whether a CD of the collection is in Navidrome: ripped:no is what is left to rip.
-    cleanedQuery = processPattern(
-      /(?:^|\s)ripped:(yes|no)\b/gi,
-      cleanedQuery,
-      (m) => {
-        hasFilters = true;
-        whereClauses.push(m[1].toLowerCase() === 'yes'
-          ? `COALESCE(title_status, 'owned') = 'owned' AND file_quality IN ('lossless', 'near', 'lossy')`
-          : `COALESCE(title_status, 'owned') = 'owned' AND file_quality = 'none'`);
-      }
-    );
-
-    // Whether the owner has given the album stars: rated:no is what is left to listen to.
-    cleanedQuery = processPattern(
-      /rated:(yes|no)\b/gi,
-      cleanedQuery,
-      (m) => {
-        hasFilters = true;
-        whereClauses.push(m[1].toLowerCase() === 'yes' ? `user_rating > 0` : `(user_rating IS NULL OR user_rating = 0)`);
-        whereClauses.push(NOT_MIXTAPE);
-      }
-    );
-
-    // mixtape:yes, the mixtapes alone; mixtape:no, the albums.
-    cleanedQuery = processPattern(
-      /(?:^|\s)mixtape:(yes|no)\b/gi,
-      cleanedQuery,
-      (m) => {
-        hasFilters = true;
-        whereClauses.push(m[1].toLowerCase() === 'yes' ? `title_status = 'playlist'` : NOT_MIXTAPE);
-      }
-    );
+    // file:lossless,lossy is either; -file:lossy everything but the lossy ones.
+    const qualities: Record<string, string[]> = { lossless: ['lossless', 'near'], lossy: ['lossy'] };
+    const fileWords = findFilters(cleanedQuery, 'file');
+    const fileTaken: string[] = [];
+    for (const word of fileWords) {
+      const values = word.values.map(v => v.toLowerCase());
+      if (!values.length || values.some(v => !qualities[v])) continue;
+      const wanted = [...new Set(values.flatMap(v => qualities[v]))];
+      const marks = wanted.map(() => '?').join(', ');
+      whereClauses.push(word.neg ? `COALESCE(file_quality, '') NOT IN (${marks})` : `file_quality IN (${marks})`);
+      params.push(...wanted);
+      fileTaken.push(word.text);
+      hasFilters = true;
+    }
+    cleanedQuery = withoutWords(cleanedQuery, fileTaken);
 
     return { params, whereClauses, hasFilters, hasTrackFilter, cleanedQuery: cleanedQuery.trim() };
   },
@@ -753,11 +683,13 @@ const Album = {
    * section the owner set by hand.
    */
   search: async (query: string, { withNoCd = false, mixtapes = false }: { withNoCd?: boolean; mixtapes?: boolean } = {}): Promise<AlbumFormatted[]> => {
-    const classical = query.match(/(^|\s)classical:(yes|no)\b/i);
-    if (!classical) return Album.searchAll(query, withNoCd, mixtapes);
-    const albums = await Album.searchAll(query.replace(classical[0], ' ').replace(/\s+/g, ' ').trim(), withNoCd, mixtapes);
-    if (albums.length === 0) return albums;
-    const want = classical[2].toLowerCase() === 'yes';
+    // classical:yes, classical:no, -classical:yes, classical:true… (albumSearchFilters).
+    const { allowed, rest } = takeBoolFilter(normaliseAlbumQuery(query), 'classical');
+    if (!allowed) return Album.searchAll(query, withNoCd, mixtapes);
+    if (allowed.length === 0) return [];
+    const albums = await Album.searchAll(rest, withNoCd, mixtapes);
+    if (albums.length === 0 || allowed.length === 2) return albums;
+    const want = allowed[0];
     const ids = albums.map(album => album.id);
     const marks = ids.map(() => '?').join(',');
     const all = <T>(sql: string): Promise<T[]> => new Promise((resolve, reject) =>

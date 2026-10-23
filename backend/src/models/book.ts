@@ -591,339 +591,162 @@ const Book = {
     });
   },
 
-  // Helper function to parse enhanced search query syntax
-  // Supports: OR (type:book,graphic-novel), negation (-type:score), ranges (year:2020-2024)
+  // The search's words and filters (docs/superpowers/specs/2026-10-22-search-pills-design.md):
+  // key:value, key:a,b (either), key:"two words", -key: or !key: (all but), yes/no for
+  // has_ebook (true/false, with/without, y/n, 1/0 understood), numbers 4, >=4, 2-4 for
+  // year and rating. A key unknown stays a word; a key without a value is no filter yet.
   _parseSearchQuery: (query: string): BookSearchParsed => {
     const params: unknown[] = [];
     const whereClauses: string[] = [];
     let titleStatusFilter: string | string[] | null = null;
     let hasFilters = false;
-    let cleanedQuery = query;
+    const words: string[] = [];
 
-    // Column mapping for filter fields
-    const columnMap: Record<string, string> = {
-      'title': 'title', 'subtitle': 'subtitle', 'author': 'authors', 'artist': 'artists',
-      'isbn': 'isbn', 'series': 'series', 'owner': 'owner', 'format': 'format',
-      'language': 'language', 'genre': 'genres', 'tag': 'tags', 'type': 'book_type', 'book_type': 'book_type'
-    };
-
-    const isArrayColumn = (col: string): boolean => ['authors', 'artists', 'genres', 'tags'].includes(col);
-
-    // Helper: parse comma-separated values respecting quotes
-    // Handles: value1,value2,"value with spaces","another value"
-    const parseCommaSeparatedValues = (valueStr: string): string[] => {
-      const values: string[] = [];
-      let current = '';
-      let inQuotes = false;
-
-      for (let i = 0; i < valueStr.length; i++) {
-        const char = valueStr[i];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          if (current.trim()) values.push(current.trim());
-          current = '';
-        } else {
-          current += char;
-        }
-      }
-      if (current.trim()) values.push(current.trim());
-      return values.filter(v => v);
-    };
-
-    // Helper: extract filter value including quoted parts with spaces
-    const extractFilterValue = (text: string, startIndex: number): { value: string; endIndex: number } => {
-      let value = '';
-      let inQuotes = false;
-      let i = startIndex;
-
-      while (i < text.length) {
-        const char = text[i];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-          value += char;
-        } else if (char === ' ' && !inQuotes) {
-          break;
-        } else {
-          value += char;
-        }
-        i++;
-      }
-      return { value, endIndex: i };
-    };
-
-    // Helper to process regex patterns
-    const processPattern = (pattern: RegExp, text: string, handler: (m: RegExpExecArray) => void): string => {
-      let m: RegExpExecArray | null;
-      let remaining = text;
-      const originalText = text;
-      while ((m = pattern.exec(originalText)) !== null) {
-        handler(m);
-        remaining = remaining.replace(m[0], ' ').trim();
-      }
-      return remaining;
-    };
-
-    // Text fields that support smart comma-separated parsing
-    const textFields = 'title|author|artist|isbn|series|owner|format|language|genre|tag|subtitle';
-
-    // Process negated text field filters with smart value extraction
-    // Include type and book_type for negated type filters like -type:score
-    const negTextFilterRe = new RegExp(`-(${textFields}|type|book_type):`, 'g');
-    let match: RegExpExecArray | null;
-    const negTextMatches: Array<{ field: string; value: string; fullMatch: string }> = [];
-    while ((match = negTextFilterRe.exec(cleanedQuery)) !== null) {
-      const field = match[1];
-      const valueStart = match.index + match[0].length;
-      const { value, endIndex } = extractFilterValue(cleanedQuery, valueStart);
-      if (value) {
-        negTextMatches.push({ field, value, fullMatch: cleanedQuery.substring(match.index, endIndex) });
-      }
+    // Words split on the spaces outside quotes: title:"Vol: 2" is one.
+    const tokens: string[] = [];
+    let cur = '';
+    let inQuotes = false;
+    for (const c of query || '') {
+      if (/\s/.test(c) && !inQuotes) { if (cur) tokens.push(cur); cur = ''; continue; }
+      if (c === '"') inQuotes = !inQuotes;
+      cur += c;
     }
+    if (cur) tokens.push(cur);
 
-    for (const m of negTextMatches.reverse()) {
-      hasFilters = true;
-      const col = columnMap[m.field];
-      if (!col) continue;
-      const vals = parseCommaSeparatedValues(m.value);
-      if (col === 'book_type') {
-        const valid = vals.filter(v => ['book', 'score', 'graphic-novel'].includes(v.toLowerCase()));
-        if (valid.length === 1) { whereClauses.push(`${col} != ?`); params.push(valid[0].toLowerCase()); }
-        else if (valid.length > 1) { whereClauses.push(`${col} NOT IN (${valid.map(() => '?').join(',')})`); valid.forEach(v => params.push(v.toLowerCase())); }
-      } else if (isArrayColumn(col)) {
-        const clauses = vals.map(v => { params.push(`%${v}%`); return `${col} LIKE ?`; });
-        whereClauses.push(`NOT (${clauses.join(' OR ')})`);
-      } else {
-        const clauses = vals.map(v => { params.push(`%${v}%`); return `${col} LIKE ?`; });
-        whereClauses.push(`NOT (${clauses.join(' OR ')})`);
+    // A filter's values, split on the commas outside quotes, the quotes gone.
+    const splitValues = (s: string): string[] => {
+      const out: string[] = [];
+      let v = '';
+      let q = false;
+      for (const c of s) {
+        if (c === '"') { q = !q; continue; }
+        if (c === ',' && !q) { out.push(v.trim()); v = ''; continue; }
+        v += c;
       }
-      cleanedQuery = cleanedQuery.replace(m.fullMatch, ' ').trim();
-    }
+      out.push(v.trim());
+      return out.filter(Boolean);
+    };
 
-    // Process regular text field filters with smart value extraction
-    const posTextFilterRe = new RegExp(`(?<!-)(${textFields}|title_status|type|book_type):`, 'g');
-    const posTextMatches: Array<{ field: string; value: string; fullMatch: string }> = [];
-    while ((match = posTextFilterRe.exec(cleanedQuery)) !== null) {
-      const field = match[1];
-      const valueStart = match.index + match[0].length;
-      const { value, endIndex } = extractFilterValue(cleanedQuery, valueStart);
-      if (value) {
-        posTextMatches.push({ field, value, fullMatch: cleanedQuery.substring(match.index, endIndex) });
-      }
-    }
+    // Words in a column: never NULL, so that an exclusion keeps the books without it.
+    const likeColumns: Record<string, string[]> = {
+      title: ['title'], subtitle: ['subtitle'], author: ['authors'], artist: ['artists'],
+      isbn: ['isbn', 'isbn13'], series: ['series'], format: ['format'], language: ['language'],
+      genre: ['genres'], tag: ['tags'],
+    };
+    const BOOK_TYPES = ['book', 'graphic-novel', 'score'];
+    const STATUSES = ['owned', 'borrowed', 'wish'];
+    const YES = ['yes', 'true', 'with', 'y', '1'];
+    const NO = ['no', 'false', 'without', 'n', '0'];
 
-    for (const m of posTextMatches.reverse()) {
+    // One number, a comparison or a range, on a column that may be NULL.
+    const numberClause = (col: string, v: string, values: unknown[]): string | null => {
+      let m = v.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/);
+      if (m) { values.push(Number(m[1]), Number(m[2])); return `${col} BETWEEN ? AND ?`; }
+      m = v.match(/^(=|>=|<=|>|<)?(\d+(?:\.\d+)?)$/);
+      if (m) { values.push(Number(m[2])); return `${col} ${m[1] || '='} ?`; }
+      return null;
+    };
+
+    for (const token of tokens) {
+      const m = token.match(/^([-!]?)([A-Za-z_]+):(.*)$/s);
+      const key = m ? m[2].toLowerCase() : '';
+      const known = !!m && (key in likeColumns || ['owner', 'type', 'book_type', 'title_status', 'has_ebook', 'year', 'rating'].includes(key));
+      if (!m || !known) { words.push(token); continue; }
+      const neg = !!m[1];
+      const vals = splitValues(m[3]);
+      if (!vals.length) continue; // A key alone: a pill being written.
       hasFilters = true;
 
-      if (m.field === 'title_status') {
-        const vals = parseCommaSeparatedValues(m.value).filter(v => ['owned', 'borrowed', 'wish'].includes(v));
-        titleStatusFilter = vals.length === 1 ? vals[0] : (vals.length > 1 ? vals : null);
-        cleanedQuery = cleanedQuery.replace(m.fullMatch, ' ').trim();
-        continue;
-      }
-      if (m.field === 'type' || m.field === 'book_type') {
-        const vals = parseCommaSeparatedValues(m.value).filter(v => ['book', 'score', 'graphic-novel'].includes(v.toLowerCase()));
-        if (vals.length === 1) { whereClauses.push('book_type = ?'); params.push(vals[0].toLowerCase()); }
-        else if (vals.length > 1) { whereClauses.push(`book_type IN (${vals.map(() => '?').join(',')})`); vals.forEach(v => params.push(v.toLowerCase())); }
-        cleanedQuery = cleanedQuery.replace(m.fullMatch, ' ').trim();
-        continue;
-      }
+      // The clause for the values, true or false but never NULL, and its params.
+      let clause: string | null = null;
+      const values: unknown[] = [];
 
-      const col = columnMap[m.field];
-      if (!col) continue;
-      const vals = parseCommaSeparatedValues(m.value);
-      if (isArrayColumn(col)) {
-        if (vals.length === 1) { whereClauses.push(`${col} LIKE ?`); params.push(`%${vals[0]}%`); }
-        else { const clauses = vals.map(v => { params.push(`%${v}%`); return `${col} LIKE ?`; }); whereClauses.push(`(${clauses.join(' OR ')})`); }
-      } else if (col === 'owner') {
+      if (key in likeColumns) {
+        const cols = likeColumns[key];
+        clause = vals.flatMap(v => cols.map(col => { values.push(`%${v}%`); return `COALESCE(${col}, '') LIKE ?`; })).join(' OR ');
+      } else if (key === 'owner') {
         // Exact names, one or several: owner:Alice,Oriane is either's; none is no one's.
         const names = vals.filter(v => v.toLowerCase() !== 'none');
-        const either = names.length ? [`LOWER(${col}) IN (${names.map(() => 'LOWER(?)').join(',')})`] : [];
-        if (names.length < vals.length) either.push(`(${col} IS NULL OR ${col} = '')`);
-        whereClauses.push(`(${either.join(' OR ')})`); params.push(...names);
+        const either = names.length ? [`LOWER(TRIM(COALESCE(owner, ''))) IN (${names.map(() => 'LOWER(?)').join(',')})`] : [];
+        if (names.length < vals.length) either.push(`TRIM(COALESCE(owner, '')) = ''`);
+        values.push(...names);
+        clause = either.join(' OR ');
+      } else if (key === 'type' || key === 'book_type') {
+        const types = [...new Set(vals.map(v => v.toLowerCase()).filter(v => BOOK_TYPES.includes(v)))];
+        if (types.length) { clause = `COALESCE(book_type, 'book') IN (${types.map(() => '?').join(',')})`; values.push(...types); }
+      } else if (key === 'title_status') {
+        const statuses = vals.map(v => v.toLowerCase()).filter(v => STATUSES.includes(v));
+        if (statuses.length) {
+          // All but: of the books shown without it, owned and borrowed.
+          const chosen = neg ? ['owned', 'borrowed'].filter(s => !statuses.includes(s)) : [...new Set(statuses)];
+          titleStatusFilter = chosen.length === 1 ? chosen[0] : chosen;
+          if (!chosen.length) whereClauses.push('0');
+        }
+        continue;
+      } else if (key === 'has_ebook') {
+        const bools = new Set(vals.map(v => v.toLowerCase()).map(v => (YES.includes(v) ? 'yes' : NO.includes(v) ? 'no' : null)).filter(Boolean));
+        if (bools.size === 1) {
+          clause = bools.has('yes') ? `COALESCE(ebook_file, '') != ''` : `COALESCE(ebook_file, '') = ''`;
+        }
       } else {
-        if (vals.length === 1) { whereClauses.push(`${col} LIKE ?`); params.push(`%${vals[0]}%`); }
-        else { const clauses = vals.map(v => { params.push(`%${v}%`); return `${col} LIKE ?`; }); whereClauses.push(`(${clauses.join(' OR ')})`); }
+        const col = key === 'year' ? 'published_year' : 'rating';
+        const ors = vals.map(v => numberClause(col, v, values)).filter((c): c is string => !!c);
+        if (ors.length) clause = `${col} IS NOT NULL AND (${ors.join(' OR ')})`;
       }
-      cleanedQuery = cleanedQuery.replace(m.fullMatch, ' ').trim();
+
+      if (!clause) continue; // Nothing it could mean: no filter.
+      whereClauses.push(neg ? `NOT (${clause})` : `(${clause})`);
+      params.push(...values);
     }
 
-    // Process has_ebook filter
-    cleanedQuery = processPattern(
-      /-has_ebook:(true|false)/gi,
-      cleanedQuery,
-      (m) => {
-        hasFilters = true;
-        const v = m[1].toLowerCase();
-        if (v === 'true') whereClauses.push('(ebook_file IS NULL OR ebook_file = "")');
-        else if (v === 'false') whereClauses.push('ebook_file IS NOT NULL AND ebook_file != ""');
-      }
-    );
-
-    cleanedQuery = processPattern(
-      /has_ebook:(true|false)/gi,
-      cleanedQuery,
-      (m) => {
-        hasFilters = true;
-        const v = m[1].toLowerCase();
-        if (v === 'true') whereClauses.push('ebook_file IS NOT NULL AND ebook_file != ""');
-        else if (v === 'false') whereClauses.push('(ebook_file IS NULL OR ebook_file = "")');
-      }
-    );
-
-    // Process year/rating with range or operators: year:2020-2024, year:>=2020, -year:2020
-    cleanedQuery = processPattern(
-      /-year:(>=|<=|>|<)?(\d+)(?:-(\d+))?/g,
-      cleanedQuery,
-      (m) => {
-        hasFilters = true;
-        if (m[3]) {
-          whereClauses.push(`published_year NOT BETWEEN ? AND ?`);
-          params.push(parseInt(m[2]), parseInt(m[3]));
-        } else {
-          const op = m[1] || '=';
-          const val = parseInt(m[2]);
-          const opMap: Record<string, string> = { '>=': '<', '<=': '>', '>': '<=', '<': '>=', '=': '!=' };
-          whereClauses.push(`published_year ${opMap[op]} ?`);
-          params.push(val);
-        }
-      }
-    );
-
-    cleanedQuery = processPattern(
-      /year:(>=|<=|>|<)?(\d+)(?:-(\d+))?/g,
-      cleanedQuery,
-      (m) => {
-        hasFilters = true;
-        if (m[3]) {
-          whereClauses.push(`published_year BETWEEN ? AND ?`);
-          params.push(parseInt(m[2]), parseInt(m[3]));
-        } else {
-          const op = m[1] || '=';
-          const val = parseInt(m[2]);
-          const opSql: Record<string, string> = { '>=': '>=', '<=': '<=', '>': '>', '<': '<', '=': '=' };
-          whereClauses.push(`published_year ${opSql[op]} ?`);
-          params.push(val);
-        }
-      }
-    );
-
-    cleanedQuery = processPattern(
-      /-rating:(>=|<=|>|<)?(\d+(?:\.\d+)?)/g,
-      cleanedQuery,
-      (m) => {
-        hasFilters = true;
-        const op = m[1] || '=';
-        const val = parseFloat(m[2]);
-        const opMap: Record<string, string> = { '>=': '<', '<=': '>', '>': '<=', '<': '>=', '=': '!=' };
-        whereClauses.push(`rating ${opMap[op]} ?`);
-        params.push(val);
-      }
-    );
-
-    cleanedQuery = processPattern(
-      /rating:(>=|<=|>|<)?(\d+(?:\.\d+)?)/g,
-      cleanedQuery,
-      (m) => {
-        hasFilters = true;
-        const op = m[1] || '=';
-        const val = parseFloat(m[2]);
-        const opSql: Record<string, string> = { '>=': '>=', '<=': '<=', '>': '>', '<': '<', '=': '=' };
-        whereClauses.push(`rating ${opSql[op]} ?`);
-        params.push(val);
-      }
-    );
-
-    return { params, whereClauses, titleStatusFilter, hasFilters, cleanedQuery: cleanedQuery.trim() };
+    return { params, whereClauses, titleStatusFilter, hasFilters, cleanedQuery: words.join(' ').trim() };
   },
 
   search: (query: string): Promise<BookFormatted[]> => {
     return new Promise((resolve, reject) => {
       const db = getDatabase();
+      const { params, whereClauses, titleStatusFilter, cleanedQuery } = Book._parseSearchQuery(query);
 
-      // Use enhanced search parser (supports OR, negation, ranges)
-      const { params, whereClauses, titleStatusFilter, hasFilters, cleanedQuery } = Book._parseSearchQuery(query);
-
-      // Build title_status filter clause (supports array for OR logic)
+      // Owned and borrowed unless title_status says otherwise (one or several).
       let titleStatusClause = "(title_status IN ('owned', 'borrowed') OR title_status IS NULL)";
       let titleStatusParams: string[] = [];
-      if (titleStatusFilter) {
-        if (Array.isArray(titleStatusFilter)) {
-          // Multiple statuses: title_status IN ('owned', 'wish')
+      if (Array.isArray(titleStatusFilter)) {
+        if (titleStatusFilter.length) {
           titleStatusClause = `title_status IN (${titleStatusFilter.map(() => '?').join(', ')})`;
           titleStatusParams = titleStatusFilter;
+        }
+      } else if (titleStatusFilter) {
+        titleStatusClause = 'title_status = ?';
+        titleStatusParams = [titleStatusFilter];
+      }
+
+      // The plain words, together, in the title, the authors, the series…
+      const whereParts: string[] = [];
+      let searchParams: string[] = [];
+      if (cleanedQuery) {
+        whereParts.push('(title LIKE ? OR subtitle LIKE ? OR authors LIKE ? OR artists LIKE ? OR isbn LIKE ? OR isbn13 LIKE ? OR series LIKE ? OR description LIKE ?)');
+        searchParams = Array(8).fill(`%${cleanedQuery}%`);
+      }
+      whereParts.push(...whereClauses, titleStatusClause);
+
+      const sql = `
+        SELECT * FROM books
+        WHERE ${whereParts.join(' AND ')}
+        ORDER BY
+          CASE
+            WHEN language IN ('en', 'eng', 'fr', 'fre', 'fra') THEN 1
+            ELSE 2
+          END,
+          title
+      `;
+
+      db.all(sql, [...searchParams, ...params, ...titleStatusParams], (err: Error | null, rows: BookRow[]) => {
+        if (err) {
+          reject(err);
         } else {
-          titleStatusClause = "title_status = ?";
-          titleStatusParams = [titleStatusFilter];
+          resolve(rows.map(Book.formatRow).filter((r): r is BookFormatted => r !== null));
         }
-      }
-
-      // Use cleaned query for general search (without title_status filter)
-      const generalSearchText = cleanedQuery.trim();
-
-      // If no filters found, do a general search
-      if (!hasFilters && !titleStatusFilter) {
-        const sql = `
-          SELECT * FROM books
-          WHERE (title LIKE ? OR subtitle LIKE ? OR authors LIKE ? OR artists LIKE ? OR isbn LIKE ? OR isbn13 LIKE ? OR series LIKE ? OR description LIKE ?)
-          AND ${titleStatusClause}
-          ORDER BY
-            CASE
-              WHEN language IN ('en', 'eng', 'fr', 'fre', 'fra') THEN 1
-              ELSE 2
-            END,
-            title
-        `;
-        const searchTerm = `%${query}%`;
-
-        db.all(sql, [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm], (err: Error | null, rows: BookRow[]) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows.map(Book.formatRow).filter((r): r is BookFormatted => r !== null));
-          }
-        });
-      } else {
-        // Build filtered query
-        // If we have filters but no general search text, we still need a WHERE clause
-        let searchClause = '';
-        let searchParams: string[] = [];
-
-        if (generalSearchText && generalSearchText.length > 0) {
-          // We have search text (after removing title_status filter)
-          searchClause = '(title LIKE ? OR subtitle LIKE ? OR authors LIKE ? OR artists LIKE ? OR isbn LIKE ? OR isbn13 LIKE ? OR series LIKE ? OR description LIKE ?)';
-          const searchTerm = `%${generalSearchText}%`;
-          searchParams = [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm];
-        }
-
-        const whereParts: string[] = [];
-        if (searchClause) {
-          whereParts.push(searchClause);
-        }
-        if (whereClauses.length > 0) {
-          whereParts.push(...whereClauses);
-        }
-        whereParts.push(titleStatusClause);
-
-        const sql = `
-          SELECT * FROM books
-          WHERE ${whereParts.join(' AND ')}
-          ORDER BY
-            CASE
-              WHEN language IN ('en', 'eng', 'fr', 'fre', 'fra') THEN 1
-              ELSE 2
-            END,
-            title
-        `;
-
-        db.all(sql, [...searchParams, ...params, ...titleStatusParams], (err: Error | null, rows: BookRow[]) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows.map(Book.formatRow).filter((r): r is BookFormatted => r !== null));
-          }
-        });
-      }
+      });
     });
   },
 
@@ -1179,7 +1002,8 @@ const Book = {
         'publisher': 'publisher',
         'genre': 'genres',
         'tag': 'tags',
-        'owner': 'owner'
+        'owner': 'owner',
+        'language': 'language'
       };
       const column = columnMap[field];
       if (!column) {

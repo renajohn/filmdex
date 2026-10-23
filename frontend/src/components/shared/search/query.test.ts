@@ -156,6 +156,26 @@ describe('canonical', () => {
   });
 });
 
+describe('old spellings of yes and no in keys that list them', () => {
+  const warned: SearchKey[] = [
+    { key: 'spiders', group: 'Warnings', type: 'enum', desc: 'Spiders', values: [{ value: 'yes' }, { value: 'no' }, { value: 'unknown' }] },
+    { key: 'watched', group: 'Yours', type: 'number', desc: 'Watched', values: [{ value: 'yes' }, { value: 'no' }] },
+  ];
+
+  it('reads spiders:without as spiders:no, not as a mistake', () => {
+    const t = parseToken('spiders:without', warned);
+    expect(t.error).toBeUndefined();
+    expect(canonical(t)).toBe('spiders:no');
+    expect(canonical(parseToken('-spiders:with,unknown', warned))).toBe('-spiders:yes,unknown');
+  });
+
+  it('reads watched:true as watched:yes, and keeps a count as typed', () => {
+    expect(canonical(parseToken('watched:true', warned))).toBe('watched:yes');
+    expect(canonical(parseToken('watched:>=2', warned))).toBe('watched:>=2');
+    expect(parseToken('watched:maybe', warned).error).toBeDefined();
+  });
+});
+
 describe('fitInRows', () => {
   it('counts the elements of the first rows, a row being one top', () => {
     expect(fitInRows([0, 0, 30, 30, 60], 2)).toBe(4);

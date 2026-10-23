@@ -31,7 +31,7 @@ describe('App shell', () => {
     render(<App />);
 
     await waitFor(() =>
-      expect(screen.getByPlaceholderText(/Search FilmDex by title, director/i)).toBeInTheDocument()
+      expect(screen.getByPlaceholderText(/^Search FilmDex/i)).toBeInTheDocument()
     );
   });
 

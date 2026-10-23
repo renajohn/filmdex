@@ -37,5 +37,15 @@ describe('favourites:', () => {
 
     const no = await request(app).get('/api/music/albums/search').query({ q: `favourites:no ${tag}` });
     expect(no.body.map((album: { id: number }) => album.id)).toEqual([plain]);
+
+    // The old words, the other names and the exclusion, as links and bookmarks may still write them.
+    const ids = async (q: string) =>
+      (await request(app).get('/api/music/albums/search').query({ q: `${q} ${tag}` })).body.map((album: { id: number }) => album.id).sort();
+    expect(await ids('favourites:true')).toEqual([hearted]);
+    expect(await ids('fav:yes')).toEqual([hearted]);
+    expect(await ids('favorites:with')).toEqual([hearted]);
+    expect(await ids('-favourites:yes')).toEqual([plain]);
+    expect(await ids('!fav:no')).toEqual([hearted]);
+    expect(await ids('favourites:yes,no')).toEqual([hearted, plain].sort());
   });
 });
