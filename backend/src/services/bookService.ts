@@ -355,7 +355,8 @@ class BookService {
   // ============================================
 
   async getAutocompleteSuggestions(field: string, value: string): Promise<AutocompleteRow[]> {
-    const allowedFields = ['title', 'author', 'series', 'publisher', 'genre', 'tag', 'owner', 'title_status', 'type', 'book_type'];
+    // The keys of BookDex's search that offer values (frontend schemas/books.ts); subtitle has no column in Book.autocomplete.
+    const allowedFields = ['title', 'author', 'artist', 'series', 'publisher', 'genre', 'tag', 'language', 'owner', 'title_status', 'type', 'book_type'];
     if (!allowedFields.includes(field)) {
       throw new Error(`Invalid field: ${field}`);
     }

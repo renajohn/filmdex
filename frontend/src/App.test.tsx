@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from './App';
 
 /**
@@ -14,7 +14,8 @@ vi.mock('./services/api', () => ({
     getAutocompleteSuggestions: vi.fn(() => Promise.resolve([])),
     getCollectionNames: vi.fn(() => Promise.resolve([])),
     getBoxSetNames: vi.fn(() => Promise.resolve([])),
-    getWatchNextMovies: vi.fn(() => Promise.resolve([]))
+    getWatchNextMovies: vi.fn(() => Promise.resolve([])),
+    getAllCollections: vi.fn(() => Promise.resolve([]))
   }
 }));
 
@@ -61,5 +62,23 @@ describe('App shell', () => {
     const sections = await screen.findByRole('radiogroup', { name: 'Collections' });
 
     expect(within(sections).getByRole('radio', { checked: true })).toHaveAccessibleName(expect.stringContaining('FilmDex'));
+  });
+
+  it('replaces an age group or a format of the ▾ filters rather than adding a second one', async () => {
+    render(<App />);
+    await screen.findByPlaceholderText(/^Search FilmDex/i);
+    const pick = async (label: string) => {
+      fireEvent.click(screen.getByRole('button', { name: 'Advanced filters' }));
+      fireEvent.click(await screen.findByRole('menuitem', { name: label }));
+    };
+    const pills = () => screen.queryAllByRole('group').map(g => g.getAttribute('aria-label')).filter(l => l && /:/.test(l));
+
+    await pick('Children (4-9)');
+    await pick('Teens & Adults (15+)');
+    await waitFor(() => expect(pills()).toEqual(['recommended_age: >=15']));
+
+    await pick('Blu-ray 4K');
+    await pick('DVD');
+    await waitFor(() => expect(pills()).toEqual(['recommended_age: >=15', 'format: DVD']));
   });
 });

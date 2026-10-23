@@ -262,8 +262,8 @@ function AppContent() {
 
     if (predicate) {
       let currentText = searchCriteria.searchText.trim();
-      if (filterType === 'music' || filterType === 'score' || filterType === 'book') {
-        // A MusicDex, BookDex or Scores filter takes the place of one of its family already there: stars and rated are one
+      if (filterType === 'music' || filterType === 'score' || filterType === 'book' || filterType === 'age_group' || filterType === 'format') {
+        // A filter takes the place of one of its family already there: stars and rated are one, a second age group or format replaces the first
         const key = predicate.split(':')[0];
         const family = key === 'stars' || key === 'rated' ? 'stars|rated' : key === 'heard' || key === 'contents' ? 'heard|contents'
           : key === 'favourites' ? 'favourites|favorites|fav' : key;

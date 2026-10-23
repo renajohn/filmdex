@@ -99,6 +99,23 @@ const readRecent = (key?: string): string[] => {
 
 const quotesOpen = (s: string) => (s.match(/"/g) || []).length % 2 === 1;
 
+/** A value put back in the field to be typed again: between quotes when a comma in it would cut it. */
+const asTyped = (v: string) => (v.includes(',') ? `"${v}"` : v);
+
+/** What is typed in a pill, cut at the commas outside quotes: `"B minor, Op. 104",Bach` is two values. */
+const splitTyped = (s: string): string[] => {
+  const out: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (const c of s) {
+    if (c === '"') inQuotes = !inQuotes;
+    if (c === ',' && !inQuotes) { out.push(cur); cur = ''; continue; }
+    cur += c;
+  }
+  out.push(cur);
+  return out;
+};
+
 /** The open pill as the string writes it, with the value being typed. */
 const pillRaw = (open: OpenPill, text: string): string => {
   const values = [...open.before, text.trim().replace(/"/g, ''), ...open.after].filter(Boolean);
@@ -143,7 +160,8 @@ const SearchPills: React.FC<SearchPillsProps> = ({
   const [focused, setFocused] = useState(false);
   const focusedRef = useRef(false);
   const [menuShown, setMenuShown] = useState(false);
-  const [nav, setNav] = useState<{ ctx: string; index: number } | null>(null);
+  // The line lit by the arrows (`keys`) or under the pointer: only the arrows choose what Enter, a space or a comma take.
+  const [nav, setNav] = useState<{ ctx: string; index: number; keys: boolean } | null>(null);
   const [caretAtEnd, setCaretAtEnd] = useState(true);
   const [keyMenus, setKeyMenus] = useState(0);
   const [wordValues, setWordValues] = useState<{ word: string; found: Array<{ def: SearchKey; value: string; count?: number }> } | null>(null);
@@ -153,6 +171,10 @@ const SearchPills: React.FC<SearchPillsProps> = ({
   const pendingFocus = useRef<'end' | 'all' | null>(null);
 
   const rootRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const floatRef = useRef<HTMLDivElement>(null);
+  /** The pill whose key menu opens once it is closed: its key clicked while it was open. */
+  const pendingKeyMenu = useRef<number | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const entryRef = useRef<HTMLSpanElement>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
@@ -313,6 +335,9 @@ const SearchPills: React.FC<SearchPillsProps> = ({
       const found = pillValues?.key === def.key ? pillValues.values : [];
       first([...(def.values || []), ...found].filter(v => norm(v.value).includes(typed))).forEach(push);
     }
+    // The value typed, when the key has it, first: the line lit and the one Tab takes.
+    const exact = typed ? out.findIndex(o => norm(o.value) === typed) : -1;
+    if (exact > 0) out.unshift(...out.splice(exact, 1));
     if (open.showAll && open.current && !out.some(o => norm(o.value) === norm(open.current!))) out.unshift({ value: open.current });
     const section = `${def.key} · ${open.showAll ? 'every value' : 'values'}`;
     return out.map(v => ({
@@ -327,8 +352,12 @@ const SearchPills: React.FC<SearchPillsProps> = ({
   const ghost = ((): { item: Suggestion; rest: string } | null => {
     if (!focused || !caretAtEnd) return null;
     if (open) {
-      if (open.showAll || !text.trim() || quotesOpen(text)) return null;
+      if (open.showAll || !text.trim() || text.includes('"')) return null;
       const typed = norm(text);
+      // A value the key has, typed in full: nothing to add, whatever begins like it.
+      if (suggestions.some(s => s.kind === 'pillValue' && norm(s.value) === typed)) return null;
+      // A number or a date typed is what it says: 4 is not the start of >=4.5, nor 196 of 1960-1969.
+      if ((openDef?.type === 'number' || openDef?.type === 'date') && /^[\s<>=\d.-]/.test(text)) return null;
       for (const s of suggestions) {
         if (s.kind === 'pillValue' && norm(s.value).startsWith(typed) && s.value.length > text.length) return { item: s, rest: s.value.slice(text.length) };
       }
@@ -355,7 +384,7 @@ const SearchPills: React.FC<SearchPillsProps> = ({
   const menuVisible = focused && menuShown && suggestions.length > 0;
 
   // What the handlers read: the render's own view of the menu.
-  const chosen = !!nav && nav.ctx === ctx;
+  const chosen = !!nav && nav.ctx === ctx && nav.keys;
   const view = useRef({ suggestions, menuIndex, ghost, menuVisible, chosen });
   view.current = { suggestions, menuIndex, ghost, menuVisible, chosen };
 
@@ -432,7 +461,7 @@ const SearchPills: React.FC<SearchPillsProps> = ({
     const open: OpenPill = k === null
       ? { at: i, neg: t.neg, key: t.def.key, before: values, after: [], current: null, showAll: false, original: item.raw, originalId: item.id }
       : { at: i, neg: t.neg, key: t.def.key, before: values.slice(0, k), after: values.slice(k + 1), current: values[k], showAll: true, original: item.raw, originalId: item.id };
-    d = { items: list, text: k === null ? '' : values[k], open };
+    d = { items: list, text: k === null ? '' : asTyped(values[k]), open };
     apply(d, { emit: true, focus: k === null ? 'end' : 'all', menu: true });
   };
 
@@ -466,23 +495,24 @@ const SearchPills: React.FC<SearchPillsProps> = ({
   /** Whether a space goes on in a name of several words the key knows (Joni ⎵ Mitchell). */
   const goesOn = (typed: string) => {
     if (!openDef || (openDef.type !== 'text' && openDef.type !== 'list')) return false;
-    const want = norm(`${typed} `);
+    const want = norm(`${typed.replace(/"/g, '')} `);
     return view.current.suggestions.some(s => s.kind === 'pillValue' && norm(s.value).startsWith(want))
       || (openDef.values || []).some(v => norm(v.value).startsWith(want));
   };
 
   /**
-   * The value a comma, a space or Enter ends: the grey rest, or a line chosen
-   * with the arrows, or else the words as typed: "bach" stays bach, which
-   * finds every Bach, rather than the first name that contains it. Tab alone
-   * takes the line lit.
+   * The value a comma, a space or Enter ends: a line chosen with the arrows, or
+   * else the words as typed, in the key's spelling when it has them (rock is
+   * Rock): "bach" stays bach, which finds every Bach, rather than the first
+   * name that contains it, and >=4 stays >=4. Tab and → alone take the grey rest.
    */
-  const proposed = (typed: string) => {
-    const { ghost: g, suggestions: list, menuIndex: index, menuVisible: shown, chosen } = view.current;
-    if (g && g.item.kind === 'pillValue') return g.item.value;
+  const proposed = (raw: string) => {
+    const typed = raw.replace(/"/g, '').trim();
+    const { suggestions: list, menuIndex: index, menuVisible: shown, chosen } = view.current;
     const lit = list[index];
     if (shown && chosen && typed && lit?.kind === 'pillValue') return lit.value;
-    return typed;
+    const same = list.find(s => s.kind === 'pillValue' && norm(s.value) === norm(typed));
+    return same?.kind === 'pillValue' ? same.value : typed;
   };
 
   const onInputChange = (v: string) => {
@@ -493,9 +523,9 @@ const SearchPills: React.FC<SearchPillsProps> = ({
       let t = v;
       // ! or - first: the pill excludes, or includes again.
       if (/^[-!]/.test(t) && o.before.length === 0) { o.neg = !o.neg; t = t.slice(1); }
-      // A comma: the value is done, another follows in the same pill.
-      if (t.includes(',') && !quotesOpen(t)) {
-        const parts = t.split(',');
+      // A comma outside quotes: the value is done, another follows in the same pill.
+      const parts = splitTyped(t);
+      if (parts.length > 1) {
         t = parts.pop() || '';
         o.before.push(...parts.map(p => p.replace(/"/g, '').trim()).filter(Boolean));
       }
@@ -505,7 +535,9 @@ const SearchPills: React.FC<SearchPillsProps> = ({
         if (typed) { apply(closePill({ ...d, open: o, text: proposed(typed) }), { emit: true, menu: true }); return; }
         t = '';
       }
-      apply({ ...d, open: o, text: quotesOpen(t) ? t : t.replace(/"/g, '') }, { menu: true });
+      // Quotes closed: they stay only around a comma, which they keep from cutting the value.
+      if (!quotesOpen(t)) t = asTyped(t.replace(/"/g, ''));
+      apply({ ...d, open: o, text: t }, { menu: true });
       return;
     }
     let next: Draft = { ...d, text: v };
@@ -518,7 +550,7 @@ const SearchPills: React.FC<SearchPillsProps> = ({
     const { suggestions: list, menuIndex: index, menuVisible: shown } = view.current;
     if (!shown) { setMenuShown(true); return; }
     const next = Math.max(-1, Math.min(list.length - 1, index + by));
-    setNav({ ctx, index: next });
+    setNav({ ctx, index: next, keys: true });
   };
 
   const pillKeys = (e: React.KeyboardEvent<HTMLInputElement>, d: Draft, o: OpenPill) => {
@@ -564,7 +596,7 @@ const SearchPills: React.FC<SearchPillsProps> = ({
       if (o.before.length) {
         const before = [...o.before];
         const last = before.pop() || '';
-        apply({ ...d, text: last, open: { ...o, before, showAll: false } }, { focus: 'end', menu: true });
+        apply({ ...d, text: asTyped(last), open: { ...o, before, showAll: false } }, { focus: 'end', menu: true });
         return;
       }
       // Nothing left but the key: back to its words, to mend them.
@@ -596,7 +628,8 @@ const SearchPills: React.FC<SearchPillsProps> = ({
       return;
     }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { move(e, e.key === 'ArrowDown' ? 1 : -1); return; }
-    if ((e.key === 'Tab' || e.key === 'Enter') && !e.shiftKey && shown && index >= 0 && list[index]) {
+    // Tab takes the line lit; Enter, only a line chosen with the arrows: otherwise the words as typed.
+    if ((e.key === 'Tab' || (e.key === 'Enter' && view.current.chosen)) && !e.shiftKey && shown && index >= 0 && list[index]) {
       e.preventDefault();
       take(list[index]);
       return;
@@ -627,7 +660,7 @@ const SearchPills: React.FC<SearchPillsProps> = ({
         const values = (t.canon || t.values).map(String);
         apply({
           items: rest,
-          text: values[values.length - 1],
+          text: asTyped(values[values.length - 1]),
           open: { at: rest.length, neg: t.neg, key: t.def.key, before: values.slice(0, -1), after: [], current: null, showAll: false, original: last.raw, originalId: last.id },
         }, { focus: 'end', menu: true });
       } else {
@@ -666,12 +699,29 @@ const SearchPills: React.FC<SearchPillsProps> = ({
     }, 0);
   };
 
+  /** A click in the field's empty space: the pill open closes on what is typed, as Enter does, and the caret goes to the end. */
   const focusField = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest('button, input, .search-pill, .search-pills__word, .search-pills__end')) return;
     e.preventDefault();
+    const d = draftRef.current;
+    if (d.open && !target.closest('.search-pills__entry--open')) {
+      setNav(null);
+      apply(closePill(d), { emit: true, focus: 'end', menu: true });
+      return;
+    }
     pendingFocus.current = 'end';
     inputEl.current?.focus({ preventScroll: true });
+  };
+
+  /** The open pill's key clicked: the pill closes with its values, and its key's menu opens, as on a closed pill. */
+  const openKeyMenu = () => {
+    const d = draftRef.current;
+    if (!d.open) return;
+    const closed = closePill(d);
+    if (pillRaw(d.open, d.text)) pendingKeyMenu.current = closed.items[d.open.at].id;
+    setNav(null);
+    apply(closed, { emit: true, menu: false });
   };
 
   /* ------------------------------------------------------- after a render */
@@ -696,11 +746,13 @@ const SearchPills: React.FC<SearchPillsProps> = ({
     const entry = entryRef.current;
     if (!content || !entry) return;
     if (!expanded) { content.scrollTop = 0; return; }
+    // A key's menu open, the field left: the pill it belongs to stays where it is.
+    if (!focused) return;
     if (entry.offsetTop < content.scrollTop) content.scrollTop = entry.offsetTop - 4;
     else if (entry.offsetTop + entry.offsetHeight > content.scrollTop + content.clientHeight) {
       content.scrollTop = entry.offsetTop + entry.offsetHeight - content.clientHeight + 4;
     }
-  }, [draft, expanded]);
+  }, [draft, expanded, focused]);
 
   // At rest, two rows at most: what does not fit is "+N", which opens the field.
   const [width, setWidth] = useState(0);
@@ -720,8 +772,11 @@ const SearchPills: React.FC<SearchPillsProps> = ({
     more.hidden = true;
     if (expanded || !pills.length) return;
     const tops = (els: HTMLElement[]) => (measureTops ? measureTops(els) : els.map(el => el.offsetTop));
+    // A pill in two lines (a phone's) is taller than a row: what goes past the field's bottom does not fit either.
+    const cut = (els: HTMLElement[]) => !measureTops && els.some(el => el.offsetTop + el.offsetHeight > content.clientHeight + 1);
     let shown = fitInRows(tops(pills), MAX_ROWS_AT_REST);
-    if (shown >= pills.length) return;
+    if (shown >= pills.length && !cut(pills)) return;
+    shown = Math.min(shown, pills.length - 1);
     const place = (count: number) => {
       pills.forEach((el, i) => el.classList.toggle('is-hidden', i >= count));
       more.hidden = false;
@@ -731,12 +786,42 @@ const SearchPills: React.FC<SearchPillsProps> = ({
     };
     // "+N" after the last that fits, one fewer while it has no room on the second row itself.
     place(shown);
-    while (shown > 0 && fitInRows(tops([...pills.slice(0, shown), more]), MAX_ROWS_AT_REST) <= shown) {
+    while (shown > 0 && (fitInRows(tops([...pills.slice(0, shown), more]), MAX_ROWS_AT_REST) <= shown || cut([...pills.slice(0, shown), more]))) {
       shown -= 1;
       place(shown);
     }
   });
   void width;
+
+  // Its key clicked while it was open: the pill, closed now, opens its key's menu.
+  useLayoutEffect(() => {
+    const id = pendingKeyMenu.current;
+    if (id == null) return;
+    pendingKeyMenu.current = null;
+    const content = contentRef.current;
+    const pillEl = content?.querySelector<HTMLElement>(`[data-item-id="${id}"]`);
+    if (!content || !pillEl) return;
+    // In sight first: its menu opens under it.
+    if (pillEl.offsetTop < content.scrollTop) content.scrollTop = pillEl.offsetTop - 4;
+    pillEl.querySelector<HTMLButtonElement>('.search-pill__key')?.click();
+  });
+
+  // In use, the field keeps its height at rest in the page: the rows it grows by lie over what is under it.
+  const restHeight = useRef(0);
+  useLayoutEffect(() => {
+    const anchor = anchorRef.current;
+    const float = floatRef.current;
+    if (!anchor || !float) return;
+    if (!expanded) {
+      anchor.style.height = '';
+      float.classList.remove('is-over');
+      restHeight.current = float.offsetHeight;
+      return;
+    }
+    if (!restHeight.current) return;
+    anchor.style.height = `${restHeight.current}px`;
+    float.classList.toggle('is-over', float.offsetHeight > restHeight.current + 1);
+  });
 
   /* -------------------------------------------------------------- render */
 
@@ -760,7 +845,7 @@ const SearchPills: React.FC<SearchPillsProps> = ({
     const key = t.def ? t.def.key : t.rawKey;
     const values = (t.canon || t.values).map(String);
     return (
-      <span key={item.id} data-pill role="group" aria-label={`${t.neg ? 'Not ' : ''}${key}: ${values.join(' or ')}`}
+      <span key={item.id} data-pill data-item-id={item.id} role="group" aria-label={`${t.neg ? 'Not ' : ''}${key}: ${values.join(' or ')}`}
         className={`search-pill${t.error ? ' search-pill--error' : ''}${t.neg ? ' search-pill--not' : ''}`} style={order}
         onMouseDown={e => e.preventDefault()}>
         {t.neg && <span className="search-pill__not" title="Not">!</span>}
@@ -795,7 +880,23 @@ const SearchPills: React.FC<SearchPillsProps> = ({
 
   const token = (s: Suggestion) => {
     switch (s.kind) {
-      case 'recent': return <span className="search-pills__tok search-pills__tok--plain">{s.query}</span>;
+      case 'recent': return (
+        <span className="search-pills__recent" title={s.query}>
+          {tokenize(s.query).map((tk, i) => {
+            const t = parseToken(tk.text, keys);
+            if (t.kind === 'word' || !t.values.length) return <span key={i} className="search-pills__recent-word">{tk.text}</span>;
+            return (
+              <span key={i} className="search-pills__tok">
+                {t.neg && <span className="search-pill__not">!</span>}
+                <span className="search-pill__key-text">{t.def ? t.def.key : t.rawKey}</span>
+                {(t.canon || t.values).map(String).map((v, k) => (
+                  <React.Fragment key={k}>{k > 0 && <span className="search-pill__or">or</span>}<span className="search-pills__tok-value">{v}</span></React.Fragment>
+                ))}
+              </span>
+            );
+          })}
+        </span>
+      );
       case 'word': return <span className="search-pills__tok search-pills__tok--plain">“{s.text}”</span>;
       case 'key': return <span className="search-pills__tok">{s.neg && <span className="search-pill__not">!</span>}<span className="search-pill__key-text">{s.def.key}</span></span>;
       case 'value': return <span className="search-pills__tok">{s.neg && <span className="search-pill__not">!</span>}<span className="search-pill__key-text">{s.def.key}</span><span className="search-pills__tok-value">{s.value}</span></span>;
@@ -820,7 +921,7 @@ const SearchPills: React.FC<SearchPillsProps> = ({
           {(i === 0 || suggestions[i - 1].section !== s.section) && <div className="menu-section" role="presentation">{s.section}</div>}
           <div id={`${listId}-${i}`} role="option" aria-selected={false}
             className={`menu-item search-pills__option${i === menuIndex ? ' menu-item--active' : ''}`}
-            onMouseMove={() => { if (i !== menuIndex) setNav({ ctx, index: i }); }}
+            onMouseMove={() => { if (i !== menuIndex) setNav({ ctx, index: i, keys: false }); }}
             onClick={() => take(s)}>
             {s.kind === 'pillValue' && <span className="search-pills__check" aria-hidden="true">{s.checked ? '✓' : ''}</span>}
             {token(s)}
@@ -851,70 +952,78 @@ const SearchPills: React.FC<SearchPillsProps> = ({
   return (
     <div ref={rootRef} className={`search-pills${focused ? ' is-focused' : ''}${expanded ? ' is-expanded' : ''} ${className}`}
       onFocus={handleFocus} onBlur={handleBlur}>
-      <div className="search-pills__anchor">
-        <div className="search-pills__field" onMouseDown={focusField}>
-          <BsSearch className="search-pills__lens" aria-hidden="true" />
-          <div ref={contentRef} className="search-pills__content">
-            {items.map(pill)}
-            <button ref={moreRef} type="button" className="search-pills__more" hidden
-              onMouseDown={e => e.preventDefault()}
-              onClick={() => { pendingFocus.current = 'end'; inputEl.current?.focus({ preventScroll: true }); }} />
-            <span ref={entryRef} className={`search-pills__entry${open ? ' search-pills__entry--open' : ''}`} style={{ order: entryOrder }}>
-              {open && (
-                <span className="search-pills__pre">
-                  {open.neg && <span className="search-pill__not" title="Not">!</span>}
-                  <span className="search-pill__key-text">{open.key}</span>
-                  {open.before.map((v, k) => (
-                    <React.Fragment key={k}><span className="search-pills__open-value">{v}</span><span className="search-pill__or">or</span></React.Fragment>
-                  ))}
+      <div ref={anchorRef} className="search-pills__anchor">
+        <div ref={floatRef} className="search-pills__float">
+          <div className="search-pills__field" onMouseDown={focusField}>
+            <BsSearch className="search-pills__lens" aria-hidden="true" />
+            <div ref={contentRef} className="search-pills__content">
+              {items.map(pill)}
+              <button ref={moreRef} type="button" className="search-pills__more" hidden
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => { pendingFocus.current = 'end'; inputEl.current?.focus({ preventScroll: true }); }} />
+              <span ref={entryRef} className={`search-pills__entry${open ? ' search-pills__entry--open' : ''}`} style={{ order: entryOrder }}>
+                {open && (
+                  <span className="search-pills__pre">
+                    {open.neg && <span className="search-pill__not" title="Not">!</span>}
+                    <button type="button" className="search-pill__key search-pills__open-key" title="Close it and open its menu"
+                      onMouseDown={e => e.preventDefault()} onClick={openKeyMenu}>{open.key}</button>
+                    {open.before.map((v, k) => (
+                      <React.Fragment key={k}><span className="search-pills__open-value">{v}</span><span className="search-pill__or">or</span></React.Fragment>
+                    ))}
+                  </span>
+                )}
+                <span className="search-pills__typing">
+                  <span className="search-pills__ghost" aria-hidden="true">
+                    <span className="search-pills__typed">{text || (open ? '' : ' ')}</span>
+                    {ghost && <><span className="search-pills__rest">{ghost.rest}</span><kbd className="search-pills__tab">tab</kbd></>}
+                  </span>
+                  <input
+                    ref={setInput}
+                    type="text"
+                    className="search-pills__input"
+                    value={text}
+                    placeholder={!open && !items.length ? (placeholder ?? schema.placeholder) : ''}
+                    aria-label={open ? `A value of ${open.key}` : 'Search'}
+                    role="combobox"
+                    aria-expanded={!!menuVisible}
+                    aria-controls={menuVisible ? listId : undefined}
+                    aria-autocomplete="list"
+                    aria-activedescendant={menuVisible && menuIndex >= 0 ? `${listId}-${menuIndex}` : undefined}
+                    autoComplete="off"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    enterKeyHint="search"
+                    onChange={e => { onInputChange(e.target.value); noteCaret(e.target); }}
+                    onKeyDown={onKeyDown}
+                    onSelect={e => noteCaret(e.currentTarget)}
+                    onClick={() => setMenuShown(true)}
+                  />
                 </span>
-              )}
-              <span className="search-pills__typing">
-                <span className="search-pills__ghost" aria-hidden="true">
-                  <span className="search-pills__typed">{text || (open ? '' : ' ')}</span>
-                  {ghost && <><span className="search-pills__rest">{ghost.rest}</span><kbd className="search-pills__tab">tab</kbd></>}
-                </span>
-                <input
-                  ref={setInput}
-                  type="text"
-                  className="search-pills__input"
-                  value={text}
-                  placeholder={!open && !items.length ? (placeholder ?? schema.placeholder) : ''}
-                  aria-label={open ? `A value of ${open.key}` : 'Search'}
-                  role="combobox"
-                  aria-expanded={!!menuVisible}
-                  aria-controls={menuVisible ? listId : undefined}
-                  aria-autocomplete="list"
-                  aria-activedescendant={menuVisible && menuIndex >= 0 ? `${listId}-${menuIndex}` : undefined}
-                  autoComplete="off"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  enterKeyHint="search"
-                  onChange={e => { onInputChange(e.target.value); noteCaret(e.target); }}
-                  onKeyDown={onKeyDown}
-                  onSelect={e => noteCaret(e.currentTarget)}
-                  onClick={() => setMenuShown(true)}
-                />
+                {open && open.after.length > 0 && (
+                  <span className="search-pills__post">
+                    {open.after.map((v, k) => (
+                      <React.Fragment key={k}><span className="search-pill__or">or</span><span className="search-pills__open-value">{v}</span></React.Fragment>
+                    ))}
+                  </span>
+                )}
               </span>
-              {open && open.after.length > 0 && (
-                <span className="search-pills__post">
-                  {open.after.map((v, k) => (
-                    <React.Fragment key={k}><span className="search-pill__or">or</span><span className="search-pills__open-value">{v}</span></React.Fragment>
-                  ))}
-                </span>
-              )}
-            </span>
+            </div>
+            {endAdornment && <div className="search-pills__end">{endAdornment}</div>}
           </div>
-          {endAdornment && <div className="search-pills__end">{endAdornment}</div>}
+          {menu}
         </div>
-        {menu}
       </div>
       {issues.length > 0 && (
         <div className="search-pills__issues">
           {issues.map(({ item, t }) => (
             <Notice key={item.id} tone="danger" className="search-pills__issue"
-              action={t.error?.fix ? <Button size="sm" onClick={() => fix(item.id, t.error!.fix!)}>{t.error.fixLabel}</Button> : undefined}>
+              action={(
+                <span className="search-pills__issue-actions">
+                  {t.error?.fix && <Button size="sm" onClick={() => fix(item.id, t.error!.fix!)}>{t.error.fixLabel}</Button>}
+                  <Button size="sm" variant="quiet" onClick={() => removeItem(item.id)}>Remove</Button>
+                </span>
+              )}>
               {withCode(t.error!.msg)}
             </Notice>
           ))}
