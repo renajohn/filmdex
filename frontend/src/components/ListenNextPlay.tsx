@@ -223,6 +223,14 @@ export const ListenNextControls: React.FC<ControlsProps> = ({ count, play, onRep
   const title = nothing ? 'Nothing ripped yet' : pause ? 'Pause Listen Next' : `Play Listen Next · ${albums}${appleMobile ? ' in Amperfy' : ''}`;
   return (
     <span className="listen-next-controls">
+      {/* Navidrome's own player, in a tab of its own: on an iPhone ▶ opens Amperfy already. Before ▶ and Repeat, so they
+          keep their place at the end whether it shows or not. */}
+      {!appleMobile && play?.playlistUrl && (
+        <a className="listen-next-controls__navidrome" href={play.playlistUrl} target="_blank" rel="noopener noreferrer"
+          title="Play Listen Next in Navidrome, in another tab">
+          Play on Navidrome <BsBoxArrowUpRight aria-hidden="true" />
+        </a>
+      )}
       {/* ▶ and Repeat side by side as one, the switch's height: gold while it plays, gold when Repeat is on. */}
       <span className="ui-button-group">
         <Button className="listen-next-controls__button" active={here || undefined} loading={starting}
@@ -232,13 +240,6 @@ export const ListenNextControls: React.FC<ControlsProps> = ({ count, play, onRep
           title={repeat ? 'Repeat: keep albums once played' : 'Albums leave the list once played'}
           aria-label="Repeat" icon={<BsRepeat />} />
       </span>
-      {/* Navidrome's own player, in a tab of its own: on an iPhone ▶ opens Amperfy already. */}
-      {!appleMobile && play?.playlistUrl && (
-        <a className="listen-next-controls__navidrome" href={play.playlistUrl} target="_blank" rel="noopener noreferrer"
-          title="Play Listen Next in Navidrome, in another tab">
-          Play on Navidrome <BsBoxArrowUpRight aria-hidden="true" />
-        </a>
-      )}
     </span>
   );
 };
