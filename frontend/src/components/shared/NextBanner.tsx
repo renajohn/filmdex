@@ -32,6 +32,8 @@ interface NextBannerProps {
   getSubtitle?: (item: NextBannerItem) => string;
   getYear?: (item: NextBannerItem) => string | number | null;
   getFormat?: (item: NextBannerItem) => string | null;
+  /** The image drawn by the caller, as its grid draws it: tags, title and shelf with it; the card keeps its buttons and its drag. */
+  renderCover?: (item: NextBannerItem) => React.ReactNode;
   /** Always-visible markers laid over each image (the hover overlay stays for title/meta). */
   renderBadges?: (item: NextBannerItem) => React.ReactNode;
   onSmartFill?: () => void;
@@ -193,6 +195,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
   getSubtitle,
   getYear,
   getFormat,
+  renderCover,
   renderBadges,
   onSmartFill,
   smartFillAlso,
@@ -550,7 +553,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
                 className={`next-banner__image next-banner__image--${type}`}
                 onClick={() => !justDragged.current && onItemClick && onItemClick(item.id)}
               >
-                {getImageUrl && getImageUrl(item) ? (
+                {renderCover ? renderCover(item) : getImageUrl && getImageUrl(item) ? (
                   <img
                     {...thumbProps(getImageUrl(item)!)}
                     decoding="async"
@@ -569,11 +572,11 @@ const NextBanner: React.FC<NextBannerProps> = ({
                 {renderBadges && <div className="next-banner__badges">{renderBadges(item)}</div>}
                 {renderPlay && renderPlay(item)}
                 {renderFootRight && renderFootRight(item)}
-                <ShelfCode kind={type === 'music' ? 'album' : 'movie'} id={item.id} />
+                {!renderCover && <ShelfCode kind={type === 'music' ? 'album' : 'movie'} id={item.id} />}
                 {renderOverlay && renderOverlay(item)}
 
                 {/* Movie-style hover overlay */}
-                {type === 'movie' && (
+                {type === 'movie' && !renderCover && (
                   <div className="next-banner__overlay">
                     <h3 className="next-banner__overlay-title">
                       {getTitle ? getTitle(item) : item.title}

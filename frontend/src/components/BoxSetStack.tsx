@@ -3,11 +3,10 @@ import CoverButton from './shared/CoverButton';
 import { BsStar, BsStarFill } from 'react-icons/bs';
 import { Popover, Overlay } from 'react-bootstrap';
 import MovieThumbnail from './MovieThumbnail';
-import WarningBadges from './WarningBadges';
+import { MovieCoverTags } from './MovieCover';
 import './BoxSetStack.css';
 import ShelfCode from './shared/ShelfCode';
-import CoverTag, { CoverTagStack } from './shared/CoverTag';
-import { ageTooltip, scoreTooltip } from './movieTagTooltips';
+import { CoverTagStack } from './shared/CoverTag';
 
 interface Movie {
   id: number;
@@ -63,60 +62,6 @@ const BoxSetStack: React.FC<BoxSetStackProps> = ({ boxSetName, movies, onMovieCl
 
   const handleMovieClick = (movie: Movie) => {
     onMovieClick(movie.id, (sortedMovies || movies).map(other => other.id));
-  };
-
-  // Calculate combined score for a movie
-  const getCombinedScore = (movie: Movie) => {
-    const ratings: { score: number; weight: number; max: number }[] = [];
-
-    // Add TMDB rating (weighted 40%)
-    if (movie.tmdb_rating && movie.tmdb_rating !== 'N/A') {
-      ratings.push({ score: parseFloat(String(movie.tmdb_rating)), weight: 0.4, max: 10 });
-    }
-
-    // Add IMDB rating (weighted 35%)
-    if (movie.imdb_rating && movie.imdb_rating !== 'N/A') {
-      ratings.push({ score: parseFloat(String(movie.imdb_rating)), weight: 0.35, max: 10 });
-    }
-
-    // Add Rotten Tomatoes rating (weighted 25%, convert to 10-point scale)
-    if (movie.rotten_tomato_rating && movie.rotten_tomato_rating !== 'N/A') {
-      const rtScore = parseFloat(String(movie.rotten_tomato_rating)) / 10;
-      ratings.push({ score: rtScore, weight: 0.25, max: 10 });
-    }
-
-    if (ratings.length === 0) return null;
-
-    // Calculate weighted average
-    const totalWeight = ratings.reduce((sum, rating) => sum + rating.weight, 0);
-    const weightedSum = ratings.reduce((sum, rating) => sum + (rating.score * rating.weight), 0);
-
-    return weightedSum / totalWeight;
-  };
-
-  // Get rating color
-  const getRatingColor = (rating: number | string | null | undefined, maxRating: number = 10) => {
-    if (!rating || rating === 'N/A') return '#3a3a3a';
-
-    const percentage = (parseFloat(String(rating)) / maxRating) * 100;
-
-    if (percentage >= 80) {
-      return '#22c55e'; // Excellent - bright green
-    } else if (percentage >= 70) {
-      return '#4ade80'; // Very good - medium green
-    } else if (percentage >= 60) {
-      return '#6ee7b7'; // Good - light green
-    } else if (percentage >= 50) {
-      return '#86efac'; // Fair - pale green
-    } else if (percentage >= 40) {
-      return '#a7f3d0'; // Below average - very pale green
-    } else if (percentage >= 30) {
-      return '#fbbf24'; // Poor - amber
-    } else if (percentage >= 20) {
-      return '#f59e0b'; // Very poor - orange
-    } else {
-      return '#ef4444'; // Terrible - red
-    }
   };
 
   // Handle clicks outside the popover to close it
@@ -288,8 +233,6 @@ const BoxSetStack: React.FC<BoxSetStackProps> = ({ boxSetName, movies, onMovieCl
             <Popover.Body>
               <div className="boxset-expansion-movies">
                 {sortedMovies.map((movie, index) => {
-                  const combinedScore = getCombinedScore(movie);
-
                   return (
                     <div
                       key={movie.id}
@@ -312,24 +255,8 @@ const BoxSetStack: React.FC<BoxSetStackProps> = ({ boxSetName, movies, onMovieCl
                         <div className="poster-overlay-large">
                           {/* Left side badges - vertical stack */}
                           <CoverTagStack className="poster-badges-left">
-                            {movie.recommended_age != null && (
-                              <CoverTag className="age-badge-large" title={ageTooltip(movie)}>{movie.recommended_age}+</CoverTag>
-                            )}
-                            <WarningBadges movie={movie} />
-                            {combinedScore && (
-                              <CoverTag className="score-badge-large" title={scoreTooltip(movie)} style={{ color: getRatingColor(combinedScore, 10) }}>
-                                {combinedScore.toFixed(1)}
-                              </CoverTag>
-                            )}
-                            {movie.format && (
-                              <CoverTag variant="gold" className="format-badge-large" title={movie.format}>
-                                {movie.format === 'Blu-ray 4K' ? '4K' :
-                                 movie.format === 'Blu-ray' ? 'BR' :
-                                 movie.format === 'DVD' ? 'DVD' :
-                                 movie.format === 'Digital' ? 'DIG' :
-                                 movie.format.substring(0, 3).toUpperCase()}
-                              </CoverTag>
-                            )}
+                            {/* The box set is the one it stands in: no collection tag. */}
+                            <MovieCoverTags movie={movie} collection={false} />
                           </CoverTagStack>
 
                           {/* Top right - Watch Next button */}

@@ -3,26 +3,20 @@ import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, us
 import CoverButton from './shared/CoverButton';
 import { BsStar, BsStarFill, BsX } from 'react-icons/bs';
 import apiService from '../services/api';
-import MovieThumbnail from './MovieThumbnail';
 import MovieDetailCard from './MovieDetailCard';
 import BoxSetStack from './BoxSetStack';
 import AlphabeticalIndex from './AlphabeticalIndex';
 import { NextBanner, CollectionHeader, EmptyState } from './shared';
-import WarningBadges from './WarningBadges';
-import WarningStrip from './WarningStrip';
+import MovieCover, { combinedScore } from './MovieCover';
 import {
   BsChevronDown,
-  BsFilm,
-  BsCollectionFill
+  BsFilm
 } from 'react-icons/bs';
 import './FilmDexPage.css';
 import { readStored, writeStored } from '../utils/safeStorage';
 import { findById, shownIds, useDetailSteps, type Id } from '../utils/detailSteps';
 import { movieImages } from '../utils/detailImages';
-import ShelfCode from './shared/ShelfCode';
-import CoverTag, { CoverTagStack } from './shared/CoverTag';
 import Button, { IconButton } from './shared/Button';
-import { ageTooltip, scoreTooltip } from './movieTagTooltips';
 
 export interface FilmDexPageRef {
   refreshMovies: () => void;
@@ -108,33 +102,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
     return /[A-Z]/.test(firstChar) ? firstChar : '#';
   }, [removeArticlesForIndex]);
 
-  const getCombinedScore = (movie: any) => {
-    const ratings: { score: number; weight: number; max: number }[] = [];
-
-    // Add TMDB rating (weighted 40%)
-    if (movie.tmdb_rating && movie.tmdb_rating !== 'N/A') {
-      ratings.push({ score: parseFloat(movie.tmdb_rating), weight: 0.4, max: 10 });
-    }
-
-    // Add IMDB rating (weighted 35%)
-    if (movie.imdb_rating && movie.imdb_rating !== 'N/A') {
-      ratings.push({ score: parseFloat(movie.imdb_rating), weight: 0.35, max: 10 });
-    }
-
-    // Add Rotten Tomatoes rating (weighted 25%, convert to 10-point scale)
-    if (movie.rotten_tomato_rating && movie.rotten_tomato_rating !== 'N/A') {
-      const rtScore = parseFloat(movie.rotten_tomato_rating) / 10; // Convert % to 10-point scale
-      ratings.push({ score: rtScore, weight: 0.25, max: 10 });
-    }
-
-    if (ratings.length === 0) return null;
-
-    // Calculate weighted average
-    const totalWeight = ratings.reduce((sum, rating) => sum + rating.weight, 0);
-    const weightedSum = ratings.reduce((sum, rating) => sum + (rating.score * rating.weight), 0);
-
-    return weightedSum / totalWeight;
-  };
+  const getCombinedScore = combinedScore;
 
   const sortMovies = useCallback((moviesToSort: any[], sortOption: string) => {
     const sorted = [...moviesToSort];
@@ -408,13 +376,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
 
   // Large poster view renderer
   const renderMovieCardLarge = (movie: any, includeLetter = false, letter: string | null = null) => {
-    const year = movie.release_date ? new Date(movie.release_date).getFullYear() : movie.year;
-    const combinedScore = getCombinedScore(movie);
-
-    // Check if movie is in a collection
-    const hasCollection = (movie.has_box_set && movie.box_set_name) ||
-                          (movie.collection_names && movie.collection_names.length > 0);
-
+    const inWatchNext = watchNextMovies.some((wm: any) => wm.id === movie.id);
     return (
       <div
         key={movie.id}
@@ -423,98 +385,19 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
         data-item-id={movie.id}
         {...(includeLetter && letter ? { 'data-first-letter': letter } : {})}
       >
-        <div className="movie-poster-large">
-          <MovieThumbnail
-            imdbLink={movie.imdb_id ? `https://www.imdb.com/title/${movie.imdb_id}` : movie.imdb_link}
-            title={movie.title}
-            year={year}
-            className="movie-thumbnail-large"
-            disableZoom={true}
-            posterPath={movie.poster_path}
-            recommendedAge={null}
-          />
-          <div className="poster-overlay-large">
-            {/* Left side badges - vertical stack */}
-            <CoverTagStack className="poster-badges-left">
-              {movie.recommended_age != null && (
-                <CoverTag className="age-badge-large" title={ageTooltip(movie)}>{movie.recommended_age}+</CoverTag>
-              )}
-              <WarningBadges movie={movie} />
-              {combinedScore && (
-                <CoverTag className="score-badge-large" title={scoreTooltip(movie)} style={{ color: getRatingColor(combinedScore, 10) }}>
-                  {combinedScore.toFixed(1)}
-                </CoverTag>
-              )}
-              {movie.format && (
-                <CoverTag variant="gold" className="format-badge-large" title={movie.format}>
-                  {movie.format === 'Blu-ray 4K' ? '4K' :
-                   movie.format === 'Blu-ray' ? 'BR' :
-                   movie.format === 'DVD' ? 'DVD' :
-                   movie.format === 'Digital' ? 'DIG' :
-                   movie.format.substring(0, 3).toUpperCase()}
-                </CoverTag>
-              )}
-              {hasCollection && (
-                <CoverTag className="collection-badge-large" title={
-                  movie.has_box_set && movie.box_set_name
-                    ? `${movie.box_set_name} box set`
-                    : movie.collection_names?.join(', ') || ''
-                }>
-                  <BsCollectionFill size={14} />
-                </CoverTag>
-              )}
-            </CoverTagStack>
-
-            {/* Top right - Watch Next button */}
-            <CoverButton
-              className="watch-next-badge-large"
-              active={watchNextMovies.some((wm: any) => wm.id === movie.id)}
-              onClick={(e) => handleWatchNextToggle(e, movie)}
-              label={watchNextMovies.some((wm: any) => wm.id === movie.id) ? 'Remove from Watch Next' : 'Add to Watch Next'}
-            >
-              {watchNextMovies.some((wm: any) => wm.id === movie.id) ? <BsStarFill aria-hidden="true" /> : <BsStar aria-hidden="true" />}
-            </CoverButton>
-
-            <ShelfCode kind="movie" id={movie.id} />
-
-            {/* Bottom title overlay - appears on hover */}
-            <div className="poster-title-overlay-large">
-              <h4 className="poster-title-text">{movie.title}</h4>
-              {year && (
-                <span className="poster-year-text">({year})</span>
-              )}
-            </div>
-          </div>
-        </div>
+        <MovieCover movie={movie}>
+          <CoverButton
+            className="watch-next-badge-large"
+            active={inWatchNext}
+            onClick={(e) => handleWatchNextToggle(e, movie)}
+            label={inWatchNext ? 'Remove from Watch Next' : 'Add to Watch Next'}
+          >
+            {inWatchNext ? <BsStarFill aria-hidden="true" /> : <BsStar aria-hidden="true" />}
+          </CoverButton>
+        </MovieCover>
       </div>
     );
   };
-
-  const getRatingColor = (rating: any, maxRating: number = 10) => {
-    if (!rating || rating === 'N/A') return '#3a3a3a';
-
-    const percentage = (parseFloat(rating) / maxRating) * 100;
-
-    // Red to green continuum based on score
-    if (percentage >= 80) {
-      return '#22c55e'; // Excellent - bright green
-    } else if (percentage >= 70) {
-      return '#4ade80'; // Very good - medium green
-    } else if (percentage >= 60) {
-      return '#6ee7b7'; // Good - light green
-    } else if (percentage >= 50) {
-      return '#86efac'; // Fair - pale green
-    } else if (percentage >= 40) {
-      return '#a7f3d0'; // Below average - very pale green
-    } else if (percentage >= 30) {
-      return '#fbbf24'; // Poor - amber
-    } else if (percentage >= 20) {
-      return '#f59e0b'; // Very poor - orange
-    } else {
-      return '#ef4444'; // Terrible - red
-    }
-  };
-
 
   const handleCloseDetails = () => {
     setSelectedMovieDetails(null);
@@ -1006,9 +889,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
           onReorder={keys => handleWatchNextReorder(keys as number[])}
           getImageUrl={(movie: any) => getPosterUrl(movie.poster_path)}
           getTitle={(movie: any) => movie.title}
-          getYear={(movie: any) => movie.release_date ? new Date(movie.release_date).getFullYear() : null}
-          getFormat={(movie: any) => movie.format}
-          renderBadges={(movie: any) => <WarningStrip movie={movie} />}
+          renderCover={(movie: any) => <MovieCover movie={allMovies.find(m => m.id === movie.id) ?? movie} />}
         />
       )}
 

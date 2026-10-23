@@ -30,6 +30,19 @@ describe('NextBanner renderBadges', () => {
   });
 });
 
+describe('NextBanner renderCover', () => {
+  it('pose l’image de l’appelant à la place de la sienne, le ✕ gardé', () => {
+    const { container } = render(
+      <NextBanner items={items} type="movie" title="Watch Next" getImageUrl={() => '/x.jpg'}
+        renderCover={(item) => <div data-testid={`cover-${item.id}`} />} />
+    );
+    expect(screen.getByTestId('cover-1').closest('.next-banner__image')).not.toBeNull();
+    expect(container.querySelector('.next-banner__image img')).toBeNull();
+    expect(container.querySelector('.next-banner__overlay')).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Remove from Watch Next' })).toHaveLength(2);
+  });
+});
+
 describe('NextBanner Help me choose', () => {
   it('reste une seule carte quand il n’y a qu’une façon de choisir', () => {
     const fill = vi.fn();
