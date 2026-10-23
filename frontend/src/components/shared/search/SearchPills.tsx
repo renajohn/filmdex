@@ -90,6 +90,9 @@ type OpenGroup = Extract<SearchGuessGroup, { kind: 'open' }>;
 /** A guess good enough to write its name grey after the letters: its name or one of its words begins with them. */
 const GHOST_SCORE = 70;
 
+/** Whether a line is one of the guesses (a thing to open, a person to make a pill of). */
+const isGuess = (s: Suggestion): boolean => s.kind === 'guess' || (s.kind === 'value' && s.score != null);
+
 /** How well a guess names the letters typed; 0 for what is not a guess. */
 const scoreOf = (s: Suggestion): number => (s.kind === 'guess' || s.kind === 'value' ? s.score ?? 0 : 0);
 
@@ -432,7 +435,8 @@ const SearchPills: React.FC<SearchPillsProps> = ({
     const best = suggestions[0];
     const bestScore = best ? scoreOf(best) : 0;
     const beginsKey = suggestions.some(s => s.kind === 'key');
-    if (best && bestScore >= GHOST_SCORE && !(beginsKey && bestScore < 100)) {
+    // Only while the menu shows it: after Esc, Enter keeps the letters.
+    if (best && menuShown && bestScore >= GHOST_SCORE && !(beginsKey && bestScore < 100)) {
       const name = best.kind === 'guess' ? best.guess.label : best.kind === 'value' ? best.value : '';
       const tag = best.kind === 'guess' ? best.section.toLowerCase().replace(/s$/, '') : best.kind === 'value' ? best.def.key : undefined;
       const begins = norm(name).startsWith(typed) && norm(name).length === name.length && name.length > word.length;
@@ -517,6 +521,17 @@ const SearchPills: React.FC<SearchPillsProps> = ({
     const next = { ...d, text: d.text.slice(0, tk.start) + s.insert };
     if (s.kind === 'key') apply(detectKey(next), { emit: true, focus: 'end', menu: true });
     else apply(commitWords(next, true), { emit: true, focus: 'end', menu: true });
+  };
+
+  /** A guess's name written in full in place of the letters, between quotes when it has spaces: still words, not a pill. */
+  const complete = (s: Suggestion) => {
+    const d = draftRef.current;
+    const name = s.kind === 'guess' ? s.guess.label : s.kind === 'value' ? s.value : '';
+    if (!name) return;
+    const tk = currentWord(d.text);
+    const words = /\s/.test(name) ? `"${name.replace(/"/g, '')}"` : name;
+    setNav(null);
+    apply({ ...d, text: d.text.slice(0, tk.start) + words }, { emit: true, focus: 'end', menu: true });
   };
 
   /** Opens the pill of an item on one of its values (`k`), or with a new value after them all (`k` null). */
@@ -694,8 +709,22 @@ const SearchPills: React.FC<SearchPillsProps> = ({
     const d = draftRef.current;
     if (d.open) { pillKeys(e, d, d.open); return; }
     const input = e.currentTarget;
-    const { ghost: g, suggestions: list, menuIndex: index, menuVisible: shown } = view.current;
+    const { ghost: g, suggestions: list, menuIndex: index, menuVisible: shown, chosen } = view.current;
     const atEnd = input.selectionStart === input.value.length && input.selectionEnd === input.value.length;
+    // A guess written grey: Enter takes it (a movie opens, an artist becomes a pill),
+    // Tab or → writes its name in full, to go on typing or to search it.
+    if (g && isGuess(g.item) && shown && !e.shiftKey) {
+      if (e.key === 'Enter' && !chosen) {
+        e.preventDefault();
+        take(g.item);
+        return;
+      }
+      if (e.key === 'Tab' || (e.key === 'ArrowRight' && atEnd)) {
+        e.preventDefault();
+        complete(g.item);
+        return;
+      }
+    }
     // Tab or → at the end takes the grey rest, as a shell does.
     if ((e.key === 'Tab' || (e.key === 'ArrowRight' && atEnd)) && !e.shiftKey && g) {
       e.preventDefault();
@@ -1023,7 +1052,10 @@ const SearchPills: React.FC<SearchPillsProps> = ({
           </>
         ) : (
           <>
-            <span><kbd>↑</kbd><kbd>↓</kbd> choose</span><span><kbd>Tab</kbd> take</span>
+            <span><kbd>↑</kbd><kbd>↓</kbd> choose</span>
+            {ghost && isGuess(ghost.item)
+              ? <><span><kbd>↵</kbd> {ghost.item.kind === 'guess' ? 'open' : 'take'}</span><span><kbd>Tab</kbd> complete</span></>
+              : <span><kbd>Tab</kbd> take</span>}
             <span><kbd>!</kbd> before a filter excludes</span><span><kbd>,</kbd> between values: or</span>
           </>
         )}
@@ -1059,7 +1091,7 @@ const SearchPills: React.FC<SearchPillsProps> = ({
                 <span className="search-pills__typing">
                   <span className="search-pills__ghost" aria-hidden="true">
                     <span className="search-pills__typed">{text || (open ? '' : ' ')}</span>
-                    {ghost && <><span className="search-pills__rest">{ghost.rest}</span>{ghost.tag && <span className="search-pills__ghost-tag">{ghost.tag}</span>}<kbd className="search-pills__tab">tab</kbd></>}
+                    {ghost && <><span className="search-pills__rest">{ghost.rest}</span>{ghost.tag && <span className="search-pills__ghost-tag">{ghost.tag}</span>}<kbd className="search-pills__tab">{isGuess(ghost.item) ? '↵' : 'tab'}</kbd></>}
                   </span>
                   <input
                     ref={setInput}

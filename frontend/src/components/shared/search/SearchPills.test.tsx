@@ -449,7 +449,7 @@ describe('guessing what a few letters name', () => {
     }
   });
 
-  it('makes an artist a pill with Tab, opens an album, and keeps the letters with Enter', async () => {
+  it('takes the guess with Enter (an artist a pill, an album opened), writes its name with Tab, keeps the letters after Esc', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const onChange = vi.fn();
@@ -458,20 +458,32 @@ describe('guessing what a few letters name', () => {
       type('bea');
       await act(async () => { vi.advanceTimersByTime(250); });
       await waitFor(() => expect(ghost()).toBe('  → The Beatles'));
-      fireEvent.keyDown(input(), { key: 'Tab' });
+      fireEvent.keyDown(input(), { key: 'Enter' });
       expect(onChange).toHaveBeenLastCalledWith('artist:"The Beatles"');
 
       type('abbey');
       await act(async () => { vi.advanceTimersByTime(250); });
       await waitFor(() => expect(ghost()).toBe(' Road'));
-      fireEvent.keyDown(input(), { key: 'Tab' });
+      fireEvent.keyDown(input(), { key: 'Enter' });
       expect(opened).toEqual([1]);
       expect(onChange).toHaveBeenLastCalledWith('artist:"The Beatles" abbey');
 
-      type('abbey beau');
+      // ↓ shows the menu again, the letters still there.
+      fireEvent.keyDown(input(), { key: 'ArrowDown' });
       await act(async () => { vi.advanceTimersByTime(250); });
+      await waitFor(() => expect(ghost()).toBe(' Road'));
+      fireEvent.keyDown(input(), { key: 'Tab' });
+      expect(input()).toHaveValue('"Abbey Road"');
+      expect(onChange).toHaveBeenLastCalledWith('artist:"The Beatles" "Abbey Road"');
+      expect(opened).toEqual([1]);
+
+      type('beau');
+      await act(async () => { vi.advanceTimersByTime(250); });
+      await waitFor(() => expect(ghost()).toBe('tiful Garbage'));
+      fireEvent.keyDown(input(), { key: 'Escape' });
+      expect(ghost()).toBeUndefined();
       fireEvent.keyDown(input(), { key: 'Enter' });
-      expect(onChange).toHaveBeenLastCalledWith('artist:"The Beatles" abbey beau');
+      expect(onChange).toHaveBeenLastCalledWith('artist:"The Beatles" beau');
       expect(opened).toEqual([1]);
     } finally {
       vi.useRealTimers();

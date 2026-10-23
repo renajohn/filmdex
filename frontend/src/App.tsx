@@ -60,6 +60,19 @@ function AppContent() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
+  // ⌘F (Ctrl+F) goes to the search, its words selected, where a section has one; elsewhere the browser finds.
+  useEffect(() => {
+    const toSearch = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'f') return;
+      const input = searchInputRef.current;
+      if (!input || !input.isConnected) return;
+      e.preventDefault();
+      input.focus();
+      input.select();
+    };
+    window.addEventListener('keydown', toSearch);
+    return () => window.removeEventListener('keydown', toSearch);
+  }, []);
   // Helper to get product name from path
   const getProductFromPath = (path: string): string | null => {
     if (path === '/filmdex') return 'filmdex';
