@@ -1,4 +1,5 @@
 import { statusSql, Topic, WarningStatus } from '../warnings/rules';
+import { findsAll, searchWords } from '../utils/searchText';
 
 /**
  * FilmDex's search, read (docs/superpowers/specs/2026-10-22-search-pills-design.md).
@@ -76,7 +77,7 @@ export type MovieSearchFilter =
 
 export interface ParsedMovieSearch {
   filters: MovieSearchFilter[];
-  /** The plain words, each a term all must find (a quoted group is one term). */
+  /** The plain words, folded (utils/searchText), each a term all must find (a quoted group is one term). */
   words: string[];
 }
 
@@ -191,15 +192,14 @@ export const parseMovieSearch = (text: string, today: Date = new Date()): Parsed
     const m = token.match(FILTER);
     const key = m ? (ALIASES[m[2].toLowerCase()] ?? m[2].toLowerCase()) : '';
     if (!m || !known.has(key)) {
-      const word = token.replace(/"/g, '').trim();
-      if (word) words.push(word);
+      words.push(...searchWords(token));
       continue;
     }
     const raw = m[3];
     if (UNFINISHED.test(raw.replace(/"/g, '').trim())) continue;
     const filter = readFilter(key, !!m[1], splitValues(raw), today);
     if (filter) filters.push(filter);
-    else words.push(token.replace(/"/g, ''));
+    else words.push(...searchWords(token.replace(/"/g, '')));
   }
   return { filters, words };
 };
@@ -226,13 +226,14 @@ const TEXT_SQL: Record<Exclude<TextColumn, 'title'>, string> = {
 const like = (v: string) => `%${v}%`;
 
 /**
- * The SQL of the filters and the words, to add to a WHERE (each part begins
- * with AND), and its parameters. The values of a filter are one or the other
- * (OR), the filters and the words all (AND); an exclusion is NOT the filter,
+ * The SQL of the filters, to add to a WHERE (each part begins with AND), and
+ * its parameters. The values of a filter are one or the other (OR), the
+ * filters all (AND); the words are read on the rows they keep, without their
+ * accents (movieMatchesWords); an exclusion is NOT the filter,
  * a movie without the field counting as not matching it (-genre:Horror keeps
  * the movies without a genre).
  */
-export const movieSearchSql = ({ filters, words }: ParsedMovieSearch): { sql: string; params: unknown[] } => {
+export const movieSearchSql = ({ filters }: ParsedMovieSearch): { sql: string; params: unknown[] } => {
   const params: unknown[] = [];
   const parts: string[] = [];
   const either = (clauses: string[]) => (clauses.length === 1 ? clauses[0] : `(${clauses.join(' OR ')})`);
@@ -292,21 +293,15 @@ export const movieSearchSql = ({ filters, words }: ParsedMovieSearch): { sql: st
     parts.push(f.negate ? ` AND NOT COALESCE(${clause}, 0)` : ` AND ${clause}`);
   }
 
-  for (const word of words) {
-    parts.push(` AND (
-      m.title LIKE ? OR
-      m.original_title LIKE ? OR
-      m.director LIKE ? OR
-      m.comments LIKE ? OR
-      EXISTS (
-        SELECT 1 FROM movie_collections mc2
-        JOIN collections c2 ON mc2.collection_id = c2.id
-        WHERE mc2.movie_id = m.id AND c2.name LIKE ?
-      )
-    )`);
-    const term = like(word);
-    params.push(term, term, term, term, term);
-  }
-
   return { sql: parts.join(''), params };
 };
+
+/**
+ * Whether a movie has every word, in any order, without accents: in its title,
+ * its original title, its director, its comments or the name of a collection.
+ */
+export const movieMatchesWords = (
+  words: string[],
+  movie: { title?: string | null; original_title?: string | null; director?: string | null; comments?: string | null },
+  collections: string | null | undefined,
+): boolean => findsAll(words, [movie.title, movie.original_title, movie.director, movie.comments, collections]);

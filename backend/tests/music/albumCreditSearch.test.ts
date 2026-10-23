@@ -44,7 +44,9 @@ describe('chercher un CD par ce que créditent ses pistes', () => {
   it('trouve un artiste de compilation, et un nom crédité en texte libre', async () => {
     expect(await titles('artist:"Phil Collins"')).toEqual(['Kuschel test']);
     expect(await titles('Haimovitz')).toEqual(['Cello Concertos test']);
-    expect(await titles('Brendel test')).toEqual([]);
+    // Each word anywhere, in any order: Brendel on a track, test in the title.
+    expect(await titles('test Brendel')).toEqual(['Piano Concertos 20 & 21 test']);
+    expect(await titles('Brendel Haimovitz')).toEqual([]);
     expect(await titles('Marriner')).toEqual(['Cello Concertos test', 'Piano Concertos 20 & 21 test']);
   });
 

@@ -4,7 +4,7 @@ import type { RunResult } from 'sqlite3';
 import type { MovieRow, MovieData, MovieSearchCriteria, MovieUpdateResult, MovieWatchResult } from '../types';
 import { warningStatusColumnsSql } from '../warnings/rules';
 import { filmagesColumnsSql } from './movieFilmages';
-import { movieSearchSql, parseMovieSearch } from './movieSearch';
+import { movieMatchesWords, movieSearchSql, parseMovieSearch } from './movieSearch';
 
 const Movie = {
   createTable: (): Promise<void> => {
@@ -226,13 +226,15 @@ const Movie = {
             CASE WHEN c.type = 'user'
             THEN c.name
             END
-          ) as user_collections
+          ) as user_collections,
+          GROUP_CONCAT(c.name, char(10)) as search_collections
         FROM movies m
         LEFT JOIN movie_collections mc ON m.id = mc.movie_id
         LEFT JOIN collections c ON mc.collection_id = c.id
         WHERE 1=1
       `;
       const params: unknown[] = [];
+      let words: string[] = [];
 
       // Filter by title_status if specified, otherwise return owned movies by default
       if (criteria.title_status) {
@@ -247,7 +249,9 @@ const Movie = {
       // The search's filters and words (models/movieSearch.ts): -key: excludes, a,b is
       // one or the other, yes/no and the old words, numbers compared or in a range.
       if (criteria.searchText) {
-        const search = movieSearchSql(parseMovieSearch(criteria.searchText));
+        const parsed = parseMovieSearch(criteria.searchText);
+        const search = movieSearchSql(parsed);
+        words = parsed.words;
         sql += search.sql;
         params.push(...search.params);
       }
@@ -269,8 +273,12 @@ const Movie = {
         if (err) {
           reject(err);
         } else {
-          const movies = rows.map(row => {
+          // The plain words, without their accents, on the rows the filters kept.
+          const kept = (rows as Array<MovieRow & { search_collections?: string | null }>)
+            .filter(row => movieMatchesWords(words, row, row.search_collections));
+          const movies = kept.map(row => {
             const movie: Record<string, unknown> = { ...row };
+            delete movie.search_collections;
 
             // Parse box set collections info
             if (movie.box_set_collections && (movie.box_set_collections as string).trim() !== '') {

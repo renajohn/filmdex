@@ -125,3 +125,26 @@ describe('the words of the search, as the pills write them and as they were', ()
     });
   });
 });
+
+describe('the plain words of a search', () => {
+  beforeAll(async () => {
+    await insert('Lemonade', { artist: 'Beyoncé' });
+    await insert('Œuvres pour piano', { artist: 'Jean-Yves Thibaudet' });
+    await insert('The Dark Side of the Moon', { artist: 'Pink Floyd' });
+    await insert('Wish You Were Here', { artist: 'Pink Floyd' });
+  });
+
+  it('finds a name without its accents, or with them where the album has none', async () => {
+    expect(await titles('beyonce')).toEqual(['Lemonade']);
+    expect(await titles('BEYONCÉ')).toEqual(['Lemonade']);
+    expect(await titles('oeuvres')).toEqual(['Œuvres pour piano']);
+    expect(await titles('thibaudét')).toEqual(['Œuvres pour piano']);
+  });
+
+  it('finds each word anywhere, in any order; a quoted group as one', async () => {
+    expect(await titles('floyd moon')).toEqual(['The Dark Side of the Moon']);
+    expect(await titles('pink floyd')).toEqual(['The Dark Side of the Moon', 'Wish You Were Here']);
+    expect(await titles('"pink floyd" wish')).toEqual(['Wish You Were Here']);
+    expect(await titles('"floyd pink"')).toEqual([]);
+  });
+});

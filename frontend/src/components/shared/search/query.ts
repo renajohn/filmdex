@@ -16,8 +16,14 @@ export interface Token {
   end: number;
 }
 
-/** Lower case, without accents: Händel finds handel, Dvořák dvorak. */
-export const norm = (s: string): string => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const JOINED: Record<string, string> = { œ: 'oe', æ: 'ae', ß: 'ss', ø: 'o', ł: 'l', đ: 'd', ð: 'd', þ: 'th', ı: 'i' };
+
+/**
+ * Lower case, without accents, the joined letters spelt out: Händel finds handel,
+ * Dvořák dvorak, Œuvres oeuvres (the backend's fold, utils/searchText.ts).
+ */
+export const norm = (s: string): string => String(s).toLowerCase()
+  .replace(/[œæßøłđðþı]/g, c => JOINED[c]).normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 /** The words of a query, split on the spaces outside quotes, with where each stands. */
 export const tokenize = (q: string): Token[] => {

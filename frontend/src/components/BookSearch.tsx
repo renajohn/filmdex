@@ -165,6 +165,8 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
     selectedName: ''
   });
   const previousSearchTextRef = useRef('');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(searchTimerRef.current), []);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -208,8 +210,10 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
     if (currentSearchText !== previousSearchTextRef.current) {
       previousSearchTextRef.current = currentSearchText;
 
+      // A search 200 ms after the last key, as FilmDex's: not one request per letter.
+      clearTimeout(searchTimerRef.current);
       if (currentSearchText.trim()) {
-        performSearch(currentSearchText);
+        searchTimerRef.current = setTimeout(() => performSearch(currentSearchText), 200);
       } else {
         const sortedAll = sortBooks(allBooks, sortBy);
         setFilteredBooks(sortedAll);
@@ -255,6 +259,8 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
 
     try {
       const localResults = onShelf(await bookService.searchBooks(query) as Book[]);
+      // An answer to letters since changed comes too late: the newer search shows.
+      if (query !== previousSearchTextRef.current) return;
       const sortedResults = sortBooks(localResults, sortBy);
       setFilteredBooks(sortedResults);
       setBookCount({ filtered: sortedResults.length, total: allBooks.length });

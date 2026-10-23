@@ -2,6 +2,7 @@ import type sqlite3 from 'sqlite3';
 import { getDatabase } from '../database';
 import cacheService from '../services/cacheService';
 import BookReading from './bookReading';
+import { findsAll, searchWords } from '../utils/searchText';
 import type { BookRow, BookFormatted, BookCreateData, BookSearchParsed } from '../types';
 
 interface BookUpdateResult {
@@ -723,13 +724,9 @@ const Book = {
         titleStatusParams = [titleStatusFilter];
       }
 
-      // The plain words, together, in the title, the authors, the series…
+      // The plain words are read on the rows the filters keep, without their accents (utils/searchText).
+      const words = searchWords(cleanedQuery);
       const whereParts: string[] = [];
-      let searchParams: string[] = [];
-      if (cleanedQuery) {
-        whereParts.push('(title LIKE ? OR subtitle LIKE ? OR authors LIKE ? OR artists LIKE ? OR isbn LIKE ? OR isbn13 LIKE ? OR series LIKE ? OR description LIKE ?)');
-        searchParams = Array(8).fill(`%${cleanedQuery}%`);
-      }
       whereParts.push(...whereClauses, titleStatusClause);
 
       const sql = `
@@ -743,11 +740,15 @@ const Book = {
           title
       `;
 
-      db.all(sql, [...searchParams, ...params, ...titleStatusParams], (err: Error | null, rows: BookRow[]) => {
+      db.all(sql, [...params, ...titleStatusParams], (err: Error | null, rows: BookRow[]) => {
         if (err) {
           reject(err);
         } else {
-          resolve(rows.map(Book.formatRow).filter((r): r is BookFormatted => r !== null));
+          // Each word, in any order, in the title, the authors, the series, the ISBN or the description.
+          const kept = rows.filter(row => findsAll(words, [
+            row.title, row.subtitle, row.authors, row.artists, row.isbn, row.isbn13, row.series, row.description,
+          ]));
+          resolve(kept.map(Book.formatRow).filter((r): r is BookFormatted => r !== null));
         }
       });
     });

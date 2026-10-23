@@ -182,6 +182,12 @@ describe('Movie.search with the pills’ vocabulary', () => {
     expect(await found('Alpha Varda')).toEqual([]);
   });
 
+  it('plain words without their accents, in any order', async () => {
+    expect(await found('agnes')).toEqual(['Beta']);
+    expect(await found('VARDÀ agnès')).toEqual(['Beta']);
+    expect(await found('superbe kubrick')).toEqual(['Alpha']);
+  });
+
   it('a value a key does not take finds nothing, without an error', async () => {
     await expect(Movie.search({ searchText: 'spiders:maybe' } as any)).resolves.toBeDefined();
     expect(await found('spiders:maybe')).toEqual([]);

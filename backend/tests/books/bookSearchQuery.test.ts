@@ -54,6 +54,14 @@ describe('la recherche de livres, ses filtres', () => {
     expect(await found('-genre:fantasy')).toBe('bc');
   });
 
+  it('trouve chaque mot libre, dans n’importe quel ordre, sans ses accents', async () => {
+    expect(await found('guin earthsea')).toBe('a');
+    expect(await found('EARTHSEA ursula')).toBe('a');
+    expect(await found('möebius')).toBe('b');
+    expect(await found('"le guin"')).toBe('a');
+    expect(await found('"guin le"')).toBe('');
+  });
+
   it('prend les valeurs séparées par des virgules, et entre guillemets', async () => {
     expect(await found('type:book,score')).toBe('ac');
     expect(await found('author:"Le Guin",Bach')).toBe('ac');

@@ -4,6 +4,7 @@ import cacheService from '../services/cacheService';
 import { normalizeAlbumOwnership } from '../services/utils/albumOwnership';
 import { combineRatings } from '../services/utils/communityRating';
 import { isClassicalAlbum, type Performer } from '../services/shelfOrder';
+import { findsAll, searchWords } from '../utils/searchText';
 import { normaliseAlbumQuery, takeBoolFilter, takeNumberFilter, findFilters, withoutWords } from '../utils/albumSearchFilters';
 import type { AlbumRow, AlbumFormatted, AlbumCreateData, AlbumSearchParsed } from '../types';
 
@@ -82,8 +83,6 @@ const sanitizeUrls = (urls: Record<string, string | null> | undefined): Record<s
 
 /** Not a mixtape: what speaks of a disc (stars, files, rips) leaves the mixtapes out. */
 const NOT_MIXTAPE = `COALESCE(title_status, 'owned') != 'playlist'`;
-/** A mixtape one of whose songs has these words in its title: a mixtape is found by what it holds. */
-const MIXTAPE_SONG = `(title_status = 'playlist' AND EXISTS (SELECT 1 FROM tracks WHERE tracks.album_id = albums.id AND tracks.title LIKE ?))`;
 
 const Album = {
   createTable: (): Promise<void> => {
@@ -726,63 +725,48 @@ const Album = {
    * albums and the wishes too; with `mixtapes`, the mixtapes alone, found by
    * their name, their songs' titles and artists.
    */
-  searchAll: (query: string, withNoCd = false, mixtapes = false): Promise<AlbumFormatted[]> => {
-    return new Promise((resolve, reject) => {
-      const db = getDatabase();
-      const statuses = mixtapes ? `('playlist')` : withNoCd ? `('owned', 'digital', 'wish')` : `('owned')`;
+  searchAll: async (query: string, withNoCd = false, mixtapes = false): Promise<AlbumFormatted[]> => {
+    const db = getDatabase();
+    const statuses = mixtapes ? `('playlist')` : withNoCd ? `('owned', 'digital', 'wish')` : `('owned')`;
 
-      // Use enhanced search parser (supports OR, negation, ranges)
-      const { params, whereClauses, hasFilters, hasTrackFilter, cleanedQuery } = Album._parseSearchQuery(query);
+    // The filters in SQL (supports OR, negation, ranges); the plain words after, without their accents.
+    const { params, whereClauses, hasTrackFilter, cleanedQuery } = Album._parseSearchQuery(query);
+    const words = searchWords(cleanedQuery);
+    const whereClause = whereClauses.length > 0 ? whereClauses.join(' AND ') : '1=1';
+    const sql = `
+      SELECT ${hasTrackFilter ? 'DISTINCT' : ''} albums.* FROM albums
+      WHERE ${whereClause}
+      AND COALESCE(title_status, 'owned') IN ${statuses}
+      ORDER BY artist, title
+    `;
+    const rows = await new Promise<AlbumRow[]>((resolve, reject) =>
+      db.all(sql, params, (err: Error | null, found: AlbumRow[]) => (err ? reject(err) : resolve(found))));
+    const albums = rows.map(Album.formatRow).filter((r): r is AlbumFormatted => r !== null);
+    if (!words.length || !albums.length) return albums;
 
-      // If no filters found, do a general search
-      if (!hasFilters && !cleanedQuery.trim()) {
-        const sql = `
-          SELECT * FROM albums
-          WHERE (title LIKE ? OR artist LIKE ? OR labels LIKE ? OR genres LIKE ? OR ${MIXTAPE_SONG})
-          AND COALESCE(title_status, 'owned') IN ${statuses}
-          ORDER BY artist, title
-        `;
-        const searchTerm = `%${query}%`;
-
-        db.all(sql, [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm], (err: Error | null, rows: AlbumRow[]) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows.map(Album.formatRow).filter((r): r is AlbumFormatted => r !== null));
-          }
-        });
-      } else {
-        // Build filtered query
-        let whereClause = whereClauses.length > 0 ? whereClauses.join(' AND ') : '1=1';
-
-        // Add general text search if there's remaining text
-        if (cleanedQuery.trim()) {
-          const searchTerm = `%${cleanedQuery.trim()}%`;
-          // Plain words find a conductor, a soloist or a composer credited on a track too.
-          whereClause += ` AND (title LIKE ? OR artist LIKE ? OR labels LIKE ? OR genres LIKE ?
-            OR EXISTS (SELECT 1 FROM tracks WHERE tracks.album_id = albums.id
-              AND (tracks.composers LIKE ? OR tracks.performers LIKE ? OR tracks.work LIKE ? OR tracks.artist LIKE ?))
-            OR ${MIXTAPE_SONG})`;
-          params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
-        }
-
-        const sql = `
-          SELECT ${hasTrackFilter ? 'DISTINCT' : ''} albums.* FROM albums
-          WHERE ${whereClause}
-          AND COALESCE(title_status, 'owned') IN ${statuses}
-          ORDER BY artist, title
-        `;
-
-        db.all(sql, params, (err: Error | null, rows: AlbumRow[]) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows.map(Album.formatRow).filter((r): r is AlbumFormatted => r !== null));
-          }
-        });
-      }
-    });
+    // Each word in the album or in what its tracks credit: a conductor, a soloist, a composer, a work;
+    // a mixtape's songs by their titles.
+    const tracksText = await Album._tracksText(rows.map(row => row.id));
+    return albums.filter((album, i) => findsAll(words, [
+      rows[i].title, rows[i].artist, rows[i].labels, rows[i].genres, tracksText.get(album.id),
+    ]));
   },
+
+  /** What an album's tracks credit, as one text per album: composers, performers, work, artist; a mixtape's titles too. */
+  _tracksText: (albumIds: number[]): Promise<Map<number, string>> => new Promise((resolve, reject) => {
+    const marks = albumIds.map(() => '?').join(',');
+    getDatabase().all(
+      `SELECT tracks.album_id, GROUP_CONCAT(
+         COALESCE(tracks.composers, '') || ' ' || COALESCE(tracks.performers, '') || ' ' || COALESCE(tracks.work, '') || ' ' ||
+         COALESCE(tracks.artist, '') || CASE WHEN albums.title_status = 'playlist' THEN ' ' || COALESCE(tracks.title, '') ELSE '' END,
+         char(10)) AS text
+       FROM tracks JOIN albums ON albums.id = tracks.album_id
+       WHERE tracks.album_id IN (${marks})
+       GROUP BY tracks.album_id`,
+      albumIds,
+      (err: Error | null, rows: Array<{ album_id: number; text: string | null }>) =>
+        (err ? reject(err) : resolve(new Map(rows.map(row => [row.album_id, row.text || ''])))));
+  }),
 
   update: (id: number, cdData: AlbumCreateData): Promise<AlbumUpdateResult> => {
     return new Promise((resolve, reject) => {

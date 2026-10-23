@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVault · Deviner titre ou artiste</title>
+<style>
+  /* DexVault's tokens (frontend/src/tokens.css), the page dark as the app. */
+  :root {
+    --dv-gold: #fbbf24; --dv-gold-tint: rgba(251,191,36,.12);
+    --dv-danger: #f87171;
+    --dv-text: #e5e5e5; --dv-text-muted: #9ca3af; --dv-text-faint: #8a8a8a;
+    --dv-glass: rgba(255,255,255,.06); --dv-glass-hover: rgba(255,255,255,.11);
+    --dv-edge: rgba(255,255,255,.12); --dv-edge-hover: rgba(255,255,255,.24);
+    --dv-veil: rgba(255,255,255,.08);
+    --dv-surface: rgba(24,24,24,.86); --dv-surface-edge: rgba(255,255,255,.1);
+    --dv-surface-shadow: 0 16px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
+    --dv-ring: 0 0 0 3px rgba(251,191,36,.3);
+    --pill-bg: var(--dv-glass-hover); --pill-edge: var(--dv-edge-hover);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; min-height: 100vh; background: linear-gradient(135deg,#1a1a1a,#2d2d2d) fixed; color: var(--dv-text);
+    font: 14px/1.4 var(--font); }
+
+  /* ---------- The prototype's own bar, in French ---------- */
+  .proto { display: grid; gap: 10px; padding: 14px 24px; background: #111; border-bottom: 1px solid #333; color: #aaa; font-size: 13px; }
+  .proto h1 { margin: 0; font-size: 15px; color: #ddd; font-weight: 600; }
+  .proto p { margin: 0; max-width: 900px; }
+  .proto .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .seg { display: inline-flex; border: 1px solid #444; border-radius: 8px; overflow: hidden; }
+  .seg button { background: #222; color: #ddd; border: 0; padding: 6px 12px; font: inherit; cursor: pointer; }
+  .seg button + button { border-left: 1px solid #444; }
+  .seg button.on { background: var(--dv-gold); color: #111; }
+  .try { background: #222; color: #ccc; border: 1px solid #3a3a3a; border-radius: 6px; padding: 4px 9px; font: inherit; cursor: pointer; }
+  .try:hover { border-color: #555; color: #fff; }
+  .proto code { color: #ddd; background: #222; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+
+  /* ---------- The field ---------- */
+  .appbar { padding: 18px 24px 8px; max-width: 1100px; margin: 0 auto; }
+  .field-wrap { position: relative; }
+  .field { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-height: 48px;
+    padding: 6px 12px; border: 2px solid #444; border-radius: 8px; background: #2a2a2a; cursor: text; }
+  .field:focus-within { border-color: var(--dv-gold); box-shadow: 0 0 0 3px rgba(251,191,36,.1); background: #333; }
+  .lens { color: var(--dv-text-faint); flex: none; width: 16px; height: 16px; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 3px 0 10px; border-radius: 999px;
+    background: var(--pill-bg); border: 1px solid var(--pill-edge); font: 15px/1 var(--font); }
+  .chip .k { color: #b8bec8; }
+  .chip .v { font-weight: 500; }
+  .chip .x { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; color: var(--dv-text-faint); cursor: pointer; }
+  .chip .x:hover { background: var(--dv-veil); color: var(--dv-text); }
+  .typing { position: relative; flex: 1; min-width: 140px; height: 32px; }
+  .ghost { white-space: pre; font: 16px/32px var(--font); color: var(--dv-text-faint); overflow: hidden; pointer-events: none; }
+  .ghost .typed { color: transparent; }
+  .ghost .arrow { opacity: .8; }
+  .ghost-key { font: 10px/1 var(--font); letter-spacing: .4px; text-transform: uppercase; color: var(--dv-text-faint);
+    border: 1px solid #555; border-radius: 3px; padding: 1px 4px; margin-left: 8px; vertical-align: 2px; }
+  #q { position: absolute; inset: 0; width: 100%; height: 32px; padding: 0; border: 0; background: transparent;
+    color: var(--dv-text); font: 16px var(--font); outline: none; }
+  #q::placeholder { color: #888; }
+
+  /* ---------- The suggestions: the menus' glass ---------- */
+  .menu { position: absolute; z-index: 100; left: 0; right: 0; top: calc(100% + 6px); max-height: min(460px, 64vh); overflow-y: auto;
+    background: var(--dv-surface); backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    border: 1px solid var(--dv-surface-edge); border-radius: 12px; box-shadow: var(--dv-surface-shadow); padding: 6px; }
+  .menu-section { padding: 8px 10px 4px; font-size: 11px; letter-spacing: .6px; text-transform: uppercase; color: var(--dv-text-faint); font-weight: 600; }
+  .menu-item { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 8px; cursor: pointer; min-height: 40px; }
+  .menu-item.active, .menu-item:hover { background: var(--dv-veil); }
+  .menu-item.top { box-shadow: inset 2px 0 0 var(--dv-text-faint); }
+  .thumb { flex: none; width: 30px; height: 30px; border-radius: 4px; }
+  .avatar { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--dv-glass-hover); border: 1px solid var(--dv-edge); color: var(--dv-text-muted); font-weight: 600; font-size: 13px; }
+  .menu-item .main { flex: 1; min-width: 0; }
+  .menu-item .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--dv-text-muted); }
+  .menu-item .name mark { background: none; color: var(--dv-text); font-weight: 600; }
+  .menu-item .sub { font-size: 12px; color: var(--dv-text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .menu-item .does { flex: none; font-size: 12px; color: var(--dv-text-faint); white-space: nowrap; }
+  .menu-item .does code { font: 12px var(--font); padding: 1px 7px; border-radius: 999px; border: 1px solid var(--pill-edge); background: var(--pill-bg); color: var(--dv-text-muted); }
+  .kind { flex: none; font-size: 10px; letter-spacing: .5px; text-transform: uppercase; color: var(--dv-text-faint);
+    border: 1px solid #555; border-radius: 3px; padding: 1px 4px; }
+  .menu-foot { display: flex; gap: 14px; padding: 8px 10px 4px; border-top: 1px solid rgba(255,255,255,.06); margin-top: 4px;
+    color: var(--dv-text-faint); font-size: 11.5px; flex-wrap: wrap; }
+  .menu-foot kbd { font: 11px var(--font); padding: 0 4px; border: 1px solid #555; border-radius: 3px; color: var(--dv-text-muted); }
+
+  /* ---------- The albums found ---------- */
+  main { max-width: 1100px; margin: 0 auto; padding: 8px 24px 80px; }
+  .count-line { color: var(--dv-text-faint); font-size: 12.5px; margin: 6px 4px 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .count-line .sort { padding: 1px 8px; border-radius: 999px; border: 1px solid var(--dv-edge); color: var(--dv-text-muted); }
+  .count-line .sort b { color: var(--dv-gold); font-weight: 500; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 18px; }
+  .card { min-width: 0; cursor: pointer; }
+  .cover { aspect-ratio: 1; border-radius: 6px; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,.4);
+    display: flex; align-items: flex-end; padding: 10px; }
+  .cover span { font: 700 14px/1.15 Georgia, serif; color: rgba(255,255,255,.9); text-shadow: 0 1px 3px rgba(0,0,0,.4); }
+  .card .t { margin-top: 7px; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .a { font-size: 12.5px; color: var(--dv-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card mark { background: var(--dv-gold-tint); color: inherit; border-radius: 2px; }
+  .card .why { font-size: 11.5px; color: var(--dv-text-faint); }
+  .empty { color: var(--dv-text-faint); padding: 40px 0; text-align: center; }
+  .empty button { background: none; border: 0; color: var(--dv-text); font: inherit; text-decoration: underline; cursor: pointer; }
+
+  /* An album's card, opened by a suggestion: a stand-in. */
+  .sheet-veil { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; z-index: 200; padding: 16px; }
+  .sheet { width: min(520px, 100%); background: #202020; border: 1px solid var(--dv-edge); border-radius: 14px; padding: 18px; display: flex; gap: 16px; }
+  .sheet .cover { width: 150px; flex: none; }
+  .sheet h2 { margin: 0 0 4px; font-size: 18px; }
+  .sheet p { margin: 0; color: var(--dv-text-muted); }
+  .sheet button { margin-top: 14px; height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--dv-edge);
+    background: var(--dv-glass); color: var(--dv-text); font: 13px var(--font); cursor: pointer; }
+
+  @media (max-width: 600px) {
+    .proto, .appbar, main { padding-left: 16px; padding-right: 16px; }
+    .menu-item .does { display: none; }
+    .sheet { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="proto">
+  <h1>Deviner titre ou artiste · prototype (MusicDex, fausses données)</h1>
+  <p>Dès 2 lettres, le menu propose <b>des artistes</b> (compositeurs compris) et <b>des albums</b>, classés : début du nom, puis début d'un mot, puis milieu ; accents et œ ignorés (<code>beyo</code>, <code>oeuvres</code>, <code>bjork</code>).
+     Le meilleur des deux s'écrit en gris : <b>Tab</b> ou <b>→</b> le prend. Un artiste devient une pastille <code>artist:</code> ou <code>composer:</code> ; un album ouvre sa fiche.
+     <b>Entrée</b> garde les lettres telles quelles : la grille se trie alors par pertinence, et ton tri revient quand tu les effaces. ↑↓ puis Entrée choisit une ligne du menu.</p>
+  <div class="row">
+    <span>Menu :</span>
+    <div class="seg" role="radiogroup" aria-label="Variante">
+      <button type="button" data-mode="groups" class="on">A · Deux groupes</button>
+      <button type="button" data-mode="mixed">B · Une liste mêlée</button>
+    </div>
+    <span>Essayer :</span>
+    <button class="try" data-q="be">be</button>
+    <button class="try" data-q="bea">bea</button>
+    <button class="try" data-q="blo">blo</button>
+    <button class="try" data-q="rad">rad</button>
+    <button class="try" data-q="beyo">beyo (accent)</button>
+    <button class="try" data-q="oeuvres">oeuvres (œ)</button>
+    <button class="try" data-q="bach">bach</button>
+    <button class="try" data-q="low">low</button>
+    <button class="try" data-q="beatels">beatels (faute)</button>
+  </div>
+</div>
+
+<div class="appbar">
+  <div class="field-wrap">
+    <div class="field" id="field">
+      <svg class="lens" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg>
+      <span id="pills" style="display:contents"></span>
+      <div class="typing">
+        <div class="ghost" id="ghost" aria-hidden="true"></div>
+        <input id="q" type="text" autocomplete="off" spellcheck="false" placeholder="Search MusicDex: a few letters of a title or an artist" aria-label="Search">
+      </div>
+    </div>
+    <div class="menu" id="menu" hidden role="listbox"></div>
+  </div>
+</div>
+
+<main>
+  <div class="count-line" id="count"></div>
+  <div class="grid" id="grid"></div>
+</main>
+
+<div class="sheet-veil" id="sheet" hidden></div>
+
+<script>
+// ---------- Fake collection ----------
+const ALBUMS = [
+  ['Abbey Road', 'The Beatles', 1969], ['Revolver', 'The Beatles', 1966], ['The Beatles (White Album)', 'The Beatles', 1968],
+  ['Pet Sounds', 'The Beach Boys', 1966], ['Sea Change', 'Beck', 2002], ['Odelay', 'Beck', 1996],
+  ['Lemonade', 'Beyoncé', 2016], ['Homogenic', 'Björk', 1997], ['Ágætis byrjun', 'Sigur Rós', 1999],
+  ['Tanto Tempo', 'Bebel Gilberto', 2000], ['Beautiful Garbage', 'Garbage', 2001], ['Beauty and the Beat', "The Go-Go's", 1981],
+  ['Berlin', 'Lou Reed', 1973], ['Low', 'David Bowie', 1977], ['"Heroes"', 'David Bowie', 1977], ['Blackstar', 'David Bowie', 2016],
+  ['Kid A', 'Radiohead', 2000], ['OK Computer', 'Radiohead', 1997], ['In Rainbows', 'Radiohead', 2007],
+  ['Blonde on Blonde', 'Bob Dylan', 1966], ['Blood on the Tracks', 'Bob Dylan', 1975], ['Blue', 'Joni Mitchell', 1971],
+  ['Rumours', 'Fleetwood Mac', 1977], ['Kind of Blue', 'Miles Davis', 1959], ['A Love Supreme', 'John Coltrane', 1965],
+  ['Bleach', 'Nirvana', 1989], ['Born to Run', 'Bruce Springsteen', 1975], ['Lowlands', 'Susan Werner', 2004],
+  ['Symphonies 5 & 7', 'Wiener Philharmoniker, Carlos Kleiber', 1975, 'Ludwig van Beethoven'],
+  ['Piano Sonatas Op. 109–111', 'Maurizio Pollini', 1977, 'Ludwig van Beethoven'],
+  ['Symphony No. 9 "From the New World"', 'Berliner Philharmoniker, Herbert von Karajan', 1985, 'Antonín Dvořák'],
+  ['Cello Suites', 'Yo-Yo Ma', 1983, 'Johann Sebastian Bach'], ['Goldberg Variations', 'Glenn Gould', 1981, 'Johann Sebastian Bach'],
+  ['Brandenburg Concertos', 'Il Giardino Armonico', 1997, 'Johann Sebastian Bach'],
+  ['Œuvres pour piano', 'Jean-Yves Thibaudet', 2003, 'Erik Satie'], ['Nocturnes', 'Maria João Pires', 1996, 'Frédéric Chopin'],
+  ['Requiem', 'Berliner Philharmoniker, Herbert von Karajan', 1976, 'Wolfgang Amadeus Mozart'],
+].map(([title, artist, year, composer], id) => ({ id, title, artist, year, composer }));
+
+// ---------- Folding and scoring ----------
+// What the app would do everywhere: accents gone, œ æ ø as letters, case gone.
+function norm(s) {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/œ/g, 'oe').replace(/æ/g, 'ae').replace(/ø/g, 'o').replace(/ß/g, 'ss').replace(/[ð]/g, 'd');
+}
+const LEADING = /^(the|le|la|les|l'|die|der|das)\s+/;
+// How well letters name a thing: the whole name begins with them, then a word of it, then anywhere.
+function score(name, q) {
+  const n = norm(name).replace(/["“”]/g, '');
+  const bare = n.replace(LEADING, '');
+  if (n.startsWith(q) || bare.startsWith(q)) return 100 - Math.min(20, bare.length / 3);
+  if (new RegExp('(^|[\\s\\-(,.&/])' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(n)) return 70 - Math.min(15, n.length / 4);
+  if (q.length >= 3 && n.includes(q)) return 30;
+  return 0;
+}
+// Where the letters are, to draw them in the text's colour.
+function marked(name, q) {
+  const n = norm(name);
+  let at = -1;
+  const re = new RegExp('(^|[\\s\\-(,.&/"])' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const m = re.exec(n);
+  if (m) at = m.index + m[1].length; else if (q.length >= 3) at = n.indexOf(q);
+  // norm keeps the length except where œ became oe: good enough for a prototype.
+  if (at < 0 || norm(name).length !== name.length) return esc(name);
+  return esc(name.slice(0, at)) + '<mark>' + esc(name.slice(at, at + q.length)) + '</mark>' + esc(name.slice(at + q.length));
+}
+function esc(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); }
+
+// One person per name: performers (split on ", ") and composers, with their albums.
+function people() {
+  const map = new Map();
+  for (const a of ALBUMS) {
+    for (const p of a.artist.split(', ')) {
+      const e = map.get(p) || { name: p, key: 'artist', albums: [] }; e.albums.push(a); map.set(p, e);
+    }
+    if (a.composer) {
+      const e = map.get(a.composer) || { name: a.composer, key: 'composer', albums: [] };
+      e.key = 'composer'; e.albums.push(a); map.set(a.composer, e);
+    }
+  }
+  return [...map.values()];
+}
+const PEOPLE = people();
+
+function lev(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+// Nothing found: a name or a title one or two letters away from what was typed.
+function didYouMean(q) {
+  if (q.length < 4) return null;
+  let best = null;
+  const words = [...PEOPLE.map(p => ({ label: p.name, item: { type: 'person', p } })),
+                 ...ALBUMS.map(a => ({ label: a.title, item: { type: 'album', a } }))];
+  for (const w of words) {
+    for (const part of norm(w.label).replace(LEADING, '').split(/\s+/)) {
+      const d = lev(q, part.slice(0, Math.max(q.length, part.length)));
+      if (d <= (q.length >= 6 ? 2 : 1) && (!best || d < best.d)) best = { d, ...w };
+    }
+  }
+  return best;
+}
+
+// ---------- State ----------
+let pill = null;          // { key, value } once an artist is taken
+let mode = 'groups';
+let items = [];           // the menu's lines, in their order
+let active = -1;          // the line under the keys, -1 = none (Enter keeps the letters)
+const $ = id => document.getElementById(id);
+const q = $('q');
+
+function suggestions(text) {
+  const t = norm(text.trim());
+  if (t.length < 2) return { people: [], albums: [] };
+  const ppl = PEOPLE.map(p => { const s = score(p.name, t); return { type: 'person', p, s: s && s + Math.min(6, p.albums.length * 2) }; })
+    .filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 4);
+  const albums = ALBUMS.map(a => ({ type: 'album', a, s: score(a.title, t) }))
+    .filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 5);
+  return { people: ppl, albums };
+}
+
+function renderMenu() {
+  const text = q.value;
+  const { people: ppl, albums } = suggestions(text);
+  const t = norm(text.trim());
+  const menu = $('menu');
+  if (pill || t.length < 2 || document.activeElement !== q) { menu.hidden = true; items = []; renderGhost(); return; }
+  if (!ppl.length && !albums.length) {
+    const dym = didYouMean(t);
+    items = dym ? [dym.item] : [];
+    menu.innerHTML = dym
+      ? `<div class="menu-section">Nothing begins so · did you mean</div>${line(dym.item, 0, t, true)}${foot()}`
+      : `<div class="menu-section">No title or artist with “${esc(text.trim())}”</div>${foot()}`;
+    menu.hidden = false; renderGhost(); return;
+  }
+  let html = '';
+  if (mode === 'groups') {
+    // The group holding the best one comes first.
+    const peopleFirst = (ppl[0]?.s || 0) >= (albums[0]?.s || 0);
+    const groups = peopleFirst ? [['Artists', ppl], ['Albums', albums]] : [['Albums', albums], ['Artists', ppl]];
+    items = [];
+    for (const [title, list] of groups) {
+      if (!list.length) continue;
+      html += `<div class="menu-section">${title}</div>`;
+      for (const it of list) { html += line(it, items.length, t); items.push(it); }
+    }
+  } else {
+    items = [...ppl, ...albums].sort((a, b) => b.s - a.s).slice(0, 7);
+    html = items.map((it, i) => line(it, i, t, true)).join('');
+  }
+  menu.innerHTML = html + foot();
+  menu.hidden = false;
+  renderGhost();
+}
+function best() {
+  if (!items.length) return null;
+  return items.reduce((a, b) => (b.s || 0) > (a.s || 0) ? b : a, items[0]);
+}
+function line(it, i, t, kind) {
+  const top = it === best();
+  const cls = `menu-item${i === active ? ' active' : ''}${top ? ' top' : ''}`;
+  if (it.type === 'person') {
+    const p = it.p, n = p.albums.length;
+    const initials = p.name.replace(LEADING, '').split(/\s+/).map(w => w[0]).slice(0, 2).join('');
+    return `<div class="${cls}" data-i="${i}" role="option">
+      <div class="avatar">${esc(initials)}</div>
+      <div class="main"><div class="name">${marked(p.name, t)}</div>
+        <div class="sub">${p.key === 'composer' ? 'composer · ' : ''}${n} album${n > 1 ? 's' : ''}</div></div>
+      ${kind ? `<span class="kind">${p.key === 'composer' ? 'Composer' : 'Artist'}</span>` : ''}
+      <span class="does"><code>${p.key}:</code></span></div>`;
+  }
+  const a = it.a;
+  return `<div class="${cls}" data-i="${i}" role="option">
+    <div class="thumb" style="${coverBg(a)}"></div>
+    <div class="main"><div class="name">${marked(a.title, t)}</div>
+      <div class="sub">${esc(a.composer ? a.composer.split(' ').pop() + ' · ' + a.artist : a.artist)} · ${a.year}</div></div>
+    ${kind ? '<span class="kind">Album</span>' : ''}
+    <span class="does">opens</span></div>`;
+}
+function foot() {
+  return `<div class="menu-foot"><span><kbd>Tab</kbd> takes the grey</span><span><kbd>↑</kbd><kbd>↓</kbd> choose</span><span><kbd>Enter</kbd> keeps the letters</span><span><kbd>Esc</kbd> closes</span></div>`;
+}
+
+// The grey rest after the caret: the best one's name, or an arrow to it when the letters are inside it.
+function renderGhost() {
+  const g = $('ghost');
+  const b = (active >= 0 ? items[active] : best());
+  if (!b || pill || $('menu').hidden) { g.innerHTML = ''; return; }
+  const text = q.value, name = b.type === 'person' ? b.p.name : b.a.title;
+  const kind = b.type === 'person' ? (b.p.key === 'composer' ? 'composer' : 'artist') : 'album';
+  const nt = norm(text), nn = norm(name);
+  const rest = nn.startsWith(nt) && nn.length === name.length ? name.slice(text.length) : null;
+  g.innerHTML = `<span class="typed">${esc(text)}</span>` +
+    (rest !== null ? esc(rest) : `<span class="arrow">  → ${esc(name)}</span>`) + `<span class="ghost-key">${kind}</span>`;
+}
+
+function take(it) {
+  if (!it) return;
+  if (it.type === 'person') {
+    pill = { key: it.p.key, value: it.p.name };
+    q.value = '';
+  } else {
+    openSheet(it.a);
+  }
+  active = -1;
+  renderAll();
+}
+
+// ---------- The grid ----------
+function coverBg(a) {
+  let h = 0; for (const c of a.title + a.artist) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return `background:linear-gradient(150deg,hsl(${h} 45% 38%),hsl(${(h + 50) % 360} 40% 16%))`;
+}
+function renderGrid() {
+  const t = norm(q.value.trim());
+  let list = ALBUMS.slice();
+  if (pill) list = list.filter(a => (pill.key === 'composer' ? a.composer === pill.value : a.artist.split(', ').includes(pill.value)));
+  let ranked = false;
+  if (t) {
+    list = list.map(a => {
+      const st = score(a.title, t), sa = Math.max(...a.artist.split(', ').map(p => score(p, t))) * .9,
+            sc = a.composer ? score(a.composer, t) * .9 : 0;
+      return { a, s: Math.max(st, sa, sc), why: st >= Math.max(sa, sc) ? 'title' : sc > sa ? 'composer' : 'artist' };
+    }).filter(x => x.s > 0).sort((x, y) => y.s - x.s);
+    ranked = true;
+  } else {
+    list = list.map(a => ({ a })).sort((x, y) => x.a.artist.localeCompare(y.a.artist) || x.a.year - y.a.year);
+  }
+  $('count').innerHTML = `<span>${list.length} album${list.length === 1 ? '' : 's'}</span>` +
+    (ranked ? `<span class="sort">sorted by <b>best match</b></span><span>· your sort (Artist) comes back when the letters go</span>`
+            : `<span class="sort">sorted by Artist</span>`);
+  if (!list.length) {
+    const dym = t.length >= 4 && didYouMean(t);
+    $('grid').innerHTML = `<div class="empty" style="grid-column:1/-1">No album matches “${esc(q.value.trim())}”.` +
+      (dym ? ` Did you mean <button id="dym">${esc(dym.label)}</button>?` : '') + `</div>`;
+    if (dym) $('dym').onclick = () => take(dym.item);
+    return;
+  }
+  $('grid').innerHTML = list.map(({ a, why }) => `<div class="card" data-id="${a.id}">
+    <div class="cover" style="${coverBg(a)}"><span>${esc(a.title)}</span></div>
+    <div class="t">${t && why === 'title' ? marked(a.title, t) : esc(a.title)}</div>
+    <div class="a">${t && why === 'artist' ? marked(a.artist, t) : esc(a.artist)}</div>
+    ${a.composer ? `<div class="why">${t && why === 'composer' ? marked(a.composer, t) : esc(a.composer)}</div>` : ''}
+  </div>`).join('');
+}
+
+function renderPills() {
+  $('pills').innerHTML = pill
+    ? `<span class="chip"><span class="k">${pill.key}:</span><span class="v">${esc(pill.value)}</span><span class="x" id="unpill" title="Remove">✕</span></span>`
+    : '';
+  if (pill) $('unpill').onclick = e => { e.stopPropagation(); pill = null; renderAll(); q.focus(); };
+  q.placeholder = pill ? '' : 'Search MusicDex: a few letters of a title or an artist';
+}
+
+function openSheet(a) {
+  const s = $('sheet');
+  s.innerHTML = `<div class="sheet"><div class="cover" style="${coverBg(a)}"><span>${esc(a.title)}</span></div>
+    <div><h2>${esc(a.title)}</h2><p>${esc(a.artist)}${a.composer ? '<br>' + esc(a.composer) : ''}</p><p>${a.year}</p>
+    <p style="margin-top:12px;font-size:12.5px">The album's card, here a stand-in. The search keeps “${esc(q.value)}”.</p>
+    <button id="closeSheet">Close</button></div></div>`;
+  s.hidden = false;
+  $('closeSheet').onclick = closeSheet;
+  s.onclick = e => { if (e.target === s) closeSheet(); };
+}
+function closeSheet() { $('sheet').hidden = true; q.focus(); }
+
+function renderAll() { renderPills(); renderMenu(); renderGrid(); }
+
+// ---------- Keys ----------
+q.addEventListener('input', () => { active = -1; renderMenu(); renderGrid(); });
+q.addEventListener('focus', renderMenu);
+q.addEventListener('blur', () => setTimeout(renderMenu, 120));
+q.addEventListener('keydown', e => {
+  const open = !$('menu').hidden && items.length;
+  if (e.key === 'ArrowDown' && open) { e.preventDefault(); active = (active + 1) % items.length; renderMenu(); }
+  else if (e.key === 'ArrowUp' && open) { e.preventDefault(); active = active <= 0 ? items.length - 1 : active - 1; renderMenu(); }
+  else if ((e.key === 'Tab' || (e.key === 'ArrowRight' && q.selectionStart === q.value.length)) && open) {
+    e.preventDefault(); take(active >= 0 ? items[active] : best());
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (open && active >= 0) take(items[active]);
+    else { $('menu').hidden = true; $('ghost').innerHTML = ''; }
+  } else if (e.key === 'Escape') { $('menu').hidden = true; $('ghost').innerHTML = ''; }
+  else if (e.key === 'Backspace' && !q.value && pill) { q.value = pill.value; pill = null; renderAll(); }
+});
+$('menu').addEventListener('mousedown', e => {
+  const el = e.target.closest('.menu-item'); if (!el) return;
+  e.preventDefault(); take(items[+el.dataset.i]);
+});
+$('field').addEventListener('click', () => q.focus());
+$('grid').addEventListener('click', e => {
+  const c = e.target.closest('.card'); if (c) openSheet(ALBUMS[+c.dataset.id]);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('sheet').hidden) closeSheet(); });
+
+// ---------- The prototype's bar ----------
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === b));
+  q.focus(); active = -1; renderMenu();
+});
+document.querySelectorAll('.try').forEach(b => b.onclick = () => {
+  pill = null; q.value = b.dataset.q; active = -1; q.focus(); renderAll();
+});
+
+renderAll();
+q.focus();
+</script>
+</body>
+</html>

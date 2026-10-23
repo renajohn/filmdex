@@ -144,6 +144,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const [, setLoadingDetails] = useState(false);
   const [cdDetailsBeforeEdit, setCdDetailsBeforeEdit] = useState<any>(null);
   const previousSearchTextRef = useRef('');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(searchTimerRef.current), []);
   const navigate = useNavigate();
   const location = useLocation();
   const [listenNextAlbums, setListenNextAlbums] = useState<Album[]>([]);
@@ -430,8 +432,10 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     if (currentSearchText !== previousSearchTextRef.current) {
       previousSearchTextRef.current = currentSearchText;
 
+      // A search 200 ms after the last key, as FilmDex's: not one request per letter.
+      clearTimeout(searchTimerRef.current);
       if (currentSearchText.trim()) {
-        performSearch(currentSearchText);
+        searchTimerRef.current = setTimeout(() => performSearch(currentSearchText), 200);
       } else {
         setFilteredCds(allCds);
         setCdCount({ filtered: allCds.length, total: allCds.length });
@@ -479,6 +483,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     try {
       // Search local albums
       const localResults = await musicService.searchAlbums(query) as Album[];
+      // An answer to letters since changed comes too late: the newer search shows.
+      if (query !== previousSearchTextRef.current) return;
       const sortedResults = sortCds(localResults, sortBy);
       setFilteredCds(sortedResults);
       setCdCount({ filtered: sortedResults.length, total: allCds.length });
