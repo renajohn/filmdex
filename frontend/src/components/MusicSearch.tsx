@@ -8,6 +8,7 @@ import MusicDetailCard from './MusicDetailCard';
 import AddMusicDialog from './AddMusicDialog';
 import AlphabeticalIndex from './AlphabeticalIndex';
 import { NextBanner, CollectionHeader, EmptyState } from './shared';
+import { hasMatchScores, useBestMatch } from './shared/search/bestMatch';
 import { BsChevronDown, BsDisc, BsHeadphones, BsShuffle } from 'react-icons/bs';
 import './MusicSearch.css';
 import { readStored, writeStored } from '../utils/safeStorage';
@@ -58,6 +59,8 @@ interface MusicSearchProps {
 const MIXTAPES_ON_KEY = 'dexvault.musicdex.mixtapes';
 
 interface Album {
+  /** How well a search's plain words name it (shared/search/bestMatch.ts). */
+  matchScore?: number;
   id: number;
   title: string;
   artist: string | string[];
@@ -144,8 +147,6 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const [, setLoadingDetails] = useState(false);
   const [cdDetailsBeforeEdit, setCdDetailsBeforeEdit] = useState<any>(null);
   const previousSearchTextRef = useRef('');
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  useEffect(() => () => clearTimeout(searchTimerRef.current), []);
   const navigate = useNavigate();
   const location = useLocation();
   const [listenNextAlbums, setListenNextAlbums] = useState<Album[]>([]);
@@ -430,17 +431,24 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
 
     // Only run if search text has actually changed
     if (currentSearchText !== previousSearchTextRef.current) {
+      const previous = previousSearchTextRef.current;
       previousSearchTextRef.current = currentSearchText;
 
       // A search 200 ms after the last key, as FilmDex's: not one request per letter.
-      clearTimeout(searchTimerRef.current);
       if (currentSearchText.trim()) {
-        searchTimerRef.current = setTimeout(() => performSearch(currentSearchText), 200);
+        let fired = false;
+        const timer = setTimeout(() => { fired = true; performSearch(currentSearchText); }, 200);
+        // Called off before it ran (another key, StrictMode's second mount), it is still to run.
+        return () => {
+          clearTimeout(timer);
+          if (!fired) previousSearchTextRef.current = previous;
+        };
       } else {
         setFilteredCds(allCds);
         setCdCount({ filtered: allCds.length, total: allCds.length });
       }
     }
+    return undefined;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchCriteria?.searchText, allCds]);
 
@@ -496,7 +504,10 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     }
   };
 
-  const sortCds = useCallback((cdsToSort: Album[], sortOption: string) => {
+  // While letters are typed the best match comes first, this sort between equals (useBestMatch).
+  const bestMatch = useBestMatch(searchCriteria?.searchText || '');
+
+  const sortCdsBy = useCallback((cdsToSort: Album[], sortOption: string) => {
     const sorted = [...cdsToSort];
     const order = albumOrderRef.current;
     const byArtist = (a: Album, b: Album) => {
@@ -527,6 +538,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
         return sorted;
     }
   }, []);
+  const sortCds = useCallback((items: Album[], sortOption: string) =>
+    bestMatch.order(sortCdsBy(items, sortOption)), [sortCdsBy, bestMatch.order]);
 
   // The shelves' order comes after the albums, or changes with them: sort again by it.
   useEffect(() => {
@@ -649,6 +662,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   };
 
   const handleSortChange = async (sortOption: string) => {
+    // A sort chosen while letters are typed holds until they go.
+    if (hasMatchScores(filteredCds)) bestMatch.choose(false);
     setSortBy(sortOption);
     writeStored('dexvault-musicdex-sort', sortOption);
     setSortLoading(true);
@@ -663,6 +678,11 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     } finally {
       setSortLoading(false);
     }
+  };
+
+  const handleBestMatch = () => {
+    bestMatch.choose(true);
+    setFilteredCds(sortCds(filteredCds, sortBy));
   };
 
   const groupCds = useCallback((cdsToGroup: Album[], groupOption: string) => {
@@ -1410,6 +1430,8 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           sortBy={sortBy}
           sortOptions={sortOptions}
           onSortChange={handleSortChange}
+          bestMatch={bestMatch.on && hasMatchScores(filteredCds)}
+          onBestMatch={hasMatchScores(filteredCds) ? handleBestMatch : undefined}
           sortLoading={sortLoading}
           groupBy={groupBy}
           groupOptions={groupOptions}

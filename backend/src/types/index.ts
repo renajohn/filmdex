@@ -239,6 +239,8 @@ export interface AlbumRow {
 }
 
 export interface AlbumFormatted {
+  /** How well a search's plain words name it (utils/searchText matchScore), only when it has some. */
+  matchScore?: number;
   id: number;
   artist: string[];
   title: string;
@@ -459,6 +461,8 @@ export interface BookRow {
 }
 
 export interface BookFormatted {
+  /** How well a search's plain words name it (utils/searchText matchScore), only when it has some. */
+  matchScore?: number;
   id: number;
   isbn: string | null;
   isbn13: string | null;

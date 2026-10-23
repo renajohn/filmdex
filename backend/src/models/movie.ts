@@ -4,7 +4,7 @@ import type { RunResult } from 'sqlite3';
 import type { MovieRow, MovieData, MovieSearchCriteria, MovieUpdateResult, MovieWatchResult } from '../types';
 import { warningStatusColumnsSql } from '../warnings/rules';
 import { filmagesColumnsSql } from './movieFilmages';
-import { movieMatchesWords, movieSearchSql, parseMovieSearch } from './movieSearch';
+import { movieMatchScore, movieMatchesWords, movieSearchSql, parseMovieSearch } from './movieSearch';
 
 const Movie = {
   createTable: (): Promise<void> => {
@@ -278,6 +278,8 @@ const Movie = {
             .filter(row => movieMatchesWords(words, row, row.search_collections));
           const movies = kept.map(row => {
             const movie: Record<string, unknown> = { ...row };
+            // How well the words name it: the grid shows the best first while they are typed.
+            if (words.length) movie.matchScore = movieMatchScore(words, row, row.search_collections);
             delete movie.search_collections;
 
             // Parse box set collections info

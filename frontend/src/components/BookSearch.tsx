@@ -8,6 +8,7 @@ import AddBookDialog from './AddBookDialog';
 import SeriesStack from './SeriesStack';
 import AlphabeticalIndex from './AlphabeticalIndex';
 import { CollectionHeader, EmptyState } from './shared';
+import { hasMatchScores, stacksMatchFirst, useBestMatch } from './shared/search/bestMatch';
 import { Modal, Form } from 'react-bootstrap';
 import { BsChevronDown, BsBook, BsX } from 'react-icons/bs';
 import './BookSearch.css';
@@ -38,6 +39,8 @@ interface BookSearchProps {
 }
 
 interface Book {
+  /** How well a search's plain words name it (shared/search/bestMatch.ts). */
+  matchScore?: number;
   id: number;
   title: string;
   authors: string | string[];
@@ -165,8 +168,6 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
     selectedName: ''
   });
   const previousSearchTextRef = useRef('');
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  useEffect(() => () => clearTimeout(searchTimerRef.current), []);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -208,18 +209,25 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
     const currentSearchText = searchCriteria?.searchText || '';
 
     if (currentSearchText !== previousSearchTextRef.current) {
+      const previous = previousSearchTextRef.current;
       previousSearchTextRef.current = currentSearchText;
 
       // A search 200 ms after the last key, as FilmDex's: not one request per letter.
-      clearTimeout(searchTimerRef.current);
       if (currentSearchText.trim()) {
-        searchTimerRef.current = setTimeout(() => performSearch(currentSearchText), 200);
+        let fired = false;
+        const timer = setTimeout(() => { fired = true; performSearch(currentSearchText); }, 200);
+        // Called off before it ran (another key, StrictMode's second mount), it is still to run.
+        return () => {
+          clearTimeout(timer);
+          if (!fired) previousSearchTextRef.current = previous;
+        };
       } else {
         const sortedAll = sortBooks(allBooks, sortBy);
         setFilteredBooks(sortedAll);
         setBookCount({ filtered: sortedAll.length, total: allBooks.length });
       }
     }
+    return undefined;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchCriteria?.searchText, allBooks]);
 
@@ -304,7 +312,10 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
     return trimmed.replace(articlePattern, '').trim() || trimmed;
   }, []);
 
-  const sortBooks = useCallback((booksToSort: Book[], sortOption: string) => {
+  // While letters are typed the best match comes first, this sort between equals (useBestMatch).
+  const bestMatch = useBestMatch(searchCriteria?.searchText || '');
+
+  const sortBooksBy = useCallback((booksToSort: Book[], sortOption: string) => {
     const sorted = [...booksToSort];
 
     switch (sortOption) {
@@ -407,8 +418,12 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
         return sorted;
     }
   }, [removeArticlesForSorting]);
+  const sortBooks = useCallback((items: Book[], sortOption: string) =>
+    bestMatch.order(sortBooksBy(items, sortOption)), [sortBooksBy, bestMatch.order]);
 
   const handleSortChange = async (sortOption: string) => {
+    // A sort chosen while letters are typed holds until they go.
+    if (hasMatchScores(filteredBooks)) bestMatch.choose(false);
     setSortBy(sortOption);
     writeStored('dexvault-bookdex-sort', sortOption);
     setSortLoading(true);
@@ -422,6 +437,11 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
     } finally {
       setSortLoading(false);
     }
+  };
+
+  const handleBestMatch = () => {
+    bestMatch.choose(true);
+    setFilteredBooks(sortBooks(filteredBooks, sortBy));
   };
 
   const groupBooks = useCallback((booksToGroup: Book[], groupOption: string) => {
@@ -1146,6 +1166,8 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
             return seriesAForSort.localeCompare(seriesBForSort);
         }
       });
+      // While letters are typed, the best match first, a series by its best book (useBestMatch).
+      if (bestMatch.on) stacksMatchFirst(combinedItems, filteredBooks, item => (item.type === 'series' ? item.books! : [item.book!]));
 
       // Render the sorted combined items with letter on all items for index visibility detection
       const items: React.ReactNode[] = [];
@@ -1388,6 +1410,8 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
           sortBy={sortBy}
           sortOptions={sortOptions}
           onSortChange={handleSortChange}
+          bestMatch={bestMatch.on && hasMatchScores(filteredBooks)}
+          onBestMatch={hasMatchScores(filteredBooks) ? handleBestMatch : undefined}
           sortLoading={sortLoading}
           groupBy={groupBy}
           groupOptions={groupOptions}

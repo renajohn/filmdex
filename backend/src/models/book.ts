@@ -2,7 +2,7 @@ import type sqlite3 from 'sqlite3';
 import { getDatabase } from '../database';
 import cacheService from '../services/cacheService';
 import BookReading from './bookReading';
-import { findsAll, searchWords } from '../utils/searchText';
+import { findsAll, matchScore, searchWords } from '../utils/searchText';
 import type { BookRow, BookFormatted, BookCreateData, BookSearchParsed } from '../types';
 
 interface BookUpdateResult {
@@ -748,7 +748,16 @@ const Book = {
           const kept = rows.filter(row => findsAll(words, [
             row.title, row.subtitle, row.authors, row.artists, row.isbn, row.isbn13, row.series, row.description,
           ]));
-          resolve(kept.map(Book.formatRow).filter((r): r is BookFormatted => r !== null));
+          // How well they name it: its title first, its authors and its series after, its description last.
+          resolve(kept.flatMap(row => {
+            const book = Book.formatRow(row);
+            if (!book) return [];
+            if (!words.length) return [book];
+            return [{ ...book, matchScore: matchScore(words, [
+              [row.title, 1], [row.authors, 0.9], [row.series, 0.8], [row.subtitle, 0.7], [row.isbn, 0.7], [row.isbn13, 0.7],
+              [row.artists, 0.6], [row.description, 0.2],
+            ]) }];
+          }));
         }
       });
     });

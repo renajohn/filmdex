@@ -4,7 +4,7 @@ import cacheService from '../services/cacheService';
 import { normalizeAlbumOwnership } from '../services/utils/albumOwnership';
 import { combineRatings } from '../services/utils/communityRating';
 import { isClassicalAlbum, type Performer } from '../services/shelfOrder';
-import { findsAll, searchWords } from '../utils/searchText';
+import { findsAll, matchScore, searchWords } from '../utils/searchText';
 import { normaliseAlbumQuery, takeBoolFilter, takeNumberFilter, findFilters, withoutWords } from '../utils/albumSearchFilters';
 import type { AlbumRow, AlbumFormatted, AlbumCreateData, AlbumSearchParsed } from '../types';
 
@@ -746,10 +746,14 @@ const Album = {
 
     // Each word in the album or in what its tracks credit: a conductor, a soloist, a composer, a work;
     // a mixtape's songs by their titles.
+    // How well they name it: its title or its artist first, the shelf showing the best first while they are typed.
     const tracksText = await Album._tracksText(rows.map(row => row.id));
-    return albums.filter((album, i) => findsAll(words, [
-      rows[i].title, rows[i].artist, rows[i].labels, rows[i].genres, tracksText.get(album.id),
-    ]));
+    return albums.flatMap((album, i) => {
+      const row = rows[i];
+      const credits = tracksText.get(album.id);
+      if (!findsAll(words, [row.title, row.artist, row.labels, row.genres, credits])) return [];
+      return [{ ...album, matchScore: matchScore(words, [[row.title, 1], [row.artist, 1], [credits, 0.6], [row.labels, 0.4], [row.genres, 0.4]]) }];
+    });
   },
 
   /** What an album's tracks credit, as one text per album: composers, performers, work, artist; a mixtape's titles too. */

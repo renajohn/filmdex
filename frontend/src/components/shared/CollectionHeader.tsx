@@ -22,6 +22,10 @@ interface CollectionHeaderProps {
   sortBy?: string;
   sortOptions?: SortOption[];
   onSortChange?: (value: string) => void;
+  /** While a search's letters are typed: the best match shows first (useBestMatch). */
+  bestMatch?: boolean;
+  /** Offers "Best match" in the sort's menu, when a search has scored what it found. */
+  onBestMatch?: () => void;
   sortLoading?: boolean;
   groupBy?: string;
   groupOptions?: GroupOption[];
@@ -49,6 +53,8 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
   sortBy,
   sortOptions = [],
   onSortChange,
+  bestMatch = false,
+  onBestMatch,
   sortLoading = false,
   groupBy = 'none',
   groupOptions = [],
@@ -71,7 +77,7 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
     ? showStackToggle
     : (groupBy === 'none' && onStackChange);
 
-  const currentSortLabel = sortOptions.find(opt => opt.value === sortBy)?.label || 'Sort';
+  const currentSortLabel = bestMatch ? 'Best match' : sortOptions.find(opt => opt.value === sortBy)?.label || 'Sort';
   const currentGroupLabel = groupOptions.find(opt => opt.value === groupBy)?.label || 'No grouping';
 
   return (
@@ -99,8 +105,14 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
               )}
             </button>
           )}>
+            {onBestMatch && (
+              <>
+                <Menu.Choice selected={bestMatch} onSelect={onBestMatch}>Best match</Menu.Choice>
+                <Menu.Separator />
+              </>
+            )}
             {sortOptions.map(option => (
-              <Menu.Choice key={option.value} selected={sortBy === option.value} onSelect={() => onSortChange && onSortChange(option.value)}>
+              <Menu.Choice key={option.value} selected={!bestMatch && sortBy === option.value} onSelect={() => onSortChange && onSortChange(option.value)}>
                 {option.label}
               </Menu.Choice>
             ))}

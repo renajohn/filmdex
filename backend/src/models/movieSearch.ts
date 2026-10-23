@@ -1,5 +1,5 @@
 import { statusSql, Topic, WarningStatus } from '../warnings/rules';
-import { findsAll, searchWords } from '../utils/searchText';
+import { findsAll, matchScore, searchWords } from '../utils/searchText';
 
 /**
  * FilmDex's search, read (docs/superpowers/specs/2026-10-22-search-pills-design.md).
@@ -296,12 +296,15 @@ export const movieSearchSql = ({ filters }: ParsedMovieSearch): { sql: string; p
   return { sql: parts.join(''), params };
 };
 
+type WordFields = { title?: string | null; original_title?: string | null; director?: string | null; comments?: string | null };
+
 /**
  * Whether a movie has every word, in any order, without accents: in its title,
  * its original title, its director, its comments or the name of a collection.
  */
-export const movieMatchesWords = (
-  words: string[],
-  movie: { title?: string | null; original_title?: string | null; director?: string | null; comments?: string | null },
-  collections: string | null | undefined,
-): boolean => findsAll(words, [movie.title, movie.original_title, movie.director, movie.comments, collections]);
+export const movieMatchesWords = (words: string[], movie: WordFields, collections: string | null | undefined): boolean =>
+  findsAll(words, [movie.title, movie.original_title, movie.director, movie.comments, collections]);
+
+/** How well the words name a movie: by its title first, the director after, its comments last. */
+export const movieMatchScore = (words: string[], movie: WordFields, collections: string | null | undefined): number =>
+  matchScore(words, [[movie.title, 1], [movie.original_title, 0.95], [movie.director, 0.8], [collections, 0.6], [movie.comments, 0.3]]);

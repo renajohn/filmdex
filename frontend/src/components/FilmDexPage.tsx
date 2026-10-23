@@ -7,6 +7,7 @@ import MovieDetailCard from './MovieDetailCard';
 import BoxSetStack from './BoxSetStack';
 import AlphabeticalIndex from './AlphabeticalIndex';
 import { NextBanner, CollectionHeader, EmptyState } from './shared';
+import { hasMatchScores, stacksMatchFirst, useBestMatch } from './shared/search/bestMatch';
 import MovieCover, { combinedScore } from './MovieCover';
 import {
   BsChevronDown,
@@ -104,7 +105,10 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
 
   const getCombinedScore = combinedScore;
 
-  const sortMovies = useCallback((moviesToSort: any[], sortOption: string) => {
+  // While letters are typed the best match comes first, this sort between equals (useBestMatch).
+  const bestMatch = useBestMatch(searchCriteria?.searchText || '');
+
+  const sortMoviesBy = useCallback((moviesToSort: any[], sortOption: string) => {
     const sorted = [...moviesToSort];
 
     switch (sortOption) {
@@ -144,6 +148,8 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
         return sorted;
     }
   }, []);
+  const sortMovies = useCallback((items: any[], sortOption: string) =>
+    bestMatch.order(sortMoviesBy(items, sortOption)), [sortMoviesBy, bestMatch.order]);
 
   const loadAllMovies = useCallback(async () => {
     try {
@@ -292,10 +298,13 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
 
     // Only run if search text has actually changed
     if (currentSearchText !== previousSearchTextRef.current) {
+      const previous = previousSearchTextRef.current;
       previousSearchTextRef.current = currentSearchText;
+      let fired = false;
 
       // Debounce search by 200ms
       const timeoutId = setTimeout(() => {
+        fired = true;
         // Only run search if searchText has a value, otherwise load all
         if (currentSearchText.trim()) {
           handleSearch(searchCriteria);
@@ -304,7 +313,11 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
         }
       }, 200);
 
-      return () => clearTimeout(timeoutId);
+      // A search called off before it ran is still to run (React's StrictMode mounts twice).
+      return () => {
+        clearTimeout(timeoutId);
+        if (!fired) previousSearchTextRef.current = previous;
+      };
     }
     return undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -558,6 +571,8 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
   ];
 
   const handleSortChange = async (sortOption: string) => {
+    // A sort chosen while letters are typed holds until they go.
+    if (hasMatchScores(filteredMovies)) bestMatch.choose(false);
     setSortBy(sortOption);
     writeStored('dexvault-filmdex-sort', sortOption);
     setSortLoading(true);
@@ -569,6 +584,11 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
     const sorted = sortMovies(filteredMovies, sortOption);
     setMovies(sorted);
     setSortLoading(false);
+  };
+
+  const handleBestMatch = () => {
+    bestMatch.choose(true);
+    setMovies(sortMovies(filteredMovies, sortBy));
   };
 
   // Grouping functions
@@ -716,6 +736,12 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
     return { boxSetMap, standaloneMovies };
   };
 
+  // The stacks come from the whole collection, without the search's scores: while letters are
+  // typed, put the best match first among them, a box set by its best movie (useBestMatch).
+  const stacksBestFirst = useCallback((items: any[]) => (bestMatch.on
+    ? stacksMatchFirst(items, filteredMovies, item => (item.type === 'boxset' ? item.movies : [item.movie]))
+    : items), [bestMatch.on, filteredMovies]);
+
   // Items used to compute the A-Z index letters; must match the titles actually rendered (box set name vs movie title)
   const alphabeticalIndexItems = useMemo(() => {
     // Index doesn't make sense in grouped view (many items are collapsed)
@@ -764,6 +790,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
       combinedItems.push({
         type: 'boxset',
         boxSetName,
+        movies: boxSetMovies,
         representativeMovie: sortedMoviesInSet[0],
       });
     });
@@ -820,11 +847,12 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
           return 0;
       }
     });
+    stacksBestFirst(combinedItems);
 
     return combinedItems.map(item => ({
       title: item.type === 'boxset' ? item.boxSetName : (item.movie?.title || ''),
     }));
-  }, [groupBy, stackEnabled, movies, searchCriteria?.searchText, allMovies, filteredMovies, sortBy, getCombinedScore]);
+  }, [groupBy, stackEnabled, movies, searchCriteria?.searchText, allMovies, filteredMovies, sortBy, getCombinedScore, stacksBestFirst]);
 
   // Toggle box set stack expansion
   const toggleBoxSetExpansion = (boxSetName: string) => {
@@ -901,6 +929,8 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
           sortBy={sortBy}
           sortOptions={sortOptions}
           onSortChange={handleSortChange}
+          bestMatch={bestMatch.on && hasMatchScores(filteredMovies)}
+          onBestMatch={hasMatchScores(filteredMovies) ? handleBestMatch : undefined}
           sortLoading={sortLoading}
           groupBy={groupBy}
           groupOptions={groupOptions}
@@ -1075,6 +1105,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
                           return 0;
                       }
                     });
+                    stacksBestFirst(combinedItems);
 
                     // Render the sorted combined items with letter tracking for index
                     const items: React.ReactNode[] = [];

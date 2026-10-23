@@ -46,3 +46,38 @@ export const findsAll = (words: string[], texts: Array<string | null | undefined
   const haystack = fold(texts.filter(Boolean).join('\n'));
   return words.every(word => haystack.includes(word));
 };
+
+/** An article before a name: "the" in The Beatles, "l'" in L'Arnaqueur, so that "bea" begins it. */
+const ARTICLE = /^(?:(?:the|a|an|le|la|les|un|une|der|die|das|el|il|lo)\s+|l')/;
+const BOUNDARY = /[^a-z0-9]/;
+
+/**
+ * How well one folded word names one folded text: the text itself (120), its
+ * start, an article set aside (100), the start of one of its words (70),
+ * anywhere in it (30), not at all (0). The ends of a list ('["…"]') do not count.
+ */
+const wordScore = (word: string, text: string): number => {
+  const t = text.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '');
+  if (!t) return 0;
+  if (t === word || t.replace(ARTICLE, '') === word) return 120;
+  if (t.startsWith(word) || t.replace(ARTICLE, '').startsWith(word)) return 100;
+  let at = t.indexOf(word);
+  if (at < 0) return 0;
+  while (at >= 0) {
+    if (at === 0 || BOUNDARY.test(t[at - 1])) return 70;
+    at = t.indexOf(word, at + 1);
+  }
+  return 30;
+};
+
+/**
+ * How well the words name a thing whose fields weigh differently (a title 1,
+ * a description 0.2): for each word its best field, the words added. A movie
+ * whose title begins with the letters typed comes before one that only has
+ * them in its comments.
+ */
+export const matchScore = (words: string[], fields: Array<[string | null | undefined, number]>): number => {
+  const folded = fields.map(([text, weight]) => [fold(text), weight] as const);
+  return Math.round(words.reduce((total, word) =>
+    total + Math.max(0, ...folded.map(([text, weight]) => weight * wordScore(word, text))), 0));
+};
