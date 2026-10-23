@@ -41,6 +41,17 @@
   /* Under the pointer or the keys, an entry or a quiet button. */
   --dv-veil: rgba(255, 255, 255, 0.08);
 
+  /* A pill of the search: the Chip's glass a step brighter (--dv-glass-hover,
+     --dv-edge-hover), brighter still under the pointer or open; its key grey-blue. */
+  --dv-pill-glass-hover: rgba(255, 255, 255, 0.17);
+  --dv-pill-edge-hover: rgba(255, 255, 255, 0.34);
+  --dv-pill-key: #b8bec8;
+
+  /* The header's search field: a hollow in the header, lighter with the focus. */
+  --dv-search-field: #2a2a2a;
+  --dv-search-field-focus: #333;
+  --dv-search-edge: #444;
+
   /* Glass on a picture (a cover, a poster): dark, its edge inset. */
   --dv-glass-image: rgba(0, 0, 0, 0.68);
   --dv-glass-image-hover: rgba(0, 0, 0, 0.85);

@@ -11,22 +11,23 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import BackupPage from './pages/BackupPage';
 import ShelvesPage from './pages/ShelvesPage';
 import CogDropdown from './components/CogDropdown';
-import Menu from './components/shared/Menu';
+import Menu, { MenuChevron } from './components/shared/Menu';
+import SearchPills from './components/shared/search/SearchPills';
+import { getSearchSchema } from './components/shared/search/schemas';
 import Segmented from './components/shared/Segmented';
 import ShelfMovesNotice from './components/shared/ShelfMovesNotice';
 import { refreshShelfLocations } from './utils/shelfLocations';
 import ScrollToTop from './components/ScrollToTop';
 import apiService from './services/api';
-import musicService from './services/musicService';
 import bookService from './services/bookService';
 import bookSectionsService from './services/bookSectionsService';
-import { BsX, BsCollectionFill, BsBookmark, BsChevronDown, BsDisc, BsArrowLeft, BsBarChart, BsFilm, BsBook, BsFileMusic } from 'react-icons/bs';
+import { BsX, BsCollectionFill, BsBookmark, BsDisc, BsArrowLeft, BsBarChart, BsFilm, BsBook, BsFileMusic } from 'react-icons/bs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 // After Bootstrap, so that its radios and checkboxes wear DexVault's look.
 import './components/shared/check.css';
 import './App.css';
 import { readStored, writeStored } from './utils/safeStorage';
-import { isDigitalOn, useDigitalLibrary } from './utils/digitalLibrary';
+import { useDigitalLibrary } from './utils/digitalLibrary';
 import PlayerBar from './components/PlayerBar';
 import LyricsPanel from './components/LyricsPanel';
 import { ConfirmHost } from './components/shared/ConfirmDialog';
@@ -36,14 +37,6 @@ import { TooltipHost } from './components/shared/Tooltip';
 import RemoteReporter from './components/RemoteReporter';
 import RemoteBar from './components/RemoteBar';
 import { isComputer } from './services/remote';
-
-interface AutocompleteOption {
-  keyword: string;
-  replaceText: string;
-  isValue: boolean;
-  filterType?: string;
-  collectionType?: string;
-}
 
 interface SearchCriteria {
   searchText: string;
@@ -91,18 +84,16 @@ function AppContent() {
   const [hasCheckedBackfill, setHasCheckedBackfill] = useState<boolean>(false);
   const [showAddMovieDialog, setShowAddMovieDialog] = useState<boolean>(false);
   const [addMovieMode, setAddMovieMode] = useState<string>('collection');
-  const [autocompleteOptions, setAutocompleteOptions] = useState<AutocompleteOption[]>([]);
-  const [showAutocomplete, setShowAutocomplete] = useState<boolean>(false);
-  const [autocompleteIndex, setAutocompleteIndex] = useState<number>(-1);
-  const autocompleteTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const emptyFieldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const mouseEnterTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [collections, setCollections] = useState<string[]>([]);
   const [boxSets, setBoxSets] = useState<string[]>([]);
   const [owners, setOwners] = useState<string[]>([]);
   const [scoreComposers, setScoreComposers] = useState<string[]>([]);
   const [scorePublishers, setScorePublishers] = useState<string[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
+
+  // The search's keys and the recent searches of the section shown.
+  const searchSchema = getSearchSchema(location.pathname);
+  const product = getProductFromPath(location.pathname);
 
   // Check if we're on the thumbnail view (filmdex path)
   const isThumbnailView = location.pathname === '/filmdex';
@@ -137,303 +128,6 @@ function AppContent() {
     }
   };
 
-
-  const getAutocompleteOptions = async (text: string): Promise<AutocompleteOption[]> => {
-    // The scores filter their list as one types: composer:, publisher: or any words.
-    if (location.pathname === '/scores') return [];
-    // Different keywords for MusicDex, BookDex vs DexVault
-    const keywords = location.pathname === '/musicdex'
-      ? ['title:', 'artist:', 'genre:', 'track:', 'composer:', 'performer:', 'conductor:', 'instrument:', 'work:', 'label:', 'country:', 'year:', 'stars:', 'stars:>=', 'stars:<=', 'stars:0', 'rated:no', 'rated:yes', 'favourites:yes', 'favourites:no', 'classical:yes', 'classical:no', 'cd:no', 'cd:yes', 'mixtape:yes', 'mixtape:no', 'file:lossless', 'file:lossy', 'ripped:no', 'ripped:yes']
-      : location.pathname === '/bookdex'
-        ? ['title:', 'author:', 'artist:', 'isbn:', 'series:', 'owner:', 'format:', 'language:', 'genre:', 'tag:', 'type:', 'title_status:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=', 'rating:', 'rating:>', 'rating:<', 'rating:>=', 'rating:<=']
-        : [
-            'actor:', 'director:', 'title:', 'collection:', 'box_set:', 'genre:', 'format:',
-            'original_language:', 'media_type:', 'year:', 'year:>', 'year:<', 'year:>=', 'year:<=',
-            'imdb_rating:', 'imdb_rating:>', 'imdb_rating:<', 'imdb_rating:>=', 'imdb_rating:<=',
-            'tmdb_rating:', 'tmdb_rating:>', 'tmdb_rating:<', 'tmdb_rating:>=', 'tmdb_rating:<=',
-            'rotten_tomato_rating:', 'rotten_tomato_rating:>', 'rotten_tomato_rating:<', 'rotten_tomato_rating:>=', 'rotten_tomato_rating:<=',
-            'recommended_age:', 'recommended_age:>', 'recommended_age:<', 'recommended_age:>=', 'recommended_age:<=',
-            'price:', 'price:>', 'price:<', 'price:>=', 'price:<=',
-            'has_comments:true', 'has_comments:false',
-            'spiders:with', 'spiders:without', 'spiders:unknown',
-            'snakes:with', 'snakes:without', 'snakes:unknown',
-            'watched:true', 'watched:false',
-            'watched:', 'watched:>', 'watched:<', 'watched:>=', 'watched:<=',
-            'last_watched:today', 'last_watched:yesterday', 'last_watched:week', 'last_watched:month', 'last_watched:year',
-            'last_watched:>', 'last_watched:<'
-          ];
-
-    // If text is empty, return all keywords (for the 5-second delay feature)
-    if (text.trim() === '') {
-      return keywords.map(kw => ({
-        keyword: kw,
-        replaceText: kw,
-        isValue: false
-      }));
-    }
-
-    // Get the cursor position (end of text)
-    const cursorPos = text.length;
-
-    // Find the last word being typed (after last space or at start)
-    // Must respect quotes - don't split at spaces inside quotes
-    const beforeCursor = text.substring(0, cursorPos);
-
-    // Find last space that's not inside quotes
-    let lastSpaceIndex = -1;
-    let inQuotes = false;
-    for (let i = 0; i < beforeCursor.length; i++) {
-      const char = beforeCursor[i];
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === ' ' && !inQuotes) {
-        lastSpaceIndex = i;
-      }
-    }
-    const currentWord = beforeCursor.substring(lastSpaceIndex + 1);
-
-    // Check if we're inside a filter value (after a keyword) - supports negation with - prefix
-    const filterMatch = location.pathname === '/musicdex'
-      ? currentWord.match(/^(-?)(title|artist|genre|mood|track|composer|performer|conductor|instrument|work|label|country|year):(.*)$/)
-      : location.pathname === '/bookdex'
-        ? currentWord.match(/^(-?)(title|author|artist|isbn|series|owner|format|language|genre|tag|type|title_status|year|rating):(.*)$/)
-        : currentWord.match(/^(-?)(actor|director|title|collection|box_set|genre|format|original_language|media_type|imdb_rating|tmdb_rating|rotten_tomato_rating):(.*)$/);
-
-    if (filterMatch) {
-      const [fullMatch, negationPrefix, filterType, filterValue] = filterMatch;
-
-      // Handle comma-separated values (for OR syntax)
-      // Extract the part after the last comma as the search term
-      const lastCommaIndex = filterValue.lastIndexOf(',');
-      const existingValues = lastCommaIndex >= 0 ? filterValue.substring(0, lastCommaIndex + 1) : '';
-      const currentSearchTerm = lastCommaIndex >= 0 ? filterValue.substring(lastCommaIndex + 1) : filterValue;
-
-      // Don't show suggestions if currently inside quotes (unless after comma)
-      // Check if we're inside an unclosed quote
-      const quoteCount = currentSearchTerm.split('"').length - 1;
-      if (quoteCount % 2 === 1) {
-        // Odd number of quotes means we're inside a quoted string
-        return [];
-      }
-
-      // Show suggestions immediately when predicate is typed (even with empty value)
-      // or when user starts typing a value
-
-      // Fetch value suggestions from backend using the current term (after last comma)
-      try {
-        const searchTerm = currentSearchTerm.replace(/"/g, ''); // Remove quotes for search
-        const response = (location.pathname === '/musicdex'
-          ? await musicService.getAutocompleteSuggestions(filterType, searchTerm, { withNoCd: isDigitalOn() })
-          : location.pathname === '/bookdex'
-            ? await bookService.getAutocompleteSuggestions(filterType, searchTerm)
-            : await apiService.getAutocompleteSuggestions(filterType, searchTerm)) as any[];
-
-        // Extract values from response (backend now returns {field: value} format)
-        let values: any[] = response.map((item: any) => item[filterType]).filter((value: any) => value && value !== 'undefined');
-
-        // For collections, include collection type information
-        let collectionTypes: Record<string, string> = {};
-        if (filterType === 'collection' || filterType === 'box_set') {
-          collectionTypes = response.reduce((acc: Record<string, string>, item: any) => {
-            const name = item[filterType];
-            const type = item.collection_type;
-            if (name && type) {
-              acc[name] = type;
-            }
-            return acc;
-          }, {});
-        }
-
-        // For actors, artists, genres, moods, authors, tags, and labels - we get JSON arrays, so parse them to extract individual names
-        if (filterType === 'actor' || filterType === 'artist' || filterType === 'genre' || filterType === 'mood' || filterType === 'author' || filterType === 'tag' || filterType === 'label') {
-          // Note: 'artist' here could be MusicDex artist or BookDex artist - handled by backend
-          values = values.map((cast: any) => {
-            if (typeof cast === 'string') {
-              try {
-                const parsed = JSON.parse(cast);
-                return Array.isArray(parsed) ? parsed : [cast];
-              } catch (e) {
-                return [cast];
-              }
-            }
-            return Array.isArray(cast) ? cast : [cast];
-          }).flat();
-
-          // Filter to only show those that match the current search term (after last comma, not full filterValue)
-          const termToMatch = currentSearchTerm.replace(/"/g, '').toLowerCase();
-          if (termToMatch) {
-            values = values.filter((item: any) =>
-              item && typeof item === 'string' && item.toLowerCase().includes(termToMatch)
-            );
-          }
-        }
-
-        // Handle numeric filters for books (year, rating), title_status, and type
-        if (location.pathname === '/bookdex' && (filterType === 'year' || filterType === 'rating' || filterType === 'title_status' || filterType === 'type')) {
-          // For title_status, show predefined values (excluding 'wish' as it has its own tab)
-          if (filterType === 'title_status') {
-            const statusOptions = ['owned', 'borrowed'];
-            const matches = statusOptions.filter(status =>
-              status.toLowerCase().includes(filterValue.toLowerCase())
-            );
-            return matches.map(status => ({
-              isValue: true,
-              keyword: status,
-              filterType,
-              replaceText: text.substring(0, lastSpaceIndex + 1) + `${negationPrefix}title_status:${status}`
-            }));
-          }
-          // For type, show predefined book type values
-          if (filterType === 'type') {
-            const typeOptions = [
-              { value: 'book', label: 'Book' },
-              { value: 'graphic-novel', label: 'Graphic Novel' },
-              { value: 'score', label: 'Score' }
-            ];
-            const matches = typeOptions.filter(opt =>
-              opt.value.toLowerCase().includes(filterValue.toLowerCase()) ||
-              opt.label.toLowerCase().includes(filterValue.toLowerCase())
-            );
-            return matches.map(opt => ({
-              isValue: true,
-              keyword: opt.label,
-              filterType,
-              replaceText: text.substring(0, lastSpaceIndex + 1) + `${negationPrefix}type:${opt.value}`
-            }));
-          }
-          // For numeric filters, don't show autocomplete suggestions
-          return [];
-        }
-
-        // Remove duplicates and limit to 20
-        values = [...new Set(values)].slice(0, 20);
-
-        // Filter out values that are already in existingValues
-        const existingValuesList = existingValues.split(',').map((v: string) => v.replace(/"/g, '').trim().toLowerCase()).filter((v: string) => v);
-        values = values.filter((v: any) => !existingValuesList.includes(v.toLowerCase()));
-
-        return values.map((value: any) => {
-          // Strip leading/trailing quotes from value to avoid double-quoting
-          const cleanValue = value.replace(/^["']|["']$/g, '');
-          // Check if value needs quotes (contains spaces or special chars)
-          const needsQuotes = cleanValue.includes(' ') || cleanValue.includes(',') || cleanValue.includes(':');
-          const formattedValue = needsQuotes ? `"${cleanValue}"` : cleanValue;
-          // Include existing values (comma-separated) before the new value
-          const valueToInsert = existingValues ? `${existingValues}${formattedValue}` : formattedValue;
-          return {
-            isValue: true,
-            keyword: value, // Show original value in dropdown
-            filterType,
-            collectionType: collectionTypes[value], // Include collection type for proper hinting
-            replaceText: text.substring(0, lastSpaceIndex + 1) + `${negationPrefix}${filterType}:${valueToInsert}`
-          };
-        });
-      } catch (error) {
-        console.error('Error fetching autocomplete suggestions:', error);
-        return [];
-      }
-    }
-
-    // Otherwise, show keyword suggestions
-    const currentWordLower = currentWord.toLowerCase();
-
-    // Only show keyword suggestions if typing a partial keyword
-    if (currentWord.length === 0 || currentWord.includes(':') || currentWord.includes('"')) {
-      return [];
-    }
-
-    // Check if typing a negated predicate (starts with -)
-    const isNegated = currentWordLower.startsWith('-');
-    const searchTerm = isNegated ? currentWordLower.substring(1) : currentWordLower;
-
-    // Filter keywords that start with the search term (without the -)
-    const matches = keywords.filter(kw => kw.startsWith(searchTerm));
-
-    return matches.map(kw => ({
-      isValue: false,
-      keyword: isNegated ? `-${kw}` : kw,
-      replaceText: text.substring(0, lastSpaceIndex + 1) + (isNegated ? `-${kw}` : kw)
-    }));
-  };
-
-  const handleSearchChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setSearchCriteria(prev => ({
-      ...prev,
-      [name]: value
-    }));
-
-    // Clear existing timeout
-    if (autocompleteTimeoutRef.current) {
-      clearTimeout(autocompleteTimeoutRef.current);
-    }
-
-    // Clear empty field timer if field is no longer empty
-    if (value.trim() !== '') {
-      if (emptyFieldTimerRef.current) {
-        clearTimeout(emptyFieldTimerRef.current);
-        emptyFieldTimerRef.current = null;
-      }
-    }
-
-    // Debounce autocomplete suggestions by 300ms (skip for wish list)
-    if (location.pathname !== '/wishlist') {
-      autocompleteTimeoutRef.current = setTimeout(async () => {
-        const options = await getAutocompleteOptions(value);
-        setAutocompleteOptions(options);
-        setShowAutocomplete(options.length > 0);
-        setAutocompleteIndex(-1);
-      }, 300);
-    }
-  };
-
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Skip autocomplete handling on wish list page
-    if (location.pathname === '/wishlist') return;
-
-    if (!showAutocomplete || autocompleteOptions.length === 0) return;
-
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      // Select first option or currently highlighted option
-      const indexToSelect = autocompleteIndex >= 0 ? autocompleteIndex : 0;
-      selectAutocompleteSuggestion(autocompleteOptions[indexToSelect]);
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setAutocompleteIndex(prev =>
-        prev < autocompleteOptions.length - 1 ? prev + 1 : prev
-      );
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setAutocompleteIndex(prev => prev > 0 ? prev - 1 : -1);
-    } else if (e.key === 'Enter' && autocompleteIndex >= 0) {
-      e.preventDefault();
-      selectAutocompleteSuggestion(autocompleteOptions[autocompleteIndex]);
-    } else if (e.key === 'Escape') {
-      setShowAutocomplete(false);
-      setAutocompleteIndex(-1);
-    }
-  };
-
-  const handleSearchFocus = () => {
-    // Start timer for empty field if field is empty
-    if (searchCriteria.searchText.trim() === '') {
-      emptyFieldTimerRef.current = setTimeout(async () => {
-        const options = await getAutocompleteOptions('');
-        setAutocompleteOptions(options);
-        setShowAutocomplete(options.length > 0);
-        setAutocompleteIndex(-1);
-      }, 5000); // 5 seconds
-    }
-  };
-
-  const handleSearchBlur = () => {
-    // Clear empty field timer when losing focus
-    if (emptyFieldTimerRef.current) {
-      clearTimeout(emptyFieldTimerRef.current);
-      emptyFieldTimerRef.current = null;
-    }
-  };
 
   // Fetch collections and box sets for filter dropdown
   const fetchFilterData = async () => {
@@ -487,21 +181,9 @@ function AppContent() {
     }
   };
 
-  // Handle search term injection from movie detail
+  // A word of the search written from a card (an actor, a director, an artist): the field shows it in pills.
   const handleSearchFromMovieDetail = (predicate: string) => {
-    // Clear existing search first, then inject new search term
-    const newText = predicate;
-
-    // Update the state first
-    setSearchCriteria({ searchText: newText });
-
-    // Then update the input field directly to ensure immediate visual update
-    if (searchInputRef.current) {
-      searchInputRef.current.value = newText;
-      // Trigger the change event to ensure React knows about the change
-      const event = new Event('input', { bubbles: true });
-      searchInputRef.current.dispatchEvent(event);
-    }
+    setSearchCriteria({ searchText: predicate });
   };
 
   // Handle filter selection and generate predicates
@@ -587,16 +269,7 @@ function AppContent() {
       }
       const newText = currentText ? `${currentText} ${predicate}` : predicate;
 
-      // Update the state first
       setSearchCriteria({ searchText: newText });
-
-      // Then update the input field directly to ensure immediate visual update
-      if (searchInputRef.current) {
-        searchInputRef.current.value = newText;
-        // Trigger the change event to ensure React knows about the change
-        const event = new Event('input', { bubbles: true });
-        searchInputRef.current.dispatchEvent(event);
-      }
     }
 
   };
@@ -640,231 +313,6 @@ function AppContent() {
     ];
     return sections.filter(section => section.options.length > 0);
   };
-  const handleMouseEnter = (index: number) => {
-    if (mouseEnterTimeoutRef.current) {
-      clearTimeout(mouseEnterTimeoutRef.current);
-    }
-    mouseEnterTimeoutRef.current = setTimeout(() => {
-      setAutocompleteIndex(index);
-    }, 16); // ~60fps throttling
-  };
-  const getAutocompleteHint = (option: AutocompleteOption): string => {
-    if (option.isValue) {
-      // Special handling for collections to show collection type
-      if (option.filterType === 'collection' || option.filterType === 'box_set') {
-        if (option.collectionType === 'box_set') {
-          return '(Box Set)';
-        } else {
-          return '(Collection)';
-        }
-      }
-
-      const hintMap: Record<string, string> = {
-        'actor': '(Actor)',
-        'director': '(Director)',
-        'composer': '(Composer)',
-        'performer': '(Performer)',
-        'conductor': '(Conductor)',
-        'instrument': '(Instrument)',
-        'work': '(Work)',
-        'title': '(Title)',
-        'collection': '(Collection)',
-        'box_set': '(Box Set)',
-        'genre': '(Genre)',
-        'format': '(Format)',
-        'original_language': '(Language)',
-        'media_type': '(Media Type)',
-        'author': '(Author)',
-        'artist': '(Artist/Illustrator)',
-        'isbn': '(ISBN)',
-        'series': '(Series)',
-        'owner': '(Owner)',
-        'language': '(Language)',
-        'tag': '(Tag)'
-      };
-      return hintMap[option.filterType || ''] || '';
-    } else {
-      const hintMap: Record<string, string> = location.pathname === '/musicdex'
-        ? {
-            'title:': 'Search by album title',
-            'artist:': 'Search by artist name',
-            'genre:': 'Search by genre',
-            'composer:': 'A composer of one of its tracks',
-            'performer:': 'Plays, sings or conducts on one of its tracks',
-            'conductor:': 'Conducts one of its tracks',
-            'instrument:': 'Someone plays it on one of its tracks: cello, piano…',
-            'work:': 'A work on one of its tracks: K. 466, Brandenburg…',
-            'stars:': 'Your stars, exactly (stars:4.5) or a range (stars:2-4)',
-            'stars:>=': 'At least that many of your stars',
-            'stars:<=': 'At most that many of your stars',
-            'stars:0': 'Not rated yet',
-            'rated:no': 'Not rated yet',
-            'rated:yes': 'Rated, any number of stars',
-            'favourites:yes': 'A track of it is a favourite (♥ in Navidrome)',
-            'favourites:no': 'No track of it is a favourite',
-            'classical:yes': 'Only classical music, as on the shelves',
-            'classical:no': 'Everything but classical music',
-            'cd:no': 'Only what you have as files or wish, with Digital on',
-            'cd:yes': 'Only your CDs',
-            'mixtape:yes': 'Only your mixtapes, your playlists in Navidrome',
-            'mixtape:no': 'The albums, without the mixtapes',
-            'file:lossless': 'Its files are lossless (FLAC, or 256 kbps and more)',
-            'file:lossy': 'Its files are compressed below 256 kbps: a copy to do again',
-            'ripped:no': 'A CD not in Navidrome yet',
-            'ripped:yes': 'A CD in Navidrome'
-          }
-        : location.pathname === '/bookdex'
-          ? {
-              'title:': 'Search by book title',
-              'author:': 'Search by author name',
-              'artist:': 'Search by artist/illustrator name',
-              'isbn:': 'Search by ISBN',
-              'series:': 'Search by series name',
-              'owner:': 'Search by who it belongs to',
-              'format:': 'Search by format',
-              'language:': 'Search by language',
-              'genre:': 'Search by genre',
-              'tag:': 'Search by tag',
-              'type:': 'Filter by type (book, graphic-novel, score)',
-              'title_status:': 'Filter by status (owned, borrowed, wish)',
-              'year:': 'Exact year match',
-              'year:>': 'Year greater than',
-              'year:<': 'Year less than',
-              'year:>=': 'Year greater or equal',
-              'year:<=': 'Year less or equal',
-              'rating:': 'Exact rating match',
-              'rating:>': 'Rating greater than',
-              'rating:<': 'Rating less than',
-              'rating:>=': 'Rating greater or equal',
-              'rating:<=': 'Rating less or equal'
-            }
-          : {
-            'actor:': 'Search by actor name',
-            'director:': 'Search by director name',
-            'title:': 'Search by movie title',
-            'collection:': 'Search by collection name',
-            'box_set:': 'Search by box set collection name',
-            'genre:': 'Search by genre',
-            'format:': 'Search by format',
-            'original_language:': 'Search by language',
-            'media_type:': 'Search by media type',
-            'year:': 'Exact year match',
-            'year:>': 'Year greater than',
-            'year:<': 'Year less than',
-            'year:>=': 'Year greater or equal',
-            'year:<=': 'Year less or equal',
-            'imdb_rating:': 'Exact IMDB rating match',
-            'imdb_rating:>': 'IMDB rating greater than',
-            'imdb_rating:<': 'IMDB rating less than',
-            'imdb_rating:>=': 'IMDB rating greater or equal',
-            'imdb_rating:<=': 'IMDB rating less or equal',
-            'tmdb_rating:': 'Exact TMDB rating match',
-            'tmdb_rating:>': 'TMDB rating greater than',
-            'tmdb_rating:<': 'TMDB rating less than',
-            'tmdb_rating:>=': 'TMDB rating greater or equal',
-            'tmdb_rating:<=': 'TMDB rating less or equal',
-            'rotten_tomato_rating:': 'Exact Rotten Tomatoes rating match',
-            'rotten_tomato_rating:>': 'Rotten Tomatoes rating greater than',
-            'rotten_tomato_rating:<': 'Rotten Tomatoes rating less than',
-            'rotten_tomato_rating:>=': 'Rotten Tomatoes rating greater or equal',
-            'rotten_tomato_rating:<=': 'Rotten Tomatoes rating less or equal',
-            'recommended_age:': 'Exact age recommendation match',
-            'recommended_age:>': 'Age recommendation greater than',
-            'recommended_age:<': 'Age recommendation less than',
-            'recommended_age:>=': 'Age recommendation greater or equal',
-            'recommended_age:<=': 'Age recommendation less or equal',
-            'price:': 'Exact price match',
-            'price:>': 'Price greater than',
-            'price:<': 'Price less than',
-            'price:>=': 'Price greater or equal',
-            'price:<=': 'Price less or equal',
-            'has_comments:true': 'Movies with comments',
-            'has_comments:false': 'Movies without comments',
-            'spiders:with': 'Movies showing spiders',
-            'spiders:without': 'Movies without spiders',
-            'spiders:unknown': 'Spiders not reported yet',
-            'snakes:with': 'Movies showing snakes',
-            'snakes:without': 'Movies without snakes',
-            'snakes:unknown': 'Snakes not reported yet',
-            'watched:true': 'Movies you have watched',
-            'watched:false': 'Movies you haven\'t watched',
-            'watched:': 'Exact watch count (e.g. watched:2)',
-            'watched:>': 'Watched more than N times (e.g. watched:>1)',
-            'watched:<': 'Watched less than N times',
-            'watched:>=': 'Watched at least N times (e.g. watched:>=2)',
-            'watched:<=': 'Watched at most N times',
-            'last_watched:today': 'Watched today',
-            'last_watched:yesterday': 'Watched yesterday',
-            'last_watched:week': 'Watched in the last 7 days',
-            'last_watched:month': 'Watched in the last 30 days',
-            'last_watched:year': 'Watched in the last year',
-            'last_watched:>': 'Watched after date (e.g. >2024-01-01)',
-            'last_watched:<': 'Watched before date (e.g. <2024-06-01)'
-          };
-      return hintMap[option.keyword] || '';
-    }
-  };
-
-  const selectAutocompleteSuggestion = async (option: AutocompleteOption) => {
-    // Clear any existing autocomplete timeout to prevent interference
-    if (autocompleteTimeoutRef.current) {
-      clearTimeout(autocompleteTimeoutRef.current);
-      autocompleteTimeoutRef.current = null;
-    }
-
-    // First, close the dropdown
-    setShowAutocomplete(false);
-    setAutocompleteIndex(-1);
-
-    // Directly set the input value first
-    if (searchInputRef.current) {
-      searchInputRef.current.value = option.replaceText;
-
-      // Also update the state
-      setSearchCriteria(prev => ({
-        ...prev,
-        searchText: option.replaceText
-      }));
-
-      // Keep focus on input and set cursor position
-      searchInputRef.current.focus();
-
-      // Use setTimeout to ensure state update has been processed
-      const inputRef = searchInputRef.current;
-      setTimeout(() => {
-        // Move cursor to end of the inserted text
-        const cursorPosition = option.replaceText.length;
-        inputRef.setSelectionRange(cursorPosition, cursorPosition);
-
-        // Only add space and trigger autocomplete if we selected a VALUE (not a keyword)
-        if (option.isValue) {
-          setTimeout(async () => {
-            const newText = option.replaceText + ' ';
-            inputRef.value = newText;
-            setSearchCriteria(prev => ({
-              ...prev,
-              searchText: newText
-            }));
-
-            // Trigger autocomplete for the next part
-            const options = await getAutocompleteOptions(newText);
-            setAutocompleteOptions(options);
-            setShowAutocomplete(options.length > 0);
-            setAutocompleteIndex(-1);
-          }, 100);
-        } else {
-          // For keywords (like "collection:"), trigger autocomplete immediately for values
-          setTimeout(async () => {
-            const options = await getAutocompleteOptions(option.replaceText);
-            setAutocompleteOptions(options);
-            setShowAutocomplete(options.length > 0);
-            setAutocompleteIndex(-1);
-          }, 100);
-        }
-      }, 10);
-    }
-  };
-
   const handleDexVaultClick = () => {
     navigate('/filmdex');
   };
@@ -1014,48 +462,6 @@ function AppContent() {
     }, 100);
   };
 
-  // Close the autocomplete on a click outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const searchInput = searchInputRef.current;
-      if (searchInput && !searchInput.contains(event.target as Node)) {
-        setShowAutocomplete(false);
-        setAutocompleteIndex(-1);
-      }
-    };
-
-    if (showAutocomplete) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }
-    return undefined;
-  }, [showAutocomplete]);
-
-  // Cleanup timers on unmount
-  useEffect(() => {
-    return () => {
-      if (autocompleteTimeoutRef.current) {
-        clearTimeout(autocompleteTimeoutRef.current);
-      }
-      if (emptyFieldTimerRef.current) {
-        clearTimeout(emptyFieldTimerRef.current);
-      }
-      if (mouseEnterTimeoutRef.current) {
-        clearTimeout(mouseEnterTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Sync search input field with state on mount
-  useEffect(() => {
-    if (searchInputRef.current && searchCriteria.searchText) {
-      searchInputRef.current.value = searchCriteria.searchText;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
-
   // Handle search query parameter from URL
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -1104,25 +510,13 @@ function AppContent() {
       if (location.search) {
         const params = new URLSearchParams(location.search);
         const searchParam = params.get('search');
-        if (searchParam) {
-          setSearchCriteria({ searchText: searchParam });
-          if (searchInputRef.current) {
-            searchInputRef.current.value = searchParam;
-          }
-        }
+        if (searchParam) setSearchCriteria({ searchText: searchParam });
       } else if (newProduct) {
         // Otherwise restore from localStorage for this product
         const savedText = readStored(`dexvault-${newProduct}-search`) || '';
         setSearchCriteria({ searchText: savedText });
-        // Update the input field
-        if (searchInputRef.current) {
-          searchInputRef.current.value = savedText;
-        }
       } else {
         setSearchCriteria({ searchText: '' });
-        if (searchInputRef.current) {
-          searchInputRef.current.value = '';
-        }
       }
 
       // Reset the restoring flag after a tick
@@ -1201,93 +595,39 @@ function AppContent() {
             </div>
           </div>
 
-          {/* Second row: Search (mobile only) */}
-          {showSearchBar && (
+          {/* Second row on a phone: the search, in pills (components/shared/search). */}
+          {showSearchBar && searchSchema && (
             <div className="App-search">
-              <div className="search-input-container">
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  name="searchText"
-                  value={searchCriteria.searchText}
-                  onChange={handleSearchChange}
-                  onKeyDown={handleSearchKeyDown}
-                  onFocus={() => {
-                    handleSearchFocus();
-                    setIsSearchFocused(true);
-                  }}
-                  onBlur={() => {
-                    handleSearchBlur();
-                    setIsSearchFocused(false);
-                  }}
-                  placeholder={
-                    location.pathname === '/musicdex'
-                      ? 'Search MusicDex by title, artist...'
-                      : location.pathname === '/bookdex'
-                        ? 'Search BookDex by title, author...'
-                        : location.pathname === '/scores'
-                        ? 'Search scores by composer, piece, publisher...'
-                        : location.pathname === '/wishlist'
-                          ? 'Search wish list by title, director...'
-                          : 'Search FilmDex by title, director...'
-                  }
-                  className="search-input-large"
-                  autoComplete="off"
-                />
-                {searchCriteria.searchText && (
-                  <IconButton label="Clear the search" size="sm" className="search-clear-button"
-                    onClick={() => {
-                      setSearchCriteria({ searchText: '' });
-                      setShowAutocomplete(false);
-                    }}
-                  ><BsX /></IconButton>
-                )}
-                {location.pathname !== '/wishlist' && (
-                  <Menu align="end" label="Advanced filters" onOpenChange={open => { if (open) fetchFilterData(); }}
-                    trigger={(props, open) => (
-                      <button type="button" {...props} className={`search-filter-button ${open ? 'active' : ''}`} title="Advanced Filters">
-                        <BsChevronDown className={`chevron-icon ${open ? 'rotated' : ''}`} />
-                      </button>
-                    )}>
-                    {filterSections().map((section, index) => (
-                      <React.Fragment key={section.title}>
-                        {index > 0 && <Menu.Separator />}
-                        <Menu.Section title={section.title} />
-                        {section.options.map(option => (
-                          <Menu.Item key={option.label} onSelect={() => handleFilterSelection(option.type, option.value)}>{option.label}</Menu.Item>
-                        ))}
-                      </React.Fragment>
-                    ))}
-                  </Menu>
-                )}
-                {showAutocomplete && autocompleteOptions.length > 0 && location.pathname !== '/wishlist' && (
-                  <div className="search-autocomplete-dropdown">
-                    {autocompleteOptions.slice(0, 50).map((option, index) => (
-                      <div
-                        key={option.keyword + index}
-                        className={`search-autocomplete-item ${index === autocompleteIndex ? 'active' : ''}`}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          selectAutocompleteSuggestion(option);
-                        }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
-                        onMouseEnter={() => handleMouseEnter(index)}
-                      >
-                        <span className={option.isValue ? 'autocomplete-value' : 'autocomplete-keyword'}>
-                          {option.keyword}
-                        </span>
-                        <span className="autocomplete-hint">
-                          {getAutocompleteHint(option)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <SearchPills
+                schema={searchSchema}
+                value={searchCriteria.searchText}
+                onChange={searchText => setSearchCriteria({ searchText })}
+                inputRef={searchInputRef}
+                recentKey={product ? `dexvault-${product}-recent-searches` : undefined}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
+                endAdornment={<>
+                  {searchCriteria.searchText && (
+                    <IconButton label="Clear the search" size="sm" onClick={() => setSearchCriteria({ searchText: '' })}><BsX /></IconButton>
+                  )}
+                  {location.pathname !== '/wishlist' && (
+                    <Menu align="end" label="Advanced filters" onOpenChange={open => { if (open) fetchFilterData(); }}
+                      trigger={(props, open) => (
+                        <IconButton {...props} label="Advanced filters" size="sm"><MenuChevron open={open} /></IconButton>
+                      )}>
+                      {filterSections().map((section, index) => (
+                        <React.Fragment key={section.title}>
+                          {index > 0 && <Menu.Separator />}
+                          <Menu.Section title={section.title} />
+                          {section.options.map(option => (
+                            <Menu.Item key={option.label} onSelect={() => handleFilterSelection(option.type, option.value)}>{option.label}</Menu.Item>
+                          ))}
+                        </React.Fragment>
+                      ))}
+                    </Menu>
+                  )}
+                </>}
+              />
             </div>
           )}
         </div>

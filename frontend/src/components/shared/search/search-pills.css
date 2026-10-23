@@ -1,0 +1,487 @@
+/*
+ * The search in pills (SearchPills.tsx; docs/superpowers/specs/2026-10-22-search-pills-design.md).
+ * The field keeps the header's place, its height of 48 px at least and its gold
+ * edge with the focus. A pill is the Chip's matter a step brighter, round,
+ * 26 px, 15 px words: its key grey-blue, its value in the text's colour, "or"
+ * faint, ✕ at its end. An exclusion is a bold "!" in the text's colour, never
+ * orange (orange means "to do again"); a mistake, a red edge and a red wave.
+ * The suggestions wear the menus' glass (menu.css).
+ */
+.search-pills {
+  --pill-row: 32px;
+  --pill-row-gap: 4px;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.search-pills__anchor {
+  position: relative;
+  min-width: 0;
+}
+
+.search-pills__field {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 48px;
+  padding: 6px 8px 6px 12px;
+  border: 2px solid var(--dv-search-edge);
+  border-radius: 8px;
+  background: var(--dv-search-field);
+  cursor: text;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.search-pills.is-focused .search-pills__field {
+  border-color: var(--dv-gold);
+  box-shadow: 0 0 0 3px var(--dv-gold-tint);
+  background: var(--dv-search-field-focus);
+}
+
+.search-pills__lens {
+  flex: none;
+  width: 15px;
+  height: var(--pill-row);
+  color: var(--dv-text-faint);
+}
+
+/* The pills and the words, wrapped: two rows at rest, four in use, then it scrolls in itself. */
+.search-pills__content {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--pill-row-gap) 6px;
+  max-height: calc(2 * var(--pill-row) + var(--pill-row-gap));
+  overflow: hidden;
+}
+
+.search-pills.is-expanded .search-pills__content {
+  max-height: calc(4 * var(--pill-row) + 3 * var(--pill-row-gap));
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.search-pills__end {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--pill-row);
+}
+
+/* ---------------------------------------------------------------- a pill */
+.search-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  height: 26px;
+  margin: 3px 0;
+  padding: 0 3px 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--dv-edge-hover);
+  background: var(--dv-glass-hover);
+  color: var(--dv-text);
+  font-size: 15px;
+  line-height: 1;
+  white-space: nowrap;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.search-pill:hover,
+.search-pill:has([aria-expanded="true"]) {
+  border-color: var(--dv-pill-edge-hover);
+  background: var(--dv-pill-glass-hover);
+}
+
+.search-pill.is-hidden,
+.search-pills__word.is-hidden {
+  display: none;
+}
+
+/* The parts of a pill are buttons, bare: the pill is their look. */
+:where(.search-pill) button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.search-pill__key,
+.search-pill__key-text {
+  flex: none;
+  color: var(--dv-pill-key);
+}
+
+.search-pill__key {
+  padding: 2px 0;
+  border-radius: 3px;
+}
+
+.search-pill__key:hover {
+  color: var(--dv-text);
+}
+
+.search-pill__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  border-radius: 3px;
+  padding: 1px 2px;
+  margin: 0 -2px;
+}
+
+.search-pill__value:hover {
+  background: var(--dv-veil);
+  box-shadow: 0 1px 0 var(--dv-text-faint);
+}
+
+.search-pill__key:focus-visible,
+.search-pill__value:focus-visible,
+.search-pill__remove:focus-visible {
+  outline: none;
+  box-shadow: var(--dv-ring);
+}
+
+.search-pill__or {
+  flex: none;
+  color: var(--dv-text-faint);
+  font-size: 13px;
+}
+
+.search-pill__not {
+  flex: none;
+  margin-right: -1px;
+  color: var(--dv-text);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.search-pill__remove {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: var(--dv-text-faint);
+}
+
+.search-pill__remove:hover {
+  background: var(--dv-veil);
+  color: var(--dv-text);
+}
+
+.search-pill__remove svg {
+  width: 15px;
+  height: 15px;
+}
+
+.search-pill--error {
+  border-color: var(--dv-danger-tint-edge);
+}
+
+.search-pill--error .search-pill__value {
+  text-decoration: underline wavy var(--dv-danger);
+  text-underline-offset: 4px;
+}
+
+/* A plain word of the search, between the pills. */
+.search-pills__word {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 2px;
+  color: var(--dv-text);
+  font-size: 16px;
+  line-height: var(--pill-row);
+  cursor: text;
+}
+
+/* "+N": the pills a search at rest has no room for; a click opens the field. */
+.search-pills__more {
+  height: 26px;
+  margin: 3px 0;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px dashed var(--dv-edge-hover);
+  background: var(--dv-glass);
+  color: var(--dv-text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.search-pills__more:hover {
+  color: var(--dv-text);
+  border-color: var(--dv-pill-edge-hover);
+}
+
+.search-pills__more[hidden] {
+  display: none;
+}
+
+/* ------------------------------------------------ the words being typed */
+/* The grey rest is drawn behind the field at the same place: the ghost is in
+   the flow and gives the field its width, the input lies over it. */
+.search-pills__entry {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 120px;
+  max-width: 100%;
+  height: var(--pill-row);
+}
+
+.search-pills:not(.is-expanded) .search-pills__entry {
+  min-width: 24px;
+}
+
+.search-pills__typing {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: var(--pill-row);
+}
+
+.search-pills__ghost {
+  display: block;
+  overflow: hidden;
+  white-space: pre;
+  font-size: 16px;
+  line-height: var(--pill-row);
+  pointer-events: none;
+}
+
+.search-pills__typed {
+  color: transparent;
+}
+
+.search-pills__rest {
+  color: var(--dv-text-faint);
+  opacity: 0.75;
+}
+
+.search-pills__tab {
+  margin-left: 8px;
+  padding: 1px 4px;
+  border: 1px solid var(--dv-edge-hover);
+  border-radius: 3px;
+  background: none;
+  color: var(--dv-text-faint);
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  vertical-align: 2px;
+  box-shadow: none;
+}
+
+.search-pills__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: var(--pill-row);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--dv-text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.search-pills__input::placeholder {
+  color: var(--dv-text-faint);
+  opacity: 1;
+}
+
+/* A pill open: its key found, its value typed in it. */
+.search-pills__entry--open {
+  flex: 0 1 auto;
+  min-width: 0;
+  height: 26px;
+  margin: 3px 0;
+  gap: 4px;
+  padding: 0 11px 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--dv-pill-edge-hover);
+  background: var(--dv-pill-glass-hover);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.search-pills__entry--open .search-pills__typing {
+  flex: none;
+  min-width: 3px;
+  height: 24px;
+}
+
+.search-pills__entry--open .search-pills__ghost {
+  padding-right: 2px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.search-pills__entry--open .search-pills__input {
+  height: 24px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.search-pills__pre,
+.search-pills__post {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.search-pills__open-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+/* --------------------------------------------------------- the menu */
+.search-pills__menu {
+  position: absolute;
+  z-index: 100;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: min(420px, 60vh);
+  overflow-y: auto;
+  padding: 6px;
+  animation: menu-in 0.14s ease-out;
+  transform-origin: top left;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-pills__menu { animation: none; }
+}
+
+.search-pills__option {
+  min-width: 0;
+}
+
+.search-pills__check {
+  flex: none;
+  width: 14px;
+  color: var(--dv-gold);
+  text-align: center;
+}
+
+.search-pills__tok {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 60%;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--dv-edge-hover);
+  background: var(--dv-glass-hover);
+  font-size: 14.5px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.search-pills__tok--plain {
+  padding-left: 0;
+  border-color: transparent;
+  background: transparent;
+}
+
+.search-pills__tok-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.search-pills__desc {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dv-text-muted);
+  font-size: 13px;
+}
+
+.search-pills__ex,
+.search-pills__count {
+  flex: none;
+  color: var(--dv-text-faint);
+  font-size: 12px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.search-pills__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 4px;
+  padding: 8px 10px 4px;
+  border-top: 1px solid var(--dv-veil);
+  color: var(--dv-text-faint);
+  font-size: 11.5px;
+}
+
+.search-pills__foot kbd {
+  padding: 0 4px;
+  border: 1px solid var(--dv-edge-hover);
+  border-radius: 3px;
+  background: none;
+  color: var(--dv-text-muted);
+  font: inherit;
+  font-size: 11px;
+  box-shadow: none;
+}
+
+/* ------------------------------------------- what the search did not understand */
+.search-pills__issues {
+  display: grid;
+  gap: 6px;
+}
+
+.search-pills__issue code {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--dv-glass-hover);
+  color: var(--dv-text);
+  font: inherit;
+}
+
+/* A phone: the whole width, the menu as wide as the field, no keys to explain. */
+@media (max-width: 600px) {
+  .search-pills__ex,
+  .search-pills__foot {
+    display: none;
+  }
+
+  .search-pills__tok {
+    max-width: 70%;
+  }
+}

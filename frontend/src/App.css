@@ -79,63 +79,14 @@
 
 .App-search {
   flex: 1;
+  /* Long pills wrap in the field: the header never grows sideways. */
+  min-width: 0;
   display: flex;
   align-items: center;
   margin: 0 20px;
   position: relative;
   z-index: 10001;
 }
-
-.App-search .search-input-container {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-  z-index: 10001;
-}
-
-.search-clear-button {
-  position: absolute;
-  right: 12px;
-  z-index: 1}
-
-.search-filter-button {
-  position: absolute;
-  right: 12px;
-  background: none;
-  border: none;
-  color: #888;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  z-index: 1;
-}
-
-.search-filter-button:hover {
-  background: #444;
-  color: #f8f9fa;
-}
-
-.search-filter-button.active {
-  background: #444;
-  color: #f8f9fa;
-}
-
-.chevron-icon {
-  transition: transform 0.2s ease;
-}
-
-.chevron-icon.rotated {
-  transform: rotate(180deg);
-}
-
-/* Adjust clear button position when filter button is present */
-.search-input-container:has(.search-filter-button) .search-clear-button {
-  right: 48px}
 
 /* Back button styling for analytics page */
 .App-title .back-button {
@@ -166,101 +117,6 @@
 .App-title {
   display: flex;
   align-items: center;
-}
-
-.App-search .search-loading-indicator {
-  position: absolute;
-  right: 16px;
-  color: var(--dv-gold);
-  font-size: 18px;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.App-search .search-input-large {
-  width: 100%;
-  padding: 12px 40px 12px 12px; /* Right padding for clear button */
-  border: 2px solid #444;
-  border-radius: 8px;
-  font-size: 16px;
-  background: #2a2a2a;
-  color: #f8f9fa;
-  outline: none;
-}
-
-.App-search .search-input-large:focus {
-  border-color: var(--dv-gold);
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1);
-  background: #333;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-
-.App-search .search-input-large::placeholder {
-  color: #888;
-}
-
-/* Search Autocomplete Dropdown */
-.search-autocomplete-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background: #2a2a2a;
-  border: 2px solid #444;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  z-index: 10000;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.search-autocomplete-item {
-  padding: 10px 16px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  border-bottom: 1px solid #333;
-  transition: background 0.15s ease;
-}
-
-.search-autocomplete-item:last-child {
-  border-bottom: none;
-}
-
-.search-autocomplete-item:hover,
-.search-autocomplete-item.active {
-  background: #3a3a3a;
-}
-
-.search-autocomplete-item.active {
-  border-left: 3px solid var(--dv-gold);
-  padding-left: 13px;
-}
-
-.autocomplete-keyword {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--dv-gold);
-  font-family: 'Courier New', monospace;
-}
-
-.autocomplete-value {
-  font-size: 15px;
-  font-weight: 500;
-  color: #f8f9fa;
-}
-
-.autocomplete-hint {
-  font-size: 13px;
-  color: #999;
-  font-style: italic;
 }
 
 .App-toolbar {
