@@ -269,6 +269,21 @@
   z-index: 1;
 }
 
+/* Quiet ones have no edge to show they are one: the veil lies on the whole group, a step brighter on the part pointed at. */
+.ui-button-group:has(> .ui-button--quiet:hover:not(:disabled), > .ui-button--quiet[aria-expanded="true"]) > .ui-button--quiet:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ui-button-group > .ui-button--quiet:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: transparent;
+}
+
+.ui-button-group:has(> .ui-button--quiet:hover:not(:disabled), > .ui-button--quiet[aria-expanded="true"]) > .ui-button--quiet.ui-button--on {
+  color: var(--button-gold);
+}
+
 /* The ▾ of a group: an arrow's width, its chevron turned over while open. */
 .ui-button-group > .ui-button--split {
   padding: 0 10px;

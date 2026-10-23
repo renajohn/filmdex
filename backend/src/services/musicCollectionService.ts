@@ -129,9 +129,11 @@ const musicCollectionService = {
    * A click on Listen Next. With no disc, the whole album in, or the album out
    * whatever of it is there. 'all': the whole album, in place of the discs
    * chosen. A disc: in at the end, out if it is there, in place of the whole
-   * album if that is there. `medium` names the list: with no disc, an album in
-   * the other list moves to this one rather than leaving; new rows go to it,
-   * else to the list the album is already in, else to the streamed one.
+   * album if that is there. `medium` names the list, each disc standing in its
+   * own: what is asked for in the other list moves to this one rather than
+   * leaving, a disc of an album held whole there going alone, the others
+   * staying where the album was; new rows go to it, else to the list the album
+   * is already in, else to the streamed one.
    */
   setListenNext: async (albumId: number, choice: ListenNextChoice = undefined, medium?: ListenNextMedium): Promise<ListenNextToggleResult> => {
     const collectionId = await listenNextCollectionId();
@@ -161,15 +163,34 @@ const musicCollectionService = {
         await addAtEnd(collectionId, albumId, 0, into);
         return { id: albumId, action: 'added', medium: into };
       }
-      // At the place of the first disc chosen.
+      // At the place of the first disc chosen, in the list asked or that disc's.
       await run('DELETE FROM album_collections WHERE collection_id = ? AND album_id = ? AND disc <> ?', [collectionId, albumId, rows[0].disc]);
-      await run('UPDATE album_collections SET disc = 0, suggested = 0 WHERE collection_id = ? AND album_id = ?', [collectionId, albumId]);
+      await run('UPDATE album_collections SET disc = 0, suggested = 0, medium = ? WHERE collection_id = ? AND album_id = ?', [into, collectionId, albumId]);
       return { id: albumId, action: 'added' };
     }
 
-    if (rows.some(row => row.disc === choice)) {
+    const held = rows.find(row => row.disc === choice);
+    if (held && medium && held.medium !== medium) {
+      // From the other list: at the end of this one, the album's other discs where they are.
+      const position = await AlbumCollection.getNextOrder(collectionId);
+      await run('UPDATE album_collections SET medium = ?, collection_order = ? WHERE collection_id = ? AND album_id = ? AND disc = ?', [medium, position, collectionId, albumId, choice]);
+      return { id: albumId, action: 'moved', medium };
+    }
+    if (held) {
       await run('DELETE FROM album_collections WHERE collection_id = ? AND album_id = ? AND disc = ?', [collectionId, albumId, choice]);
       return { id: albumId, action: 'removed' };
+    }
+    const wholeRow = rows.find(row => row.disc === 0);
+    if (wholeRow && medium && wholeRow.medium !== medium) {
+      // The album held whole in the other list: its other discs stay there, at its place, this one comes to this list.
+      const discs = (await all<{ disc: number }>('SELECT DISTINCT COALESCE(disc_number, 1) AS disc FROM tracks WHERE album_id = ? ORDER BY disc', [albumId]))
+        .map(row => row.disc).filter(disc => disc !== choice);
+      await run('DELETE FROM album_collections WHERE collection_id = ? AND album_id = ? AND disc = 0', [collectionId, albumId]);
+      for (const disc of discs) {
+        await AlbumCollection.create({ album_id: albumId, collection_id: collectionId, collection_order: wholeRow.order, disc, medium: wholeRow.medium });
+      }
+      await addAtEnd(collectionId, albumId, choice, medium);
+      return { id: albumId, action: 'moved', medium };
     }
     if (whole) {
       // The whole album gives its place to the disc.
@@ -183,18 +204,21 @@ const musicCollectionService = {
   /**
    * An entry dragged to the other list, or within it: before the entry
    * `before` (where it was dropped), else at the 'start' or the 'end' of the
-   * list it goes to. Every row of the album goes with it, an album standing
-   * in one list. False when it is not in Listen Next.
+   * list it goes to. The album's other discs in the same list go with it,
+   * those in the other list stay. False when it is not in Listen Next.
    */
   moveListenNext: async (key: string, medium: ListenNextMedium, at: 'start' | 'end' = 'end', before?: string): Promise<boolean> => {
     const collectionId = await listenNextCollectionId();
     const entry = parseEntryKey(key);
     if (collectionId == null || !entry) return false;
     const entries = await entriesOf(collectionId);
-    if (!entries.some(one => one.albumId === entry.albumId)) return false;
-    await run('UPDATE album_collections SET medium = ? WHERE collection_id = ? AND album_id = ?', [medium, collectionId, entry.albumId]);
-    const moving = entries.filter(one => one.albumId === entry.albumId);
-    const rest = entries.filter(one => one.albumId !== entry.albumId);
+    const dragged = entries.find(one => one.albumId === entry.albumId && one.disc === entry.disc)
+      ?? entries.find(one => one.albumId === entry.albumId);
+    if (!dragged) return false;
+    const goes = (one: ListenNextEntry) => one.albumId === dragged.albumId && one.medium === dragged.medium;
+    await run('UPDATE album_collections SET medium = ? WHERE collection_id = ? AND album_id = ? AND medium = ?', [medium, collectionId, dragged.albumId, dragged.medium]);
+    const moving = entries.filter(goes);
+    const rest = entries.filter(one => !goes(one));
     const next = before ? parseEntryKey(before) : null;
     const place = next ? rest.findIndex(one => one.albumId === next.albumId && one.disc === next.disc) : -1;
     const order = place >= 0 ? [...rest.slice(0, place), ...moving, ...rest.slice(place)]

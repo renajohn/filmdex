@@ -73,6 +73,28 @@ describe('Listen Next, streamed and on CD', () => {
     await request(app).put('/api/collections/listen-next/move').send({ key: `${a}:0`, medium: 'tape' }).expect(400);
   });
 
+  it('lets each disc stand in its own list: one on CD, the other streamed', async () => {
+    const album = await insertAlbum(`The Wall ${tag()}`);
+    for (const disc of [1, 2]) {
+      await new Promise<void>((resolve, reject) => getDatabase().run(
+        'INSERT INTO tracks (album_id, disc_number, track_number, title) VALUES (?, ?, 1, ?)', [album, disc, `Side ${disc}`], err => (err ? reject(err) : resolve())));
+    }
+    const other = await insertAlbum(`Other ${tag()}`);
+    await Album.toggleListenNext(album);
+    await Album.toggleListenNext(other);
+    // Disc 2 on CD, the album held whole streamed: disc 1 stays streamed, at the album's place.
+    expect(await Album.toggleListenNext(album, 2, 'cd')).toEqual({ id: album, action: 'moved', medium: 'cd' });
+    expect(await lists()).toEqual({ digital: [`${album}:1`, `${other}:0`], cd: [`${album}:2`] });
+    // Disc 1 asked on CD: it moves there rather than leaving; asked again, it leaves.
+    expect(await Album.toggleListenNext(album, 1, 'cd')).toEqual({ id: album, action: 'moved', medium: 'cd' });
+    expect(await lists()).toEqual({ digital: [`${other}:0`], cd: [`${album}:2`, `${album}:1`] });
+    expect(await Album.toggleListenNext(album, 1, 'cd')).toEqual({ id: album, action: 'removed' });
+    // A disc dragged to the other list goes alone when the album's other discs stand elsewhere.
+    await Album.toggleListenNext(album, 1, 'digital');
+    await request(app).put('/api/collections/listen-next/move').send({ key: `${album}:2`, medium: 'digital', at: 'start' }).expect(200);
+    expect(await lists()).toEqual({ digital: [`${album}:2`, `${other}:0`, `${album}:1`], cd: [] });
+  });
+
   it('plays and lets go of the streamed list alone: a CD leaves only by hand', async () => {
     const [streamed, cd] = [await insertAlbum(`Streamed ${tag()}`), await insertAlbum(`On CD ${tag()}`)];
     await Album.toggleListenNext(streamed);

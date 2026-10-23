@@ -20,7 +20,7 @@ import { playerAlbumOf, playerTracksOf } from '../utils/playAlbum';
 import { playingTime, ripSummary, urlLabel } from '../utils/albumHead';
 import TrackDetails from './TrackDetails';
 import DetailSteps, { useScrollKeys, useStepKeys } from './shared/DetailSteps';
-import type { AlbumOverlap, RipTracks } from '../services/musicService';
+import type { AlbumOverlap, ListenNextMedium, RipTracks } from '../services/musicService';
 import './MusicDetailCard.css';
 import ShelfCode from './shared/ShelfCode';
 import NowPlayingBars from './shared/NowPlayingBars';
@@ -237,6 +237,9 @@ const TrackMixtapes: React.FC<{ songId: string; title: string }> = ({ songId, ti
   );
 };
 
+/** A row of Listen Next as the server sends it: the album, one disc of it or none, and its list. */
+type ListenNextRow = { id: number; disc?: number | null; medium?: ListenNextMedium };
+
 const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, onDelete, onSearch, onListenNextChange, onPrevious, onNext, digital, onWish, onDismiss, onBought, onCoverChange, onOpenAlbum }) => {
   const [showCoverModal, setShowCoverModal] = useState<boolean>(false);
   const [coverModalData, setCoverModalData] = useState<CoverModalData>({ coverUrl: '', title: '', artist: '', coverType: '' });
@@ -253,6 +256,13 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   // What of the album Listen Next holds: all of it, some of its discs, or nothing.
   const [listenNextHeld, setListenNextHeld] = useState<'all' | number[]>([]);
   const isInListenNext = listenNextHeld === 'all' || listenNextHeld.length > 0;
+  // Its rows in Listen Next, each disc in its list: streamed or on CD.
+  const [listenNextRows, setListenNextRows] = useState<ListenNextRow[]>([]);
+  // The list of a disc, the album's when it is there whole; the album's when all of it stands in one.
+  const discMedium = (disc: number): ListenNextMedium | null =>
+    (listenNextRows.find(row => row.disc === disc) ?? listenNextRows.find(row => !row.disc))?.medium ?? null;
+  const albumMedium: ListenNextMedium | null = listenNextRows.length > 0 && listenNextRows.every(row => row.medium === listenNextRows[0].medium)
+    ? listenNextRows[0].medium ?? 'digital' : null;
   const [togglingListenNext, setTogglingListenNext] = useState<boolean>(false);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
   const [showIsrc, setShowIsrc] = useState<boolean>(false);
@@ -284,6 +294,9 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   const navidromeId = digital?.album?.navidromeId ?? null;
   // A wish or a digital album: no CD, the shelf code gives way to the cloud.
   const hasCd = cd.titleStatus !== 'digital' && cd.titleStatus !== 'wish';
+  // A CD of the collection can go on the player, a mixtape cannot. Listen Next's list for a plain click: streamed, unless the CD has no rip to stream.
+  const canBeCd = ((cd.titleStatus as string | undefined) ?? 'owned') === 'owned';
+  const plainMedium: ListenNextMedium = canBeCd && cd.fileQuality === 'none' ? 'cd' : 'digital';
 
   useEffect(() => {
     let current = true;
@@ -363,12 +376,17 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
     setAppleUrl(isAppleLink ? cached : null);
   }, [cd?.id, cd?.urls?.appleMusic]);
 
+  const readListenNext = (entries: ListenNextRow[]) => {
+    setListenNextHeld(heldOf(entries, Number(cd.id)));
+    setListenNextRows(entries.filter(entry => entry.id === Number(cd.id)).map(entry => ({ ...entry, medium: entry.medium === 'cd' ? 'cd' : 'digital' })));
+  };
+
   // Load Listen Next status
   useEffect(() => {
     const loadListenNextStatus = async () => {
       try {
-        const listenNextAlbums = await musicService.getListenNextAlbums() as Array<{ id: number; disc?: number | null }>;
-        setListenNextHeld(heldOf(listenNextAlbums, Number(cd.id)));
+        const listenNextAlbums = await musicService.getListenNextAlbums() as ListenNextRow[];
+        readListenNext(listenNextAlbums);
       } catch (error) {
         console.error('Error loading Listen Next status:', error);
       }
@@ -440,15 +458,15 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
   /**
    * Listen Next: with no disc, the whole album in, or whatever of it is there
    * out; a disc, that disc in or out; 'all', the whole album in place of the discs.
+   * `medium` names the list, streamed by default: an album in the other one moves to it.
    */
-  const handleListenNextToggle = async (disc?: number | 'all') => {
+  const handleListenNextToggle = async (disc?: number | 'all', medium?: ListenNextMedium) => {
     if (togglingListenNext) return;
 
     setTogglingListenNext(true);
     try {
-      await musicService.toggleListenNext(cd.id, disc);
-      const listenNextAlbums = await musicService.getListenNextAlbums() as Array<{ id: number; disc?: number | null }>;
-      setListenNextHeld(heldOf(listenNextAlbums, Number(cd.id)));
+      await musicService.toggleListenNext(cd.id, disc, medium);
+      readListenNext(await musicService.getListenNextAlbums() as ListenNextRow[]);
       // Refresh the listen next banner immediately
       if (onListenNextChange) {
         onListenNextChange();
@@ -995,17 +1013,37 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                   {discs.length > 1 && (
                     <div className="disc-head">
                       <h6 className="disc-title">Disc {disc.number}</h6>
-                      {/* This disc alone in Listen Next, or out; held when the whole album is. */}
+                      {/* This disc alone in Listen Next, or out, as the album's button; its ▾ chooses its list. Held when the whole album is. */}
                       {(() => {
                         const on = listenNextHeld === 'all' || listenNextHeld.includes(disc.number);
+                        const medium = discMedium(disc.number);
                         return (
-                          <Button variant="quiet" size="sm" active={on} icon={<BsHeadphones />}
-                            onClick={() => handleListenNextToggle(disc.number)} disabled={togglingListenNext}
-                            aria-label={on ? `Disc ${disc.number} in Listen Next` : `Disc ${disc.number} to Listen Next`}
-                            title={!on ? `Disc ${disc.number} in Listen Next` : listenNextHeld === 'all'
-                              ? `The whole album is in Listen Next: disc ${disc.number} alone instead` : `Take disc ${disc.number} out of Listen Next`}>
-                            {on ? 'In Listen Next' : 'Listen Next'}
-                          </Button>
+                          <span className="ui-button-group">
+                            <Button variant="quiet" size="sm" active={on} icon={(medium ?? plainMedium) === 'cd' ? <BsDisc /> : <BsHeadphones />}
+                              onClick={() => handleListenNextToggle(disc.number, medium ?? plainMedium)} disabled={togglingListenNext}
+                              aria-label={on ? `Disc ${disc.number} in Listen Next` : `Disc ${disc.number} to Listen Next`}
+                              title={!on ? (plainMedium === 'cd' ? `Play disc ${disc.number} next` : `Stream disc ${disc.number} next`) : listenNextHeld === 'all'
+                                ? `The whole album is in Listen Next: disc ${disc.number} alone instead` : `Take disc ${disc.number} out of Listen Next`}>
+                              {on ? 'In Listen Next' : 'Listen Next'}
+                              {on && medium === 'cd' && ' · from the CD'}
+                            </Button>
+                            {canBeCd && (
+                              <Menu label={`Disc ${disc.number} in Listen Next`} align="end" trigger={(props, open) => (
+                                <Button {...props} variant="quiet" size="sm" active={on} className="ui-button--split"
+                                  aria-label={`Disc ${disc.number}: streamed or from the CD`} title="Streamed or from the CD" disabled={togglingListenNext}>
+                                  <MenuChevron open={open} />
+                                </Button>
+                              )}>
+                                <Menu.Section title={`Listen to disc ${disc.number}`} />
+                                {(['digital', 'cd'] as const).map(choice => (
+                                  <Menu.Choice key={choice} selected={on && medium === choice} hint={choice === plainMedium ? 'Default' : undefined}
+                                    onSelect={() => { if (!(on && medium === choice)) handleListenNextToggle(disc.number, choice); }}>
+                                    {choice === 'digital' ? 'Streamed' : 'From the CD'}
+                                  </Menu.Choice>
+                                ))}
+                              </Menu>
+                            )}
+                          </span>
                         );
                       })()}
                     </div>
@@ -1220,13 +1258,13 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
               )}
             </Button>
           )}
-          {/* The whole album in or out; with several discs, its ▾ chooses them, as each disc's button does. */}
+          {/* The whole album in or out, streamed unless it is a CD with no rip; its ▾ chooses the list, and the discs when it has several. */}
           <span className="ui-button-group">
             <Button active={isInListenNext}
               aria-label={isInListenNext ? 'In Listen Next' : 'Listen Next'}
-              title={isInListenNext ? 'Take it out of Listen Next' : undefined}
-              icon={<BsHeadphones />}
-              onClick={() => handleListenNextToggle()}
+              title={isInListenNext ? 'Take it out of Listen Next' : plainMedium === 'cd' ? 'Play the CD next' : 'Stream it next'}
+              icon={(isInListenNext ? albumMedium : plainMedium) === 'cd' ? <BsDisc /> : <BsHeadphones />}
+              onClick={() => handleListenNextToggle(undefined, isInListenNext ? undefined : plainMedium)}
               disabled={togglingListenNext}
             >
               <span className="music-detail-long">
@@ -1234,27 +1272,45 @@ const MusicDetailCard: React.FC<MusicDetailCardProps> = ({ cd, onClose, onEdit, 
                 {Array.isArray(listenNextHeld) && listenNextHeld.length > 0 && (
                   <span className="music-detail-next-discs"> · {discsInWords(listenNextHeld)}</span>
                 )}
+                {albumMedium === 'cd' && <span className="music-detail-next-discs"> · from the CD</span>}
               </span>
               <span className="music-detail-short" aria-hidden="true">Next</span>
             </Button>
-            {discs.length > 1 && (
+            {(canBeCd || discs.length > 1) && (
               <Menu drop="up" label="Listen Next" trigger={(props, open) => (
-                <Button {...props} active={isInListenNext} className="ui-button--split" aria-label="Choose the discs for Listen Next"
-                  title="Some discs only" disabled={togglingListenNext}>
+                <Button {...props} active={isInListenNext} className="ui-button--split" aria-label="Choose how and what for Listen Next"
+                  title={canBeCd ? 'Streamed or from the CD' : 'Some discs only'} disabled={togglingListenNext}>
                   <MenuChevron open={open} />
                 </Button>
               )}>
-                <Menu.Choice selected={listenNextHeld === 'all'} hint={`${discs.length} discs`}
-                  onSelect={() => { if (listenNextHeld !== 'all') handleListenNextToggle('all'); }}>
-                  All discs
-                </Menu.Choice>
-                <Menu.Separator />
-                {discs.map(disc => (
-                  <Menu.Choice key={disc.number} selected={Array.isArray(listenNextHeld) && listenNextHeld.includes(disc.number)}
-                    hint={`${disc.tracks.length} tracks`} onSelect={() => handleListenNextToggle(disc.number)}>
-                    Disc {disc.number}
-                  </Menu.Choice>
-                ))}
+                {canBeCd && (
+                  <>
+                    <Menu.Section title="Listen" />
+                    {/* The album's list: what of it is there moves, all of it; nothing there, the whole album goes. */}
+                    {(['digital', 'cd'] as const).map(medium => (
+                      <Menu.Choice key={medium} selected={albumMedium === medium} hint={medium === plainMedium ? 'Default' : undefined}
+                        onSelect={() => { if (albumMedium !== medium) handleListenNextToggle(undefined, medium); }}>
+                        {medium === 'digital' ? 'Streamed' : 'From the CD'}
+                      </Menu.Choice>
+                    ))}
+                  </>
+                )}
+                {discs.length > 1 && (
+                  <>
+                    {canBeCd && <Menu.Separator />}
+                    <Menu.Choice selected={listenNextHeld === 'all'} hint={`${discs.length} discs`}
+                      onSelect={() => { if (listenNextHeld !== 'all') handleListenNextToggle('all', isInListenNext ? undefined : plainMedium); }}>
+                      All discs
+                    </Menu.Choice>
+                    <Menu.Separator />
+                    {discs.map(disc => (
+                      <Menu.Choice key={disc.number} selected={Array.isArray(listenNextHeld) && listenNextHeld.includes(disc.number)}
+                        hint={`${disc.tracks.length} tracks`} onSelect={() => handleListenNextToggle(disc.number, discMedium(disc.number) ?? plainMedium)}>
+                        Disc {disc.number}
+                      </Menu.Choice>
+                    ))}
+                  </>
+                )}
                 {isInListenNext && (
                   <>
                     <Menu.Separator />
