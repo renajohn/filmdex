@@ -523,15 +523,15 @@ const SearchPills: React.FC<SearchPillsProps> = ({
     else apply(commitWords(next, true), { emit: true, focus: 'end', menu: true });
   };
 
-  /** A guess's name written in full in place of the letters, between quotes when it has spaces: still words, not a pill. */
+  /** A guess's name written in full in place of the letters, as a pill: title:"Abbey Road", artist:"The Beatles". */
   const complete = (s: Suggestion) => {
+    if (s.kind === 'value') { take(s); return; }
+    if (s.kind !== 'guess') return;
     const d = draftRef.current;
-    const name = s.kind === 'guess' ? s.guess.label : s.kind === 'value' ? s.value : '';
-    if (!name) return;
     const tk = currentWord(d.text);
-    const words = /\s/.test(name) ? `"${name.replace(/"/g, '')}"` : name;
     setNav(null);
-    apply({ ...d, text: d.text.slice(0, tk.start) + words }, { emit: true, focus: 'end', menu: true });
+    const next = { ...d, text: d.text.slice(0, tk.start) + `${s.group.key}:${quote(s.guess.label)}` };
+    apply(commitWords(next, true), { emit: true, focus: 'end', menu: true });
   };
 
   /** Opens the pill of an item on one of its values (`k`), or with a new value after them all (`k` null). */
@@ -726,7 +726,7 @@ const SearchPills: React.FC<SearchPillsProps> = ({
     const { ghost: g, suggestions: list, menuIndex: index, menuVisible: shown, chosen } = view.current;
     const atEnd = input.selectionStart === input.value.length && input.selectionEnd === input.value.length;
     // A guess written grey: Enter takes it (a movie opens, an artist becomes a pill),
-    // Tab or → writes its name in full, to go on typing or to search it.
+    // Tab or → makes a pill of its name (title:"A Good Day to Die Hard"), to search it.
     if (g && isGuess(g.item) && shown && !e.shiftKey) {
       if (e.key === 'Enter' && !chosen) {
         e.preventDefault();
@@ -1068,7 +1068,7 @@ const SearchPills: React.FC<SearchPillsProps> = ({
           <>
             <span><kbd>↑</kbd><kbd>↓</kbd> choose</span>
             {ghost && isGuess(ghost.item)
-              ? <><span><kbd>↵</kbd> {ghost.item.kind === 'guess' ? 'open' : 'take'}</span><span><kbd>Tab</kbd> complete</span></>
+              ? <><span><kbd>↵</kbd> {ghost.item.kind === 'guess' ? 'open' : 'take'}</span><span><kbd>Tab</kbd> {ghost.item.kind === 'guess' ? 'search the title' : 'take'}</span></>
               : <span><kbd>Tab</kbd> take</span>}
             <span><kbd>!</kbd> before a filter excludes</span><span><kbd>,</kbd> between values: or</span>
           </>

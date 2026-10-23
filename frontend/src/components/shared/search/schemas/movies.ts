@@ -131,7 +131,7 @@ export const moviesSchema: SearchSchema = {
   wordsHint: 'In titles, directors, comments and collections',
   // A movie's few letters are most often its title; a director's name otherwise.
   guesses: [
-    { section: 'Movies', kind: 'open', find: findMovies, open: movie => openItem('movie', movie.id) },
+    { section: 'Movies', kind: 'open', find: findMovies, open: movie => openItem('movie', movie.id), key: 'title' },
     { section: 'Directors', kind: 'pill', keys: ['director'] },
   ],
 };

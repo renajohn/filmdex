@@ -73,7 +73,14 @@ export interface SearchGuess {
  */
 export type SearchGuessGroup =
   | { section: string; kind: 'pill'; keys: string[] }
-  | { section: string; kind: 'open'; find: (typed: string) => Promise<SearchGuess[]>; open: (guess: SearchGuess) => void };
+  | {
+    section: string;
+    kind: 'open';
+    find: (typed: string) => Promise<SearchGuess[]>;
+    open: (guess: SearchGuess) => void;
+    /** The key Tab writes its name in, as a pill: title:"A Good Day to Die Hard". */
+    key: string;
+  };
 
 export interface SearchSchema {
   /** Its name, for the recent searches and the tests: music, movies, books, scores, wishlist. */

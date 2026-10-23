@@ -432,6 +432,7 @@ describe('guessing what a few letters name', () => {
         section: 'Albums', kind: 'open',
         find: async typed => albums.filter(a => `${a.label} ${a.sub}`.toLowerCase().includes(typed.toLowerCase())),
         open: album => { opened.push(album.id); },
+        key: 'title',
       },
     ],
   };
@@ -463,7 +464,7 @@ describe('guessing what a few letters name', () => {
     }
   });
 
-  it('takes the guess with Enter (an artist a pill, an album opened), writes its name with Tab, keeps the letters after Esc', async () => {
+  it('takes the guess with Enter (an artist a pill, an album opened), makes a title: pill of it with Tab, keeps the letters after Esc', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const onChange = vi.fn();
@@ -487,8 +488,8 @@ describe('guessing what a few letters name', () => {
       await act(async () => { vi.advanceTimersByTime(250); });
       await waitFor(() => expect(ghost()).toBe(' Road'));
       fireEvent.keyDown(input(), { key: 'Tab' });
-      expect(input()).toHaveValue('"Abbey Road"');
-      expect(onChange).toHaveBeenLastCalledWith('artist:"The Beatles" "Abbey Road"');
+      expect(input()).toHaveValue('');
+      expect(onChange).toHaveBeenLastCalledWith('artist:"The Beatles" title:"Abbey Road"');
       expect(opened).toEqual([1]);
 
       type('beau');
@@ -497,7 +498,7 @@ describe('guessing what a few letters name', () => {
       fireEvent.keyDown(input(), { key: 'Escape' });
       expect(ghost()).toBeUndefined();
       fireEvent.keyDown(input(), { key: 'Enter' });
-      expect(onChange).toHaveBeenLastCalledWith('artist:"The Beatles" beau');
+      expect(onChange).toHaveBeenLastCalledWith('artist:"The Beatles" title:"Abbey Road" beau');
       expect(opened).toEqual([1]);
     } finally {
       vi.useRealTimers();

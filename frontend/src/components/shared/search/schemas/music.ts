@@ -92,6 +92,6 @@ export const musicSchema: SearchSchema = {
   // A CD's few letters name its artist or its title, one or the other.
   guesses: [
     { section: 'Artists', kind: 'pill', keys: ['artist', 'composer'] },
-    { section: 'Albums', kind: 'open', find: findAlbums, open: album => openItem('album', album.id) },
+    { section: 'Albums', kind: 'open', find: findAlbums, open: album => openItem('album', album.id), key: 'title' },
   ],
 };

@@ -85,7 +85,7 @@ export const booksSchema: SearchSchema = {
   placeholder: 'Search BookDex by title, author...',
   wordsHint: 'In titles, authors, series and ISBNs',
   guesses: [
-    { section: 'Books', kind: 'open', find: findBooks, open: book => openItem('book', book.id) },
+    { section: 'Books', kind: 'open', find: findBooks, open: book => openItem('book', book.id), key: 'title' },
     { section: 'Authors', kind: 'pill', keys: ['author'] },
   ],
 };
