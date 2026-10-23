@@ -311,6 +311,20 @@
   box-shadow: none;
 }
 
+/* What the grey rest names: artist, composer, album… */
+.search-pills__ghost-tag {
+  margin-left: 8px;
+  padding: 1px 4px;
+  border: 1px solid var(--dv-edge-hover);
+  border-radius: 3px;
+  color: var(--dv-text-faint);
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  vertical-align: 2px;
+}
+
 .search-pills__input {
   position: absolute;
   inset: 0;
@@ -416,6 +430,32 @@
 
 .search-pills__option {
   min-width: 0;
+}
+
+/* A thing guessed, to open: its small cover and its name; who and when in the line's words. */
+.search-pills__guess {
+  flex: 0 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 60%;
+}
+
+.search-pills__thumb {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--dv-glass-hover);
+}
+
+.search-pills__guess-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14.5px;
 }
 
 .search-pills__check {

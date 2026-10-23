@@ -1,5 +1,6 @@
 import apiService from '../../../../services/api';
-import { suggestFrom, yesNo, type SearchKey, type SearchSchema, type SearchValue, type SuggestedValue } from '../schema';
+import { openItem } from '../../../../services/openItem';
+import { suggestFrom, yesNo, type SearchGuess, type SearchKey, type SearchSchema, type SearchValue, type SuggestedValue } from '../schema';
 
 /**
  * FilmDex's keys, as backend/src/models/movieSearch.ts reads them: -key: to
@@ -97,9 +98,40 @@ export const movieKeys = (from: From = (field, describe) => ({ suggest: fromMovi
   ] },
 ];
 
+interface FoundMovie {
+  id: number;
+  title: string;
+  director?: string | null;
+  release_date?: string | null;
+  poster_path?: string | null;
+}
+
+/** A poster's address: ours, or TMDB's small one (MovieThumbnail's rule). */
+const posterUrl = (path?: string | null): string | undefined => {
+  if (!path) return undefined;
+  if (path.startsWith('/images/') || path.startsWith('/api/images/') || !path.startsWith('/')) return path;
+  return `https://image.tmdb.org/t/p/w92${path}`;
+};
+
+/** The movies whose words hold the letters, as the page would find them, to open. */
+const findMovies = async (typed: string): Promise<SearchGuess[]> => {
+  const found = await apiService.searchMovies({ searchText: typed }) as FoundMovie[];
+  return (Array.isArray(found) ? found : []).map(movie => ({
+    id: movie.id,
+    label: movie.title,
+    sub: [movie.release_date?.slice(0, 4), movie.director].filter(Boolean).join(' · '),
+    image: posterUrl(movie.poster_path),
+  }));
+};
+
 export const moviesSchema: SearchSchema = {
   section: 'movies',
   keys: movieKeys(),
   placeholder: 'Search FilmDex: words, or a filter like director:Kubrick',
   wordsHint: 'In titles, directors, comments and collections',
+  // A movie's few letters are most often its title; a director's name otherwise.
+  guesses: [
+    { section: 'Movies', kind: 'open', find: findMovies, open: movie => openItem('movie', movie.id) },
+    { section: 'Directors', kind: 'pill', keys: ['director'] },
+  ],
 };

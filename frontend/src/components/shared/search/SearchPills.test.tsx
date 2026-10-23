@@ -393,3 +393,88 @@ describe('SearchPills', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
+
+describe('guessing what a few letters name', () => {
+  const albums = [
+    { id: 1, label: 'Abbey Road', sub: 'The Beatles · 1969' },
+    { id: 2, label: 'Beautiful Garbage', sub: 'Garbage · 2001' },
+    { id: 3, label: 'Into the Beat', sub: 'Somebody' },
+  ];
+  const artists = ['The Beatles', 'The Beach Boys', 'Bebel Gilberto'];
+  const opened: number[] = [];
+  const guessing: SearchSchema = {
+    section: 'guess',
+    placeholder: 'Search',
+    keys: [
+      {
+        key: 'artist', group: 'Who', type: 'text', desc: 'An artist',
+        suggest: async typed => artists.filter(a => a.toLowerCase().includes(typed.toLowerCase())).map(value => ({ value })),
+      },
+      { key: 'title', group: 'What', type: 'text', desc: 'A title', valuesForWords: false },
+    ],
+    guesses: [
+      { section: 'Artists', kind: 'pill', keys: ['artist'] },
+      {
+        section: 'Albums', kind: 'open',
+        find: async typed => albums.filter(a => `${a.label} ${a.sub}`.toLowerCase().includes(typed.toLowerCase())),
+        open: album => { opened.push(album.id); },
+      },
+    ],
+  };
+  const Guessing: React.FC<{ onChange?: (q: string) => void }> = ({ onChange }) => {
+    const [value, setValue] = useState('');
+    return <SearchPills schema={guessing} value={value} onChange={q => { setValue(q); onChange?.(q); }} />;
+  };
+  const ghost = () => document.querySelector('.search-pills__rest')?.textContent;
+
+  it('puts the group holding the best guess first, the best of each first, and its name grey', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(<Guessing />);
+      fireEvent.focus(input());
+      type('bea');
+      await act(async () => { vi.advanceTimersByTime(250); });
+      await waitFor(() => expect(options()[0]).toContain('The Beatles'));
+      const list = options();
+      expect(list.findIndex(o => o?.includes('Beautiful Garbage'))).toBeGreaterThan(list.findIndex(o => o?.includes('The Beach Boys')));
+      expect(list.findIndex(o => o?.includes('Into the Beat'))).toBeGreaterThan(list.findIndex(o => o?.includes('Beautiful Garbage')));
+      expect(ghost()).toBe('  → The Beatles');
+
+      type('abbey');
+      await act(async () => { vi.advanceTimersByTime(250); });
+      await waitFor(() => expect(options()[0]).toContain('Abbey Road'));
+      expect(ghost()).toBe(' Road');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('makes an artist a pill with Tab, opens an album, and keeps the letters with Enter', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const onChange = vi.fn();
+      render(<Guessing onChange={onChange} />);
+      fireEvent.focus(input());
+      type('bea');
+      await act(async () => { vi.advanceTimersByTime(250); });
+      await waitFor(() => expect(ghost()).toBe('  → The Beatles'));
+      fireEvent.keyDown(input(), { key: 'Tab' });
+      expect(onChange).toHaveBeenLastCalledWith('artist:"The Beatles"');
+
+      type('abbey');
+      await act(async () => { vi.advanceTimersByTime(250); });
+      await waitFor(() => expect(ghost()).toBe(' Road'));
+      fireEvent.keyDown(input(), { key: 'Tab' });
+      expect(opened).toEqual([1]);
+      expect(onChange).toHaveBeenLastCalledWith('artist:"The Beatles" abbey');
+
+      type('abbey beau');
+      await act(async () => { vi.advanceTimersByTime(250); });
+      fireEvent.keyDown(input(), { key: 'Enter' });
+      expect(onChange).toHaveBeenLastCalledWith('artist:"The Beatles" abbey beau');
+      expect(opened).toEqual([1]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

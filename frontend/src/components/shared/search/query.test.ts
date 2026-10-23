@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  boolOf, canonical, canonicalQuery, findKey, fitInRows, nearestKey, parseNumber, parseToken, quote, splitValues, tokenize,
-} from './query';
+  boolOf, canonical, canonicalQuery, findKey, fitInRows, nameScore, nearestKey, parseNumber, parseToken, quote, splitValues, tokenize } from './query';
 import { valuesFromRows, yesNo, type SearchKey } from './schema';
 
 const keys: SearchKey[] = [
@@ -193,5 +192,17 @@ describe('valuesFromRows', () => {
     expect(valuesFromRows([{ year: 1999 }], 'year')).toEqual(['1999']);
     expect(valuesFromRows([{ title: '[Live] at home' }], 'title')).toEqual(['[Live] at home']);
     expect(valuesFromRows('nope', 'title')).toEqual([]);
+  });
+});
+
+describe('nameScore', () => {
+  it('ranks the name itself, its start (an article aside), a word’s start, then anywhere', () => {
+    expect(nameScore('low', 'Low')).toBe(120);
+    expect(nameScore('bea', 'The Beatles')).toBe(100);
+    expect(nameScore('beyo', 'Beyoncé')).toBe(100);
+    expect(nameScore('oeuv', 'Œuvres pour piano')).toBe(100);
+    expect(nameScore('beat', 'Beauty and the Beat')).toBe(70);
+    expect(nameScore('eat', 'The Beatles')).toBe(30);
+    expect(nameScore('xyz', 'The Beatles')).toBe(0);
   });
 });

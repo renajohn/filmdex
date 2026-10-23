@@ -9,6 +9,7 @@ import SeriesStack from './SeriesStack';
 import AlphabeticalIndex from './AlphabeticalIndex';
 import { CollectionHeader, EmptyState } from './shared';
 import { hasMatchScores, stacksMatchFirst, useBestMatch } from './shared/search/bestMatch';
+import { useOpenItem } from '../services/openItem';
 import { Modal, Form } from 'react-bootstrap';
 import { BsChevronDown, BsBook, BsX } from 'react-icons/bs';
 import './BookSearch.css';
@@ -997,6 +998,9 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
       }
     }
   };
+
+  // The search's menu opens a book it guessed from a few letters (services/openItem).
+  useOpenItem('book', id => { handleBookClick(id); });
 
   const groupBooksBySeries = useCallback((booksToGroup: Book[]) => {
     const seriesMap = new Map<string, Book[]>();

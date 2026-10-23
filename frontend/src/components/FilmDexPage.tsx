@@ -8,6 +8,7 @@ import BoxSetStack from './BoxSetStack';
 import AlphabeticalIndex from './AlphabeticalIndex';
 import { NextBanner, CollectionHeader, EmptyState } from './shared';
 import { hasMatchScores, stacksMatchFirst, useBestMatch } from './shared/search/bestMatch';
+import { useOpenItem } from '../services/openItem';
 import MovieCover, { combinedScore } from './MovieCover';
 import {
   BsChevronDown,
@@ -385,6 +386,9 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
       setLoadingDetails(false);
     }
   };
+
+  // The search's menu opens a movie it guessed from a few letters (services/openItem).
+  useOpenItem('movie', id => { handleMovieClick(id); });
 
 
   // Large poster view renderer

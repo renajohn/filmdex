@@ -1,6 +1,7 @@
 import musicService from '../../../../services/musicService';
+import { openItem } from '../../../../services/openItem';
 import { isDigitalOn } from '../../../../utils/digitalLibrary';
-import { suggestFrom, yesNo, type SearchKey, type SearchSchema } from '../schema';
+import { suggestFrom, yesNo, type SearchGuess, type SearchKey, type SearchSchema } from '../schema';
 
 /**
  * MusicDex's keys, as the backend reads them: backend/src/models/album.ts
@@ -64,9 +65,33 @@ const keys: SearchKey[] = [
   { key: 'mixtape', group: 'CD and files', type: 'bool', desc: 'One of your mixtapes, your playlists in Navidrome', values: yesNo('Mixtapes only', 'Albums only, no mixtapes') },
 ];
 
+interface FoundAlbum {
+  id: number;
+  title: string;
+  artist?: string[] | string | null;
+  releaseYear?: number | null;
+  cover?: string | null;
+}
+
+/** The albums whose words hold the letters, as the page would find them, to open. */
+const findAlbums = async (typed: string): Promise<SearchGuess[]> => {
+  const found = await musicService.searchAlbums(typed, { withNoCd: isDigitalOn() }) as FoundAlbum[];
+  return (Array.isArray(found) ? found : []).map(album => ({
+    id: album.id,
+    label: album.title,
+    sub: [Array.isArray(album.artist) ? album.artist.join(', ') : album.artist, album.releaseYear].filter(Boolean).join(' · '),
+    image: musicService.getImageUrl(album.cover) ?? undefined,
+  }));
+};
+
 export const musicSchema: SearchSchema = {
   section: 'music',
   keys,
   placeholder: 'Search MusicDex: words, or a filter like composer:Bach',
   wordsHint: 'In titles, artists, composers, performers, works, labels and genres',
+  // A CD's few letters name its artist or its title, one or the other.
+  guesses: [
+    { section: 'Artists', kind: 'pill', keys: ['artist', 'composer'] },
+    { section: 'Albums', kind: 'open', find: findAlbums, open: album => openItem('album', album.id) },
+  ],
 };

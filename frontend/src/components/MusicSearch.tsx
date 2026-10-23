@@ -9,6 +9,7 @@ import AddMusicDialog from './AddMusicDialog';
 import AlphabeticalIndex from './AlphabeticalIndex';
 import { NextBanner, CollectionHeader, EmptyState } from './shared';
 import { hasMatchScores, useBestMatch } from './shared/search/bestMatch';
+import { useOpenItem } from '../services/openItem';
 import { BsChevronDown, BsDisc, BsHeadphones, BsShuffle } from 'react-icons/bs';
 import './MusicSearch.css';
 import { readStored, writeStored } from '../utils/safeStorage';
@@ -1017,6 +1018,9 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
       setLoadingDetails(false);
     }
   };
+
+  // The search's menu opens a album it guessed from a few letters (services/openItem).
+  useOpenItem('album', id => { handleCdClick(id); });
 
   /** The tooltip of an album's Listen Next button on its cover: what of it the list holds. */
   const listenNextTitleOf = (albumId: number): string | undefined => {

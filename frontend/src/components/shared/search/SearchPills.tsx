@@ -5,9 +5,9 @@ import Notice from '../Notice';
 import Button from '../Button';
 import { readStored, writeStored } from '../../../utils/safeStorage';
 import {
-  canonical, findKey, fitInRows, norm, parseNumber, parseToken, quote, sayNumber, splitValues, tokenize,
+  canonical, findKey, fitInRows, nameScore, norm, parseNumber, parseToken, quote, sayNumber, splitValues, tokenize,
 } from './query';
-import type { SearchKey, SearchSchema, SuggestedValue } from './schema';
+import type { SearchGuess, SearchGuessGroup, SearchKey, SearchSchema, SuggestedValue } from './schema';
 import '../menu.css';
 import './search-pills.css';
 
@@ -81,8 +81,17 @@ type Suggestion =
   | { kind: 'recent'; section: string; query: string; insert?: undefined }
   | { kind: 'word'; section: string; text: string; desc?: string; insert: string }
   | { kind: 'key'; section: string; def: SearchKey; neg: boolean; desc: string; example?: string; insert: string }
-  | { kind: 'value'; section: string; def: SearchKey; neg: boolean; value: string; desc?: string; count?: number; insert: string }
+  | { kind: 'value'; section: string; def: SearchKey; neg: boolean; value: string; desc?: string; count?: number; insert: string; score?: number }
+  | { kind: 'guess'; section: string; group: OpenGroup; guess: SearchGuess; desc?: string; score: number; insert?: undefined }
   | { kind: 'pillValue'; section: string; value: string; desc?: string; count?: number; checked: boolean; insert?: undefined };
+
+type OpenGroup = Extract<SearchGuessGroup, { kind: 'open' }>;
+
+/** A guess good enough to write its name grey after the letters: its name or one of its words begins with them. */
+const GHOST_SCORE = 70;
+
+/** How well a guess names the letters typed; 0 for what is not a guess. */
+const scoreOf = (s: Suggestion): number => (s.kind === 'guess' || s.kind === 'value' ? s.score ?? 0 : 0);
 
 const RECENT_MAX = 5;
 const MAX_ROWS_AT_REST = 2;
@@ -166,6 +175,8 @@ const SearchPills: React.FC<SearchPillsProps> = ({
   const [keyMenus, setKeyMenus] = useState(0);
   const [wordValues, setWordValues] = useState<{ word: string; found: Array<{ def: SearchKey; value: string; count?: number }> } | null>(null);
   const [pillValues, setPillValues] = useState<{ key: string; values: SuggestedValue[] } | null>(null);
+  const [guessed, setGuessed] = useState<{ word: string; found: Array<{ group: OpenGroup; guess: SearchGuess }> } | null>(null);
+  const guessCache = useRef(new Map<string, Promise<SearchGuess[]>>());
   const [recent, setRecent] = useState<string[]>(() => readRecent(recentKey));
   const cache = useRef(new Map<string, Promise<SuggestedValue[]>>());
   const pendingFocus = useRef<'end' | 'all' | null>(null);
@@ -215,8 +226,10 @@ const SearchPills: React.FC<SearchPillsProps> = ({
   useLayoutEffect(() => {
     if (firstSchema.current) { firstSchema.current = false; return; }
     cache.current.clear();
+    guessCache.current.clear();
     setWordValues(null);
     setPillValues(null);
+    setGuessed(null);
     setRecent(readRecent(recentKey));
     lastEmitted.current = value;
     apply(fromQuery(value));
@@ -271,13 +284,58 @@ const SearchPills: React.FC<SearchPillsProps> = ({
           const want = norm(wordBody);
           const found = lists.flat().filter(f => norm(f.value).includes(want))
             .sort((a, b) => (norm(a.value).startsWith(want) ? 0 : 1) - (norm(b.value).startsWith(want) ? 0 : 1));
-          setWordValues({ word: norm(wordBody), found: found.slice(0, 8) });
+          setWordValues({ word: norm(wordBody), found });
         });
     }, 200);
     return () => { live = false; window.clearTimeout(timer); };
   }, [open, focused, wordBody, keys, ask]);
 
+  // A word typed: the things it may name (an album, a movie), to open.
+  const openGroups = (schema.guesses || []).filter((g): g is OpenGroup => g.kind === 'open');
+  useEffect(() => {
+    if (open || !focused || wordBody.length < 2 || /[:"]/.test(wordBody) || !openGroups.length) return undefined;
+    let live = true;
+    const timer = window.setTimeout(() => {
+      Promise.all(openGroups.map(group => {
+        const id = `${group.section}\u0000${norm(wordBody)}`;
+        let found = guessCache.current.get(id);
+        if (!found) {
+          found = group.find(wordBody).catch(() => []);
+          guessCache.current.set(id, found);
+        }
+        return found.then(list => list.map(guess => ({ group, guess })));
+      })).then(lists => { if (live) setGuessed({ word: norm(wordBody), found: lists.flat() }); });
+    }, 200);
+    return () => { live = false; window.clearTimeout(timer); };
+  }, [open, focused, wordBody, schema]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /* ------------------------------------------------------------ the menu */
+
+  /**
+   * What the letters may name, each group under its heading, best first, and
+   * the group holding the best one first: Artists before Albums for "bea",
+   * Albums first for "abbey".
+   */
+  const guessGroups = (body: string, b: string): Suggestion[] => {
+    const groups = (schema.guesses || []).map(group => {
+      const list: Suggestion[] = group.kind === 'pill'
+        ? (wordValues && wordValues.word === b ? wordValues.found : [])
+          .filter(f => group.keys.includes(f.def.key))
+          .map(f => ({
+            kind: 'value' as const, section: group.section, def: f.def, neg: false, value: f.value, count: f.count,
+            insert: `${f.def.key}:${quote(f.value)}`, score: nameScore(body, f.value) + Math.min(6, (f.count || 0) * 2),
+          }))
+        : (guessed && guessed.word === b ? guessed.found : [])
+          .filter(f => f.group === group)
+          .map(f => ({ kind: 'guess' as const, section: group.section, group, guess: f.guess, desc: f.guess.sub, score: nameScore(body, f.guess.label) }));
+      const ranked = list
+        .filter(sg => scoreOf(sg) > 0)
+        .sort((x, y) => scoreOf(y) - scoreOf(x))
+        .slice(0, group.kind === 'pill' ? 4 : 5);
+      return { ranked, best: ranked.length ? scoreOf(ranked[0]) : 0 };
+    });
+    return groups.sort((x, y) => y.best - x.best).flatMap(g => g.ranked);
+  };
 
   const freeSuggestions = (): Suggestion[] => {
     const neg = /^[-!]/.test(word);
@@ -296,6 +354,8 @@ const SearchPills: React.FC<SearchPillsProps> = ({
       return out;
     }
     const b = norm(body);
+    const guesses = !neg && b.length >= 2 ? guessGroups(body, b) : [];
+    out.push(...guesses);
     if (!neg) out.push({ kind: 'word', section: 'Words', text: body, desc: schema.wordsHint, insert: body });
     for (const def of keys) {
       if (norm(def.key).startsWith(b) || (def.aliases || []).some(a => norm(a).startsWith(b))) {
@@ -303,7 +363,9 @@ const SearchPills: React.FC<SearchPillsProps> = ({
       }
     }
     if (wordValues && wordValues.word === b) {
-      for (const f of wordValues.found) {
+      // The values the guesses do not show already.
+      const guessedKeys = new Set(guesses.length ? (schema.guesses || []).flatMap(g => (g.kind === 'pill' ? g.keys : [])) : []);
+      for (const f of wordValues.found.filter(v => !guessedKeys.has(v.def.key)).slice(0, 8)) {
         out.push({ kind: 'value', section: 'Values', def: f.def, neg, value: f.value, desc: f.def.desc, count: f.count, insert: `${sign}${f.def.key}:${quote(f.value)}` });
       }
     }
@@ -349,7 +411,7 @@ const SearchPills: React.FC<SearchPillsProps> = ({
   const suggestions = open ? pillSuggestions() : freeSuggestions();
 
   /** The grey rest of what is typed: only with the caret at the end, so that nothing after it moves. */
-  const ghost = ((): { item: Suggestion; rest: string } | null => {
+  const ghost = ((): { item: Suggestion; rest: string; tag?: string } | null => {
     if (!focused || !caretAtEnd) return null;
     if (open) {
       if (open.showAll || !text.trim() || text.includes('"')) return null;
@@ -365,6 +427,17 @@ const SearchPills: React.FC<SearchPillsProps> = ({
     }
     if (!word || /^[-!]?$/.test(word)) return null;
     const typed = norm(word.replace(/"/g, ''));
+    // The best guess: its name's rest, or an arrow to it when the letters are inside it (bea → The Beatles).
+    // A key the letters begin (comp → composer:) wins over a name they do not begin.
+    const best = suggestions[0];
+    const bestScore = best ? scoreOf(best) : 0;
+    const beginsKey = suggestions.some(s => s.kind === 'key');
+    if (best && bestScore >= GHOST_SCORE && !(beginsKey && bestScore < 100)) {
+      const name = best.kind === 'guess' ? best.guess.label : best.kind === 'value' ? best.value : '';
+      const tag = best.kind === 'guess' ? best.section.toLowerCase().replace(/s$/, '') : best.kind === 'value' ? best.def.key : undefined;
+      const begins = norm(name).startsWith(typed) && norm(name).length === name.length && name.length > word.length;
+      return { item: best, rest: begins ? name.slice(word.length) : `  → ${name}`, tag };
+    }
     for (const s of suggestions) {
       if (!s.insert || s.insert === word) continue;
       const full = s.insert.replace(/"/g, '');
@@ -437,6 +510,8 @@ const SearchPills: React.FC<SearchPillsProps> = ({
   const take = (s: Suggestion) => {
     const d = draftRef.current;
     if (s.kind === 'pillValue') { takeValue(s.value); return; }
+    // A thing guessed opens, the letters typed staying as they were.
+    if (s.kind === 'guess') { setNav(null); setMenuShown(false); s.group.open(s.guess); return; }
     if (s.kind === 'recent') { apply(fromQuery(s.query), { emit: true, focus: 'end', menu: true }); return; }
     const tk = currentWord(d.text);
     const next = { ...d, text: d.text.slice(0, tk.start) + s.insert };
@@ -681,6 +756,7 @@ const SearchPills: React.FC<SearchPillsProps> = ({
     // The menu opens for the words alone: a button under the field (Use artist) must stay where it was clicked.
     setMenuShown(e.target === inputEl.current);
     cache.current.clear();
+    guessCache.current.clear();
     onFocus?.();
   };
 
@@ -901,6 +977,12 @@ const SearchPills: React.FC<SearchPillsProps> = ({
       );
       case 'word': return <span className="search-pills__tok search-pills__tok--plain">“{s.text}”</span>;
       case 'key': return <span className="search-pills__tok">{s.neg && <span className="search-pill__not">!</span>}<span className="search-pill__key-text">{s.def.key}</span></span>;
+      case 'guess': return (
+        <span className="search-pills__guess">
+          {s.guess.image ? <img className="search-pills__thumb" src={s.guess.image} alt="" loading="lazy" /> : <span className="search-pills__thumb" aria-hidden="true" />}
+          <span className="search-pills__guess-label">{s.guess.label}</span>
+        </span>
+      );
       case 'value': return <span className="search-pills__tok">{s.neg && <span className="search-pill__not">!</span>}<span className="search-pill__key-text">{s.def.key}</span><span className="search-pills__tok-value">{s.value}</span></span>;
       default: return <span className="search-pills__tok"><span className="search-pills__tok-value">{s.value}</span></span>;
     }
@@ -977,7 +1059,7 @@ const SearchPills: React.FC<SearchPillsProps> = ({
                 <span className="search-pills__typing">
                   <span className="search-pills__ghost" aria-hidden="true">
                     <span className="search-pills__typed">{text || (open ? '' : ' ')}</span>
-                    {ghost && <><span className="search-pills__rest">{ghost.rest}</span><kbd className="search-pills__tab">tab</kbd></>}
+                    {ghost && <><span className="search-pills__rest">{ghost.rest}</span>{ghost.tag && <span className="search-pills__ghost-tag">{ghost.tag}</span>}<kbd className="search-pills__tab">tab</kbd></>}
                   </span>
                   <input
                     ref={setInput}

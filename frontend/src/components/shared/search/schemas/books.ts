@@ -1,5 +1,6 @@
 import bookService from '../../../../services/bookService';
-import { suggestFrom, yesNo, type SearchKey, type SearchSchema, type SuggestedValue } from '../schema';
+import { openItem } from '../../../../services/openItem';
+import { suggestFrom, yesNo, type SearchGuess, type SearchKey, type SearchSchema, type SuggestedValue } from '../schema';
 
 /**
  * BookDex's keys, as backend/src/models/book.ts reads them (Book._parseSearchQuery):
@@ -59,9 +60,32 @@ const keys: SearchKey[] = [
   ] },
 ];
 
+interface FoundBook {
+  id: number;
+  title: string;
+  authors?: string[] | null;
+  publishedYear?: number | null;
+  cover?: string | null;
+}
+
+/** The books whose words hold the letters, as the page would find them, to open. */
+const findBooks = async (typed: string): Promise<SearchGuess[]> => {
+  const found = await bookService.searchBooks(typed) as FoundBook[];
+  return (Array.isArray(found) ? found : []).map(book => ({
+    id: book.id,
+    label: book.title,
+    sub: [(book.authors || []).join(', '), book.publishedYear].filter(Boolean).join(' · '),
+    image: bookService.getImageUrl(book.cover) ?? undefined,
+  }));
+};
+
 export const booksSchema: SearchSchema = {
   section: 'books',
   keys,
   placeholder: 'Search BookDex by title, author...',
   wordsHint: 'In titles, authors, series and ISBNs',
+  guesses: [
+    { section: 'Books', kind: 'open', find: findBooks, open: book => openItem('book', book.id) },
+    { section: 'Authors', kind: 'pill', keys: ['author'] },
+  ],
 };

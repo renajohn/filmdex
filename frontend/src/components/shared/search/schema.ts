@@ -54,6 +54,27 @@ export interface SearchKey {
   valuesForWords?: boolean;
 }
 
+/** A thing a few letters may name, which the menu opens: an album, a movie, a book. */
+export interface SearchGuess {
+  id: number;
+  /** Its name, as the menu shows it and the grey rest completes it. */
+  label: string;
+  /** Who and when, under it: "The Beatles · 1969". */
+  sub?: string;
+  /** A small picture of it: a cover, a poster. */
+  image?: string;
+}
+
+/**
+ * What a few letters most likely name, offered first in the menu, each kind
+ * under its heading, the heading holding the best one first: people, who
+ * become a pill of one of their keys (artist:, composer:), and things, which
+ * open (docs/superpowers/specs/2026-10-23-search-guess, variant A).
+ */
+export type SearchGuessGroup =
+  | { section: string; kind: 'pill'; keys: string[] }
+  | { section: string; kind: 'open'; find: (typed: string) => Promise<SearchGuess[]>; open: (guess: SearchGuess) => void };
+
 export interface SearchSchema {
   /** Its name, for the recent searches and the tests: music, movies, books, scores, wishlist. */
   section: string;
@@ -61,6 +82,8 @@ export interface SearchSchema {
   placeholder: string;
   /** What plain words search, said under the word in the menu. */
   wordsHint?: string;
+  /** What a few letters may name, guessed first: without it, the keys' values as they come. */
+  guesses?: SearchGuessGroup[];
 }
 
 /** A bool key's two values, with what each means. */

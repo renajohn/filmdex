@@ -25,6 +25,31 @@ const JOINED: Record<string, string> = { œ: 'oe', æ: 'ae', ß: 'ss', ø: 'o', 
 export const norm = (s: string): string => String(s).toLowerCase()
   .replace(/[œæßøłđðþı]/g, c => JOINED[c]).normalize('NFD').replace(/[̀-ͯ]/g, '');
 
+/** An article before a name: "the" in The Beatles, "l'" in L'Arnaqueur, so that "bea" begins it. */
+const ARTICLE = /^(?:(?:the|a|an|le|la|les|un|une|der|die|das|el|il|lo)\s+|l')/;
+
+/**
+ * How well letters typed name a name, as the backend ranks a search
+ * (backend/src/utils/searchText.ts): the name itself (120), its start, an
+ * article set aside (100), the start of one of its words (70), anywhere (30),
+ * not at all (0).
+ */
+export const nameScore = (typed: string, name: string): number => {
+  const word = norm(typed.replace(/"/g, '')).trim();
+  const t = norm(name).replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, '');
+  if (!word || !t) return 0;
+  const bare = t.replace(ARTICLE, '');
+  if (t === word || bare === word) return 120;
+  if (t.startsWith(word) || bare.startsWith(word)) return 100;
+  let at = t.indexOf(word);
+  if (at < 0) return 0;
+  while (at >= 0) {
+    if (at === 0 || /[^a-z0-9]/.test(t[at - 1])) return 70;
+    at = t.indexOf(word, at + 1);
+  }
+  return 30;
+};
+
 /** The words of a query, split on the spaces outside quotes, with where each stands. */
 export const tokenize = (q: string): Token[] => {
   const out: Token[] = [];
