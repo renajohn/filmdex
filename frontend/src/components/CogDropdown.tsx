@@ -36,7 +36,7 @@ const CogDropdown: React.FC<CogDropdownProps> = ({
         </>
       )}
       <Menu.Section title="DexVault" />
-      <Menu.Item icon={<BsBookshelf />} onSelect={onShelves}>Shelves</Menu.Item>
+      <Menu.Item icon={<BsBookshelf />} hint="⌘7" onSelect={onShelves}>Shelves</Menu.Item>
       <Menu.Item icon={<BsArchive />} onSelect={onBackup}>Backups</Menu.Item>
     </Menu>
   </div>

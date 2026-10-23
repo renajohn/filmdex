@@ -73,6 +73,20 @@ function AppContent() {
     window.addEventListener('keydown', toSearch);
     return () => window.removeEventListener('keydown', toSearch);
   }, []);
+  // ⌘1…⌘7 (Ctrl+1…7) go to a section, in the order of the header's buttons, Shelves last.
+  // In a browser's tab ⌘1…⌘9 stay the browser's (Ctrl works there on a Mac); in DexVault installed as an app they are its own.
+  useEffect(() => {
+    const sections = ['/filmdex', '/musicdex', '/bookdex', '/scores', '/wishlist', '/analytics', '/shelves'];
+    const toSection = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+      const path = sections[Number(e.code.replace('Digit', '')) - 1];
+      if (!path || !e.code.startsWith('Digit')) return;
+      e.preventDefault();
+      navigate(path);
+    };
+    window.addEventListener('keydown', toSection);
+    return () => window.removeEventListener('keydown', toSection);
+  }, [navigate]);
   // Helper to get product name from path
   const getProductFromPath = (path: string): string | null => {
     if (path === '/filmdex') return 'filmdex';
@@ -586,12 +600,12 @@ function AppContent() {
                 value={location.pathname.startsWith('/musicdex') ? 'musicdex' : location.pathname.slice(1)}
                 onChange={section => ({ filmdex: handleCollection, musicdex: handleMusicDex, bookdex: handleBookDex, scores: () => navigate('/scores'), wishlist: handleWishList, analytics: handleAnalytics } as Record<string, () => void>)[section]?.()}
                 options={[
-                  { value: 'filmdex', icon: <BsFilm />, tooltip: 'FilmDex - My precious movies' },
-                  { value: 'musicdex', icon: <BsDisc />, tooltip: 'MusicDex - My precious albums' },
-                  { value: 'bookdex', icon: <BsBook />, tooltip: 'BookDex - My precious books' },
-                  { value: 'scores', icon: <BsFileMusic />, tooltip: 'Scores - My sheet music' },
-                  { value: 'wishlist', icon: <BsBookmark />, tooltip: 'Wish List - My precious to come' },
-                  { value: 'analytics', icon: <BsBarChart />, tooltip: 'Analytics - The palant\u00EDr of data' },
+                  { value: 'filmdex', icon: <BsFilm />, tooltip: 'FilmDex - My precious movies \u00B7 \u23181' },
+                  { value: 'musicdex', icon: <BsDisc />, tooltip: 'MusicDex - My precious albums \u00B7 \u23182' },
+                  { value: 'bookdex', icon: <BsBook />, tooltip: 'BookDex - My precious books \u00B7 \u23183' },
+                  { value: 'scores', icon: <BsFileMusic />, tooltip: 'Scores - My sheet music \u00B7 \u23184' },
+                  { value: 'wishlist', icon: <BsBookmark />, tooltip: 'Wish List - My precious to come \u00B7 \u23185' },
+                  { value: 'analytics', icon: <BsBarChart />, tooltip: 'Analytics - The palant\u00EDr of data \u00B7 \u23186' },
                 ]}
               />
             ) : (
