@@ -68,7 +68,10 @@ code {
     user-select: none;
   }
 
-  /* A quick second tap on a button is a second tap, not a zoom or a word chosen. */
+  /* A quick second tap is a second tap, not a zoom: on a button, and as well on a pill,
+     a suggestion or the search field, which iOS zoomed and never zoomed back. Pinching
+     still zooms. Set on the page, it holds for all it holds. */
+  html,
   button,
   [role="button"],
   .cover-host {

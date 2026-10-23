@@ -157,6 +157,24 @@ const getFilm = async (id: number): Promise<FilmagesFilm> => parseFilm(id, await
 
 const nameWords = (name: string): string[] => normalizeTitle(name).split(' ').filter(Boolean);
 
+/** Edits from one word to the other, a swap of two letters side by side counting as one. */
+const editDistance = (a: string, b: string): number => {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j += 1) d[0][j] = j;
+  for (let i = 1; i <= a.length; i += 1) {
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+  }
+  return d[a.length][b.length];
+};
+
+/** FilmAges misspells a name at times ("Todd Philipps", "James Hawse"): two letters off a long one will do. */
+const sameName = (a: string, b: string): boolean =>
+  a === b || (Math.min(a.length, b.length) >= 5 && editDistance(a, b) <= 2);
+
 /**
  * "Steven Spielberg" meets "Eric Toledano, Olivier Nakache"'s kind of list; a surname
  * found anywhere in the other name will do: "Jennifer Yuh" is "Jennifer Yuh Nelson".
@@ -164,7 +182,8 @@ const nameWords = (name: string): string[] => normalizeTitle(name).split(' ').fi
 export const sameDirector = (ours: string | null | undefined, theirs: string): boolean => {
   const mine = (ours || '').split(',').map(nameWords).filter(words => words.length);
   const listed = theirs.split(',').map(nameWords).filter(words => words.length);
-  return mine.some(a => listed.some(b => b.includes(a[a.length - 1]) || a.includes(b[b.length - 1])));
+  const has = (words: string[], name: string) => words.some(word => sameName(word, name));
+  return mine.some(a => listed.some(b => has(b, a[a.length - 1]) || has(a, b[b.length - 1])));
 };
 
 /**

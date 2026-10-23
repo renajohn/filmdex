@@ -49,6 +49,12 @@ describe('correspondances', () => {
     expect(sameDirector('Jennifer Yuh Nelson', 'Jennifer Yuh')).toBe(true);
   });
 
+  it('pardonne une coquille de FilmAges dans un nom assez long', () => {
+    expect(sameDirector('Todd Phillips', 'Todd Philipps')).toBe(true);
+    expect(sameDirector('James Hawes', 'James Hawse')).toBe(true);
+    expect(sameDirector('John Woo', 'John Wu')).toBe(false);
+  });
+
   it('remet l’article en tête et sépare les deux titres', () => {
     expect(titleKeys('Truman show (Le)')).toEqual(expect.arrayContaining(['le truman show']));
     expect(titleKeys("Ocean's 13 - Ocean's Thirteen")).toEqual(expect.arrayContaining(['oceans thirteen', 'oceans 13']));
