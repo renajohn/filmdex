@@ -12,7 +12,6 @@ import Button from './shared/Button';
 import './PlayerBar.css';
 import './RemoteBar.css';
 
-const BAR_HEIGHT = 54;
 /** A toggle sent shows at once; with no word of it by then, the bar shows what it knows again. */
 const PENDING_MS = 4_000;
 const time = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
@@ -56,7 +55,7 @@ const RemoteBar: React.FC = () => {
   const out = Boolean(target) && (Boolean(target?.album) || inMusic) && !localPlaying && !(localShown && !target?.playing);
   useEffect(() => {
     if (localShown) return;
-    document.documentElement.style.setProperty('--player-h', out ? `${BAR_HEIGHT}px` : '0px');
+    document.documentElement.style.setProperty('--player-h', out ? 'var(--player-bar-room)' : '0px');
   }, [out, localShown]);
 
   if (!target || !out) return null;

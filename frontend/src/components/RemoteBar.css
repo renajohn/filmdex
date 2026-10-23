@@ -57,6 +57,18 @@
   gap: 2px;
 }
 
+@media (max-width: 767px) {
+  .remote-bar-inner {
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+
+  .remote-bar-cover {
+    width: 46px;
+    height: 46px;
+  }
+}
+
 /* Its computer asleep or its page closed: in sight, greyed, its buttons idle. */
 .remote-bar--away {
   opacity: 0.6;

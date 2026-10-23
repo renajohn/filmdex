@@ -4,14 +4,23 @@
  * from the side (--player-h). It stands above the pages and below every
  * dialog and overlay (all from 1000 up): one that reaches the foot of the
  * screen covers it rather than hiding under it.
+ *
+ * On an iPhone it stands above the home bar and clear of the rounded corners
+ * (safe-area-inset-bottom), and is a little taller, its buttons easier to tap.
  */
+:root {
+  --player-bar-h: 54px;
+  --player-bar-room: calc(var(--player-bar-h) + env(safe-area-inset-bottom, 0px));
+}
+
 .player-bar {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 990;
-  height: 54px;
+  height: var(--player-bar-room);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   background: #181818;
   border-top: 1px solid #333;
   color: #d6dbe1;
@@ -350,9 +359,33 @@
 
 /* On a phone: the cover, the track and ♥ (the words are a desktop's); ⏯ ⏭; the tracks and ✕, without the times. */
 @media (max-width: 767px) {
+  :root {
+    --player-bar-h: 64px;
+  }
+
   .player-bar-inner {
     grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 6px;
+    padding-left: max(14px, env(safe-area-inset-left, 0px));
+    padding-right: max(14px, env(safe-area-inset-right, 0px));
+  }
+
+  .player-bar-album img,
+  .player-bar-nocover {
+    width: 46px;
+    height: 46px;
+  }
+
+  .player-bar-button {
+    width: 44px;
+    height: 44px;
+    font-size: 1.2rem;
+  }
+
+  .player-bar-play {
+    width: 48px;
+    height: 48px;
+    font-size: 1.5rem;
   }
 
   .player-bar-time,

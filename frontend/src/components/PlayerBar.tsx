@@ -12,9 +12,6 @@ import musicService from '../services/musicService';
 import { loadPlayable } from '../utils/playAlbum';
 import './PlayerBar.css';
 
-/** The bar's height, which the rest of the app gives up while it is out. */
-const BAR_HEIGHT = 54;
-
 const time = (seconds: number): string => {
   const s = Math.max(0, Math.floor(seconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -92,7 +89,7 @@ const PlayerBar: React.FC = () => {
 
   // The room the bar takes, for the pages and the cards: --player-h on the root.
   useEffect(() => {
-    document.documentElement.style.setProperty('--player-h', shown ? `${BAR_HEIGHT}px` : '0px');
+    document.documentElement.style.setProperty('--player-h', shown ? 'var(--player-bar-room)' : '0px');
   }, [shown]);
 
   // What the bar last showed, kept while it slides away after ✕.
