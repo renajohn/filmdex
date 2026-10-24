@@ -519,7 +519,6 @@
 .movies-results {
   display: flex;
   flex-direction: column;
-  padding: 0 20px;
 }
 
 .movies-results-header {

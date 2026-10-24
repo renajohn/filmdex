@@ -10,6 +10,12 @@
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
   color: #f8f9fa;
   padding: 20px;
+  /* On an iPhone the page runs under the status bar and the camera
+     (viewport-fit=cover, a translucent status bar): the header starts below
+     them, and clear of the notch on the sides when the phone lies down. */
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
   box-shadow: 0 8px 32px rgba(0,0,0,0.4);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(251, 191, 36, 0.2);
