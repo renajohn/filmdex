@@ -131,6 +131,119 @@ export const NextBannerDrop: React.FC<{ id: string; className?: string; inline?:
   );
 };
 
+/** A banner's icon when it is given none: a star. */
+const BannerStar: React.FC = () => (
+  <svg className="next-banner__icon" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+  </svg>
+);
+
+/**
+ * The banner's place, held while its list is read: its title and the places of
+ * its covers, a sheen passing over them, as high as the banner will be. A page
+ * assumes its banner is there and draws this at once; the banner takes its
+ * place, or NextBannerSlot slides it away.
+ */
+export const NextBannerPending: React.FC<{
+  type: 'movie' | 'music';
+  title: string;
+  icon?: React.ReactNode;
+  className?: string;
+  /** In the header, as the banner will have them: controls of the list's own. */
+  headerControls?: React.ReactNode;
+  /** Under the cards, as the banner will have it: the other list's strip, say. */
+  footer?: React.ReactNode;
+  /** The banner will end with Help me choose (onSmartFill): held too, with what lies under it. */
+  smartFill?: boolean;
+  smartFillFoot?: React.ReactNode;
+}> = ({ type, title, icon, className = '', headerControls, footer, smartFill = false, smartFillFoot }) => (
+  <div className={`next-banner next-banner--pending ${className}`} aria-busy="true">
+    <div className="next-banner__header">
+      <div className="next-banner__title-section">
+        {icon ?? <BannerStar />}
+        <h2 className="next-banner__title">{title}</h2>
+        {headerControls}
+      </div>
+    </div>
+    <div className="next-banner__carousel">
+      <div className="next-banner__track">
+        {Array.from({ length: 8 }, (_, i) => (
+          <div key={i} className="next-banner__card">
+            <div className={`next-banner__image next-banner__image--${type} next-banner__image--pending`} />
+            {/* An album's title and artist under its cover, their lines held. */}
+            {type === 'music' && (
+              <div className="next-banner__info" aria-hidden="true">
+                <p className="next-banner__info-title">&nbsp;</p>
+                <p className="next-banner__info-subtitle">&nbsp;</p>
+              </div>
+            )}
+          </div>
+        ))}
+        {smartFill && (
+          <div className="next-banner__help">
+            <button type="button" className={`next-banner__help-card next-banner__help-card--${type}`} disabled>
+              <span className="next-banner__help-text">Help me choose</span>
+              <span className="next-banner__help-icon">+</span>
+            </button>
+            {smartFillFoot && <div className="next-banner__help-foot">{smartFillFoot}</div>}
+          </div>
+        )}
+      </div>
+    </div>
+    {footer}
+  </div>
+);
+
+/** How long a banner takes to fade in (bannerFadeIn), and to slide away. */
+const FADE_MS = 250;
+const SLIDE_MS = 350;
+
+/**
+ * Where a page's banner stands. Shown, it holds it; no longer to be shown (its
+ * list read and empty, a search typed), it slides it up and away rather than
+ * take it off at once, the page under it rising with it.
+ */
+export const NextBannerSlot: React.FC<{ show: boolean; children: React.ReactNode }> = ({ show, children }) => {
+  const slot = useRef<HTMLDivElement>(null);
+  // What it showed last: drawn on while it slides away.
+  const last = useRef<React.ReactNode>(children);
+  if (show) last.current = children;
+  const [shown, setShown] = useState(show);
+  const [leaving, setLeaving] = useState(false);
+  // Once in, faded in: what comes in its place (the banner read, after its place held) comes without a fade.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (!show || settled) return undefined;
+    const timer = window.setTimeout(() => setSettled(true), FADE_MS);
+    return () => window.clearTimeout(timer);
+  }, [show, settled]);
+  if (show !== shown) {
+    setShown(show);
+    setLeaving(!show);
+  }
+  useLayoutEffect(() => {
+    const element = slot.current;
+    if (!element) return undefined;
+    // Shown again before it was gone: its own height back.
+    if (!leaving) {
+      element.style.height = '';
+      return undefined;
+    }
+    // From its height to none: a height set, read, then 0 for the transition to run.
+    element.style.height = `${element.offsetHeight}px`;
+    void element.offsetHeight;
+    element.style.height = '0px';
+    const timer = window.setTimeout(() => { setLeaving(false); setSettled(false); }, SLIDE_MS);
+    return () => window.clearTimeout(timer);
+  }, [leaving]);
+  if (!show && !leaving) return null;
+  return (
+    <div ref={slot} className={`next-banner-slot${settled ? ' next-banner-slot--settled' : ''}${leaving ? ' next-banner-slot--leaving' : ''}`}>
+      {show ? children : last.current}
+    </div>
+  );
+};
+
 /** A small cover of the other list, at the foot: dragged into the row and back like a card; a click stays a click. */
 const SortableSmall: React.FC<{ id: string; title: string; image: string | null; onClick: () => void; fallback: React.ReactNode; landing?: boolean }> = ({ id, title, image, onClick, fallback, landing = false }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -459,18 +572,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
 
   // Render the icon
   const renderIcon = () => {
-    if (!icon) {
-      // Default star icon for movies
-      return (
-        <svg
-          className="next-banner__icon"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-        >
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-        </svg>
-      );
-    }
+    if (!icon) return <BannerStar />;
 
     // If icon is a string, treat it as emoji
     if (typeof icon === 'string') {

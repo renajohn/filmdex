@@ -651,10 +651,54 @@
   to { opacity: 1; transform: none; }
 }
 
+/*
+ * Where a page's banner stands (NextBannerSlot). The banner read takes the place
+ * held for it without a fade; no longer shown, it slides up and away, the page
+ * rising with it. flow-root: its height holds the banner's margin.
+ */
+.next-banner-slot {
+  display: flow-root;
+}
+
+.next-banner-slot--settled > .next-banner {
+  animation: none;
+}
+
+.next-banner-slot--leaving {
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1), margin-top 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease-in;
+}
+
+/* Its place held while its list is read: the covers' places, a sheen passing over them (cover.css). */
+.next-banner__image--pending {
+  cursor: default;
+  background-color: #262626;
+  background-image: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.07) 50%, transparent 65%);
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  animation: cover-wait 1.6s ease-in-out infinite;
+}
+
+/* The other list's strip held: as high as its small covers. */
+.next-banner-other__pending {
+  height: 30px;
+}
+
+.next-banner--pending .next-banner__card:hover .next-banner__image {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .next-banner,
-  .next-banner__card--entering {
+  .next-banner__card--entering,
+  .next-banner__image--pending {
     animation: none;
+  }
+
+  .next-banner-slot--leaving {
+    transition: none;
   }
 }
 

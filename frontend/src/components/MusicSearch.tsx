@@ -7,7 +7,7 @@ import MusicThumbnail from './MusicThumbnail';
 import MusicDetailCard from './MusicDetailCard';
 import AddMusicDialog from './AddMusicDialog';
 import AlphabeticalIndex from './AlphabeticalIndex';
-import { NextBanner, CollectionHeader, EmptyState } from './shared';
+import { NextBanner, NextBannerPending, NextBannerSlot, CollectionHeader, EmptyState } from './shared';
 import { hasMatchScores, useBestMatch } from './shared/search/bestMatch';
 import { useOpenItem } from '../services/openItem';
 import { BsChevronDown, BsDisc, BsHeadphones, BsShuffle } from 'react-icons/bs';
@@ -289,6 +289,14 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     setNextClassical(choice);
     writeStored(NEXT_CLASSICAL_KEY, choice);
   }, []);
+  // Under Help me choose: what a draw takes.
+  const drawFrom = (
+    <Segmented label="Draw from" size="sm" value={nextClassical} onChange={chooseNextClassical} options={[
+      { value: 'pop', label: 'Pop', tooltip: 'Everything but classical' },
+      { value: 'classical', label: 'Classical' },
+      { value: 'both', label: 'Both' },
+    ]} />
+  );
   const chooseNextMedium = useCallback((medium: ListenNextMedium) => {
     setNextMedium(medium);
     writeStored(NEXT_MEDIUM_KEY, medium);
@@ -1303,8 +1311,10 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
         disabled={groupBy !== 'none' || (digitalOn && digitalFilter === 'buy')}
       />
 
-      {/* Listen Next Banner - show when there are albums OR when we have albums in collection to suggest */}
-      {!searchCriteria?.searchText && listenNextRead && (listenNextAlbums.length > 0 || allCds.length > 0) && (
+      {/* Listen Next Banner - show when there are albums OR when we have albums in collection to suggest;
+          its place held until its lists are read, then filled or slid away. */}
+      <NextBannerSlot show={!searchCriteria?.searchText && (!listenNextRead || listenNextAlbums.length > 0 || allCds.length > 0)}>
+      {listenNextRead ? (
         <NextBanner
           // Two lists: Digital, streamed, in gold; CD, the CDs to put on the player, in silver, with no ▶.
           items={listenNext.items.filter(album => mediumOf(album) === nextMedium)}
@@ -1380,13 +1390,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           getSubtitle={(album) => Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}
           // Only the streamed list draws, from any album: a CD or digital alone.
           onSmartFill={nextMedium === 'digital' ? handleSmartFill : undefined}
-          smartFillFoot={(
-            <Segmented label="Draw from" size="sm" value={nextClassical} onChange={chooseNextClassical} options={[
-              { value: 'pop', label: 'Pop', tooltip: 'Everything but classical' },
-              { value: 'classical', label: 'Classical' },
-              { value: 'both', label: 'Both' },
-            ]} />
-          )}
+          smartFillFoot={drawFrom}
           smartFillLoading={smartFillLoading}
           // One disc of an album: its number. With Digital on, what sets each album apart: a disc struck through is left out of the Navidrome playlist.
           renderBadges={(album) => {
@@ -1425,7 +1429,29 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
             );
           }}
         />
+      ) : (
+        // Its header and its strip as the banner will have them, as high, its lengths not read yet.
+        <NextBannerPending type="music" title="Listen Next"
+          className={`listen-next-lists${nextMedium === 'cd' ? ' next-banner--silver' : ''}`}
+          icon={<MediumIcon medium={nextMedium} className="next-banner__icon" />}
+          headerControls={(
+            <span className="listen-next-head">
+              <ListenNextSwitch medium={nextMedium} onChange={chooseNextMedium} />
+              <span className="listen-next-head__summary" />
+              <span className="listen-next-head__end" />
+            </span>
+          )}
+          smartFill={nextMedium === 'digital'}
+          smartFillFoot={drawFrom}
+          footer={(
+            <div className={`next-banner-other next-banner-other--${otherMedium(nextMedium)}`}>
+              <div className="next-banner-other__drop">
+                <span className="next-banner-other__pending" />
+              </div>
+            </div>
+          )} />
       )}
+      </NextBannerSlot>
 
       {/* Results Header with Controls */}
       <div className="cds-results">

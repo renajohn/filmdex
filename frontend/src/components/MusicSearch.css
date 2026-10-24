@@ -264,11 +264,16 @@
     padding: 10px;
   }
 
-  /* Listen Next runs to the edges of the screen and up to the app's bar, past the page's margin, as its covers leave by them. */
-  .music-search > .next-banner {
+  /* Listen Next runs to the edges of the screen and up to the app's bar, past the page's margin, as its covers leave by them.
+     Sliding away, its slot gives the margin back with its height: the grid rises to its place, no jump at the end. */
+  .music-search > .next-banner-slot {
     margin-top: -10px;
     margin-left: -10px;
     margin-right: -10px;
+  }
+
+  .music-search > .next-banner-slot--leaving {
+    margin-top: 0;
   }
   
   .cd-grid {

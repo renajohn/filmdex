@@ -26,7 +26,8 @@ export const INSTEAD: Record<ListenNextMedium, string> = { digital: 'Stream it i
 
 interface SwitchProps {
   medium: ListenNextMedium;
-  counts: Record<ListenNextMedium, number>;
+  /** None while the lists are read. */
+  counts?: Record<ListenNextMedium, number>;
   onChange: (medium: ListenNextMedium) => void;
 }
 
@@ -42,7 +43,7 @@ export const ListenNextSwitch: React.FC<SwitchProps> = ({ medium, counts, onChan
     options={(['digital', 'cd'] as ListenNextMedium[]).map(value => ({
       value,
       label: <NextBannerDrop id={value} inline className="listen-next-switch__drop">{MEDIUM_NAMES[value]}</NextBannerDrop>,
-      count: counts[value],
+      count: counts?.[value],
       tooltip: value === 'cd' ? 'Listen Next, on CD' : 'Listen Next, streamed',
     }))}
   />

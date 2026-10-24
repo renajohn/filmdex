@@ -6,7 +6,7 @@ import apiService from '../services/api';
 import MovieDetailCard from './MovieDetailCard';
 import BoxSetStack from './BoxSetStack';
 import AlphabeticalIndex from './AlphabeticalIndex';
-import { NextBanner, CollectionHeader, EmptyState } from './shared';
+import { NextBanner, NextBannerPending, NextBannerSlot, CollectionHeader, EmptyState } from './shared';
 import { hasMatchScores, stacksMatchFirst, useBestMatch } from './shared/search/bestMatch';
 import { useOpenItem } from '../services/openItem';
 import MovieCover, { combinedScore } from './MovieCover';
@@ -878,6 +878,8 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
 
   // Get Watch Next movies for banner (already sorted by API)
   const [watchNextMovies, setWatchNextMovies] = useKeptState<any[]>('filmdex:watchNext', []);
+  // Until its list is read, the banner is taken to be there: its place held, then filled or slid away.
+  const [watchNextRead, setWatchNextRead] = useState(() => isKept('filmdex:watchNext'));
   const [showWatchedPrompt, setShowWatchedPrompt] = useState(false);
   const [promptMovie, setPromptMovie] = useState<any>(null); // Store full movie object for prompt
 
@@ -889,6 +891,8 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
       } catch (error) {
         console.warn('Failed to load Watch Next movies:', error);
         setWatchNextMovies([]);
+      } finally {
+        setWatchNextRead(true);
       }
     };
 
@@ -918,20 +922,22 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
         disabled={groupBy !== 'none'}
       />
 
-      {/* Watch Next Banner */}
-      {watchNextMovies.length > 0 && !searchCriteria?.searchText && (
-        <NextBanner
-          items={watchNextMovies}
-          type="movie"
-          title="Watch Next"
-          onItemClick={(id) => handleMovieClick(id, watchNextMovies.map((movie: any) => movie.id))}
-          onRemove={handleWatchNextToggle}
-          onReorder={keys => handleWatchNextReorder(keys as number[])}
-          getImageUrl={(movie: any) => getPosterUrl(movie.poster_path)}
-          getTitle={(movie: any) => movie.title}
-          renderCover={(movie: any) => <MovieCover movie={allMovies.find(m => m.id === movie.id) ?? movie} />}
-        />
-      )}
+      {/* Watch Next Banner: its place held until its list is read, then filled or slid away. */}
+      <NextBannerSlot show={!searchCriteria?.searchText && (!watchNextRead || watchNextMovies.length > 0)}>
+        {watchNextRead ? (
+          <NextBanner
+            items={watchNextMovies}
+            type="movie"
+            title="Watch Next"
+            onItemClick={(id) => handleMovieClick(id, watchNextMovies.map((movie: any) => movie.id))}
+            onRemove={handleWatchNextToggle}
+            onReorder={keys => handleWatchNextReorder(keys as number[])}
+            getImageUrl={(movie: any) => getPosterUrl(movie.poster_path)}
+            getTitle={(movie: any) => movie.title}
+            renderCover={(movie: any) => <MovieCover movie={allMovies.find(m => m.id === movie.id) ?? movie} />}
+          />
+        ) : <NextBannerPending type="movie" title="Watch Next" />}
+      </NextBannerSlot>
 
       <div className="movies-results" ref={resultsRef}>
         <CollectionHeader
