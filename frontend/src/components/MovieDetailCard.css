@@ -88,16 +88,34 @@
 }
 
 .movie-detail-card .movie-detail-content {
-  margin-top: calc(-1 * var(--movie-head-h));
+  margin-top: calc(-1 * (var(--movie-head-h) + var(--safe-top)));
 }
 
 .movie-detail-card .movie-detail-header {
-  padding-top: calc(20px + var(--movie-head-h));
+  padding-top: calc(20px + var(--movie-head-h) + var(--safe-top));
 }
 
 @media (max-width: 767.98px) {
   .movie-detail-card {
     --movie-head-h: 57px;
+  }
+}
+
+/* The card is not a Bootstrap .modal and touches the top of the screen, full
+   screen or a panel: on an iPhone its head runs under the status bar, its glass
+   behind the clock and its title and ✕ below it; the foot clears the home
+   indicator, the sides the notch when the phone lies down. */
+.movie-detail-card {
+  padding: 0 var(--safe-right) var(--safe-foot) var(--safe-left);
+}
+
+.movie-detail-card .movie-detail-head {
+  padding-top: calc(14px + var(--safe-top));
+}
+
+@media (max-width: 767.98px) {
+  .movie-detail-card .movie-detail-head {
+    padding-top: calc(10px + var(--safe-top));
   }
 }
 

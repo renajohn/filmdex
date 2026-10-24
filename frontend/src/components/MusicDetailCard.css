@@ -883,7 +883,7 @@
     flex: none;
     flex-wrap: nowrap;
     gap: 6px;
-    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    padding: 8px 10px;
   }
 
   .music-detail-listen,

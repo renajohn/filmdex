@@ -13,9 +13,9 @@
   /* On an iPhone the page runs under the status bar and the camera
      (viewport-fit=cover, a translucent status bar): the header starts below
      them, and clear of the notch on the sides when the phone lies down. */
-  padding-top: calc(20px + env(safe-area-inset-top, 0px));
-  padding-left: max(20px, env(safe-area-inset-left, 0px));
-  padding-right: max(20px, env(safe-area-inset-right, 0px));
+  padding-top: calc(20px + var(--safe-top));
+  padding-left: max(20px, var(--safe-left));
+  padding-right: max(20px, var(--safe-right));
   box-shadow: 0 8px 32px rgba(0,0,0,0.4);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(251, 191, 36, 0.2);
@@ -219,6 +219,83 @@ body {
   transition: opacity 0.15s linear, height 0.25s ease-out;
 }
 
+/*
+ * On an iPhone the page runs under the status bar, the camera and the home
+ * indicator (viewport-fit=cover), and every dialog with it: a card's head,
+ * its title and its ✕ lay under the clock, out of reach. Every Bootstrap
+ * .modal keeps clear of them here, once for all. A dialog in the middle of
+ * the screen sits inside the safe area; one that fills the screen keeps its
+ * colour to the edges and holds what it says inside. At the foot, the
+ * player's bar, when it is out, already stands above the home indicator.
+ */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  /* What the foot keeps clear of: the home indicator, unless the player's bar stands over it. */
+  --safe-foot: max(0px, var(--safe-bottom) - var(--player-h));
+}
+
+.modal {
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-foot);
+}
+
+/* Full screen at its width (Bootstrap's breakpoints): the padding goes inside. */
+.modal:has(> .modal-fullscreen) {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.modal-fullscreen > .modal-content {
+  padding: var(--safe-top) var(--safe-right) var(--safe-foot) var(--safe-left);
+}
+
+@media (max-width: 575.98px) {
+  .modal:has(> .modal-fullscreen-sm-down) {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .modal-fullscreen-sm-down > .modal-content {
+    padding: var(--safe-top) var(--safe-right) var(--safe-foot) var(--safe-left);
+  }
+}
+
+@media (max-width: 767.98px) {
+  .modal:has(> .modal-fullscreen-md-down) {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .modal-fullscreen-md-down > .modal-content {
+    padding: var(--safe-top) var(--safe-right) var(--safe-foot) var(--safe-left);
+  }
+}
+
+@media (max-width: 991.98px) {
+  .modal:has(> .modal-fullscreen-lg-down) {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .modal-fullscreen-lg-down > .modal-content {
+    padding: var(--safe-top) var(--safe-right) var(--safe-foot) var(--safe-left);
+  }
+}
+
+@media (max-width: 1199.98px) {
+  .modal:has(> .modal-fullscreen-xl-down) {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .modal-fullscreen-xl-down > .modal-content {
+    padding: var(--safe-top) var(--safe-right) var(--safe-foot) var(--safe-left);
+  }
+}
+
 /* Three classes: the book card's styles hold .modal-backdrop.show to 100vh, important too. */
 .modal-backdrop.fade.show,
 .modal-backdrop.fade {
@@ -257,6 +334,8 @@ body {
     border-radius: 0;
     box-shadow: -16px 0 48px rgba(0, 0, 0, 0.45);
     overflow: hidden;
+    /* Fixed to the screen's top, past the .modal's padding: on an iPad its head below the clock. */
+    padding: var(--safe-top) var(--safe-right) var(--safe-foot) 0;
   }
 
   .modal.side-panel-modal .modal-body {

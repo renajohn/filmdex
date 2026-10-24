@@ -59,8 +59,8 @@
 
 @media (max-width: 767px) {
   .remote-bar-inner {
-    padding-left: max(12px, env(safe-area-inset-left, 0px));
-    padding-right: max(12px, env(safe-area-inset-right, 0px));
+    padding-left: max(12px, var(--safe-left));
+    padding-right: max(12px, var(--safe-right));
   }
 
   .remote-bar-cover {

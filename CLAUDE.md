@@ -96,6 +96,7 @@ Every button uses **`Button`** or **`IconButton`** (`frontend/src/components/sha
 - `IconButton`: an icon alone, `label` required (tooltip and screen readers), `size` sm/md, `tone` confirm (gold ✓ beside a field) or danger, `boxed` when it stands alone in a bar, `active`.
 - Side by side as one (Play and its ▾): a parent with the class `ui-button-group` (or a Bootstrap `ButtonGroup`); the ▾ takes the class `ui-button--split` and a `MenuChevron`.
 - A dialog is **`Dialog`** (`Dialog.Body`, `Dialog.Footer`; `variant` center or panel, the head of an album's card with `icon`, `title`, `aside`, `steps`, ✕), never a react-bootstrap `Modal` or an overlay by hand; a question is `await confirm({ … })`, never `window.confirm`.
+- On an iPhone the page runs under the status bar and the home indicator: every `.modal` keeps clear of them by itself (`App.css`); anything else that touches an edge of the screen pads itself with `--safe-top`, `--safe-right`, `--safe-left`, `--safe-foot`.
 - One of a few side by side is **`Segmented`**; a filter pill, a shelf to jump to or a filter in place with its ✕ is **`Chip`** (see the guidelines).
 - A component's stylesheet only places a button (margins, position, flex), never its colours, borders, padding or size.
 

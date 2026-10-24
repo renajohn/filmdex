@@ -156,6 +156,14 @@ if (await confirm({ title: 'Delete this backup?', message: '“x.zip” goes for
   question that cannot be undone is `danger`: red, a bin, never gold.
 - A movie's card keeps its own card and backdrop, under the same `DialogHeader`,
   a glass the backdrop runs under.
+- **On an iPhone it keeps clear of the status bar, the camera and the home
+  indicator** (the page runs under them, `viewport-fit=cover`). Every Bootstrap
+  `.modal` does so on its own (`App.css`): a centred one sits inside the safe
+  area, one that fills the screen keeps its colour to the edges and pads its
+  content. Anything else laid over the whole screen or along an edge (a movie's
+  card, a bar) pads itself with `--safe-top`, `--safe-right`, `--safe-left` and
+  `--safe-foot` (the home indicator, unless the player's bar stands over it),
+  never `top: 0` alone and never `env(safe-area-inset-*)` again.
 - **A record's card is a page, not boxes** (an album's, a book's): the panel is
   the frame, nothing inside wears one. The head: the cover; beside it who and
   what in a murmur (format, length, year, label; publisher, pages, language);

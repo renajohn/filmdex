@@ -982,12 +982,8 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
 
   const handleBookClick = async (bookId: number | string) => {
     try {
-      // Save scroll position before opening modal to ensure it's preserved
-      const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
       const details = await bookService.getBookById(bookId);
       setSelectedBookDetails(details);
-      // Store scroll position in sessionStorage as backup
-      sessionStorage.setItem('bookDetailScrollPosition', scrollPosition.toString());
     } catch (err) {
       if (onShowAlert) {
         onShowAlert('Failed to load book details: ' + (err as Error).message, 'danger');

@@ -207,7 +207,6 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
   const [existingBooks, setExistingBooks] = useState<Map<any, any>>(new Map());
   const [copyOwnerInfo, setCopyOwnerInfo] = useState(true);
   const [updatingBook, setUpdatingBook] = useState(false);
-  const scrollPositionRef = useRef(0);
   const [seriesMembers, setSeriesMembers] = useState<any[]>([]);
   const [loadingSeriesMembers, setLoadingSeriesMembers] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
@@ -1324,96 +1323,6 @@ const BookDetailCard = ({ book, onClose, onEdit, onUpdateBook, onBookUpdated, on
     document.addEventListener('click', handleDocClick, true);
     return () => document.removeEventListener('click', handleDocClick, true);
   }, [confirmDelete]);
-
-  // Prevent body scroll when modal is open, but preserve scroll position
-  useEffect(() => {
-    if (book) {
-      // Save current scroll position before locking
-      // First try to get from sessionStorage (saved before modal opens), otherwise use current position
-      const savedScroll = sessionStorage.getItem('bookDetailScrollPosition');
-      scrollPositionRef.current = savedScroll ? parseInt(savedScroll, 10) : (window.pageYOffset || document.documentElement.scrollTop);
-      
-      // Store original overflow values
-      const originalBodyOverflow = document.body.style.overflow;
-      const originalHtmlOverflow = document.documentElement.style.overflow;
-      const originalBodyPosition = document.body.style.position;
-      const originalBodyTop = document.body.style.top;
-      const originalBodyWidth = document.body.style.width;
-      
-      // Lock body scroll completely but preserve scroll position
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollPositionRef.current}px`;
-      document.body.style.width = '100%';
-      document.documentElement.style.overflow = 'hidden';
-      
-      // Prevent touch scrolling on mobile and desktop - but allow scrolling within modal
-      // eslint-disable-next-line consistent-return
-      const preventScroll = (e: Event): false | void => {
-        // Always allow scrolling within the modal
-        const modal = document.querySelector('.book-detail-modal');
-        if (modal && modal.contains(e.target as Node)) {
-          // Allow all scrolling within modal
-          return;
-        }
-        // Prevent scrolling on background only
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-      };
-      
-      // Prevent scroll on touchmove for the background (mobile)
-      document.addEventListener('touchmove', preventScroll, { passive: false });
-      // Prevent scroll on wheel for the background (desktop) 
-      document.addEventListener('wheel', preventScroll, { passive: false });
-      
-      return () => {
-        // Restore scroll position immediately before restoring body styles to prevent visible scroll
-        const scrollPosition = scrollPositionRef.current;
-        
-        // Remove event listeners first
-        document.removeEventListener('touchmove', preventScroll);
-        document.removeEventListener('wheel', preventScroll);
-        
-        // Temporarily disable scroll behavior to prevent animation
-        const originalScrollBehavior = document.documentElement.style.scrollBehavior;
-        document.documentElement.style.scrollBehavior = 'auto';
-        document.body.style.scrollBehavior = 'auto';
-        
-        // Set scroll position BEFORE restoring body styles to prevent jump
-        if (scrollPosition !== undefined && scrollPosition !== null) {
-          // Temporarily restore position to allow scroll setting
-          document.body.style.position = 'relative';
-          document.body.style.top = '0';
-          
-          // Set scroll position immediately (synchronously) - use scrollTo with 0 delay
-          window.scrollTo(0, scrollPosition);
-          document.documentElement.scrollTop = scrollPosition;
-          document.body.scrollTop = scrollPosition;
-          
-          // Force a synchronous reflow to ensure scroll position is set before next frame
-          void document.body.offsetHeight;
-        }
-        
-        // Now restore all body styles
-        document.body.style.overflow = originalBodyOverflow;
-        document.body.style.position = originalBodyPosition;
-        document.body.style.top = originalBodyTop;
-        document.body.style.width = originalBodyWidth;
-        document.documentElement.style.overflow = originalHtmlOverflow;
-        
-        // Restore scroll behavior after a brief moment
-        setTimeout(() => {
-          document.documentElement.style.scrollBehavior = originalScrollBehavior;
-          document.body.style.scrollBehavior = originalScrollBehavior || '';
-        }, 0);
-        
-        // Clear the saved scroll position from sessionStorage
-        sessionStorage.removeItem('bookDetailScrollPosition');
-      };
-    }
-    return undefined;
-  }, [book]);
 
   return (
     <>

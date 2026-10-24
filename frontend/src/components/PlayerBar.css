@@ -10,7 +10,7 @@
  */
 :root {
   --player-bar-h: 54px;
-  --player-bar-room: calc(var(--player-bar-h) + env(safe-area-inset-bottom, 0px));
+  --player-bar-room: calc(var(--player-bar-h) + var(--safe-bottom));
 }
 
 .player-bar {
@@ -20,7 +20,7 @@
   bottom: 0;
   z-index: 990;
   height: var(--player-bar-room);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--safe-bottom);
   background: #181818;
   border-top: 1px solid #333;
   color: #d6dbe1;
@@ -366,8 +366,8 @@
   .player-bar-inner {
     grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 6px;
-    padding-left: max(14px, env(safe-area-inset-left, 0px));
-    padding-right: max(14px, env(safe-area-inset-right, 0px));
+    padding-left: max(14px, var(--safe-left));
+    padding-right: max(14px, var(--safe-right));
   }
 
   .player-bar-album img,
