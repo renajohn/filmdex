@@ -11,7 +11,7 @@ import coverScanService from '../services/coverScanService';
 import discogsService from '../services/discogsService';
 import Album from '../models/album';
 import musicCollectionService, { MEDIUMS, parseEntryKey } from '../services/musicCollectionService';
-import smartPlaylistService from '../services/smartPlaylistService';
+import smartPlaylistService, { classicalChoiceOf } from '../services/smartPlaylistService';
 import musicbrainzLinkService from '../services/musicbrainzLinkService';
 import musicbrainzRefreshService from '../services/musicbrainzRefreshService';
 import ripStatusService from '../services/ripStatusService';
@@ -1236,7 +1236,10 @@ const musicController = {
   smartFillListenNext: async (req: Request, res: Response): Promise<void> => {
     try {
       // "From anything": the digital albums too, as MusicDex shows them with Digital on.
-      const result = await smartPlaylistService.smartFillListenNext({ withDigital: req.body?.from === 'any' });
+      const result = await smartPlaylistService.smartFillListenNext({
+        withDigital: req.body?.from === 'any',
+        classical: classicalChoiceOf(req.body?.classical),
+      });
       listenNextPlaylistService.schedule();
 
       // Get the updated Listen Next albums to return
@@ -1269,7 +1272,7 @@ const musicController = {
   shuffleListenNextAlbum: async (req: Request, res: Response): Promise<void> => {
     try {
       const albumId = req.params.albumId as string;
-      const result = await smartPlaylistService.shuffleAlbum(parseInt(albumId, 10));
+      const result = await smartPlaylistService.shuffleAlbum(parseInt(albumId, 10), classicalChoiceOf(req.body?.classical));
       listenNextPlaylistService.schedule();
 
       // Get the updated Listen Next albums to return

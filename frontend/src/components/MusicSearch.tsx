@@ -23,7 +23,7 @@ import CoverButton from './shared/CoverButton';
 import { LeavingOverlay, ListenNextControls, ListenNextSummary, useListenNextPlay } from './ListenNextPlay';
 import { INSTEAD, ListenNextSwitch, MediumIcon, MoveButton, OtherListName, askStars, mediumOf, otherMedium } from './ListenNextLists';
 import { toast } from './shared/Toast';
-import type { ListenNextMedium } from '../services/musicService';
+import type { ClassicalChoice, ListenNextMedium } from '../services/musicService';
 import { listenNextQueue } from '../services/listenNextQueue';
 import { heldOf, keyOf, listenNextTitle } from '../utils/listenNextEntry';
 import CoverTag, { CoverTagStack } from './shared/CoverTag';
@@ -38,6 +38,7 @@ import {
   DIGITAL_ON_KEY, buyOrder, buyReason, isDismissed, isSuggested, isToBuy, useDigitalLibrary, type AlbumDigital,
 } from '../utils/digitalLibrary';
 import Button from './shared/Button';
+import Segmented from './shared/Segmented';
 import Notice from './shared/Notice';
 import Spinner, { Loading } from './shared/Spinner';
 import { asksMixtapes, asksNavidrome } from '../utils/musicSearchWords';
@@ -79,6 +80,10 @@ interface Album {
 
 /** Listen Next's list in sight, Digital or CD. */
 const NEXT_MEDIUM_KEY = 'dv.listenNext.medium';
+/** What Help me choose and the die draw: everything but classical, classical, or both. */
+const NEXT_CLASSICAL_KEY = 'dv.listenNext.classical';
+/** What a draw takes, said after "drawn from": in the die's tooltip and the word after a draw. */
+const DRAWN_FROM: Record<ClassicalChoice, string> = { pop: 'pop', classical: 'classical', both: 'the whole collection' };
 
 interface SmartFillResult {
   albums: Album[];
@@ -276,6 +281,14 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
 
   // Listen Next's list in sight, Digital or CD, kept from one visit to the next; the other at the foot, small.
   const [nextMedium, setNextMedium] = useState<ListenNextMedium>(() => (readStored(NEXT_MEDIUM_KEY) === 'cd' ? 'cd' : 'digital'));
+  const [nextClassical, setNextClassical] = useState<ClassicalChoice>(() => {
+    const stored = readStored(NEXT_CLASSICAL_KEY);
+    return stored === 'classical' || stored === 'both' ? stored : 'pop';
+  });
+  const chooseNextClassical = useCallback((choice: ClassicalChoice) => {
+    setNextClassical(choice);
+    writeStored(NEXT_CLASSICAL_KEY, choice);
+  }, []);
   const chooseNextMedium = useCallback((medium: ListenNextMedium) => {
     setNextMedium(medium);
     writeStored(NEXT_MEDIUM_KEY, medium);
@@ -359,23 +372,17 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     }
   }, [refreshListenNextAlbums, onShowAlert]);
 
-  // Smart fill Listen Next with suggested albums: from the CDs, or from anything with Digital on.
-  const handleSmartFill = useCallback(async (from: 'cds' | 'any' = 'cds') => {
+  // Smart fill Listen Next with suggested albums, drawn from any album: a CD or digital alone.
+  const handleSmartFill = useCallback(async () => {
     if (smartFillLoading) return;
 
     setSmartFillLoading(true);
     try {
-      const result = await musicService.smartFillListenNext(from) as SmartFillResult;
+      const result = await musicService.smartFillListenNext(nextClassical) as SmartFillResult;
       setListenNextAlbums(result.albums || []);
 
       if (result.added > 0 && onShowAlert) {
-        const messages = [
-          `🎲 Added ${result.added} album${result.added !== 1 ? 's' : ''} to your queue!`,
-          `🎵 ${result.added} fresh pick${result.added !== 1 ? 's' : ''} added!`,
-          `✨ Your queue is ready with ${result.added} new album${result.added !== 1 ? 's' : ''}!`,
-        ];
-        const message = messages[Math.floor(Math.random() * messages.length)];
-        onShowAlert(message, 'success');
+        onShowAlert(`🎲 Added ${result.added} album${result.added !== 1 ? 's' : ''}, drawn from ${DRAWN_FROM[nextClassical]}`, 'success');
       }
     } catch (error) {
       console.error('Error in smart fill:', error);
@@ -385,7 +392,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     } finally {
       setSmartFillLoading(false);
     }
-  }, [smartFillLoading, onShowAlert]);
+  }, [smartFillLoading, onShowAlert, nextClassical]);
 
   // Shuffle a specific album in Listen Next (replace with a new suggestion)
   const handleShuffleAlbum = useCallback(async (album: Album) => {
@@ -393,19 +400,13 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
 
     setShufflingAlbumId(album.id);
     try {
-      const result = await musicService.shuffleListenNextAlbum(album.id) as ShuffleResult;
+      const result = await musicService.shuffleListenNextAlbum(album.id, nextClassical) as ShuffleResult;
 
       if (result.success) {
         setListenNextAlbums(result.albums || []);
 
         if (onShowAlert) {
-          const messages = [
-            `🎲 Swapped for "${result.added?.title}"!`,
-            `🎲 New pick: "${result.added?.title}"`,
-            `✨ "${result.added?.title}" is up next!`,
-          ];
-          const message = messages[Math.floor(Math.random() * messages.length)];
-          onShowAlert(message, 'success');
+          onShowAlert(`🎲 Swapped for "${result.added?.title}", drawn from ${DRAWN_FROM[nextClassical]}`, 'success');
         }
       } else {
         if (onShowAlert) {
@@ -420,7 +421,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     } finally {
       setShufflingAlbumId(null);
     }
-  }, [shufflingAlbumId, onShowAlert]);
+  }, [shufflingAlbumId, onShowAlert, nextClassical]);
 
   // Handle search from App.js
   useEffect(() => {
@@ -1377,11 +1378,15 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           getImageUrl={(album) => getCoverUrl(album.cover) || ''}
           getTitle={(album) => album.title || ''}
           getSubtitle={(album) => Array.isArray(album.artist) ? album.artist.join(', ') : album.artist}
-          onSmartFill={nextMedium === 'digital' ? () => handleSmartFill('cds') : undefined}
-          smartFillLabel={{ label: 'From CDs', hint: 'your shelves' }}
-          smartFillAlso={digitalOn ? {
-            label: 'From anything', hint: 'CDs + digital', onClick: () => handleSmartFill('any'),
-          } : undefined}
+          // Only the streamed list draws, from any album: a CD or digital alone.
+          onSmartFill={nextMedium === 'digital' ? handleSmartFill : undefined}
+          smartFillFoot={(
+            <Segmented label="Draw from" size="sm" value={nextClassical} onChange={chooseNextClassical} options={[
+              { value: 'pop', label: 'Pop', tooltip: 'Everything but classical' },
+              { value: 'classical', label: 'Classical' },
+              { value: 'both', label: 'Both' },
+            ]} />
+          )}
           smartFillLoading={smartFillLoading}
           // One disc of an album: its number. With Digital on, what sets each album apart: a disc struck through is left out of the Navidrome playlist.
           renderBadges={(album) => {
@@ -1392,6 +1397,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
           onShuffle={nextMedium === 'digital' ? (item) => handleShuffleAlbum(item as Album) : undefined}
           // The die only on a disc a draw put there: one put by hand was chosen.
           canShuffle={(album) => Boolean(album.suggested)}
+          shuffleTitle={`Another album, drawn from ${DRAWN_FROM[nextClassical]}`}
           shufflingItemId={shufflingAlbumId}
           // An album leaving the list, played to its end, keeps its place: only those in it move.
           onReorder={handleListenNextReorder}

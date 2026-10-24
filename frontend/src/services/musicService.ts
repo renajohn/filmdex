@@ -1,5 +1,7 @@
 /** Listen Next's two lists: streamed (digital), and CDs to put on the player. */
 export type ListenNextMedium = 'digital' | 'cd';
+/** What a draw for Listen Next takes: everything but classical (pop), classical alone, or both. */
+export type ClassicalChoice = 'pop' | 'classical' | 'both';
 
 /** A cover an album missing one can take, as the server found it. */
 export interface CoverCandidate {
@@ -1056,14 +1058,14 @@ class MusicService {
    * Smart fill Listen Next with suggested albums based on collection distribution
    * and listening history
    */
-  /** Adds an album to Listen Next, picked from the CDs, or from anything: the digital albums too. */
-  async smartFillListenNext(from: 'cds' | 'any' = 'cds'): Promise<unknown> {
+  /** Adds an album to Listen Next, picked from any album (a CD or digital alone): classical, the rest, or both. */
+  async smartFillListenNext(classical: ClassicalChoice = 'pop'): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();
       const response = await fetch(`${baseUrl}/collections/listen-next/smart-fill`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from }),
+        body: JSON.stringify({ from: 'any', classical }),
       });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -1211,11 +1213,13 @@ class MusicService {
     return response.json();
   }
 
-  async shuffleListenNextAlbum(albumId: number | string): Promise<unknown> {
+  async shuffleListenNextAlbum(albumId: number | string, classical?: ClassicalChoice): Promise<unknown> {
     try {
       const baseUrl = await this.getBaseUrl();
       const response = await fetch(`${baseUrl}/collections/listen-next/shuffle/${albumId}`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classical }),
       });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

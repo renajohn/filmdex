@@ -37,13 +37,14 @@ interface NextBannerProps {
   /** Always-visible markers laid over each image (the hover overlay stays for title/meta). */
   renderBadges?: (item: NextBannerItem) => React.ReactNode;
   onSmartFill?: () => void;
-  /** A second way to choose: the card splits in two, onSmartFill's half on top with its label. */
-  smartFillAlso?: { label: string; hint: string; icon?: React.ReactNode; onClick: () => void };
-  smartFillLabel?: { label: string; hint: string; icon?: React.ReactNode };
   smartFillLoading?: boolean;
+  /** Under Help me choose, where a cover has its title: what a draw takes. */
+  smartFillFoot?: React.ReactNode;
   onShuffle?: (item: NextBannerItem) => void;
   /** Whether a card offers the die (all of them by default): one drawn, say, not one put there by hand. */
   canShuffle?: (item: NextBannerItem) => boolean;
+  /** The die's tooltip: what it draws from. */
+  shuffleTitle?: string;
   shufflingItemId?: number | null;
   /** A play button laid on each image, at its foot on the left. */
   renderPlay?: (item: NextBannerItem) => React.ReactNode;
@@ -198,11 +199,11 @@ const NextBanner: React.FC<NextBannerProps> = ({
   renderCover,
   renderBadges,
   onSmartFill,
-  smartFillAlso,
-  smartFillLabel,
   smartFillLoading = false,
+  smartFillFoot,
   onShuffle,
   canShuffle,
+  shuffleTitle = 'Replace with another suggestion',
   shufflingItemId = null,
   renderPlay,
   renderFootRight,
@@ -537,7 +538,7 @@ const NextBanner: React.FC<NextBannerProps> = ({
                   reveal={shufflingItemId === item.id ? 'always' : 'hover'}
                   onClick={(e) => handleShuffle(e, item)}
                   disabled={shufflingItemId !== null}
-                  title="Replace with another suggestion"
+                  title={shuffleTitle}
                   label="Another suggestion"
                 >
                   {shufflingItemId === item.id ? (
@@ -612,37 +613,12 @@ const NextBanner: React.FC<NextBannerProps> = ({
           ))}
 
           {/* "Help me choose" placeholder card */}
-          {showHelpMeChoose && smartFillAlso && (
-            // Two ways to choose, one above the other, each half its own button.
-            <div className={`next-banner__help-card next-banner__help-card--${type} next-banner__help-card--split ${smartFillLoading ? 'loading' : ''}`}>
-              {smartFillLoading ? (
-                <div className="next-banner__help-loading">
-                  <Spinner size="lg" />
-                  <span className="next-banner__help-loading-text">Choosing...</span>
-                </div>
-              ) : (
-                [
-                  { ...smartFillLabel!, onClick: onSmartFill! },
-                  smartFillAlso,
-                ].map(half => (
-                  <button key={half.label} type="button" className="next-banner__help-half" onClick={half.onClick} title={half.hint}>
-                    {half.icon && <span className="next-banner__help-half-icon" aria-hidden="true">{half.icon}</span>}
-                    <span className="next-banner__help-half-label">
-                      {half.label}
-                      <small>{half.hint}</small>
-                    </span>
-                    <span className="next-banner__help-icon" aria-hidden="true">+</span>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
-          {showHelpMeChoose && !smartFillAlso && (
+          {showHelpMeChoose && (
+            <div className="next-banner__help">
             <button
               className={`next-banner__help-card next-banner__help-card--${type} ${smartFillLoading ? 'loading' : ''}`}
               onClick={onSmartFill}
               disabled={smartFillLoading}
-              title="Get smart suggestions based on your collection"
             >
               {smartFillLoading ? (
                 <div className="next-banner__help-loading">
@@ -656,6 +632,8 @@ const NextBanner: React.FC<NextBannerProps> = ({
                 </>
               )}
             </button>
+            {smartFillFoot && <div className="next-banner__help-foot">{smartFillFoot}</div>}
+            </div>
           )}
         </div>
         </NextBannerDrop>

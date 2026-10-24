@@ -140,6 +140,36 @@ describe('Help me choose', () => {
     expect(pick).toHaveBeenLastCalledWith(false);
   });
 
+  it('tire hors du classique par défaut, dans le classique seul, ou dans les deux, et le dé suit le même choix', async () => {
+    jest.spyOn(listenNextPlaylistService, 'schedule').mockImplementation(() => undefined);
+    await insertAlbum(`Symphony ${tag()}`, 'owned', ['Classical']);
+    await insertAlbum(`Song ${tag()}`, 'owned', ['Rock']);
+    const select = jest.spyOn(smartPlaylistService, 'selectAlbumsWeighted');
+    const kindsDrawnFrom = () => new Set((select.mock.lastCall?.[0] ?? []).map(album => album.isClassical));
+
+    for (const [classical, kinds] of [[undefined, [false]], ['pop', [false]], ['classical', [true]], ['both', [false, true]]] as const) {
+      await emptyListenNext();
+      await request(app).post('/api/collections/listen-next/smart-fill').send({ classical }).expect(200);
+      expect([...kindsDrawnFrom()].sort()).toEqual(kinds);
+    }
+
+    const byHand = await insertAlbum(`By hand ${tag()}`, 'owned', ['Rock']);
+    await Album.toggleListenNext(byHand);
+    await request(app).post(`/api/collections/listen-next/shuffle/${byHand}`).send({ classical: 'classical' }).expect(200);
+    expect([...kindsDrawnFrom()]).toEqual([true]);
+
+
+    // Classical as the shelves tell it: "classical" beside "rock" in its tags is not.
+    const wall = await insertAlbum(`The Wall ${tag()}`, 'owned', ['classical', 'progressive rock']);
+    const drawnFrom = () => (select.mock.lastCall?.[0] ?? []).map(album => album.id);
+    await emptyListenNext();
+    await request(app).post('/api/collections/listen-next/smart-fill').send({ classical: 'classical' }).expect(200);
+    expect(drawnFrom()).not.toContain(wall);
+    await emptyListenNext();
+    await request(app).post('/api/collections/listen-next/smart-fill').send({ classical: 'pop' }).expect(200);
+    expect(drawnFrom()).toContain(wall);
+  });
+
   it('marque les disques tirés, ceux de Help me choose et du dé, pas ceux mis à la main', async () => {
     jest.spyOn(listenNextPlaylistService, 'schedule').mockImplementation(() => undefined);
     for (let i = 0; i < 3; i++) await insertAlbum(`Pick ${tag()}`);

@@ -495,6 +495,19 @@
 }
 
 /* "Help me choose" Placeholder Card */
+/* Help me choose, and under it, where a cover has its title, what a draw takes. */
+.next-banner__help {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.next-banner__help-foot {
+  padding-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
 .next-banner__help-card {
   flex-shrink: 0;
   width: 180px;
@@ -969,69 +982,6 @@
   right: 8px;
   bottom: 8px;
   z-index: 11;
-}
-
-/* Help me choose in two, one way above the other: from the CDs, from anything. */
-.next-banner__help-card--split {
-  gap: 0;
-  padding: 0;
-  overflow: hidden;
-  cursor: default;
-}
-
-.next-banner__help-card--split:hover:not(:disabled) {
-  transform: none;
-  background: transparent;
-  box-shadow: none;
-}
-
-.next-banner__help-half {
-  flex: 1;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  background: none;
-  border: 0;
-  color: rgba(251, 191, 36, 0.85);
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-.next-banner__help-half + .next-banner__help-half {
-  border-top: 2px dashed rgba(251, 191, 36, 0.4);
-}
-
-.next-banner__help-half:hover,
-.next-banner__help-half:focus-visible {
-  background: rgba(251, 191, 36, 0.1);
-  color: var(--dv-gold);
-}
-
-.next-banner__help-half-icon {
-  font-size: 1.2rem;
-  display: inline-flex;
-  gap: 2px;
-}
-
-.next-banner__help-half-label {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  line-height: 1.2;
-  font-size: 0.9rem;
-  font-weight: 500;
-  text-align: left;
-}
-
-.next-banner__help-half-label small {
-  color: #a3a3a3;
-  font-size: 0.72rem;
-  font-weight: 400;
-}
-
-.next-banner__help-half .next-banner__help-icon {
-  font-size: 1.5rem;
 }
 
 /* A banner of a list in silver (Listen Next's CDs): its tint, its title and its icon. */

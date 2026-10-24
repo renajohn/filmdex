@@ -2,6 +2,7 @@ import { getDatabase } from '../database';
 import PlaylistHistory from '../models/playlistHistory';
 import Collection from '../models/collection';
 import AlbumCollection from '../models/albumCollection';
+import Album from '../models/album';
 import logger from '../logger';
 
 const ALBUMS_PER_SUGGESTION = 1;
@@ -15,6 +16,15 @@ interface AlbumForSelection {
   genres: string[];
   isClassical: boolean;
 }
+
+/** What a draw takes: everything but classical (pop), classical alone, or both. */
+export type ClassicalChoice = 'pop' | 'classical' | 'both';
+
+export const classicalChoiceOf = (value: unknown): ClassicalChoice | undefined =>
+  value === 'pop' || value === 'classical' || value === 'both' ? value : undefined;
+
+const fits = (album: AlbumForSelection, choice: ClassicalChoice): boolean =>
+  choice === 'both' || album.isClassical === (choice === 'classical');
 
 interface CollectionRecord {
   id: number;
@@ -121,7 +131,9 @@ const smartPlaylistService = {
   /**
    * Get all albums with their artists and genres for selection
    */
-  getAllAlbumsForSelection: (withDigital = false): Promise<AlbumForSelection[]> => {
+  getAllAlbumsForSelection: async (withDigital = false): Promise<AlbumForSelection[]> => {
+    // Classical as the shelves tell it: not The Wall, whose tags say "classical" beside "rock".
+    const classical = new Set((await Album.search('classical:yes', { withNoCd: withDigital })).map(album => album.id));
     return new Promise((resolve, reject) => {
       const db = getDatabase();
       const sql = `
@@ -154,7 +166,7 @@ const smartPlaylistService = {
               cover: row.cover,
               artists,
               genres,
-              isClassical: genres.some(g => g && g.toLowerCase() === 'classical')
+              isClassical: classical.has(row.id)
             };
           });
           resolve(albums);
@@ -163,31 +175,9 @@ const smartPlaylistService = {
     });
   },
 
-  /**
-   * Check if an album is classical based on its genres
-   */
-  isAlbumClassical: (albumId: number): Promise<boolean> => {
-    return new Promise((resolve, reject) => {
-      const db = getDatabase();
-      const sql = `SELECT genres FROM albums WHERE id = ?`;
-      db.get(sql, [albumId], (err: Error | null, row: { genres: string | null } | undefined) => {
-        if (err) {
-          reject(err);
-        } else if (!row) {
-          resolve(false);
-        } else {
-          try {
-            const genres = JSON.parse(row.genres || '[]') as string[];
-            const isClassical = Array.isArray(genres) &&
-              genres.some(g => g && g.toLowerCase() === 'classical');
-            resolve(isClassical);
-          } catch (_e) {
-            resolve(false);
-          }
-        }
-      });
-    });
-  },
+  /** Whether an album is classical, as the shelves tell it. */
+  isAlbumClassical: async (albumId: number): Promise<boolean> =>
+    (await Album.search('classical:yes', { withNoCd: true })).some(album => album.id === albumId),
 
   /**
    * Get current Listen Next album IDs
@@ -259,7 +249,7 @@ const smartPlaylistService = {
   /**
    * Smart fill the Listen Next playlist
    */
-  smartFillListenNext: async ({ withDigital = false }: { withDigital?: boolean } = {}): Promise<SmartFillResult> => {
+  smartFillListenNext: async ({ withDigital = false, classical = 'pop' }: { withDigital?: boolean; classical?: ClassicalChoice } = {}): Promise<SmartFillResult> => {
     try {
       await ensureTableExists();
 
@@ -273,12 +263,12 @@ const smartPlaylistService = {
       ]);
 
       let candidates = allAlbums.filter(album =>
-        !excludeIds.has(album.id) && !album.isClassical
+        !excludeIds.has(album.id) && fits(album, classical)
       );
 
       if (candidates.length < ALBUMS_PER_SUGGESTION) {
         candidates = allAlbums.filter(album =>
-          !currentIds.includes(album.id) && !album.isClassical
+          !currentIds.includes(album.id) && fits(album, classical)
         );
       }
 
@@ -365,31 +355,34 @@ const smartPlaylistService = {
   /**
    * Shuffle a specific album in Listen Next - replace it with a new suggestion
    */
-  shuffleAlbum: async (albumIdToReplace: number): Promise<ShuffleResult> => {
+  /** With a choice, the new one is of it; without, of the same kind as the one replaced (classical or not). */
+  shuffleAlbum: async (albumIdToReplace: number, choice?: ClassicalChoice): Promise<ShuffleResult> => {
     try {
       await ensureTableExists();
 
-      const isClassical = await smartPlaylistService.isAlbumClassical(albumIdToReplace);
+      const classical: ClassicalChoice = choice
+        ?? (await smartPlaylistService.isAlbumClassical(albumIdToReplace) ? 'classical' : 'pop');
       const currentIds = await smartPlaylistService.getCurrentListenNextIds();
       const recentSuggestions = await PlaylistHistory.getRecentSuggestions(RECENT_SUGGESTION_DAYS) as number[];
       const excludeIds = new Set<number>([...currentIds, ...recentSuggestions]);
 
       const [allAlbums, artistDistribution] = await Promise.all([
-        smartPlaylistService.getAllAlbumsForSelection(),
+        smartPlaylistService.getAllAlbumsForSelection(true),
         smartPlaylistService.getArtistDistribution()
       ]);
 
       let candidates = allAlbums.filter(album =>
-        !excludeIds.has(album.id) && album.isClassical === isClassical
+        !excludeIds.has(album.id) && fits(album, classical)
       );
 
       if (candidates.length === 0) {
         candidates = allAlbums.filter(album =>
-          !currentIds.includes(album.id) && album.isClassical === isClassical
+          !currentIds.includes(album.id) && fits(album, classical)
         );
       }
 
-      if (candidates.length === 0) {
+      // Of any kind only when none was asked for.
+      if (candidates.length === 0 && !choice) {
         candidates = allAlbums.filter(album => !currentIds.includes(album.id));
       }
 
