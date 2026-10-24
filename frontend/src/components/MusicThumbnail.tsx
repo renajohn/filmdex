@@ -12,7 +12,7 @@ import CoverTag, { CoverTagStack } from './shared/CoverTag';
 import { isMixtape, mixtapeArtists } from '../utils/mixtape';
 import type { AlbumDigital } from '../utils/digitalLibrary';
 import { listenAlbumById } from '../utils/playAlbum';
-import { thumbProps } from '../utils/thumb';
+import { coverReady, thumbProps } from '../utils/thumb';
 
 interface CdData {
   id: number | string;
@@ -108,7 +108,8 @@ const MusicThumbnail: React.FC<MusicThumbnailProps> = ({ cd, onClick, onListenNe
             loading="lazy"
             decoding="async"
             alt={`${cd.title} cover`}
-            className="music-thumbnail-image"
+            className="music-thumbnail-image cover-img"
+            onLoad={coverReady}
             onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
               const target = e.target as HTMLImageElement;
               target.style.display = 'none';

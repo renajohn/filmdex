@@ -23,6 +23,8 @@ import Dialog from './shared/Dialog';
 import { ConfirmDialog } from './shared/ConfirmDialog';
 import { TextField } from './shared/TextField';
 import Spinner, { Loading } from './shared/Spinner';
+import { useKeptState } from '../utils/kept';
+import Progressive from './shared/Progressive';
 
 interface BookSearchProps {
   books: any;
@@ -110,8 +112,9 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
   defaultTitleStatus,
   viewSwitch
 }, ref) => {
-  const [allBooks, setAllBooks] = useState<Book[]>([]);
-  const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
+  // Kept for the session, as the page's books: the grid drawn at once on coming back.
+  const [allBooks, setAllBooks] = useKeptState<Book[]>('bookdex:allBooks', []);
+  const [filteredBooks, setFilteredBooks] = useKeptState<Book[]>('bookdex:filteredBooks', []);
   // Load sort preference from localStorage, default to 'series'
   const [sortBy, setSortBy] = useState(() => {
     const savedSort = readStored('dexvault-bookdex-sort');
@@ -122,7 +125,7 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
   const [groupLoading, setGroupLoading] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
   const [expandAllGroups, setExpandAllGroups] = useState(false);
-  const [bookCount, setBookCount] = useState({ filtered: 0, total: 0 });
+  const [bookCount, setBookCount] = useKeptState('bookdex:bookCount', { filtered: 0, total: 0 });
   const [expandedSeries, setExpandedSeries] = useState<string | null>(() => {
     // Restore expanded series from sessionStorage on mount
     const saved = sessionStorage.getItem('bookSearchExpandedSeries');
@@ -174,17 +177,10 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
 
   // Ref and state for scroll container (for alphabetical index)
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [scrollContainer, setScrollContainer] = useState<HTMLElement | null>(null);
+  // The page scrolls as a whole: the alphabetical index follows the document, known from the first render
+  // (found in an effect, it drew the whole grid a second time as the section opened).
+  const scrollContainer: HTMLElement = document.documentElement;
 
-  // Set scroll container once component mounts
-  useEffect(() => {
-    const mainContent = scrollContainerRef.current?.closest('.app-main-content') as HTMLElement | null;
-    if (mainContent) {
-      setScrollContainer(mainContent);
-    } else {
-      setScrollContainer(document.documentElement);
-    }
-  }, []);
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
@@ -1296,7 +1292,7 @@ const BookSearch = forwardRef<any, BookSearchProps>(({
 
       return (
         <div className={`book-grid ${sortLoading ? 'sort-loading' : ''} ${expandedSeries ? 'has-expanded' : ''}`}>
-          {items}
+          <Progressive>{items}</Progressive>
         </div>
       );
     }

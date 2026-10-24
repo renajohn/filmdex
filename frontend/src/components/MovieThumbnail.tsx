@@ -4,7 +4,7 @@ import PosterModal from './PosterModal';
 import AgeDisplay from './AgeDisplay';
 import './MovieThumbnail.css';
 import CoverTag from './shared/CoverTag';
-import { thumbProps } from '../utils/thumb';
+import { coverReady, thumbProps } from '../utils/thumb';
 
 interface MovieThumbnailProps {
   imdbLink?: string;
@@ -96,7 +96,8 @@ const MovieThumbnail: React.FC<MovieThumbnailProps> = ({ imdbLink, title, year, 
     }
   };
 
-  const handleImageLoad = () => {
+  const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    coverReady(event);
     setError(null);
   };
 
@@ -136,7 +137,7 @@ const MovieThumbnail: React.FC<MovieThumbnailProps> = ({ imdbLink, title, year, 
           onError={handleImageError}
           onLoad={handleImageLoad}
           onClick={!disableZoom ? handleThumbnailClick : undefined}
-          className={`thumbnail-image ${!disableZoom ? 'clickable' : 'no-pointer-events'}`}
+          className={`thumbnail-image cover-img ${!disableZoom ? 'clickable' : 'no-pointer-events'}`}
           style={disableZoom ? { pointerEvents: 'none' } : undefined}
         />
         {recommendedAge !== null && recommendedAge !== undefined && (

@@ -18,7 +18,9 @@ import './FilmDexPage.css';
 import { readStored, writeStored } from '../utils/safeStorage';
 import { findById, shownIds, useDetailSteps, type Id } from '../utils/detailSteps';
 import { movieImages } from '../utils/detailImages';
+import { isKept, useKeptState } from '../utils/kept';
 import Button, { IconButton } from './shared/Button';
+import Progressive from './shared/Progressive';
 
 export interface FilmDexPageRef {
   refreshMovies: () => void;
@@ -45,11 +47,12 @@ interface GroupOption {
 }
 
 const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigger, searchCriteria, loading, setLoading, onShowAlert, onAddMovie, onSearch }, ref) => {
-  const [movies, setMovies] = useState<any[]>([]);
-  const [allMovies, setAllMovies] = useState<any[]>([]); // Store all movies from backend
+  // Kept for the session: coming back to FilmDex draws its posters at once, then reads again.
+  const [movies, setMovies] = useKeptState<any[]>('filmdex:movies', []);
+  const [allMovies, setAllMovies] = useKeptState<any[]>('filmdex:allMovies', []); // Store all movies from backend
   const allMoviesRef = useRef<any[]>([]);
   allMoviesRef.current = allMovies;
-  const [filteredMovies, setFilteredMovies] = useState<any[]>([]); // Store filtered movies
+  const [filteredMovies, setFilteredMovies] = useKeptState<any[]>('filmdex:filteredMovies', []); // Store filtered movies
   // Load sort preference from localStorage, default to 'title'
   const [sortBy, setSortBy] = useState(() => {
     const savedSort = readStored('dexvault-filmdex-sort');
@@ -76,19 +79,10 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
 
   // Ref for scroll container (for alphabetical index)
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [scrollContainer, setScrollContainer] = useState<HTMLElement | null>(null);
+  // The page scrolls as a whole: the alphabetical index follows the document, known from the first render
+  // (found in an effect, it drew the whole grid a second time as the section opened).
+  const scrollContainer: HTMLElement = document.documentElement;
 
-  // Set scroll container once component mounts
-  useEffect(() => {
-    // Try to find the main scrollable container
-    const mainContent = scrollContainerRef.current?.closest('.app-main-content') as HTMLElement | null;
-    if (mainContent) {
-      setScrollContainer(mainContent);
-    } else {
-      // Fallback to document.documentElement for window scrolling
-      setScrollContainer(document.documentElement);
-    }
-  }, []);
 
   // Keep letter logic consistent with AlphabeticalIndex (handles FR/EN leading articles)
   const removeArticlesForIndex = useCallback((text: string) => {
@@ -154,12 +148,15 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
   const sortMovies = useCallback((items: any[], sortOption: string) =>
     bestMatch.order(sortMoviesBy(items, sortOption)), [sortMoviesBy, bestMatch.order]);
 
-  const loadAllMovies = useCallback(async () => {
+  // `quiet`: the movies already on screen stay until the answer, without "Loading".
+  const loadAllMovies = useCallback(async ({ quiet = false }: { quiet?: boolean } = {}) => {
     try {
-      setLoading(true);
+      if (!quiet) setLoading(true);
       const data = await apiService.getAllMovies() as any[];
 
       setAllMovies(data);
+      // A search shown stays: the search's own answer comes after.
+      if (quiet && searchCriteria?.searchText?.trim()) return;
       setFilteredMovies(data);
       // Apply current sort to all movies
       const sorted = sortMovies(data, sortBy);
@@ -179,10 +176,10 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
         onShowAlert('Failed to load movies: ' + (err as Error).message, 'danger');
       }
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortBy, selectedMovieDetails?.id]);
+  }, [sortBy, selectedMovieDetails?.id, searchCriteria?.searchText]);
 
   // Refresh only Watch Next movies
   const refreshWatchNextMovies = useCallback(async () => {
@@ -296,7 +293,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
 
   // Initial load on mount
   useEffect(() => {
-    loadAllMovies();
+    loadAllMovies({ quiet: isKept('filmdex:allMovies') });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount
 
@@ -880,7 +877,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
   };
 
   // Get Watch Next movies for banner (already sorted by API)
-  const [watchNextMovies, setWatchNextMovies] = useState<any[]>([]);
+  const [watchNextMovies, setWatchNextMovies] = useKeptState<any[]>('filmdex:watchNext', []);
   const [showWatchedPrompt, setShowWatchedPrompt] = useState(false);
   const [promptMovie, setPromptMovie] = useState<any>(null); // Store full movie object for prompt
 
@@ -997,7 +994,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
             {/* Movies Grid - Grouped or Ungrouped */}
             {groupBy === 'none' ? (
               <div className={`movies-grid movies-grid-large ${sortLoading ? 'sort-loading' : ''}`}>
-                {(() => {
+                <Progressive>{(() => {
                   // Check if box set stacking should be used
                   const shouldUseStack = stackEnabled;
                   const hasActiveFilter = searchCriteria?.searchText?.trim();
@@ -1167,7 +1164,7 @@ const FilmDexPage = forwardRef<FilmDexPageRef, FilmDexPageProps>(({ refreshTrigg
                       return renderMovieCardLarge(movie, true, letter);
                     });
                   }
-                })()}
+                })()}</Progressive>
               </div>
             ) : (
               <div className={`movies-groups ${sortLoading || groupLoading ? 'sort-loading' : ''}`}>

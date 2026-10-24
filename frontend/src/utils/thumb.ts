@@ -33,3 +33,8 @@ export const thumbProps = (url: string, width = 240): { src: string; srcSet?: st
   isResizable(url)
     ? { src: thumbUrl(url, width), srcSet: `${thumbUrl(url, width)} 1x, ${thumbUrl(url, width * 2)} 2x` }
     : { src: url };
+
+/** A cover loaded: its waiting sheen stops (`img.cover-img` in shared/cover.css). */
+export const coverReady = (event: { currentTarget: HTMLImageElement }): void => {
+  event.currentTarget.dataset.ready = '';
+};

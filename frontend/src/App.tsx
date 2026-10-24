@@ -510,53 +510,24 @@ function AppContent() {
     }
   }, [location.search, navigate, location.pathname]);
 
-  // Track current product to avoid saving when navigating
-  const currentProductRef = useRef<string | null>(getProductFromPath(location.pathname));
-  const isRestoringRef = useRef<boolean>(false);
+  // The same words kept as they are: a section opened with the search it had is not drawn twice.
+  const setSearchText = (searchText: string) =>
+    setSearchCriteria(previous => (previous.searchText === searchText ? previous : { searchText }));
 
-  // Save search to localStorage when it changes (per product)
-  // Only save if not currently restoring from navigation
+  // The section the search belongs to. Arriving in another, its own search comes back in the
+  // same render (the address's ?search= first, else the one it had): its page is drawn once,
+  // with its search, not first with the last section's, then again with its own.
+  const [searchProduct, setSearchProduct] = useState<string | null>(product);
+  if (product !== searchProduct) {
+    setSearchProduct(product);
+    const asked = new URLSearchParams(location.search).get('search');
+    setSearchText(asked || (product ? readStored(`dexvault-${product}-search`) || '' : ''));
+  }
+
+  // Save the search, per section, to the section it belongs to.
   useEffect(() => {
-    if (isRestoringRef.current) {
-      return; // Don't save during restoration
-    }
-    const product = currentProductRef.current;
-    if (product) {
-      writeStored(`dexvault-${product}-search`, searchCriteria.searchText || '');
-    }
-  }, [searchCriteria.searchText]);
-
-  // Restore search from localStorage when navigating between pages
-  useEffect(() => {
-    const previousProduct = currentProductRef.current;
-    const newProduct = getProductFromPath(location.pathname);
-
-    // Update the current product ref
-    currentProductRef.current = newProduct;
-
-    // Only restore/update search when product actually changes
-    if (previousProduct !== newProduct) {
-      isRestoringRef.current = true;
-
-      // If there's a URL search param, use that
-      if (location.search) {
-        const params = new URLSearchParams(location.search);
-        const searchParam = params.get('search');
-        if (searchParam) setSearchCriteria({ searchText: searchParam });
-      } else if (newProduct) {
-        // Otherwise restore from localStorage for this product
-        const savedText = readStored(`dexvault-${newProduct}-search`) || '';
-        setSearchCriteria({ searchText: savedText });
-      } else {
-        setSearchCriteria({ searchText: '' });
-      }
-
-      // Reset the restoring flag after a tick
-      setTimeout(() => {
-        isRestoringRef.current = false;
-      }, 0);
-    }
-  }, [location.pathname, location.search]);
+    if (searchProduct) writeStored(`dexvault-${searchProduct}-search`, searchCriteria.searchText || '');
+  }, [searchCriteria.searchText, searchProduct]);
 
   // Check for backfill on app startup
   useEffect(() => {

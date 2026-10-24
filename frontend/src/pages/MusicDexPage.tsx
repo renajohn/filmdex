@@ -7,6 +7,7 @@ import AttachCdDialog, { type AttachableAlbum } from '../components/AttachCdDial
 import { IconButton } from '../components/shared/Button';
 import { BsX } from 'react-icons/bs';
 import { toast, toneOf } from '../components/shared/Toast';
+import { isKept, useKeptState } from '../utils/kept';
 
 const MusicSearchComponent: any = MusicSearch;
 
@@ -21,7 +22,8 @@ export interface MusicDexPageRef {
 const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCriteria }, ref) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [cds, setCds] = useState<any[]>([]);
+  // Kept for the session: coming back to MusicDex draws its covers at once, then reads again.
+  const [cds, setCds] = useKeptState<any[]>('musicdex:cds', []);
   const [loading, setLoading] = useState(false);
   const musicSearchRef = useRef<any>(null);
   // A CD about to be added that DexVault has as files or wished: which album to make the CD of.
@@ -96,15 +98,17 @@ const MusicDexPage = forwardRef<MusicDexPageRef, MusicDexPageProps>(({ searchCri
   };
 
   const loadCds = async () => {
+    // The albums already on screen stay until the answer, without "Loading".
+    const quiet = isKept('musicdex:cds');
     try {
-      setLoading(true);
+      if (!quiet) setLoading(true);
       const data = await musicService.getAlbumsByStatus('owned') as any[];
       setCds(data);
     } catch (error) {
       console.error('Error loading albums:', error);
       showAlertMessage('Failed to load albums: ' + (error as Error).message, 'danger');
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   };
 

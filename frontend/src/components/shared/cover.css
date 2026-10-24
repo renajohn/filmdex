@@ -220,3 +220,26 @@
   .cover-tag:not(.cover-tag--on) { background: rgba(0, 0, 0, 0.8); }
   .cover-button:not(.cover-button--on) { background: rgba(0, 0, 0, 0.76); }
 }
+
+/*
+ * A cover on its way: a sheen passes over its place, so that a page drawn
+ * shows at once whole, its covers coming in one by one, never a hole. The
+ * image paints over it; once loaded (`data-ready`, coverReady in thumb.ts)
+ * the sheen stops, not to paint again a whole grid of covers in sight.
+ */
+img.cover-img:not([data-ready]) {
+  background-color: #262626;
+  background-image: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.07) 50%, transparent 65%);
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  animation: cover-wait 1.6s ease-in-out infinite;
+}
+
+@keyframes cover-wait {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  img.cover-img:not([data-ready]) { animation: none; }
+}

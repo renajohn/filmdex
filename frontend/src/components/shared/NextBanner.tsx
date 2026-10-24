@@ -12,7 +12,7 @@ import ShelfCode from './ShelfCode';
 import CoverButton from './CoverButton';
 import './shared.css';
 import Spinner from './Spinner';
-import { thumbProps } from '../../utils/thumb';
+import { coverReady, thumbProps } from '../../utils/thumb';
 
 interface NextBannerItem {
   id: number;
@@ -557,6 +557,8 @@ const NextBanner: React.FC<NextBannerProps> = ({
                   <img
                     {...thumbProps(getImageUrl(item)!)}
                     decoding="async"
+                    className="cover-img"
+                    onLoad={coverReady}
                     alt={getTitle ? getTitle(item) : ''}
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';

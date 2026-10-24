@@ -41,6 +41,8 @@ import Button from './shared/Button';
 import Notice from './shared/Notice';
 import Spinner, { Loading } from './shared/Spinner';
 import { asksMixtapes, asksNavidrome } from '../utils/musicSearchWords';
+import { isKept, useKeptState } from '../utils/kept';
+import Progressive from './shared/Progressive';
 
 interface MusicSearchProps {
   cds: any;
@@ -111,8 +113,9 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   refreshTrigger,
   searchCriteria
 }, ref) => {
-  const [allCds, setAllCds] = useState<Album[]>([]);
-  const [filteredCds, setFilteredCds] = useState<Album[]>([]);
+  // Kept for the session, as the page's albums: the grid and its banner drawn at once on coming back.
+  const [allCds, setAllCds] = useKeptState<Album[]>('musicdex:allCds', []);
+  const [filteredCds, setFilteredCds] = useKeptState<Album[]>('musicdex:filteredCds', []);
   // Load sort preference from localStorage, default to 'title'
   const [sortBy, setSortBy] = useState(() => {
     const savedSort = readStored('dexvault-musicdex-sort');
@@ -133,7 +136,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const [groupLoading, setGroupLoading] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
   const [expandAllGroups, setExpandAllGroups] = useState(false);
-  const [cdCount, setCdCount] = useState({ filtered: 0, total: 0 });
+  const [cdCount, setCdCount] = useKeptState('musicdex:cdCount', { filtered: 0, total: 0 });
   const [showAddForm, setShowAddForm] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addingAlbum, setAddingAlbum] = useState(false);
@@ -150,7 +153,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const previousSearchTextRef = useRef('');
   const navigate = useNavigate();
   const location = useLocation();
-  const [listenNextAlbums, setListenNextAlbums] = useState<Album[]>([]);
+  const [listenNextAlbums, setListenNextAlbums] = useKeptState<Album[]>('musicdex:listenNext', []);
   const [smartFillLoading, setSmartFillLoading] = useState(false);
   const [shufflingAlbumId, setShufflingAlbumId] = useState<number | null>(null);
 
@@ -172,23 +175,16 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
   const [buying, setBuying] = useState<any>(null);
   const digital = useDigitalLibrary(digitalOn);
   // The wishes and digital albums, those Navidrome has joining the grid.
-  const [extraCds, setExtraCds] = useState<Album[]>([]);
+  const [extraCds, setExtraCds] = useKeptState<Album[]>('musicdex:extraCds', []);
   // With Digital on, what a search finds among the CDs and the albums with no CD, its keywords and all.
   const [hybridFound, setHybridFound] = useState<Album[] | null>(null);
 
   // Ref and state for scroll container (for alphabetical index)
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [scrollContainer, setScrollContainer] = useState<HTMLElement | null>(null);
+  // The page scrolls as a whole: the alphabetical index follows the document, known from the first render
+  // (found in an effect, it drew the whole grid a second time as the section opened).
+  const scrollContainer: HTMLElement = document.documentElement;
 
-  // Set scroll container once component mounts
-  useEffect(() => {
-    const mainContent = scrollContainerRef.current?.closest('.app-main-content') as HTMLElement | null;
-    if (mainContent) {
-      setScrollContainer(mainContent);
-    } else {
-      setScrollContainer(document.documentElement);
-    }
-  }, []);
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
@@ -258,7 +254,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
 
   // Load Listen Next albums
   // The banner shows once its lists are read: not first empty, then grown.
-  const [listenNextRead, setListenNextRead] = useState(false);
+  const [listenNextRead, setListenNextRead] = useState(() => isKept('musicdex:listenNext'));
   const refreshListenNextAlbums = useCallback(async () => {
     try {
       const albums = await musicService.getListenNextAlbums() as Album[];
@@ -1184,7 +1180,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
     if (groupBy === 'none') {
       return (
         <div className={`cd-grid ${sortLoading ? 'sort-loading' : ''}`}>
-          {shownCds.map((cd) => {
+          <Progressive>{shownCds.map((cd) => {
             // Use artist name for letter tracking when sorting by artist
             const letter = letterOf(cd);
 
@@ -1202,7 +1198,7 @@ const MusicSearch = forwardRef<any, MusicSearchProps>(({
                 digital={digitalOn ? digitalOf(cd) : undefined}
               />
             );
-          })}
+          })}</Progressive>
         </div>
       );
     }

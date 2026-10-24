@@ -5,7 +5,7 @@ import bookService from '../services/bookService';
 import './BookThumbnail.css';
 import CoverButton from './shared/CoverButton';
 import CoverTag, { CoverTagStack } from './shared/CoverTag';
-import { thumbProps } from '../utils/thumb';
+import { coverReady, thumbProps } from '../utils/thumb';
 
 interface BookData {
   id: number | string;
@@ -256,7 +256,8 @@ const BookThumbnail: React.FC<BookThumbnailProps> = ({ book, onClick, onEdit, on
             loading="lazy"
             decoding="async"
             alt={`${book.title} cover`}
-            className="book-thumbnail-image"
+            className="book-thumbnail-image cover-img"
+            onLoad={coverReady}
             onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
               const target = e.target as HTMLImageElement;
               target.style.display = 'none';

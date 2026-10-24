@@ -7,6 +7,7 @@ import { BsX } from 'react-icons/bs';
 import { toast, toneOf } from '../components/shared/Toast';
 import Segmented from '../components/shared/Segmented';
 import ReadingJournal from '../components/ReadingJournal';
+import { isKept, useKeptState } from '../utils/kept';
 
 type BookDexView = 'library' | 'reading';
 const VIEW = 'dv.bookdexView';
@@ -24,7 +25,8 @@ export interface BookDexPageRef {
 
 const BookDexPage = forwardRef<BookDexPageRef, BookDexPageProps>(({ searchCriteria }, ref) => {
   const location = useLocation();
-  const [books, setBooks] = useState<any[]>([]);
+  // Kept for the session: coming back to BookDex draws its covers at once, then reads again.
+  const [books, setBooks] = useKeptState<any[]>('bookdex:books', []);
   const [loading, setLoading] = useState(false);
   const bookSearchRef = useRef<any>(null);
   // The shelves at home, or what one has read (one's own or borrowed): two views of the books.
@@ -69,8 +71,10 @@ const BookDexPage = forwardRef<BookDexPageRef, BookDexPageProps>(({ searchCriter
   };
 
   const loadBooks = async () => {
+    // The books already on screen stay until the answer, without "Loading".
+    const quiet = isKept('bookdex:books');
     try {
-      setLoading(true);
+      if (!quiet) setLoading(true);
       // getAllBooks() now returns both 'owned' and 'borrowed' books (excludes 'wish')
       const data = await bookService.getAllBooks() as any[];
       setBooks(data);
@@ -78,7 +82,7 @@ const BookDexPage = forwardRef<BookDexPageRef, BookDexPageProps>(({ searchCriter
       console.error('Error loading books:', error);
       showAlertMessage('Failed to load books: ' + (error as Error).message, 'danger');
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   };
 
